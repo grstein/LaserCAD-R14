@@ -95,6 +95,14 @@
       if (LaserCAD.tools.circleTool)   LaserCAD.tools.toolManager.register('circle',   LaserCAD.tools.circleTool);
       if (LaserCAD.tools.arcTool)      LaserCAD.tools.toolManager.register('arc',      LaserCAD.tools.arcTool);
       if (LaserCAD.tools.moveTool)     LaserCAD.tools.toolManager.register('move',     LaserCAD.tools.moveTool);
+      if (LaserCAD.tools.trimTool)     LaserCAD.tools.toolManager.register('trim',     LaserCAD.tools.trimTool);
+      if (LaserCAD.tools.extendTool)   LaserCAD.tools.toolManager.register('extend',   LaserCAD.tools.extendTool);
+      if (LaserCAD.io.autosave) {
+        LaserCAD.io.autosave.init();
+        if (LaserCAD.io.autosave.restore()) {
+          LaserCAD.render.entityRenderers.renderAll(svgRoot, LaserCAD.app.state);
+        }
+      }
       LaserCAD.app.shortcuts.attach(window);                                        // 17
 
       wireResizeObserver(svgRoot);                                                  // 18

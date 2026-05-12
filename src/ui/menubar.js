@@ -5,9 +5,15 @@
     {
       label: 'File',
       items: [
-        { label: 'New',         shortcut: 'Ctrl+N', disabled: true },
-        { label: 'Open…',       shortcut: 'Ctrl+O', disabled: true },
-        { label: 'Save SVG…',   shortcut: 'Ctrl+S', disabled: true }
+        { label: 'New',           shortcut: 'Ctrl+N', action: function () {
+          const state = LaserCAD.app.state;
+          state.entities.length = 0; state.selection.length = 0;
+          if (LaserCAD.io.autosave) LaserCAD.io.autosave.clear();
+          refreshAll();
+        } },
+        { label: 'Save SVG (cut)…',     shortcut: 'Ctrl+S', action: function () { exportPreset('cut'); } },
+        { label: 'Save SVG (mark)…',    action: function () { exportPreset('mark'); } },
+        { label: 'Save SVG (engrave)…', action: function () { exportPreset('engrave'); } }
       ]
     },
     {
@@ -43,8 +49,8 @@
     { label: 'Modify', items: [
       { label: 'Select (S)',  shortcut: 'S', action: function () { req('select'); } },
       { label: 'Move (M)',    shortcut: 'M', action: function () { req('move'); } },
-      { label: 'Trim (T)',    shortcut: 'T', disabled: true },
-      { label: 'Extend (E)',  shortcut: 'E', disabled: true }
+      { label: 'Trim (T)',    shortcut: 'T', action: function () { req('trim'); } },
+      { label: 'Extend (E)',  shortcut: 'E', action: function () { req('extend'); } }
     ] },
     { label: 'Help',   items: [
       { label: 'About LaserCAD R14', action: function () {
@@ -65,6 +71,11 @@
   function refreshAll() {
     const sr = LaserCAD.tools.toolManager && LaserCAD.tools.toolManager.getSvgRoot();
     if (sr) LaserCAD.render.entityRenderers.renderAll(sr, LaserCAD.app.state);
+  }
+  function exportPreset(preset) {
+    if (!(LaserCAD.io && LaserCAD.io.exportSvg && LaserCAD.io.fileDownload)) return;
+    const svg = LaserCAD.io.exportSvg.serialize(LaserCAD.app.state, { preset: preset });
+    LaserCAD.io.fileDownload.download('drawing.' + preset + '.svg', svg);
   }
 
   let openDropdown = null;

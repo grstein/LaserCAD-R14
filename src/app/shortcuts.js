@@ -34,6 +34,14 @@
       if (LaserCAD.app.state.redo()) refreshAfterHistory();
       return;
     }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault();
+      if (LaserCAD.io && LaserCAD.io.exportSvg && LaserCAD.io.fileDownload) {
+        const svg = LaserCAD.io.exportSvg.serialize(LaserCAD.app.state, { preset: 'cut' });
+        LaserCAD.io.fileDownload.download('drawing.svg', svg);
+      }
+      return;
+    }
 
     if (e.ctrlKey || e.metaKey || e.altKey) return;
 

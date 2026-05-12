@@ -23,6 +23,13 @@
       const autosave = document.createElement('span');
       autosave.className = 'sb-autosave';
       autosave.textContent = '● not yet';
+      function refreshAutosave() {
+        const at = LaserCAD.io && LaserCAD.io.autosave && LaserCAD.io.autosave.lastSavedAt();
+        if (!at) { autosave.textContent = '● not yet'; return; }
+        const sec = Math.max(1, Math.round((Date.now() - at) / 1000));
+        autosave.textContent = '● saved ' + sec + 's ago';
+      }
+      setInterval(refreshAutosave, 1000);
 
       host.appendChild(coords);
       host.appendChild(div1);
