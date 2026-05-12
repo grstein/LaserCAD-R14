@@ -13,9 +13,15 @@
     {
       label: 'Edit',
       items: [
-        { label: 'Undo',        shortcut: 'Ctrl+Z', disabled: true },
-        { label: 'Redo',        shortcut: 'Ctrl+Y', disabled: true },
-        { label: 'Delete',      shortcut: 'Del',    disabled: true }
+        { label: 'Undo',  shortcut: 'Ctrl+Z', action: function () { if (LaserCAD.app.state.undo()) refreshAll(); } },
+        { label: 'Redo',  shortcut: 'Ctrl+Y', action: function () { if (LaserCAD.app.state.redo()) refreshAll(); } },
+        { label: 'Delete',shortcut: 'Del',    action: function () {
+          const state = LaserCAD.app.state;
+          if (state.selection.length === 0) return;
+          const cmds = LaserCAD.core.document.commands;
+          state.selection.slice().forEach(function (id) { LaserCAD.tools.toolManager.commit(cmds.removeEntity(id)); });
+          state.setSelection([]); refreshAll();
+        } }
       ]
     },
     {
@@ -35,10 +41,10 @@
       { label: 'Arc (A)',       shortcut: 'A', action: function () { req('arc'); } }
     ] },
     { label: 'Modify', items: [
-      { label: 'Select (S)',  action: function () { req('select'); } },
-      { label: 'Move (M)',    disabled: true },
-      { label: 'Trim (T)',    disabled: true },
-      { label: 'Extend (E)',  disabled: true }
+      { label: 'Select (S)',  shortcut: 'S', action: function () { req('select'); } },
+      { label: 'Move (M)',    shortcut: 'M', action: function () { req('move'); } },
+      { label: 'Trim (T)',    shortcut: 'T', disabled: true },
+      { label: 'Extend (E)',  shortcut: 'E', disabled: true }
     ] },
     { label: 'Help',   items: [
       { label: 'About LaserCAD R14', action: function () {
@@ -55,6 +61,10 @@
   function tog(name) {
     const cur = LaserCAD.app.state.toggles[name];
     LaserCAD.app.state.setToggle(name, !cur);
+  }
+  function refreshAll() {
+    const sr = LaserCAD.tools.toolManager && LaserCAD.tools.toolManager.getSvgRoot();
+    if (sr) LaserCAD.render.entityRenderers.renderAll(sr, LaserCAD.app.state);
   }
 
   let openDropdown = null;

@@ -94,6 +94,7 @@
       if (LaserCAD.tools.rectTool)     LaserCAD.tools.toolManager.register('rect',     LaserCAD.tools.rectTool);
       if (LaserCAD.tools.circleTool)   LaserCAD.tools.toolManager.register('circle',   LaserCAD.tools.circleTool);
       if (LaserCAD.tools.arcTool)      LaserCAD.tools.toolManager.register('arc',      LaserCAD.tools.arcTool);
+      if (LaserCAD.tools.moveTool)     LaserCAD.tools.toolManager.register('move',     LaserCAD.tools.moveTool);
       LaserCAD.app.shortcuts.attach(window);                                        // 17
 
       wireResizeObserver(svgRoot);                                                  // 18

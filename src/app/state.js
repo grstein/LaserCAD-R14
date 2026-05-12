@@ -86,10 +86,42 @@
         console.warn('[LaserCAD] state.applyCommand: invalid command', cmd);
         return;
       }
-      try { cmd.do(state); }
-      catch (err) { console.error('[LaserCAD] command.do threw:', err); }
+      try {
+        cmd.do(state);
+        if (LaserCAD.core.document.history) {
+          historyInstance = historyInstance || LaserCAD.core.document.history.create();
+          LaserCAD.core.document.history.push(historyInstance, cmd);
+        }
+      } catch (err) { console.error('[LaserCAD] command.do threw:', err); }
+    },
+
+    undo() {
+      if (!historyInstance) return false;
+      const cmd = LaserCAD.core.document.history.undo(historyInstance);
+      if (!cmd) return false;
+      try { cmd.undo(state); } catch (err) { console.error('[LaserCAD] cmd.undo threw:', err); }
+      return true;
+    },
+
+    redo() {
+      if (!historyInstance) return false;
+      const cmd = LaserCAD.core.document.history.redo(historyInstance);
+      if (!cmd) return false;
+      try { cmd.do(state); } catch (err) { console.error('[LaserCAD] cmd.do (redo) threw:', err); }
+      return true;
+    },
+
+    canUndo() { return !!(historyInstance && LaserCAD.core.document.history.canUndo(historyInstance)); },
+    canRedo() { return !!(historyInstance && LaserCAD.core.document.history.canRedo(historyInstance)); },
+
+    setSelection(ids) {
+      if (!Array.isArray(ids)) return;
+      state.selection.length = 0;
+      ids.forEach(function (id) { state.selection.push(id); });
     }
   };
+
+  let historyInstance = null;
 
   LaserCAD.app.state = state;
 })(window.LaserCAD = window.LaserCAD || {

@@ -42,10 +42,17 @@
       const layer = svgRoot.getLayer('entities');
       while (layer.firstChild) layer.removeChild(layer.firstChild);
       const r = LaserCAD.render.entityRenderers;
+      const selectionSet = new Set(state.selection || []);
+      const glow = getComputedStyle(document.documentElement).getPropertyValue('--laser-glow').trim();
       state.entities.forEach(function (e) {
-        if (e.type === 'line')   r.renderLine(e, layer);
-        else if (e.type === 'circle') r.renderCircle(e, layer);
-        else if (e.type === 'arc')    r.renderArc(e, layer);
+        let node = null;
+        if (e.type === 'line')        node = r.renderLine(e, layer);
+        else if (e.type === 'circle') node = r.renderCircle(e, layer);
+        else if (e.type === 'arc')    node = r.renderArc(e, layer);
+        if (node && selectionSet.has(e.id)) {
+          node.setAttribute('stroke', glow);
+          node.setAttribute('stroke-width', '0.18');
+        }
       });
     },
 

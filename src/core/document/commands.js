@@ -60,6 +60,64 @@
     },
 
     /**
+     * Move um conjunto de entidades por dx,dy (mm).
+     * @param {Array<string>} ids
+     * @param {number} dx
+     * @param {number} dy
+     * @returns {Command}
+     */
+    moveEntities(ids, dx, dy) {
+      const idSet = new Set(ids || []);
+      return ns.commands.make({
+        type: 'moveEntities',
+        meta: { ids: ids, dx: dx, dy: dy },
+        do: function (state) {
+          state.entities.forEach(function (e) {
+            if (!idSet.has(e.id)) return;
+            if (e.type === 'line') {
+              e.p1.x += dx; e.p1.y += dy; e.p2.x += dx; e.p2.y += dy;
+            } else if (e.type === 'circle' || e.type === 'arc') {
+              e.center.x += dx; e.center.y += dy;
+            }
+          });
+        },
+        undo: function (state) {
+          state.entities.forEach(function (e) {
+            if (!idSet.has(e.id)) return;
+            if (e.type === 'line') {
+              e.p1.x -= dx; e.p1.y -= dy; e.p2.x -= dx; e.p2.y -= dy;
+            } else if (e.type === 'circle' || e.type === 'arc') {
+              e.center.x -= dx; e.center.y -= dy;
+            }
+          });
+        }
+      });
+    },
+
+    /**
+     * Define a seleção (substitui).
+     * @param {Array<string>} ids
+     * @returns {Command}
+     */
+    setSelection(ids) {
+      let prev = null;
+      return ns.commands.make({
+        type: 'setSelection',
+        meta: { ids: ids },
+        do: function (state) {
+          prev = state.selection.slice();
+          state.selection.length = 0;
+          (ids || []).forEach(function (id) { state.selection.push(id); });
+        },
+        undo: function (state) {
+          if (!prev) return;
+          state.selection.length = 0;
+          prev.forEach(function (id) { state.selection.push(id); });
+        }
+      });
+    },
+
+    /**
      * Remove uma entidade por id.
      * @param {string} id
      * @returns {Command}

@@ -24,6 +24,17 @@
 
     if (isTextEditingTarget(e.target)) return;
 
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault();
+      if (LaserCAD.app.state.undo()) refreshAfterHistory();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+      e.preventDefault();
+      if (LaserCAD.app.state.redo()) refreshAfterHistory();
+      return;
+    }
+
     if (e.ctrlKey || e.metaKey || e.altKey) return;
 
     if (e.key === 'F3') { e.preventDefault(); toggle('snap'); return; }
@@ -36,7 +47,15 @@
     }
 
     if (e.key === 'Delete') {
-      bus.emit('tool:request', { toolId: 'delete' });
+      const state = LaserCAD.app.state;
+      if (state.selection.length > 0) {
+        const cmds = LaserCAD.core.document.commands;
+        const ids = state.selection.slice();
+        ids.forEach(function (id) { LaserCAD.tools.toolManager.commit(cmds.removeEntity(id)); });
+        state.setSelection([]);
+        const sr = LaserCAD.tools.toolManager.getSvgRoot();
+        if (sr) LaserCAD.render.entityRenderers.renderAll(sr, state);
+      }
       return;
     }
 
@@ -49,6 +68,11 @@
   function toggle(name) {
     const cur = LaserCAD.app.state.toggles[name];
     LaserCAD.app.state.setToggle(name, !cur);
+  }
+
+  function refreshAfterHistory() {
+    const sr = LaserCAD.tools.toolManager && LaserCAD.tools.toolManager.getSvgRoot();
+    if (sr) LaserCAD.render.entityRenderers.renderAll(sr, LaserCAD.app.state);
   }
 
   LaserCAD.app.shortcuts = {
