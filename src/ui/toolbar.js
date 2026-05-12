@@ -21,9 +21,11 @@
       const host = (typeof hostSelector === 'string') ? document.querySelector(hostSelector) : hostSelector;
       if (!host) throw new Error('[LaserCAD] toolbar.mount: host not found');
 
+      const enabled = { line: 1, polyline: 1, rect: 1, circle: 1, arc: 1, select: 1 };
       const buttons = TOOLS.map(function (t, i) {
         const btn = document.createElement('button');
-        btn.className = 'tool-button' + (t.id === 'select' ? ' active' : ' disabled');
+        const isEnabled = !!enabled[t.id];
+        btn.className = 'tool-button' + (t.id === 'select' ? ' active' : (isEnabled ? '' : ' disabled'));
         btn.title = t.label;
         btn.dataset.tool = t.id;
         btn.innerHTML = '<svg viewBox="0 0 18 18" aria-hidden="true">' + t.glyph + '</svg>';

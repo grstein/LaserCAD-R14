@@ -47,6 +47,15 @@
         updateCrosshair(e.clientX, e.clientY);
         updateLabel(world, e.clientX, e.clientY);
 
+        // Dispatch para a tool ativa (apenas quando não em pan).
+        if (!panActive && LaserCAD.tools.toolManager) {
+          LaserCAD.tools.toolManager.onPointerMove({
+            clientX: e.clientX, clientY: e.clientY,
+            worldX: world.x, worldY: world.y,
+            shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, button: e.button
+          });
+        }
+
         if (panActive && panLast) {
           const dxMm = (panLast.x - e.clientX) / LaserCAD.render.camera.pxPerMm(LaserCAD.app.state.camera);
           const dyMm = (panLast.y - e.clientY) / LaserCAD.render.camera.pxPerMm(LaserCAD.app.state.camera);
@@ -61,11 +70,31 @@
           panLast = { x: e.clientX, y: e.clientY };
           host.setPointerCapture && host.setPointerCapture(e.pointerId);
           e.preventDefault();
+          return;
+        }
+        if (e.button === 0 && LaserCAD.tools.toolManager) {
+          const w = LaserCAD.render.camera.worldFromScreen({ x: e.clientX, y: e.clientY });
+          LaserCAD.tools.toolManager.onPointerDown({
+            clientX: e.clientX, clientY: e.clientY,
+            worldX: w.x, worldY: w.y,
+            shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, button: e.button
+          });
         }
       }
       function onPointerUp(e) {
-        panActive = false; panLast = null;
-        host.releasePointerCapture && host.releasePointerCapture(e.pointerId);
+        if (panActive) {
+          panActive = false; panLast = null;
+          host.releasePointerCapture && host.releasePointerCapture(e.pointerId);
+          return;
+        }
+        if (e.button === 0 && LaserCAD.tools.toolManager) {
+          const w = LaserCAD.render.camera.worldFromScreen({ x: e.clientX, y: e.clientY });
+          LaserCAD.tools.toolManager.onPointerUp({
+            clientX: e.clientX, clientY: e.clientY,
+            worldX: w.x, worldY: w.y,
+            shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, button: e.button
+          });
+        }
       }
       function onWheel(e) {
         e.preventDefault();

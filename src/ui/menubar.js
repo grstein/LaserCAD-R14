@@ -28,11 +28,11 @@
       ]
     },
     { label: 'Draw',   items: [
-      { label: 'Line (L)',     action: function () { req('line'); } },
-      { label: 'Polyline (P)', action: function () { req('polyline'); } },
-      { label: 'Rectangle (R)',action: function () { req('rect'); } },
-      { label: 'Circle (C)',   action: function () { req('circle'); } },
-      { label: 'Arc (A)',      action: function () { req('arc'); } }
+      { label: 'Line (L)',      shortcut: 'L', action: function () { req('line'); } },
+      { label: 'Polyline (P)',  shortcut: 'P', action: function () { req('polyline'); } },
+      { label: 'Rectangle (R)', shortcut: 'R', action: function () { req('rect'); } },
+      { label: 'Circle (C)',    shortcut: 'C', action: function () { req('circle'); } },
+      { label: 'Arc (A)',       shortcut: 'A', action: function () { req('arc'); } }
     ] },
     { label: 'Modify', items: [
       { label: 'Select (S)',  action: function () { req('select'); } },

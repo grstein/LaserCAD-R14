@@ -8,6 +8,7 @@
   /** @type {Map<string, object>} */
   const registry = new Map();
   let activeId = 'select';
+  let svgRootRef = null;
 
   function arm(toolId) {
     if (!registry.has(toolId)) {
@@ -32,9 +33,37 @@
     bus.emit('tool:armed', { toolId: toolId });
   }
 
+  function callTool(method, e) {
+    const def = registry.get(activeId);
+    if (def && typeof def[method] === 'function') {
+      try { def[method](e, state(), ns.toolManager); }
+      catch (err) { console.error('[LaserCAD] tool.' + method + ' threw:', err); }
+    }
+  }
+
   ns.toolManager = {
     init() {
       bus.on('tool:request', function (p) { if (p && p.toolId) arm(p.toolId); });
+      bus.on('command:submit', function (p) { callTool('onCommand', p); });
+    },
+
+    attachSvgRoot(svgRoot) { svgRootRef = svgRoot; },
+    getSvgRoot() { return svgRootRef; },
+
+    onPointerDown(e) { callTool('onPointerDown', e); },
+    onPointerMove(e) { callTool('onPointerMove', e); },
+    onPointerUp(e)   { callTool('onPointerUp', e); },
+
+    /**
+     * Aplica um comando ao state, re-renderiza entities e limpa preview.
+     * @param {object} cmd
+     */
+    commit(cmd) {
+      state().applyCommand(cmd);
+      if (svgRootRef) {
+        LaserCAD.render.entityRenderers.renderAll(svgRootRef, state());
+        LaserCAD.render.entityRenderers.clearPreview(svgRootRef);
+      }
     },
 
     /** @param {string} toolId @param {{onArm?:Function,onCancel?:Function,onPointerDown?:Function,prompt?:string,id?:string}} def */

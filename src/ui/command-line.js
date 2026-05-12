@@ -56,8 +56,22 @@
       return;
     }
 
-    if (/^@?-?\d/.test(trimmed)) {
-      bus.emit('command:error', { raw: raw, message: '! Coordinates not handled in Sprint 2' });
+    // Coordenadas absolutas X,Y
+    let m = trimmed.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+    if (m) {
+      bus.emit('command:submit', { raw: raw, parsed: { kind: 'absolute', x: parseFloat(m[1]), y: parseFloat(m[2]) } });
+      return;
+    }
+    // Coordenadas relativas @X,Y
+    m = trimmed.match(/^@\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+    if (m) {
+      bus.emit('command:submit', { raw: raw, parsed: { kind: 'relative', dx: parseFloat(m[1]), dy: parseFloat(m[2]) } });
+      return;
+    }
+    // Distância simples (após primeiro ponto)
+    m = trimmed.match(/^(-?\d+(?:\.\d+)?)$/);
+    if (m) {
+      bus.emit('command:submit', { raw: raw, parsed: { kind: 'distance', value: parseFloat(m[1]) } });
       return;
     }
 

@@ -87,7 +87,13 @@
       LaserCAD.ui.statusbar.mount('#statusbar-host');                               // 13
       LaserCAD.ui.dialogs.init();                                                   // 14
       LaserCAD.tools.toolManager.init();                                            // 15
-      LaserCAD.tools.toolManager.register('select', LaserCAD.tools.selectTool);     // 16
+      LaserCAD.tools.toolManager.attachSvgRoot(svgRoot);
+      LaserCAD.tools.toolManager.register('select',   LaserCAD.tools.selectTool);   // 16
+      if (LaserCAD.tools.lineTool)     LaserCAD.tools.toolManager.register('line',     LaserCAD.tools.lineTool);
+      if (LaserCAD.tools.polylineTool) LaserCAD.tools.toolManager.register('polyline', LaserCAD.tools.polylineTool);
+      if (LaserCAD.tools.rectTool)     LaserCAD.tools.toolManager.register('rect',     LaserCAD.tools.rectTool);
+      if (LaserCAD.tools.circleTool)   LaserCAD.tools.toolManager.register('circle',   LaserCAD.tools.circleTool);
+      if (LaserCAD.tools.arcTool)      LaserCAD.tools.toolManager.register('arc',      LaserCAD.tools.arcTool);
       LaserCAD.app.shortcuts.attach(window);                                        // 17
 
       wireResizeObserver(svgRoot);                                                  // 18

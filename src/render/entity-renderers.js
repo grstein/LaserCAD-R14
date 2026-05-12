@@ -37,6 +37,40 @@
       return node;
     },
 
+    /** Limpa a camada e renderiza todas as entities do state. @param {object} svgRoot @param {object} state */
+    renderAll(svgRoot, state) {
+      const layer = svgRoot.getLayer('entities');
+      while (layer.firstChild) layer.removeChild(layer.firstChild);
+      const r = LaserCAD.render.entityRenderers;
+      state.entities.forEach(function (e) {
+        if (e.type === 'line')   r.renderLine(e, layer);
+        else if (e.type === 'circle') r.renderCircle(e, layer);
+        else if (e.type === 'arc')    r.renderArc(e, layer);
+      });
+    },
+
+    /** Renderiza ou atualiza o preview de uma entidade no layer #preview. */
+    renderPreview(svgRoot, entity) {
+      const layer = svgRoot.getLayer('preview');
+      while (layer.firstChild) layer.removeChild(layer.firstChild);
+      if (!entity) return;
+      const r = LaserCAD.render.entityRenderers;
+      let node = null;
+      if (entity.type === 'line')   node = r.renderLine(entity, layer);
+      else if (entity.type === 'circle') node = r.renderCircle(entity, layer);
+      else if (entity.type === 'arc')    node = r.renderArc(entity, layer);
+      if (node) {
+        node.setAttribute('stroke-dasharray', '4 2');
+        const glow = getComputedStyle(document.documentElement).getPropertyValue('--laser-glow').trim() || '#9D4DFF';
+        node.setAttribute('stroke', glow);
+      }
+    },
+
+    clearPreview(svgRoot) {
+      const layer = svgRoot.getLayer('preview');
+      while (layer.firstChild) layer.removeChild(layer.firstChild);
+    },
+
     /** @param {{center:{x:number,y:number},r:number,startAngle:number,endAngle:number,ccw:boolean}} entity @param {Element} parent */
     renderArc(entity, parent) {
       const ends = LaserCAD.core.geometry.arc.endpoints(entity);
