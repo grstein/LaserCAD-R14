@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LaserCAD R14</title>
+  <link rel="stylesheet" href="assets/css/reset.css">
+  <link rel="stylesheet" href="assets/css/theme.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+  <div id="menubar-host"></div>
+  <div id="toolbar-host"></div>
+  <div id="viewport-host"></div>
+  <div id="commandline-host"></div>
+  <div id="statusbar-host"></div>
+
+  <!-- LaserCAD R14 — scripts em ordem canônica (specs/_conventions/namespace.md §3) -->
+  <script src="src/core/geometry/epsilon.js"      onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/core/geometry/vec2.js"         onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/core/geometry/line.js"         onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/core/geometry/circle.js"       onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/core/geometry/arc.js"          onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/core/geometry/project.js"      onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/core/document/schema.js"       onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/core/document/validators.js"   onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/core/document/commands.js"     onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/core/document/history.js"      onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/app/event-bus.js"              onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/app/state.js"                  onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/app/config.js"                 onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/app/shortcuts.js"              onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/render/camera.js"              onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/render/svg-root.js"            onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/render/grid.js"                onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/render/entity-renderers.js"    onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/render/overlays.js"            onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/tools/tool-manager.js"         onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/tools/select-tool.js"          onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/ui/toolbar.js"                 onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/ui/command-line.js"            onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/ui/statusbar.js"               onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/ui/menubar.js"                 onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/ui/dialogs.js"                 onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/app/bootstrap.js"              onerror="console.error('LaserCAD script failed:', this.src)"></script>
+  <script src="src/main.js"                       onerror="console.error('LaserCAD script failed:', this.src)"></script>
+</body>
+</html>

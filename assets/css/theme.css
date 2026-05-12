@@ -1,0 +1,56 @@
+:root {
+  /* Background levels */
+  --bg-canvas:     #0A0612;
+  --bg-chrome:     #120A1F;
+  --bg-elevated:   #1A1030;
+  --bg-elevated-2: #221540;
+
+  /* Borders */
+  --border-subtle: #241638;
+  --border-strong: #3D2466;
+
+  /* Grid */
+  --grid-minor: #1E1232;
+  --grid-major: #2E1A4D;
+  --grid-axis:  #5B2DD1;
+
+  /* Text */
+  --text-primary:   #E8DDFF;
+  --text-secondary: #8E7CB8;
+  --text-disabled:  #4A3E66;
+
+  /* Laser 450nm */
+  --laser-450:  #6E00FF;
+  --laser-glow: #9D4DFF;
+  --laser-dim:  #3D0099;
+
+  /* Snap markers */
+  --snap-endpoint:     #FFD400;
+  --snap-midpoint:     #FF8A00;
+  --snap-center:       #00E5FF;
+  --snap-intersection: #FF2D7A;
+
+  /* Status */
+  --status-ok:    #3DDC97;
+  --status-warn:  #FFB020;
+  --status-error: #FF4D6D;
+
+  /* Focus */
+  --focus-ring: #9D4DFF;
+
+  /* Typography */
+  --font-ui:      "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono:    "JetBrains Mono", "Menlo", "Consolas", monospace;
+  --font-display: "Inter", system-ui, sans-serif;
+
+  /* Type scale (px) */
+  --font-xs:   11px;
+  --font-sm:   12px;
+  --font-base: 13px;
+  --font-md:   14px;
+  --font-lg:   16px;
+
+  /* Line heights */
+  --line-height-text: 1.4;
+  --line-height-cmd:  1.0;
+}
