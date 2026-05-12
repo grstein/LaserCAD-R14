@@ -45,6 +45,18 @@
 
     if (e.ctrlKey || e.metaKey || e.altKey) return;
 
+    if (e.key === 'F1') {
+      e.preventDefault();
+      const menubar = LaserCAD.ui.menubar;
+      if (LaserCAD.ui.dialogs) {
+        LaserCAD.ui.dialogs.open({
+          title: 'Keyboard shortcuts',
+          body: 'See docs/atalhos.md or use Help menu.',
+          actions: [{ label: 'Close', primary: true, onClick: function () { LaserCAD.ui.dialogs.close(); } }]
+        });
+      }
+      return;
+    }
     if (e.key === 'F3') { e.preventDefault(); toggle('snap'); return; }
     if (e.key === 'F7') { e.preventDefault(); toggle('grid'); return; }
     if (e.key === 'F8') { e.preventDefault(); toggle('ortho'); return; }

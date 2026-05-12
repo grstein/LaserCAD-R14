@@ -5,6 +5,8 @@
 
   let idCounter = 0;
   function nextId() { idCounter += 1; return 'e_' + idCounter; }
+  function isFinitePoint(p) { return p && isFinite(p.x) && isFinite(p.y); }
+  function pointEquals(a, b) { return Math.abs(a.x - b.x) < 1e-9 && Math.abs(a.y - b.y) < 1e-9; }
 
   /**
    * @typedef {{type:string, do:(state:object)=>void, undo:(state:object)=>void, meta?:object}} Command
@@ -42,6 +44,16 @@
      * @returns {Command}
      */
     addEntity(entity) {
+      if (!entity || !entity.type) throw new Error('[LaserCAD] commands.addEntity: entity.type required');
+      if (entity.type === 'line') {
+        if (!isFinitePoint(entity.p1) || !isFinitePoint(entity.p2)) throw new Error('[LaserCAD] addEntity line: non-finite points');
+        if (pointEquals(entity.p1, entity.p2)) throw new Error('[LaserCAD] addEntity line: zero-length');
+      } else if (entity.type === 'circle') {
+        if (!isFinitePoint(entity.center) || !(entity.r > 0)) throw new Error('[LaserCAD] addEntity circle: invalid');
+      } else if (entity.type === 'arc') {
+        if (!isFinitePoint(entity.center) || !(entity.r > 0) || !isFinite(entity.startAngle) || !isFinite(entity.endAngle))
+          throw new Error('[LaserCAD] addEntity arc: invalid');
+      }
       const id = nextId();
       const stored = Object.assign({}, entity, { id: id });
       return ns.commands.make({

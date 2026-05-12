@@ -53,10 +53,30 @@
       { label: 'Extend (E)',  shortcut: 'E', action: function () { req('extend'); } }
     ] },
     { label: 'Help',   items: [
+      { label: 'Keyboard shortcuts', shortcut: 'F1', action: function () {
+        LaserCAD.ui.dialogs.open({
+          title: 'Keyboard shortcuts',
+          body:
+            'Tools:  L  P  R  C  A   (Line / Polyline / Rect / Circle / Arc)\n' +
+            '        S  M  T  E      (Select / Move / Trim / Extend)\n' +
+            'Del     Delete selection\n\n' +
+            'Camera: Wheel = zoom (cursor pivot)\n' +
+            '        Middle btn or Space+drag = pan\n\n' +
+            'Modes:  F3 Snap   F7 Grid   F8 Ortho\n' +
+            '        Shift held = ortho lock\n\n' +
+            'Edit:   Esc   cancel current tool\n' +
+            '        Ctrl+Z / Ctrl+Y   undo / redo\n' +
+            '        Ctrl+S   save SVG (cut preset)\n\n' +
+            'Command line:  124.5, 87.3   absolute coords\n' +
+            '               @50, 0        relative coords\n' +
+            '               50            distance (after first point)',
+          actions: [{ label: 'Close', primary: true, onClick: function () { LaserCAD.ui.dialogs.close(); } }]
+        });
+      } },
       { label: 'About LaserCAD R14', action: function () {
         LaserCAD.ui.dialogs.open({
           title: 'About LaserCAD R14',
-          body: 'Micro-CAD 2D no navegador.\nMVP — Sprint 2 (Alpha Zero).\nUnit: mm | Wavelength: 450nm.',
+          body: 'Micro-CAD 2D no navegador.\nVersion 1.0 — 2026-05-12.\nUnit: mm | Wavelength: 450nm.\nOpens via file:// (no server).',
           actions: [{ label: 'Close', primary: true, onClick: function () { LaserCAD.ui.dialogs.close(); } }]
         });
       } }
