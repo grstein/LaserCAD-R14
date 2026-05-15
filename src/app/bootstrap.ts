@@ -110,9 +110,9 @@ export const bootstrap = {
     if (extendTool) toolManager.register('extend', extendTool);
     if (autosave) {
       autosave.init();
-      if (autosave.restore()) {
-        entityRenderers.renderAll(root, state);
-      }
+      void autosave.restore().then(function (ok) {
+        if (ok) entityRenderers.renderAll(root, state);
+      });
     }
     shortcuts.attach(window); // 17
 

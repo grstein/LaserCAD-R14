@@ -2,8 +2,10 @@ import { bus } from '@/app/event-bus.js';
 import { state } from '@/app/state.js';
 import { commands } from '@/core/document/commands.js';
 import { toolManager } from '@/tools/tool-manager.js';
+import { isTauri, tauriStore } from '@/tauri-bridge.js';
 
 const KEY = 'lasercad:r14:autosave';
+const STORE_KEY = 'snapshot';
 const DEBOUNCE_MS = 800;
 let timer = null;
 let lastSavedAt = null;
@@ -32,11 +34,21 @@ function scheduleSave() {
   timer = setTimeout(saveNow, DEBOUNCE_MS);
 }
 
-function saveNow() {
-  const ls = safeStorage();
-  if (!ls) return;
+async function saveNow() {
+  const snap = snapshot(state);
   try {
-    ls.setItem(KEY, JSON.stringify(snapshot(state)));
+    if (isTauri()) {
+      const store = await tauriStore();
+      if (store) {
+        await store.set(STORE_KEY, snap);
+        lastSavedAt = Date.now();
+        bus.emit('toggle:changed', { name: 'autosave', value: true });
+        return;
+      }
+    }
+    const ls = safeStorage();
+    if (!ls) return;
+    ls.setItem(KEY, JSON.stringify(snap));
     lastSavedAt = Date.now();
     bus.emit('toggle:changed', { name: 'autosave', value: true });
   } catch (err) {
@@ -44,13 +56,22 @@ function saveNow() {
   }
 }
 
-function restore() {
-  const ls = safeStorage();
-  if (!ls) return false;
-  const raw = ls.getItem(KEY);
-  if (!raw) return false;
+async function restore() {
+  let data = null;
   try {
-    const data = JSON.parse(raw);
+    if (isTauri()) {
+      const store = await tauriStore();
+      if (store) {
+        data = (await store.get(STORE_KEY)) ?? null;
+      }
+    }
+    if (!data) {
+      const ls = safeStorage();
+      if (!ls) return false;
+      const raw = ls.getItem(KEY);
+      if (!raw) return false;
+      data = JSON.parse(raw);
+    }
     if (!data || data.schemaVersion !== 1) return false;
     if (Array.isArray(data.entities)) {
       state.entities.length = 0;
@@ -77,9 +98,17 @@ function restore() {
   }
 }
 
-function clear() {
-  const ls = safeStorage();
-  if (ls) ls.removeItem(KEY);
+async function clear() {
+  try {
+    if (isTauri()) {
+      const store = await tauriStore();
+      if (store) await store.set(STORE_KEY, null);
+    }
+    const ls = safeStorage();
+    if (ls) ls.removeItem(KEY);
+  } catch (err) {
+    console.warn('[LaserCAD] autosave clear failed:', err);
+  }
   lastSavedAt = null;
 }
 
@@ -87,8 +116,8 @@ export const autosave = {
   KEY: KEY,
   init() {
     bus.on('command:submit', scheduleSave);
-    // hook em applyCommand via wrapping: também salvamos em toggle:changed (afeta toggles persistidos)
-    // mas evitamos save em camera:changed (muito frequente). Vamos disparar manualmente após commit.
+    // hook applyCommand via wrapping: we also save on toggle:changed (affects persisted toggles)
+    // but avoid saving on camera:changed (too frequent). We trigger the save manually after commit.
     const origCommit = toolManager.commit;
     toolManager.commit = function (cmd) {
       origCommit.call(toolManager, cmd);

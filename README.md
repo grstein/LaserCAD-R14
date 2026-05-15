@@ -94,6 +94,25 @@ The exporter follows the checklist in `plan.md` §"SVG export for LaserGRBL":
 - one group per preset (`<g id="CUT" stroke="#ff0000" stroke-width="0.1">`)
 - arcs as `<path d="A">`
 
+## Installing native binaries
+
+Release binaries are **not code-signed**. Each OS therefore shows a one-time warning the first time you launch the app.
+
+- **macOS** — `.dmg` is unsigned and not Apple-notarized. On first launch Gatekeeper says "LaserCAD cannot be opened because the developer cannot be verified". Right-click the app in Finder, choose **Open**, then **Open** again in the confirmation dialog. After that, double-click works as usual. Alternatively: `xattr -dr com.apple.quarantine /Applications/LaserCAD.app`.
+- **Windows** — the `.msi` / `.exe` is unsigned. SmartScreen shows "Windows protected your PC". Click **More info → Run anyway**.
+- **Linux** — `.AppImage`, `.deb`, and `.rpm` install without any signing prompts.
+
+## Release tooling
+
+Releases are built by `.github/workflows/release.yml` (triggered by `v*` tags) using `tauri-apps/tauri-action`. Required repository secrets for tagged releases:
+
+| Secret                                | Used for                                                                |
+| ------------------------------------- | ----------------------------------------------------------------------- |
+| `TAURI_SIGNING_PRIVATE_KEY`           | Tauri updater signing key (PEM, generated with `tauri signer generate`) |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`  | Password for the private key above                                      |
+
+These are only needed if you plan to publish updates through `tauri-plugin-updater`. Without them, the build still produces installers — they just cannot be auto-updated by the plugin.
+
 ## Contributing
 
 The stack is accessible to any web developer (TypeScript + Vite). Packaging as an executable requires Rust stable plus system dependencies (see `docs/build-local.md`).

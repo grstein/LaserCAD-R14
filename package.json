@@ -1,7 +1,7 @@
 {
   "name": "lasercad",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "LaserCAD R14 — CAD 2D para corte a laser (compatível LaserGRBL)",
   "type": "module",
   "scripts": {
