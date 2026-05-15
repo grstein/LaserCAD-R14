@@ -27,7 +27,9 @@ window.LaserCAD.app.bootstrap = {
    * @returns {void}
    * @throws {Error} Quando uma pre-condicao critica falha e nao ha caminho de recuperacao.
    */
-  start() { /* ... */ },
+  start() {
+    /* ... */
+  },
 
   /**
    * Renderiza uma mensagem de erro fatal no DOM (ocupando #viewport-host
@@ -37,7 +39,9 @@ window.LaserCAD.app.bootstrap = {
    * @param {Error} [cause]
    * @returns {void}
    */
-  showFatalError(message, cause) { /* ... */ }
+  showFatalError(message, cause) {
+    /* ... */
+  },
 };
 ```
 

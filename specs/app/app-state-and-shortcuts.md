@@ -3,11 +3,13 @@
 Consolida as specs de `src/app/state.js`, `src/app/config.js` e `src/app/shortcuts.js`.
 
 ## 1. Responsabilidade
+
 - **`app.state`**: singleton de estado global, único módulo autorizado a mutar `window.LaserCAD.app.state.*`; valida entradas e emite eventos canônicos do bus.
 - **`app.config`**: constantes de configuração default (área do documento, viewport inicial, limites, política de auto-fit no boot).
 - **`app.shortcuts`**: tradutor de eventos `keydown` em **pedidos** ao bus (`tool:request`, `toggle:changed`, etc.). Nunca muta `state` direto.
 
 ## 2. Dependências
+
 - `app.state`: `window.LaserCAD.bus`, `window.LaserCAD.core.document.schema`, `window.LaserCAD.core.document.commands`, `window.LaserCAD.core.document.history`, `window.LaserCAD.core.document.validators`.
 - `app.config`: nenhuma.
 - `app.shortcuts`: `window.LaserCAD.bus`, `window.LaserCAD.app.config`.
@@ -64,6 +66,7 @@ applyCommand(cmd: Command)                      : void
 ```
 
 Contratos gerais:
+
 - **Toda** mutação passa por um destes setters. Atribuição direta (`state.activeTool = 'line'`) é proibida (state-contract.md §2.2).
 - Cada setter valida entrada via `core.document.validators.*`. Em caso de inválido, lança `Error` legível.
 - Os campos do state são **leitura livre** de qualquer módulo; mutação é exclusiva do `app.state` (state-contract.md §2.1).
@@ -102,28 +105,28 @@ uninstall()                        : void
 
 Coberta a partir de `design.md` L131–152 (toolbar), L209–211 (command line) e L242–249 (menubar) e plan.md L223 (estados).
 
-| Tecla | Contexto | Evento do bus emitido | Payload | Origem |
-|---|---|---|---|---|
-| `L` | viewport (sem focus em input) | `tool:request` | `{ toolId: 'line' }` | design.md L133, L247 |
-| `P` | viewport | `tool:request` | `{ toolId: 'polyline' }` | design.md L135, L247 |
-| `R` | viewport | `tool:request` | `{ toolId: 'rect' }` | design.md L137, L247 |
-| `C` | viewport | `tool:request` | `{ toolId: 'circle' }` | design.md L139, L247 |
-| `A` | viewport | `tool:request` | `{ toolId: 'arc' }` | design.md L141, L247 |
-| `S` | viewport | `tool:request` | `{ toolId: 'select' }` | design.md L143, L248 |
-| `T` | viewport | `tool:request` | `{ toolId: 'trim' }` | design.md L145, L248 |
-| `E` | viewport | `tool:request` | `{ toolId: 'extend' }` | design.md L147, L248 |
-| `M` | viewport | `tool:request` | `{ toolId: 'move' }` | design.md L149, L248 |
-| `Delete` | viewport (com seleção) | `tool:request` | `{ toolId: 'delete' }` | design.md L151, L248 |
-| `F3` | global | `toggle:changed` | `{ name: 'snap', value: !current }` | design.md L231, L246 |
-| `F7` | global | `toggle:changed` | `{ name: 'grid', value: !current }` | design.md L232, L246 |
-| `F8` | global | `toggle:changed` | `{ name: 'ortho', value: !current }` | design.md L233, L246 |
-| `Esc` | global | `tool:cancel` | `{ toolId: state.activeTool }` | design.md L209, L331 |
-| `Enter` | command line focada **ou** input vazio no viewport | `command:submit` | `{ raw: commandInput, parsed: <parse>\|null }` | design.md L207 |
-| `Space` | command line focada | `command:submit` | `{ raw: commandInput, parsed: ... }` (alternativa a Enter; compat R14) | design.md L208 |
-| `Space` | viewport (não focado em input) | (pan inicia — sem evento de bus na Sprint 1; ver §7) | — | design.md L293 |
-| `↑` | command line, input vazio | (consulta `state.commandHistory[idx-1]`; chama `state.setCommandInput`) | — | design.md L210 |
-| `↓` | command line, input vazio | (consulta `state.commandHistory[idx+1]`) | — | design.md L210 |
-| qualquer tecla alfanumérica | viewport (sem focus em input) | (foco automático na command line; sem evento de bus) | — | design.md L206 |
+| Tecla                       | Contexto                                           | Evento do bus emitido                                                   | Payload                                                                | Origem               |
+| --------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------- | -------------------- |
+| `L`                         | viewport (sem focus em input)                      | `tool:request`                                                          | `{ toolId: 'line' }`                                                   | design.md L133, L247 |
+| `P`                         | viewport                                           | `tool:request`                                                          | `{ toolId: 'polyline' }`                                               | design.md L135, L247 |
+| `R`                         | viewport                                           | `tool:request`                                                          | `{ toolId: 'rect' }`                                                   | design.md L137, L247 |
+| `C`                         | viewport                                           | `tool:request`                                                          | `{ toolId: 'circle' }`                                                 | design.md L139, L247 |
+| `A`                         | viewport                                           | `tool:request`                                                          | `{ toolId: 'arc' }`                                                    | design.md L141, L247 |
+| `S`                         | viewport                                           | `tool:request`                                                          | `{ toolId: 'select' }`                                                 | design.md L143, L248 |
+| `T`                         | viewport                                           | `tool:request`                                                          | `{ toolId: 'trim' }`                                                   | design.md L145, L248 |
+| `E`                         | viewport                                           | `tool:request`                                                          | `{ toolId: 'extend' }`                                                 | design.md L147, L248 |
+| `M`                         | viewport                                           | `tool:request`                                                          | `{ toolId: 'move' }`                                                   | design.md L149, L248 |
+| `Delete`                    | viewport (com seleção)                             | `tool:request`                                                          | `{ toolId: 'delete' }`                                                 | design.md L151, L248 |
+| `F3`                        | global                                             | `toggle:changed`                                                        | `{ name: 'snap', value: !current }`                                    | design.md L231, L246 |
+| `F7`                        | global                                             | `toggle:changed`                                                        | `{ name: 'grid', value: !current }`                                    | design.md L232, L246 |
+| `F8`                        | global                                             | `toggle:changed`                                                        | `{ name: 'ortho', value: !current }`                                   | design.md L233, L246 |
+| `Esc`                       | global                                             | `tool:cancel`                                                           | `{ toolId: state.activeTool }`                                         | design.md L209, L331 |
+| `Enter`                     | command line focada **ou** input vazio no viewport | `command:submit`                                                        | `{ raw: commandInput, parsed: <parse>\|null }`                         | design.md L207       |
+| `Space`                     | command line focada                                | `command:submit`                                                        | `{ raw: commandInput, parsed: ... }` (alternativa a Enter; compat R14) | design.md L208       |
+| `Space`                     | viewport (não focado em input)                     | (pan inicia — sem evento de bus na Sprint 1; ver §7)                    | —                                                                      | design.md L293       |
+| `↑`                         | command line, input vazio                          | (consulta `state.commandHistory[idx-1]`; chama `state.setCommandInput`) | —                                                                      | design.md L210       |
+| `↓`                         | command line, input vazio                          | (consulta `state.commandHistory[idx+1]`)                                | —                                                                      | design.md L210       |
+| qualquer tecla alfanumérica | viewport (sem focus em input)                      | (foco automático na command line; sem evento de bus)                    | —                                                                      | design.md L206       |
 
 ### Atalhos da menubar (fora do escopo Sprint 1, listados para referência)
 
@@ -132,6 +135,7 @@ Coberta a partir de `design.md` L131–152 (toolbar), L209–211 (command line) 
 > **Restrição:** somente os eventos da lista canônica em `state-contract.md` §3 podem ser emitidos. Atalhos que não tenham evento dedicado (como navegação `↑`/`↓` no histórico, foco automático, pan por Space) atuam via setters de `state` (`setCommandInput`, etc.), não via bus.
 
 ## 4. Invariantes e tolerâncias
+
 - **`state` é o único mutator.** Atalho/toolbar/menu **emitem pedidos** ao bus; quem decide e muta é `app.state` (state-contract.md §2).
 - Validação no setter, antes de mutar. Lançar é preferível a silenciar.
 - Auto-fit no boot: ao receber `app:ready` + primeiro `viewport:resized`, a câmera ajusta `zoom`/`cx`/`cy` para enquadrar `documentBounds` com margem. Ativado por `app.config.AUTO_FIT_ON_BOOT`.
@@ -146,8 +150,8 @@ Coberta a partir de `design.md` L131–152 (toolbar), L209–211 (command line) 
 
 ```js
 const state = window.LaserCAD.app.state;
-const cfg   = window.LaserCAD.app.config;
-const bus   = window.LaserCAD.bus;
+const cfg = window.LaserCAD.app.config;
+const bus = window.LaserCAD.bus;
 
 // Trocar ferramenta — caminho oficial via bus → state
 bus.emit('tool:request', { toolId: 'line' });
@@ -157,15 +161,15 @@ bus.emit('tool:request', { toolId: 'line' });
 // state.activeTool = 'line';  // ANTI-PADRÃO
 
 // Acessar config
-cfg.DOCUMENT_DEFAULT_BOUNDS;          // { w: 128, h: 128 }
+cfg.DOCUMENT_DEFAULT_BOUNDS; // { w: 128, h: 128 }
 
 // Aplicar comando (camera)
-const cmd = window.LaserCAD.core.document.commands.setCamera({cx:64, cy:64, zoom:2});
+const cmd = window.LaserCAD.core.document.commands.setCamera({ cx: 64, cy: 64, zoom: 2 });
 state.applyCommand(cmd);
 
 // Apertar L (sem ter focus em input) emite tool:request
 // — comportamento testável via DevTools:
-document.dispatchEvent(new KeyboardEvent('keydown', {key:'l'}));
+document.dispatchEvent(new KeyboardEvent('keydown', { key: 'l' }));
 ```
 
 ## 6. Critérios de aceitação testáveis manualmente
@@ -183,16 +187,20 @@ document.dispatchEvent(new KeyboardEvent('keydown', {key:'l'}));
 ## 7. Notas de implementação
 
 ### Atalhos sem evento dedicado
+
 - `Space` para pan: não há evento canônico de "pan" na lista §3 do state-contract. Sprint 1 deixa a tecla **inerte** ou registra um handler interno que aciona `render.camera` diretamente. Decisão: **inerte** na Sprint 1; pan por mouse-middle é suficiente para abrir/zoom-extents/atalho.
 - Foco automático no command line ao digitar alfanumérico fora de input (design.md L206) é um efeito puramente de UI; `shortcuts.install` move `document.activeElement` para o input da command line e propaga a tecla.
 
 ### Mutação direta
+
 - Sprint 1 **não** instala Proxy/freeze profundo sobre `state`. A regra "ninguém atribui direto" é convenção (state-contract.md §2.2) e violações aparecem só em revisão de código. Considerar Proxy em sprint futura se conferir benefício (provavelmente custo > benefício para perf no MVP).
 
 ### Auto-fit
+
 - `app.config.AUTO_FIT_ON_BOOT = true`. `bootstrap.js` (outro WS) escuta `viewport:resized` e chama `state.applyCommand(commands.setCamera(...))` com `cx = w/2`, `cy = h/2` (centro do documento), `zoom = computeFitZoom(documentBounds, viewport, margin)`. Sprint 1 trava `margin = 0.9` (10% de margem total).
 
 ### Outras notas
+
 - Plan.md L223: máquina de estados `idle|armed|preview|commit|cancel` é manipulada por `tools/`. `state.setToolState` é o setter, mas quem decide a transição é a ferramenta ativa.
 - Plan.md L226: undo/redo via histórico. `state.applyCommand` é o único caminho para empurrar no `past`.
 - A lista de atalhos cobre **todos** os mencionados em design.md L209–211 e L245–250 que sejam relevantes para Sprint 1 (chord `Z E`/`Z W` e Ctrl+letras ficam stub).

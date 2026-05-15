@@ -3,6 +3,7 @@
 Este documento **congela** a forma do singleton de estado global e a lista canônica de eventos do bus. Os três entregáveis da Sprint 1 (WS-A/B/C) e todas as sprints subsequentes leem este contrato como verdade. Alterações exigem novo ADR.
 
 Dependências de leitura:
+
 - `docs/adr/0001-arquitetura-base.md` (decisões SVG-first, mm, namespace global)
 - `specs/_conventions/namespace.md` (padrão IIFE e ordem de scripts)
 - `plan.md` L17–30 (base técnica), L215–226 (convenções), L342–350 (questões em aberto)
@@ -25,7 +26,7 @@ window.LaserCAD.app.state = {
   cursor: { worldX: 0, worldY: 0, screenX: 0, screenY: 0 },
   toggles: { snap: true, grid: true, ortho: false },
   commandHistory: [],
-  commandInput: ''
+  commandInput: '',
 };
 ```
 
@@ -33,20 +34,20 @@ Esta é a única forma autorizada do estado. Nenhum campo extra; nenhum campo a 
 
 ### 1.1 Catálogo de campos
 
-| Campo | Tipo | Valor inicial | Descrição | Fonte |
-|---|---|---|---|---|
-| `schemaVersion` | `number` (inteiro) | `1` | Versão do schema do documento para migrações futuras. Persistido junto com `entities` em export/autosave. | plan.md L317 |
-| `units` | `'mm'` (literal) | `'mm'` | Unidade canônica. Travada em `'mm'` no MVP; existe como campo para suportar interrogação programática e migrações futuras. | plan.md L217; ADR 0001 §2 |
-| `documentBounds` | `{ w: number, h: number }` | `{ w: 128, h: 128 }` | Área lógica do documento em mm. Define o `viewBox` do `<svg>` raiz e o `width`/`height` da exportação. 128×128 é referência recorrente (não obrigatória; será configurável em sprints futuras). | plan.md L346 |
-| `entities` | `Array<Entity>` | `[]` | Lista de entidades do documento. Cada item: `{ id: 'e_<n>', type: 'line'\|'polyline'\|'rect'\|'circle'\|'arc', ...campos específicos do tipo }`. Schema detalhado vive em `core/document/schema.js` (JSDoc `@typedef`). | plan.md L93, L170–174 |
-| `selection` | `Array<string>` | `[]` | Lista de `id` das entidades atualmente selecionadas. Subconjunto de `entities[*].id`. | plan.md L94, L120 |
-| `camera` | `{ cx, cy, zoom, viewportW, viewportH }` | `{ cx: 0, cy: 0, zoom: 1, viewportW: 0, viewportH: 0 }` | Estado da câmera. `cx`/`cy` em mm (centro do viewport em world space); `zoom` adimensional (px-por-mm × constante); `viewportW`/`viewportH` em px. `viewportW`/`H` começam em `0` e são preenchidos pelo `bootstrap` após o primeiro `viewport:resized`. | plan.md L19, L26, L269 |
-| `activeTool` | `string` (id) | `'select'` | Id da ferramenta ativa. Valores do MVP: `'select'`, `'line'`, `'polyline'`, `'rect'`, `'circle'`, `'arc'`, `'trim'`, `'extend'`, `'move'`, `'delete'`. | design.md L131–152, L242–249 |
-| `toolState` | `'idle'\|'armed'\|'preview'\|'commit'\|'cancel'` | `'idle'` | Sub-estado da máquina de ferramentas (plan.md L223). `commit` e `cancel` são transitórios (1 frame). | plan.md L223; design.md L321–331 |
-| `cursor` | `{ worldX, worldY, screenX, screenY }` | `{ worldX: 0, worldY: 0, screenX: 0, screenY: 0 }` | Posição atual do cursor. `world*` em mm; `screen*` em px. Atualizado a cada `cursor:moved`. | design.md L117, L185, L230 |
-| `toggles` | `{ snap: boolean, grid: boolean, ortho: boolean }` | `{ snap: true, grid: true, ortho: false }` | Estados dos toggles globais. Refletem `F3`/`F7`/`F8` e os controles da status bar. | design.md L225, L231–236 |
-| `commandHistory` | `Array<string>` | `[]` | Últimas N entradas da command line (N = 50 sugerido; cap em `app.config`). Navegação `↑`/`↓` consome esta lista. | design.md L210 |
-| `commandInput` | `string` | `''` | Conteúdo atual do campo de entrada da command line (linha 3 do bloco). | design.md L195–203 |
+| Campo            | Tipo                                               | Valor inicial                                           | Descrição                                                                                                                                                                                                                                                | Fonte                            |
+| ---------------- | -------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `schemaVersion`  | `number` (inteiro)                                 | `1`                                                     | Versão do schema do documento para migrações futuras. Persistido junto com `entities` em export/autosave.                                                                                                                                                | plan.md L317                     |
+| `units`          | `'mm'` (literal)                                   | `'mm'`                                                  | Unidade canônica. Travada em `'mm'` no MVP; existe como campo para suportar interrogação programática e migrações futuras.                                                                                                                               | plan.md L217; ADR 0001 §2        |
+| `documentBounds` | `{ w: number, h: number }`                         | `{ w: 128, h: 128 }`                                    | Área lógica do documento em mm. Define o `viewBox` do `<svg>` raiz e o `width`/`height` da exportação. 128×128 é referência recorrente (não obrigatória; será configurável em sprints futuras).                                                          | plan.md L346                     |
+| `entities`       | `Array<Entity>`                                    | `[]`                                                    | Lista de entidades do documento. Cada item: `{ id: 'e_<n>', type: 'line'\|'polyline'\|'rect'\|'circle'\|'arc', ...campos específicos do tipo }`. Schema detalhado vive em `core/document/schema.js` (JSDoc `@typedef`).                                  | plan.md L93, L170–174            |
+| `selection`      | `Array<string>`                                    | `[]`                                                    | Lista de `id` das entidades atualmente selecionadas. Subconjunto de `entities[*].id`.                                                                                                                                                                    | plan.md L94, L120                |
+| `camera`         | `{ cx, cy, zoom, viewportW, viewportH }`           | `{ cx: 0, cy: 0, zoom: 1, viewportW: 0, viewportH: 0 }` | Estado da câmera. `cx`/`cy` em mm (centro do viewport em world space); `zoom` adimensional (px-por-mm × constante); `viewportW`/`viewportH` em px. `viewportW`/`H` começam em `0` e são preenchidos pelo `bootstrap` após o primeiro `viewport:resized`. | plan.md L19, L26, L269           |
+| `activeTool`     | `string` (id)                                      | `'select'`                                              | Id da ferramenta ativa. Valores do MVP: `'select'`, `'line'`, `'polyline'`, `'rect'`, `'circle'`, `'arc'`, `'trim'`, `'extend'`, `'move'`, `'delete'`.                                                                                                   | design.md L131–152, L242–249     |
+| `toolState`      | `'idle'\|'armed'\|'preview'\|'commit'\|'cancel'`   | `'idle'`                                                | Sub-estado da máquina de ferramentas (plan.md L223). `commit` e `cancel` são transitórios (1 frame).                                                                                                                                                     | plan.md L223; design.md L321–331 |
+| `cursor`         | `{ worldX, worldY, screenX, screenY }`             | `{ worldX: 0, worldY: 0, screenX: 0, screenY: 0 }`      | Posição atual do cursor. `world*` em mm; `screen*` em px. Atualizado a cada `cursor:moved`.                                                                                                                                                              | design.md L117, L185, L230       |
+| `toggles`        | `{ snap: boolean, grid: boolean, ortho: boolean }` | `{ snap: true, grid: true, ortho: false }`              | Estados dos toggles globais. Refletem `F3`/`F7`/`F8` e os controles da status bar.                                                                                                                                                                       | design.md L225, L231–236         |
+| `commandHistory` | `Array<string>`                                    | `[]`                                                    | Últimas N entradas da command line (N = 50 sugerido; cap em `app.config`). Navegação `↑`/`↓` consome esta lista.                                                                                                                                         | design.md L210                   |
+| `commandInput`   | `string`                                           | `''`                                                    | Conteúdo atual do campo de entrada da command line (linha 3 do bloco).                                                                                                                                                                                   | design.md L195–203               |
 
 ### 1.2 Notas sobre tipagem
 
@@ -79,15 +80,15 @@ Esta é a única forma autorizada do estado. Nenhum campo extra; nenhum campo a 
 
 ```js
 // Sketch da API — assinaturas definitivas ficam em src/app/state.js + JSDoc
-LaserCAD.app.state.setActiveTool(toolId);            // emite tool:armed
+LaserCAD.app.state.setActiveTool(toolId); // emite tool:armed
 LaserCAD.app.state.setToolState(stateName);
-LaserCAD.app.state.setCamera({ cx, cy, zoom });      // emite camera:changed
-LaserCAD.app.state.setViewportSize(w, h);            // emite viewport:resized (indireto)
+LaserCAD.app.state.setCamera({ cx, cy, zoom }); // emite camera:changed
+LaserCAD.app.state.setViewportSize(w, h); // emite viewport:resized (indireto)
 LaserCAD.app.state.setCursor({ worldX, worldY, screenX, screenY }); // emite cursor:moved
-LaserCAD.app.state.setToggle(name, value);           // emite toggle:changed
+LaserCAD.app.state.setToggle(name, value); // emite toggle:changed
 LaserCAD.app.state.setCommandInput(str);
 LaserCAD.app.state.pushCommandHistory(raw);
-LaserCAD.app.state.applyCommand(cmd);                // mutação de entities/selection via core.document.commands
+LaserCAD.app.state.applyCommand(cmd); // mutação de entities/selection via core.document.commands
 LaserCAD.app.state.setDocumentBounds({ w, h });
 ```
 
@@ -99,18 +100,18 @@ Comandos do documento (add/update/delete de entidade, mudança de seleção) pas
 
 O `window.LaserCAD.bus` é um pub/sub simples: `on(evt, fn)`, `off(evt, fn)`, `emit(evt, payload)`. A lista abaixo é **fechada**: nenhuma spec, subagente ou módulo pode inventar eventos fora desta tabela. Adições exigem ADR.
 
-| Evento | Payload | Quem emite | Quem consome |
-|---|---|---|---|
-| `app:ready` | `{}` | `app.bootstrap` | `ui.*`, `render.*` |
-| `viewport:resized` | `{ w: number, h: number }` (px) | `app.bootstrap` (via `ResizeObserver` no contêiner do `<svg>`) | `render.camera`, `render.svgRoot` |
-| `camera:changed` | `{ cx: number, cy: number, zoom: number }` | `render.camera` | `render.grid`, `render.overlays`, `ui.statusbar` |
-| `cursor:moved` | `{ worldX: number, worldY: number, screenX: number, screenY: number }` | `render.overlays` (após mapear o pointer event para world via câmera) | `ui.statusbar` |
-| `tool:request` | `{ toolId: string }` | `ui.toolbar`, `ui.commandLine`, `ui.menubar` | `tools.toolManager` |
-| `tool:armed` | `{ toolId: string }` | `tools.toolManager` | `ui.toolbar`, `ui.commandLine` |
-| `tool:cancel` | `{ toolId: string }` | `tools.toolManager` | `ui.toolbar`, `ui.commandLine` |
-| `command:submit` | `{ raw: string, parsed: object\|null }` | `ui.commandLine` | `tools.toolManager` |
-| `command:error` | `{ raw: string, message: string }` | `ui.commandLine`, `tools.*` | `ui.commandLine` |
-| `toggle:changed` | `{ name: 'snap'\|'grid'\|'ortho', value: boolean }` | `ui.statusbar`, `ui.menubar` (via atalho `F3`/`F7`/`F8`) | `render.grid`, `tools.*` |
+| Evento             | Payload                                                                | Quem emite                                                            | Quem consome                                     |
+| ------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------ |
+| `app:ready`        | `{}`                                                                   | `app.bootstrap`                                                       | `ui.*`, `render.*`                               |
+| `viewport:resized` | `{ w: number, h: number }` (px)                                        | `app.bootstrap` (via `ResizeObserver` no contêiner do `<svg>`)        | `render.camera`, `render.svgRoot`                |
+| `camera:changed`   | `{ cx: number, cy: number, zoom: number }`                             | `render.camera`                                                       | `render.grid`, `render.overlays`, `ui.statusbar` |
+| `cursor:moved`     | `{ worldX: number, worldY: number, screenX: number, screenY: number }` | `render.overlays` (após mapear o pointer event para world via câmera) | `ui.statusbar`                                   |
+| `tool:request`     | `{ toolId: string }`                                                   | `ui.toolbar`, `ui.commandLine`, `ui.menubar`                          | `tools.toolManager`                              |
+| `tool:armed`       | `{ toolId: string }`                                                   | `tools.toolManager`                                                   | `ui.toolbar`, `ui.commandLine`                   |
+| `tool:cancel`      | `{ toolId: string }`                                                   | `tools.toolManager`                                                   | `ui.toolbar`, `ui.commandLine`                   |
+| `command:submit`   | `{ raw: string, parsed: object\|null }`                                | `ui.commandLine`                                                      | `tools.toolManager`                              |
+| `command:error`    | `{ raw: string, message: string }`                                     | `ui.commandLine`, `tools.*`                                           | `ui.commandLine`                                 |
+| `toggle:changed`   | `{ name: 'snap'\|'grid'\|'ortho', value: boolean }`                    | `ui.statusbar`, `ui.menubar` (via atalho `F3`/`F7`/`F8`)              | `render.grid`, `tools.*`                         |
 
 ### 3.1 Notas por evento
 

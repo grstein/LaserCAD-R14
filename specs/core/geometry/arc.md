@@ -1,9 +1,11 @@
 # arc
 
 ## 1. Responsabilidade
+
 Definir a entidade arco (porção de círculo) e expor consultas puras: comprimento, ponto médio, pontos extremos (start/end) e bounding box correto mesmo quando o arco cruza eixos cardinais.
 
 ## 2. Dependências
+
 - runtime: `window.LaserCAD.core.geometry.vec2`, `window.LaserCAD.core.geometry.epsilon`.
 - ordem de carga: depois de `vec2` e `epsilon` (posição 5 em `specs/_conventions/namespace.md` §3).
 
@@ -34,12 +36,14 @@ contains(a: ArcEntity, angle: number)        : boolean    // true se `angle` (ra
 ```
 
 Contratos pré/pós:
+
 - `make` valida: `center` finito; `r > EPS`; `startAngle` e `endAngle` finitos; `ccw` boolean. Lança caso contrário.
 - `startAngle` e `endAngle` **não** precisam estar normalizados em `[0, 2π)`; o módulo normaliza internamente conforme necessário (ex.: para `contains`).
 - `sweep` retorna sempre valor em `[0, 2π]`. Arco "completo" representado por `startAngle === endAngle` com `ccw === true` é interpretado como sweep = 0 (não como círculo completo) — para círculo, usar a entidade `circle`.
 - `bbox` é **conservador no sentido geométrico exato**: inclui apenas os pontos efetivamente cobertos pelo arco; nunca a caixa do círculo inteiro (a menos que o arco cubra todos os eixos cardinais).
 
 ## 4. Invariantes e tolerâncias
+
 - Forma fixa: `{ type: 'arc', center, r, startAngle, endAngle, ccw }`.
 - Ângulos em **radianos**, sempre. Conversão de/para graus é responsabilidade exclusiva da camada UI (ADR 0001 §2; plan.md L218, L224).
 - Convenção angular: 0 rad aponta para `+X`, `π/2` para `+Y`, `π` para `-X`, `3π/2` para `-Y`. CCW positivo (matemática padrão).
@@ -54,20 +58,19 @@ const A = window.LaserCAD.core.geometry.arc;
 const PI = Math.PI;
 
 // Quarto de círculo CCW de +X para +Y, centro em (10,10), raio 5
-const a = A.make({x: 10, y: 10}, 5, 0, PI / 2, true);
+const a = A.make({ x: 10, y: 10 }, 5, 0, PI / 2, true);
 
-A.startPoint(a);                    // {x: 15, y: 10}
-A.endPoint(a);                      // {x: 10, y: 15}
-A.sweep(a);                         // PI/2
-A.length(a);                        // 5 * PI/2 ≈ 7.854
-A.midpoint(a);                      // ponto em angle = PI/4
+A.startPoint(a); // {x: 15, y: 10}
+A.endPoint(a); // {x: 10, y: 15}
+A.sweep(a); // PI/2
+A.length(a); // 5 * PI/2 ≈ 7.854
+A.midpoint(a); // ponto em angle = PI/4
 
-A.bbox(a);                          // {minX:10, minY:10, maxX:15, maxY:15}
-                                    // (não cruza 90°,180°,270° internamente)
+A.bbox(a); // {minX:10, minY:10, maxX:15, maxY:15}
+// (não cruza 90°,180°,270° internamente)
 
 // Arco que cruza 0° (CCW de 350° para 10°)
-const wrap = A.make({x: 0, y: 0}, 1,
-  (350 * PI) / 180, (10 * PI) / 180, true);
+const wrap = A.make({ x: 0, y: 0 }, 1, (350 * PI) / 180, (10 * PI) / 180, true);
 A.bbox(wrap);
 // minX/maxX dominados pelos cantos do arco + ponto cardinal 0° (= (1,0))
 // que está DENTRO do arco — então maxX = 1
@@ -85,6 +88,7 @@ A.bbox(wrap);
 ## 7. Notas de implementação
 
 ### Algoritmo de `bbox` (crítico)
+
 Para um arco, a `bbox` é a **menor caixa axis-aligned** que contém todos os pontos varridos. O algoritmo:
 
 1. Comece com `minX = min(start.x, end.x)`, `maxX = max(start.x, end.x)`, idem para Y. (Os endpoints sempre fazem parte do arco.)
@@ -92,12 +96,14 @@ Para um arco, a `bbox` é a **menor caixa axis-aligned** que contém todos os po
 3. Se sim, expandir a bbox com aquele ponto cardinal.
 
 A função `contains(angle)` normaliza `startAngle`, `endAngle` e `angle` para `[0, 2π)` e:
+
 - Se `ccw === true`: ponto está dentro se `(angle - startAngle) mod 2π <= sweep`.
 - Se `ccw === false`: ponto está dentro se `(startAngle - angle) mod 2π <= sweep`.
 
 Esse algoritmo garante que arcos cruzando 0°, 90°, 180° ou 270° tenham bbox **exata**, não a bbox do círculo inteiro.
 
 ### Outras notas
+
 - `sweep` calculado a partir de `startAngle`, `endAngle` e `ccw` — não armazenado redundante no objeto (estado derivado, plan.md L219 proíbe persistir).
 - `midpoint` é `centerAt(start + sweep/2 * (ccw ? +1 : -1))`.
 - Render: arco vai para `<path d="M ... A rx ry x-axis-rotation large-arc-flag sweep-flag x y">` em SVG (plan.md L246, L284). O cálculo de `large-arc-flag` e `sweep-flag` é responsabilidade de `render/entity-renderers.js`, não deste módulo.

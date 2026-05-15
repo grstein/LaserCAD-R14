@@ -1,0 +1,7 @@
+dist/
+node_modules/
+src-tauri/target/
+.playwright-cli/
+coverage/
+*.min.js
+*.min.css

@@ -1,9 +1,11 @@
 # line
 
 ## 1. Responsabilidade
+
 Definir a entidade geométrica linha (segmento) e expor consultas puras sobre ela: comprimento, direção, ponto médio, bounding box.
 
 ## 2. Dependências
+
 - runtime: `window.LaserCAD.core.geometry.vec2`, `window.LaserCAD.core.geometry.epsilon`.
 - ordem de carga: depois de `vec2` e `epsilon` (posição 3 em `specs/_conventions/namespace.md` §3).
 
@@ -23,6 +25,7 @@ bbox(l: LineEntity)             : BBox         // caixa axis-aligned
 ```
 
 Contratos pré/pós:
+
 - `make` valida que `p1` e `p2` são pontos finitos. Não checa degeneração (linha de comprimento zero é representável, mas degenerada para `direction`).
 - `length` retorna `>= 0`. Vale `0` para `p1 === p2` (dentro de `EPS`).
 - `direction` lança `Error('line.direction: degenerate line')` quando `length(l) < EPS`.
@@ -30,6 +33,7 @@ Contratos pré/pós:
 - Nenhuma função muta `l`.
 
 ## 4. Invariantes e tolerâncias
+
 - Forma fixa do objeto: `{ type: 'line', p1: Vec2, p2: Vec2 }`. Campos extras são ignorados pelas consultas mas devem ser preservados (ex.: `id` que `core.document.commands` adiciona).
 - `type: 'line'` é literal — validadores futuros (em `core.document.validators`) conferem.
 - Unidades: `p1`, `p2`, `length`, `midpoint`, `bbox` em **mm**. `direction` é adimensional (unitário).
@@ -41,17 +45,17 @@ Contratos pré/pós:
 ```js
 const L = window.LaserCAD.core.geometry.line;
 
-const l = L.make({x: 10, y: 10}, {x: 60, y: 10});
+const l = L.make({ x: 10, y: 10 }, { x: 60, y: 10 });
 
-L.length(l);                       // 50
-L.direction(l);                    // {x: 1, y: 0}
-L.midpoint(l);                     // {x: 35, y: 10}
-L.bbox(l);                         // {minX: 10, minY: 10, maxX: 60, maxY: 10}
+L.length(l); // 50
+L.direction(l); // {x: 1, y: 0}
+L.midpoint(l); // {x: 35, y: 10}
+L.bbox(l); // {minX: 10, minY: 10, maxX: 60, maxY: 10}
 
 // linha diagonal
-const d = L.make({x: 0, y: 0}, {x: 3, y: 4});
-L.length(d);                       // 5
-L.direction(d);                    // {x: 0.6, y: 0.8}
+const d = L.make({ x: 0, y: 0 }, { x: 3, y: 4 });
+L.length(d); // 5
+L.direction(d); // {x: 0.6, y: 0.8}
 ```
 
 ## 6. Critérios de aceitação testáveis manualmente
@@ -63,6 +67,7 @@ L.direction(d);                    // {x: 0.6, y: 0.8}
 5. A entidade retornada por `make` tem `type === 'line'` (literal) e os componentes são objetos novos (`l.p1 !== p1Original`).
 
 ## 7. Notas de implementação
+
 - A forma `{type, p1, p2}` é coerente com o entity model em `state-contract.md` §1.1: `entities[*]` tem `id` + `type` + campos específicos do tipo. `make` produz a parte sem `id`; `commands.add` adiciona `id: 'e_<n>'`.
 - `direction` é calculada como `vec2.normalize(vec2.sub(p2, p1))` — herda o lançamento de `normalize` (vec2.md §3).
 - `bbox` para linha é trivial mas implementa o contrato compartilhado com `circle.bbox` e `arc.bbox`, usado por seleção por janela e zoom-extents.

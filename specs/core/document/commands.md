@@ -1,9 +1,11 @@
 # commands (core/document)
 
 ## 1. Responsabilidade
+
 Definir o contrato de comando reversível (`{type, do, undo, meta}`) e expor a única fábrica autorizada para criar comandos que mutam `entities`/`selection`/`camera` do estado. **Comandos são a única forma legítima de mutar o estado do documento** (state-contract.md §2; plan.md L226).
 
 ## 2. Dependências
+
 - runtime: `window.LaserCAD.core.document.schema`, `window.LaserCAD.core.document.validators`.
 - ordem de carga: depois de `schema` e `validators` (posição 9 em `specs/_conventions/namespace.md` §3).
 
@@ -23,6 +25,7 @@ Tudo exposto sob `window.LaserCAD.core.document.commands`.
 ```
 
 Contratos do contrato `Command`:
+
 - `do(state)` aplica a mutação no `window.LaserCAD.app.state` (ou um subset, em testes).
 - `undo(state)` precisa restaurar **exatamente** o estado pré-`do`. Tolerância: igual byte-a-byte para `entities`/`selection`; igual dentro de `EPS` para `camera`.
 - `meta` nunca contém referências mutáveis ao estado externo — é snapshot frio para debug.
@@ -42,6 +45,7 @@ setCamera({ cx, cy, zoom })                  : Command
 ```
 
 Argumentos:
+
 - `setCamera`: `cx`, `cy` finitos em mm; `zoom > 0`. Validado por `validators.isFinitePoint({x:cx, y:cy})` + checagem de `zoom`. Lança `Error` na **fábrica** (não no `do`).
 
 ### 3.3 Contador privado de id
@@ -56,6 +60,7 @@ resetIdCounter()                             : void     // só usado em testes/r
 O contador é privado da IIFE — nenhum outro módulo o lê ou escreve. `nextId` é consumido por futuras fábricas (`addLine`, `addCircle`, `addArc`) que entram nas sprints Geometry Core/Drawing.
 
 ## 4. Invariantes e tolerâncias
+
 - **Único caminho de mutação**: módulos externos chamam `LaserCAD.app.state.applyCommand(cmd)`, **nunca** `cmd.do(state)` direto. Isso garante que `history.push(cmd)` é invocado e o undo/redo funciona.
 - O `id` counter **não** vive no `state` (state-contract.md §1.2: "O contador vive privado em `core.document.commands`"). Razão: o counter é metadado de criação, não dado do documento — não persiste em export.
 - `do` e `undo` precisam ser idempotentes-em-par: `do; undo; do; undo` deixa o estado igual ao inicial.
@@ -70,16 +75,16 @@ const state = window.LaserCAD.app.state;
 
 // Comando vazio (útil em testes do history)
 const nop = C.noop();
-state.applyCommand(nop);             // history.past cresce em 1, estado igual
+state.applyCommand(nop); // history.past cresce em 1, estado igual
 
 // Pan / zoom programático
 const cmd = C.setCamera({ cx: 64, cy: 64, zoom: 2 });
 state.applyCommand(cmd);
-state.camera;                        // { cx: 64, cy: 64, zoom: 2, viewportW: ..., viewportH: ... }
+state.camera; // { cx: 64, cy: 64, zoom: 2, viewportW: ..., viewportH: ... }
 
 // Undo via history
 window.LaserCAD.core.document.history.undo(state);
-state.camera;                        // { cx: 0, cy: 0, zoom: 1, ... }
+state.camera; // { cx: 0, cy: 0, zoom: 1, ... }
 ```
 
 ## 6. Critérios de aceitação testáveis manualmente
@@ -92,6 +97,7 @@ state.camera;                        // { cx: 0, cy: 0, zoom: 1, ... }
 6. Não há propriedade `commands.idCounter` ou similar publicada — o contador é estritamente privado.
 
 ## 7. Notas de implementação
+
 - O par `setCamera` + `noop` na Sprint 1 demonstra o contrato sem antecipar funcionalidade. Sprints futuras adicionam `addEntity(entity)`, `removeEntity(id)`, `setSelection(ids)`, `updateEntity(id, patch)` etc.
 - Plan.md L226: "histórico por comandos, nunca 'undo pelo DOM'". O kernel força isso por construção: o DOM não tem método de undo, só o histórico.
 - A separação `do(state)` / `undo(state)` em vez de armazenar diffs JSON evita custo de serialização e ambiguidade — cada comando sabe como reverter a si mesmo.

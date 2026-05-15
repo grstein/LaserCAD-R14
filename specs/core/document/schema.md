@@ -1,9 +1,11 @@
 # schema (core/document)
 
 ## 1. Responsabilidade
+
 Publicar — via JSDoc `@typedef` — a forma normalizada do documento JSON (`entities`, `selection`, `camera`, etc.) e oferecer construtores puros que produzem um documento vazio válido. **Sem mutação de estado**, sem persistência.
 
 ## 2. Dependências
+
 - runtime: nenhum sub-namespace anterior. O módulo publica apenas `@typedef`s e helpers de construção.
 - ordem de carga: posição 7 em `specs/_conventions/namespace.md` §3 (depois de toda a geometria, antes de `validators`).
 
@@ -54,11 +56,13 @@ isEntityType(t: string)          : boolean
 ```
 
 Contratos:
+
 - `emptyDocument()` retorna **objeto novo** a cada chamada (sem singleton compartilhado).
 - Nenhuma função muta argumentos.
 - Pureza absoluta — **sem DOM, sem `app.state`, sem `bus`** (plan.md L222).
 
 ## 4. Invariantes e tolerâncias
+
 - `schemaVersion: 1` literal — qualquer mudança de forma exige incremento e migrador (plan.md L317).
 - `units: 'mm'` literal no MVP (ADR 0001 §2; plan.md L217).
 - `documentBounds.w`/`h` sempre `> 0`. Default 128×128 mm (plan.md L346; state-contract.md §1.1).
@@ -82,8 +86,8 @@ const doc = S.emptyDocument();
 //   camera: { cx: 0, cy: 0, zoom: 1, viewportW: 0, viewportH: 0 }
 // }
 
-S.isEntityType('line');      // true
-S.isEntityType('text');      // false (texto fora do MVP — plan.md L299)
+S.isEntityType('line'); // true
+S.isEntityType('text'); // false (texto fora do MVP — plan.md L299)
 ```
 
 ## 6. Critérios de aceitação testáveis manualmente
@@ -95,9 +99,11 @@ S.isEntityType('text');      // false (texto fora do MVP — plan.md L299)
 5. `emptyDocument().documentBounds` retorna `{w:128, h:128}` — coerente com plan.md L346.
 
 ## 6.1. Critério adicional (segurança de referência)
+
 6. Após `const d = S.emptyDocument(); d.entities.push({id:'x'});` chamar `S.emptyDocument()` retorna um documento com `entities: []` (vazio) — confirmando que cada chamada produz arrays/objetos novos.
 
 ## 7. Notas de implementação
+
 - O typedef `DocumentJSON` é o **subset persistível** do estado global (`window.LaserCAD.app.state`). Campos transitórios (cursor, toolState, commandInput, etc.) não fazem parte e **não** devem ir para export/autosave (plan.md L219: "JSON normalizado, sem estado derivado persistido").
 - O contador de `id` mora em `commands.js` para garantir que toda criação de entidade passe pelo único caminho autorizado (plan.md L226; state-contract.md §1.2).
 - Plan.md L346: "área configurável, com presets simples; 128×128 mm aparece apenas como referência recorrente". Sprint 1 trava o default em 128×128; sprints futuras adicionam dialog/preset.

@@ -48,7 +48,9 @@ window.LaserCAD.tools.toolManager = {
    * @param {ToolDef} toolDef
    * @returns {void}
    */
-  register(toolId, toolDef) { /* ... */ },
+  register(toolId, toolDef) {
+    /* ... */
+  },
 
   /**
    * Pedido oficial para armar uma ferramenta. Chamado em resposta a tool:request,
@@ -59,7 +61,9 @@ window.LaserCAD.tools.toolManager = {
    * @param {string} toolId
    * @returns {void}
    */
-  request(toolId) { /* ... */ },
+  request(toolId) {
+    /* ... */
+  },
 
   /**
    * Solicita transicao para um estado. Chamado tipicamente por tools via ctx.setState.
@@ -67,26 +71,34 @@ window.LaserCAD.tools.toolManager = {
    * @param {'idle'|'armed'|'preview'|'commit'|'cancel'} stateName
    * @returns {void}
    */
-  enter(stateName) { /* ... */ },
+  enter(stateName) {
+    /* ... */
+  },
 
   /**
    * Cancela a ferramenta ativa: transita para 'cancel' (1 frame) e em seguida 'idle'.
    * Emite tool:cancel. Re-arma 'select' como ferramenta padrao apos volta a idle.
    * @returns {void}
    */
-  cancel() { /* ... */ },
+  cancel() {
+    /* ... */
+  },
 
   /**
    * Retorna o id da ferramenta atualmente ativa (= state.activeTool).
    * @returns {string}
    */
-  active() { /* ... */ },
+  active() {
+    /* ... */
+  },
 
   /**
    * Retorna lista de toolIds registrados. Util para diagnostico.
    * @returns {string[]}
    */
-  list() { /* ... */ }
+  list() {
+    /* ... */
+  },
 };
 ```
 
@@ -120,13 +132,13 @@ O `ctx` passado para callbacks da `ToolDef` eh **estavel** (mesma referencia ao 
 
 ### 4.1 Maquina de estados — Estados
 
-| Estado    | Significado                                                                  | Duracao            |
-|-----------|------------------------------------------------------------------------------|--------------------|
-| `idle`    | Nenhuma ferramenta armada. `state.activeTool` ainda eh valido, mas a ferramenta nao esta capturando entrada. | persistente |
-| `armed`   | Ferramenta armada; pronta para receber primeiro input.                       | persistente        |
-| `preview` | Ferramenta capturou input parcial e exibe preview (linha tracejada, etc.).   | persistente        |
-| `commit`  | Transitorio (1 frame). Sinaliza que a operacao foi confirmada; o documento sera mutado via `core.document.commands`. Apos o frame, volta a `armed` (para proximo segmento) ou `idle`. | 1 frame            |
-| `cancel`  | Transitorio (1 frame). Sinaliza que o usuario abortou (Esc) ou outra ferramenta tomou foco. Apos o frame, volta a `idle`. | 1 frame            |
+| Estado    | Significado                                                                                                                                                                           | Duracao     |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `idle`    | Nenhuma ferramenta armada. `state.activeTool` ainda eh valido, mas a ferramenta nao esta capturando entrada.                                                                          | persistente |
+| `armed`   | Ferramenta armada; pronta para receber primeiro input.                                                                                                                                | persistente |
+| `preview` | Ferramenta capturou input parcial e exibe preview (linha tracejada, etc.).                                                                                                            | persistente |
+| `commit`  | Transitorio (1 frame). Sinaliza que a operacao foi confirmada; o documento sera mutado via `core.document.commands`. Apos o frame, volta a `armed` (para proximo segmento) ou `idle`. | 1 frame     |
+| `cancel`  | Transitorio (1 frame). Sinaliza que o usuario abortou (Esc) ou outra ferramenta tomou foco. Apos o frame, volta a `idle`.                                                             | 1 frame     |
 
 ### 4.2 Tabela de transicoes permitidas
 
@@ -162,13 +174,13 @@ O `ctx` passado para callbacks da `ToolDef` eh **estavel** (mesma referencia ao 
             de qualquer 'armed'/'preview'
 ```
 
-| De \ Para | idle | armed | preview | commit | cancel |
-|---|---|---|---|---|---|
-| **idle**    | (re-emite request) | OK via `request(id)` | — | — | — |
-| **armed**   | OK via `cancel()` | OK (re-arm) | OK (1o input) | — | OK (Esc, novo `request`) |
-| **preview** | — | OK (volta apos commit incompleto) | (re-emite) | OK (confirma) | OK (Esc) |
-| **commit**  | OK (operacao concluida — fim do desenho) | OK (operacao parcial — proximo segmento) | — | (instantaneo) | — |
-| **cancel**  | OK (apos 1 frame) | — | — | — | (instantaneo) |
+| De \ Para   | idle                                     | armed                                    | preview       | commit        | cancel                   |
+| ----------- | ---------------------------------------- | ---------------------------------------- | ------------- | ------------- | ------------------------ |
+| **idle**    | (re-emite request)                       | OK via `request(id)`                     | —             | —             | —                        |
+| **armed**   | OK via `cancel()`                        | OK (re-arm)                              | OK (1o input) | —             | OK (Esc, novo `request`) |
+| **preview** | —                                        | OK (volta apos commit incompleto)        | (re-emite)    | OK (confirma) | OK (Esc)                 |
+| **commit**  | OK (operacao concluida — fim do desenho) | OK (operacao parcial — proximo segmento) | —             | (instantaneo) | —                        |
+| **cancel**  | OK (apos 1 frame)                        | —                                        | —             | —             | (instantaneo)            |
 
 Transicoes nao listadas como OK sao **invalidas**: `enter` loga `console.warn('[tool-manager] invalid transition X → Y')` e nao muta `state.toolState`.
 
@@ -181,6 +193,7 @@ Transicoes nao listadas como OK sao **invalidas**: `enter` loga `console.warn('[
 ### 4.4 Politica de re-arme apos `cancel`
 
 Apos `cancel` (e o frame transitorio), o manager re-arma `'select'` como ferramenta default:
+
 1. `state.setToolState('idle')`
 2. `state.setActiveTool('select')`
 3. `request('select')` (que vira a `armed` e emite `tool:armed`).

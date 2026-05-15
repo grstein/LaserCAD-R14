@@ -8,19 +8,55 @@ body {
   grid-template-columns: 40px 1fr;
   grid-template-rows: 28px auto 66px 24px;
   grid-template-areas:
-    "menubar     menubar"
-    "toolbar     viewport"
-    "toolbar     commandline"
-    "statusbar   statusbar";
+    'menubar     menubar'
+    'toolbar     viewport'
+    'toolbar     commandline'
+    'statusbar   statusbar';
 }
 
-#menubar-host     { grid-area: menubar;     background: var(--bg-chrome); border-bottom: 1px solid var(--border-subtle); display: flex; align-items: stretch; }
-#toolbar-host     { grid-area: toolbar;     background: var(--bg-chrome); border-right:  1px solid var(--border-subtle); display: flex; flex-direction: column; align-items: stretch; }
-#viewport-host    { grid-area: viewport;    background: var(--bg-canvas); position: relative; overflow: hidden; }
-#commandline-host { grid-area: commandline; background: var(--bg-chrome); border-top:    1px solid var(--border-subtle); }
-#statusbar-host   { grid-area: statusbar;   background: var(--bg-chrome); border-top:    1px solid var(--border-subtle); display: flex; align-items: center; gap: 12px; padding: 0 12px; font-family: var(--font-mono); font-size: var(--font-xs); }
+#menubar-host {
+  grid-area: menubar;
+  background: var(--bg-chrome);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: stretch;
+}
+#toolbar-host {
+  grid-area: toolbar;
+  background: var(--bg-chrome);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+#viewport-host {
+  grid-area: viewport;
+  background: var(--bg-canvas);
+  position: relative;
+  overflow: hidden;
+}
+#commandline-host {
+  grid-area: commandline;
+  background: var(--bg-chrome);
+  border-top: 1px solid var(--border-subtle);
+}
+#statusbar-host {
+  grid-area: statusbar;
+  background: var(--bg-chrome);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-xs);
+}
 
-#viewport-host svg { width: 100%; height: 100%; cursor: crosshair; }
+#viewport-host svg {
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
 
 #viewport-host svg #entities *,
 #viewport-host svg #preview *,
@@ -40,8 +76,13 @@ body {
   font-size: var(--font-base);
   user-select: none;
 }
-#menubar-host .menu-item:hover { background: var(--bg-elevated); }
-#menubar-host .menu-item.disabled { color: var(--text-disabled); cursor: default; }
+#menubar-host .menu-item:hover {
+  background: var(--bg-elevated);
+}
+#menubar-host .menu-item.disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
 #menubar-host .menu-dropdown {
   position: absolute;
   top: 100%;
@@ -60,58 +101,150 @@ body {
   color: var(--text-primary);
   font-size: var(--font-md);
 }
-#menubar-host .menu-row:hover { background: var(--laser-dim); }
-#menubar-host .menu-row.disabled { color: var(--text-disabled); cursor: default; background: none; }
-#menubar-host .menu-row .shortcut { color: var(--text-secondary); font-family: var(--font-mono); font-size: var(--font-xs); margin-left: 16px; }
+#menubar-host .menu-row:hover {
+  background: var(--laser-dim);
+}
+#menubar-host .menu-row.disabled {
+  color: var(--text-disabled);
+  cursor: default;
+  background: none;
+}
+#menubar-host .menu-row .shortcut {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-xs);
+  margin-left: 16px;
+}
 
 /* Toolbar */
 #toolbar-host .tool-button {
   width: 100%;
   height: 32px;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text-secondary);
   border-left: 2px solid transparent;
   position: relative;
 }
-#toolbar-host .tool-button:hover { color: var(--laser-glow); background: var(--bg-elevated); }
-#toolbar-host .tool-button.active { color: var(--text-primary); background: var(--laser-dim); border-left-color: var(--laser-450); }
-#toolbar-host .tool-button.disabled { color: var(--text-disabled); cursor: default; }
-#toolbar-host .tool-button.disabled:hover { background: none; color: var(--text-disabled); }
-#toolbar-host .tool-button svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+#toolbar-host .tool-button:hover {
+  color: var(--laser-glow);
+  background: var(--bg-elevated);
+}
+#toolbar-host .tool-button.active {
+  color: var(--text-primary);
+  background: var(--laser-dim);
+  border-left-color: var(--laser-450);
+}
+#toolbar-host .tool-button.disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+#toolbar-host .tool-button.disabled:hover {
+  background: none;
+  color: var(--text-disabled);
+}
+#toolbar-host .tool-button svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 
 /* Command line */
 #commandline-host {
   font-family: var(--font-mono);
   font-size: var(--font-sm);
   padding: 4px 12px;
-  display: flex; flex-direction: column; justify-content: flex-end;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
   line-height: var(--line-height-cmd);
 }
-#commandline-host .cmd-line { height: 18px; padding: 1px 0; color: var(--text-secondary); white-space: nowrap; overflow: hidden; }
-#commandline-host .cmd-line.active { color: var(--text-primary); font-weight: 600; display: flex; align-items: center; }
-#commandline-host .cmd-line.error { color: var(--status-error); }
-#commandline-host .cmd-prompt { color: var(--text-primary); margin-right: 6px; }
-#commandline-host input.cmd-input { flex: 1; font-family: var(--font-mono); font-size: var(--font-sm); color: var(--text-primary); background: transparent; caret-color: var(--laser-glow); }
+#commandline-host .cmd-line {
+  height: 18px;
+  padding: 1px 0;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+}
+#commandline-host .cmd-line.active {
+  color: var(--text-primary);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+#commandline-host .cmd-line.error {
+  color: var(--status-error);
+}
+#commandline-host .cmd-prompt {
+  color: var(--text-primary);
+  margin-right: 6px;
+}
+#commandline-host input.cmd-input {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+  background: transparent;
+  caret-color: var(--laser-glow);
+}
 
 /* Status bar */
-#statusbar-host .sb-slot { display: inline-flex; align-items: center; gap: 6px; }
-#statusbar-host .sb-divider { color: var(--border-subtle); }
-#statusbar-host .sb-toggle { cursor: pointer; color: var(--text-secondary); user-select: none; }
-#statusbar-host .sb-toggle.on { color: var(--laser-450); }
-#statusbar-host .sb-toggle:hover { color: var(--laser-glow); }
-#statusbar-host .sb-coords { color: var(--text-primary); min-width: 200px; }
-#statusbar-host .sb-autosave { margin-left: auto; color: var(--text-secondary); }
+#statusbar-host .sb-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+#statusbar-host .sb-divider {
+  color: var(--border-subtle);
+}
+#statusbar-host .sb-toggle {
+  cursor: pointer;
+  color: var(--text-secondary);
+  user-select: none;
+}
+#statusbar-host .sb-toggle.on {
+  color: var(--laser-450);
+}
+#statusbar-host .sb-toggle:hover {
+  color: var(--laser-glow);
+}
+#statusbar-host .sb-coords {
+  color: var(--text-primary);
+  min-width: 200px;
+}
+#statusbar-host .sb-autosave {
+  margin-left: auto;
+  color: var(--text-secondary);
+}
 
 /* Crosshair overlay */
-#viewport-host .crosshair-h, #viewport-host .crosshair-v {
+#viewport-host .crosshair-h,
+#viewport-host .crosshair-v {
   position: absolute;
   background: var(--text-secondary);
   opacity: 0.55;
   pointer-events: none;
 }
-#viewport-host .crosshair-h { left: 0; right: 0; height: 1px; }
-#viewport-host .crosshair-v { top: 0; bottom: 0; width: 1px; }
-#viewport-host.armed .crosshair-h, #viewport-host.armed .crosshair-v { background: var(--laser-glow); opacity: 0.8; }
+#viewport-host .crosshair-h {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+#viewport-host .crosshair-v {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+#viewport-host.armed .crosshair-h,
+#viewport-host.armed .crosshair-v {
+  background: var(--laser-glow);
+  opacity: 0.8;
+}
 #viewport-host .cursor-label {
   position: absolute;
   pointer-events: none;
@@ -126,27 +259,72 @@ body {
 
 /* Dialog */
 .lc-dialog-backdrop {
-  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-  background: rgba(10,6,18,0.4); z-index: 200;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 6, 18, 0.4);
+  z-index: 200;
 }
 .lc-dialog {
-  min-width: 360px; max-width: 480px;
+  min-width: 360px;
+  max-width: 480px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-strong);
   color: var(--text-primary);
 }
-.lc-dialog .lc-dialog-header { height: 36px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); font-weight: 600; font-size: var(--font-lg); }
-.lc-dialog .lc-dialog-body { padding: 16px; }
-.lc-dialog .lc-dialog-actions { padding: 12px 14px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border-subtle); }
-.lc-dialog button.primary { background: var(--laser-450); color: #fff; padding: 8px 16px; border-radius: 4px; }
-.lc-dialog button.primary:hover { background: var(--laser-glow); }
-.lc-dialog button.secondary { background: transparent; color: var(--text-primary); padding: 8px 16px; border: 1px solid var(--border-strong); border-radius: 4px; }
-.lc-dialog button.secondary:hover { border-color: var(--laser-450); }
+.lc-dialog .lc-dialog-header {
+  height: 36px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  font-weight: 600;
+  font-size: var(--font-lg);
+}
+.lc-dialog .lc-dialog-body {
+  padding: 16px;
+}
+.lc-dialog .lc-dialog-actions {
+  padding: 12px 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+.lc-dialog button.primary {
+  background: var(--laser-450);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 4px;
+}
+.lc-dialog button.primary:hover {
+  background: var(--laser-glow);
+}
+.lc-dialog button.secondary {
+  background: transparent;
+  color: var(--text-primary);
+  padding: 8px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+.lc-dialog button.secondary:hover {
+  border-color: var(--laser-450);
+}
 
 /* Error banner for bootstrap failures */
 .lc-error-banner {
-  position: fixed; top: 0; left: 0; right: 0;
-  padding: 8px 12px; background: var(--status-error); color: #fff;
-  font-family: var(--font-mono); font-size: var(--font-sm);
-  z-index: 9999; white-space: pre-wrap;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 12px;
+  background: var(--status-error);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+  z-index: 9999;
+  white-space: pre-wrap;
 }

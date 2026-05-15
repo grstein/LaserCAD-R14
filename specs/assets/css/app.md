@@ -1,9 +1,11 @@
 # assets/css/app.css
 
 ## 1. Responsabilidade
+
 Definir o **layout CSS Grid** das 4 regioes fixas do LaserCAD R14 sobre o `<body>` (menubar / toolbar / viewport / command line / status bar), as regras visuais nao-cobertas por `theme.css` (fundos das regioes, divisoes, padding), e o estilo base de elementos compostos (botoes de ferramenta, items de menu, prompts da command line).
 
 ## 2. Dependencias
+
 - carga: **terceira** das tres folhas CSS — depois de `reset.css` (estrutura) e depois de `theme.css` (tokens). Ver `index-html.md` §3.2.
 - consome tokens de `theme.css`: todas as cores e tipografia entram por `var(--*)` — `app.css` nunca declara hex direto.
 
@@ -16,41 +18,63 @@ Definir o **layout CSS Grid** das 4 regioes fixas do LaserCAD R14 sobre o `<body
 ```css
 body {
   display: grid;
-  grid-template-rows: 28px auto 66px 24px;     /* menubar, viewport, command, statusbar */
-  grid-template-columns: 40px 1fr;             /* toolbar | restante */
+  grid-template-rows: 28px auto 66px 24px; /* menubar, viewport, command, statusbar */
+  grid-template-columns: 40px 1fr; /* toolbar | restante */
   grid-template-areas:
-    "menu    menu"
-    "tools   view"
-    "tools   cmd"
-    "status  status";
+    'menu    menu'
+    'tools   view'
+    'tools   cmd'
+    'status  status';
   background: var(--bg-canvas);
   color: var(--text-primary);
   font-family: var(--font-ui);
   font-size: var(--font-base);
 }
 
-#menubar       { grid-area: menu;   background: var(--bg-chrome);  border-bottom: 1px solid var(--border-subtle); }
-#toolbar       { grid-area: tools;  background: var(--bg-chrome);  border-right:  1px solid var(--border-subtle); }
-#viewport-host { grid-area: view;   background: var(--bg-canvas);  position: relative; overflow: hidden; }
-#command-line  { grid-area: cmd;    background: var(--bg-chrome);  border-top:    1px solid var(--border-subtle); border-left: 1px solid var(--border-subtle); }
-#statusbar     { grid-area: status; background: var(--bg-chrome);  border-top:    1px solid var(--border-subtle); }
+#menubar {
+  grid-area: menu;
+  background: var(--bg-chrome);
+  border-bottom: 1px solid var(--border-subtle);
+}
+#toolbar {
+  grid-area: tools;
+  background: var(--bg-chrome);
+  border-right: 1px solid var(--border-subtle);
+}
+#viewport-host {
+  grid-area: view;
+  background: var(--bg-canvas);
+  position: relative;
+  overflow: hidden;
+}
+#command-line {
+  grid-area: cmd;
+  background: var(--bg-chrome);
+  border-top: 1px solid var(--border-subtle);
+  border-left: 1px solid var(--border-subtle);
+}
+#statusbar {
+  grid-area: status;
+  background: var(--bg-chrome);
+  border-top: 1px solid var(--border-subtle);
+}
 ```
 
 ### 3.2 IDs e classes estilizadas
 
-| Seletor | Origem visual |
-|---|---|
-| `#menubar` (28 px) — itens texto 13 px Inter, padding horizontal 14 px | `design.md` L80-L82, L108, L240 |
-| `#toolbar` (40 px largura, coluna vertical) — botoes 40×32 px com icone 24×24 px | `design.md` L83-L95, L109, L122-L155 |
-| `#viewport-host` (recebe `<svg>` filho unico via `render.svgRoot.mount`) | `design.md` L85-L95, L110 |
-| `#command-line` (66 px = 3 linhas mono, padding 4 px) | `design.md` L96-L99, L111, L188-L218 |
-| `#statusbar` (24 px, mono 11 px, divisores `\|` em `--border-subtle`) | `design.md` L100-L102, L112, L220-L236 |
-| `.tool-button`, `.tool-button.is-active`, `.tool-button:hover`, `.tool-button:disabled` | `design.md` L124-L130 |
-| `.menu-item`, `.menu-item:hover`, `.menu-dropdown` | `design.md` L240-L251 |
-| `.cmd-history`, `.cmd-prompt`, `.cmd-input` | `design.md` L195-L213 |
-| `.status-coords`, `.status-toggle`, `.status-toggle.is-on`, `.status-divider`, `.status-autosave` | `design.md` L225-L236 |
-| `.cursor-label` (texto SVG dentro de `#overlays`) | `design.md` L185 |
-| `:focus-visible` em qualquer controle fora do viewport: `outline: 2px solid var(--laser-glow)` | `design.md` L338 |
+| Seletor                                                                                           | Origem visual                          |
+| ------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `#menubar` (28 px) — itens texto 13 px Inter, padding horizontal 14 px                            | `design.md` L80-L82, L108, L240        |
+| `#toolbar` (40 px largura, coluna vertical) — botoes 40×32 px com icone 24×24 px                  | `design.md` L83-L95, L109, L122-L155   |
+| `#viewport-host` (recebe `<svg>` filho unico via `render.svgRoot.mount`)                          | `design.md` L85-L95, L110              |
+| `#command-line` (66 px = 3 linhas mono, padding 4 px)                                             | `design.md` L96-L99, L111, L188-L218   |
+| `#statusbar` (24 px, mono 11 px, divisores `\|` em `--border-subtle`)                             | `design.md` L100-L102, L112, L220-L236 |
+| `.tool-button`, `.tool-button.is-active`, `.tool-button:hover`, `.tool-button:disabled`           | `design.md` L124-L130                  |
+| `.menu-item`, `.menu-item:hover`, `.menu-dropdown`                                                | `design.md` L240-L251                  |
+| `.cmd-history`, `.cmd-prompt`, `.cmd-input`                                                       | `design.md` L195-L213                  |
+| `.status-coords`, `.status-toggle`, `.status-toggle.is-on`, `.status-divider`, `.status-autosave` | `design.md` L225-L236                  |
+| `.cursor-label` (texto SVG dentro de `#overlays`)                                                 | `design.md` L185                       |
+| `:focus-visible` em qualquer controle fora do viewport: `outline: 2px solid var(--laser-glow)`    | `design.md` L338                       |
 
 ### 3.3 Regras nao-negociaveis (transcritas em CSS)
 
@@ -58,14 +82,22 @@ body {
 /* Viewport >= 88% da altura: garantido implicitamente pelas linhas 28/66/24 = 118 px de chrome. */
 /* Toolbar nunca > 40 px de largura — fixado em grid-template-columns. */
 /* SVG raiz preenche 100% do host */
-#viewport-host > svg { width: 100%; height: 100%; display: block; }
+#viewport-host > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
 
 /* Stroke minimo do laser nao colapsa em zoom — usa vector-effect quando suportado */
-#entities * { vector-effect: non-scaling-stroke; }
+#entities * {
+  vector-effect: non-scaling-stroke;
+}
 
 /* prefers-reduced-motion: caret da command line estatico */
 @media (prefers-reduced-motion: reduce) {
-  .cmd-input::after { animation: none; }
+  .cmd-input::after {
+    animation: none;
+  }
 }
 ```
 
@@ -87,11 +119,11 @@ body {
 ```html
 <!-- index.html, com app.css ja carregado, as regioes ja se organizam -->
 <body>
-  <nav     id="menubar"></nav>
-  <aside   id="toolbar"></aside>
-  <main    id="viewport-host"></main>
+  <nav id="menubar"></nav>
+  <aside id="toolbar"></aside>
+  <main id="viewport-host"></main>
   <section id="command-line"></section>
-  <footer  id="statusbar"></footer>
+  <footer id="statusbar"></footer>
 </body>
 ```
 

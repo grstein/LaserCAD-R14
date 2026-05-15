@@ -22,20 +22,26 @@ window.LaserCAD.ui.commandLine = {
    * @param {HTMLElement} host
    * @returns {void}
    */
-  mount(host) { /* ... */ },
+  mount(host) {
+    /* ... */
+  },
 
   /**
    * Da foco ao input ativo (linha 3). Util em pos-`app:ready`.
    * @returns {void}
    */
-  focus() { /* ... */ },
+  focus() {
+    /* ... */
+  },
 
   /**
    * Limpa o input ativo e a linha de prompt (volta para o estado pos-cancel:
    * "Command: _"). Nao mexe no historico.
    * @returns {void}
    */
-  clear() { /* ... */ },
+  clear() {
+    /* ... */
+  },
 
   /**
    * Encaminha uma linha bruta para o parser, exatamente como se o usuario
@@ -43,7 +49,9 @@ window.LaserCAD.ui.commandLine = {
    * @param {string} raw
    * @returns {void}
    */
-  submit(raw) { /* ... */ }
+  submit(raw) {
+    /* ... */
+  },
 };
 ```
 
@@ -87,7 +95,7 @@ Quando o parser nao reconhece a linha, `parsed === null` e a command line emite 
   - Erros: `--status-error` (#FF4D6D), prefixo `! ` literal.
 - **Foco automatico (design.md L206).** Listener global em `document` para `keydown`: se a tecla eh alfanumerica (`/^[a-zA-Z0-9]$/` para `e.key`), o `event.target` nao eh um `<input>`/`<textarea>`/`[contenteditable]`, e nenhum modificador (Ctrl/Meta) esta ativo, entao o input da command line recebe foco **antes** de processar a tecla, e a tecla eh injetada no campo. Tecla nao alfanumerica nao rouba foco.
 - **Confirmacao (design.md L207–L208).** `Enter` e `Espaco` enquanto o foco esta no input confirmam a linha atual: chamam `submit(raw)`.
-- **Cancelamento (design.md L209).** `Esc` no input limpa o campo, emite `tool:cancel` (apenas se ha ferramenta ativa em `armed`/`preview`), exibe `*Cancel*` por 1 frame e volta a "Command: _". Note: `tool:cancel` na lista canonica eh emitido pelo `tool-manager`, nao pela commandLine. Em vez disso, a commandLine emite `tool:request` com `{ toolId: 'select' }` ou — preferencialmente — apenas dispara um pedido que o `tool-manager` resolva. **Decisao de Sprint 1:** o Esc na commandLine chama uma API do `tool-manager` (`LaserCAD.tools.toolManager.cancel()`) que emite `tool:cancel` corretamente. Isso evita inventar evento novo.
+- **Cancelamento (design.md L209).** `Esc` no input limpa o campo, emite `tool:cancel` (apenas se ha ferramenta ativa em `armed`/`preview`), exibe `*Cancel*` por 1 frame e volta a "Command: \_". Note: `tool:cancel` na lista canonica eh emitido pelo `tool-manager`, nao pela commandLine. Em vez disso, a commandLine emite `tool:request` com `{ toolId: 'select' }` ou — preferencialmente — apenas dispara um pedido que o `tool-manager` resolva. **Decisao de Sprint 1:** o Esc na commandLine chama uma API do `tool-manager` (`LaserCAD.tools.toolManager.cancel()`) que emite `tool:cancel` corretamente. Isso evita inventar evento novo.
 - **Historico ↑/↓ (design.md L210).** Quando o input esta vazio e o usuario pressiona `↑`, le `state.commandHistory[k]` (k cresce do mais recente). `↓` decrementa k. Quando o input nao esta vazio, ↑/↓ nao navegam historico (comportamento padrao de input).
 - **Cap do historico.** N maximo definido em `app.config` (sugerido 50, conforme state-contract.md §1.1). Quando atinge, o mais antigo eh descartado por `state.pushCommandHistory`.
 - **Caret piscando.** Sprint 1 entrega caret nativo (`<input>` ou `<textarea>` com `caret-color: --laser-450`). Respeitar `@media (prefers-reduced-motion: reduce)`: caret estatico (design.md L340).
@@ -99,32 +107,32 @@ A entrada eh **case-insensitive**. Trim de whitespace antes/depois antes do matc
 
 #### 4.1.1 Comandos reconhecidos e executados
 
-| Entrada (regex case-insensitive) | parsed             | Acao colateral                                  |
-|----------------------------------|--------------------|-------------------------------------------------|
-| `pan`                            | `{kind:'view', action:'pan'}`         | emite `command:submit`                |
-| `zoom\s+in` ou `zi`              | `{kind:'view', action:'zoomIn'}`      | emite `command:submit`                |
-| `zoom\s+out` ou `zo`             | `{kind:'view', action:'zoomOut'}`     | emite `command:submit`                |
-| `zoom\s+extents` ou `ze`         | `{kind:'view', action:'zoomExtents'}` | emite `command:submit`                |
+| Entrada (regex case-insensitive) | parsed                                | Acao colateral                                                                      |
+| -------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------- |
+| `pan`                            | `{kind:'view', action:'pan'}`         | emite `command:submit`                                                              |
+| `zoom\s+in` ou `zi`              | `{kind:'view', action:'zoomIn'}`      | emite `command:submit`                                                              |
+| `zoom\s+out` ou `zo`             | `{kind:'view', action:'zoomOut'}`     | emite `command:submit`                                                              |
+| `zoom\s+extents` ou `ze`         | `{kind:'view', action:'zoomExtents'}` | emite `command:submit`                                                              |
 | `grid`                           | `{kind:'toggle', name:'grid'}`        | dispara `toggle:changed` via state.setToggle (consumido pela statusbar/render.grid) |
-| `snap`                           | `{kind:'toggle', name:'snap'}`        | idem                                  |
-| `ortho`                          | `{kind:'toggle', name:'ortho'}`       | idem                                  |
+| `snap`                           | `{kind:'toggle', name:'snap'}`        | idem                                                                                |
+| `ortho`                          | `{kind:'toggle', name:'ortho'}`       | idem                                                                                |
 
 Para `grid`/`snap`/`ortho`, a commandLine **inverte** o valor atual (`state.toggles[name]`) chamando `LaserCAD.app.state.setToggle(name, !state.toggles[name])`. O setter emite `toggle:changed` conforme state-contract.md §2.3.
 
 #### 4.1.2 Pedidos de ferramenta (Sprint 1: apenas `select` arma de fato)
 
-| Entrada                             | parsed                                | Acao                                           |
-|-------------------------------------|---------------------------------------|------------------------------------------------|
-| `line` ou `l`                       | `{kind:'tool', toolId:'line'}`        | emite `command:error` (`! Not available in Sprint 1`) |
-| `polyline` ou `p`                   | `{kind:'tool', toolId:'polyline'}`    | idem                                           |
-| `rect` ou `r`                       | `{kind:'tool', toolId:'rect'}`        | idem                                           |
-| `circle` ou `c`                     | `{kind:'tool', toolId:'circle'}`      | idem                                           |
-| `arc` ou `a`                        | `{kind:'tool', toolId:'arc'}`         | idem                                           |
-| `select` ou `s`                     | `{kind:'tool', toolId:'select'}`      | emite `tool:request` `{toolId:'select'}` (ja eh a ativa, mas mantem fluxo) |
-| `trim` ou `t`                       | `{kind:'tool', toolId:'trim'}`        | emite `command:error`                          |
-| `extend` ou `e`                     | `{kind:'tool', toolId:'extend'}`      | idem                                           |
-| `move` ou `m`                       | `{kind:'tool', toolId:'move'}`        | idem                                           |
-| `delete` (sem alias `d`)            | `{kind:'tool', toolId:'delete'}`      | idem                                           |
+| Entrada                  | parsed                             | Acao                                                                       |
+| ------------------------ | ---------------------------------- | -------------------------------------------------------------------------- |
+| `line` ou `l`            | `{kind:'tool', toolId:'line'}`     | emite `command:error` (`! Not available in Sprint 1`)                      |
+| `polyline` ou `p`        | `{kind:'tool', toolId:'polyline'}` | idem                                                                       |
+| `rect` ou `r`            | `{kind:'tool', toolId:'rect'}`     | idem                                                                       |
+| `circle` ou `c`          | `{kind:'tool', toolId:'circle'}`   | idem                                                                       |
+| `arc` ou `a`             | `{kind:'tool', toolId:'arc'}`      | idem                                                                       |
+| `select` ou `s`          | `{kind:'tool', toolId:'select'}`   | emite `tool:request` `{toolId:'select'}` (ja eh a ativa, mas mantem fluxo) |
+| `trim` ou `t`            | `{kind:'tool', toolId:'trim'}`     | emite `command:error`                                                      |
+| `extend` ou `e`          | `{kind:'tool', toolId:'extend'}`   | idem                                                                       |
+| `move` ou `m`            | `{kind:'tool', toolId:'move'}`     | idem                                                                       |
+| `delete` (sem alias `d`) | `{kind:'tool', toolId:'delete'}`   | idem                                                                       |
 
 **Importante:** para os 9 toolIds nao disponíveis, **ainda assim** o parser produz `parsed` valido (objeto) e emite **`command:error`** com `message: '! Not available in Sprint 1'`. Nao emite `command:submit` nesses casos. Isso valida o pipeline parser/erro sem implementar a ferramenta.
 
@@ -145,11 +153,11 @@ Qualquer entrada que nao bate em nenhum padrao acima → `parsed = null` e emite
 
 ### 4.2 Renderizacao das 3 linhas
 
-| Linha | Conteudo                                                                       |
-|-------|--------------------------------------------------------------------------------|
-| 1     | Eco do penultimo comando ou ultimo resultado (ex.: `Command: line`)            |
+| Linha | Conteudo                                                                                                                                                                                             |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | Eco do penultimo comando ou ultimo resultado (ex.: `Command: line`)                                                                                                                                  |
 | 2     | Prompt da ferramenta ativa, gerado pelo `tool-manager` ou ferramenta corrente. Sprint 1: `Command:` ou `LINE  Specify first point:` (prompts estaticos definidos em select-tool.md/tool-manager.md). |
-| 3     | Input vivo: `<prompt corrente> <input do usuario><caret>`                      |
+| 3     | Input vivo: `<prompt corrente> <input do usuario><caret>`                                                                                                                                            |
 
 A commandLine consome `tool:armed` para atualizar a linha 2 com o prompt da ferramenta armada (recuperado de `tool-def.prompt` ou similar; ver `tool-manager.md`). Para `select` em Sprint 1, o prompt eh `Select objects:` (mesmo que clique nao faca nada — design.md L329 mostra padrao).
 
@@ -166,10 +174,10 @@ A commandLine consome `tool:armed` para atualizar a linha 2 com o prompt da ferr
 
 // Via DevTools, simulando entrada:
 LaserCAD.ui.commandLine.submit('zoom extents');
-LaserCAD.ui.commandLine.submit('line');         // -> command:error '! Not available in Sprint 1'
-LaserCAD.ui.commandLine.submit('124.5,87.3');   // -> command:error '! Not available in Sprint 1'
-LaserCAD.ui.commandLine.submit('@10,0');        // -> command:error '! Not available in Sprint 1'
-LaserCAD.ui.commandLine.submit('xyzfoo');       // -> command:error '! Unknown command: xyzfoo'
+LaserCAD.ui.commandLine.submit('line'); // -> command:error '! Not available in Sprint 1'
+LaserCAD.ui.commandLine.submit('124.5,87.3'); // -> command:error '! Not available in Sprint 1'
+LaserCAD.ui.commandLine.submit('@10,0'); // -> command:error '! Not available in Sprint 1'
+LaserCAD.ui.commandLine.submit('xyzfoo'); // -> command:error '! Unknown command: xyzfoo'
 
 // Foco programatico:
 LaserCAD.ui.commandLine.focus();

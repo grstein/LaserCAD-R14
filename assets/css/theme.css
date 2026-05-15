@@ -1,56 +1,56 @@
 :root {
   /* Background levels */
-  --bg-canvas:     #0A0612;
-  --bg-chrome:     #120A1F;
-  --bg-elevated:   #1A1030;
+  --bg-canvas: #0a0612;
+  --bg-chrome: #120a1f;
+  --bg-elevated: #1a1030;
   --bg-elevated-2: #221540;
 
   /* Borders */
   --border-subtle: #241638;
-  --border-strong: #3D2466;
+  --border-strong: #3d2466;
 
   /* Grid */
-  --grid-minor: #1E1232;
-  --grid-major: #2E1A4D;
-  --grid-axis:  #5B2DD1;
+  --grid-minor: #1e1232;
+  --grid-major: #2e1a4d;
+  --grid-axis: #5b2dd1;
 
   /* Text */
-  --text-primary:   #E8DDFF;
-  --text-secondary: #8E7CB8;
-  --text-disabled:  #4A3E66;
+  --text-primary: #e8ddff;
+  --text-secondary: #8e7cb8;
+  --text-disabled: #4a3e66;
 
   /* Laser 450nm */
-  --laser-450:  #6E00FF;
-  --laser-glow: #9D4DFF;
-  --laser-dim:  #3D0099;
+  --laser-450: #6e00ff;
+  --laser-glow: #9d4dff;
+  --laser-dim: #3d0099;
 
   /* Snap markers */
-  --snap-endpoint:     #FFD400;
-  --snap-midpoint:     #FF8A00;
-  --snap-center:       #00E5FF;
-  --snap-intersection: #FF2D7A;
+  --snap-endpoint: #ffd400;
+  --snap-midpoint: #ff8a00;
+  --snap-center: #00e5ff;
+  --snap-intersection: #ff2d7a;
 
   /* Status */
-  --status-ok:    #3DDC97;
-  --status-warn:  #FFB020;
-  --status-error: #FF4D6D;
+  --status-ok: #3ddc97;
+  --status-warn: #ffb020;
+  --status-error: #ff4d6d;
 
   /* Focus */
-  --focus-ring: #9D4DFF;
+  --focus-ring: #9d4dff;
 
   /* Typography */
-  --font-ui:      "Inter", system-ui, -apple-system, sans-serif;
-  --font-mono:    "JetBrains Mono", "Menlo", "Consolas", monospace;
-  --font-display: "Inter", system-ui, sans-serif;
+  --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+  --font-display: 'Inter', system-ui, sans-serif;
 
   /* Type scale (px) */
-  --font-xs:   11px;
-  --font-sm:   12px;
+  --font-xs: 11px;
+  --font-sm: 12px;
   --font-base: 13px;
-  --font-md:   14px;
-  --font-lg:   16px;
+  --font-md: 14px;
+  --font-lg: 16px;
 
   /* Line heights */
   --line-height-text: 1.4;
-  --line-height-cmd:  1.0;
+  --line-height-cmd: 1;
 }

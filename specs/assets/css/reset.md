@@ -1,9 +1,11 @@
 # assets/css/reset.css
 
 ## 1. Responsabilidade
+
 Zerar defaults inconsistentes do navegador para que o resto do CSS comece em terreno previsivel: box-sizing universal, margens/paddings 0, scroll desabilitado no `<body>`, e fonte sans-serif do sistema como fallback ate `theme.css` aplicar `--font-ui`.
 
 ## 2. Dependencias
+
 - carga: **primeira** das tres folhas CSS — antes de `theme.css` e antes de `app.css` (ver `index-html.md` §3.2).
 - nenhuma dependencia de tokens (`reset.css` nao usa `var(--*)` — esses sao definidos em `theme.css`).
 
@@ -12,11 +14,14 @@ Zerar defaults inconsistentes do navegador para que o resto do CSS comece em ter
 `reset.css` nao expoe "API" no sentido funcional. Lista exata de regras (seletores → propriedades):
 
 ```css
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   height: 100%;
@@ -24,13 +29,20 @@ html, body {
 }
 
 body {
-  overflow: hidden;                    /* viewport ocupa a tela toda; sem scroll */
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;  /* fallback ate theme.css */
+  overflow: hidden; /* viewport ocupa a tela toda; sem scroll */
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif; /* fallback ate theme.css */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-button, input, select, textarea {
+button,
+input,
+select,
+textarea {
   margin: 0;
   padding: 0;
   font: inherit;
@@ -43,11 +55,15 @@ button {
   cursor: pointer;
 }
 
-button:focus, input:focus, select:focus, textarea:focus {
-  outline: none;                       /* foco visivel sera definido em app.css */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none; /* foco visivel sera definido em app.css */
 }
 
-ul, ol {
+ul,
+ol {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -59,7 +75,7 @@ a {
 }
 
 svg {
-  display: block;                      /* elimina baseline gap embaixo de inline SVG */
+  display: block; /* elimina baseline gap embaixo de inline SVG */
 }
 
 img {

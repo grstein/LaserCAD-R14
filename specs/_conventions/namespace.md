@@ -12,28 +12,35 @@ O estado global é uma única árvore. Cada sub-namespace corresponde a uma cama
 
 ```js
 window.LaserCAD = {
-  core:    { geometry: {/*…*/}, document: {/*…*/} },
-  render:  { camera, svgRoot, grid, entityRenderers, overlays },
-  tools:   { toolManager, selectTool, /*…*/ },
-  ui:      { toolbar, commandLine, statusbar, menubar, dialogs },
-  io:      {},        // vazio na Sprint 1
-  app:     { state, config, shortcuts, bootstrap },
-  bus:     { on, off, emit }
+  core: {
+    geometry: {
+      /*…*/
+    },
+    document: {
+      /*…*/
+    },
+  },
+  render: { camera, svgRoot, grid, entityRenderers, overlays },
+  tools: { toolManager, selectTool /*…*/ },
+  ui: { toolbar, commandLine, statusbar, menubar, dialogs },
+  io: {}, // vazio na Sprint 1
+  app: { state, config, shortcuts, bootstrap },
+  bus: { on, off, emit },
 };
 ```
 
 ### 1.1 Responsabilidades por sub-namespace
 
-| Sub-namespace | Conteúdo previsto | Pureza | Origem na `plan.md` |
-|---|---|---|---|
-| `core.geometry` | `epsilon`, `vec2`, `line`, `circle`, `arc`, `project`, futuros `intersect`, `snap` | Sem DOM, sem `window`, sem eventos | L161–169, L222 |
-| `core.document` | `schema`, `validators`, `commands`, `history` | Sem DOM | L170–174 |
-| `render` | `camera`, `svgRoot`, `grid`, `entityRenderers`, `overlays` | Toca o DOM SVG; lê o `state`; emite eventos | L175–180 |
-| `tools` | `toolManager`, `selectTool` (Sprint 1); demais nas sprints seguintes | Máquina de estados; sem DOM diretamente | L181–190, L223 |
-| `ui` | `toolbar`, `commandLine`, `statusbar`, `menubar`, `dialogs` | Toca o DOM HTML (chrome); emite eventos | L196–200 |
-| `io` | Vazio na Sprint 1; futura sede de `export-svg`, `file-download`, `autosave` | — | L191–195 |
-| `app` | `state` (singleton), `config`, `shortcuts`, `bootstrap` | Mutação do estado é exclusiva de `app.state` | L155–159 |
-| `bus` | `on(evt, fn)`, `off(evt, fn)`, `emit(evt, payload)` | Lista canônica fechada em `specs/_conventions/state-contract.md` | — |
+| Sub-namespace   | Conteúdo previsto                                                                  | Pureza                                                           | Origem na `plan.md` |
+| --------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------- |
+| `core.geometry` | `epsilon`, `vec2`, `line`, `circle`, `arc`, `project`, futuros `intersect`, `snap` | Sem DOM, sem `window`, sem eventos                               | L161–169, L222      |
+| `core.document` | `schema`, `validators`, `commands`, `history`                                      | Sem DOM                                                          | L170–174            |
+| `render`        | `camera`, `svgRoot`, `grid`, `entityRenderers`, `overlays`                         | Toca o DOM SVG; lê o `state`; emite eventos                      | L175–180            |
+| `tools`         | `toolManager`, `selectTool` (Sprint 1); demais nas sprints seguintes               | Máquina de estados; sem DOM diretamente                          | L181–190, L223      |
+| `ui`            | `toolbar`, `commandLine`, `statusbar`, `menubar`, `dialogs`                        | Toca o DOM HTML (chrome); emite eventos                          | L196–200            |
+| `io`            | Vazio na Sprint 1; futura sede de `export-svg`, `file-download`, `autosave`        | —                                                                | L191–195            |
+| `app`           | `state` (singleton), `config`, `shortcuts`, `bootstrap`                            | Mutação do estado é exclusiva de `app.state`                     | L155–159            |
+| `bus`           | `on(evt, fn)`, `off(evt, fn)`, `emit(evt, payload)`                                | Lista canônica fechada em `specs/_conventions/state-contract.md` | —                   |
 
 **Sprint 1 (WS-A/B/C):** apenas `core.geometry`, `core.document`, `app.state`, `bus` e a casca mínima de `render`/`tools`/`ui` necessária para abrir o app. `io` permanece vazio.
 
@@ -59,14 +66,23 @@ Cada arquivo abre uma IIFE, anexa coisas ao namespace e nada mais. O cabeçalho 
      * @param {Vec2} b
      * @returns {Vec2}
      */
-    add(a, b) { /* ... */ },
+    add(a, b) {
+      /* ... */
+    },
 
     // ... demais funções públicas (sub, scale, dot, len, normalize, ...)
   };
-})(window.LaserCAD = window.LaserCAD || {
-  core: { geometry: {}, document: {} },
-  render: {}, tools: {}, ui: {}, io: {}, app: {}, bus: {}
-});
+})(
+  (window.LaserCAD = window.LaserCAD || {
+    core: { geometry: {}, document: {} },
+    render: {},
+    tools: {},
+    ui: {},
+    io: {},
+    app: {},
+    bus: {},
+  }),
+);
 ```
 
 ### 2.1 Regras do padrão
@@ -88,14 +104,18 @@ Cada arquivo abre uma IIFE, anexa coisas ao namespace e nada mais. O cabeçalho 
 var EPS = 1e-6;
 
 // PROIBIDO: tipo "module" — falha em file:// (ADR 0001 §3)
-<script type="module" src="./src/main.js"></script>
+<script type="module" src="./src/main.js"></script>;
 
 // PROIBIDO: anexar coisas em window fora do namespace
-window.addLine = function () { /* ... */ };
+window.addLine = function () {
+  /* ... */
+};
 
 // PROIBIDO: import/export
 import { vec2 } from './vec2.js';
-export const line = { /* ... */ };
+export const line = {
+  /* ... */
+};
 
 // PROIBIDO: mutação do state a partir de fora do app.state
 window.LaserCAD.app.state.activeTool = 'line';
@@ -107,36 +127,36 @@ window.LaserCAD.app.state.activeTool = 'line';
 
 Carregar das **folhas para as raízes** — quem ninguém depende vai primeiro; quem orquestra o app vai por último. Esta lista é normativa: qualquer novo arquivo precisa ser inserido na posição correta e a tabela atualizada.
 
-| # | Caminho | Sub-namespace que popula | Depende de |
-|---:|---|---|---|
-| 1  | `src/core/geometry/epsilon.js`         | `core.geometry.epsilon`         | (nenhuma) |
-| 2  | `src/core/geometry/vec2.js`            | `core.geometry.vec2`            | `epsilon` |
-| 3  | `src/core/geometry/line.js`            | `core.geometry.line`            | `vec2`, `epsilon` |
-| 4  | `src/core/geometry/circle.js`          | `core.geometry.circle`          | `vec2`, `epsilon` |
-| 5  | `src/core/geometry/arc.js`             | `core.geometry.arc`             | `vec2`, `epsilon` |
-| 6  | `src/core/geometry/project.js`         | `core.geometry.project`         | `vec2`, `line`, `circle`, `arc` |
-| 7  | `src/core/document/schema.js`          | `core.document.schema`          | (nenhuma — só `@typedef`s) |
-| 8  | `src/core/document/validators.js`      | `core.document.validators`      | `schema`, `core.geometry.*` |
-| 9  | `src/core/document/commands.js`        | `core.document.commands`        | `schema`, `validators` |
-| 10 | `src/core/document/history.js`         | `core.document.history`         | `commands` |
-| 11 | `src/app/event-bus.js`                 | `bus`                           | (nenhuma) |
-| 12 | `src/app/state.js`                     | `app.state`                     | `bus`, `core.document.schema` |
-| 13 | `src/app/config.js`                    | `app.config`                    | (nenhuma) |
-| 14 | `src/app/shortcuts.js`                 | `app.shortcuts`                 | `bus`, `app.config` |
-| 15 | `src/render/camera.js`                 | `render.camera`                 | `app.state`, `bus`, `core.geometry.vec2` |
-| 16 | `src/render/svg-root.js`               | `render.svgRoot`                | `app.state`, `bus`, `render.camera` |
-| 17 | `src/render/grid.js`                   | `render.grid`                   | `render.svgRoot`, `render.camera`, `bus` |
-| 18 | `src/render/entity-renderers.js`       | `render.entityRenderers`        | `render.svgRoot`, `core.document.schema` |
-| 19 | `src/render/overlays.js`               | `render.overlays`               | `render.svgRoot`, `render.camera`, `bus` |
-| 20 | `src/tools/tool-manager.js`            | `tools.toolManager`             | `app.state`, `bus`, `core.document.commands`, `core.document.history` |
-| 21 | `src/tools/select-tool.js`             | `tools.selectTool`              | `tools.toolManager`, `core.geometry.*` |
-| 22 | `src/ui/toolbar.js`                    | `ui.toolbar`                    | `bus`, `app.state` |
-| 23 | `src/ui/command-line.js`               | `ui.commandLine`                | `bus`, `app.state` |
-| 24 | `src/ui/statusbar.js`                  | `ui.statusbar`                  | `bus`, `app.state` |
-| 25 | `src/ui/menubar.js`                    | `ui.menubar`                    | `bus`, `app.shortcuts` |
-| 26 | `src/ui/dialogs.js`                    | `ui.dialogs`                    | `bus`, `app.state` |
-| 27 | `src/app/bootstrap.js`                 | `app.bootstrap`                 | todos os anteriores |
-| 28 | `src/main.js`                          | (kick-off)                      | `app.bootstrap` |
+|   # | Caminho                           | Sub-namespace que popula   | Depende de                                                            |
+| --: | --------------------------------- | -------------------------- | --------------------------------------------------------------------- |
+|   1 | `src/core/geometry/epsilon.js`    | `core.geometry.epsilon`    | (nenhuma)                                                             |
+|   2 | `src/core/geometry/vec2.js`       | `core.geometry.vec2`       | `epsilon`                                                             |
+|   3 | `src/core/geometry/line.js`       | `core.geometry.line`       | `vec2`, `epsilon`                                                     |
+|   4 | `src/core/geometry/circle.js`     | `core.geometry.circle`     | `vec2`, `epsilon`                                                     |
+|   5 | `src/core/geometry/arc.js`        | `core.geometry.arc`        | `vec2`, `epsilon`                                                     |
+|   6 | `src/core/geometry/project.js`    | `core.geometry.project`    | `vec2`, `line`, `circle`, `arc`                                       |
+|   7 | `src/core/document/schema.js`     | `core.document.schema`     | (nenhuma — só `@typedef`s)                                            |
+|   8 | `src/core/document/validators.js` | `core.document.validators` | `schema`, `core.geometry.*`                                           |
+|   9 | `src/core/document/commands.js`   | `core.document.commands`   | `schema`, `validators`                                                |
+|  10 | `src/core/document/history.js`    | `core.document.history`    | `commands`                                                            |
+|  11 | `src/app/event-bus.js`            | `bus`                      | (nenhuma)                                                             |
+|  12 | `src/app/state.js`                | `app.state`                | `bus`, `core.document.schema`                                         |
+|  13 | `src/app/config.js`               | `app.config`               | (nenhuma)                                                             |
+|  14 | `src/app/shortcuts.js`            | `app.shortcuts`            | `bus`, `app.config`                                                   |
+|  15 | `src/render/camera.js`            | `render.camera`            | `app.state`, `bus`, `core.geometry.vec2`                              |
+|  16 | `src/render/svg-root.js`          | `render.svgRoot`           | `app.state`, `bus`, `render.camera`                                   |
+|  17 | `src/render/grid.js`              | `render.grid`              | `render.svgRoot`, `render.camera`, `bus`                              |
+|  18 | `src/render/entity-renderers.js`  | `render.entityRenderers`   | `render.svgRoot`, `core.document.schema`                              |
+|  19 | `src/render/overlays.js`          | `render.overlays`          | `render.svgRoot`, `render.camera`, `bus`                              |
+|  20 | `src/tools/tool-manager.js`       | `tools.toolManager`        | `app.state`, `bus`, `core.document.commands`, `core.document.history` |
+|  21 | `src/tools/select-tool.js`        | `tools.selectTool`         | `tools.toolManager`, `core.geometry.*`                                |
+|  22 | `src/ui/toolbar.js`               | `ui.toolbar`               | `bus`, `app.state`                                                    |
+|  23 | `src/ui/command-line.js`          | `ui.commandLine`           | `bus`, `app.state`                                                    |
+|  24 | `src/ui/statusbar.js`             | `ui.statusbar`             | `bus`, `app.state`                                                    |
+|  25 | `src/ui/menubar.js`               | `ui.menubar`               | `bus`, `app.shortcuts`                                                |
+|  26 | `src/ui/dialogs.js`               | `ui.dialogs`               | `bus`, `app.state`                                                    |
+|  27 | `src/app/bootstrap.js`            | `app.bootstrap`            | todos os anteriores                                                   |
+|  28 | `src/main.js`                     | (kick-off)                 | `app.bootstrap`                                                       |
 
 ### 3.1 Convenções derivadas
 
@@ -166,7 +186,7 @@ A consequência direta de "tudo sob `window.LaserCAD`" é que **todo módulo é 
 window.LaserCAD.app.state;
 
 // Soma vetorial pura
-window.LaserCAD.core.geometry.vec2.add({x:1, y:2}, {x:3, y:4});
+window.LaserCAD.core.geometry.vec2.add({ x: 1, y: 2 }, { x: 3, y: 4 });
 // → {x:4, y:6}
 
 // Mudar de ferramenta via bus (caminho oficial)

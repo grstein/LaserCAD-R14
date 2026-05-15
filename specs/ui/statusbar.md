@@ -20,30 +20,34 @@ window.LaserCAD.ui.statusbar = {
    * @param {HTMLElement} host
    * @returns {void}
    */
-  mount(host) { /* ... */ },
+  mount(host) {
+    /* ... */
+  },
 
   /**
    * Re-renderiza coordenadas e toggles a partir do state. Normalmente
    * chamado pelos subscribers de cursor:moved / toggle:changed.
    * @returns {void}
    */
-  refresh() { /* ... */ }
+  refresh() {
+    /* ... */
+  },
 };
 ```
 
 ### 3.1 Estrutura horizontal (esquerda → direita)
 
-| Slot              | Conteudo                                                  | Estado / cor                                       |
-|-------------------|-----------------------------------------------------------|----------------------------------------------------|
-| 1. coordenadas    | `XXX.XXX, YYY.YYY  mm` (3 casas decimais)                 | `--text-primary` (#E8DDFF)                         |
-| 2. divisor        | `│`                                                       | `--border-subtle` (#241638)                        |
-| 3. toggle SNAP    | `◉ SNAP` ou `○ SNAP` (icone + label)                      | `--laser-450` se on, `--text-secondary` se off     |
-| 4. divisor        | `│`                                                       | `--border-subtle`                                  |
-| 5. toggle GRID    | `◉ GRID` ou `○ GRID`                                      | idem                                               |
-| 6. divisor        | `│`                                                       | `--border-subtle`                                  |
-| 7. toggle ORTHO   | `◉ ORTHO` ou `○ ORTHO`                                    | idem                                               |
-| 8. spacer flexivel|                                                           |                                                    |
-| 9. autosave       | `● not yet` (Sprint 1, estatico)                          | `--text-secondary` (#8E7CB8)                       |
+| Slot               | Conteudo                                  | Estado / cor                                   |
+| ------------------ | ----------------------------------------- | ---------------------------------------------- |
+| 1. coordenadas     | `XXX.XXX, YYY.YYY  mm` (3 casas decimais) | `--text-primary` (#E8DDFF)                     |
+| 2. divisor         | `│`                                       | `--border-subtle` (#241638)                    |
+| 3. toggle SNAP     | `◉ SNAP` ou `○ SNAP` (icone + label)      | `--laser-450` se on, `--text-secondary` se off |
+| 4. divisor         | `│`                                       | `--border-subtle`                              |
+| 5. toggle GRID     | `◉ GRID` ou `○ GRID`                      | idem                                           |
+| 6. divisor         | `│`                                       | `--border-subtle`                              |
+| 7. toggle ORTHO    | `◉ ORTHO` ou `○ ORTHO`                    | idem                                           |
+| 8. spacer flexivel |                                           |                                                |
+| 9. autosave        | `● not yet` (Sprint 1, estatico)          | `--text-secondary` (#8E7CB8)                   |
 
 Cada slot eh um `<span>` (ou `<button>` para os toggles), tipografia `--font-mono` 11px (design.md L221, L67), altura total da barra 24px (design.md L112).
 
@@ -67,7 +71,10 @@ LaserCAD.ui.statusbar.mount(document.getElementById('statusbar-host'));
 
 // Cursor move (emitido por render.overlays):
 LaserCAD.bus.emit('cursor:moved', {
-  worldX: 124.5, worldY: 87.3, screenX: 800, screenY: 400
+  worldX: 124.5,
+  worldY: 87.3,
+  screenX: 800,
+  screenY: 400,
 });
 // Statusbar atualiza o slot de coordenadas para "124.500, 87.300  mm".
 
@@ -78,7 +85,7 @@ document.querySelector('[data-toggle="snap"]').click();
 // → refresh() reflete visualmente.
 
 // F7 pressionado (via shortcuts):
-LaserCAD.bus.emit('toggle:changed', { name:'grid', value:false });
+LaserCAD.bus.emit('toggle:changed', { name: 'grid', value: false });
 // Statusbar mostra "○ GRID" em --text-secondary.
 
 // Forcar refresh:

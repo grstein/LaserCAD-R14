@@ -19,7 +19,9 @@ window.LaserCAD.bus = {
    * @param {(payload: any) => void} fn - Callback. Sera chamado sincronamente em cada `emit`.
    * @returns {() => void} unsubscribe - Funcao que, quando chamada, remove esse subscriber (mesmo efeito que `off(event, fn)`).
    */
-  on(event, fn) { /* ... */ },
+  on(event, fn) {
+    /* ... */
+  },
 
   /**
    * Remove um subscriber previamente registrado.
@@ -28,7 +30,9 @@ window.LaserCAD.bus = {
    * @param {(payload: any) => void} fn
    * @returns {void}
    */
-  off(event, fn) { /* ... */ },
+  off(event, fn) {
+    /* ... */
+  },
 
   /**
    * Despacha o evento sincronamente para todos os subscribers ativos.
@@ -38,7 +42,9 @@ window.LaserCAD.bus = {
    * @param {any} payload - Forma do payload definida em specs/_conventions/state-contract.md §3.
    * @returns {void}
    */
-  emit(event, payload) { /* ... */ }
+  emit(event, payload) {
+    /* ... */
+  },
 };
 ```
 
@@ -78,14 +84,16 @@ LaserCAD.bus.on('cursor:moved', (p) => {
 // Sinalizar erro de comando
 LaserCAD.bus.emit('command:error', {
   raw: 'arc 30',
-  message: '! Not available in Sprint 1'
+  message: '! Not available in Sprint 1',
 });
 
 // Desregistrar via retorno de on()
 unsub();
 
 // Desregistrar via off() (equivalente)
-function handler(p) { /* ... */ }
+function handler(p) {
+  /* ... */
+}
 LaserCAD.bus.on('toggle:changed', handler);
 LaserCAD.bus.off('toggle:changed', handler);
 ```

@@ -1,9 +1,11 @@
 # render/entity-renderers
 
 ## 1. Responsabilidade
+
 Mapear cada `Entity` do modelo em um no SVG dentro do grupo `#entities` do `<svg>` raiz, aplicando o estilo de geometria comitada (traco `--laser-450`). Sprint 1 entrega **apenas as assinaturas** — nao ha entidades reais ate Sprint Drawing.
 
 ## 2. Dependencias
+
 - runtime:
   - `window.LaserCAD.render.svgRoot` (acessa `getLayer('entities')`)
   - `window.LaserCAD.core.document.schema` (referencia aos `@typedef` `LineEntity`, `CircleEntity`, `ArcEntity`)
@@ -69,11 +71,11 @@ window.LaserCAD.render.entityRenderers.render(entity, ctx);
 
 ### 3.1 Mapeamento tipo → tag SVG
 
-| `entity.type` | Tag gerada | Atributos chave |
-|---|---|---|
-| `line`   | `<line>`   | `x1`, `y1`, `x2`, `y2` (mm) |
-| `circle` | `<circle>` | `cx`, `cy`, `r` (mm) |
-| `arc`    | `<path>`   | `d="M sx sy A r r 0 large sweep ex ey"` (mm; angulos em rad → endpoints calculados) |
+| `entity.type` | Tag gerada | Atributos chave                                                                     |
+| ------------- | ---------- | ----------------------------------------------------------------------------------- |
+| `line`        | `<line>`   | `x1`, `y1`, `x2`, `y2` (mm)                                                         |
+| `circle`      | `<circle>` | `cx`, `cy`, `r` (mm)                                                                |
+| `arc`         | `<path>`   | `d="M sx sy A r r 0 large sweep ex ey"` (mm; angulos em rad → endpoints calculados) |
 
 ## 4. Invariantes e tolerancias
 
@@ -94,7 +96,7 @@ window.LaserCAD.render.entityRenderers.render(entity, ctx);
 
 ```js
 // Entidade hipotetica
-const line = { id: 'e_1', type: 'line', a: {x:10, y:10}, b: {x:60, y:10} };
+const line = { id: 'e_1', type: 'line', a: { x: 10, y: 10 }, b: { x: 60, y: 10 } };
 
 // Em algum loop futuro (Sprint Drawing):
 const parent = window.LaserCAD.render.svgRoot.getLayer('entities');
@@ -108,8 +110,15 @@ window.LaserCAD.render.entityRenderers.render(line, { parent });
 
 ```js
 // Arco quarto de circulo (90deg), CCW, centro em (50,50), raio 20
-const arc = { id:'e_2', type:'arc', c:{x:50,y:50}, r:20,
-              start: 0, end: Math.PI/2, ccw: true };
+const arc = {
+  id: 'e_2',
+  type: 'arc',
+  c: { x: 50, y: 50 },
+  r: 20,
+  start: 0,
+  end: Math.PI / 2,
+  ccw: true,
+};
 window.LaserCAD.render.entityRenderers.render(arc, { parent });
 // → <path data-id="e_2" class="entity" d="M 70 50 A 20 20 0 0 1 50 70" ... />
 ```

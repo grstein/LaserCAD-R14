@@ -1,9 +1,11 @@
 # render/grid
 
 ## 1. Responsabilidade
+
 Desenhar o grid (minor 1 mm, major 10 mm) e os eixos X/Y do documento dentro dos grupos `#grid` e `#axes` do `<svg>` raiz, aplicando a regra de decimacao por zoom para evitar grid ilegivel.
 
 ## 2. Dependencias
+
 - runtime:
   - `window.LaserCAD.render.svgRoot` (acessa `getLayer('grid')` e `getLayer('axes')`, `getRoot()`)
   - `window.LaserCAD.render.camera` (le `get()` para conhecer `zoom`, `viewportW/H`)
@@ -40,11 +42,11 @@ window.LaserCAD.render.grid.setVisible(visible);
 
 ### 4.1 Tamanhos e cores
 
-| Camada | Passo (mm) | Cor (CSS var) | Hex | Forma | Largura |
-|---|---:|---|---|---|---:|
-| Grid minor | 1 | `--grid-minor` | `#1E1232` | Pontos | 1 px |
-| Grid major | 10 | `--grid-major` | `#2E1A4D` | Linhas continuas | 0.5 px |
-| Eixos X / Y (em 0,0) | — | `--grid-axis` | `#5B2DD1` | Linhas continuas | 1 px |
+| Camada               | Passo (mm) | Cor (CSS var)  | Hex       | Forma            | Largura |
+| -------------------- | ---------: | -------------- | --------- | ---------------- | ------: |
+| Grid minor           |          1 | `--grid-minor` | `#1E1232` | Pontos           |    1 px |
+| Grid major           |         10 | `--grid-major` | `#2E1A4D` | Linhas continuas |  0.5 px |
+| Eixos X / Y (em 0,0) |          — | `--grid-axis`  | `#5B2DD1` | Linhas continuas |    1 px |
 
 (`design.md` L23-L26 e L164-L166).
 

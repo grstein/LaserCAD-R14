@@ -1,9 +1,11 @@
 # circle
 
 ## 1. Responsabilidade
+
 Definir a entidade círculo completo (360°) e expor consultas puras: bbox e circunferência.
 
 ## 2. Dependências
+
 - runtime: `window.LaserCAD.core.geometry.vec2`, `window.LaserCAD.core.geometry.epsilon`.
 - ordem de carga: depois de `vec2` e `epsilon` (posição 4 em `specs/_conventions/namespace.md` §3).
 
@@ -21,12 +23,14 @@ circumference(c: CircleEntity)  : number         // 2 * PI * r
 ```
 
 Contratos pré/pós:
+
 - `make` valida que `center` é ponto finito e `r > EPS`. Lança `Error('circle.make: radius must be > 0')` caso contrário.
 - `bbox` sempre satisfaz `minX < maxX` e `minY < maxY` (porque `r > 0`).
 - `circumference` retorna `> 0`.
 - Nenhuma função muta `c`.
 
 ## 4. Invariantes e tolerâncias
+
 - Forma fixa: `{ type: 'circle', center: Vec2, r: number }`.
 - `type: 'circle'` é literal — validadores conferem em `core.document.validators`.
 - `r` é estritamente positivo (`> EPS`). Círculo com raio zero é proibido — usar ponto/seleção em vez disso.
@@ -38,14 +42,14 @@ Contratos pré/pós:
 ```js
 const C = window.LaserCAD.core.geometry.circle;
 
-const c = C.make({x: 64, y: 64}, 8);
+const c = C.make({ x: 64, y: 64 }, 8);
 
-C.bbox(c);                          // {minX:56, minY:56, maxX:72, maxY:72}
-C.circumference(c);                 // ~50.265 (2 * PI * 8)
+C.bbox(c); // {minX:56, minY:56, maxX:72, maxY:72}
+C.circumference(c); // ~50.265 (2 * PI * 8)
 
 // erro proibido
-C.make({x: 0, y: 0}, 0);            // lança Error
-C.make({x: 0, y: 0}, -1);           // lança Error
+C.make({ x: 0, y: 0 }, 0); // lança Error
+C.make({ x: 0, y: 0 }, -1); // lança Error
 ```
 
 ## 6. Critérios de aceitação testáveis manualmente
@@ -57,6 +61,7 @@ C.make({x: 0, y: 0}, -1);           // lança Error
 5. `make` não modifica o objeto `center` passado (`center.x` inalterado após chamada).
 
 ## 7. Notas de implementação
+
 - Forma coerente com `state-contract.md` §1.1 (entities com `id` + `type` + campos específicos). `commands.add` injeta o `id`.
 - `bbox` é trivial para círculo completo (raio é o "extent" em ambos os eixos). Para arcos, o cálculo é mais elaborado — ver `arc.md` §7.
 - Validação de `r` parecida com `vec2.normalize`: lançar é preferível a propagar uma entidade degenerada que corrompe seleção, render e exportação.

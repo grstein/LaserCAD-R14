@@ -50,7 +50,9 @@ window.LaserCAD.ui.dialogs = {
    * @param {HTMLElement} hostBody - document.body
    * @returns {void}
    */
-  mount(hostBody) { /* ... */ },
+  mount(hostBody) {
+    /* ... */
+  },
 
   /**
    * Abre um dialog conforme a spec. Apenas um dialog visivel por vez —
@@ -60,20 +62,26 @@ window.LaserCAD.ui.dialogs = {
    *   - `close()`: fecha este dialog (no-op se ja fechado).
    *   - `values()`: snapshot dos valores correntes dos campos (`{ <field.id>: any }`).
    */
-  open(spec) { /* ... */ },
+  open(spec) {
+    /* ... */
+  },
 
   /**
    * Fecha qualquer dialog aberto. Idempotente.
    * @returns {void}
    */
-  close() { /* ... */ },
+  close() {
+    /* ... */
+  },
 
   /**
    * Retorna referencia ao dialog atualmente aberto, ou null.
    * Util para testes.
    * @returns {{ id: string, spec: DialogSpec }|null}
    */
-  current() { /* ... */ }
+  current() {
+    /* ... */
+  },
 };
 ```
 
@@ -118,11 +126,12 @@ Sprint 1: **nenhum**. A abertura/fechamento de dialogs eh estritamente local. Na
     id: 'about',
     title: 'About LaserCAD R14',
     body: 'LaserCAD R14 — micro-CAD 2D for laser cutting. Sprint 1 alpha.',
-    actions: [{ label: 'Close', primary: true }]
+    actions: [{ label: 'Close', primary: true }],
   });
   ```
 
   Aceitavel que o conteudo do body seja mínimo (texto curto). O importante eh o contrato funcionar.
+
 - **Container persistente.** O `.dialog-layer` em `document.body` permanece montado mesmo sem dialog visivel; eh apenas `display: none` enquanto nao ha conteudo. Z-index alto (ex.: 1000) garante sobreposicao a viewport e chrome.
 
 ## 5. Exemplos de uso
@@ -136,7 +145,7 @@ const h = LaserCAD.ui.dialogs.open({
   id: 'about',
   title: 'About LaserCAD R14',
   body: 'LaserCAD R14 alpha. Sprint 1.',
-  actions: [{ label: 'Close', primary: true }]
+  actions: [{ label: 'Close', primary: true }],
 });
 
 // Fechar por API:
@@ -150,20 +159,32 @@ LaserCAD.ui.dialogs.open({
   title: 'Export SVG',
   width: 420,
   fields: [
-    { id: 'filename', kind: 'text',   label: 'Filename',     value: 'drawing-001.svg' },
-    { id: 'preset',   kind: 'radio',  label: 'Preset',       value: 'cut',
-      options: [{label:'Cut', value:'cut'}, {label:'Mark', value:'mark'}, {label:'Engrave', value:'engrave'}] },
-    { id: 'stroke',   kind: 'number', label: 'Stroke width', value: 0.1 },
-    { id: 'flatten',  kind: 'checkbox', label: 'Flatten transforms', value: true },
+    { id: 'filename', kind: 'text', label: 'Filename', value: 'drawing-001.svg' },
+    {
+      id: 'preset',
+      kind: 'radio',
+      label: 'Preset',
+      value: 'cut',
+      options: [
+        { label: 'Cut', value: 'cut' },
+        { label: 'Mark', value: 'mark' },
+        { label: 'Engrave', value: 'engrave' },
+      ],
+    },
+    { id: 'stroke', kind: 'number', label: 'Stroke width', value: 0.1 },
+    { id: 'flatten', kind: 'checkbox', label: 'Flatten transforms', value: true },
   ],
   actions: [
     { label: 'Cancel', onClick: () => true /* fecha */ },
-    { label: 'Export', primary: true, onClick: (values) => {
-        if (!values.filename) return false;  // bloqueia fechamento
+    {
+      label: 'Export',
+      primary: true,
+      onClick: (values) => {
+        if (!values.filename) return false; // bloqueia fechamento
         console.log('would export', values);
-      }
+      },
     },
-  ]
+  ],
 });
 
 // Inspecao:

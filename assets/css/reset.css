@@ -1,9 +1,47 @@
-*, *::before, *::after { box-sizing: border-box; }
-* { margin: 0; padding: 0; }
-html, body { height: 100%; width: 100%; overflow: hidden; }
-body { font-family: system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
-ul, ol { list-style: none; }
-button { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
-input { background: none; border: 0; color: inherit; font: inherit; outline: none; }
-svg { display: block; }
-img { max-width: 100%; display: block; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+* {
+  margin: 0;
+  padding: 0;
+}
+html,
+body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+ul,
+ol {
+  list-style: none;
+}
+button {
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+input {
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+svg {
+  display: block;
+}
+img {
+  max-width: 100%;
+  display: block;
+}

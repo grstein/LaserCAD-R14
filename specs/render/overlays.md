@@ -1,9 +1,11 @@
 # render/overlays
 
 ## 1. Responsabilidade
+
 Renderizar o **crosshair full-bleed** e o **label de coordenadas** dentro do grupo `#overlays` do `<svg>` raiz; manter slot para marcadores de snap em `#snaps` e expor a API `showSnapMarker` para uso futuro; capturar `pointermove` no `<svg>` e emitir `cursor:moved` no bus.
 
 ## 2. Dependencias
+
 - runtime:
   - `window.LaserCAD.render.svgRoot` (acessa `getLayer('overlays')`, `getLayer('snaps')`, `getRoot()`)
   - `window.LaserCAD.render.camera` (converte coordenadas via `worldFromScreen`)

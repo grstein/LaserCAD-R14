@@ -21,7 +21,9 @@ window.LaserCAD.ui.toolbar = {
    * @param {HTMLElement} host - Container previsto pelo index.html.
    * @returns {void}
    */
-  mount(host) { /* ... */ },
+  mount(host) {
+    /* ... */
+  },
 
   /**
    * Forca a re-leitura do state e atualiza o estado visual de todos os botoes.
@@ -29,7 +31,9 @@ window.LaserCAD.ui.toolbar = {
    * proprios subscribers registrados no mount().
    * @returns {void}
    */
-  refresh() { /* ... */ }
+  refresh() {
+    /* ... */
+  },
 };
 ```
 
@@ -37,19 +41,19 @@ window.LaserCAD.ui.toolbar = {
 
 A ordem visual segue design.md L131–152, com separador antes de `select`:
 
-| # | toolId      | Glifo conceitual         | Atalho | Estado Sprint 1 |
-|---|-------------|--------------------------|--------|-----------------|
-| 1 | `line`      | `\` diagonal             | `L`    | `disabled`      |
-| 2 | `polyline`  | zigzag de 3 segmentos    | `P`    | `disabled`      |
-| 3 | `rect`      | quadrado vazado          | `R`    | `disabled`      |
-| 4 | `circle`    | circulo + ponto central  | `C`    | `disabled`      |
-| 5 | `arc`       | arco 180° + endpoints    | `A`    | `disabled`      |
-|   | *separador* |                          |        |                 |
-| 6 | `select`    | seta cursor diagonal     | `S`    | **`enabled`**   |
-| 7 | `trim`      | tesoura                  | `T`    | `disabled`      |
-| 8 | `extend`    | linha + seta             | `E`    | `disabled`      |
-| 9 | `move`      | cruz com 4 setas         | `M`    | `disabled`      |
-|10 | `delete`    | × diagonal               | `Del`  | `disabled`      |
+| #   | toolId      | Glifo conceitual        | Atalho | Estado Sprint 1 |
+| --- | ----------- | ----------------------- | ------ | --------------- |
+| 1   | `line`      | `\` diagonal            | `L`    | `disabled`      |
+| 2   | `polyline`  | zigzag de 3 segmentos   | `P`    | `disabled`      |
+| 3   | `rect`      | quadrado vazado         | `R`    | `disabled`      |
+| 4   | `circle`    | circulo + ponto central | `C`    | `disabled`      |
+| 5   | `arc`       | arco 180° + endpoints   | `A`    | `disabled`      |
+|     | _separador_ |                         |        |                 |
+| 6   | `select`    | seta cursor diagonal    | `S`    | **`enabled`**   |
+| 7   | `trim`      | tesoura                 | `T`    | `disabled`      |
+| 8   | `extend`    | linha + seta            | `E`    | `disabled`      |
+| 9   | `move`      | cruz com 4 setas        | `M`    | `disabled`      |
+| 10  | `delete`    | × diagonal              | `Del`  | `disabled`      |
 
 ### 3.2 Formato de cada botao
 

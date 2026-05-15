@@ -1,9 +1,11 @@
 # index.html
 
 ## 1. Responsabilidade
+
 Definir a casca HTML do LaserCAD R14: declaracao de documento, metadados, regioes DOM fixas com IDs canonicos, ordem de carga das tres folhas CSS e dos **28 scripts** classicos. Abre por **duplo-clique** (protocolo `file://`) sem build, sem servidor, sem `type="module"`.
 
 ## 2. Dependencias
+
 - runtime: nao tem (e o ponto de entrada que carrega tudo).
 - carga de CSS: `assets/css/reset.css` → `assets/css/theme.css` → `assets/css/app.css` (nessa ordem; ver dependencias entre folhas em `assets/css/app.md`).
 - carga de JS: a sequencia exata dos 28 `<script src="...">` segue **integralmente** a Tabela §3 de `specs/_conventions/namespace.md`. Esta spec **referencia** essa tabela como autoridade; nao duplica nem reordena.
@@ -20,13 +22,13 @@ Esta spec descreve markup, nao funcoes. As "APIs publicas" sao:
 
 Cinco regioes fixas, mapeadas a `design.md` L80-L112:
 
-| ID | Tag | Conteudo | Origem |
-|---|---|---|---|
-| `#menubar`        | `<nav>`     | File / Edit / View / Draw / Modify / Help (texto puro, sem icones) | `design.md` L80-L82, L108, L238-L251 |
-| `#toolbar`        | `<aside>`   | Coluna vertical de 10 botoes-ferramenta SVG inline | `design.md` L83-L95, L109, L120-L155 |
-| `#viewport-host`  | `<main>`    | Container do `<svg>` raiz montado por `render.svgRoot.mount()` | `design.md` L85-L95, L110, L157-L185 |
-| `#command-line`   | `<section>` | 3 linhas mono: historico + prompt + input | `design.md` L96-L99, L111, L187-L218 |
-| `#statusbar`      | `<footer>`  | Coordenadas mm, toggles SNAP/GRID/ORTHO, indicador autosave | `design.md` L100-L102, L112, L220-L236 |
+| ID               | Tag         | Conteudo                                                           | Origem                                 |
+| ---------------- | ----------- | ------------------------------------------------------------------ | -------------------------------------- |
+| `#menubar`       | `<nav>`     | File / Edit / View / Draw / Modify / Help (texto puro, sem icones) | `design.md` L80-L82, L108, L238-L251   |
+| `#toolbar`       | `<aside>`   | Coluna vertical de 10 botoes-ferramenta SVG inline                 | `design.md` L83-L95, L109, L120-L155   |
+| `#viewport-host` | `<main>`    | Container do `<svg>` raiz montado por `render.svgRoot.mount()`     | `design.md` L85-L95, L110, L157-L185   |
+| `#command-line`  | `<section>` | 3 linhas mono: historico + prompt + input                          | `design.md` L96-L99, L111, L187-L218   |
+| `#statusbar`     | `<footer>`  | Coordenadas mm, toggles SNAP/GRID/ORTHO, indicador autosave        | `design.md` L100-L102, L112, L220-L236 |
 
 Cada regiao tem `grid-area` correspondente em `assets/css/app.css` (ver `assets/css/app.md` §3).
 
@@ -35,25 +37,25 @@ Cada regiao tem `grid-area` correspondente em `assets/css/app.css` (ver `assets/
 ```html
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="color-scheme" content="dark" />
-  <title>LaserCAD R14</title>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>LaserCAD R14</title>
 
-  <link rel="stylesheet" href="assets/css/reset.css" />
-  <link rel="stylesheet" href="assets/css/theme.css" />
-  <link rel="stylesheet" href="assets/css/app.css" />
-</head>
-<body>
-  <nav     id="menubar"></nav>
-  <aside   id="toolbar"></aside>
-  <main    id="viewport-host"></main>
-  <section id="command-line"></section>
-  <footer  id="statusbar"></footer>
+    <link rel="stylesheet" href="assets/css/reset.css" />
+    <link rel="stylesheet" href="assets/css/theme.css" />
+    <link rel="stylesheet" href="assets/css/app.css" />
+  </head>
+  <body>
+    <nav id="menubar"></nav>
+    <aside id="toolbar"></aside>
+    <main id="viewport-host"></main>
+    <section id="command-line"></section>
+    <footer id="statusbar"></footer>
 
-  <!-- 28 scripts classicos: ver §3.3 -->
-</body>
+    <!-- 28 scripts classicos: ver §3.3 -->
+  </body>
 </html>
 ```
 

@@ -1,9 +1,11 @@
 # render/camera
 
 ## 1. Responsabilidade
+
 Manter o estado da câmera 2D (centro em mm + zoom + dimensões do viewport em px) e converter coordenadas entre `screen` (px) e `world` (mm), preservando o ponto sob o cursor em operações de zoom.
 
 ## 2. Dependências
+
 - runtime:
   - `window.LaserCAD.app.state` (leitura de `camera`, escrita via `setCamera` / `setViewportSize`)
   - `window.LaserCAD.bus` (consome `viewport:resized`; emite `camera:changed`)
@@ -92,7 +94,7 @@ window.LaserCAD.render.camera.get();
 window.LaserCAD.render.camera.panBy(-10, 0);
 
 // Zoom 10% in com cursor em (800, 450) px
-window.LaserCAD.render.camera.zoomAt(1.10, { x: 800, y: 450 });
+window.LaserCAD.render.camera.zoomAt(1.1, { x: 800, y: 450 });
 
 // Conversao de teste
 const w = window.LaserCAD.render.camera.worldFromScreen({ x: 100, y: 100 });

@@ -22,7 +22,9 @@ window.LaserCAD.ui.menubar = {
    * @param {HTMLElement} host
    * @returns {void}
    */
-  mount(host) { /* ... */ },
+  mount(host) {
+    /* ... */
+  },
 
   /**
    * Abre o dropdown do menu indicado (`'file'|'edit'|'view'|'draw'|'modify'|'help'`).
@@ -30,67 +32,71 @@ window.LaserCAD.ui.menubar = {
    * @param {string} menuId
    * @returns {void}
    */
-  open(menuId) { /* ... */ },
+  open(menuId) {
+    /* ... */
+  },
 
   /**
    * Fecha qualquer dropdown aberto. Idempotente.
    * @returns {void}
    */
-  close() { /* ... */ }
+  close() {
+    /* ... */
+  },
 };
 ```
 
 ### 3.1 Estrutura dos menus (design.md L242–250)
 
-| Menu      | Item                                  | Atalho    | Sprint 1            |
-|-----------|---------------------------------------|-----------|---------------------|
-| **File**  | New                                   | `Ctrl+N`  | disabled            |
-|           | Open…                                 | `Ctrl+O`  | disabled            |
-|           | Save SVG…                             | `Ctrl+S`  | disabled            |
-|           | Recent files ›                        | —         | disabled            |
-|           | *separador*                           |           |                     |
-|           | Exit                                  | —         | disabled            |
-| **Edit**  | Undo                                  | `Ctrl+Z`  | disabled            |
-|           | Redo                                  | `Ctrl+Y`  | disabled            |
-|           | *separador*                           |           |                     |
-|           | Cut                                   | `Ctrl+X`  | disabled            |
-|           | Copy                                  | `Ctrl+C`  | disabled            |
-|           | Paste                                 | `Ctrl+V`  | disabled            |
-|           | *separador*                           |           |                     |
-|           | Delete                                | `Del`     | disabled            |
-|           | Select all                            | `Ctrl+A`  | disabled            |
-| **View**  | Zoom in                               | `+`       | disabled            |
-|           | Zoom out                              | `−`       | disabled            |
-|           | **Zoom extents**                      | `Z E`     | **enabled**         |
-|           | Zoom window                           | `Z W`     | disabled            |
-|           | *separador*                           |           |                     |
-|           | **Toggle grid**                       | `F7`      | **enabled**         |
-|           | **Toggle snap**                       | `F3`      | **enabled**         |
-|           | **Toggle ortho**                      | `F8`      | **enabled**         |
-| **Draw**  | Line                                  | `L`       | disabled            |
-|           | Polyline                              | `P`       | disabled            |
-|           | Rectangle                             | `R`       | disabled            |
-|           | Circle                                | `C`       | disabled            |
-|           | Arc                                   | `A`       | disabled            |
-| **Modify**| Select                                | `S`       | disabled            |
-|           | Move                                  | `M`       | disabled            |
-|           | Trim                                  | `T`       | disabled            |
-|           | Extend                                | `E`       | disabled            |
-|           | Delete                                | `Del`     | disabled            |
-| **Help**  | Keyboard shortcuts                    | `F1`      | disabled            |
-|           | **About LaserCAD R14**                | —         | **enabled**         |
+| Menu       | Item                   | Atalho   | Sprint 1    |
+| ---------- | ---------------------- | -------- | ----------- |
+| **File**   | New                    | `Ctrl+N` | disabled    |
+|            | Open…                  | `Ctrl+O` | disabled    |
+|            | Save SVG…              | `Ctrl+S` | disabled    |
+|            | Recent files ›         | —        | disabled    |
+|            | _separador_            |          |             |
+|            | Exit                   | —        | disabled    |
+| **Edit**   | Undo                   | `Ctrl+Z` | disabled    |
+|            | Redo                   | `Ctrl+Y` | disabled    |
+|            | _separador_            |          |             |
+|            | Cut                    | `Ctrl+X` | disabled    |
+|            | Copy                   | `Ctrl+C` | disabled    |
+|            | Paste                  | `Ctrl+V` | disabled    |
+|            | _separador_            |          |             |
+|            | Delete                 | `Del`    | disabled    |
+|            | Select all             | `Ctrl+A` | disabled    |
+| **View**   | Zoom in                | `+`      | disabled    |
+|            | Zoom out               | `−`      | disabled    |
+|            | **Zoom extents**       | `Z E`    | **enabled** |
+|            | Zoom window            | `Z W`    | disabled    |
+|            | _separador_            |          |             |
+|            | **Toggle grid**        | `F7`     | **enabled** |
+|            | **Toggle snap**        | `F3`     | **enabled** |
+|            | **Toggle ortho**       | `F8`     | **enabled** |
+| **Draw**   | Line                   | `L`      | disabled    |
+|            | Polyline               | `P`      | disabled    |
+|            | Rectangle              | `R`      | disabled    |
+|            | Circle                 | `C`      | disabled    |
+|            | Arc                    | `A`      | disabled    |
+| **Modify** | Select                 | `S`      | disabled    |
+|            | Move                   | `M`      | disabled    |
+|            | Trim                   | `T`      | disabled    |
+|            | Extend                 | `E`      | disabled    |
+|            | Delete                 | `Del`    | disabled    |
+| **Help**   | Keyboard shortcuts     | `F1`     | disabled    |
+|            | **About LaserCAD R14** | —        | **enabled** |
 
 Itens habilitados na Sprint 1: 5 (Zoom extents, Toggle grid, Toggle snap, Toggle ortho, About).
 
 ### 3.2 Acoes dos itens habilitados
 
-| Item             | Acao no click                                                       |
-|------------------|---------------------------------------------------------------------|
-| Zoom extents     | `LaserCAD.bus.emit('command:submit', { raw:'zoom extents', parsed:{kind:'view', action:'zoomExtents'} })` |
-| Toggle grid      | `LaserCAD.app.state.setToggle('grid', !state.toggles.grid)` (setter emite `toggle:changed`) |
-| Toggle snap      | `LaserCAD.app.state.setToggle('snap', !state.toggles.snap)`         |
-| Toggle ortho     | `LaserCAD.app.state.setToggle('ortho', !state.toggles.ortho)`       |
-| About            | `LaserCAD.ui.dialogs.open({ id:'about', title:'About LaserCAD R14', body:'…', actions:[{label:'Close', primary:true}] })` (Sprint 1 entrega o contrato — o dialog real pode ser stub que ainda assim demonstra `dialogs.open`) |
+| Item         | Acao no click                                                                                                                                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Zoom extents | `LaserCAD.bus.emit('command:submit', { raw:'zoom extents', parsed:{kind:'view', action:'zoomExtents'} })`                                                                                                                      |
+| Toggle grid  | `LaserCAD.app.state.setToggle('grid', !state.toggles.grid)` (setter emite `toggle:changed`)                                                                                                                                    |
+| Toggle snap  | `LaserCAD.app.state.setToggle('snap', !state.toggles.snap)`                                                                                                                                                                    |
+| Toggle ortho | `LaserCAD.app.state.setToggle('ortho', !state.toggles.ortho)`                                                                                                                                                                  |
+| About        | `LaserCAD.ui.dialogs.open({ id:'about', title:'About LaserCAD R14', body:'…', actions:[{label:'Close', primary:true}] })` (Sprint 1 entrega o contrato — o dialog real pode ser stub que ainda assim demonstra `dialogs.open`) |
 
 Itens `disabled` **nao** emitem nada quando clicados — apenas mostram o cursor `default` e nao reagem.
 
@@ -109,7 +115,7 @@ Itens `disabled` **nao** emitem nada quando clicados — apenas mostram o cursor
 - **Acessibilidade.** Menubar tem `role="menubar"`, cada item tem `role="menuitem"`, dropdown tem `role="menu"`. `aria-haspopup="menu"` nos titulos. `Tab` percorre apos statusbar (design.md L339).
 - **Eventos do bus.**
   - Emite: `command:submit` (apenas para Zoom extents), nenhum outro evento canonico diretamente.
-  - Consome: `toggle:changed` (para refletir check visual `◉/○` ao lado dos 3 itens View → Toggle *), `app:ready` (montar pode esperar isso ou ser sincrono — bootstrap chama `mount` antes de `emit('app:ready')`, entao consumir nao eh estritamente necessario).
+  - Consome: `toggle:changed` (para refletir check visual `◉/○` ao lado dos 3 itens View → Toggle \*), `app:ready` (montar pode esperar isso ou ser sincrono — bootstrap chama `mount` antes de `emit('app:ready')`, entao consumir nao eh estritamente necessario).
   - Nada de eventos fora da lista de state-contract.md §3.
 
 ## 5. Exemplos de uso

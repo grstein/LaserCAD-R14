@@ -31,7 +31,9 @@ window.LaserCAD.tools.selectTool = {
    * @param {ToolContext} ctx
    * @returns {void}
    */
-  onArm(ctx) { /* ... */ },
+  onArm(ctx) {
+    /* ... */
+  },
 
   /**
    * Chamado pelo tool-manager na transicao -> 'cancel'.
@@ -39,7 +41,9 @@ window.LaserCAD.tools.selectTool = {
    * @param {ToolContext} ctx
    * @returns {void}
    */
-  onCancel(ctx) { /* ... */ },
+  onCancel(ctx) {
+    /* ... */
+  },
 
   /**
    * Chamado pelo tool-manager quando ui.commandLine emite command:submit
@@ -52,7 +56,9 @@ window.LaserCAD.tools.selectTool = {
    * @param {{ raw: string, parsed: object|null }} payload
    * @returns {void}
    */
-  onCommandSubmit(ctx, payload) { /* ... */ },
+  onCommandSubmit(ctx, payload) {
+    /* ... */
+  },
 
   /**
    * Pointer events sao roteados por render.overlays (WS-B) para a ferramenta ativa.
@@ -62,21 +68,27 @@ window.LaserCAD.tools.selectTool = {
    * @param {PointerEvent} ev
    * @param {{x:number, y:number}} world - Coordenadas em mm.
    */
-  onPointerDown(ctx, ev, world) { /* no-op em Sprint 1 */ },
-  onPointerMove(ctx, ev, world) { /* no-op em Sprint 1 */ },
-  onPointerUp(ctx, ev, world) { /* no-op em Sprint 1 */ }
+  onPointerDown(ctx, ev, world) {
+    /* no-op em Sprint 1 */
+  },
+  onPointerMove(ctx, ev, world) {
+    /* no-op em Sprint 1 */
+  },
+  onPointerUp(ctx, ev, world) {
+    /* no-op em Sprint 1 */
+  },
 };
 ```
 
 ### 3.1 Estados implementados na Sprint 1
 
-| Estado    | Implementado | Comportamento                                                              |
-|-----------|--------------|----------------------------------------------------------------------------|
-| `idle`    | sim          | Quando o tool-manager mantem `'select'` como `activeTool` mas `toolState === 'idle'`. Nada acontece. Improvavel de ocorrer apos bootstrap (que arma `select`). |
+| Estado    | Implementado | Comportamento                                                                                                                                                                                 |
+| --------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `idle`    | sim          | Quando o tool-manager mantem `'select'` como `activeTool` mas `toolState === 'idle'`. Nada acontece. Improvavel de ocorrer apos bootstrap (que arma `select`).                                |
 | `armed`   | sim          | Estado padrao do app. `onArm` foi chamado. Cursor crosshair em `--laser-glow` (responsabilidade visual de WS-B). Linha 2 da command line mostra `Select objects:`. Click no viewport = no-op. |
-| `preview` | **NAO**      | Sprint 3 (drag para box-select).                                           |
-| `commit`  | **NAO**      | Sprint 3.                                                                  |
-| `cancel`  | sim          | Quando o usuario aperta Esc. `onCancel` invocado. O tool-manager re-arma `select` automaticamente (politica §4.4 de `tool-manager.md`). |
+| `preview` | **NAO**      | Sprint 3 (drag para box-select).                                                                                                                                                              |
+| `commit`  | **NAO**      | Sprint 3.                                                                                                                                                                                     |
+| `cancel`  | sim          | Quando o usuario aperta Esc. `onCancel` invocado. O tool-manager re-arma `select` automaticamente (politica §4.4 de `tool-manager.md`).                                                       |
 
 ### 3.2 Prompt na command line
 

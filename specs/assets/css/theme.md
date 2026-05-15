@@ -1,9 +1,11 @@
 # assets/css/theme.css
 
 ## 1. Responsabilidade
+
 Declarar **todos** os tokens visuais do LaserCAD R14 (paleta 450 nm, tipografia, escalas de tamanho) como CSS custom properties em `:root`, formando a unica fonte de cor/tipografia consumida por `app.css`, pelos componentes da chrome, pelos elementos SVG (via `var(--*)` em `stroke`/`fill`) e por overlays.
 
 ## 2. Dependencias
+
 - carga: **segunda** das tres folhas CSS — depois de `reset.css`, antes de `app.css` (ver `index-html.md` §3.2).
 - `app.css` consome todos os tokens daqui por `var(--*)`; `theme.css` nao consome ninguem.
 
@@ -98,10 +100,22 @@ Total: **33 tokens** em `:root`.
 
 ```css
 /* Em app.css */
-#viewport-host { background: var(--bg-canvas); }
-.tool-button.is-active { background: var(--laser-dim); color: var(--text-primary); }
-.cmd-prompt { font-family: var(--font-mono); font-size: var(--font-sm); font-weight: var(--font-weight-bold); color: var(--text-primary); }
-.status-toggle.is-on { color: var(--laser-450); }
+#viewport-host {
+  background: var(--bg-canvas);
+}
+.tool-button.is-active {
+  background: var(--laser-dim);
+  color: var(--text-primary);
+}
+.cmd-prompt {
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+.status-toggle.is-on {
+  color: var(--laser-450);
+}
 ```
 
 ```html

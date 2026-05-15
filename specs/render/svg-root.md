@@ -1,9 +1,11 @@
 # render/svg-root
 
 ## 1. Responsabilidade
+
 Criar e manter o elemento `<svg>` raiz do viewport, com `viewBox` em mm e a ordem fixa de grupos de pintura (fundo → frente), expondo cada grupo nomeado para os demais modulos de render.
 
 ## 2. Dependencias
+
 - runtime:
   - `window.LaserCAD.app.state` (le `documentBounds`, `camera`)
   - `window.LaserCAD.bus` (consome `viewport:resized`, `camera:changed`; nao emite eventos canonicos proprios)
