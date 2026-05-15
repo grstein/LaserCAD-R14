@@ -1,5 +1,6 @@
 import { bus } from '@/app/event-bus.js';
 import { history } from '@/core/document/history.js';
+import { commands } from '@/core/document/commands.js';
 import { config } from '@/app/config.js';
 
 export const state = {
@@ -144,6 +145,43 @@ export const state = {
     ids.forEach(function (id) {
       state.selection.push(id);
     });
+  },
+
+  clearHistory() {
+    if (historyInstance) {
+      historyInstance.past.length = 0;
+      historyInstance.future.length = 0;
+    }
+  },
+
+  resetDocument() {
+    state.entities.length = 0;
+    state.selection.length = 0;
+    state.clearHistory();
+    commands.resetIdCounter();
+  },
+
+  replaceDocument(payload) {
+    if (!payload || !Array.isArray(payload.entities)) return;
+    state.entities.length = 0;
+    payload.entities.forEach(function (e) {
+      state.entities.push(e);
+    });
+    state.selection.length = 0;
+    state.clearHistory();
+    let maxN = 0;
+    for (let i = 0; i < state.entities.length; i++) {
+      const m = /^e_(\d+)$/.exec(state.entities[i].id || '');
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (n > maxN) maxN = n;
+      }
+    }
+    commands.resetIdCounter();
+    commands.seedIdCounter(maxN);
+    if (payload.bounds && payload.bounds.w > 0 && payload.bounds.h > 0) {
+      state.setDocumentBounds(payload.bounds);
+    }
   },
 };
 

@@ -4,17 +4,17 @@ import { commands } from '@/core/document/commands.js';
 import { toolManager } from '@/tools/tool-manager.js';
 import { camera } from '@/render/camera.js';
 import { entityRenderers } from '@/render/entity-renderers.js';
-import { autosave } from '@/io/autosave.js';
-import { exportSvg } from '@/io/export-svg.js';
-import { fileDownload } from '@/io/file-download.js';
 import { dialogs } from '@/ui/dialogs.js';
 import { documentSizeDialog } from '@/ui/document-size-dialog.js';
+import { fileActions } from '@/io/file-actions.js';
+import { isTauri } from '@/tauri-bridge.js';
 
 interface MenuItem {
-  label: string;
-  action: () => void;
+  label?: string;
+  action?: () => void;
   shortcut?: string;
   disabled?: boolean;
+  separator?: boolean;
 }
 
 interface Menu {
@@ -30,35 +30,36 @@ const MENUS: Menu[] = [
         label: 'New',
         shortcut: 'Ctrl+N',
         action: function () {
-          state.entities.length = 0;
-          state.selection.length = 0;
-          if (autosave) autosave.clear();
-          refreshAll();
+          fileActions.newDocument();
         },
       },
       {
-        label: 'Document size…',
+        label: 'Open SVG…',
+        shortcut: 'Ctrl+O',
+        action: function () {
+          void fileActions.openSvg();
+        },
+      },
+      {
+        label: 'Save SVG…',
+        shortcut: 'Ctrl+S',
+        action: function () {
+          void fileActions.saveSvg();
+        },
+      },
+      { separator: true },
+      {
+        label: 'Bed size…',
         action: function () {
           documentSizeDialog.open();
         },
       },
+      { separator: true },
       {
-        label: 'Save SVG (cut)…',
-        shortcut: 'Ctrl+S',
+        label: 'Exit',
+        disabled: !isTauri(),
         action: function () {
-          exportPreset('cut');
-        },
-      },
-      {
-        label: 'Save SVG (mark)…',
-        action: function () {
-          exportPreset('mark');
-        },
-      },
-      {
-        label: 'Save SVG (engrave)…',
-        action: function () {
-          exportPreset('engrave');
+          void fileActions.exit();
         },
       },
     ],
@@ -219,7 +220,9 @@ const MENUS: Menu[] = [
               '        Shift held = ortho lock\n\n' +
               'Edit:   Esc   cancel current tool\n' +
               '        Ctrl+Z / Ctrl+Y   undo / redo\n' +
-              '        Ctrl+S   save SVG (cut preset)\n\n' +
+              '        Ctrl+N   new drawing\n' +
+              '        Ctrl+O   open SVG\n' +
+              '        Ctrl+S   save SVG\n\n' +
               'Command line:  124.5, 87.3   absolute coords\n' +
               '               @50, 0        relative coords\n' +
               '               50            distance (after first point)',
@@ -268,12 +271,6 @@ function refreshAll() {
   const sr = toolManager && toolManager.getSvgRoot();
   if (sr) entityRenderers.renderAll(sr, state);
 }
-function exportPreset(preset) {
-  if (!(exportSvg && fileDownload)) return;
-  const svg = exportSvg.serialize(state, { preset: preset });
-  fileDownload.download('drawing.' + preset + '.svg', svg);
-}
-
 let openDropdown = null;
 function closeAll() {
   if (openDropdown && openDropdown.parentNode) openDropdown.parentNode.removeChild(openDropdown);
@@ -306,6 +303,12 @@ export const menubar = {
         const dd = document.createElement('div');
         dd.className = 'menu-dropdown';
         menu.items.forEach(function (row) {
+          if (row.separator) {
+            const sep = document.createElement('div');
+            sep.className = 'menu-separator';
+            dd.appendChild(sep);
+            return;
+          }
           const r = document.createElement('div');
           r.className = 'menu-row' + (row.disabled ? ' disabled' : '');
           r.innerHTML =

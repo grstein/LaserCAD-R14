@@ -7,8 +7,7 @@ import { menubar } from '@/ui/menubar.js';
 import { toolManager } from '@/tools/tool-manager.js';
 import { commands } from '@/core/document/commands.js';
 import { entityRenderers } from '@/render/entity-renderers.js';
-import { exportSvg } from '@/io/export-svg.js';
-import { fileDownload } from '@/io/file-download.js';
+import { fileActions } from '@/io/file-actions.js';
 
 const TOOL_KEYS = {
   l: 'line',
@@ -49,10 +48,17 @@ function onKeyDown(e) {
   }
   if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
     e.preventDefault();
-    if (exportSvg && fileDownload) {
-      const svg = exportSvg.serialize(state, { preset: 'cut' });
-      fileDownload.download('drawing.svg', svg);
-    }
+    void fileActions.saveSvg();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'n' || e.key === 'N')) {
+    e.preventDefault();
+    fileActions.newDocument();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'o' || e.key === 'O')) {
+    e.preventDefault();
+    void fileActions.openSvg();
     return;
   }
 

@@ -45,6 +45,19 @@ export async function tauriReadText(path: string): Promise<string | null> {
   return (await readTextFile(path)) as string;
 }
 
+export async function tauriCloseWindow(): Promise<boolean> {
+  if (!isTauri()) return false;
+  try {
+    const mod = await import('@tauri-apps/api/window');
+    const w = mod.getCurrentWindow();
+    await w.close();
+    return true;
+  } catch (err) {
+    console.warn('[LaserCAD] tauriCloseWindow failed:', err);
+    return false;
+  }
+}
+
 interface TauriStore {
   get<T = unknown>(key: string): Promise<T | undefined>;
   set(key: string, value: unknown): Promise<void>;

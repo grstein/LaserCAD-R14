@@ -1,7 +1,7 @@
 # LCD-003 - Import Simple SVG As Editable Geometry
 
 Status: Needs Refinement
-Priority: P2
+Priority: P3
 Owner: Product Owner
 Implementation: Unassigned
 
@@ -9,9 +9,11 @@ Implementation: Unassigned
 
 Users may have existing simple SVG files from other tools and may want to edit them in LaserCAD R14 before cutting. This is a real workflow, but SVG import can easily become a large compatibility project that violates the product's simplicity.
 
+LaserCAD-authored SVG roundtrip is now handled by `LCD-005 - Normal File Menu With SVG Workflow`. This demand is only about broader third-party SVG import.
+
 ## Smallest Useful Outcome
 
-Not ready. The likely useful version is importing only a tiny, documented subset of plain SVG into editable LaserCAD entities, but the exact subset needs refinement before implementation.
+Not ready. The likely useful version is importing only a tiny, documented subset of third-party plain SVG into editable LaserCAD entities, but the exact subset needs refinement before implementation.
 
 ## Scope
 
@@ -41,4 +43,4 @@ Out:
 - Do not implement from this demand yet.
 - Relevant docs/specs/files: `docs/plan.md`, `src/io/export-svg.ts`, `src/core/document/schema.ts`.
 - Product decision still needed: exact SVG subset, transform policy, unit fallback policy, and user-facing error behavior.
-
+- Do not use this demand to implement File -> `Open SVG...`; use `LCD-005` for the LaserCAD-authored SVG workflow.

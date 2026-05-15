@@ -115,6 +115,11 @@ body {
   font-size: var(--font-xs);
   margin-left: 16px;
 }
+#menubar-host .menu-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--border-subtle);
+}
 
 /* Toolbar */
 #toolbar-host .tool-button {
