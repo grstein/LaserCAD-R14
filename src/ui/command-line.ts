@@ -92,7 +92,7 @@ function execute(raw) {
     });
     return;
   }
-  // Coordenadas relativas @X,Y
+  // Relative coordinates @X,Y
   m = trimmed.match(/^@\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
   if (m) {
     bus.emit('command:submit', {
@@ -101,7 +101,7 @@ function execute(raw) {
     });
     return;
   }
-  // Distância simples (após primeiro ponto)
+  // Plain distance (after first point)
   m = trimmed.match(/^(-?\d+(?:\.\d+)?)$/);
   if (m) {
     bus.emit('command:submit', { raw: raw, parsed: { kind: 'distance', value: parseFloat(m[1]) } });
@@ -181,10 +181,10 @@ export const commandLine = {
   },
 
   /**
-   * Foco automático em qualquer alfanumérico fora de input (design.md L206).
-   * Chamado pelo shortcuts.js antes do dispatch normal.
+   * Auto-focus on any alphanumeric pressed outside an input (design.md L206).
+   * Called by shortcuts.js before the normal dispatch.
    * @param {KeyboardEvent} e
-   * @returns {boolean} true se consumiu o evento
+   * @returns {boolean} true if the event was consumed
    */
   handleGlobalKey(e) {
     if (!inputEl) return false;

@@ -69,7 +69,7 @@ export const lineTool = {
     } else if (p.kind === 'relative' && firstPoint) {
       commitLine({ x: firstPoint.x + p.dx, y: firstPoint.y + p.dy });
     } else if (p.kind === 'distance' && firstPoint && state.cursor) {
-      // Direção do cursor a partir do primeiro ponto
+      // Cursor direction from the first point
       const cur = { x: state.cursor.worldX, y: state.cursor.worldY };
       const ortho = state.toggles.ortho;
       const dir = ortho ? orthoSnap(firstPoint, cur) : cur;

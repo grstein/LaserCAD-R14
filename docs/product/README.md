@@ -16,6 +16,7 @@ The product is successful when a user can quickly draw simple laser-cut parts: p
 - The command line and keyboard shortcuts are first-class workflows.
 - LaserGRBL compatibility is more important than rich SVG features.
 - Existing tools must remain predictable before new tools are added.
+- All versioned artifacts in this repository are written in English.
 
 ## Product Owner Workflow
 
@@ -33,6 +34,6 @@ The product is successful when a user can quickly draw simple laser-cut parts: p
 - `docs/design.md` defines the UI and interaction philosophy.
 - `docs/plan.md` records technical constraints and LaserGRBL assumptions.
 - `docs/adr/` records architectural decisions.
-- `specs/` describes module-level contracts.
+- `src/app/state.ts` and `src/app/event-bus.ts` are the canonical source of truth for state and event-bus contracts.
 - `AGENTS.md` defines how agents should collaborate in this repo.
 

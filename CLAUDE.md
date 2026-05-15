@@ -2,63 +2,68 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-LaserCAD R14 é um micro-CAD 2D para corte a laser, compatível com LaserGRBL. O frontend é TypeScript + Vite + SVG nativo; o shell nativo (Linux/macOS/Windows) é Tauri 2 (Rust + WebView do sistema). Documentação de produto está em pt-BR; código e comentários em inglês ou pt-BR conforme arquivo.
+LaserCAD R14 is a 2D micro-CAD for laser cutting, compatible with LaserGRBL. The frontend is TypeScript + Vite + native SVG; the native shell (Linux/macOS/Windows) is Tauri 2 (Rust + system WebView).
 
-## Comandos
+## Language Convention
+
+All versioned artifacts (source, comments, documentation, commit messages, file names) are written in English. Conversation with the product owner can happen in any language; the repository itself remains English-only.
+
+## Commands
 
 ```bash
 npm install
-npm run dev               # vite dev (web) em http://localhost:1420
+npm run dev               # vite dev (web) at http://localhost:1420
 npm run build             # vite build → dist/
 npm run typecheck         # tsc --noEmit
 npm run lint              # eslint
 npm run format            # prettier --write .
 npm test                  # vitest run (jsdom)
 npm run test:watch        # vitest watch mode
-npm run tauri:dev         # janela nativa com HMR (requer Rust + deps do SO)
-npm run tauri:build       # binários nativos em src-tauri/target/release/bundle/
+npm run tauri:dev         # native window with HMR (requires Rust + OS deps)
+npm run tauri:build       # native binaries in src-tauri/target/release/bundle/
 ```
 
-Rodar um único teste: `npx vitest run src/core/geometry/vec2.test.ts` (ou `-t "padrão do nome"`). Testes ficam ao lado da implementação (`*.test.ts` em `src/`) ou em `tests/`; ambiente é jsdom (ver `vitest.config.ts` e `tests/setup.ts`).
+Run a single test: `npx vitest run src/core/geometry/vec2.test.ts` (or `-t "name pattern"`). Tests live next to the implementation (`*.test.ts` under `src/`) or in `tests/`; the environment is jsdom (see `vitest.config.ts` and `tests/setup.ts`).
 
-Pré-requisitos nativos (Rust + libs por SO) estão em `docs/build-local.md`.
+Native prerequisites (Rust + per-OS libs) are documented in `docs/build-local.md`.
 
-## Arquitetura
+## Architecture
 
-### Camadas e regra de pureza
+### Layers and purity rule
 
 ```
-src/core/        kernel puro: geometria (vec2, line, circle, arc, intersect, snap, project) + documento (schema, validators, commands, history)
-src/render/      pipeline SVG: camera, svg-root, grid, bed, overlays, entity-renderers
-src/tools/       máquina de ferramentas (tool-manager) + 9 tools (line, polyline, rect, circle, arc, select, move, trim, extend)
-src/ui/          chrome HTML: menubar, toolbar, command-line, statusbar, dialogs
-src/io/          export-svg, file-download, autosave (localStorage no web, tauri-plugin-store no nativo)
+src/core/        pure kernel: geometry (vec2, line, circle, arc, intersect, snap, project) + document (schema, validators, commands, history)
+src/render/      SVG pipeline: camera, svg-root, grid, bed, overlays, entity-renderers
+src/tools/       tool state machine (tool-manager) + 9 tools (line, polyline, rect, circle, arc, select, move, trim, extend)
+src/ui/          HTML chrome: menubar, toolbar, command-line, statusbar, dialogs
+src/io/          export-svg, file-download, autosave (localStorage on web, tauri-plugin-store on native)
 src/app/         state singleton, config, shortcuts, event-bus, bootstrap
-src/tauri-bridge.ts  detecta `window.__TAURI_INTERNALS__` e expõe save/open/store via plugins Tauri
-src-tauri/       shell Rust + tauri.conf.json
+src/tauri-bridge.ts  detects `window.__TAURI_INTERNALS__` and exposes save/open/store through Tauri plugins
+src-tauri/       Rust shell + tauri.conf.json
 ```
 
-- `core/` é **puro**: sem DOM, sem `window` (exceto `core/geometry/project.ts`, a única exceção autorizada para fazer lazy-lookup de `render.camera`, ver `docs/adr/0002-riscos-de-integracao.md` §1).
-- `tools/` não toca DOM diretamente; emite via bus e aplica `Command` (do/undo) via `toolManager.commit(cmd)`.
-- Conversão mm ↔ pixel vive em `render/camera.ts` e em lugar nenhum mais.
+- `core/` is **pure**: no DOM, no `window` (with the single authorized exception of `core/geometry/project.ts`, which lazy-looks up `render.camera`; see `docs/adr/0002-integration-risks.md` §1).
+- `tools/` never touches the DOM directly; it emits through the bus and applies `Command` (do/undo) via `toolManager.commit(cmd)`.
+- mm ↔ pixel conversion lives in `render/camera.ts` and nowhere else.
 
-### Unidades e tipos
+### Units and types
 
-- **Milímetros são canônicos** em todo o documento, kernel, command line e exportação. Pixel só aparece em `render/camera`. Ângulos: graus na UI, **radianos no kernel/state** (ver `arc.startAngle`/`endAngle`).
-- Tipos centrais em `src/core/types.ts`: `Vec2`, `Entity` (`LineEntity | CircleEntity | ArcEntity`), `AppState`, `Command`, `Tool`, `SnapResult`. Importar dali em vez de redefinir.
-- `documentBounds` default `128×128 mm`; vira `viewBox` do `<svg>` e `width="...mm" height="...mm"` na exportação.
+- **Millimeters are canonical** across document, kernel, command line, and export. Pixels only appear in `render/camera`. Angles: degrees in the UI, **radians in the kernel/state** (see `arc.startAngle`/`endAngle`).
+- Core types in `src/core/types.ts`: `Vec2`, `Entity` (`LineEntity | CircleEntity | ArcEntity`), `AppState`, `Command`, `Tool`, `SnapResult`. Import from there instead of redefining.
+- `documentBounds` defaults to `128×128 mm`; it becomes the `viewBox` of the root `<svg>` and the `width="...mm" height="...mm"` attributes on export.
 
-### Estado e mutação (contrato dura)
+### State and mutation (hard contract)
 
-`src/app/state.ts` é o único singleton autorizado a mutar `AppState`. Regras (originais de `specs/_conventions/state-contract.md`, ainda vigentes):
+`src/app/state.ts` is the only singleton authorized to mutate `AppState`. The exact shape of `AppState`, the authorized setters, and the canonical event list are defined in `src/app/state.ts` and `src/app/event-bus.ts`; read those before touching state, commands, selection, history, or the event bus. Rules:
 
-- Atribuição externa direta (`state.activeTool = 'line'`) é **proibida**. Use setters: `state.setCamera`, `setViewportSize`, `setCursor`, `setActiveTool`, `setToolState`, `setToggle`, `setCommandInput`, `pushCommandHistory`, `setDocumentBounds`, `setSelection`.
-- Mudanças em `entities`/`selection` passam por `state.applyCommand(cmd)` (ou `toolManager.commit(cmd)`), que empilha em `history` para Undo/Redo.
-- `entity.id` segue `'e_<n>'`, contador interno em `core/document/commands.ts`.
+- Direct external assignment (`state.activeTool = 'line'`) is **forbidden**. Use the setters: `state.setCamera`, `setViewportSize`, `setCursor`, `setActiveTool`, `setToolState`, `setToggle`, `setCommandInput`, `pushCommandHistory`, `setDocumentBounds`, `setSelection`.
+- Mutating nested objects from outside is also **forbidden**: e.g. `state.toggles.snap = false` or `state.entities.push(...)` / `state.selection.splice(...)`. Go through the setter or through `applyCommand`.
+- Changes to `entities`/`selection` go through `state.applyCommand(cmd)` (or `toolManager.commit(cmd)`), which pushes onto `history` for Undo/Redo.
+- `entity.id` follows `'e_<n>'`; the counter is private to `core/document/commands.ts`.
 
-### Event bus (lista canônica)
+### Event bus (canonical list)
 
-`src/app/event-bus.ts` mantém uma **lista fechada** de eventos; emitir/escutar fora dela imprime `console.warn`:
+`src/app/event-bus.ts` keeps a **closed list** of events; emitting or listening for anything outside it triggers a `console.warn`:
 
 ```
 app:ready  viewport:resized  camera:changed  cursor:moved
@@ -66,39 +71,38 @@ tool:request  tool:armed  tool:cancel
 command:submit  command:error  toggle:changed  bounds:changed
 ```
 
-Adicionar eventos novos requer ADR (ver `docs/adr/`).
+Adding new events requires an ADR (see `docs/adr/`).
 
-### Bootstrap ordem rígida
+### Strict bootstrap order
 
-`src/app/bootstrap.ts` segue exatamente os passos 1–20 documentados no header do arquivo (originais de ADR 0002 §2). Não reordenar sem ADR: várias coisas dependem de `<svg>` montado antes de `getScreenCTM` ser chamado, listeners de pointer só ligam depois do mount, etc.
+`src/app/bootstrap.ts` follows steps 1–20 exactly as documented in the file header (originally from ADR 0002 §2). Do not reorder without an ADR: several things depend on `<svg>` being mounted before `getScreenCTM` is called, pointer listeners are only wired after mount, and so on.
 
-Hosts DOM esperados em `index.html`: `#menubar-host`, `#toolbar-host`, `#viewport-host`, `#commandline-host`, `#statusbar-host`. `bootstrap.start()` aborta com banner visível se algum faltar.
+DOM hosts expected in `index.html`: `#menubar-host`, `#toolbar-host`, `#viewport-host`, `#commandline-host`, `#statusbar-host`. `bootstrap.start()` aborts with a visible banner if any host is missing.
 
 ### Runtime split: web vs Tauri
 
-`src/tauri-bridge.ts` é a única ponte. Em browser puro, todas as funções retornam `null`/`undefined` e o app cai para `localStorage` + download via Blob. Em Tauri, dynamic-import dos plugins (`@tauri-apps/plugin-dialog`, `-fs`, `-store`) faz save/open nativo. **Não importar plugins Tauri estaticamente** — só dentro de funções guardadas por `isTauri()` para manter o bundle web leve.
+`src/tauri-bridge.ts` is the only bridge. In a plain browser, all functions return `null`/`undefined` and the app falls back to `localStorage` + Blob downloads. Under Tauri, dynamic imports of the plugins (`@tauri-apps/plugin-dialog`, `-fs`, `-store`) drive native save/open. **Do not import Tauri plugins statically** — only inside functions guarded by `isTauri()` so the web bundle stays lean.
 
-### Imports e aliases
+### Imports and aliases
 
-- TS path alias `@/*` → `src/*` (ver `tsconfig.json` e `vite.config.ts`). Use `@/app/state.js` (com `.js`) em imports — Vite/TS resolvem o `.ts` correspondente.
-- ESLint config (`eslint.config.js`) está em flat config; ignora `dist/`, `src-tauri/`, `.playwright-cli/`.
+- TS path alias `@/*` → `src/*` (see `tsconfig.json` and `vite.config.ts`). Use `@/app/state.js` (with `.js`) in imports — Vite/TS resolve the corresponding `.ts`.
+- ESLint config (`eslint.config.js`) is in flat-config form; it ignores `dist/`, `src-tauri/`, `.playwright-cli/`.
 
-### Exportação SVG (compatibilidade LaserGRBL)
+### SVG export (LaserGRBL compatibility)
 
-`src/io/export-svg.ts` segue o checklist de `docs/plan.md` (§"Exportação SVG para LaserGRBL"):
+`src/io/export-svg.ts` follows the SVG export checklist in `docs/plan.md` (the "LaserGRBL SVG export" section):
 
-- `xmlns` no `<svg>` raiz; `width`/`height` em mm; `viewBox` em coordenadas de mundo
-- `fill="none"` forçado; sem texto vivo; sem `filter`/`mask`/`clipPath`
-- Um `<g>` por preset com cor: **cut** vermelho, **mark** azul, **engrave** verde; `stroke-width="0.1"` mm
-- Arcos como `<path d="A">` (não `<path>` de bézier)
+- `xmlns` on the root `<svg>`; `width`/`height` in mm; `viewBox` in world coordinates
+- `fill="none"` forced; no live text; no `filter`/`mask`/`clipPath`
+- One `<g>` per preset color: **cut** red, **mark** blue, **engrave** green; `stroke-width="0.1"` mm
+- Arcs as `<path d="A">` (not bézier `<path>`)
 
-Mudar essas regras quebra import no LaserGRBL — confirmar antes.
+Changing these rules breaks LaserGRBL import — confirm before doing so.
 
-## Documentação de referência
+## Reference documentation
 
-- `docs/plan.md` (~34 KB) — plano técnico congelado, fonte de verdade para regras de exportação e convenções.
-- `docs/design.md` — design da UI (menubar, toolbar, statusbar, command line, máquina de estados).
-- `docs/adr/0001-arquitetura-base.md` — SVG-first, mm, scripts clássicos (substituídos por ES modules após migração, mas regras de pureza/unidades continuam).
-- `docs/adr/0002-riscos-de-integracao.md` — lazy lookup core→render, ordem do bootstrap, hosts DOM obrigatórios.
-- `specs/_conventions/state-contract.md` — forma exata de `AppState`, setters autorizados, eventos canônicos. **Ler antes de mexer em state/bus.**
-- `docs/atalhos.md` — atalhos de teclado (L/P/R/C/A para tools, F3/F7/F8 para toggles, Ctrl+Z/Y/S).
+- `docs/plan.md` (~34 KB) — frozen technical plan, source of truth for export rules and conventions.
+- `docs/design.md` — UI design (menubar, toolbar, statusbar, command line, state machine).
+- `docs/adr/0001-arquitetura-base.md` — SVG-first, mm, classic scripts (replaced by ES modules after the migration, but the purity/unit rules still hold).
+- `docs/adr/0002-integration-risks.md` — lazy lookup core→render, bootstrap order, mandatory DOM hosts.
+- `docs/shortcuts.md` — keyboard shortcuts (L/P/R/C/A for tools, F3/F7/F8 for toggles, Ctrl+Z/Y/S).

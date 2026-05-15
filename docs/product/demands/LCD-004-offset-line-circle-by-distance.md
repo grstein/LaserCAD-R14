@@ -74,7 +74,7 @@ Out:
 
 ## Notes For Implementation Agents
 
-- Relevant docs/specs/files: `README.md`, `docs/design.md`, `docs/plan.md`, `specs/_conventions/state-contract.md`, command-line parsing, selection state, tool manager, document commands, geometry helpers, and SVG preview rendering.
+- Relevant docs/files: `README.md`, `docs/design.md`, `docs/plan.md`, `src/app/state.ts`, command-line parsing, selection state, tool manager, document commands, geometry helpers, and SVG preview rendering.
 - Risk: general offset algorithms can expand quickly. Keep this to one selected `line` or `circle` and one created entity.
 - Risk: state and history bugs are likely if the tool mutates entities directly. Use the existing state API or command path.
 - Product decision: this is a narrow laser-cutting spacing and clearance tool, not robust polyline/path offset and not kerf compensation.

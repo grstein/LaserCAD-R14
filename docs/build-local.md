@@ -1,12 +1,12 @@
-# Build local — LaserCAD R14
+# Local build — LaserCAD R14
 
-Documentação rápida para rodar e empacotar o LaserCAD localmente após a migração para TypeScript + Tauri 2.
+Quick reference for running and packaging LaserCAD locally after the migration to TypeScript + Tauri 2.
 
-## Pré-requisitos
+## Prerequisites
 
-- **Node 22+** e **npm 10+**
+- **Node 22+** and **npm 10+**
 - **Rust stable** (`rustup default stable`)
-- Dependências de sistema:
+- System dependencies:
 
 ### Fedora 43+
 
@@ -42,39 +42,39 @@ xcode-select --install
 
 ### Windows
 
-- Visual Studio Build Tools com workload "Desktop development with C++"
-- WebView2 (já vem no Windows 11; Windows 10 baixa via Tauri)
+- Visual Studio Build Tools with the "Desktop development with C++" workload
+- WebView2 (ships with Windows 11; Windows 10 downloads it via Tauri)
 
-## Fluxos comuns
+## Common workflows
 
 ```bash
-# Frontend isolado (dev)
+# Frontend only (dev)
 npm run dev                # http://localhost:1420
 
-# Frontend isolado (build)
+# Frontend only (build)
 npm run build              # dist/
 
-# Tipagem + lint + testes
+# Typecheck + lint + tests
 npm run typecheck
 npm run lint
 npm test
 
-# App nativo (dev)
-npm run tauri:dev          # janela nativa com HMR
+# Native app (dev)
+npm run tauri:dev          # native window with HMR
 
-# App nativo (release)
-npm run tauri:build        # binários em src-tauri/target/release/bundle/
+# Native app (release)
+npm run tauri:build        # binaries in src-tauri/target/release/bundle/
 ```
 
-## Artefatos produzidos
+## Produced artifacts
 
-| Plataforma | Caminho                                                                    |
-| ---------- | -------------------------------------------------------------------------- |
-| Linux      | `src-tauri/target/release/bundle/appimage/*.AppImage` e `bundle/deb/*.deb` |
-| macOS      | `src-tauri/target/release/bundle/dmg/*.dmg` e `bundle/macos/*.app`         |
-| Windows    | `src-tauri/target/release/bundle/msi/*.msi` e `bundle/nsis/*.exe`          |
+| Platform | Path                                                                          |
+| -------- | ----------------------------------------------------------------------------- |
+| Linux    | `src-tauri/target/release/bundle/appimage/*.AppImage` and `bundle/deb/*.deb`  |
+| macOS    | `src-tauri/target/release/bundle/dmg/*.dmg` and `bundle/macos/*.app`          |
+| Windows  | `src-tauri/target/release/bundle/msi/*.msi` and `bundle/nsis/*.exe`           |
 
 ## CI
 
-- `.github/workflows/ci.yml` roda lint, typecheck, test e build a cada push/PR.
-- `.github/workflows/release.yml` dispara em tags `v*` e empacota binários para Linux/Windows/macOS (arm64+x64).
+- `.github/workflows/ci.yml` runs lint, typecheck, test, and build on every push/PR.
+- `.github/workflows/release.yml` triggers on `v*` tags and packages binaries for Linux/Windows/macOS (arm64+x64).

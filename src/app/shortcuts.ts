@@ -69,7 +69,7 @@ function onKeyDown(e) {
     if (dialogs) {
       dialogs.open({
         title: 'Keyboard shortcuts',
-        body: 'See docs/atalhos.md or use Help menu.',
+        body: 'See docs/shortcuts.md or use Help menu.',
         actions: [
           {
             label: 'Close',

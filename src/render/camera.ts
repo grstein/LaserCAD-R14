@@ -27,10 +27,10 @@ export const camera = {
   },
 
   /**
-   * Conversão screen → world via getScreenCTM.inverse() do <svg> raiz.
-   * @param {{x:number,y:number}} screenPt em coordenadas do cliente (clientX/clientY)
-   * @param {object} [cam] estado da câmera; default = state.camera
-   * @returns {{x:number,y:number}} ponto em mm
+   * Screen → world conversion via getScreenCTM.inverse() on the root <svg>.
+   * @param {{x:number,y:number}} screenPt in client coordinates (clientX/clientY)
+   * @param {object} [cam] camera state; default = state.camera
+   * @returns {{x:number,y:number}} point in mm
    */
   worldFromScreen(screenPt, cam?) {
     if (!svgRootHandle) {
@@ -47,10 +47,10 @@ export const camera = {
   },
 
   /**
-   * Conversão world → screen.
-   * @param {{x:number,y:number}} worldPt em mm
+   * World → screen conversion.
+   * @param {{x:number,y:number}} worldPt in mm
    * @param {object} [cam]
-   * @returns {{x:number,y:number}} em pixels do cliente
+   * @returns {{x:number,y:number}} in client pixels
    */
   screenFromWorld(worldPt, cam?) {
     if (!svgRootHandle) {
@@ -73,9 +73,9 @@ export const camera = {
   },
 
   /**
-   * Zoom preservando o ponto sob `screenPt` (pivot).
+   * Zoom preserving the point under `screenPt` (pivot).
    * @param {{x:number,y:number}} screenPt
-   * @param {number} factor multiplicador (>1 zoom in, <1 zoom out)
+   * @param {number} factor multiplier (>1 zoom in, <1 zoom out)
    */
   zoomAt(screenPt, factor) {
     const min = config.get('zoomMin'),
@@ -92,7 +92,7 @@ export const camera = {
     state.setCamera({ cx: cam.cx - dx, cy: cam.cy - dy, zoom: cam.zoom });
   },
 
-  /** Centraliza a câmera para enquadrar o documentBounds. */
+  /** Centers the camera to frame the documentBounds. */
   zoomExtents() {
     const cam = state.camera;
     const bounds = state.documentBounds;

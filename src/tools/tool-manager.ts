@@ -77,7 +77,7 @@ export const toolManager = {
   },
 
   /**
-   * Aplica um comando ao state, re-renderiza entities e limpa preview.
+   * Applies a command to the state, re-renders entities, and clears the preview.
    * @param {object} cmd
    */
   commit(cmd) {

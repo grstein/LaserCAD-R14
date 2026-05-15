@@ -5,8 +5,8 @@ const EPS = function () {
 };
 
 /**
- * Interseção de duas retas infinitas suportadas por dois segmentos.
- * Retorna ponto único, null (paralelas) ou null (coincidentes).
+ * Intersection of two infinite lines defined by two segments.
+ * Returns a single point, null (parallel), or null (coincident).
  * @returns {{x:number,y:number}|null}
  */
 function lineLine(a, b) {

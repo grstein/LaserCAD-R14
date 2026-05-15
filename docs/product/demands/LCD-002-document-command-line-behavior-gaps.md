@@ -19,7 +19,7 @@ Create a concise command line behavior audit in docs. Do not change code in this
 
 In:
 
-- Compare `docs/design.md`, `docs/atalhos.md`, and current command line implementation.
+- Compare `docs/design.md`, `docs/shortcuts.md`, and current command line implementation.
 - Document implemented command submission behavior.
 - Document missing or uncertain behavior as candidate demands.
 - Identify any behavior that should stay deferred to preserve KISS.
@@ -45,7 +45,7 @@ Out:
 
 ## Notes For Implementation Agents
 
-- Relevant docs/specs/files: `docs/design.md`, `docs/atalhos.md`, `src/ui/command-line.ts`, `src/app/shortcuts.ts`, `src/tools/tool-manager.ts`.
+- Relevant docs/files: `docs/design.md`, `docs/shortcuts.md`, `src/ui/command-line.ts`, `src/app/shortcuts.ts`, `src/tools/tool-manager.ts`.
 - Risk: treating the audit as permission to implement broad command behavior. Keep this demand documentation-only.
 - Product decision: preserve keyboard-first flow, but split actual behavior changes into narrow follow-up demands.
 

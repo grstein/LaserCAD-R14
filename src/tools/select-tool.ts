@@ -113,7 +113,7 @@ export const selectTool = {
       minY = Math.min(boxRect.y1, boxRect.y2);
     const maxX = Math.max(boxRect.x1, boxRect.x2),
       maxY = Math.max(boxRect.y1, boxRect.y2);
-    // Drag pequeno (clique sem arrasto): limpa seleção
+    // Tiny drag (click without dragging): clear selection
     const tinyMm = 5 / Math.max(camera.pxPerMm(state.camera), 0.0001);
     if (Math.abs(maxX - minX) < tinyMm && Math.abs(maxY - minY) < tinyMm) {
       toolManager.commit(commands.setSelection([]));

@@ -32,7 +32,7 @@ Before coding, read:
 - `README.md` for current capability and scripts.
 - `docs/design.md` for UI behavior.
 - `docs/plan.md` for architecture and LaserGRBL export constraints.
-- `specs/_conventions/state-contract.md` before touching state, commands, selection, history, or event bus.
+- `src/app/state.ts` and `src/app/event-bus.ts` before touching state, commands, selection, history, or event bus.
 
 Implementation rules:
 
@@ -42,7 +42,7 @@ Implementation rules:
 - Do not add new event bus events without an ADR.
 - Do not import Tauri plugins statically.
 - Add focused tests for geometry, document commands, interaction behavior, or SVG export when the demand changes those surfaces.
-- Update specs/docs only when behavior changes.
+- Update docs only when behavior changes.
 
 ## Product Philosophy
 

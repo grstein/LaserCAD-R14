@@ -41,7 +41,7 @@ function extendLineToLine(target, edge, clickPt) {
 function extendLineToCircle(target, edge, clickPt) {
   const ips = intersect.lineCircle(target, edge);
   if (!ips || ips.length === 0) return null;
-  // ponto de extensão mais próximo da extremidade clicada
+  // extension point nearest to the clicked endpoint
   const dP1 = Math.hypot(clickPt.x - target.p1.x, clickPt.y - target.p1.y);
   const dP2 = Math.hypot(clickPt.x - target.p2.x, clickPt.y - target.p2.y);
   const nearEnd = dP1 < dP2 ? target.p1 : target.p2;

@@ -41,6 +41,6 @@ Out:
 ## Notes For Implementation Agents
 
 - Do not implement from this demand yet.
-- Relevant docs/specs/files: `docs/plan.md`, `src/io/export-svg.ts`, `src/core/document/schema.ts`.
+- Relevant docs/files: `docs/plan.md`, `src/io/export-svg.ts`, `src/core/document/schema.ts`.
 - Product decision still needed: exact SVG subset, transform policy, unit fallback policy, and user-facing error behavior.
 - Do not use this demand to implement File -> `Open SVG...`; use `LCD-005` for the LaserCAD-authored SVG workflow.

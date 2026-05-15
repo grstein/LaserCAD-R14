@@ -48,8 +48,8 @@ function collectCandidates(entities, bedBounds) {
 }
 
 /**
- * Encontra interseções entre pares de entities (line×line, line×circle, circle×circle).
- * Limitado para performance: O(n²) com cap em 50 entities.
+ * Finds intersections between pairs of entities (line×line, line×circle, circle×circle).
+ * Bounded for performance: O(n²) capped at 50 entities.
  */
 function collectIntersections(entities) {
   const out = [];

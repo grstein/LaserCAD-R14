@@ -1,81 +1,81 @@
-# Design do LaserCAD R14
+# LaserCAD R14 design
 
-## Princípios de design
+## Design principles
 
-O LaserCAD R14 é um micro-CAD 2D no navegador. A interface segue três princípios não-negociáveis, herdados do AutoCAD R14 e adaptados ao contexto moderno de laser cutting:
+LaserCAD R14 is a 2D micro-CAD in the browser. The interface follows three non-negotiable principles, inherited from AutoCAD R14 and adapted to the modern laser-cutting context:
 
-1. **Área de desenho soberana.** O viewport ocupa praticamente toda a tela. Toolbar, command line e status bar somam menos de 12% da altura útil. Nenhum painel flutuante por padrão; nenhum overlay decorativo.
-2. **Densidade alta, ruído baixo.** Ícones monocromáticos, sem sombras, sem gradientes em controles. A cor é reservada para informação operacional (snap ativo, ferramenta selecionada, seleção, preview).
-3. **Teclado em primeiro lugar.** Cada ferramenta tem atalho de uma letra. A command line é o caminho canônico; o mouse acelera, mas não substitui. Cursor crosshair de borda a borda, como no R14.
+1. **Sovereign drawing area.** The viewport occupies almost the entire screen. Toolbar, command line, and status bar together take less than 12% of the usable height. No floating panels by default; no decorative overlays.
+2. **High density, low noise.** Monochrome icons, no shadows, no gradients on controls. Color is reserved for operational information (active snap, selected tool, selection, preview).
+3. **Keyboard first.** Each tool has a single-letter shortcut. The command line is the canonical path; the mouse accelerates but does not replace it. Edge-to-edge crosshair cursor, R14-style.
 
-Não há temas claros: o fundo escuro é parte da identidade e da legibilidade do laser. Não há onboarding tutorial cobrindo a tela. Não há animações de transição entre estados de ferramenta — apenas micro-feedback funcional (highlight de snap, dash de preview).
+There are no light themes: the dark background is part of the identity and of laser-work legibility. There is no onboarding tutorial covering the screen. There are no transition animations between tool states — only functional micro-feedback (snap highlight, preview dash).
 
-## Paleta laser 450nm
+## 450nm laser palette
 
-O 450nm é o comprimento de onda dos diodos laser azul-violeta usados em gravadoras a laser. A paleta deriva diretamente desse espectro, aplicada com hierarquia rígida: o roxo só aparece em elementos ativos e na geometria de corte.
+450nm is the wavelength of the blue-violet laser diodes used in laser engravers. The palette derives directly from that spectrum, applied with a strict hierarchy: purple only appears on active elements and on cut geometry.
 
-| Token                 | Hex       | Função                                                                | Uso                            |
-| --------------------- | --------- | --------------------------------------------------------------------- | ------------------------------ |
-| `--bg-canvas`         | `#0A0612` | Fundo do viewport                                                     | Cor base do "papel" infinito   |
-| `--bg-chrome`         | `#120A1F` | Fundo de toolbar, command line, status bar                            | Levemente acima do canvas      |
-| `--bg-elevated`       | `#1A1030` | Menus, popovers, dialogs                                              | Único nível de elevação        |
-| `--border-subtle`     | `#241638` | Divisórias entre regiões                                              | Linha 1px, sem sombras         |
-| `--border-strong`     | `#3D2466` | Borda de input ativo, foco                                            | Linha 1px                      |
-| `--grid-minor`        | `#1E1232` | Grid auxiliar (1mm)                                                   | Pontilhado fino                |
-| `--grid-major`        | `#2E1A4D` | Grid principal (10mm)                                                 | Linha contínua                 |
-| `--grid-axis`         | `#5B2DD1` | Eixos X/Y (0,0)                                                       | Linha de 1px                   |
-| `--text-primary`      | `#E8DDFF` | Texto principal                                                       | Off-white com tinta roxa       |
-| `--text-secondary`    | `#8E7CB8` | Labels, dicas, coordenadas                                            | Cinza-violeta                  |
-| `--text-disabled`     | `#4A3E66` | Ferramentas indisponíveis                                             |                                |
-| `--laser-450`         | `#6E00FF` | **Cor primária: traço de corte, ferramenta ativa, preview commitado** | Equivalente percebido do 450nm |
-| `--laser-glow`        | `#9D4DFF` | Hover, highlight de seleção                                           | Versão mais clara              |
-| `--laser-dim`         | `#3D0099` | Estado pressionado, traço atrás de outro                              |                                |
-| `--snap-endpoint`     | `#FFD400` | Marcador de snap endpoint (□)                                         | Amarelo cromo, alto contraste  |
-| `--snap-midpoint`     | `#FF8A00` | Marcador de snap midpoint (△)                                         | Laranja                        |
-| `--snap-center`       | `#00E5FF` | Marcador de snap center (○)                                           | Ciano                          |
-| `--snap-intersection` | `#FF2D7A` | Marcador de snap intersection (×)                                     | Magenta                        |
-| `--status-ok`         | `#3DDC97` | Confirmações, autosave salvo                                          | Verde discreto                 |
-| `--status-warn`       | `#FFB020` | Avisos não-bloqueantes                                                | Âmbar                          |
-| `--status-error`      | `#FF4D6D` | Erros de comando, validação                                           | Rosa-vermelho                  |
+| Token                 | Hex       | Role                                                                   | Usage                          |
+| --------------------- | --------- | ---------------------------------------------------------------------- | ------------------------------ |
+| `--bg-canvas`         | `#0A0612` | Viewport background                                                    | Base color of the infinite "paper" |
+| `--bg-chrome`         | `#120A1F` | Background of toolbar, command line, status bar                        | Slightly above the canvas      |
+| `--bg-elevated`       | `#1A1030` | Menus, popovers, dialogs                                               | Single elevation level         |
+| `--border-subtle`     | `#241638` | Dividers between regions                                               | 1px line, no shadow            |
+| `--border-strong`     | `#3D2466` | Border of active input, focus                                          | 1px line                       |
+| `--grid-minor`        | `#1E1232` | Auxiliary grid (1mm)                                                   | Fine dots                      |
+| `--grid-major`        | `#2E1A4D` | Main grid (10mm)                                                       | Solid line                     |
+| `--grid-axis`         | `#5B2DD1` | X/Y axes (0,0)                                                         | 1px line                       |
+| `--text-primary`      | `#E8DDFF` | Main text                                                              | Off-white with a purple tint   |
+| `--text-secondary`    | `#8E7CB8` | Labels, hints, coordinates                                             | Violet-gray                    |
+| `--text-disabled`     | `#4A3E66` | Unavailable tools                                                      |                                |
+| `--laser-450`         | `#6E00FF` | **Primary color: cut stroke, active tool, committed preview**          | Perceptual equivalent of 450nm |
+| `--laser-glow`        | `#9D4DFF` | Hover, selection highlight                                             | Lighter version                |
+| `--laser-dim`         | `#3D0099` | Pressed state, stroke behind another                                   |                                |
+| `--snap-endpoint`     | `#FFD400` | Endpoint snap marker (□)                                               | Chrome yellow, high contrast   |
+| `--snap-midpoint`     | `#FF8A00` | Midpoint snap marker (△)                                               | Orange                         |
+| `--snap-center`       | `#00E5FF` | Center snap marker (○)                                                 | Cyan                           |
+| `--snap-intersection` | `#FF2D7A` | Intersection snap marker (×)                                           | Magenta                        |
+| `--status-ok`         | `#3DDC97` | Confirmations, autosave saved                                          | Discreet green                 |
+| `--status-warn`       | `#FFB020` | Non-blocking warnings                                                  | Amber                          |
+| `--status-error`      | `#FF4D6D` | Command errors, validation                                             | Pink-red                       |
 
-**Decisão deliberada:** o vermelho clássico do R14 é substituído por `--laser-450` (roxo 450nm) como cor da geometria. Mantém-se a referência cultural de "linha colorida em fundo preto", mas alinhada ao domínio do produto. As cores de snap (amarelo/laranja/ciano/magenta) mantêm o vocabulário de cores distintas do AutoCAD para evitar confusão entre tipos de snap.
+**Deliberate decision:** the classical R14 red is replaced by `--laser-450` (450nm purple) as the geometry color. The cultural reference of "colored line on a black background" is kept, but aligned to the product domain. The snap colors (yellow/orange/cyan/magenta) keep the AutoCAD vocabulary of distinct snap colors to avoid confusion between snap types.
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
 │  #0A0612   #120A1F   #1A1030   ── chrome levels                 │
 │                                                                 │
-│      #6E00FF  ──  laser 450nm (geometria, ativo)                │
-│      #9D4DFF  ──  hover/seleção                                 │
-│      #5B2DD1  ──  eixos X/Y                                     │
+│      #6E00FF  ──  laser 450nm (geometry, active)                │
+│      #9D4DFF  ──  hover/selection                               │
+│      #5B2DD1  ──  X/Y axes                                      │
 │                                                                 │
 │   ▣ #FFD400   △ #FF8A00   ○ #00E5FF   × #FF2D7A                 │
 │   endpoint    midpoint    center      intersection              │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Tipografia
+## Typography
 
-| Token            | Família                              | Uso                                              |
+| Token            | Family                               | Usage                                            |
 | ---------------- | ------------------------------------ | ------------------------------------------------ |
 | `--font-ui`      | `Inter`, `system-ui`, sans-serif     | Toolbar tooltips, menus, dialogs                 |
-| `--font-mono`    | `JetBrains Mono`, `Menlo`, monospace | Command line, coordenadas, dimensões, status bar |
-| `--font-display` | `Inter`, sans-serif, peso 600        | Apenas título de dialogs                         |
+| `--font-mono`    | `JetBrains Mono`, `Menlo`, monospace | Command line, coordinates, dimensions, status bar |
+| `--font-display` | `Inter`, sans-serif, weight 600      | Dialog titles only                               |
 
-Tamanhos fixos, sem escala fluida:
+Fixed sizes, no fluid scaling:
 
-| Escala |  px | Uso                               |
-| ------ | --: | --------------------------------- |
-| `xs`   |  11 | Status bar, coordenadas no cursor |
-| `sm`   |  12 | Command line, tooltips, labels    |
-| `base` |  13 | Inputs, dialog body               |
-| `md`   |  14 | Menus dropdown                    |
-| `lg`   |  16 | Título de dialog                  |
+| Scale  |  px | Usage                                |
+| ------ | --: | ------------------------------------ |
+| `xs`   |  11 | Status bar, coordinates at the cursor |
+| `sm`   |  12 | Command line, tooltips, labels       |
+| `base` |  13 | Inputs, dialog body                  |
+| `md`   |  14 | Dropdown menus                       |
+| `lg`   |  16 | Dialog title                         |
 
-Line-height fixo em 1.4 para texto e 1.0 para command line / coordenadas. Sem itálico em UI. Bold apenas em prompts ativos da command line ("`Specify next point:`").
+Line-height fixed at 1.4 for text and 1.0 for command line / coordinates. No italics in the UI. Bold only on active command-line prompts ("`Specify next point:`").
 
-## Layout geral
+## General layout
 
-A tela é dividida em quatro regiões fixas. Sem reordenação por drag, sem painéis dockáveis no MVP.
+The screen is divided into four fixed regions. No drag-reordering, no dockable panels in the MVP.
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -85,7 +85,7 @@ A tela é dividida em quatro regiões fixas. Sem reordenação por drag, sem pai
 │ L│                                                              │
 │ I│                                                              │
 │ N│                                                              │
-│ E│                  ╋  (crosshair infinito)                     │
+│ E│                  ╋  (infinite crosshair)                     │
 │  │                                                              │ ← Viewport
 │ R│                                                              │
 │ E│                                                              │
@@ -94,7 +94,7 @@ A tela é dividida em quatro regiões fixas. Sem reordenação por drag, sem pai
 │ C│                                                              │
 │  │                                                              │
 ├──┴──────────────────────────────────────────────────────────────┤
-│ Command: line                                                   │ ← 22px × 3 linhas
+│ Command: line                                                   │ ← 22px × 3 lines
 │ LINE  Specify first point: _                                    │
 │                                                                 │
 ├─────────────────────────────────────────────────────────────────┤
@@ -103,31 +103,31 @@ A tela é dividida em quatro regiões fixas. Sem reordenação por drag, sem pai
    40px
 ```
 
-| Região           | Altura/Largura  | Conteúdo                                                                                                    |
-| ---------------- | --------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------- |
-| Menubar          | 28px            | File / Edit / View / Draw / Modify / Help. Texto, sem ícones.                                               |
-| Toolbar vertical | 40px            | Ícones das ferramentas (line, polyline, rect, circle, arc, select, trim, extend, move, delete). Uma coluna. |
-| Viewport         | restante        | SVG nativo, cobre todo o espaço entre toolbar e command line.                                               |
-| Command line     | 66px (3 linhas) | Histórico de 2 linhas + linha ativa de input.                                                               |
-| Status bar       | 24px            | Coordenadas mm                                                                                              | toggles (SNAP/GRID/ORTHO) | indicador de autosave. |
+| Region            | Height/Width    | Content                                                                                                     |
+| ----------------- | --------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------- |
+| Menubar           | 28px            | File / Edit / View / Draw / Modify / Help. Text only, no icons.                                             |
+| Vertical toolbar  | 40px            | Tool icons (line, polyline, rect, circle, arc, select, trim, extend, move, delete). Single column.         |
+| Viewport          | remainder       | Native SVG, fills the whole space between toolbar and command line.                                         |
+| Command line      | 66px (3 lines)  | 2-line history + active input line.                                                                         |
+| Status bar        | 24px            | mm coordinates                                                                                              | toggles (SNAP/GRID/ORTHO) | autosave indicator.    |
 
-**Regras de layout não-negociáveis:**
+**Non-negotiable layout rules:**
 
-- Viewport sempre ocupa ≥ 88% da altura. Toolbar nunca passa de 40px de largura.
-- Menubar e toolbar não têm ícones decorativos do app — sem logo, sem branding na chrome.
-- Status bar fixa no rodapé, sempre visível. Coordenadas atualizam a cada movimento do cursor.
-- Sem rulers laterais no MVP. O grid + status bar cobrem a função.
+- The viewport always occupies ≥ 88% of the height. The toolbar never exceeds 40px in width.
+- Menubar and toolbar carry no decorative app icons — no logo, no branding in the chrome.
+- The status bar is fixed at the bottom, always visible. Coordinates update on every cursor move.
+- No side rulers in the MVP. Grid + status bar cover that role.
 
-## Toolbar vertical
+## Vertical toolbar
 
-Inspirada diretamente no R14: coluna estreita de ícones monocromáticos, sem rótulos visíveis. Cada ícone é 24×24px dentro de um botão 40×32px. Tooltip aparece após 400ms de hover com o nome da ferramenta e atalho (`Line (L)`).
+Inspired directly by R14: a narrow column of monochrome icons with no visible labels. Each icon is 24×24px inside a 40×32px button. A tooltip appears after 400ms of hover with the tool name and shortcut (`Line (L)`).
 
-| Estado                         | Visual                                                                                                                 |
+| State                          | Visual                                                                                                                 |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| Inativo                        | Ícone `--text-secondary` (#8E7CB8) sobre `--bg-chrome`                                                                 |
-| Hover                          | Ícone `--laser-glow` (#9D4DFF), fundo `--bg-elevated`                                                                  |
-| Ativo (ferramenta selecionada) | Ícone `--text-primary` (#E8DDFF), fundo `--laser-dim` (#3D0099), barra vertical de 2px `--laser-450` na borda esquerda |
-| Desabilitado                   | Ícone `--text-disabled`, sem hover                                                                                     |
+| Inactive                       | Icon `--text-secondary` (#8E7CB8) on `--bg-chrome`                                                                     |
+| Hover                          | Icon `--laser-glow` (#9D4DFF), background `--bg-elevated`                                                              |
+| Active (selected tool)         | Icon `--text-primary` (#E8DDFF), background `--laser-dim` (#3D0099), 2px vertical bar `--laser-450` on the left edge   |
+| Disabled                       | Icon `--text-disabled`, no hover                                                                                       |
 
 ```text
 ┌──────┐
@@ -141,7 +141,7 @@ Inspirada diretamente no R14: coluna estreita de ícones monocromáticos, sem r�
 ├──────┤
 │ ⌒    │ Arc        (A)
 ├──────┤
-│ ▭    │ Select     (S)   ← separador antes de edit
+│ ▭    │ Select     (S)   ← separator before edit
 ├──────┤
 │ ⊣    │ Trim       (T)
 ├──────┤
@@ -153,41 +153,41 @@ Inspirada diretamente no R14: coluna estreita de ícones monocromáticos, sem r�
 └──────┘
 ```
 
-Ícones desenhados como SVG inline, traço 1.5px, sem fill, cantos retos. Estilo único em todo o app — sem mistura de ícones outline e filled.
+Icons are drawn as inline SVG with 1.5px stroke, no fill, square corners. Single style throughout the app — no mixing of outline and filled icons.
 
 ## Viewport
 
-O viewport é um `<svg>` que cobre todo o espaço disponível, com `viewBox` em mm. O cursor padrão dentro do viewport é um **crosshair de borda a borda** (linha horizontal + vertical de 1px atravessando toda a área), em `--text-secondary` com 60% de opacidade. Quando uma ferramenta está armada, o crosshair vira `--laser-glow`.
+The viewport is an `<svg>` that covers all available space, with `viewBox` in mm. The default cursor inside the viewport is an **edge-to-edge crosshair** (horizontal + vertical 1px lines crossing the entire area), in `--text-secondary` at 60% opacity. When a tool is armed, the crosshair switches to `--laser-glow`.
 
-| Elemento do viewport                    | Estilo                                                                              |
-| --------------------------------------- | ----------------------------------------------------------------------------------- |
-| Fundo                                   | `--bg-canvas` (#0A0612), sólido                                                     |
-| Grid minor (1mm)                        | Pontos `--grid-minor` (#1E1232), 1px                                                |
-| Grid major (10mm)                       | Linhas `--grid-major` (#2E1A4D), 0.5px                                              |
-| Eixos X/Y                               | Linha `--grid-axis` (#5B2DD1), 1px contínua                                         |
-| Geometria comitada                      | Traço `--laser-450` (#6E00FF), 0.1mm convertido a px conforme zoom, mínimo 1px      |
-| Geometria em preview                    | Traço `--laser-glow` (#9D4DFF), `stroke-dasharray="4 2"`                            |
-| Geometria selecionada                   | Traço `--laser-glow` + pontos de controle quadrados 6px `--laser-450` nos endpoints |
-| Geometria sob hover (pré-seleção)       | Traço espesso `--laser-glow`, sem dash                                              |
-| Box de seleção (drag → direita)         | Borda `--laser-450` contínua, fill `--laser-450` a 8%                               |
-| Box de seleção (drag → esquerda, cross) | Borda `--laser-450` tracejada `4 2`, fill `--laser-450` a 8%                        |
+| Viewport element                         | Style                                                                               |
+| ---------------------------------------- | ----------------------------------------------------------------------------------- |
+| Background                               | `--bg-canvas` (#0A0612), solid                                                      |
+| Minor grid (1mm)                         | Dots `--grid-minor` (#1E1232), 1px                                                  |
+| Major grid (10mm)                        | Lines `--grid-major` (#2E1A4D), 0.5px                                               |
+| X/Y axes                                 | 1px continuous line `--grid-axis` (#5B2DD1)                                         |
+| Committed geometry                       | Stroke `--laser-450` (#6E00FF), 0.1mm converted to px per zoom, min 1px             |
+| Geometry in preview                      | Stroke `--laser-glow` (#9D4DFF), `stroke-dasharray="4 2"`                           |
+| Selected geometry                        | Stroke `--laser-glow` + 6px square control points `--laser-450` at endpoints        |
+| Hovered geometry (pre-selection)         | Thick stroke `--laser-glow`, no dash                                                |
+| Selection box (drag → right)             | Continuous border `--laser-450`, fill `--laser-450` at 8%                           |
+| Selection box (drag → left, crossing)    | Dashed border `--laser-450` `4 2`, fill `--laser-450` at 8%                         |
 
-**Marcadores de snap** aparecem flutuando sobre o cursor quando próximo a um candidato. Cada tipo tem forma e cor distintas, sempre 10px:
+**Snap markers** appear floating above the cursor when near a candidate. Each type has a distinct shape and color, always 10px:
 
-| Tipo         | Forma            | Cor                             |
-| ------------ | ---------------- | ------------------------------- |
-| Endpoint     | Quadrado vazado  | `--snap-endpoint` (#FFD400)     |
-| Midpoint     | Triângulo vazado | `--snap-midpoint` (#FF8A00)     |
-| Center       | Círculo vazado   | `--snap-center` (#00E5FF)       |
-| Intersection | ×                | `--snap-intersection` (#FF2D7A) |
+| Type         | Shape             | Color                           |
+| ------------ | ----------------- | ------------------------------- |
+| Endpoint     | Hollow square     | `--snap-endpoint` (#FFD400)     |
+| Midpoint     | Hollow triangle   | `--snap-midpoint` (#FF8A00)     |
+| Center       | Hollow circle     | `--snap-center` (#00E5FF)       |
+| Intersection | ×                 | `--snap-intersection` (#FF2D7A) |
 
-Ao lado do marcador, tooltip mono 11px com o nome (`endpoint`, `midpoint`, `center`, `intersection`), em `--text-primary` com fundo `--bg-elevated` translúcido a 90%.
+Next to the marker, an 11px mono tooltip with the name (`endpoint`, `midpoint`, `center`, `intersection`), in `--text-primary` on a translucent `--bg-elevated` background at 90%.
 
-**Coordenadas dinâmicas:** quando uma ferramenta está em estado `preview`, exibir um label flutuante a 16px do cursor mostrando dimensão atual em mono 11px: `42.500 mm` para linha, `35.0 × 22.5 mm` para retângulo, `R 18.000 mm` para círculo. Cor `--text-primary` sobre fundo `--bg-elevated` a 85%, sem borda.
+**Dynamic coordinates:** when a tool is in `preview` state, show a floating label 16px from the cursor displaying the current dimension in 11px mono: `42.500 mm` for line, `35.0 × 22.5 mm` for rectangle, `R 18.000 mm` for circle. Color `--text-primary` on `--bg-elevated` at 85%, no border.
 
 ## Command line
 
-O coração da experiência R14. Sempre visível, sempre focável. Três linhas de altura, tipografia mono.
+The heart of the R14 experience. Always visible, always focusable. Three lines tall, mono typography.
 
 ```text
 ─────────────────────────────────────────────────────────────────
@@ -197,52 +197,52 @@ O coração da experiência R14. Sempre visível, sempre focável. Três linhas 
 ─────────────────────────────────────────────────────────────────
 ```
 
-| Linha    | Conteúdo                             |
-| -------- | ------------------------------------ |
-| 1 (topo) | Comando anterior ou último resultado |
-| 2 (meio) | Prompt da ferramenta ativa           |
-| 3 (base) | Input ativo com cursor piscante `_`  |
+| Line     | Content                                |
+| -------- | -------------------------------------- |
+| 1 (top)  | Previous command or last result        |
+| 2 (mid)  | Prompt for the active tool             |
+| 3 (base) | Active input with blinking cursor `_`  |
 
-**Comportamento:**
+**Behavior:**
 
-- Qualquer tecla alfanumérica fora de um input dá foco automaticamente à command line (replicando o R14).
-- `Enter` confirma o comando ou repete o último.
-- `Espaço` também confirma (compatibilidade R14).
-- `Esc` cancela ferramenta ativa, esvazia input, retorna a `idle`.
-- Histórico navegável com `↑`/`↓` quando o input está vazio.
-- Prompts ativos em peso 600, `--text-primary`. Histórico em peso 400, `--text-secondary`.
-- Erros em `--status-error` (#FF4D6D) com prefixo `! `: `! Invalid point: '10x20'`.
+- Any alphanumeric key outside an input automatically focuses the command line (replicating R14).
+- `Enter` confirms the command or repeats the last one.
+- `Space` also confirms (R14 compatibility).
+- `Esc` cancels the active tool, clears the input, returns to `idle`.
+- History is navigable with `↑`/`↓` when the input is empty.
+- Active prompts in weight 600, `--text-primary`. History in weight 400, `--text-secondary`.
+- Errors in `--status-error` (#FF4D6D) with the `! ` prefix: `! Invalid point: '10x20'`.
 
-A entrada aceita:
+The input accepts:
 
-- Coordenadas absolutas: `124.5,87.3`
-- Coordenadas relativas: `@50,0`
-- Distância direta (após primeiro ponto + Shift para ortho): `50` + Enter
-- Comando: `line`, `l`, `rect`, `r`, etc.
+- Absolute coordinates: `124.5,87.3`
+- Relative coordinates: `@50,0`
+- Direct distance (after first point + Shift for ortho): `50` + Enter
+- Command: `line`, `l`, `rect`, `r`, etc.
 
 ## Status bar
 
-Rodapé fino, somente leitura exceto pelos toggles. Tipografia mono 11px.
+Slim footer, read-only except for the toggles. 11px mono typography.
 
 ```text
  124.500, 87.300  mm  │ ◉ SNAP │ ◉ GRID │ ○ ORTHO │       ● autosaved 2s ago
 ```
 
-| Slot        | Conteúdo                                           | Estado                                                            |
+| Slot        | Content                                            | State                                                             |
 | ----------- | -------------------------------------------------- | ----------------------------------------------------------------- |
-| Coordenadas | `X.XXX, Y.YYY  mm`, atualiza a cada movimento      | `--text-primary`                                                  |
-| SNAP        | Toggle (F3)                                        | `◉` ligado em `--laser-450` / `○` desligado em `--text-secondary` |
+| Coordinates | `X.XXX, Y.YYY  mm`, updates on every move          | `--text-primary`                                                  |
+| SNAP        | Toggle (F3)                                        | `◉` on in `--laser-450` / `○` off in `--text-secondary`           |
 | GRID        | Toggle (F7)                                        | idem                                                              |
 | ORTHO       | Toggle (F8)                                        | idem                                                              |
-| Autosave    | `● saved Xs ago` ou `● saving…` ou `! save failed` | `--status-ok` / `--text-secondary` / `--status-error`             |
+| Autosave    | `● saved Xs ago` or `● saving…` or `! save failed` | `--status-ok` / `--text-secondary` / `--status-error`             |
 
-Divisores `│` em `--border-subtle`. Hover nos toggles muda a cor para `--laser-glow`. Click alterna o estado e reflete no atalho de teclado correspondente.
+Dividers `│` in `--border-subtle`. Hover on toggles switches the color to `--laser-glow`. Click toggles the state and is reflected in the corresponding keyboard shortcut.
 
 ## Menubar
 
-Texto puro, sem ícones. Itens 13px Inter, padding horizontal 14px, altura 28px. Dropdown abre ao click (não hover), fecha no `Esc` ou click fora.
+Plain text, no icons. 13px Inter items, 14px horizontal padding, 28px height. Dropdown opens on click (not hover), closes on `Esc` or outside click.
 
-| Menu       | Itens                                                                                                                                           |
+| Menu       | Items                                                                                                                                           |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | **File**   | New `(Ctrl+N)` · Open… `(Ctrl+O)` · Save SVG… `(Ctrl+S)` · Recent files › · — · Exit                                                            |
 | **Edit**   | Undo `(Ctrl+Z)` · Redo `(Ctrl+Y)` · — · Cut `(Ctrl+X)` · Copy `(Ctrl+C)` · Paste `(Ctrl+V)` · — · Delete `(Del)` · Select all `(Ctrl+A)`        |
@@ -251,11 +251,11 @@ Texto puro, sem ícones. Itens 13px Inter, padding horizontal 14px, altura 28px.
 | **Modify** | Select `(S)` · Move `(M)` · Trim `(T)` · Extend `(E)` · Delete `(Del)`                                                                          |
 | **Help**   | Keyboard shortcuts `(F1)` · About LaserCAD R14                                                                                                  |
 
-Dropdowns têm largura mínima 220px, fundo `--bg-elevated`, borda 1px `--border-subtle`, sem sombra. Item ativo highlight `--laser-dim` com texto `--text-primary`. Atalhos alinhados à direita em `--text-secondary` mono 11px.
+Dropdowns have a minimum width of 220px, `--bg-elevated` background, 1px `--border-subtle` border, no shadow. The active item is highlighted with `--laser-dim` and `--text-primary` text. Shortcuts are right-aligned in `--text-secondary` 11px mono.
 
 ## Dialogs
 
-Dialogs são raros e centrais. Sem modal escurecendo o fundo. Janela 360–480px de largura, fundo `--bg-elevated`, borda 1px `--border-strong`, header 36px com título 16px Inter 600.
+Dialogs are rare and centered. No modal dimming the background. Window 360–480px wide, `--bg-elevated` background, 1px `--border-strong` border, 36px header with 16px Inter 600 title.
 
 ```text
 ┌─────────────────────────────────────────────────────┐
@@ -277,88 +277,88 @@ Dialogs são raros e centrais. Sem modal escurecendo o fundo. Janela 360–480px
 └─────────────────────────────────────────────────────┘
 ```
 
-| Controle         | Estilo                                                                                                               |
+| Control          | Style                                                                                                                |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Input texto      | Altura 28px, padding horizontal 10px, borda 1px `--border-subtle`, fundo `--bg-chrome`, foco com borda `--laser-450` |
-| Radio / checkbox | 14×14px, sem animação, marcador `--laser-450`                                                                        |
-| Botão primário   | `--laser-450` (fundo) + texto `#FFFFFF`, padding 8×16px, sem border-radius extremo (4px)                             |
-| Botão secundário | Transparente, borda 1px `--border-strong`, texto `--text-primary`                                                    |
-| Botão hover      | Primário vira `--laser-glow`; secundário ganha borda `--laser-450`                                                   |
+| Text input       | 28px height, 10px horizontal padding, 1px `--border-subtle` border, `--bg-chrome` background, focus border `--laser-450` |
+| Radio / checkbox | 14×14px, no animation, marker `--laser-450`                                                                          |
+| Primary button   | `--laser-450` background + `#FFFFFF` text, 8×16px padding, no extreme border-radius (4px)                            |
+| Secondary button | Transparent, 1px `--border-strong` border, `--text-primary` text                                                     |
+| Button hover     | Primary switches to `--laser-glow`; secondary gains a `--laser-450` border                                           |
 
-## Cursor e feedback
+## Cursor and feedback
 
-| Estado                                   | Cursor                                                                                                                  |
+| State                                    | Cursor                                                                                                                  |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Sobre viewport, sem ferramenta           | Crosshair full-bleed `--text-secondary` 60% + ponto central 4px                                                         |
-| Sobre viewport, ferramenta armada        | Crosshair full-bleed `--laser-glow` + tooltip flutuante 11px com nome da ferramenta no canto inferior direito do cursor |
-| Sobre entidade hover (modo select)       | Crosshair + entidade highlight em `--laser-glow`                                                                        |
-| Snap candidato detectado                 | Crosshair "trava" visualmente no ponto: marcador colorido aparece e o crosshair se desloca para o snap exato            |
-| Pan ativo (botão do meio ou Espaço+drag) | Cursor "grab" do sistema                                                                                                |
-| Zoom box                                 | Cursor lupa do sistema                                                                                                  |
-| Sobre chrome (toolbar/menu)              | Cursor default do sistema                                                                                               |
+| Over viewport, no tool                   | Full-bleed crosshair `--text-secondary` 60% + 4px center dot                                                            |
+| Over viewport, tool armed                | Full-bleed crosshair `--laser-glow` + 11px floating tooltip with tool name at the lower-right corner of the cursor      |
+| Over hovered entity (select mode)        | Crosshair + entity highlight in `--laser-glow`                                                                          |
+| Snap candidate detected                  | Crosshair "snaps" visually to the point: the colored marker appears and the crosshair shifts to the exact snap position |
+| Active pan (middle button or Space+drag) | System "grab" cursor                                                                                                    |
+| Zoom box                                 | System magnifier cursor                                                                                                 |
+| Over chrome (toolbar/menu)               | System default cursor                                                                                                   |
 
-Sem cursor customizado fora do viewport — uso de cursores nativos do SO para reduzir uncanny valley.
+No custom cursor outside the viewport — use native OS cursors to reduce uncanny valley.
 
-## Iconografia
+## Iconography
 
-Conjunto único, desenhado como SVG inline. Especificações:
+Single set, drawn as inline SVG. Specifications:
 
-- **Tamanho:** 24×24px viewBox, traço visível em 18×18 efetivos.
+- **Size:** 24×24px viewBox, visible stroke within an effective 18×18.
 - **Stroke:** 1.5px, `stroke-linecap="round"`, `stroke-linejoin="round"`.
-- **Fill:** `none` sempre. Sem ícones preenchidos.
-- **Estilo:** geométrico, sem perspectiva, sem detalhes decorativos. Cada ícone deve sugerir o resultado, não a ação (ex: ícone de Line é uma linha diagonal, não uma mão desenhando).
+- **Fill:** `none` always. No filled icons.
+- **Style:** geometric, no perspective, no decorative details. Each icon should suggest the result, not the action (e.g. the Line icon is a diagonal line, not a hand drawing).
 
-| Ferramenta | Glifo conceitual                                                   |
+| Tool       | Conceptual glyph                                                   |
 | ---------- | ------------------------------------------------------------------ |
-| Line       | Linha diagonal `\` de canto a canto, com endpoints em quadrado 3px |
-| Polyline   | Três linhas conectadas em zigzag                                   |
-| Rectangle  | Quadrado vazado                                                    |
-| Circle     | Círculo vazado + ponto central                                     |
-| Arc        | Arco de 180° com endpoints marcados                                |
-| Select     | Cursor seta diagonal                                               |
-| Trim       | Tesoura estilizada (duas linhas cruzando) com indicador de corte   |
-| Extend     | Linha curta + seta indicando prolongamento                         |
-| Move       | Cruz com setas nas 4 pontas                                        |
-| Delete     | × diagonal                                                         |
+| Line       | Diagonal line `\` corner to corner, 3px square endpoints           |
+| Polyline   | Three connected zigzag lines                                       |
+| Rectangle  | Hollow square                                                      |
+| Circle     | Hollow circle + center dot                                         |
+| Arc        | 180° arc with marked endpoints                                     |
+| Select     | Diagonal cursor arrow                                              |
+| Trim       | Stylized scissors (two crossing lines) with a cut indicator        |
+| Extend     | Short line + arrow indicating extension                            |
+| Move       | Cross with arrows on the four ends                                 |
+| Delete     | Diagonal ×                                                         |
 
-## Estados de ferramenta e feedback visual
+## Tool states and visual feedback
 
-Cada ferramenta tem 5 estados (espelhando a máquina de estados do plano: `idle`, `armed`, `preview`, `commit`, `cancel`). O visual de cada estado:
+Each tool has 5 states (mirroring the state machine from the plan: `idle`, `armed`, `preview`, `commit`, `cancel`). The visual for each state:
 
-| Estado    | Toolbar                       | Command line                                                               | Cursor                             | Viewport                                                    |
-| --------- | ----------------------------- | -------------------------------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------- |
-| `idle`    | nenhum botão ativo            | `Command: _`                                                               | crosshair cinza                    | grid normal                                                 |
-| `armed`   | botão da ferramenta highlight | `LINE  Specify first point:`                                               | crosshair roxo + tooltip           | grid normal                                                 |
-| `preview` | idem                          | `LINE  Specify next point or [Undo]:`                                      | crosshair roxo + label de dimensão | linha tracejada `--laser-glow` do último ponto até o cursor |
-| `commit`  | idem                          | `LINE  Specify next point or [Undo]:` (volta a `armed` para próximo ponto) | idem                               | nova entidade aparece em `--laser-450` sólido               |
-| `cancel`  | botão desativa                | `*Cancel*` por 1 frame, retorna a `Command: _`                             | crosshair cinza                    | preview desaparece                                          |
+| State     | Toolbar                       | Command line                                                              | Cursor                              | Viewport                                                     |
+| --------- | ----------------------------- | ------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------ |
+| `idle`    | no button active              | `Command: _`                                                              | gray crosshair                      | normal grid                                                  |
+| `armed`   | tool button highlighted       | `LINE  Specify first point:`                                              | purple crosshair + tooltip          | normal grid                                                  |
+| `preview` | idem                          | `LINE  Specify next point or [Undo]:`                                     | purple crosshair + dimension label  | dashed line `--laser-glow` from last point to the cursor     |
+| `commit`  | idem                          | `LINE  Specify next point or [Undo]:` (returns to `armed` for next point) | idem                                | new entity appears in solid `--laser-450`                    |
+| `cancel`  | button deactivates            | `*Cancel*` for 1 frame, returns to `Command: _`                           | gray crosshair                      | preview disappears                                           |
 
-## Acessibilidade
+## Accessibility
 
-| Requisito          | Aplicação                                                                                                                                         |
+| Requirement        | Application                                                                                                                                       |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contraste          | Texto principal sobre fundo: `#E8DDFF` em `#0A0612` = 13.8:1 (AAA). Texto secundário 5.9:1 (AA).                                                  |
-| Foco visível       | Outline 2px `--laser-glow` em qualquer elemento focável fora do viewport. Dentro do viewport o foco é implícito via cursor crosshair.             |
-| Teclado            | Toda função alcançável por teclado. `Tab` percorre toolbar → command line → status bar toggles → menubar.                                         |
-| Movimento reduzido | Sem animações decorativas; o único movimento é o piscar do cursor da command line, respeitando `prefers-reduced-motion: reduce` (caret estático). |
-| Tamanho mínimo     | Toolbar e toggles têm hit area mínima de 32×32px.                                                                                                 |
+| Contrast           | Main text over background: `#E8DDFF` on `#0A0612` = 13.8:1 (AAA). Secondary text 5.9:1 (AA).                                                      |
+| Visible focus      | 2px `--laser-glow` outline on any focusable element outside the viewport. Inside the viewport, focus is implicit via the crosshair cursor.        |
+| Keyboard           | Every function reachable by keyboard. `Tab` walks toolbar → command line → status bar toggles → menubar.                                          |
+| Reduced motion     | No decorative animations; the only motion is the command-line cursor blink, which respects `prefers-reduced-motion: reduce` (static caret).      |
+| Minimum size       | Toolbar and toggles have a 32×32px minimum hit area.                                                                                              |
 
-Daltonismo: as 4 cores de snap (amarelo/laranja/ciano/magenta) são também distinguíveis por forma (□/△/○/×). Nunca depender só de cor para diferenciar tipo de snap.
+Color blindness: the four snap colors (yellow/orange/cyan/magenta) are also distinguishable by shape (□/△/○/×). Never rely on color alone to distinguish snap types.
 
-## Inspirações e referências culturais
+## Inspirations and cultural references
 
-| Elemento                       | Origem      | O que mantemos                  | O que modernizamos                                              |
-| ------------------------------ | ----------- | ------------------------------- | --------------------------------------------------------------- |
-| Crosshair full-bleed           | AutoCAD R14 | Sim, característica central     | Antialiasing nativo do SVG, opacidade ajustada                  |
-| Command line obrigatória       | AutoCAD R14 | Sim, prompts e fluxo idênticos  | Tipografia JetBrains Mono no lugar de bitmap font               |
-| Toolbar vertical estreita      | AutoCAD R14 | Sim, uma coluna                 | Ícones SVG redesenhados, hit areas maiores                      |
-| Status bar com toggles         | AutoCAD R14 | Sim, SNAP/GRID/ORTHO + F3/F7/F8 | Indicador de autosave moderno                                   |
-| Fundo preto + linhas coloridas | AutoCAD R14 | Fundo escuro mantido            | Roxo 450nm no lugar de vermelho — coerência com o domínio laser |
-| Menus drop-down de texto       | AutoCAD R14 | Sim, sem ícones nos menus       | Tipografia limpa, atalhos alinhados à direita                   |
-| Snap markers coloridos         | AutoCAD R14 | Sim, paleta similar             | Antialiasing, tooltip com nome                                  |
+| Element                          | Origin      | What we keep                       | What we modernize                                              |
+| -------------------------------- | ----------- | ---------------------------------- | -------------------------------------------------------------- |
+| Full-bleed crosshair             | AutoCAD R14 | Yes, central characteristic        | Native SVG antialiasing, tuned opacity                         |
+| Mandatory command line           | AutoCAD R14 | Yes, identical prompts and flow    | JetBrains Mono typography instead of a bitmap font             |
+| Narrow vertical toolbar          | AutoCAD R14 | Yes, single column                 | Redrawn SVG icons, larger hit areas                            |
+| Status bar with toggles          | AutoCAD R14 | Yes, SNAP/GRID/ORTHO + F3/F7/F8    | Modern autosave indicator                                      |
+| Black background + colored lines | AutoCAD R14 | Dark background kept               | 450nm purple instead of red — coherent with the laser domain   |
+| Text drop-down menus             | AutoCAD R14 | Yes, no icons in menus             | Clean typography, right-aligned shortcuts                      |
+| Colored snap markers             | AutoCAD R14 | Yes, similar palette               | Antialiasing, tooltip with the name                            |
 
-O que **não** trazemos do R14: ribbon, paleta de propriedades sempre aberta, model/paper space, gradientes 3D nos botões, sons do sistema, splash screen, model viewport tabs.
+What we do **not** bring from R14: the ribbon, an always-open properties palette, model/paper space, 3D gradients on buttons, system sounds, splash screen, model viewport tabs.
 
-## Resumo visual em uma frase
+## Visual summary in one sentence
 
-Fundo `#0A0612`, geometria em `#6E00FF`, crosshair atravessando a tela, toolbar de uma coluna, command line viva no rodapé, e nada mais — a leveza do R14 com a luz de um diodo laser de 450nm.
+`#0A0612` background, geometry in `#6E00FF`, crosshair sweeping the screen, single-column toolbar, command line alive at the bottom, and nothing more — the lightness of R14 with the light of a 450nm laser diode.

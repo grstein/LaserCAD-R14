@@ -1,17 +1,17 @@
 /**
- * Importa o subset de SVG emitido por LaserCAD R14 (`src/io/export-svg.ts`)
- * para entidades editáveis. Rejeita qualquer construção fora do subset.
+ * Imports the SVG subset emitted by LaserCAD R14 (`src/io/export-svg.ts`)
+ * back into editable entities. Anything outside the subset is rejected.
  *
- * Subset suportado:
- *   - <svg> raiz com `width`/`height` em mm e `viewBox="0 0 W H"` opcional
- *   - <g> simples (apenas como contêiner; sem `transform`)
+ * Supported subset:
+ *   - root <svg> with `width`/`height` in mm and optional `viewBox="0 0 W H"`
+ *   - plain <g> (container only; no `transform`)
  *   - <line x1 y1 x2 y2/>
  *   - <circle cx cy r/>
- *   - <path d="M sx sy A r r 0 large sweep ex ey"/>  (arco único)
+ *   - <path d="M sx sy A r r 0 large sweep ex ey"/>  (single arc)
  *
- * Tudo o mais (text, image, mask, filter, clipPath, polyline, polygon, rect,
+ * Everything else (text, image, mask, filter, clipPath, polyline, polygon, rect,
  * ellipse, use, style, defs, symbol, transform≠identity, nested transforms…)
- * é recusado com mensagem e o documento atual permanece inalterado.
+ * is rejected with a message and the current document is left untouched.
  */
 
 import type { Entity } from '@/core/types.js';

@@ -74,7 +74,7 @@ function pointOnEntityDomain(entity, p) {
 }
 
 /**
- * Lista os pontos onde `target` é cortado por outras entities (filtrados para o domínio de ambos).
+ * Lists the points where `target` is cut by other entities (filtered to the domain of both).
  * @returns {Array<{x:number,y:number}>}
  */
 function intersectionsOnTarget(target, entities) {
@@ -128,8 +128,8 @@ function dedupByDist(arr, key, eps) {
 }
 
 /**
- * Divide `line` pelas interseções e retorna a lista de segmentos a manter
- * (descarta o que contém `clickPt`). Se não houver interseções, devolve null.
+ * Splits `line` by the intersections and returns the list of segments to keep
+ * (discards the one containing `clickPt`). Returns null if there are no intersections.
  */
 function splitLine(line, intersections, clickPt) {
   const tClick = paramOnLine(line, clickPt);
@@ -148,8 +148,8 @@ function splitLine(line, intersections, clickPt) {
   );
   if (sorted.length === 0) return null;
 
-  // tLeft = maior ti < tClick (ou 0 se nenhum)
-  // tRight = menor ti > tClick (ou 1 se nenhum)
+  // tLeft = largest ti < tClick (or 0 if none)
+  // tRight = smallest ti > tClick (or 1 if none)
   let tLeft = 0,
     pLeft = { x: line.p1.x, y: line.p1.y };
   let tRight = 1,
@@ -184,8 +184,8 @@ function splitLine(line, intersections, clickPt) {
 }
 
 /**
- * Divide `circle` pelas interseções em arcos; descarta o que contém o ângulo do clique.
- * Retorna null se < 2 interseções (não dá pra dividir).
+ * Splits `circle` by the intersections into arcs; discards the one containing the click angle.
+ * Returns null if there are fewer than 2 intersections (cannot split).
  */
 function splitCircle(circle, intersections, clickPt) {
   const sorted = dedupByDist(

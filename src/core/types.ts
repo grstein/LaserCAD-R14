@@ -1,9 +1,9 @@
 /**
- * Tipos centrais do domínio LaserCAD R14.
+ * Core domain types for LaserCAD R14.
  *
- * Estes tipos formam o contrato compartilhado entre core/geometry, core/document,
- * render/, tools/, ui/ e io/. São propositalmente conservadores e sem dependências
- * — qualquer arquivo pode importá-los.
+ * These types form the shared contract between core/geometry, core/document,
+ * render/, tools/, ui/, and io/. They are intentionally conservative and free
+ * of dependencies — any file may import them.
  */
 
 export interface Vec2 {
@@ -104,7 +104,7 @@ export interface Command {
   meta?: Record<string, unknown>;
 }
 
-/** Interface mínima que cada ferramenta de desenho/edição implementa. */
+/** Minimal interface every drawing/editing tool implements. */
 export interface Tool {
   id?: string;
   onActivate?: (ctx: ToolContext) => void;

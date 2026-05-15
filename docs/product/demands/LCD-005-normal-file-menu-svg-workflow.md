@@ -67,14 +67,13 @@ Out:
 
 ## Notes For Implementation Agents
 
-- Relevant docs/specs/files:
+- Relevant docs/files:
   - `README.md`
   - `docs/design.md`
   - `docs/plan.md`
-  - `specs/_conventions/state-contract.md`
-  - `specs/ui/menubar.md`
-  - `specs/ui/dialogs.md`
+  - `src/app/state.ts`
   - `src/ui/menubar.ts`
+  - `src/ui/dialogs.ts`
   - `src/ui/document-size-dialog.ts`
   - `src/io/export-svg.ts`
   - `src/io/file-download.ts`

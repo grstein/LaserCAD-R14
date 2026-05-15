@@ -1,9 +1,10 @@
 /**
- * Ações do menu File: New, Open SVG, Save SVG, Exit.
+ * File menu actions: New, Open SVG, Save SVG, Exit.
  *
- * Centralizam a lógica para reaproveitar entre menubar e atalhos (Ctrl+N/O/S).
- * Toda mutação de documento passa por `state.resetDocument` / `state.replaceDocument`,
- * que limpam entities, selection, history e ressemeiam o contador de IDs.
+ * The logic is centralized here so it can be reused between the menubar and the
+ * keyboard shortcuts (Ctrl+N/O/S). Every document mutation goes through
+ * `state.resetDocument` / `state.replaceDocument`, which clear entities, selection,
+ * and history, and re-seed the ID counter.
  */
 
 import { state } from '@/app/state.js';

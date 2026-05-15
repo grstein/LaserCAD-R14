@@ -46,7 +46,7 @@ Out:
 
 ## Notes For Implementation Agents
 
-- Relevant docs/specs/files: `README.md`, `docs/plan.md`, `src/io/export-svg.ts`, `src/core/types.ts`.
+- Relevant docs/files: `README.md`, `docs/plan.md`, `src/io/export-svg.ts`, `src/core/types.ts`.
 - Risk: brittle snapshot testing can make harmless ordering changes painful. Prefer targeted assertions.
 - Product decision: keep export conservative and LaserGRBL-first.
 

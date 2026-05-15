@@ -1,9 +1,9 @@
 /**
- * Ponte fina para isolamento Tauri vs. browser puro.
+ * Thin bridge that isolates Tauri vs. plain browser runtimes.
  *
- * Quando rodando dentro do shell Tauri, `window.__TAURI_INTERNALS__` está presente
- * e podemos usar APIs nativas (file system, dialogs, store). Caso contrário,
- * o app cai para localStorage e download via Blob — exatamente como a versão web atual.
+ * When running inside the Tauri shell, `window.__TAURI_INTERNALS__` is present
+ * and we can use native APIs (file system, dialogs, store). Otherwise, the app
+ * falls back to localStorage and Blob downloads — exactly like the current web build.
  */
 
 export const isTauri = (): boolean =>

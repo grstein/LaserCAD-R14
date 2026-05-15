@@ -158,7 +158,7 @@ export const overlays = {
       updateCrosshair(e.clientX, e.clientY);
       updateLabel(r.snapped, e.clientX, e.clientY);
 
-      // Dispatch para a tool ativa (apenas quando não em pan).
+      // Dispatch to the active tool (only when not panning).
       if (!panActive && toolManager) {
         toolManager.onPointerMove({
           clientX: e.clientX,

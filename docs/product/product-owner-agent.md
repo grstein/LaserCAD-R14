@@ -25,7 +25,7 @@ Every accepted demand must answer:
 - What is explicitly out of scope?
 - How will an implementation agent know it is done?
 - What tests or manual checks prove it works?
-- Which existing docs/specs/files are likely relevant?
+- Which existing docs/files are likely relevant?
 
 Use this status model:
 
@@ -72,7 +72,7 @@ Out:
 
 ## Notes For Implementation Agents
 
-- Relevant docs/specs/files:
+- Relevant docs/files:
 - Risks:
 - Product decisions:
 ```

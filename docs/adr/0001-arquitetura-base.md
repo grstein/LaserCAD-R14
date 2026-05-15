@@ -1,97 +1,97 @@
-# ADR 0001 — Arquitetura base do LaserCAD R14
+# ADR 0001 — LaserCAD R14 base architecture
 
-Este ADR consolida três decisões estruturais que travam a base técnica do projeto antes de qualquer linha de implementação. As decisões aqui registradas são pré-requisito para os subagentes paralelos da Sprint 1 (WS-A/B/C) e quaisquer mudanças exigem novo ADR.
+This ADR consolidates three structural decisions that lock the project's technical baseline before any implementation work. The decisions recorded here are a prerequisite for the Sprint 1 parallel subagents (WS-A/B/C), and any change requires a new ADR.
 
-- **Status global:** Aceito
-- **Data:** 2026-05-12
-- **Decisores:** Equipe LaserCAD
+- **Global status:** Accepted
+- **Date:** 2026-05-12
+- **Decision-makers:** LaserCAD team
 
 ---
 
-## 1. SVG-first como renderização e exportação
+## 1. SVG-first as both rendering and export
 
 ### 1.1 Status
 
-Aceito — 2026-05-12 — Decisores: Equipe LaserCAD.
+Accepted — 2026-05-12 — Decision-makers: LaserCAD team.
 
-### 1.2 Contexto
+### 1.2 Context
 
-O LaserCAD R14 é um micro-CAD 2D que roda no navegador, cujo objetivo operacional final é gerar arquivos SVG consumíveis pelo LaserGRBL (plan.md L7, L13). A `plan.md` L9 estabelece explicitamente a arquitetura "KISS e SVG-first": modelo geométrico próprio em JavaScript como fonte da verdade, renderização em SVG nativo no DOM e exportação de SVG plain para download local. A `plan.md` L25 reforça SVG como renderização **e** saída, citando SVG 2 (formas básicas equivalentes a paths). A tabela de tecnologias descartadas (plan.md L67–75) elimina explicitamente Canvas-first, Fabric.js/Konva, Paper.js/Two.js como base obrigatória e WebGL — todas pelo mesmo motivo: complicam a exportação SVG limpa exigida pelo LaserGRBL ou adicionam camadas de abstração desnecessárias entre o modelo e o SVG final.
+LaserCAD R14 is a 2D micro-CAD that runs in the browser, whose final operational goal is to produce SVG files consumable by LaserGRBL (plan.md L7, L13). `plan.md` L9 explicitly states the "KISS and SVG-first" architecture: an in-house geometric model in JavaScript as the source of truth, rendering in native SVG in the DOM, and plain-SVG export for local download. `plan.md` L25 reinforces SVG as both rendering **and** output, citing SVG 2 (basic shapes equivalent to paths). The discarded-technology table (plan.md L67–75) explicitly rules out Canvas-first, Fabric.js/Konva, Paper.js/Two.js as a mandatory base, and WebGL — all for the same reason: they complicate the clean SVG export that LaserGRBL requires or add unnecessary abstraction layers between the model and the final SVG.
 
-### 1.3 Decisão
+### 1.3 Decision
 
-Adotar **SVG como única tecnologia de renderização e exportação**. O viewport (design.md L110, L159) é um `<svg>` nativo no DOM, com `viewBox` em milímetros (plan.md L26, L274). O exportador serializa essencialmente o mesmo SVG já renderizado, com flatten de transformações e normalização para "plain SVG" conforme checklist (plan.md L291–305). Não há Canvas, não há WebGL, não há bibliotecas de renderização intermediárias.
+Adopt **SVG as the sole rendering and export technology**. The viewport (design.md L110, L159) is a native `<svg>` in the DOM, with `viewBox` in millimeters (plan.md L26, L274). The exporter serializes essentially the same SVG already rendered, with transform flattening and normalization to "plain SVG" per the checklist (plan.md L291–305). There is no Canvas, no WebGL, no intermediate rendering library.
 
-### 1.4 Consequências
+### 1.4 Consequences
 
-- O viewport é um único elemento `<svg>` controlado via `document.createElementNS()` (plan.md L19), com filhos criados, atualizados e removidos diretamente no DOM SVG.
-- O renderer (`src/render/`) mapeia entidades do modelo para nós SVG: `line` → `<line>`, `circle` → `<circle>`, `arc` → `<path d="M ... A ...">` (plan.md L246, L297).
-- O exportador (Sprint Edit and Export, plan.md L121) reaproveita a árvore SVG já existente, flatten de `transform` e força `fill="none"` (plan.md L298).
-- Não é possível usar técnicas baseadas em raster (Canvas 2D, WebGL, OffscreenCanvas) para acelerar render ou efeitos — qualquer efeito visual precisa caber no que SVG 2 oferece nativamente.
-- A performance fica limitada ao que o motor SVG do navegador entrega. Mitigação: limitar o `<g>` ativo ao visível por câmera (plan.md L265) só se necessário; index espacial fica fora do MVP.
-- A consistência entre o que se vê e o que se exporta é estrutural — não acidental — porque é a mesma árvore.
+- The viewport is a single `<svg>` element controlled via `document.createElementNS()` (plan.md L19), with children created, updated, and removed directly in the SVG DOM.
+- The renderer (`src/render/`) maps model entities to SVG nodes: `line` → `<line>`, `circle` → `<circle>`, `arc` → `<path d="M ... A ...">` (plan.md L246, L297).
+- The exporter (Sprint Edit and Export, plan.md L121) reuses the existing SVG tree, flattens `transform`, and forces `fill="none"` (plan.md L298).
+- Raster-based techniques (Canvas 2D, WebGL, OffscreenCanvas) cannot be used to accelerate rendering or effects — any visual effect must fit what SVG 2 offers natively.
+- Performance is bound by what the browser's SVG engine delivers. Mitigation: limit the active `<g>` to what is visible per the camera (plan.md L265) only if necessary; a spatial index is out of scope for the MVP.
+- Consistency between what is seen and what is exported is structural — not accidental — because it is the same tree.
 
 ---
 
-## 2. Milímetros como unidade canônica do documento e exportação
+## 2. Millimeters as the canonical document and export unit
 
 ### 2.1 Status
 
-Aceito — 2026-05-12 — Decisores: Equipe LaserCAD.
+Accepted — 2026-05-12 — Decision-makers: LaserCAD team.
 
-### 2.2 Contexto
+### 2.2 Context
 
-LaserCAD é desenho técnico para corte a laser. A `plan.md` L26 estabelece "Precisão em mm: documento, comandos e exportação em mm; `viewBox` define user space". A `plan.md` L103 fixa como critério de aceitação do MVP que "o usuário abre um documento novo, enxerga grid/cursor e mede tudo em milímetros". A `plan.md` L217 normatiza: "mm em todo o documento e exportação; pixel só na câmera/render". A `plan.md` L218 separa ângulos: UI em graus, kernel em radianos. A área de referência recorrente é 128×128 mm (plan.md L346, design.md L102 indiretamente via exemplos).
+LaserCAD is technical drawing for laser cutting. `plan.md` L26 states "Precision in mm: document, commands, and export in mm; `viewBox` defines user space". `plan.md` L103 sets as MVP acceptance criterion that "the user opens a new document, sees grid/cursor, and measures everything in millimeters". `plan.md` L217 mandates: "mm throughout the document and export; pixel only in camera/render". `plan.md` L218 splits angles: degrees in the UI, radians in the kernel. The recurring reference area is 128×128 mm (plan.md L346, design.md L102 indirectly via examples).
 
-### 2.3 Decisão
+### 2.3 Decision
 
-**Milímetros são a unidade canônica** do modelo do documento, da entrada do usuário, das ferramentas, do kernel geométrico e da exportação SVG. Pixels só aparecem na camada de câmera/viewport e em conversões `screen ↔ world` via `getScreenCTM()` (plan.md L19). Ângulos seguem a regra split: **graus na UI** (entrada/exibição) e **radianos no kernel** (cálculos trigonométricos).
+**Millimeters are the canonical unit** of the document model, user input, tools, geometric kernel, and SVG export. Pixels only appear at the camera/viewport layer and in `screen ↔ world` conversions via `getScreenCTM()` (plan.md L19). Angles follow the split rule: **degrees in the UI** (input/display) and **radians in the kernel** (trigonometric calculations).
 
-### 2.4 Consequências
+### 2.4 Consequences
 
-- O `<svg>` raiz declara `viewBox` em coordenadas-mundo (mm) — ex.: `viewBox="0 0 128 128"` para um documento 128×128 mm (plan.md L280, L346).
-- O exportador SVG escreve `width="128mm" height="128mm"` no elemento raiz (plan.md L278–280, L294).
-- O schema do documento (`core/document/schema.js`) descreve todas as coordenadas, distâncias, raios e comprimentos como números em mm, sem sufixo, sem unidade embutida.
-- O kernel (`core/geometry/*`) opera exclusivamente em mm. Tolerância `EPS` (plan.md L225) é fixada em mm (ex.: `1e-6` mm).
-- Conversão `mm ↔ pixel` é responsabilidade exclusiva de `render/camera.js`. Nenhum módulo de `core/` ou `tools/` deve conhecer pixel.
-- A command line aceita coordenadas em mm sem sufixo: `124.5,87.3` significa `(124.5 mm, 87.3 mm)` (design.md L194, L215).
-- Ângulos: o usuário digita "30" e a UI converte para `π/6 rad` antes de entregar ao kernel. Status bar e dimensions overlay exibem graus.
-- A status bar exibe coordenadas em mm com 3 casas decimais: `124.500, 87.300 mm` (design.md L102, L225).
-- Stroke width visual escala com zoom; valor lógico de exportação é fixo `0.1 mm` (design.md L167, L266; plan.md L281).
+- The root `<svg>` declares `viewBox` in world coordinates (mm) — e.g. `viewBox="0 0 128 128"` for a 128×128 mm document (plan.md L280, L346).
+- The SVG exporter writes `width="128mm" height="128mm"` on the root element (plan.md L278–280, L294).
+- The document schema (`core/document/schema.js`) describes all coordinates, distances, radii, and lengths as numbers in mm — no suffix, no embedded unit.
+- The kernel (`core/geometry/*`) operates exclusively in mm. The `EPS` tolerance (plan.md L225) is fixed in mm (e.g. `1e-6` mm).
+- `mm ↔ pixel` conversion is the exclusive responsibility of `render/camera.js`. No `core/` or `tools/` module may know about pixels.
+- The command line accepts coordinates in mm with no suffix: `124.5,87.3` means `(124.5 mm, 87.3 mm)` (design.md L194, L215).
+- Angles: the user types "30" and the UI converts to `π/6 rad` before handing it to the kernel. The status bar and dimensions overlay display degrees.
+- The status bar shows coordinates in mm with 3 decimal places: `124.500, 87.300 mm` (design.md L102, L225).
+- Visual stroke width scales with zoom; the logical export value is fixed at `0.1 mm` (design.md L167, L266; plan.md L281).
 
 ---
 
-## 3. Abandono de ES modules em favor de scripts clássicos com namespace global
+## 3. Dropping ES modules in favor of classical scripts with a global namespace
 
 ### 3.1 Status
 
-Aceito — 2026-05-12 — Decisores: Equipe LaserCAD.
+Accepted — 2026-05-12 — Decision-makers: LaserCAD team.
 
-### 3.2 Contexto
+### 3.2 Context
 
-A `plan.md` foi escrita assumindo `<script type="module" src="./src/main.js">` e operação via servidor estático local. A linha 228 alerta explicitamente: "para módulos nativos, o app deve rodar por servidor local. A MDN alerta que carregar HTML por `file://` produz erros de CORS em módulos". A `plan.md` L232–234 cristalizava `python -m http.server 8080` como pré-requisito de desenvolvimento.
+`plan.md` was written assuming `<script type="module" src="./src/main.js">` and operation via a local static server. Line 228 explicitly warns: "for native modules, the app must run via a local server. MDN warns that loading HTML via `file://` produces CORS errors for modules". `plan.md` L232–234 cemented `python -m http.server 8080` as a development prerequisite.
 
-O requisito operacional do LaserCAD R14, porém, é que `index.html` abra por **duplo-clique** em qualquer navegador moderno (protocolo `file://`), sem servidor, sem dependência externa, sem build step. Esse requisito colide diretamente com `<script type="module">`, que falha em `file://` por restrições de CORS aplicadas ao loader de módulos.
+The LaserCAD R14 operational requirement, however, is that `index.html` opens by **double-click** in any modern browser (`file://` protocol), with no server, no external dependency, no build step. That requirement collides head-on with `<script type="module">`, which fails under `file://` because of CORS restrictions applied to the module loader.
 
-A escolha é binária:
+The choice is binary:
 
-1. Manter ES modules e exigir servidor local (a `plan.md` original).
-2. Trocar para `<script src="...">` clássicos e namespace global (esta decisão).
+1. Keep ES modules and require a local server (the original `plan.md`).
+2. Switch to classical `<script src="...">` and a global namespace (this decision).
 
-### 3.3 Decisão
+### 3.3 Decision
 
-**Trocar ES modules por scripts clássicos com namespace global `window.LaserCAD`.** Cada arquivo é uma IIFE que atribui sub-objetos a `window.LaserCAD.<ns>.<nome>`. O `index.html` carrega os arquivos via uma sequência ordenada de `<script src="...">` clássicos, sem `type="module"`, sem `import`, sem `export`. Nenhum bundler. Nenhum build step. A convenção exata de namespace e a ordem dos scripts ficam em `specs/_conventions/namespace.md`.
+**Switch from ES modules to classical scripts with a global `window.LaserCAD` namespace.** Each file is an IIFE that attaches sub-objects to `window.LaserCAD.<ns>.<name>`. `index.html` loads files via an ordered sequence of classical `<script src="...">` tags, without `type="module"`, `import`, or `export`. No bundler. No build step. The exact namespace convention and script order lived in a dedicated namespace convention document.
 
-Esta decisão **substitui** as orientações da `plan.md` L23, L142, L220, L228–235 que assumiam módulos nativos. A pasta `src/` permanece como em `plan.md` L144–212 (organização modular por domínio mantida — só o mecanismo de linkage muda).
+This decision **supersedes** the guidance in `plan.md` L23, L142, L220, L228–235 that assumed native modules. The `src/` folder remains as in `plan.md` L144–212 (modular organization by domain is kept — only the linkage mechanism changes).
 
-### 3.4 Consequências
+### 3.4 Consequences
 
-- **Ordem manual obrigatória.** O `index.html` declara `<script src="...">` em ordem das folhas para as raízes (quem ninguém depende vai primeiro). A sequência canônica é fixada em `specs/_conventions/namespace.md` e cada novo arquivo precisa ser inserido na posição correta.
-- **Sem `import`/`export`.** Cada arquivo é uma IIFE no formato `(function(LaserCAD){ ... })(window.LaserCAD = window.LaserCAD || { ... });`. Nada de variáveis globais soltas.
-- **Sem bundler, sem build step.** O repositório é servido diretamente como está, e `index.html` abre por duplo-clique. CI valida apenas sintaxe, testes e smoke; não há etapa de empacotamento.
-- **Dependências explícitas e frágeis.** O autor de `line.js` precisa garantir que `vec2.js` carregou antes — o sistema não detecta sozinho. Mitigação: ordem documentada em `namespace.md` e cada IIFE checa pré-condições básicas (`if (!LaserCAD.core.geometry.vec2) throw ...`) durante desenvolvimento.
-- **Sem tree-shaking.** Todo arquivo listado em `index.html` carrega sempre. Aceitável enquanto o bundle estiver < 200 KB minificado (não há minificação no MVP, então < 200 KB cru); revisitar esta decisão quando ultrapassar esse limite.
-- **IDEs/linters menos amigáveis sem `import/export`** — autocompletar e go-to-definition ficam parciais. Mitigação: **JSDoc com `@typedef`** (plan.md L224) descrevendo entidades, payloads de eventos e formas do estado; cada arquivo declara um cabeçalho com `@typedef`s relevantes e usa `@param`/`@returns` JSDoc em todas as funções públicas. ESLint configurado para reconhecer `window.LaserCAD` como global lido.
-- **Convenção operacional de teste:** todo módulo é inspecionável em `window.LaserCAD.*` no DevTools — ver `specs/_conventions/namespace.md` para exemplos.
-- **CI ajustado:** os jobs `static-check` e `unit-geometry` (plan.md L256–257) usam Node + JSDOM ou um shim que injeta `window.LaserCAD` antes de avaliar cada arquivo na ordem canônica. Não há resolução de módulos a fazer.
-- **A `plan.md` L23, L142, L220, L228–235 ficam superadas por este ADR.** Documentação derivada deve referenciar este ADR ao tocar nesses pontos.
+- **Manual order is mandatory.** `index.html` declares `<script src="...">` from leaves to roots (whoever has no dependents goes first). The canonical sequence is fixed in the namespace convention document, and each new file must be inserted at the correct position.
+- **No `import`/`export`.** Each file is an IIFE shaped like `(function(LaserCAD){ ... })(window.LaserCAD = window.LaserCAD || { ... });`. No stray global variables.
+- **No bundler, no build step.** The repository is served directly as-is, and `index.html` opens by double-click. CI validates syntax, tests, and smoke only; there is no packaging step.
+- **Explicit and fragile dependencies.** The author of `line.js` must ensure `vec2.js` has loaded first — the system does not detect this on its own. Mitigation: order documented in `namespace.md` and each IIFE checks basic preconditions (`if (!LaserCAD.core.geometry.vec2) throw ...`) during development.
+- **No tree-shaking.** Every file listed in `index.html` always loads. Acceptable while the bundle is < 200 KB minified (there is no minification in the MVP, so < 200 KB raw); revisit this decision when that limit is exceeded.
+- **Less IDE/linter friendliness without `import/export`** — autocompletion and go-to-definition are partial. Mitigation: **JSDoc with `@typedef`** (plan.md L224) describing entities, event payloads, and state shapes; each file declares a header with the relevant `@typedef`s and uses `@param`/`@returns` JSDoc on every public function. ESLint is configured to recognize `window.LaserCAD` as a read global.
+- **Operational testing convention:** every module is inspectable at `window.LaserCAD.*` in DevTools.
+- **CI adjusted:** the `static-check` and `unit-geometry` jobs (plan.md L256–257) use Node + JSDOM or a shim that injects `window.LaserCAD` before evaluating each file in canonical order. There is no module resolution to do.
+- **`plan.md` L23, L142, L220, L228–235 are superseded by this ADR.** Derived documentation must reference this ADR when touching those points.
