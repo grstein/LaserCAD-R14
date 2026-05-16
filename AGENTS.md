@@ -153,6 +153,19 @@ Default answers:
 - Prefer deterministic geometry over visual convenience.
 - Prefer rejecting a feature over carrying accidental product complexity.
 
+## Documentation Hygiene
+
+The repository keeps one consolidated agent guide (this file) plus a small set of supplementary docs under [`docs/`](docs/). When the code changes, the docs catch up; when the docs are wrong, treat that as a bug.
+
+- **Single source of truth.** `AGENTS.md` owns the agent rules. `CLAUDE.md` is a thin pointer at this file and must not duplicate rules. `src/` is the source of truth for behavior; `docs/plan.md` and `docs/design.md` are reference, not authoritative.
+- **Status markers, not stale content.**
+  - **Demands** ([`docs/product/demands/`](docs/product/demands/)): use the status model defined in [`docs/product/product-owner-agent.md`](docs/product/product-owner-agent.md) (`Draft` / `Needs Refinement` / `Ready` / `In Progress` / `Done` / `Rejected`). When a demand ships, flip its header to `Done` and record the shipping commit in the `Implementation:` line; move it from the `Ready` table in [`docs/product/backlog.md`](docs/product/backlog.md) to the `Done` table.
+  - **ADRs** ([`docs/adr/`](docs/adr/)): when an ADR (or one of its sections) is reversed, add a `**Superseded**` status header pointing at the commit or ADR that replaced it. Keep the original text for historical context — do not silently rewrite or delete.
+- **Living docs sit next to code.** Component-level notes (the bootstrap sequence, the closed event-bus list, the export checklist) live in source-file headers or right next to the code (`src/app/bootstrap.ts`, `src/app/event-bus.ts`, `src/io/export-svg.ts`). `docs/` documents intent and contracts; it does not duplicate code.
+- **No generation cruft.** Strip artifacts when they appear: `citeturn…` tokens, `entity["…"]` markers, `sandbox:/mnt/data/…` links, generated download instructions, malformed Markdown tables.
+- **English-only filenames.** No `atalhos.md`, no `arquitetura-base.md`. If you rename a doc, fix every cross-reference in the same change.
+- **Sync the CHANGELOG.** When a `Done` demand changes user-visible behavior, update `CHANGELOG.md` (add to the relevant version section or to the unreleased block).
+
 ## Reference documentation
 
 - [`docs/plan.md`](docs/plan.md) — frozen technical plan; source of truth for export rules and conventions.
