@@ -1,9 +1,9 @@
 # LCD-006 - English-Native Bundle, UI Strings, and Source Comments
 
-Status: Ready
+Status: Done
 Priority: P1
 Owner: Product Owner
-Implementation: Unassigned
+Implementation: Shipped in `dbac3bc chore(i18n): make the repository English-native (LCD-006/007/008)`
 
 ## Problem
 

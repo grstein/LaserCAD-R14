@@ -1,9 +1,9 @@
 # LCD-007 - English-Native Documentation Cleanup
 
-Status: Ready
+Status: Done
 Priority: P1
 Owner: Product Owner
-Implementation: Unassigned
+Implementation: Shipped in `dbac3bc chore(i18n): make the repository English-native (LCD-006/007/008)`
 
 ## Problem
 
@@ -24,7 +24,7 @@ In:
 - `docs/plan.md` - keep as the canonical export/architecture rules document.
 - `docs/design.md` - keep as the UI behavior document.
 - `docs/build-local.md` - native build prerequisites by OS.
-- `docs/adr/0001-arquitetura-base.md` - kernel purity and unit rules are still applicable.
+- `docs/adr/0001-base-architecture.md` - kernel purity and unit rules are still applicable.
 
 **Translate and rename:**
 
@@ -80,7 +80,7 @@ Out:
   - `docs/design.md`
   - `docs/build-local.md`
   - `docs/atalhos.md`
-  - `docs/adr/0001-arquitetura-base.md`
+  - `docs/adr/0001-base-architecture.md`
   - `docs/adr/0002-riscos-de-integracao.md`
   - `docs/release/1.0.md`
   - `specs/` (entire tree, to be deleted)

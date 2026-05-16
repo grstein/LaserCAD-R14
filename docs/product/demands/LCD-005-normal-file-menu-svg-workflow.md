@@ -1,9 +1,9 @@
 # LCD-005 - Normal File Menu With SVG Workflow
 
-Status: Ready
+Status: Done
 Priority: P1
 Owner: Product Owner
-Implementation: Unassigned
+Implementation: Shipped in `e88a5ef feat(LCD-005): normal file menu with SVG workflow`
 
 ## Problem
 

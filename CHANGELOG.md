@@ -25,9 +25,9 @@ First stable release. Migrated to TypeScript + Vite + Tauri 2.x; ships a native 
 
 ### Known limitations
 
-- No SVG import yet.
 - No fillet/chamfer/offset.
 - Trim of circles by line not implemented.
+- SVG import is limited to LaserCAD-emitted plain SVG (see [LCD-005](docs/product/demands/LCD-005-normal-file-menu-svg-workflow.md)); third-party SVG is rejected with a user-facing message.
 - Mobile not supported.
 
 [1.0.0]: https://github.com/grstein/LaserCAD-R14/releases/tag/v1.0.0

@@ -1,9 +1,9 @@
 # LCD-008 - Adopt English-Only Convention in CLAUDE.md and Agent Surface
 
-Status: Ready
+Status: Done
 Priority: P2
 Owner: Product Owner
-Implementation: Unassigned
+Implementation: Shipped in `dbac3bc chore(i18n): make the repository English-native (LCD-006/007/008)`
 
 ## Problem
 
