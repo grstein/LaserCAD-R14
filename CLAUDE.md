@@ -103,6 +103,7 @@ Changing these rules breaks LaserGRBL import — confirm before doing so.
 
 - `docs/plan.md` (~34 KB) — frozen technical plan, source of truth for export rules and conventions.
 - `docs/design.md` — UI design (menubar, toolbar, statusbar, command line, state machine).
-- `docs/adr/0001-arquitetura-base.md` — SVG-first, mm, classic scripts (replaced by ES modules after the migration, but the purity/unit rules still hold).
+- `docs/adr/0001-base-architecture.md` — SVG-first and millimeters (in force); §3's "no ES modules" decision is superseded by the Vite/Tauri migration.
 - `docs/adr/0002-integration-risks.md` — lazy lookup core→render, bootstrap order, mandatory DOM hosts.
 - `docs/shortcuts.md` — keyboard shortcuts (L/P/R/C/A for tools, F3/F7/F8 for toggles, Ctrl+Z/Y/S).
+- `docs/product/` — product workspace (`README.md`, `product-owner-agent.md`, `backlog.md`, `demands/`).

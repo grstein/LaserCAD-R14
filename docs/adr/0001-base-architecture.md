@@ -1,10 +1,11 @@
 # ADR 0001 — LaserCAD R14 base architecture
 
-This ADR consolidates three structural decisions that lock the project's technical baseline before any implementation work. The decisions recorded here are a prerequisite for the Sprint 1 parallel subagents (WS-A/B/C), and any change requires a new ADR.
+This ADR consolidates three structural decisions that locked the project's technical baseline before any implementation work. §1 (SVG-first) and §2 (millimeters) are still in force. §3 (no ES modules, `window.LaserCAD` namespace) was **superseded** by the migration to TypeScript + Vite + Tauri 2.x — see its status header.
 
-- **Global status:** Accepted
+- **Global status:** §1, §2 Accepted (in force); §3 Superseded
 - **Date:** 2026-05-12
 - **Decision-makers:** LaserCAD team
+- **Related:** [`0002-integration-risks.md`](0002-integration-risks.md), `CHANGELOG.md` v1.0.0.
 
 ---
 
@@ -64,6 +65,12 @@ LaserCAD is technical drawing for laser cutting. `plan.md` L26 states "Precision
 ## 3. Dropping ES modules in favor of classical scripts with a global namespace
 
 ### 3.1 Status
+
+**Superseded** by the migration to TypeScript + Vite + Tauri 2.x (`d09346b feat(migration): TypeScript + Vite + Tauri 2.x`). The runtime requirement that drove this decision (open `index.html` by double-click) was retired when the product adopted a native desktop bundle. The repository now uses native ES modules through Vite/TypeScript; there is no `window.LaserCAD` namespace and no IIFEs.
+
+The remainder of this section is kept for historical context and to make the trade-off visible to future contributors.
+
+### 3.1.bis Original status
 
 Accepted — 2026-05-12 — Decision-makers: LaserCAD team.
 

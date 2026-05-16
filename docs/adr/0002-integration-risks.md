@@ -1,11 +1,11 @@
 # ADR 0002 — Module integration risks
 
-This ADR consolidates three decisions that address risks flagged by the WS-A, WS-B, and WS-C subagents at the end of Sprint 1 (specs). They are a prerequisite for Sprint 2 (implementation): the three code workstreams will consume these rules simultaneously.
+This ADR consolidates three decisions that address risks flagged at the end of the spec phase: kernel→render coupling, mount↔`getScreenCTM` ordering, and DOM hosts as a contract. All three remain in force after the migration to TypeScript + Vite + Tauri 2.x; the code samples and module paths have been updated to TS modules. See [`0001-base-architecture.md`](0001-base-architecture.md) for the baseline (SVG-first, millimeters).
 
-- **Global status:** Accepted
+- **Global status:** Accepted (in force)
 - **Date:** 2026-05-12
 - **Decision-makers:** LaserCAD team
-- **Risks addressed:** WS-A risk #1 (core→render coupling), WS-B risk #1 (mount↔getScreenCTM order), WS-C risk #1 (DOM hosts).
+- **Risks addressed:** kernel→render coupling (§1), mount↔`getScreenCTM` order (§2), DOM hosts as a contract (§3).
 
 ---
 
@@ -17,54 +17,32 @@ Accepted — 2026-05-12 — Decision-makers: LaserCAD team.
 
 ### 1.2 Context
 
-`plan.md` L222 fixes that `core/geometry` and `core/document` are pure: no DOM, no global state, no bus. But `plan.md` L269 also requires that `world↔screen` conversions be centralized (via `getScreenCTM()`) to avoid screen↔document drift. Sprint 1 resolved this by specifying that `render/camera` is the **sole** owner of the implementation and `core/geometry/project` only re-exposes the interface for callers outside `render/`.
+`docs/plan.md` fixes that `core/geometry` and `core/document` are pure: no DOM, no global state, no bus. But it also requires that `world ↔ screen` conversions be centralized (via `getScreenCTM()`) to avoid screen↔document drift. The resolution is that `render/camera` is the **sole** owner of the implementation, and `core/geometry/project` only re-exposes the interface for callers outside `render/`.
 
-`namespace.md` defines the load order from leaves to roots: `project.js` loads at slot 6, `camera.js` at slot 15. A **literal** reference to `window.LaserCAD.render.camera` inside `project.js` at registration time (top-level of the IIFE) would fail — `render.camera` does not yet exist when `project.js` is evaluated.
+Statically importing `@/render/camera` from `@/core/geometry/project` would push render-layer code into the pure kernel and create a one-way coupling that violates the purity rule.
 
 ### 1.3 Decision
 
-Adopt **lazy lookup** inside the methods of `core.geometry.project`. The functions look up `window.LaserCAD.render.camera` **at call time**, not at load time:
+`core/geometry/project.ts` is the **sole authorized bridge** from the pure kernel into the render layer. Any other module in `core/` that needs world↔screen conversion calls `project.*` (or, if inside `render/`, calls `render/camera` directly).
 
-```js
-// src/core/geometry/project.js (skeleton)
-(function (LaserCAD) {
-  'use strict';
-  const ns = LaserCAD.core.geometry;
-  ns.project = {
-    worldFromScreen(screenPt, camera) {
-      const impl = window.LaserCAD.render && window.LaserCAD.render.camera;
-      if (!impl)
-        throw new Error(
-          'LaserCAD: render.camera not loaded — project.worldFromScreen requires script order per namespace.md',
-        );
-      return impl.worldFromScreen(screenPt, camera);
-    },
-    screenFromWorld(worldPt, camera) {
-      const impl = window.LaserCAD.render && window.LaserCAD.render.camera;
-      if (!impl) throw new Error('LaserCAD: render.camera not loaded');
-      return impl.screenFromWorld(worldPt, camera);
-    },
-  };
-})(
-  (window.LaserCAD = window.LaserCAD || {
-    core: { geometry: {}, document: {} },
-    render: {},
-    tools: {},
-    ui: {},
-    io: {},
-    app: {},
-    bus: {},
-  }),
-);
+Originally this bridge used a **lazy lookup** through a global namespace because the pre-Vite runtime loaded classical scripts and had no module load-order guarantee. After the migration to TypeScript + Vite (ES modules), the load order is solved by the bundler and `project.ts` is a thin import wrapper:
+
+```ts
+// src/core/geometry/project.ts — current shape
+import { camera } from '@/render/camera.js';
+
+export const project = {
+  worldFromScreen(screenPt, cam) { return camera.worldFromScreen(screenPt, cam); },
+  screenFromWorld(worldPt, cam) { return camera.screenFromWorld(worldPt, cam); },
+};
 ```
 
 ### 1.4 Consequences
 
-- `core.geometry.project` is the **only** documented exception to kernel purity — only in this file does the core look at `render`. Everything else under `core/` stays pure.
-- The load order in `namespace.md` remains valid; the lazy lookup does not require changing it.
-- Ordering errors surface clearly (a message naming the missing module), not as silent `NaN`.
-- Runtime cost is negligible: one property hop into the namespace per call. In hot paths (cursor:moved), modules call `render.camera.*` directly — `project.*` is only for callers outside `render/`.
-- The pattern can be reused if other exceptional bridges show up in the future (each new exception recorded in its own ADR).
+- `core/geometry/project.ts` is the **only** documented exception to kernel purity — only this file in `core/` imports from `render/`. Everything else under `core/` stays pure (no DOM, no `window`, no `render.*`).
+- The wrapper preserves the seam: future callers outside `render/` go through `project.*`, so a refactor that wants to push camera ownership elsewhere only edits one file.
+- Hot paths (`cursor:moved`) call `render.camera.*` directly; `project.*` is reserved for callers outside `render/`.
+- A new exceptional bridge (e.g. another core→non-core dependency) requires its own ADR — do not generalize this one into a free pass.
 
 ---
 
@@ -76,46 +54,45 @@ Accepted — 2026-05-12 — Decision-makers: LaserCAD team.
 
 ### 2.2 Context
 
-WS-B flagged that `camera.worldFromScreen` depends on `getScreenCTM()` of the root `<svg>`; before the `<svg>` is in the DOM (mounted), `getScreenCTM()` returns `null` or the identity matrix — any coordinate conversion produces garbage. If `bootstrap` registered `pointermove` listeners before mounting the `<svg>`, the `cursor:moved` event at the first render would emit invalid coordinates and contaminate the state.
+`camera.worldFromScreen` depends on `getScreenCTM()` of the root `<svg>`. Before the `<svg>` is in the DOM, `getScreenCTM()` returns `null` or the identity matrix and any coordinate conversion produces garbage. If `bootstrap` registered `pointermove` listeners before mounting the `<svg>`, the first `cursor:moved` event would carry invalid coordinates into the state.
 
-WS-B additionally notes that `viewport:resized` may fire before the camera has valid `viewportW/viewportH`, racing `refreshViewBox` in `svg-root`.
+Symmetrically, `viewport:resized` may fire before the camera has valid `viewportW/viewportH`, racing `refreshViewBox` in `svg-root`.
 
 ### 2.3 Decision
 
-The `LaserCAD.app.bootstrap.start()` function runs **strictly** in this order, without parallelization:
+`src/app/bootstrap.ts → start()` runs **strictly** in this order, without parallelization:
 
 ```
-1. validateNamespacePresence()      // confirm that window.LaserCAD.core.geometry.vec2 (and others) exist
-2. state = LaserCAD.app.state.init()
-3. config = LaserCAD.app.config.load()
-4. validateDomHosts()               // see §3 of this ADR
-5. svgRoot = LaserCAD.render.svgRoot.mount('#viewport-host')
-6. state.setViewportSize(svgRoot.getSize())   // first measurement
-7. LaserCAD.render.camera.attach(svgRoot)     // camera starts using getScreenCTM()
-8. LaserCAD.render.grid.mount(svgRoot)
-9. LaserCAD.render.overlays.mount(svgRoot)    // crosshair + coords label
-10. LaserCAD.ui.menubar.mount('#menubar-host')
-11. LaserCAD.ui.toolbar.mount('#toolbar-host')
-12. LaserCAD.ui.commandLine.mount('#commandline-host')
-13. LaserCAD.ui.statusbar.mount('#statusbar-host')
-14. LaserCAD.ui.dialogs.init()
-15. LaserCAD.tools.toolManager.init()
-16. LaserCAD.tools.toolManager.register('select', LaserCAD.tools.selectTool)
-17. LaserCAD.app.shortcuts.attach(window)     // global keyboard listeners
-18. wireViewportInput(svgRoot)                // viewport pointer events — ONLY HERE
-19. wireResizeObserver(svgRoot)               // viewport:resized — ONLY HERE
-20. LaserCAD.bus.emit('app:ready', {})
+ 1. validateDomHosts()               // see §3
+ 2. state = state.init()
+ 3. config = config.load()
+ 4. svgRoot = svgRoot.mount('#viewport-host')
+ 5. state.setViewportSize(svgRoot.getSize())
+ 6. camera.attach(svgRoot)           // camera starts using getScreenCTM()
+ 7. grid.mount(svgRoot)
+ 8. bed.mount(svgRoot)
+ 9. overlays.mount(svgRoot)          // crosshair + coords label
+10. menubar.mount('#menubar-host')
+11. toolbar.mount('#toolbar-host')
+12. commandLine.mount('#commandline-host')
+13. statusbar.mount('#statusbar-host')
+14. dialogs.init()
+15. toolManager.init()
+16. toolManager.register('select', selectTool)  // plus the other 8 tools
+17. shortcuts.attach(window)         // global keyboard listeners
+18. wireViewportInput(svgRoot)       // viewport pointer events — ONLY HERE
+19. wireResizeObserver(svgRoot)      // viewport:resized — ONLY HERE
+20. bus.emit('app:ready', {})
 ```
 
-Steps 1–17 are synchronous and never touch input. Input wire-up (steps 18–19) happens only after `svg-root` is mounted **and** the camera is attached.
+Steps 1–17 are synchronous and never touch input. Input wire-up (18–19) happens only after `svg-root` is mounted **and** the camera is attached. The authoritative sequence lives in the file header of `src/app/bootstrap.ts`; this ADR fixes the rule, the file fixes the exact symbols.
 
 ### 2.4 Consequences
 
-- `getScreenCTM()` is called only when guaranteed valid. World↔screen coordinates are reliable from the very first frame.
-- If any of steps 1–17 throws, `bootstrap` reports the error in the DOM (a banner over the body) and **does not** register listeners — the app stays "dead" but inspectable, instead of "live but with invalid coordinates".
-- `viewport:resized` never fires before `app:ready` (step 19 comes after). Race condition eliminated.
-- This order is fixed and versioned in `src/app/bootstrap.ts`. Changes require a new ADR.
-- For manual testing: `console.log(LaserCAD.render.camera.worldFromScreen({x:100,y:100}, LaserCAD.app.state.camera))` returns a finite point after `app:ready`, never before.
+- `getScreenCTM()` is only called once it is guaranteed valid. World↔screen coordinates are reliable from the very first frame.
+- If any of steps 1–17 throws, `bootstrap` writes a banner into `document.body` and **does not** register listeners — the app stays "dead but inspectable" rather than "live with invalid coordinates".
+- `viewport:resized` never fires before `app:ready`. Race condition eliminated.
+- This order is versioned in `src/app/bootstrap.ts`; changes require a new ADR.
 
 ---
 
@@ -127,9 +104,9 @@ Accepted — 2026-05-12 — Decision-makers: LaserCAD team.
 
 ### 3.2 Context
 
-WS-C flagged that `bootstrap.md` mounts components via IDs (`#viewport-host`, `#menubar-host`, `#toolbar-host`, `#commandline-host`, `#statusbar-host`) that must be present in the `index.html` produced by WS-B. Silently renaming a host breaks bootstrap with no obvious error (only the corresponding component "disappears").
+`bootstrap` mounts components via fixed IDs (`#viewport-host`, `#menubar-host`, `#toolbar-host`, `#commandline-host`, `#statusbar-host`) that must be present in `index.html`. Silently renaming a host breaks bootstrap with no obvious error — only the corresponding component "disappears".
 
-`design.md` L80–L112 lays out the 4-region + menubar layout; `index.html` materializes those IDs; `src/app/bootstrap.ts` consumes them.
+`docs/design.md` ("General layout") lays out the four-region + menubar layout; `index.html` materializes those IDs; `src/app/bootstrap.ts` consumes them.
 
 ### 3.3 Decision
 
@@ -156,10 +133,10 @@ The five IDs below are a **public contract** of the project. Renaming requires a
 
 ## Relationship to ADR 0001
 
-ADR 0001 established the baseline (SVG-first, mm, no ES modules). ADR 0002 covers the three critical boundaries where the general rule meets operational exceptions:
+ADR 0001 established the baseline (SVG-first and millimeters; §3's "no ES modules" decision is superseded). ADR 0002 covers the three critical boundaries where the general rule meets operational exceptions:
 
-1. **Kernel purity × centralized precision** → resolved with lazy lookup (§1)
-2. **No build × implicit order** → resolved with a mandatory bootstrap sequence (§2)
+1. **Kernel purity × centralized precision** → resolved by isolating the bridge to `core/geometry/project.ts` (§1)
+2. **Async mount × `getScreenCTM` validity** → resolved with a mandatory bootstrap sequence (§2)
 3. **No framework × shared DOM** → resolved with hosts as a contract (§3)
 
 Each decision preserves the simplicity of ADR 0001 without masking integration errors.
