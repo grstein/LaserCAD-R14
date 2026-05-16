@@ -103,13 +103,13 @@ The screen is divided into four fixed regions. No drag-reordering, no dockable p
    40px
 ```
 
-| Region            | Height/Width    | Content                                                                                                     |
-| ----------------- | --------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------- |
-| Menubar           | 28px            | File / Edit / View / Draw / Modify / Help. Text only, no icons.                                             |
-| Vertical toolbar  | 40px            | Tool icons (line, polyline, rect, circle, arc, select, trim, extend, move, delete). Single column.         |
-| Viewport          | remainder       | Native SVG, fills the whole space between toolbar and command line.                                         |
-| Command line      | 66px (3 lines)  | 2-line history + active input line.                                                                         |
-| Status bar        | 24px            | mm coordinates                                                                                              | toggles (SNAP/GRID/ORTHO) | autosave indicator.    |
+| Region            | Height/Width    | Content                                                                                          |
+| ----------------- | --------------- | ------------------------------------------------------------------------------------------------ |
+| Menubar           | 28px            | File / Edit / View / Draw / Modify / Help. Text only, no icons.                                  |
+| Vertical toolbar  | 40px            | Tool icons (line, polyline, rect, circle, arc, select, trim, extend, move, delete). One column. |
+| Viewport          | remainder       | Native SVG, fills the whole space between toolbar and command line.                              |
+| Command line      | 66px (3 lines)  | 2-line history + active input line.                                                              |
+| Status bar        | 24px            | mm coordinates + SNAP/GRID/ORTHO toggles + autosave indicator.                                   |
 
 **Non-negotiable layout rules:**
 

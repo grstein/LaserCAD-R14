@@ -1,33 +1,31 @@
 # Project plan for a browser-based 2D micro-CAD
 
+> **Status:** Reference document. Behavior is governed by the code under `src/`; this file is preserved as the frozen plan that motivated v1.0. See [`CLAUDE.md`](../CLAUDE.md) for the live architecture summary and [`adr/`](adr/) for in-force decisions.
+
 ## Executive summary
 
-**Markdown file download:** [microcad-plano-projeto.md](sandbox:/mnt/data/microcad-plano-projeto.md)
+This plan assumed a small team of **1–3 developers** and a total timeline of **8–12 weeks**, with a base recommendation of **6 sprints of 2 weeks**. The goal was to deliver a **working clone of the core flow of a classical 2D CAD**, without chasing a proprietary visual copy: technical drawing in **millimeters**, Pareto tools, snaps, direct numeric input, trim/extend, immediate SVG export, and end-to-end operation in the browser.
 
-This plan assumes a small team of **1–3 developers** and a total timeline of **8–12 weeks**, with a base recommendation of **6 sprints of 2 weeks**. The goal is to deliver a **working clone of the core flow of a classical 2D CAD**, without chasing a proprietary visual copy: technical drawing in **millimeters**, Pareto tools, snaps, direct numeric input, trim/extend, immediate SVG export, and end-to-end operation in the browser.
+The recommended architecture is **KISS and SVG-first**: keep an **in-house geometric model in JavaScript** as the source of truth, render the scene in **native SVG** in the DOM, and export a **plain SVG** for local download. SVG 2 is an XML standard for 2D vector graphics; basic shapes (`line`, `rect`, `circle`, `polyline`, `path`) plus `path` for arcs cover everything the geometric core of a 2D micro-CAD needs. The `viewBox` attribute defines the viewport position and dimensions in user space, which fits naturally with a coordinate system in mm.
 
-The recommended architecture is **KISS and SVG-first**: keep an **in-house geometric model in JavaScript** as the source of truth, render the scene in **native SVG** in the DOM, and export a **plain SVG** for local download. SVG 2 is an XML standard for 2D vector graphics; the specification lists basic shapes like `line`, `rect`, `circle`, `polyline`, and `path`, and `path` covers lines and arcs, which is enough for the geometric core of a 2D micro-CAD. The `viewBox` attribute defines the viewport position and dimensions in user space, which fits naturally with a coordinate system in mm. citeturn11view0turn8view5turn8view4turn13search0turn8view2
+The proposed stack stayed faithful to a minimal-runtime requirement: **plain HTML/CSS/JS, native SVG, Pointer Events, Blob download, and optional localStorage**. The migration to TypeScript + Vite + Tauri 2.x kept the SVG-first kernel intact and only swapped the loader/build chain — see [`adr/0001-base-architecture.md`](adr/0001-base-architecture.md) §3 for context.
 
-The proposed stack stays faithful to the runtime requirement: **plain HTML/CSS/JS, native SVG, Pointer Events, Blob download, and optional localStorage**. The JavaScript modules documentation shows the use of `type="module"`, modular file structure, and the need to test via a local server rather than `file://`, because of CORS and module loading. Pointer Events offer a single input model for mouse, pen, and touch. The web platform also already provides `Blob`, `URL.createObjectURL()`, and the `<a>` `download` property to save the SVG locally. `localStorage` is enough for lightweight autosave and preferences. citeturn16view1turn14view3turn8view6turn8view7turn8view8turn8view11turn8view9turn8view10
-
-The main operational constraint comes from LaserGRBL. The official FAQ says that SVG support is still in an early stage, that the file is handled **"as is"**, and that **text**, **fill**, and **distinct semantics per layer/color** are not supported. As a result, the exporter must be conservative: simple geometry, `fill="none"`, explicit units, and visual-resource flattening before export. citeturn8view0turn12view1
-
-The sources prioritized in this plan are urlMDN Web Docsturn6search0, urlSVG 2 from W3Cturn2search3, urlOfficial LaserGRBL FAQturn1search3, and, for optional CI, urlGitHub Actions Docsturn2search8. Technical decisions also rely on practices documented by entity["organization","W3C","web standards body"], by entity["organization","Mozilla","web docs publisher"], and, for hosted CI, by entity["company","GitHub","developer platform"].
+The main operational constraint comes from LaserGRBL. Its SVG importer treats the file **"as is"** and does not support live text, fill semantics, or distinct semantics per layer/color. As a result, the exporter must be conservative: simple geometry, `fill="none"`, explicit units, and visual-resource flattening before export.
 
 ## Technical baseline and architecture decisions
 
-The architecture must clearly separate **document model**, **geometric kernel**, **tool state machines**, and **SVG rendering/export**. This reduces coupling, makes undo/redo easier, and keeps trim, extend, and snapping decoupled from the DOM. The recommendation is to always work with **mm in the model** and convert to pixels only at the viewport/camera layer. `getScreenCTM()` is appropriate for converting between screen coordinates and SVG coordinates, and `document.createElementNS()` is the correct foundation for creating SVG nodes dynamically. `KeyboardEvent.key` and `KeyboardEvent.shiftKey` cover the command line, Enter, and Shift ortho locking. citeturn8view12turn5view3turn10view0
+The architecture must clearly separate **document model**, **geometric kernel**, **tool state machines**, and **SVG rendering/export**. This reduces coupling, makes undo/redo easier, and keeps trim, extend, and snapping decoupled from the DOM. The recommendation is to always work with **mm in the model** and convert to pixels only at the viewport/camera layer. `getScreenCTM()` is appropriate for converting between screen coordinates and SVG coordinates, and `document.createElementNS()` is the correct foundation for creating SVG nodes dynamically. `KeyboardEvent.key` and `KeyboardEvent.shiftKey` cover the command line, Enter, and Shift ortho locking.
 
-| Requirement               | KISS decision                                              | Technical evidence                                                                                                                  |
-| ------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Browser-only              | Static app with no required backend                       | Native JS modules with `<script type="module">` and execution from a local server. citeturn16view1turn14view3                    |
-| Modular project           | Folders by domain: `core`, `tools`, `render`, `io`, `ui`  | The module documentation shows modular structure and aggregation by namespaces. citeturn14view0turn16view2turn16view3           |
-| Native vectors            | SVG as rendering and output                               | SVG 2 defines SVG as a 2D XML vector format; basic shapes map to paths. citeturn11view0turn8view5turn8view4                     |
-| mm precision              | Document, commands, and export in mm                      | `viewBox` defines user space; the `<svg>` element defines the viewport and coordinate system. citeturn13search0turn8view2turn8view3 |
-| Multi-input               | Pointer Events                                            | Single model for mouse/pen/touch. citeturn8view6                                                                                  |
-| Download without backend  | `Blob` + `URL.createObjectURL()` + `<a download>`         | Native local download in the browser. citeturn8view7turn8view8turn8view11                                                       |
-| Simple autosave           | Optional `localStorage`                                   | Simple key/value persistence across sessions. citeturn8view9turn8view10                                                          |
-| LaserGRBL compatibility   | "Plain SVG" exporter                                      | The importer treats SVG "as is" and does not support text/fill/layer semantics. citeturn8view0turn12view1                       |
+| Requirement               | KISS decision                                                                                |
+| ------------------------- | -------------------------------------------------------------------------------------------- |
+| Browser-only              | Static app with no required backend                                                          |
+| Modular project           | Folders by domain: `core`, `tools`, `render`, `io`, `ui`                                     |
+| Native vectors            | SVG as rendering and output (SVG 2 basic shapes map to paths)                                |
+| mm precision              | Document, commands, and export in mm; `viewBox` defines user space                           |
+| Multi-input               | Pointer Events for mouse/pen/touch                                                           |
+| Download without backend  | `Blob` + `URL.createObjectURL()` + `<a download>` (web); Tauri dialog/fs plugins (native)    |
+| Simple autosave           | `localStorage` (web) or `tauri-plugin-store` (native)                                        |
+| LaserGRBL compatibility   | "Plain SVG" exporter — importer treats SVG "as is" and rejects text/fill/layer semantics     |
 
 ```mermaid
 flowchart TD
@@ -76,7 +74,7 @@ flowchart TD
 
 ## Scope, backlog, and acceptance criteria
 
-The MVP must strictly follow Pareto logic: **20% of the features to cover 80% of real usage**. For the proposed context, that means prioritizing drawing and editing of simple technical outlines, holes, arcs, sheets, joints, and plates. The LaserGRBL FAQ makes this prioritization even sharper, because it discourages live text, fill, and complex per-layer/color flows. citeturn12view1
+The MVP must strictly follow Pareto logic: **20% of the features to cover 80% of real usage**. For the proposed context, that means prioritizing drawing and editing of simple technical outlines, holes, arcs, sheets, joints, and plates. The LaserGRBL FAQ makes this prioritization even sharper, because it discourages live text, fill, and complex per-layer/color flows.
 
 | Theme                  | Pareto MVP                                                                      | Future phase                                          |
 | ---------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -105,7 +103,7 @@ The MVP must strictly follow Pareto logic: **20% of the features to cover 80% of
 | Essential snaps              | endpoint, midpoint, center, and intersection are shown and respected on commit                                                                      |
 | Basic tools                  | it is possible to draw a sheet with holes, straight cutouts, and simple arcs                                                                        |
 | Minimal editing              | trim and extend work at least for `line×line` and `line×circle`                                                                                     |
-| Operational export           | the SVG opens in the browser and feeds into LaserGRBL without later size/offset tweaks, consistent with the "as is" behavior. citeturn8view0     |
+| Operational export           | the SVG opens in the browser and feeds into LaserGRBL without later size/offset tweaks, consistent with the "as is" behavior                       |
 | Resilience                   | undo/redo covers the main operations and autosave does not corrupt the document                                                                     |
 
 ## Sprint plan and timeline
@@ -139,77 +137,33 @@ The most balanced recommendation is to work with **6 sprints of 2 weeks**, total
 
 ## Folder structure, conventions, and local environment
 
-The structure below satisfies the modular project requirement with `index.html` plus folders, preserving direct loading in the browser. The JavaScript modules documentation shows `main.js` as the top-level module and examples of directory organization, along with importing modules by namespace when that clarifies the architecture. citeturn14view0turn16view1turn16view2
+The structure below satisfies the modular project requirement with `index.html` plus folders, preserving direct loading in the browser. (The repository now uses TypeScript modules + Vite — this layout was the original plan and matches the current `src/` tree by responsibility.)
 
 ```text
-microcad/
+LaserCAD-R14/
 ├─ index.html
-├─ assets/
-│  ├─ css/
-│  │  ├─ reset.css
-│  │  ├─ app.css
-│  │  └─ theme.css
-│  └─ icons/
+├─ assets/css/                  reset.css, app.css, theme.css
 ├─ src/
-│  ├─ main.js
-│  ├─ app/
-│  │  ├─ bootstrap.js
-│  │  ├─ state.js
-│  │  ├─ shortcuts.js
-│  │  └─ config.js
+│  ├─ main.ts
+│  ├─ tauri-bridge.ts           runtime split: web vs native
+│  ├─ app/                      bootstrap, state, event-bus, shortcuts, config
 │  ├─ core/
-│  │  ├─ geometry/
-│  │  │  ├─ vec2.js
-│  │  │  ├─ epsilon.js
-│  │  │  ├─ line.js
-│  │  │  ├─ circle.js
-│  │  │  ├─ arc.js
-│  │  │  ├─ intersect.js
-│  │  │  ├─ project.js
-│  │  │  └─ snap.js
-│  │  └─ document/
-│  │     ├─ schema.js
-│  │     ├─ commands.js
-│  │     ├─ history.js
-│  │     └─ validators.js
-│  ├─ render/
-│  │  ├─ camera.js
-│  │  ├─ svg-root.js
-│  │  ├─ entity-renderers.js
-│  │  ├─ grid.js
-│  │  └─ overlays.js
-│  ├─ tools/
-│  │  ├─ tool-manager.js
-│  │  ├─ select-tool.js
-│  │  ├─ line-tool.js
-│  │  ├─ polyline-tool.js
-│  │  ├─ rect-tool.js
-│  │  ├─ circle-tool.js
-│  │  ├─ arc-tool.js
-│  │  ├─ trim-tool.js
-│  │  └─ extend-tool.js
-│  ├─ io/
-│  │  ├─ export-svg.js
-│  │  ├─ file-download.js
-│  │  ├─ autosave.js
-│  │  └─ import-svg.js
-│  ├─ ui/
-│  │  ├─ toolbar.js
-│  │  ├─ command-line.js
-│  │  ├─ statusbar.js
-│  │  └─ dialogs.js
-│  └─ tests/
-│     ├─ fixtures/
-│     ├─ unit/
-│     ├─ smoke/
-│     └─ manual/
+│  │  ├─ geometry/              vec2, epsilon, line, circle, arc, intersect, project, snap
+│  │  └─ document/              schema, validators, commands, history
+│  ├─ render/                   camera, svg-root, grid, bed, overlays, entity-renderers
+│  ├─ tools/                    tool-manager + line/polyline/rect/circle/arc + select/move/trim/extend
+│  ├─ io/                       export-svg, import-svg, file-download, file-actions, autosave
+│  └─ ui/                       menubar, toolbar, command-line, statusbar, dialogs, document-size-dialog
+├─ src-tauri/                   Rust shell + tauri.conf.json
+├─ tests/                       jsdom setup + integration tests
 ├─ docs/
-│  ├─ adr/
-│  ├─ examples/
-│  └─ release/
-└─ .github/
-   └─ workflows/
-      └─ ci.yml
+│  ├─ adr/                      architectural decisions
+│  ├─ product/                  product workspace (backlog, demands)
+│  ├─ plan.md                   this file
+│  ├─ design.md
+│  ├─ build-local.md
+│  └─ shortcuts.md
+└─ .github/workflows/           ci.yml, release.yml
 ```
 
 | Convention          | Recommended rule                                                              |
@@ -225,15 +179,15 @@ microcad/
 | Tolerances          | everything passes through centralized constants (`EPS`, `SNAP_TOLERANCE`)     |
 | Undo/redo           | command-based history, never "undo via DOM"                                   |
 
-For native modules, the app must run via a **local server**. MDN warns that loading HTML from `file://` produces CORS errors for modules, and also shows the correct usage of `<script type="module" src="main.js"></script>`. This must be a project rule, not an optional detail. citeturn16view1turn14view3
+For native modules, the app must run via a **local server**. Loading HTML from `file://` produces CORS errors for modules. The repository's actual local server is Vite (`npm run dev` → `http://localhost:1420`); the table below records the original plan.
 
 | Local environment             | Recommendation                                                                                            |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------- |
-| HTML bootstrap                | `<script type="module" src="./src/main.js"></script>`                                                     |
-| Minimal server                | `python -m http.server 8080` or any static equivalent                                                     |
-| Local URL                     | `http://localhost:8080`                                                                                   |
-| Optional dev tools            | `package.json` only for test/lint/smoke scripts, with no runtime dependency                               |
-| Future import                 | `import-svg.js` ready to use `FileReader.readAsText()` when the phase arrives. citeturn9search1        |
+| HTML bootstrap                | `<script type="module" src="./src/main.ts"></script>` (resolved by Vite)                                  |
+| Minimal server                | `npm run dev` (Vite); `python -m http.server` is enough for `dist/`                                       |
+| Local URL                     | `http://localhost:1420`                                                                                   |
+| Optional dev tools            | `package.json` with TypeScript, Vite, Vitest, ESLint, Prettier, Tauri CLI                                 |
+| File import                   | `src/io/import-svg.ts` covers SVG import for LaserCAD-emitted plain SVG                                   |
 
 ## Tests, QA, risks, and CI
 
@@ -249,7 +203,7 @@ Since the product's biggest risk lies in the **geometric kernel** and in the edi
 | Compatibility       | open in the browser and import smoke                          | samples of plate, holes, slot, arc                                 |
 | Manual QA           | extreme zoom, pan, error messages, multiple exports           | ergonomics and operational predictability                          |
 
-For hosted CI, the simplest choice is to use the entity["company","GitHub","developer platform"] platform. The official documentation describes workflows as configurable YAML processes and says files must live in `.github/workflows`. citeturn11view1turn8view13
+For hosted CI, the simplest choice is GitHub Actions. The workflows live in `.github/workflows/` (`ci.yml` and `release.yml`).
 
 | CI job             | Goal                                                                          | Trigger                  |
 | ------------------ | ----------------------------------------------------------------------------- | ------------------------ |
@@ -271,7 +225,7 @@ For hosted CI, the simplest choice is to use the entity["company","GitHub","deve
 
 ## SVG export for LaserGRBL
 
-Output must be treated as an **operational artifact**, not just a visualization. The external SVG must use `<svg>` with `xmlns` on the root element, `width`/`height` in mm, and a `viewBox` coherent with the document's logical area. Because SVG 2 treats basic shapes as compatible with `path`, the exporter may keep simple elements when possible and fall back to `path` when necessary, especially for arcs and future geometric normalization. citeturn8view2turn13search0turn8view5turn8view4
+Output must be treated as an **operational artifact**, not just a visualization. The external SVG must use `<svg>` with `xmlns` on the root element, `width`/`height` in mm, and a `viewBox` coherent with the document's logical area. Because SVG 2 treats basic shapes as compatible with `path`, the exporter may keep simple elements when possible and fall back to `path` when necessary, especially for arcs and future geometric normalization.
 
 ```xml
 <svg xmlns="http://www.w3.org/2000/svg"
@@ -286,7 +240,7 @@ Output must be treated as an **operational artifact**, not just a visualization.
 </svg>
 ```
 
-This format is coherent with LaserGRBL's limitations: the importer treats SVG "as is", does not support text, does not support fill as a real operation, and does not distinguish per-layer/color operations well. Therefore the rule is to export simple, predictable files instead of "rich" SVGs. citeturn8view0turn12view1
+This format is coherent with LaserGRBL's limitations: the importer treats SVG "as is", does not support text, does not support fill as a real operation, and does not distinguish per-layer/color operations well. Therefore the rule is to export simple, predictable files instead of "rich" SVGs.
 
 | SVG export checklist | Rule                                                                          |
 | -------------------- | ----------------------------------------------------------------------------- |
@@ -304,9 +258,9 @@ This format is coherent with LaserGRBL's limitations: the importer treats SVG "a
 | Pre-validation       | open in the browser and compare the bounding box before download              |
 | Download             | use `Blob`, `URL.createObjectURL()`, and `<a download>`                       |
 
-The LaserGRBL FAQ itself suggests converting text to paths when needed and says that in the presence of fill, only the outline will be traced. Because there is also no safe per-layer/color distinction, the more robust path is to offer separate presets, such as `cut.svg`, `mark.svg`, and `engrave.svg`, instead of trying to encode the process in the drawing. citeturn12view1
+The LaserGRBL FAQ itself suggests converting text to paths when needed and says that in the presence of fill, only the outline will be traced. Because there is also no safe per-layer/color distinction, the more robust path is to offer separate presets, such as `cut.svg`, `mark.svg`, and `engrave.svg`, instead of trying to encode the process in the drawing.
 
-Immediate file download can be implemented entirely in the browser with `Blob`, `URL.createObjectURL()`, and the `<a>` `download` property, which lets the system suggest the file name. citeturn8view7turn8view8turn8view11
+Immediate file download can be implemented entirely in the browser with `Blob`, `URL.createObjectURL()`, and the `<a>` `download` property, which lets the system suggest the file name. Under Tauri, the native dialog/fs plugins replace this with an OS save picker.
 
 ## Maintenance, expansion, and download instructions
 
@@ -332,12 +286,6 @@ Maintenance must treat the micro-CAD as a **geometric-core product**. The system
 | Advanced layers                     | useful but not critical for the initial goal        |
 | DXF import/export                   | only worth it after the editor stabilizes           |
 | Parametric constraints              | effectively another product                         |
-
-**Markdown file download instructions**
-
-1. Click **[microcad-plano-projeto.md](sandbox:/mnt/data/microcad-plano-projeto.md)** to download the `.md` version of this report.
-2. Alternatively, copy this response in full and save it locally as `microcad-plano-projeto.md`.
-3. Keep that file in `docs/` inside the repository so the plan stays alongside the ADRs, changelog, and releases.
 
 **Open questions and assumed limitations**
 
