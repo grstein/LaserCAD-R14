@@ -6,4 +6,5 @@
 //!
 //! Submodules arrive with demands LCV-055 .. LCV-062.
 
+pub const MODULE: &str = "io";
 pub mod svg;

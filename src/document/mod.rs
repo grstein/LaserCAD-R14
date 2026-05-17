@@ -5,3 +5,5 @@
 //! call `App::commit`.
 //!
 //! Submodules arrive with demands LCV-020 .. LCV-027.
+
+pub const MODULE: &str = "document";

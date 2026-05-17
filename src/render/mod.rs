@@ -2,3 +2,5 @@
 //! snap markers. Bridges the pure kernel to egui's `Painter`.
 //!
 //! Submodules arrive with demands LCV-030 .. LCV-038.
+
+pub const MODULE: &str = "render";

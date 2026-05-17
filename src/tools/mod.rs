@@ -4,3 +4,5 @@
 //! `App::commit`. State machines stay inside individual tool files.
 //!
 //! Submodules arrive with demands LCV-040 .. LCV-054.
+
+pub const MODULE: &str = "tools";

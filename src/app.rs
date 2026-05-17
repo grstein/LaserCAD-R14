@@ -4,6 +4,8 @@
 //! bootstrap demand (LCV-007) can prove the toolchain end-to-end. The real
 //! drawing surface, command line, menubar, etc. arrive in later demands.
 
+pub const MODULE: &str = "app";
+
 #[derive(Default)]
 pub struct App;
 

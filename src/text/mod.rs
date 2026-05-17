@@ -3,3 +3,5 @@
 //! Kernel module — MUST NOT import `egui`, `eframe`, or `rfd`.
 //!
 //! Submodule arrives with demand LCV-055.
+
+pub const MODULE: &str = "text";

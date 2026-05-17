@@ -2,3 +2,5 @@
 //! filesystem paths (via the `directories` crate when wired in).
 //!
 //! Submodules arrive on demand, not preemptively.
+
+pub const MODULE: &str = "util";

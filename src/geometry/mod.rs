@@ -5,3 +5,5 @@
 //! as a pure library. Reviewer enforces.
 //!
 //! Submodules arrive with demands LCV-010 .. LCV-017.
+
+pub const MODULE: &str = "geometry";

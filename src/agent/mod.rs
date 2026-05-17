@@ -5,3 +5,5 @@
 //! NOT import `egui`/`eframe`/`rfd`. The rest of `agent` may use them.
 //!
 //! Submodules arrive with demands LCV-075 .. LCV-080.
+
+pub const MODULE: &str = "agent";
