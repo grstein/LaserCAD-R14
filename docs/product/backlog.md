@@ -6,17 +6,12 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-
-_None yet — every demand starts as `Draft` and is refined by `product-owner` before landing here._
+| LCV-007 | Bootstrap egui window — title "LaserCAD v2 — bootstrap" | 0 | LCV-001, LCV-002 |
 
 ## Draft (awaiting refinement)
 
 | ID | Title | Phase |
 |---|---|---|
-| LCV-001 | Cargo project skeleton + dependency lock | 0 |
-| LCV-002 | rustfmt + clippy config + rust-toolchain pin | 0 |
-| LCV-004 | CI workflow (fmt + clippy + test, Linux) | 0 |
-| LCV-007 | Bootstrap egui window — title "LaserCAD v2 — bootstrap" | 0 |
 | LCV-010 | Vec2 + epsilon | 1 |
 | LCV-011 | Line type + bbox + helpers | 1 |
 | LCV-012 | Circle type + bbox + helpers | 1 |
@@ -98,7 +93,10 @@ _None._
 
 | ID | Title | Phase | Shipped | Commit |
 |---|---|---|---|---|
+| LCV-001 | Cargo project skeleton + dependency lock | 0 | 2026-05-17 | fd6a31d |
+| LCV-002 | rustfmt + clippy config + rust-toolchain pin | 0 | 2026-05-17 | b6464983 |
 | LCV-003 | ADR 0001 — pure Rust + egui decision | 0 | 2026-05-17 | _(scaffold commit)_ |
+| LCV-004 | CI workflow (fmt + clippy + test, Linux) | 0 | 2026-05-17 | fe4f5c94 |
 | LCV-005 | README + LICENSE-MIT + LICENSE-APACHE + CHANGELOG scaffold | 0 | 2026-05-17 | _(scaffold commit)_ |
 | LCV-006 | Agent harness alive — `.claude/agents/*.md` present | 0 | 2026-05-17 | _(scaffold commit)_ |
 
