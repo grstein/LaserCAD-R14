@@ -9,3 +9,4 @@ This is the v2 (green-field, pure Rust + egui) line of LaserCAD R14. The v1 line
 ### Added
 
 - Initial scaffold: Cargo project skeleton, agent harness under `.claude/agents/` (six agents), `AGENTS.md`, `CLAUDE.md`, `PLAN.md`, `README.md`, dual MIT/Apache license, empty module tree, ADR 0001 recording the pure-Rust + egui decision, CI workflow scaffold (Linux), bootstrap egui window placeholder.
+- Native bootstrap window opens at 1280×800 with title "LaserCAD v2 — bootstrap". See LCV-007.

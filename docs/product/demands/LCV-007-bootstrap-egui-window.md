@@ -1,11 +1,11 @@
 # LCV-007 — Bootstrap egui window — title "LaserCAD v2 — bootstrap"
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 0
 - **Depends on**: LCV-001, LCV-002
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: implementer-rust (task #10); d94e038; AC5 manual smoke pending human verification
 
 ## Problem
 

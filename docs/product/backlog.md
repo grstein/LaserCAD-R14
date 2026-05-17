@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-007 | Bootstrap egui window — title "LaserCAD v2 — bootstrap" | 0 | LCV-001, LCV-002 |
 
 ## Draft (awaiting refinement)
 
@@ -99,6 +98,7 @@ _None._
 | LCV-004 | CI workflow (fmt + clippy + test, Linux) | 0 | 2026-05-17 | fe4f5c94 |
 | LCV-005 | README + LICENSE-MIT + LICENSE-APACHE + CHANGELOG scaffold | 0 | 2026-05-17 | _(scaffold commit)_ |
 | LCV-006 | Agent harness alive — `.claude/agents/*.md` present | 0 | 2026-05-17 | _(scaffold commit)_ |
+| LCV-007 | Bootstrap egui window — title "LaserCAD v2 — bootstrap" | 0 | 2026-05-17 | d94e038 |
 
 ## Rejected
 
