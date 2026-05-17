@@ -6,4 +6,8 @@
 //!
 //! Submodules arrive with demands LCV-010 .. LCV-017.
 
-pub const MODULE: &str = "geometry";
+pub mod epsilon;
+pub mod vec2;
+
+pub use epsilon::EPSILON;
+pub use vec2::Vec2;

@@ -14,7 +14,7 @@ fn module_tree_is_wired() {
         &agent::MODULE,
         &app::MODULE,
         &document::MODULE,
-        &geometry::MODULE,
+        &geometry::EPSILON,
         &io::MODULE,
         &render::MODULE,
         &text::MODULE,
