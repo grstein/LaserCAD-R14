@@ -1,11 +1,11 @@
 # LCV-013 — Arc value type with bbox, endpoints, and contains_angle
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 1
 - **Depends on**: LCV-010
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: implementer-rust (task #36); caad4e4
 
 ## Problem
 

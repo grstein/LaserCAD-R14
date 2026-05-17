@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-013 | Arc type + bbox + containsAngle + endpoints | 1 | LCV-010 |
 | LCV-014 | Line-line / line-circle / circle-circle intersections | 1 | LCV-011, LCV-012 |
 | LCV-015 | Rect predicates (contains/crosses line/circle/arc) | 1 | LCV-011, LCV-012, LCV-013 |
 | LCV-016 | Snap engine (endpoint/midpoint/center/intersection) | 1 | LCV-014 |
@@ -99,6 +98,7 @@ _None._
 | LCV-010 | Vec2 + epsilon | 1 | 2026-05-17 | 2f2a8bf |
 | LCV-011 | Line type + bbox + helpers | 1 | 2026-05-17 | c6f09f9 |
 | LCV-012 | Circle type + bbox + helpers | 1 | 2026-05-17 | 4ff9ee4 |
+| LCV-013 | Arc type + bbox + containsAngle + endpoints | 1 | 2026-05-17 | caad4e4 |
 
 ## Rejected
 
