@@ -1,0 +1,31 @@
+# Rust build artifacts
+/target
+**/*.rs.bk
+*.pdb
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Local Claude settings (per-user, not shared)
+.claude/settings.local.json
+
+# Logs / temp
+*.log
+*.tmp
+*.swp
+*.bak
+
+# Distribution artifacts (built locally)
+/dist
+*.AppImage
+*.deb
+*.rpm
+*.msi
+*.exe
+*.dmg

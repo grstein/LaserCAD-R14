@@ -1,0 +1,3 @@
+# LaserCAD v2 clippy config.
+# File-size / function-complexity caps are enforced at review time, not by clippy.
+# Add tunables here only when a real demand justifies them.

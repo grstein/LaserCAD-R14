@@ -1,0 +1,188 @@
+# LaserCAD v2 — Agent Guide
+
+This file is the single source of agent instructions for the repository. Every coding agent — Claude Code, the project-manager, the workers — reads this file. `CLAUDE.md` is a thin pointer at this document.
+
+LaserCAD v2 is a 2D micro-CAD for laser cutting, compatible with LaserGRBL. It is a **pure-Rust, single-binary, egui-based** green-field rewrite of LaserCAD R14 v1 (which was TypeScript + Tauri). The product bias is strict: KISS clone of AutoCAD R14, preserve precision, avoid UI or architecture growth unless it directly improves the core CAD-to-LaserGRBL workflow.
+
+Primary platform: **Linux**. Windows and macOS are long-term.
+
+## Language Convention
+
+All versioned artifacts (source, comments, documentation, commit messages, file names) are written in English. Conversation with the user can happen in any language; the repository itself remains English-only.
+
+## Commit Conventions
+
+- **Never** add `Co-Authored-By: Claude …` (or any AI-coauthor) trailer to commits in this repository. The human author is the sole author of record. This applies to every agent — project-manager, implementer, demand-manager, or any future automation.
+- Conventional commits: `feat(LCV-NNN): …`, `fix(LCV-NNN): …`, `refactor(LCV-NNN): …`, `test(LCV-NNN): …`, `docs(LCV-NNN): …`, `chore: …`.
+- Prefer creating a new commit over amending unless the user explicitly asks.
+- Never bypass hooks (`--no-verify`) or signing without explicit user authorization.
+
+## Commands
+
+```bash
+cargo run                     # debug build, opens the app
+cargo run --release           # release build, opens the app
+cargo build                   # debug compile only
+cargo build --release         # release artifact in target/release/lasercad
+cargo test --all              # all unit + integration tests
+cargo fmt --all               # apply formatting
+cargo fmt --all -- --check    # CI-style check
+cargo clippy --all-targets -- -D warnings
+cargo doc --open              # render and open API docs
+```
+
+Run a single test: `cargo test -p lasercad --lib geometry::vec2` (or pass a substring after `cargo test`).
+
+Native prerequisites are documented in `docs/build-local.md` once Phase 0 lands. For now: stable Rust ≥ 1.88 (pinned via `rust-toolchain.toml`; required by transitive deps `image` and `idna_adapter`).
+
+## Architecture
+
+### Module tree
+
+```
+src/
+├── main.rs                 # thin: parse argv, init tracing, run app
+├── app.rs                  # eframe::App impl, top-level state, wiring
+├── lib.rs                  # re-exports for tests
+├── geometry/               # pure kernel: vec2, line, circle, arc, intersect, snap, rect, epsilon
+├── document/               # entity model, schema, commands, history, selection
+├── render/                 # camera, viewport, grid, bed, entities, preview, snaps
+├── tools/                  # Tool trait, ToolManager, one file per tool
+├── io/                     # settings, autosave, recent, file dialogs (rfd wrapper)
+├── io/svg/                 # export, import (roxmltree)
+├── ui/                     # menubar, toolbar, statusbar, command_line, dialogs, shortcuts, theme
+├── agent/                  # classifier, transport (reqwest), tools registry, multi-turn loop, settings_ui
+├── text/                   # Hershey font, layout
+└── util/                   # units, paths
+```
+
+Hard rules on the tree:
+
+- **One responsibility per file.** Hard cap: **300 LOC per `.rs`**. If you'd cross it, split (or route to `architect`).
+- **Each `mod.rs` re-exports its module's public surface.** No deep-path imports from outside the module.
+
+### Purity rule
+
+The following modules MUST NOT import `egui`, `eframe`, or `rfd`:
+
+- `src/geometry/*`
+- `src/document/*`
+- `src/io/svg/*`
+- `src/agent/classifier.rs`
+- `src/text/*`
+
+This is the "kernel". It must remain testable as a pure Rust library and runnable in a future headless / CLI / WASM context. Reviewers (`reviewer-rust`) check this on every demand.
+
+### Units and types
+
+- **Millimeters are canonical** across document, kernel, command line, and SVG export. Pixels only inside `render/camera`.
+- **Angles**: radians in the kernel and state. Degrees only at UI presentation boundaries.
+- Canonical types (declared in `src/geometry/mod.rs` and `src/document/entity.rs`):
+  - `Vec2 { x: f64, y: f64 }`
+  - `Entity` enum: `Line { p1, p2 }`, `Circle { center, r }`, `Arc { center, r, start_angle, end_angle, ccw }`.
+  - `Command` trait with `do_` / `undo` semantics in `src/document/commands.rs`.
+  - `Tool` trait in `src/tools/tool.rs`.
+  - `SnapResult` in `src/geometry/snap.rs`.
+
+### State and mutation (hard contract)
+
+The `App` struct in `src/app.rs` owns mutable state. The contract:
+
+- **All entity mutation goes through `Command` trait + the history stack in `src/document/history.rs`.**
+- **Tools never mutate `Document` directly**; they construct a `Box<dyn Command>` and call `App::commit(cmd)`.
+- **History depth**: 200 commands (matches v1).
+- **Selection** is part of `Document`, mutated via `SelectionCommand`s.
+- **Active tool, toggles, command-line input, camera, viewport size, cursor** live on `App`. Setters on `App` are the only mutation path.
+
+### Event flow
+
+egui's `update(&mut self, ctx, frame)` is the single tick. Inside it:
+
+1. Process pending input (handled by tools through pointer events from egui).
+2. Apply any committed commands (already done synchronously when the tool calls `commit`).
+3. Repaint the viewport (grid, bed, entities, preview, snap markers).
+4. Render UI chrome (menubar, toolbar, command line, statusbar, dialogs).
+
+Async work (HTTP for the agent, autosave timer) lives on a `tokio` runtime owned by `App`; results are channeled back and `ctx.request_repaint()` is called to wake the UI.
+
+### SVG export (LaserGRBL compatibility)
+
+`src/io/svg/export.rs` follows the LaserGRBL export checklist:
+
+- `xmlns` on the root `<svg>`; `width`/`height` in mm; `viewBox` in world coordinates.
+- `fill="none"` forced; no live text; no `filter`/`mask`/`clipPath`.
+- One `<g>` per preset color: **cut** red `#ff0000`, **mark** blue `#0000ff`, **engrave** green `#00aa00`; `stroke-width="0.1"` mm.
+- Arcs as `<path d="M sx sy A r r 0 large sweep ex ey"/>` (not bézier).
+
+Changing these rules breaks LaserGRBL import — confirm via `product-owner` before doing so.
+
+## Subagent Suite
+
+Six Claude agents live under [`.claude/agents/`](.claude/agents/). The main Claude Code agent (and any human-driven session) **must delegate to them** whenever the work matches their domain — do not do their job inline.
+
+| Subagent | File | Model | When to delegate |
+|---|---|---|---|
+| `project-manager` | [`.claude/agents/project-manager.md`](.claude/agents/project-manager.md) | opus | Drive `PLAN.md`. Pick the next demand, spawn the right worker, track via tasks, report to user. Sole writer of `PLAN.md` status table. |
+| `architect` | [`.claude/agents/architect.md`](.claude/agents/architect.md) | opus | Architecture decisions, ADRs, module-boundary calls, cross-cutting type contracts. Does not edit code. |
+| `product-owner` | [`.claude/agents/product-owner.md`](.claude/agents/product-owner.md) | opus | Refine `Draft` demands into `Ready`. Body, scope, acceptance, non-goals. Does not edit code. |
+| `demand-manager` | [`.claude/agents/demand-manager.md`](.claude/agents/demand-manager.md) | sonnet | State machine for LCV-XXX. Sole writer of `Status:` lines, `backlog.md` tables, `CHANGELOG.md`. |
+| `implementer-rust` | [`.claude/agents/implementer-rust.md`](.claude/agents/implementer-rust.md) | sonnet | Turn one `Ready` demand into shipped, tested Rust code. Sole writer of `src/`, `tests/`, `Cargo.toml`. |
+| `reviewer-rust` | [`.claude/agents/reviewer-rust.md`](.claude/agents/reviewer-rust.md) | sonnet | Review freshly-committed demands. KISS + architecture + test-coverage checks. Cannot edit code. |
+
+### Coordination contract
+
+All six subagents coordinate through Claude Code's task system (`TaskCreate` / `TaskList` / `TaskGet` / `TaskUpdate`).
+
+- **Tasks are the bulletin board.** Every cross-agent handoff is a task with `owner: <agent-name>` and enough context that the receiver can pick it up cold.
+- **Claim before working.** Set `owner` and flip to `in_progress` before acting; flip to `completed` only when fully done.
+- **No silent role crossing.** If you discover work that belongs to another role, create a task for that role and either block on it (`addBlockedBy`) or hand the original task off — never just do it yourself.
+- **The demand state machine is single-writer.** Only `demand-manager` edits `Status:` / `Implementation:` lines in demand files and the tables in `docs/product/backlog.md`.
+- **The PLAN.md status table is single-writer.** Only `project-manager` edits the demand-status table inside `PLAN.md`.
+- **Product scope is single-writer.** Only `product-owner` writes demand bodies.
+- **Code is single-writer.** Only `implementer-rust` edits `src/`, `tests/`, `Cargo.toml`.
+
+If you are the main Claude Code agent and the user asks for project work, default to spawning `project-manager` rather than doing the work inline.
+
+## Implementation Rules
+
+- Keep **millimeters canonical** in document, geometry, command line, and SVG export. Radians in the kernel.
+- Keep the **kernel pure**: no `egui`/`eframe`/`rfd` imports in `geometry/`, `document/`, `io/svg/`, `agent/classifier.rs`, `text/`.
+- **All entity mutation through `Command` trait + history stack.** No direct `Document.entities` mutation outside `document::commands` and `document::history`.
+- **No `unsafe`** without an inline justification and an ADR.
+- **No `unwrap()` / `expect()`** in library code except where an invariant is documented; tests can unwrap.
+- **One responsibility per file**, ≤300 LOC.
+- **Doc comments** on `pub` items; module headers on `mod.rs`.
+- **Tests**: `#[cfg(test)] mod tests` next to implementation for unit, `tests/` for integration. Add a test per acceptance criterion.
+- **Before declaring a demand done**: run `cargo fmt --all && cargo clippy --all-targets -- -D warnings && cargo test --all`. All three must be green.
+
+## Product Philosophy
+
+LaserCAD v2 is not a general design tool. It is a focused CAD surface for making simple, precise 2D geometry that exports clean SVG for LaserGRBL.
+
+Default answers:
+
+- Prefer command line and keyboard-first flows.
+- Prefer SVG-native, plain, inspectable output.
+- Prefer small tools that compose over smart tools with hidden behavior.
+- Prefer deterministic geometry over visual convenience.
+- Prefer rejecting a feature over carrying accidental product complexity.
+
+## Documentation Hygiene
+
+- **Single source of truth.** `AGENTS.md` owns the agent rules. `CLAUDE.md` is a thin pointer. `PLAN.md` is the live roadmap. `src/` is the source of truth for behavior.
+- **Status markers, not stale content.**
+  - **Demands** (`docs/product/demands/`): use the state machine in `docs/product/product-owner-agent.md`. When a demand ships, flip its header to `Done` and record the shipping commit in `Implementation:`; move it in `docs/product/backlog.md`.
+  - **ADRs** (`docs/adr/`): when an ADR is reversed, add a `**Superseded**` status header pointing at the new ADR or commit. Keep the original text.
+- **Living docs sit next to code.** Module headers (`//!`) and doc comments (`///`) carry component-level notes. `docs/` describes intent and contracts, not implementation.
+- **No generation cruft.** Strip artifacts (`citeturn…` tokens, `sandbox:/mnt/data/…` links, malformed tables) when they appear.
+- **English-only filenames.**
+- **Sync the CHANGELOG.** When a `Done` demand changes user-visible behavior, `demand-manager` updates `CHANGELOG.md` under `[Unreleased]`.
+
+## Reference documentation
+
+- [`PLAN.md`](PLAN.md) — live roadmap (demand table, phases, PM execution log).
+- [`docs/adr/0001-pure-rust-egui.md`](docs/adr/0001-pure-rust-egui.md) — framework decision.
+- [`docs/product/README.md`](docs/product/README.md) — product principles.
+- [`docs/product/product-owner-agent.md`](docs/product/product-owner-agent.md) — demand format and lifecycle.
+- [`docs/product/backlog.md`](docs/product/backlog.md) — prioritized backlog by state.
+- [`CHANGELOG.md`](CHANGELOG.md) — user-visible changes per release.
