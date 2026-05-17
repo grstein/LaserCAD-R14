@@ -6,10 +6,12 @@
 //!
 //! Submodules arrive with demands LCV-010 .. LCV-017.
 
+pub mod circle;
 pub mod epsilon;
 pub mod line;
 pub mod vec2;
 
+pub use circle::Circle;
 pub use epsilon::EPSILON;
 pub use line::Line;
 pub use vec2::Vec2;
