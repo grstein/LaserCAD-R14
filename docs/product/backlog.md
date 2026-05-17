@@ -6,19 +6,19 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
+| LCV-010 | Vec2 + epsilon | 1 | — |
+| LCV-011 | Line type + bbox + helpers | 1 | LCV-010 |
+| LCV-012 | Circle type + bbox + helpers | 1 | LCV-010 |
+| LCV-013 | Arc type + bbox + containsAngle + endpoints | 1 | LCV-010 |
+| LCV-014 | Line-line / line-circle / circle-circle intersections | 1 | LCV-011, LCV-012 |
+| LCV-015 | Rect predicates (contains/crosses line/circle/arc) | 1 | LCV-011, LCV-012, LCV-013 |
+| LCV-016 | Snap engine (endpoint/midpoint/center/intersection) | 1 | LCV-014 |
+| LCV-017 | Geometry test suite consolidation | 1 | LCV-016 |
 
 ## Draft (awaiting refinement)
 
 | ID | Title | Phase |
 |---|---|---|
-| LCV-010 | Vec2 + epsilon | 1 |
-| LCV-011 | Line type + bbox + helpers | 1 |
-| LCV-012 | Circle type + bbox + helpers | 1 |
-| LCV-013 | Arc type + bbox + containsAngle + endpoints | 1 |
-| LCV-014 | Line-line / line-circle / circle-circle intersections | 1 |
-| LCV-015 | Rect predicates (contains/crosses line/circle/arc) | 1 |
-| LCV-016 | Snap engine (endpoint/midpoint/center/intersection) | 1 |
-| LCV-017 | Geometry test suite consolidation | 1 |
 | LCV-020 | Entity enum + schema_version=1 | 2 |
 | LCV-021 | Document struct + bounds + Default | 2 |
 | LCV-022 | Command trait + do/undo semantics | 2 |
