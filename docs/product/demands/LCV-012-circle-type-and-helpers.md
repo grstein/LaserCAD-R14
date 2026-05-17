@@ -1,11 +1,11 @@
 # LCV-012 — Circle value type with bbox and geometric helpers
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 1
 - **Depends on**: LCV-010
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: implementer-rust (task #40); 4ff9ee4
 
 ## Problem
 
