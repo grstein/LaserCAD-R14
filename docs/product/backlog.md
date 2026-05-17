@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-011 | Line type + bbox + helpers | 1 | LCV-010 |
 | LCV-012 | Circle type + bbox + helpers | 1 | LCV-010 |
 | LCV-013 | Arc type + bbox + containsAngle + endpoints | 1 | LCV-010 |
 | LCV-014 | Line-line / line-circle / circle-circle intersections | 1 | LCV-011, LCV-012 |
@@ -99,6 +98,7 @@ _None._
 | LCV-006 | Agent harness alive — `.claude/agents/*.md` present | 0 | 2026-05-17 | _(scaffold commit)_ |
 | LCV-007 | Bootstrap egui window — title "LaserCAD v2 — bootstrap" | 0 | 2026-05-17 | d94e038 |
 | LCV-010 | Vec2 + epsilon | 1 | 2026-05-17 | 2f2a8bf |
+| LCV-011 | Line type + bbox + helpers | 1 | 2026-05-17 | c6f09f9 |
 
 ## Rejected
 

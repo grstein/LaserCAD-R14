@@ -1,11 +1,11 @@
 # LCV-011 — Line value type with bbox and geometric helpers
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 1
 - **Depends on**: LCV-010
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: implementer-rust (task #42); c6f09f9
 
 ## Problem
 
