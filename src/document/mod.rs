@@ -6,9 +6,11 @@
 //!
 //! Submodules arrive with demands LCV-020 .. LCV-027.
 
+pub mod commands;
 pub mod entity;
 pub mod schema;
 pub mod state;
 
+pub use commands::{Command, NoOpCommand};
 pub use entity::{Entity, SCHEMA_VERSION};
 pub use state::{Document, Selection};
