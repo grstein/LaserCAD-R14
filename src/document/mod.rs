@@ -10,11 +10,14 @@ pub mod commands;
 pub mod entity;
 pub mod history;
 pub mod schema;
+pub mod selection;
 pub mod state;
 
 pub use commands::{
     Command, CreateArc, CreateCircle, CreateLine, DeleteEntities, MoveEntities, NoOpCommand,
+    SelectionCommand,
 };
 pub use entity::{Entity, SCHEMA_VERSION};
 pub use history::{History, HISTORY_DEPTH};
-pub use state::{Document, Selection};
+pub use selection::Selection;
+pub use state::Document;

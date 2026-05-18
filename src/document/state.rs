@@ -8,17 +8,16 @@
 //! re-exports the public surface so external callers reach it as
 //! `lasercad::document::Document`.
 //!
-//! [`Selection`] is declared here as a minimal placeholder — its fields and
-//! methods (`is_selected`, `add`, `remove`, iteration, `SelectionCommand`) are
-//! owned by LCV-027. This demand only carries the type name so `Document` can
-//! own it from day one without a circular wait.
+//! [`Selection`] lives in [`crate::document::selection`] (concretized by
+//! LCV-027, replacing the LCV-021 placeholder that originally sat in this
+//! file). `Document` continues to own a `pub selection: Selection` field.
 //!
 //! MUST NOT import `egui`, `eframe`, or `rfd`. The document model is part of
 //! the pure-Rust kernel.
 //!
 //! Introduced by demand LCV-021.
 
-use crate::document::Entity;
+use crate::document::{Entity, Selection};
 use crate::geometry::Vec2;
 
 /// The drawing the operator is editing.
@@ -38,7 +37,8 @@ pub struct Document {
     /// vector is the entity's addressable handle until a stable-id demand
     /// argues otherwise.
     pub entities: Vec<Entity>,
-    /// Current selection state. The body is a placeholder filled by LCV-027.
+    /// Current selection state. Concretized by LCV-027 — see
+    /// [`crate::document::selection`] for the type definition.
     pub selection: Selection,
 }
 
@@ -70,21 +70,6 @@ impl Document {
     pub fn entity_count(&self) -> usize {
         self.entities.len()
     }
-}
-
-/// Placeholder for the document's current selection.
-///
-/// LCV-021 declares only the type name so [`Document`] can own it without
-/// circular waits. LCV-027 fills in the actual fields (`HashSet<usize>` over
-/// entity indices), the predicate / mutation API (`is_selected`, `add`,
-/// `remove`, iteration), and the `SelectionCommand` plumbing.
-///
-/// The single private placeholder field keeps the type from being an
-/// inhabitable unit struct that callers might construct directly — they
-/// should always go through [`Selection::default`].
-#[derive(Debug, Default)]
-pub struct Selection {
-    _reserved: (),
 }
 
 #[cfg(test)]
