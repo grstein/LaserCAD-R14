@@ -8,5 +8,7 @@
 
 pub mod entity;
 pub mod schema;
+pub mod state;
 
 pub use entity::{Entity, SCHEMA_VERSION};
+pub use state::{Document, Selection};

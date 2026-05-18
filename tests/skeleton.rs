@@ -23,3 +23,19 @@ fn module_tree_is_wired() {
         &util::MODULE,
     );
 }
+
+/// LCV-021 AC#8 — `Document` and `Selection` are re-exported through
+/// `document::mod` so external callers reach them as
+/// `lasercad::document::{Document, Selection}` without a deep path.
+#[test]
+fn document_and_selection_reexported() {
+    use lasercad::document::{Document, Selection};
+
+    let doc = Document::default();
+    assert_eq!(doc.entity_count(), 0);
+    assert!(doc.bounds().is_none());
+
+    // `Selection` is reachable and default-constructible — placeholder body
+    // is owned by LCV-027.
+    let _ = Selection::default();
+}
