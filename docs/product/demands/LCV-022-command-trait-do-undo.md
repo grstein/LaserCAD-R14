@@ -1,11 +1,11 @@
 # LCV-022 — Command trait + do/undo semantics
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 2
 - **Depends on**: LCV-021
 - **Suggested agent**: architect
 - **Suggested model**: opus
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: implementer-rust (task #71); af28f9b
 
 ## Problem
 
