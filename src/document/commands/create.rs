@@ -1,0 +1,283 @@
+//! Primitive-creation commands: [`CreateLine`], [`CreateCircle`], [`CreateArc`].
+//!
+//! Each command appends exactly one [`crate::document::Entity`] inside `do_`,
+//! captures the resulting index, and removes the entity at that index inside
+//! `undo`. The Phase 4 drawing tools (`LineTool` LCV-043, `CircleTool` LCV-046,
+//! `ArcTool` LCV-047) and the agent's CAD tool registry (LCV-078) construct
+//! these commands and hand them to `App::commit`.
+//!
+//! `captured_index: Option<usize>` starts `None`, becomes `Some(i)` after
+//! `do_`, and returns to `None` after `undo` (via [`Option::take`]). A second
+//! `undo` on an already-undone command is therefore a no-op rather than a
+//! corruption that would remove an unrelated entity. Redo flows back through
+//! `do_`, which re-captures a fresh index at the new end of the vector.
+//!
+//! Per [`super::Command`], `cmd.do_(doc); cmd.undo(doc);` leaves `doc`
+//! bit-equivalent (`PartialEq`-equal entities, same order, same selection) to
+//! the pre-`do_` state.
+//!
+//! MUST NOT import `egui`, `eframe`, or `rfd`. Introduced by demand LCV-023.
+
+use super::Command;
+use crate::document::{Document, Entity};
+use crate::geometry::{Arc, Circle, Line};
+
+/// Append a [`Line`] to a [`Document`].
+///
+/// `do_` pushes `Entity::Line(self.line)` and records the resulting index;
+/// `undo` removes the entity at that index and clears the capture so a
+/// double-`undo` is a no-op.
+#[derive(Debug)]
+pub struct CreateLine {
+    /// The line that `do_` will append to the document.
+    pub line: Line,
+    /// Index at which `do_` placed the entity; `None` before the first `do_`
+    /// or after `undo`. Module-private to prevent caller tampering.
+    captured_index: Option<usize>,
+}
+
+impl CreateLine {
+    /// Build a [`CreateLine`] for `line`. `captured_index` starts `None`.
+    pub fn new(line: Line) -> Self {
+        Self {
+            line,
+            captured_index: None,
+        }
+    }
+}
+
+impl Command for CreateLine {
+    fn do_(&mut self, doc: &mut Document) {
+        doc.entities.push(Entity::Line(self.line));
+        self.captured_index = Some(doc.entities.len() - 1);
+    }
+
+    fn undo(&mut self, doc: &mut Document) {
+        if let Some(i) = self.captured_index.take() {
+            doc.entities.remove(i);
+        }
+    }
+
+    fn label(&self) -> &str {
+        "Create Line"
+    }
+}
+
+/// Append a [`Circle`] to a [`Document`]. Same shape as [`CreateLine`] over
+/// [`Entity::Circle`].
+#[derive(Debug)]
+pub struct CreateCircle {
+    /// The circle that `do_` will append to the document.
+    pub circle: Circle,
+    /// Index at which `do_` placed the entity; cleared on `undo`.
+    captured_index: Option<usize>,
+}
+
+impl CreateCircle {
+    /// Build a [`CreateCircle`] for `circle`. `captured_index` starts `None`.
+    pub fn new(circle: Circle) -> Self {
+        Self {
+            circle,
+            captured_index: None,
+        }
+    }
+}
+
+impl Command for CreateCircle {
+    fn do_(&mut self, doc: &mut Document) {
+        doc.entities.push(Entity::Circle(self.circle));
+        self.captured_index = Some(doc.entities.len() - 1);
+    }
+
+    fn undo(&mut self, doc: &mut Document) {
+        if let Some(i) = self.captured_index.take() {
+            doc.entities.remove(i);
+        }
+    }
+
+    fn label(&self) -> &str {
+        "Create Circle"
+    }
+}
+
+/// Append an [`Arc`] to a [`Document`]. Same shape as [`CreateLine`] over
+/// [`Entity::Arc`].
+#[derive(Debug)]
+pub struct CreateArc {
+    /// The arc that `do_` will append to the document.
+    pub arc: Arc,
+    /// Index at which `do_` placed the entity; cleared on `undo`.
+    captured_index: Option<usize>,
+}
+
+impl CreateArc {
+    /// Build a [`CreateArc`] for `arc`. `captured_index` starts `None`.
+    pub fn new(arc: Arc) -> Self {
+        Self {
+            arc,
+            captured_index: None,
+        }
+    }
+}
+
+impl Command for CreateArc {
+    fn do_(&mut self, doc: &mut Document) {
+        doc.entities.push(Entity::Arc(self.arc));
+        self.captured_index = Some(doc.entities.len() - 1);
+    }
+
+    fn undo(&mut self, doc: &mut Document) {
+        if let Some(i) = self.captured_index.take() {
+            doc.entities.remove(i);
+        }
+    }
+
+    fn label(&self) -> &str {
+        "Create Arc"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::geometry::Vec2;
+    use core::f64::consts::FRAC_PI_2;
+
+    /// AC#1 — the three commands are reachable from
+    /// `crate::document::commands::{CreateLine, CreateCircle, CreateArc}`.
+    #[test]
+    fn create_module_re_exports_three_commands() {
+        use crate::document::commands::{CreateArc, CreateCircle, CreateLine};
+        let _ = CreateLine::new(Line::new(Vec2::default(), Vec2::default()));
+        let _ = CreateCircle::new(Circle::new(Vec2::default(), 1.0));
+        let _ = CreateArc::new(Arc::new(Vec2::default(), 1.0, 0.0, 1.0, true));
+    }
+
+    /// AC#2 — constructors start with `captured_index: None`. Inferred by
+    /// calling `undo` on a freshly-constructed command and observing no
+    /// document mutation (`Option::take` on `None` is a no-op).
+    #[test]
+    fn create_constructors_capture_index_none() {
+        let mut doc = Document::default();
+        let seed = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 1.0));
+        doc.entities.push(Entity::Line(seed));
+
+        let mut cmd_line = CreateLine::new(Line::new(Vec2::default(), Vec2::new(1.0, 0.0)));
+        let mut cmd_circle = CreateCircle::new(Circle::new(Vec2::default(), 1.0));
+        let mut cmd_arc = CreateArc::new(Arc::new(Vec2::default(), 1.0, 0.0, FRAC_PI_2, true));
+        cmd_line.undo(&mut doc);
+        cmd_circle.undo(&mut doc);
+        cmd_arc.undo(&mut doc);
+
+        assert_eq!(doc.entities.len(), 1);
+        assert_eq!(doc.entities[0], Entity::Line(seed));
+    }
+
+    /// AC#3 — `CreateLine` round-trip on an empty document.
+    #[test]
+    fn create_line_roundtrip() {
+        let mut doc = Document::default();
+        let line = Line::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0));
+        let mut cmd = CreateLine::new(line);
+        cmd.do_(&mut doc);
+        assert_eq!(doc.entities.len(), 1);
+        assert_eq!(doc.entities[0], Entity::Line(line));
+        cmd.undo(&mut doc);
+        assert!(doc.entities.is_empty());
+        assert_eq!(doc.entity_count(), 0);
+    }
+
+    /// AC#4 — `CreateCircle` round-trip on an empty document.
+    #[test]
+    fn create_circle_roundtrip() {
+        let mut doc = Document::default();
+        let circle = Circle::new(Vec2::new(5.0, 5.0), 3.0);
+        let mut cmd = CreateCircle::new(circle);
+        cmd.do_(&mut doc);
+        assert_eq!(doc.entities.len(), 1);
+        assert_eq!(doc.entities[0], Entity::Circle(circle));
+        cmd.undo(&mut doc);
+        assert!(doc.entities.is_empty());
+        assert_eq!(doc.entity_count(), 0);
+    }
+
+    /// AC#5 — `CreateArc` round-trip with the canonical quarter arc.
+    #[test]
+    fn create_arc_roundtrip() {
+        let mut doc = Document::default();
+        let arc = Arc::new(Vec2::default(), 1.0, 0.0, FRAC_PI_2, true);
+        let mut cmd = CreateArc::new(arc);
+        cmd.do_(&mut doc);
+        assert_eq!(doc.entities.len(), 1);
+        assert_eq!(doc.entities[0], Entity::Arc(arc));
+        cmd.undo(&mut doc);
+        assert!(doc.entities.is_empty());
+        assert_eq!(doc.entity_count(), 0);
+    }
+
+    /// AC#6 — two `CreateLine`s push to the end in order; LIFO undo clears.
+    #[test]
+    fn two_creates_then_lifo_undo() {
+        let mut doc = Document::default();
+        let line_a = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 0.0));
+        let line_b = Line::new(Vec2::new(2.0, 0.0), Vec2::new(3.0, 0.0));
+        let mut cmd_a = CreateLine::new(line_a);
+        let mut cmd_b = CreateLine::new(line_b);
+
+        cmd_a.do_(&mut doc);
+        cmd_b.do_(&mut doc);
+        assert_eq!(doc.entities.len(), 2);
+        assert_eq!(doc.entities[0], Entity::Line(line_a));
+        assert_eq!(doc.entities[1], Entity::Line(line_b));
+
+        cmd_b.undo(&mut doc);
+        cmd_a.undo(&mut doc);
+        assert!(doc.entities.is_empty());
+        assert_eq!(doc.entity_count(), 0);
+    }
+
+    /// AC#7 — exact label strings.
+    #[test]
+    fn create_labels_exact() {
+        let cmd_line = CreateLine::new(Line::new(Vec2::default(), Vec2::new(1.0, 0.0)));
+        let cmd_circle = CreateCircle::new(Circle::new(Vec2::default(), 1.0));
+        let cmd_arc = CreateArc::new(Arc::new(Vec2::default(), 1.0, 0.0, FRAC_PI_2, true));
+        assert_eq!(cmd_line.label(), "Create Line");
+        assert_eq!(cmd_circle.label(), "Create Circle");
+        assert_eq!(cmd_arc.label(), "Create Arc");
+    }
+
+    /// AC#8 — every create command is object-safe.
+    #[test]
+    fn create_commands_are_object_safe() {
+        let _: Box<dyn Command> =
+            Box::new(CreateLine::new(Line::new(Vec2::default(), Vec2::default())));
+        let _: Box<dyn Command> = Box::new(CreateCircle::new(Circle::new(Vec2::default(), 1.0)));
+        let _: Box<dyn Command> = Box::new(CreateArc::new(Arc::new(
+            Vec2::default(),
+            1.0,
+            0.0,
+            1.0,
+            true,
+        )));
+    }
+
+    /// `captured_index.take()` makes a double `undo` a no-op rather than a
+    /// corruption that would mis-target a neighbouring entity.
+    #[test]
+    fn double_undo_is_a_noop() {
+        let mut doc = Document::default();
+        let seed = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 1.0));
+        doc.entities.push(Entity::Line(seed));
+        let line = Line::new(Vec2::new(2.0, 0.0), Vec2::new(3.0, 0.0));
+        let mut cmd = CreateLine::new(line);
+
+        cmd.do_(&mut doc);
+        assert_eq!(doc.entities.len(), 2);
+        cmd.undo(&mut doc);
+        assert_eq!(doc.entities.len(), 1);
+        cmd.undo(&mut doc);
+        assert_eq!(doc.entities.len(), 1);
+        assert_eq!(doc.entities[0], Entity::Line(seed));
+    }
+}

@@ -43,9 +43,15 @@
 //! MUST NOT import `egui`, `eframe`, or `rfd`. The command trait is part of
 //! the pure-Rust kernel.
 //!
-//! Introduced by demand LCV-022.
+//! Introduced by demand LCV-022. Primitive-creation commands
+//! ([`CreateLine`], [`CreateCircle`], [`CreateArc`]) live in [`create`] and
+//! ship with demand LCV-023.
 
 use crate::document::Document;
+
+pub mod create;
+
+pub use create::{CreateArc, CreateCircle, CreateLine};
 
 /// The single mutation contract for a [`Document`].
 ///
