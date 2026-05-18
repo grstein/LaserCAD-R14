@@ -1,11 +1,11 @@
 # LCV-026 — History stack (200-deep, undo/redo)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 2
 - **Depends on**: LCV-022
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: implementer-rust (task #70); 2fd3960
 
 ## Problem
 
