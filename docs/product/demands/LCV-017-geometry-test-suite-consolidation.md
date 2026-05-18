@@ -1,11 +1,11 @@
 # LCV-017 — Geometry test suite consolidation (cross-module integration)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 1
 - **Depends on**: LCV-016
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: implementer-rust (task #39); bdb4830
 
 ## Problem
 

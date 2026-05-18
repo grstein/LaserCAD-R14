@@ -17,3 +17,4 @@ This is the v2 (green-field, pure Rust + egui) line of LaserCAD R14. The v1 line
 - Geometry kernel adds line-line / line-circle / circle-circle intersection routines. See LCV-014.
 - Geometry kernel adds Rect with contains/crosses predicates for line, circle, arc. See LCV-015.
 - Geometry kernel adds snap engine (endpoint/midpoint/center/intersection kinds). See LCV-016.
+- Geometry kernel: cross-module integration tests added (5 scenarios in tests/geometry.rs). See LCV-017.

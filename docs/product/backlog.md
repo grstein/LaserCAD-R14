@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-017 | Geometry test suite consolidation | 1 | LCV-016 |
 
 ## Draft (awaiting refinement)
 
@@ -99,6 +98,7 @@ _None._
 | LCV-014 | Line-line / line-circle / circle-circle intersections | 1 | 2026-05-17 | fdade9b |
 | LCV-015 | Rect predicates (contains/crosses line/circle/arc) | 1 | 2026-05-17 | b7a9882 |
 | LCV-016 | Snap engine (endpoint/midpoint/center/intersection) | 1 | 2026-05-17 | ccadb5e |
+| LCV-017 | Geometry test suite consolidation | 1 | 2026-05-17 | bdb4830 |
 
 ## Rejected
 
