@@ -6,20 +6,20 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
+| LCV-030 | eframe::App impl + central panel | 3 | LCV-007 |
+| LCV-031 | Camera (world↔screen, zoom, pan, zoom-extents) | 3 | LCV-021, LCV-030 |
+| LCV-032 | Viewport wiring (pointer input → tools) | 3 | LCV-031 |
+| LCV-033 | Grid renderer (responsive minor/major) | 3 | LCV-031 |
+| LCV-034 | Bed renderer | 3 | LCV-031 |
+| LCV-035 | Entity painter | 3 | LCV-021, LCV-031 |
+| LCV-036 | Selection highlight rendering | 3 | LCV-035, LCV-027 |
+| LCV-037 | Preview overlay | 3 | LCV-035 |
+| LCV-038 | Snap marker rendering | 3 | LCV-031, LCV-016 |
 
 ## Draft (awaiting refinement)
 
 | ID | Title | Phase |
 |---|---|---|
-| LCV-030 | eframe::App impl + central panel | 3 |
-| LCV-031 | Camera (world↔screen, zoom, pan, zoom-extents) | 3 |
-| LCV-032 | Viewport wiring (pointer input → tools) | 3 |
-| LCV-033 | Grid renderer (responsive minor/major) | 3 |
-| LCV-034 | Bed renderer | 3 |
-| LCV-035 | Entity painter | 3 |
-| LCV-036 | Selection highlight rendering | 3 |
-| LCV-037 | Preview overlay | 3 |
-| LCV-038 | Snap marker rendering | 3 |
 | LCV-040 | Tool trait + ToolManager | 4 |
 | LCV-041 | Pointer input plumbing | 4 |
 | LCV-042 | SelectTool | 4 |
