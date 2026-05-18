@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-020 | Entity enum + schema_version=1 | 2 | LCV-013 |
 | LCV-021 | Document struct + bounds + Default | 2 | LCV-020 |
 | LCV-022 | Command trait + do/undo semantics | 2 | LCV-021 |
 | LCV-023 | CreateLine / CreateCircle / CreateArc commands | 2 | LCV-022 |
@@ -99,6 +98,7 @@ _None._
 | LCV-015 | Rect predicates (contains/crosses line/circle/arc) | 1 | 2026-05-17 | b7a9882 |
 | LCV-016 | Snap engine (endpoint/midpoint/center/intersection) | 1 | 2026-05-17 | ccadb5e |
 | LCV-017 | Geometry test suite consolidation | 1 | 2026-05-17 | bdb4830 |
+| LCV-020 | Entity enum + schema_version=1 | 2 | 2026-05-17 | b6cdd46 |
 
 ## Rejected
 

@@ -1,11 +1,11 @@
 # LCV-020 — Entity enum + schema_version=1
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 2
 - **Depends on**: LCV-013
 - **Suggested agent**: architect
 - **Suggested model**: opus
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: implementer-rust (task #69); b6cdd46
 
 ## Problem
 
