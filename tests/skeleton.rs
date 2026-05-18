@@ -7,24 +7,23 @@ fn module_tree_is_wired() {
     // must be addressable. The test body uses the module items to force
     // the compiler to resolve all imports and module paths.
     //
-    // `render` is not referenced here yet — LCV-030 retired its
-    // `pub const MODULE` placeholder and the module carries no public
-    // surface until LCV-031 (Camera) lands. The `lib.rs` `pub mod render;`
-    // declaration plus the binary build itself prove the module compiles
-    // and is reachable; once a public item exists (Camera, Viewport, …)
-    // this test grows a witness for it.
-    use lasercad::{agent, app, document, geometry, io, text, tools, ui, util};
+    // `render`'s witness, after LCV-031, is the [`render::Camera`] type —
+    // the first real public surface in the module. The previous LCV-030
+    // gap is now closed.
+    use lasercad::{agent, app, document, geometry, io, render, text, tools, ui, util};
 
     // Each module is witnessed by an addressable public item. Modules that
     // still carry the LCV-001 `pub const MODULE` placeholder use it;
-    // `app`, after LCV-030, uses a real item (`App`) instead. The
-    // placeholders retire as each module's owning demand lands.
+    // `app`, after LCV-030, uses a real item (`App`); `render`, after
+    // LCV-031, uses `Camera`. Placeholders retire as each module's owning
+    // demand lands.
     let _ = (
         &agent::MODULE,
         std::any::TypeId::of::<app::App>(),
         &document::SCHEMA_VERSION,
         &geometry::EPSILON,
         &io::MODULE,
+        std::any::TypeId::of::<render::Camera>(),
         &text::MODULE,
         &tools::MODULE,
         &ui::MODULE,
