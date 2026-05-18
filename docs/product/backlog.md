@@ -6,19 +6,19 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
+| LCV-020 | Entity enum + schema_version=1 | 2 | LCV-013 |
+| LCV-021 | Document struct + bounds + Default | 2 | LCV-020 |
+| LCV-022 | Command trait + do/undo semantics | 2 | LCV-021 |
+| LCV-023 | CreateLine / CreateCircle / CreateArc commands | 2 | LCV-022 |
+| LCV-024 | DeleteEntities + MoveEntities commands | 2 | LCV-022 |
+| LCV-025 | TrimEntities + ExtendEntities commands | 2 | LCV-023, LCV-024 |
+| LCV-026 | History stack (200-deep, undo/redo) | 2 | LCV-022 |
+| LCV-027 | Selection model + SelectionCommand | 2 | LCV-022 |
 
 ## Draft (awaiting refinement)
 
 | ID | Title | Phase |
 |---|---|---|
-| LCV-020 | Entity enum + schema_version=1 | 2 |
-| LCV-021 | Document struct + bounds + Default | 2 |
-| LCV-022 | Command trait + do/undo semantics | 2 |
-| LCV-023 | CreateLine / CreateCircle / CreateArc commands | 2 |
-| LCV-024 | DeleteEntities + MoveEntities commands | 2 |
-| LCV-025 | TrimEntities + ExtendEntities commands | 2 |
-| LCV-026 | History stack (200-deep, undo/redo) | 2 |
-| LCV-027 | Selection model + SelectionCommand | 2 |
 | LCV-030 | eframe::App impl + central panel | 3 |
 | LCV-031 | Camera (world↔screen, zoom, pan, zoom-extents) | 3 |
 | LCV-032 | Viewport wiring (pointer input → tools) | 3 |
