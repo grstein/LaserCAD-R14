@@ -1,11 +1,11 @@
 # LCV-021 — Document struct + bounds + Default
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 2
 - **Depends on**: LCV-020
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: implementer-rust (task #68); 0bf5943
 
 ## Problem
 
