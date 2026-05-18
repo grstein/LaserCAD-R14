@@ -15,3 +15,4 @@ This is the v2 (green-field, pure Rust + egui) line of LaserCAD R14. The v1 line
 - Geometry kernel adds Circle primitive (bbox, point-at-angle, signed distance, containment). See LCV-012.
 - Geometry kernel adds Arc primitive (wrap-aware bbox, contains_angle, sweep). See LCV-013.
 - Geometry kernel adds line-line / line-circle / circle-circle intersection routines. See LCV-014.
+- Geometry kernel adds Rect with contains/crosses predicates for line, circle, arc. See LCV-015.
