@@ -1,11 +1,11 @@
 # LCV-024 — DeleteEntities + MoveEntities commands
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 2
 - **Depends on**: LCV-022
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: implementer-rust (task #74); c8f4e1e
 
 ## Problem
 

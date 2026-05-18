@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-024 | DeleteEntities + MoveEntities commands | 2 | LCV-022 |
 | LCV-025 | TrimEntities + ExtendEntities commands | 2 | LCV-023, LCV-024 |
 | LCV-026 | History stack (200-deep, undo/redo) | 2 | LCV-022 |
 | LCV-027 | Selection model + SelectionCommand | 2 | LCV-022 |
@@ -99,6 +98,7 @@ _None._
 | LCV-021 | Document struct + bounds + Default | 2 | 2026-05-17 | 0bf5943 |
 | LCV-022 | Command trait + do/undo semantics | 2 | 2026-05-17 | af28f9b |
 | LCV-023 | CreateLine / CreateCircle / CreateArc commands | 2 | 2026-05-17 | e9f3f82 |
+| LCV-024 | DeleteEntities + MoveEntities commands | 2 | 2026-05-17 | c8f4e1e |
 
 ## Rejected
 
