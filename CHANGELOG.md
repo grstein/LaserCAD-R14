@@ -21,3 +21,4 @@ This is the v2 (green-field, pure Rust + egui) line of LaserCAD R14. The v1 line
 - Document model gains canonical Entity enum and SCHEMA_VERSION=1. See LCV-020.
 - Document model adds Document struct with bounds, Default, and Selection placeholder. See LCV-021.
 - Document model adds Command trait with do_/undo round-trip contract. See LCV-022.
+- Document model adds CreateLine/Circle/Arc commands with captured-index undo. See LCV-023.
