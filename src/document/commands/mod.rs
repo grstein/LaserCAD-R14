@@ -52,10 +52,12 @@ use crate::document::Document;
 pub mod create;
 pub mod edit;
 pub mod select;
+pub mod trim;
 
 pub use create::{CreateArc, CreateCircle, CreateLine};
 pub use edit::{DeleteEntities, MoveEntities};
 pub use select::SelectionCommand;
+pub use trim::{ExtendEntity, TrimEntity};
 
 /// The single mutation contract for a [`Document`].
 ///
