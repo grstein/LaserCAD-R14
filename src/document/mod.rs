@@ -6,4 +6,7 @@
 //!
 //! Submodules arrive with demands LCV-020 .. LCV-027.
 
-pub const MODULE: &str = "document";
+pub mod entity;
+pub mod schema;
+
+pub use entity::{Entity, SCHEMA_VERSION};

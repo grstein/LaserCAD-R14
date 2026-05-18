@@ -13,7 +13,7 @@ fn module_tree_is_wired() {
     let _ = (
         &agent::MODULE,
         &app::MODULE,
-        &document::MODULE,
+        &document::SCHEMA_VERSION,
         &geometry::EPSILON,
         &io::MODULE,
         &render::MODULE,
