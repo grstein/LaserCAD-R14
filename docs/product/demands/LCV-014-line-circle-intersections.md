@@ -1,11 +1,11 @@
 # LCV-014 — Line-line, line-circle, and circle-circle intersection routines
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 1
 - **Depends on**: LCV-011, LCV-012
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: implementer-rust (task #41); fdade9b; AC#11 numeric inconsistency reconciled by implementer using segment-outside coords — product-owner may amend AC text
 
 ## Problem
 
