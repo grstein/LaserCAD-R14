@@ -1,11 +1,11 @@
 # LCV-027 — Selection model + SelectionCommand
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 2
 - **Depends on**: LCV-022
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: implementer-rust (task #73); d7429cf
 
 ## Problem
 
