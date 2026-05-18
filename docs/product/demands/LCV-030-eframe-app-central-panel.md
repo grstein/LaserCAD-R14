@@ -1,11 +1,11 @@
 # LCV-030 — eframe::App impl + central panel
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 3
 - **Depends on**: LCV-007
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: implementer-rust (task #106); 24b118a; AC#7 manual smoke pending human display
 
 ## Problem
 
