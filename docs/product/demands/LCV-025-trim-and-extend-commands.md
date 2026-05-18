@@ -1,11 +1,11 @@
 # LCV-025 — TrimEntities + ExtendEntities commands
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 2
 - **Depends on**: LCV-023, LCV-024
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: implementer-rust (task #72); 59be8e7
 
 ## Problem
 
