@@ -50,8 +50,10 @@
 use crate::document::Document;
 
 pub mod create;
+pub mod edit;
 
 pub use create::{CreateArc, CreateCircle, CreateLine};
+pub use edit::{DeleteEntities, MoveEntities};
 
 /// The single mutation contract for a [`Document`].
 ///

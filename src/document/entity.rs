@@ -67,6 +67,31 @@ impl Entity {
             Entity::Arc(_) => "arc",
         }
     }
+
+    /// Translate the entity in place by `delta` (mm).
+    ///
+    /// Pure rigid translation: line endpoints both shift by `delta`, circle
+    /// and arc centers shift by `delta`, radii and arc angles are unchanged.
+    /// Translation is exactly invertible at floating-point precision —
+    /// `e.translate(d); e.translate(-d);` returns the entity to its original
+    /// state within `EPSILON` (used by [`super::commands::MoveEntities`] for
+    /// undo).
+    ///
+    /// Introduced by demand LCV-024.
+    pub fn translate(&mut self, delta: Vec2) {
+        match self {
+            Entity::Line(line) => {
+                line.p1 = line.p1 + delta;
+                line.p2 = line.p2 + delta;
+            }
+            Entity::Circle(circle) => {
+                circle.center = circle.center + delta;
+            }
+            Entity::Arc(arc) => {
+                arc.center = arc.center + delta;
+            }
+        }
+    }
 }
 
 /// Canonical document-format schema version.
@@ -155,5 +180,60 @@ mod tests {
     #[test]
     fn schema_version_reachable_via_schema_module() {
         assert_eq!(crate::document::schema::SCHEMA_VERSION, SCHEMA_VERSION);
+    }
+
+    /// LCV-024 — `translate` shifts the line endpoints, circle center, and
+    /// arc center by `delta`; radii and arc angles are unchanged.
+    #[test]
+    fn entity_translate_line_circle_arc() {
+        let delta = Vec2::new(3.0, -4.0);
+
+        let mut e_line = Entity::Line(Line::new(Vec2::new(1.0, 1.0), Vec2::new(5.0, 2.0)));
+        e_line.translate(delta);
+        if let Entity::Line(l) = e_line {
+            assert!(l.p1.approx_eq(Vec2::new(4.0, -3.0), EPSILON));
+            assert!(l.p2.approx_eq(Vec2::new(8.0, -2.0), EPSILON));
+        } else {
+            panic!("variant changed under translate");
+        }
+
+        let mut e_circle = Entity::Circle(Circle::new(Vec2::new(10.0, 10.0), 2.5));
+        e_circle.translate(delta);
+        if let Entity::Circle(c) = e_circle {
+            assert!(c.center.approx_eq(Vec2::new(13.0, 6.0), EPSILON));
+            assert!((c.r - 2.5).abs() < EPSILON);
+        } else {
+            panic!("variant changed under translate");
+        }
+
+        let mut e_arc = Entity::Arc(Arc::new(Vec2::new(0.0, 0.0), 1.0, 0.0, FRAC_PI_2, true));
+        e_arc.translate(delta);
+        if let Entity::Arc(a) = e_arc {
+            assert!(a.center.approx_eq(Vec2::new(3.0, -4.0), EPSILON));
+            assert!((a.r - 1.0).abs() < EPSILON);
+            assert!((a.start_angle - 0.0).abs() < EPSILON);
+            assert!((a.end_angle - FRAC_PI_2).abs() < EPSILON);
+            assert!(a.ccw);
+        } else {
+            panic!("variant changed under translate");
+        }
+    }
+
+    /// LCV-024 — translate-then-translate-by-negation restores the entity to
+    /// its original state within `EPSILON`. This is the property
+    /// [`super::commands::MoveEntities::undo`] relies on.
+    #[test]
+    fn entity_translate_roundtrip_with_negation() {
+        let delta = Vec2::new(7.5, -2.25);
+        let original = Entity::Line(Line::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0)));
+        let mut moved = original;
+        moved.translate(delta);
+        moved.translate(-delta);
+        if let (Entity::Line(o), Entity::Line(m)) = (original, moved) {
+            assert!(o.p1.approx_eq(m.p1, EPSILON));
+            assert!(o.p2.approx_eq(m.p2, EPSILON));
+        } else {
+            panic!("variant changed under translate");
+        }
     }
 }
