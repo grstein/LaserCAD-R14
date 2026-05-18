@@ -1,11 +1,11 @@
 # LCV-016 — Snap engine (endpoint / midpoint / center / intersection)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 1
 - **Depends on**: LCV-014
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: implementer-rust (task #37); ccadb5e
 
 ## Problem
 
