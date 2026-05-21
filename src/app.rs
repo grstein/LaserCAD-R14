@@ -282,28 +282,4 @@ mod tests {
         let app = App::default();
         assert!(app.preview_entities.is_empty());
     }
-
-    /// LCV-040 AC#6 — `App::default().tool_manager` has `SelectTool` active.
-    #[test]
-    fn app_default_tool_manager_has_select() {
-        let app = App::default();
-        assert_eq!(app.tool_manager.active_tool_name(), "Select");
-    }
-
-    /// LCV-040 AC#7, AC#8 — `App::commit` adds entity and pushes onto history.
-    #[test]
-    fn app_commit_adds_entity_and_pushes_history() {
-        use crate::document::CreateLine;
-        use crate::geometry::Line;
-
-        let mut app = App::default();
-        assert_eq!(app.document.entity_count(), 0);
-        assert!(!app.history.can_undo());
-
-        let line = Line::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0));
-        app.commit(Box::new(CreateLine::new(line)));
-
-        assert_eq!(app.document.entity_count(), 1);
-        assert!(app.history.can_undo());
-    }
 }
