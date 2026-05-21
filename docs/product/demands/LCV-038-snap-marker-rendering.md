@@ -1,11 +1,11 @@
 # LCV-038 — Snap marker rendering
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 3
 - **Depends on**: LCV-031, LCV-016
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: feat(LCV-038): snap marker rendering — endpoint/midpoint/center/intersection shapes (7db1ddb)
 
 ## Problem
 
