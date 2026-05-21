@@ -9,9 +9,10 @@
 //! The render pipeline (camera, grid, bed, entities, preview, snaps) attaches
 //! to the `CentralPanel` viewport rect set up by [`App::update`].
 
-use crate::document::{Document, Entity, History};
+use crate::document::{Command, Document, Entity, History};
 use crate::geometry::{SnapResult, Vec2};
 use crate::render::{Bed, Camera};
+use crate::tools::ToolManager;
 
 /// Factor applied per mouse-wheel notch. `> 1.0` zooms in; `< 1.0` zooms out.
 const WHEEL_ZOOM_FACTOR: f64 = 1.1;
@@ -38,6 +39,21 @@ pub struct App {
     /// Active snap result: the snapped point and kind computed by the snap
     /// engine. Defaults to `None`; LCV-054 (tool snap integration) writes it.
     pub active_snap: Option<SnapResult>,
+    /// Tool manager: owns the active tool and routes pointer + keyboard events.
+    /// Initialized to `SelectTool` by default (LCV-040).
+    pub tool_manager: ToolManager,
+}
+
+impl App {
+    /// Commit a command to the document and history stack.
+    ///
+    /// This is the **only legal path** for tools to mutate the document.
+    /// The command is executed via `history.commit(cmd, &mut document)`.
+    ///
+    /// LCV-040 AC#7, AC#8.
+    pub fn commit(&mut self, cmd: Box<dyn Command>) {
+        self.history.commit(cmd, &mut self.document);
+    }
 }
 
 impl eframe::App for App {
@@ -73,6 +89,10 @@ impl eframe::App for App {
                 &self.document.entities,
                 &self.document.selection,
             );
+
+            // Update preview from tool (LCV-040 AC#9).
+            self.preview_entities = self.tool_manager.preview();
+
             crate::render::draw_preview(&painter, rect, &self.camera, &self.preview_entities);
 
             if let Some(snap) = &self.active_snap {
@@ -82,7 +102,28 @@ impl eframe::App for App {
             // --- pointer / camera interaction (LCV-032) ---
             if response.hovered() {
                 if let Some(hover_pos) = response.hover_pos() {
-                    self.last_cursor_world = Some(self.camera.screen_to_world(hover_pos));
+                    let world_pos = self.camera.screen_to_world(hover_pos);
+                    self.last_cursor_world = Some(world_pos);
+
+                    // Tool pointer events (LCV-040 AC#10-12).
+                    // We need to split the borrow: extract tool_manager temporarily.
+                    let mut tm = std::mem::take(&mut self.tool_manager);
+
+                    // Pointer down.
+                    if ctx.input(|i| i.pointer.primary_pressed()) {
+                        tm.handle_pointer_down(world_pos, self);
+                    }
+
+                    // Pointer move (always called while hovering).
+                    tm.handle_pointer_move(world_pos, self);
+
+                    // Pointer up.
+                    if ctx.input(|i| i.pointer.primary_released()) {
+                        tm.handle_pointer_up(world_pos, self);
+                    }
+
+                    // Restore tool_manager.
+                    self.tool_manager = tm;
 
                     // Wheel zoom around cursor.
                     let scroll_y = ctx.input(|i| i.smooth_scroll_delta.y);
@@ -111,6 +152,13 @@ impl eframe::App for App {
                     &self.document,
                     [rect.width(), rect.height()],
                 );
+            }
+
+            // Escape key to tool (LCV-040 AC#13).
+            if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+                let mut tm = std::mem::take(&mut self.tool_manager);
+                tm.handle_key(egui::Key::Escape, self);
+                self.tool_manager = tm;
             }
 
             // Always repaint so cursor-coords and smooth camera motion stay live.
@@ -233,5 +281,29 @@ mod tests {
     fn app_default_has_empty_preview_entities() {
         let app = App::default();
         assert!(app.preview_entities.is_empty());
+    }
+
+    /// LCV-040 AC#6 — `App::default().tool_manager` has `SelectTool` active.
+    #[test]
+    fn app_default_tool_manager_has_select() {
+        let app = App::default();
+        assert_eq!(app.tool_manager.active_tool_name(), "Select");
+    }
+
+    /// LCV-040 AC#7, AC#8 — `App::commit` adds entity and pushes onto history.
+    #[test]
+    fn app_commit_adds_entity_and_pushes_history() {
+        use crate::document::CreateLine;
+        use crate::geometry::Line;
+
+        let mut app = App::default();
+        assert_eq!(app.document.entity_count(), 0);
+        assert!(!app.history.can_undo());
+
+        let line = Line::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0));
+        app.commit(Box::new(CreateLine::new(line)));
+
+        assert_eq!(app.document.entity_count(), 1);
+        assert!(app.history.can_undo());
     }
 }
