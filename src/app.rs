@@ -142,6 +142,15 @@ mod tests {
         assert_eq!(app.last_cursor_world, None);
     }
 
+    /// LCV-034 AC#7 — `App` carries a `Bed` field that defaults to
+    /// [`crate::render::Bed::default()`].
+    #[test]
+    fn app_default_bed_matches_bed_default() {
+        let app = App::default();
+        assert_eq!(app.bed, crate::render::Bed::default());
+        assert_eq!(app.bed.size_mm, [400.0, 400.0]);
+    }
+
     /// LCV-032 AC#8 — wheel zoom helper with positive factor zooms in.
     #[test]
     fn wheel_zoom_dispatch_positive_scroll_zooms_in() {
