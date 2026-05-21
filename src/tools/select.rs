@@ -7,7 +7,7 @@
 //! MUST NOT import `eframe` or `rfd`. Introduced by demand LCV-040.
 
 use crate::app::App;
-use crate::document::Entity;
+use crate::document::{Document, Entity, History};
 use crate::geometry::Vec2;
 use crate::tools::Tool;
 
@@ -24,15 +24,15 @@ impl Tool for SelectTool {
         "Select"
     }
 
-    fn on_pointer_down(&mut self, _pos: Vec2, _app: &mut App) {
+    fn on_pointer_down(&mut self, _pos: Vec2, _doc: &mut Document, _history: &mut History) {
         // No-op: full implementation in LCV-042
     }
 
-    fn on_pointer_move(&mut self, _pos: Vec2, _app: &mut App) {
+    fn on_pointer_move(&mut self, _pos: Vec2, _doc: &mut Document) {
         // No-op: full implementation in LCV-042
     }
 
-    fn on_pointer_up(&mut self, _pos: Vec2, _app: &mut App) {
+    fn on_pointer_up(&mut self, _pos: Vec2, _doc: &mut Document, _history: &mut History) {
         // No-op: full implementation in LCV-042
     }
 
@@ -52,6 +52,7 @@ impl Tool for SelectTool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::document::History;
 
     /// AC#4 — `SelectTool::default().name()` returns exactly `"Select"`.
     #[test]
@@ -78,13 +79,15 @@ mod tests {
     #[test]
     fn tool_trait_has_seven_methods() {
         let mut tool = SelectTool;
+        let mut doc = crate::document::Document::default();
+        let mut history = History::default();
         let mut app = crate::app::App::default();
 
         // The seven methods:
         let _ = tool.name();
-        tool.on_pointer_down(Vec2::new(0.0, 0.0), &mut app);
-        tool.on_pointer_move(Vec2::new(1.0, 1.0), &mut app);
-        tool.on_pointer_up(Vec2::new(2.0, 2.0), &mut app);
+        tool.on_pointer_down(Vec2::new(0.0, 0.0), &mut doc, &mut history);
+        tool.on_pointer_move(Vec2::new(1.0, 1.0), &mut doc);
+        tool.on_pointer_up(Vec2::new(2.0, 2.0), &mut doc, &mut history);
         tool.on_key(egui::Key::Escape, &mut app);
         let _ = tool.preview();
         tool.cancel();

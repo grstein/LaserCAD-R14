@@ -9,10 +9,14 @@
 //! The render pipeline (camera, grid, bed, entities, preview, snaps) attaches
 //! to the `CentralPanel` viewport rect set up by [`App::update`].
 
+mod snap;
+
+pub use snap::resolve_snap;
+
 use crate::document::{Command, Document, Entity, History};
 use crate::geometry::{SnapResult, Vec2};
 use crate::render::{Bed, Camera};
-use crate::tools::ToolManager;
+use crate::tools::{PointerButton, PointerEvent, ToolManager};
 
 /// Factor applied per mouse-wheel notch. `> 1.0` zooms in; `< 1.0` zooms out.
 const WHEEL_ZOOM_FACTOR: f64 = 1.1;
@@ -99,31 +103,43 @@ impl eframe::App for App {
                 crate::render::draw_snap_marker(&painter, rect, &self.camera, snap);
             }
 
-            // --- pointer / camera interaction (LCV-032) ---
+            // --- pointer / camera interaction (LCV-032 / LCV-041) ---
             if response.hovered() {
                 if let Some(hover_pos) = response.hover_pos() {
-                    let world_pos = self.camera.screen_to_world(hover_pos);
+                    // Resolve snap; viewport-local pos = hover_pos - rect.min.
+                    self.active_snap =
+                        resolve_snap(hover_pos, rect, &self.camera, &self.document.entities);
+                    let world_pos = self.active_snap.map(|s| s.point).unwrap_or_else(|| {
+                        self.camera.screen_to_world(hover_pos - rect.min.to_vec2())
+                    });
                     self.last_cursor_world = Some(world_pos);
 
-                    // Tool pointer events (LCV-040 AC#10-12).
-                    // We need to split the borrow: extract tool_manager temporarily.
-                    let mut tm = std::mem::take(&mut self.tool_manager);
-
-                    // Pointer down.
+                    // Pointer events (LCV-041).
                     if ctx.input(|i| i.pointer.primary_pressed()) {
-                        tm.handle_pointer_down(world_pos, self);
+                        self.tool_manager.on_pointer_event(
+                            &PointerEvent::Press {
+                                world_pos,
+                                button: PointerButton::Primary,
+                            },
+                            &mut self.document,
+                            &mut self.history,
+                        );
                     }
-
-                    // Pointer move (always called while hovering).
-                    tm.handle_pointer_move(world_pos, self);
-
-                    // Pointer up.
+                    self.tool_manager.on_pointer_event(
+                        &PointerEvent::Move { world_pos },
+                        &mut self.document,
+                        &mut self.history,
+                    );
                     if ctx.input(|i| i.pointer.primary_released()) {
-                        tm.handle_pointer_up(world_pos, self);
+                        self.tool_manager.on_pointer_event(
+                            &PointerEvent::Release {
+                                world_pos,
+                                button: PointerButton::Primary,
+                            },
+                            &mut self.document,
+                            &mut self.history,
+                        );
                     }
-
-                    // Restore tool_manager.
-                    self.tool_manager = tm;
 
                     // Wheel zoom around cursor.
                     let scroll_y = ctx.input(|i| i.smooth_scroll_delta.y);
