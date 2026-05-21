@@ -46,6 +46,8 @@ pub enum PointerEvent {
         world_pos: Vec2,
         /// The button that was pressed.
         button: PointerButton,
+        /// `true` when the Shift key is held at the moment of the press.
+        shift: bool,
     },
     /// A button was released at `world_pos`.
     Release {
@@ -53,6 +55,8 @@ pub enum PointerEvent {
         world_pos: Vec2,
         /// The button that was released.
         button: PointerButton,
+        /// `true` when the Shift key is held at the moment of the release.
+        shift: bool,
     },
 }
 
@@ -81,28 +85,42 @@ mod tests {
         }
     }
 
-    /// PointerEvent::Press and Release carry both world_pos and button.
+    /// PointerEvent::Press and Release carry world_pos, button, and shift.
     #[test]
     fn pointer_event_press_release_carry_all_fields() {
         let press = PointerEvent::Press {
             world_pos: Vec2::new(1.0, 2.0),
             button: PointerButton::Primary,
+            shift: true,
         };
         let release = PointerEvent::Release {
             world_pos: Vec2::new(5.0, 6.0),
             button: PointerButton::Secondary,
+            shift: false,
         };
 
-        if let PointerEvent::Press { world_pos, button } = press {
+        if let PointerEvent::Press {
+            world_pos,
+            button,
+            shift,
+        } = press
+        {
             assert_eq!(world_pos, Vec2::new(1.0, 2.0));
             assert_eq!(button, PointerButton::Primary);
+            assert!(shift);
         } else {
             panic!("wrong variant");
         }
 
-        if let PointerEvent::Release { world_pos, button } = release {
+        if let PointerEvent::Release {
+            world_pos,
+            button,
+            shift,
+        } = release
+        {
             assert_eq!(world_pos, Vec2::new(5.0, 6.0));
             assert_eq!(button, PointerButton::Secondary);
+            assert!(!shift);
         } else {
             panic!("wrong variant");
         }
