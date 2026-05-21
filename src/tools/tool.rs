@@ -54,6 +54,14 @@ pub trait Tool {
     /// typically calls `self.cancel()` internally.
     fn on_key(&mut self, key: egui::Key, app: &mut App);
 
+    /// Context-sensitive status bar text for the current tool state.
+    ///
+    /// Defaults to `self.name()`. Override to return richer prompts that
+    /// reflect the tool's internal state (e.g. `"LINE: Click to set end point"`).
+    fn status_text(&self) -> &'static str {
+        self.name()
+    }
+
     /// Preview geometry for the current tool state. Returns an empty vector
     /// if the tool has no in-progress preview. The returned entities are
     /// painted with a translucent amber stroke by `draw_preview` (LCV-037).
