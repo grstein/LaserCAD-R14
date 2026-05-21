@@ -82,8 +82,8 @@ src/
 | LCV-027 | Selection model + SelectionCommand | 2 | Draft | implementer-rust | sonnet | LCV-022 |
 | LCV-030 | eframe::App impl + central panel | 3 | Done | implementer-rust | sonnet | LCV-007 |
 | LCV-031 | Camera (world↔screen, zoom, pan, zoom-extents) | 3 | Done | implementer-rust | sonnet | LCV-021, LCV-030 |
-| LCV-032 | Viewport wiring (pointer input → tools) | 3 | In Progress | implementer-rust | sonnet | LCV-031 |
-| LCV-033 | Grid renderer (responsive minor/major) | 3 | Ready | implementer-rust | sonnet | LCV-031 |
+| LCV-032 | Viewport wiring (pointer input → tools) | 3 | Done | implementer-rust | sonnet | LCV-031 |
+| LCV-033 | Grid renderer (responsive minor/major) | 3 | In Progress | implementer-rust | sonnet | LCV-031 |
 | LCV-034 | Bed renderer (rectangle + dark outer overlay) | 3 | Ready | implementer-rust | sonnet | LCV-031 |
 | LCV-035 | Entity painter (line/circle/arc) | 3 | Ready | implementer-rust | sonnet | LCV-021, LCV-031 |
 | LCV-036 | Selection highlight rendering | 3 | Ready | implementer-rust | sonnet | LCV-035, LCV-027 |
@@ -155,6 +155,8 @@ On every invocation, the `project-manager`:
 
 > Single-writer: `project-manager`. Most recent entries at the top. Format: `YYYY-MM-DD HH:MM — LCV-NNN status — note`.
 
+- 2026-05-18 — LCV-033 In Progress — grid renderer implementation present, awaiting commit+review.
+- 2026-05-18 — LCV-032 Done — viewport wiring: hover→world coords, wheel zoom-around, middle-drag pan, F/Ctrl+0 zoom-extents.
 - 2026-05-17 — LCV-003 Done — ADR 0001 (pure Rust + egui) accepted at scaffold time.
 - 2026-05-17 — LCV-005 Done — README + LICENSEs + CHANGELOG scaffolded.
 - 2026-05-17 — LCV-006 Done — six agents present under `.claude/agents/`; PM ready.
