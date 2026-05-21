@@ -11,6 +11,7 @@
 
 use crate::document::{Command, Document, Entity, History};
 use crate::geometry::{SnapResult, Vec2};
+use crate::io::settings::Settings;
 use crate::render::{Bed, Camera};
 use crate::tools::ToolManager;
 
@@ -42,6 +43,9 @@ pub struct App {
     /// Tool manager: owns the active tool and routes pointer + keyboard events.
     /// Initialized to `SelectTool` by default (LCV-040).
     pub tool_manager: ToolManager,
+    /// Persisted user preferences (recent files, etc.). Loaded from the
+    /// platform config directory on startup; written back on change (LCV-058).
+    pub settings: Settings,
 }
 
 impl App {
@@ -281,5 +285,12 @@ mod tests {
     fn app_default_has_empty_preview_entities() {
         let app = App::default();
         assert!(app.preview_entities.is_empty());
+    }
+
+    /// LCV-058 AC#10 — `App` carries `settings` defaulting to `Settings::default()`.
+    #[test]
+    fn app_default_settings_equals_settings_default() {
+        let app = App::default();
+        assert_eq!(app.settings, crate::io::settings::Settings::default());
     }
 }
