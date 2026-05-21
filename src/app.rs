@@ -52,6 +52,13 @@ impl eframe::App for App {
 
             crate::render::draw_grid(&painter, rect, &self.camera);
             crate::render::draw_bed(&painter, rect, &self.camera, &self.bed);
+            crate::render::draw_entities(
+                &painter,
+                rect,
+                &self.camera,
+                &self.document.entities,
+                crate::render::PaintOptions::default(),
+            );
 
             // --- pointer / camera interaction (LCV-032) ---
             if response.hovered() {
