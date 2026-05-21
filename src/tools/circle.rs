@@ -42,7 +42,7 @@ impl Tool for CircleTool {
         "CIRCLE"
     }
 
-    fn on_pointer_down(&mut self, pos: Vec2, doc: &mut Document, history: &mut History) {
+    fn on_pointer_down(&mut self, pos: Vec2, _shift: bool, doc: &mut Document, history: &mut History) {
         match self.state {
             CircleState::Idle => {
                 self.state = CircleState::WaitingRadius { center: pos };
@@ -62,7 +62,7 @@ impl Tool for CircleTool {
         self.cursor = pos;
     }
 
-    fn on_pointer_up(&mut self, _pos: Vec2, _doc: &mut Document, _history: &mut History) {}
+    fn on_pointer_up(&mut self, _pos: Vec2, _shift: bool, _doc: &mut Document, _history: &mut History) {}
 
     fn on_key(&mut self, key: egui::Key, _app: &mut App) {
         if key == egui::Key::Escape {

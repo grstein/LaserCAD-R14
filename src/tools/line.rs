@@ -52,7 +52,7 @@ impl Tool for LineTool {
         }
     }
 
-    fn on_pointer_down(&mut self, pos: Vec2, doc: &mut Document, history: &mut History) {
+    fn on_pointer_down(&mut self, pos: Vec2, _shift: bool, doc: &mut Document, history: &mut History) {
         match self.state {
             State::Idle => {
                 self.state = State::WaitingSecondPoint {
@@ -79,7 +79,7 @@ impl Tool for LineTool {
         }
     }
 
-    fn on_pointer_up(&mut self, _pos: Vec2, _doc: &mut Document, _history: &mut History) {}
+    fn on_pointer_up(&mut self, _pos: Vec2, _shift: bool, _doc: &mut Document, _history: &mut History) {}
 
     fn on_key(&mut self, key: egui::Key, _app: &mut App) {
         if matches!(key, egui::Key::Escape | egui::Key::Enter) {
