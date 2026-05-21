@@ -5,12 +5,14 @@
 //!
 //! Submodules arrive with demands LCV-040 .. LCV-054.
 
+pub mod circle;
 pub mod line;
 pub mod manager;
 pub mod pointer_event;
 pub mod select;
 pub mod tool;
 
+pub use circle::CircleTool;
 pub use line::LineTool;
 pub use manager::ToolManager;
 pub use pointer_event::{PointerButton, PointerEvent};
