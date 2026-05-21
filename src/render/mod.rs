@@ -6,5 +6,7 @@
 //! LCV-030; submodules consume that rect plus a [`egui::Painter`].
 
 pub mod camera;
+pub mod grid;
 
 pub use camera::Camera;
+pub use grid::draw_grid;

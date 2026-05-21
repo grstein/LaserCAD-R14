@@ -48,6 +48,8 @@ impl eframe::App for App {
                 egui::Stroke::new(1.0, egui::Color32::from_gray(64)),
             );
 
+            crate::render::draw_grid(&painter, rect, &self.camera);
+
             // --- pointer / camera interaction (LCV-032) ---
             if response.hovered() {
                 if let Some(hover_pos) = response.hover_pos() {
