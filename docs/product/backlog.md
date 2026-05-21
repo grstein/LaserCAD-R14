@@ -6,12 +6,12 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
+| LCV-040 | Tool trait + ToolManager | 4 | LCV-022, LCV-032, LCV-037 |
 
 ## Draft (awaiting refinement)
 
 | ID | Title | Phase |
 |---|---|---|
-| LCV-040 | Tool trait + ToolManager | 4 |
 | LCV-041 | Pointer input plumbing | 4 |
 | LCV-042 | SelectTool | 4 |
 | LCV-043 | LineTool | 4 |
