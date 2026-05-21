@@ -1,11 +1,11 @@
 # LCV-033 — Grid renderer (responsive minor/major)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 3
 - **Depends on**: LCV-031
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: feat(LCV-033): responsive grid renderer with 1-2-5 decade ladder (a51f2b9)
 
 ## Problem
 
