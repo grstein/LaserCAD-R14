@@ -120,10 +120,12 @@ impl eframe::App for App {
 
                     // Pointer events (LCV-041).
                     if ctx.input(|i| i.pointer.primary_pressed()) {
+                        let shift = ctx.input(|i| i.modifiers.shift);
                         self.tool_manager.on_pointer_event(
                             &PointerEvent::Press {
                                 world_pos,
                                 button: PointerButton::Primary,
+                                shift,
                             },
                             &mut self.document,
                             &mut self.history,
@@ -135,10 +137,12 @@ impl eframe::App for App {
                         &mut self.history,
                     );
                     if ctx.input(|i| i.pointer.primary_released()) {
+                        let shift = ctx.input(|i| i.modifiers.shift);
                         self.tool_manager.on_pointer_event(
                             &PointerEvent::Release {
                                 world_pos,
                                 button: PointerButton::Primary,
+                                shift,
                             },
                             &mut self.document,
                             &mut self.history,

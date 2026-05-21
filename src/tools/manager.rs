@@ -66,8 +66,8 @@ impl ToolManager {
     /// Dispatch a [`PointerEvent`] to the active tool.
     ///
     /// - `Move` → [`Tool::on_pointer_move`]
-    /// - `Press { button: Primary }` → [`Tool::on_pointer_down`]
-    /// - `Release { button: Primary }` → [`Tool::on_pointer_up`]
+    /// - `Press { button: Primary }` → [`Tool::on_pointer_down`] (shift forwarded)
+    /// - `Release { button: Primary }` → [`Tool::on_pointer_up`] (shift forwarded)
     /// - Other button combinations → no-op (reserved for future demands).
     pub fn on_pointer_event(
         &mut self,
@@ -82,14 +82,17 @@ impl ToolManager {
             PointerEvent::Press {
                 world_pos,
                 button: PointerButton::Primary,
+                shift,
             } => {
-                self.active.on_pointer_down(*world_pos, doc, history);
+                self.active
+                    .on_pointer_down(*world_pos, *shift, doc, history);
             }
             PointerEvent::Release {
                 world_pos,
                 button: PointerButton::Primary,
+                shift,
             } => {
-                self.active.on_pointer_up(*world_pos, doc, history);
+                self.active.on_pointer_up(*world_pos, *shift, doc, history);
             }
             // Secondary / Middle buttons: no-op for now.
             PointerEvent::Press { .. } | PointerEvent::Release { .. } => {}
@@ -103,10 +106,10 @@ impl ToolManager {
     /// Route a pointer-down event to the active tool.
     ///
     /// Legacy wrapper: extracts `doc` and `history` from `app` and calls
-    /// [`Tool::on_pointer_down`].
+    /// [`Tool::on_pointer_down`] with `shift: false`.
     pub fn handle_pointer_down(&mut self, pos: Vec2, app: &mut App) {
         self.active
-            .on_pointer_down(pos, &mut app.document, &mut app.history);
+            .on_pointer_down(pos, false, &mut app.document, &mut app.history);
     }
 
     /// Route a pointer-move event to the active tool.
@@ -120,10 +123,10 @@ impl ToolManager {
     /// Route a pointer-up event to the active tool.
     ///
     /// Legacy wrapper: extracts `doc` and `history` from `app` and calls
-    /// [`Tool::on_pointer_up`].
+    /// [`Tool::on_pointer_up`] with `shift: false`.
     pub fn handle_pointer_up(&mut self, pos: Vec2, app: &mut App) {
         self.active
-            .on_pointer_up(pos, &mut app.document, &mut app.history);
+            .on_pointer_up(pos, false, &mut app.document, &mut app.history);
     }
 
     /// Route a keyboard event to the active tool.
@@ -141,7 +144,7 @@ impl ToolManager {
 impl Default for ToolManager {
     /// Default `ToolManager` starts with a `SelectTool` (LCV-040 AC#6).
     fn default() -> Self {
-        Self::new(Box::new(crate::tools::SelectTool))
+        Self::new(Box::new(crate::tools::SelectTool::default()))
     }
 }
 
@@ -157,7 +160,7 @@ mod tests {
     /// reports its name correctly.
     #[test]
     fn tool_manager_new_with_select_tool() {
-        let manager = ToolManager::new(Box::new(SelectTool));
+        let manager = ToolManager::new(Box::new(SelectTool::default()));
         assert_eq!(manager.active_tool_name(), "Select");
     }
 
@@ -180,10 +183,23 @@ mod tests {
             fn name(&self) -> &'static str {
                 "Mock"
             }
-            fn on_pointer_down(&mut self, _pos: Vec2, _doc: &mut Document, _history: &mut History) {
+            fn on_pointer_down(
+                &mut self,
+                _pos: Vec2,
+                _shift: bool,
+                _doc: &mut Document,
+                _history: &mut History,
+            ) {
             }
             fn on_pointer_move(&mut self, _pos: Vec2, _doc: &mut Document) {}
-            fn on_pointer_up(&mut self, _pos: Vec2, _doc: &mut Document, _history: &mut History) {}
+            fn on_pointer_up(
+                &mut self,
+                _pos: Vec2,
+                _shift: bool,
+                _doc: &mut Document,
+                _history: &mut History,
+            ) {
+            }
             fn on_key(&mut self, _key: egui::Key, _app: &mut App) {}
             fn preview(&self) -> Vec<Entity> {
                 vec![]
@@ -202,7 +218,7 @@ mod tests {
         assert_eq!(manager.active_tool_name(), "Mock");
         assert!(!*cancelled_flag.borrow(), "cancel not called yet");
 
-        manager.set_tool(Box::new(SelectTool));
+        manager.set_tool(Box::new(SelectTool::default()));
         assert!(*cancelled_flag.borrow(), "cancel should have been called");
         assert_eq!(manager.active_tool_name(), "Select");
     }
@@ -221,13 +237,19 @@ mod tests {
             fn name(&self) -> &'static str {
                 "Count"
             }
-            fn on_pointer_down(&mut self, _: Vec2, _: &mut Document, _: &mut History) {
+            fn on_pointer_down(
+                &mut self,
+                _: Vec2,
+                _shift: bool,
+                _: &mut Document,
+                _: &mut History,
+            ) {
                 *self.downs.borrow_mut() += 1;
             }
             fn on_pointer_move(&mut self, _: Vec2, _: &mut Document) {
                 *self.moves.borrow_mut() += 1;
             }
-            fn on_pointer_up(&mut self, _: Vec2, _: &mut Document, _: &mut History) {
+            fn on_pointer_up(&mut self, _: Vec2, _shift: bool, _: &mut Document, _: &mut History) {
                 *self.ups.borrow_mut() += 1;
             }
             fn on_key(&mut self, _: egui::Key, _: &mut App) {}
@@ -260,6 +282,7 @@ mod tests {
             &PointerEvent::Press {
                 world_pos: pos,
                 button: PointerButton::Primary,
+                shift: false,
             },
             &mut doc,
             &mut hist,
@@ -271,6 +294,7 @@ mod tests {
             &PointerEvent::Release {
                 world_pos: pos,
                 button: PointerButton::Primary,
+                shift: false,
             },
             &mut doc,
             &mut hist,
@@ -282,6 +306,7 @@ mod tests {
             &PointerEvent::Press {
                 world_pos: pos,
                 button: PointerButton::Secondary,
+                shift: false,
             },
             &mut doc,
             &mut hist,
@@ -293,6 +318,7 @@ mod tests {
             &PointerEvent::Release {
                 world_pos: pos,
                 button: PointerButton::Middle,
+                shift: false,
             },
             &mut doc,
             &mut hist,

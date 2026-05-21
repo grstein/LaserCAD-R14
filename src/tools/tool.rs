@@ -40,7 +40,17 @@ pub trait Tool {
 
     /// Primary-button press at `pos` (world mm). Called when the left button
     /// is pressed while the cursor is inside the viewport.
-    fn on_pointer_down(&mut self, pos: Vec2, doc: &mut Document, history: &mut History);
+    ///
+    /// `shift` mirrors the Shift-key modifier state at the time of the press
+    /// (read from `egui::Modifiers`). Tools that toggle or extend selections
+    /// inspect `shift`; others ignore it (name it `_shift`).
+    fn on_pointer_down(
+        &mut self,
+        pos: Vec2,
+        shift: bool,
+        doc: &mut Document,
+        history: &mut History,
+    );
 
     /// Cursor movement to `pos` (world mm). Called every frame the cursor
     /// hovers the viewport, regardless of button state.
@@ -48,7 +58,11 @@ pub trait Tool {
 
     /// Primary-button release at `pos` (world mm). Called when the left
     /// button is released while the cursor is inside the viewport.
-    fn on_pointer_up(&mut self, pos: Vec2, doc: &mut Document, history: &mut History);
+    ///
+    /// `shift` mirrors the Shift-key modifier state at the time of the release.
+    /// Tools that finalise a shifted operation (e.g., toggle-add to selection)
+    /// inspect `shift`; others ignore it (name it `_shift`).
+    fn on_pointer_up(&mut self, pos: Vec2, shift: bool, doc: &mut Document, history: &mut History);
 
     /// Keyboard input (e.g., Escape to cancel). `on_key(Key::Escape, app)`
     /// typically calls `self.cancel()` internally.
