@@ -11,6 +11,7 @@ pub mod entities;
 pub mod grid;
 pub mod preview;
 pub mod selection;
+pub mod snaps;
 
 pub use bed::{draw_bed, Bed};
 pub use camera::Camera;
@@ -18,3 +19,4 @@ pub use entities::{arc_polyline, draw_entities, PaintOptions};
 pub use grid::draw_grid;
 pub use preview::draw_preview;
 pub use selection::draw_selection_highlight;
+pub use snaps::draw_snap_marker;

@@ -10,7 +10,7 @@
 //! to the `CentralPanel` viewport rect set up by [`App::update`].
 
 use crate::document::{Document, Entity, History};
-use crate::geometry::Vec2;
+use crate::geometry::{SnapResult, Vec2};
 use crate::render::{Bed, Camera};
 
 /// Factor applied per mouse-wheel notch. `> 1.0` zooms in; `< 1.0` zooms out.
@@ -35,6 +35,9 @@ pub struct App {
     /// translucent amber stroke. Defaults to empty; the Phase-4 Tool trait
     /// (LCV-040) will populate this each frame.
     pub preview_entities: Vec<Entity>,
+    /// Active snap result: the snapped point and kind computed by the snap
+    /// engine. Defaults to `None`; LCV-054 (tool snap integration) writes it.
+    pub active_snap: Option<SnapResult>,
 }
 
 impl eframe::App for App {
@@ -71,6 +74,10 @@ impl eframe::App for App {
                 &self.document.selection,
             );
             crate::render::draw_preview(&painter, rect, &self.camera, &self.preview_entities);
+
+            if let Some(snap) = &self.active_snap {
+                crate::render::draw_snap_marker(&painter, rect, &self.camera, snap);
+            }
 
             // --- pointer / camera interaction (LCV-032) ---
             if response.hovered() {

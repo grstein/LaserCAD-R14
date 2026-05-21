@@ -46,3 +46,11 @@ fn document_and_selection_reexported() {
     // is owned by LCV-027.
     let _ = Selection::default();
 }
+
+/// LCV-038 AC#11 — `App` carries `active_snap: Option<SnapResult>` defaulting
+/// to `None`.
+#[test]
+fn app_default_has_no_active_snap() {
+    let app = lasercad::app::App::default();
+    assert!(app.active_snap.is_none());
+}
