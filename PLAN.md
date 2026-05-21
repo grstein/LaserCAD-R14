@@ -155,6 +155,7 @@ On every invocation, the `project-manager`:
 
 > Single-writer: `project-manager`. Most recent entries at the top. Format: `YYYY-MM-DD HH:MM — LCV-NNN status — note`.
 
+- 2026-05-18 — LCV-040 Done — Tool trait + ToolManager shipped, Phase 4 open.
 - 2026-05-18 — Phase 3 complete — all render demands LCV-033..038 Done.
 - 2026-05-18 — LCV-038 Done — snap marker rendering reviewed and approved.
 - 2026-05-18 — LCV-037 Done — preview overlay reviewed and approved.
