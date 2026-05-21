@@ -1,11 +1,11 @@
 # LCV-040 — Tool trait + ToolManager
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 4
 - **Depends on**: LCV-022, LCV-032, LCV-037
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: feat(LCV-040): Tool trait + ToolManager + SelectTool stub + App::commit (ca7c234)
 
 ## Problem
 

@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-040 | Tool trait + ToolManager | 4 | LCV-022, LCV-032, LCV-037 |
 
 ## Draft (awaiting refinement)
 
@@ -67,6 +66,7 @@ _None._
 
 | ID | Title | Phase | Shipped | Commit |
 |---|---|---|---|---|
+| LCV-040 | Tool trait + ToolManager | 4 | 2026-05-18 | ca7c234 |
 | LCV-038 | Snap marker rendering | 3 | 2026-05-18 | 7db1ddb |
 | LCV-037 | Preview overlay | 3 | 2026-05-18 | 6530bad |
 | LCV-036 | Selection highlight rendering | 3 | 2026-05-18 | fbd0e99 |
