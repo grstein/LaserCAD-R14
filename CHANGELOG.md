@@ -29,3 +29,4 @@ This is the v2 (green-field, pure Rust + egui) line of LaserCAD R14. The v1 line
 - Document model concretizes Selection (HashSet-backed) and adds SelectionCommand. See LCV-027.
 - Grid renderer: responsive 1-2-5 decade ladder grid (minor spacing adapts across zoom range; major lines every 10 minors). See LCV-033.
 - Bed renderer: 400×400 mm work-area rectangle with dark outside overlay (LCV-034).
+- Entity painter: draws lines, circles, and arcs from the Document on the viewport (LCV-035).

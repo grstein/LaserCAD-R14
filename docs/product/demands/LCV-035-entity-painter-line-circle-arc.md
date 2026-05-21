@@ -1,11 +1,11 @@
 # LCV-035 — Entity painter (line/circle/arc)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 3
 - **Depends on**: LCV-021, LCV-031
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: feat(LCV-035): entity painter — line, circle, arc tessellation (422f457)
 
 ## Problem
 
