@@ -1,15 +1,17 @@
 //! Tools: `Tool` trait, `ToolManager`, one file per drawing or modify tool.
 //!
 //! Tools never mutate `Document` directly — they construct a `Command` and call
-//! `App::commit`. State machines stay inside individual tool files.
+//! `history.commit(cmd, doc)`. State machines stay inside individual tool files.
 //!
 //! Submodules arrive with demands LCV-040 .. LCV-054.
 
 pub mod manager;
+pub mod pointer_event;
 pub mod select;
 pub mod tool;
 
 pub use manager::ToolManager;
+pub use pointer_event::{PointerButton, PointerEvent};
 pub use select::SelectTool;
 pub use tool::Tool;
 

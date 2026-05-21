@@ -1,7 +1,11 @@
 //! Tool trait: state-machine interface for drawing and modify tools.
 //!
-//! Tools never mutate [`crate::document::Document`] directly; they construct
-//! a `Box<dyn Command>` and call [`crate::app::App::commit`] (LCV-040).
+//! Tools MUST mutate the document via `history.commit(cmd, doc)` — never by
+//! direct field access. The `on_pointer_down` / `on_pointer_up` methods
+//! receive `&mut Document` and `&mut History` so they can commit commands
+//! without needing the full `App` struct (LCV-041). `on_key` still takes
+//! `&mut App` because it may need access to camera or other app state; that
+//! will narrow in a later demand if warranted.
 //!
 //! The trait is **object-safe** — [`ToolManager`](super::ToolManager) stores
 //! `Box<dyn Tool>`. No generic methods, no associated types.
@@ -17,35 +21,34 @@
 //!
 //! MUST NOT import `eframe` or `rfd`. Introduced by demand LCV-040.
 
-use crate::document::Entity;
-use crate::geometry::Vec2;
-
-/// Forward-declare App to avoid circular dependency.
-/// Tools take `&mut App` to access camera, document, and commit.
 use crate::app::App;
+use crate::document::{Document, Entity, History};
+use crate::geometry::Vec2;
 
 /// Tool trait: state-machine interface for drawing and modify tools.
 ///
 /// Every tool implements this trait. `ToolManager` owns the active tool
 /// as `Box<dyn Tool>` and routes pointer and keyboard events to it.
 ///
-/// Tools NEVER mutate the document directly — they construct a
-/// `Box<dyn Command>` and call `app.commit(cmd)`.
+/// Pointer methods receive `&mut Document` and `&mut History` (where
+/// applicable) so tools can commit commands without holding a full `App`
+/// reference. Use `history.commit(cmd, doc)` — never mutate `doc.entities`
+/// directly.
 pub trait Tool {
     /// Tool name for status-bar display (e.g., `"Select"`, `"Line"`, `"Circle"`).
     fn name(&self) -> &'static str;
 
-    /// Left-button press at `pos` (world mm). Called when the pointer is
-    /// pressed inside the viewport.
-    fn on_pointer_down(&mut self, pos: Vec2, app: &mut App);
+    /// Primary-button press at `pos` (world mm). Called when the left button
+    /// is pressed while the cursor is inside the viewport.
+    fn on_pointer_down(&mut self, pos: Vec2, doc: &mut Document, history: &mut History);
 
-    /// Cursor movement to `pos` (world mm). Called whenever the cursor moves
-    /// over the viewport, whether the button is down or not.
-    fn on_pointer_move(&mut self, pos: Vec2, app: &mut App);
+    /// Cursor movement to `pos` (world mm). Called every frame the cursor
+    /// hovers the viewport, regardless of button state.
+    fn on_pointer_move(&mut self, pos: Vec2, doc: &mut Document);
 
-    /// Left-button release at `pos` (world mm). Called when the pointer is
-    /// released while hovering the viewport.
-    fn on_pointer_up(&mut self, pos: Vec2, app: &mut App);
+    /// Primary-button release at `pos` (world mm). Called when the left
+    /// button is released while the cursor is inside the viewport.
+    fn on_pointer_up(&mut self, pos: Vec2, doc: &mut Document, history: &mut History);
 
     /// Keyboard input (e.g., Escape to cancel). `on_key(Key::Escape, app)`
     /// typically calls `self.cancel()` internally.
