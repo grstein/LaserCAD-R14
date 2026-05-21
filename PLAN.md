@@ -89,7 +89,7 @@ src/
 | LCV-036 | Selection highlight rendering | 3 | Done | implementer-rust | sonnet | LCV-035, LCV-027 |
 | LCV-037 | Preview overlay (live tool preview) | 3 | Done | implementer-rust | sonnet | LCV-035 |
 | LCV-038 | Snap marker rendering | 3 | Done | implementer-rust | sonnet | LCV-031, LCV-016 |
-| LCV-040 | Tool trait + ToolManager | 4 | In Progress | implementer-rust | sonnet | LCV-022, LCV-032 |
+| LCV-040 | Tool trait + ToolManager | 4 | Done | implementer-rust | sonnet | LCV-022, LCV-032 |
 | LCV-041 | Pointer input plumbing through ToolManager | 4 | Draft | implementer-rust | sonnet | LCV-040 |
 | LCV-042 | SelectTool (point pick + window/crossing box) | 4 | Draft | implementer-rust | sonnet | LCV-041, LCV-015, LCV-027 |
 | LCV-043 | LineTool | 4 | Draft | implementer-rust | sonnet | LCV-041, LCV-023, LCV-037 |
