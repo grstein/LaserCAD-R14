@@ -5,8 +5,10 @@
 //! The viewport rect itself is allocated by [`crate::app::App::update`] in
 //! LCV-030; submodules consume that rect plus a [`egui::Painter`].
 
+pub mod bed;
 pub mod camera;
 pub mod grid;
 
+pub use bed::{draw_bed, Bed};
 pub use camera::Camera;
 pub use grid::draw_grid;

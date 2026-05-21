@@ -11,7 +11,7 @@
 
 use crate::document::{Document, History};
 use crate::geometry::Vec2;
-use crate::render::Camera;
+use crate::render::{Bed, Camera};
 
 /// Factor applied per mouse-wheel notch. `> 1.0` zooms in; `< 1.0` zooms out.
 const WHEEL_ZOOM_FACTOR: f64 = 1.1;
@@ -26,6 +26,8 @@ pub struct App {
     pub history: History,
     /// World↔screen transform plus zoom and pan state.
     pub camera: Camera,
+    /// Laser bed configuration: size and origin in world space.
+    pub bed: Bed,
     /// Last known cursor position in world space, updated while hovering
     /// the viewport. `None` before the cursor first enters the panel.
     pub last_cursor_world: Option<Vec2>,
@@ -49,6 +51,7 @@ impl eframe::App for App {
             );
 
             crate::render::draw_grid(&painter, rect, &self.camera);
+            crate::render::draw_bed(&painter, rect, &self.camera, &self.bed);
 
             // --- pointer / camera interaction (LCV-032) ---
             if response.hovered() {
