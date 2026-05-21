@@ -31,3 +31,4 @@ This is the v2 (green-field, pure Rust + egui) line of LaserCAD R14. The v1 line
 - Bed renderer: 400×400 mm work-area rectangle with dark outside overlay (LCV-034).
 - Entity painter: draws lines, circles, and arcs from the Document on the viewport (LCV-035).
 - Selection highlight: selected entities render with a cyan-blue halo (LCV-036).
+- Preview overlay: in-progress tool geometry renders as translucent amber (LCV-037).

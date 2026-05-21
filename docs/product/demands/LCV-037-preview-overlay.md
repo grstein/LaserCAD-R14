@@ -1,11 +1,11 @@
 # LCV-037 — Preview overlay (live tool preview)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 3
 - **Depends on**: LCV-035
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: feat(LCV-037): preview overlay — translucent amber entities for live tool preview (6530bad)
 
 ## Problem
 
