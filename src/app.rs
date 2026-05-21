@@ -9,7 +9,7 @@
 //! The render pipeline (camera, grid, bed, entities, preview, snaps) attaches
 //! to the `CentralPanel` viewport rect set up by [`App::update`].
 
-use crate::document::{Document, History};
+use crate::document::{Document, Entity, History};
 use crate::geometry::Vec2;
 use crate::render::{Bed, Camera};
 
@@ -31,6 +31,10 @@ pub struct App {
     /// Last known cursor position in world space, updated while hovering
     /// the viewport. `None` before the cursor first enters the panel.
     pub last_cursor_world: Option<Vec2>,
+    /// Preview entities: the in-progress tool geometry painted with a
+    /// translucent amber stroke. Defaults to empty; the Phase-4 Tool trait
+    /// (LCV-040) will populate this each frame.
+    pub preview_entities: Vec<Entity>,
 }
 
 impl eframe::App for App {
@@ -66,6 +70,7 @@ impl eframe::App for App {
                 &self.document.entities,
                 &self.document.selection,
             );
+            crate::render::draw_preview(&painter, rect, &self.camera, &self.preview_entities);
 
             // --- pointer / camera interaction (LCV-032) ---
             if response.hovered() {
@@ -214,5 +219,12 @@ mod tests {
         assert_eq!(cam.center_world, Vec2::new(0.0, 0.0));
         assert_eq!(cam.mm_per_px, 1.0);
         assert_eq!(cam.viewport_size_px, [800.0, 600.0]);
+    }
+
+    /// LCV-037 AC#7 — `App` carries `preview_entities` defaulting to empty.
+    #[test]
+    fn app_default_has_empty_preview_entities() {
+        let app = App::default();
+        assert!(app.preview_entities.is_empty());
     }
 }
