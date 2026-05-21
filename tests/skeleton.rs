@@ -24,7 +24,7 @@ fn module_tree_is_wired() {
         &geometry::EPSILON,
         &io::MODULE,
         std::any::TypeId::of::<render::Camera>(),
-        &text::MODULE,
+        &text::CAP_HEIGHT_HERSHEY,
         &tools::MODULE,
         &ui::MODULE,
         &util::MODULE,
