@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-036 | Selection highlight rendering | 3 | LCV-035, LCV-027 |
 | LCV-037 | Preview overlay | 3 | LCV-035 |
 | LCV-038 | Snap marker rendering | 3 | LCV-031, LCV-016 |
 
@@ -70,6 +69,7 @@ _None._
 
 | ID | Title | Phase | Shipped | Commit |
 |---|---|---|---|---|
+| LCV-036 | Selection highlight rendering | 3 | 2026-05-18 | fbd0e99 |
 | LCV-035 | Entity painter | 3 | 2026-05-18 | 422f457 |
 | LCV-030 | eframe::App impl + central panel | 3 | 2026-05-17 | 24b118a |
 | LCV-031 | Camera (world↔screen, zoom, pan, zoom-extents) | 3 | 2026-05-17 | 24b118a |

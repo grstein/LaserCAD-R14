@@ -1,11 +1,11 @@
 # LCV-036 — Selection highlight rendering
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 3
 - **Depends on**: LCV-035, LCV-027
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: feat(LCV-036): selection highlight — cyan-blue halo over selected entities (fbd0e99)
 
 ## Problem
 
