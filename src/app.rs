@@ -59,6 +59,13 @@ impl eframe::App for App {
                 &self.document.entities,
                 crate::render::PaintOptions::default(),
             );
+            crate::render::draw_selection_highlight(
+                &painter,
+                rect,
+                &self.camera,
+                &self.document.entities,
+                &self.document.selection,
+            );
 
             // --- pointer / camera interaction (LCV-032) ---
             if response.hovered() {

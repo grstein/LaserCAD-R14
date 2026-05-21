@@ -9,8 +9,10 @@ pub mod bed;
 pub mod camera;
 pub mod entities;
 pub mod grid;
+pub mod selection;
 
 pub use bed::{draw_bed, Bed};
 pub use camera::Camera;
 pub use entities::{arc_polyline, draw_entities, PaintOptions};
 pub use grid::draw_grid;
+pub use selection::draw_selection_highlight;
