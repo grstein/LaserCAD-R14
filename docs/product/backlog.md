@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-034 | Bed renderer | 3 | LCV-031 |
 | LCV-035 | Entity painter | 3 | LCV-021, LCV-031 |
 | LCV-036 | Selection highlight rendering | 3 | LCV-035, LCV-027 |
 | LCV-037 | Preview overlay | 3 | LCV-035 |
@@ -76,6 +75,7 @@ _None._
 | LCV-031 | Camera (world↔screen, zoom, pan, zoom-extents) | 3 | 2026-05-17 | 24b118a |
 | LCV-032 | Viewport wiring (pointer input → tools) | 3 | 2026-05-18 | 33bae5a |
 | LCV-033 | Grid renderer (responsive minor/major) | 3 | 2026-05-18 | a51f2b9 |
+| LCV-034 | Bed renderer | 3 | 2026-05-18 | ee8cea4 |
 | LCV-001 | Cargo project skeleton + dependency lock | 0 | 2026-05-17 | fd6a31d |
 | LCV-002 | rustfmt + clippy config + rust-toolchain pin | 0 | 2026-05-17 | b6464983 |
 | LCV-003 | ADR 0001 — pure Rust + egui decision | 0 | 2026-05-17 | _(scaffold commit)_ |

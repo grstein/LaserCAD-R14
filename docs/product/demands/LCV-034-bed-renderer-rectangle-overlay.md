@@ -1,11 +1,11 @@
 # LCV-034 — Bed renderer (rectangle + dark outer overlay)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 3
 - **Depends on**: LCV-031
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: feat(LCV-034): bed renderer — rectangle fill, border, outer overlay (ee8cea4)
 
 ## Problem
 
