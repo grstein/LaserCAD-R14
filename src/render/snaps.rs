@@ -209,9 +209,15 @@ mod tests {
         let s = intersection_marker_segments(egui::Pos2::new(100.0, 100.0), 8.0);
         assert_eq!(s.len(), 2);
         assert!((s[0][0].x - 96.0).abs() < f32::EPSILON && (s[0][0].y - 96.0).abs() < f32::EPSILON);
-        assert!((s[0][1].x - 104.0).abs() < f32::EPSILON && (s[0][1].y - 104.0).abs() < f32::EPSILON);
-        assert!((s[1][0].x - 96.0).abs() < f32::EPSILON && (s[1][0].y - 104.0).abs() < f32::EPSILON);
-        assert!((s[1][1].x - 104.0).abs() < f32::EPSILON && (s[1][1].y - 96.0).abs() < f32::EPSILON);
+        assert!(
+            (s[0][1].x - 104.0).abs() < f32::EPSILON && (s[0][1].y - 104.0).abs() < f32::EPSILON
+        );
+        assert!(
+            (s[1][0].x - 96.0).abs() < f32::EPSILON && (s[1][0].y - 104.0).abs() < f32::EPSILON
+        );
+        assert!(
+            (s[1][1].x - 104.0).abs() < f32::EPSILON && (s[1][1].y - 96.0).abs() < f32::EPSILON
+        );
     }
 
     /// LCV-038 AC#5 — center marker radius is half size.
@@ -238,7 +244,10 @@ mod tests {
         let c = midpoint_marker_corners(extreme, 1e-9);
         assert!(c.iter().all(|p| p.x.is_finite() && p.y.is_finite()));
         let s = intersection_marker_segments(extreme, 1e9);
-        assert!(s.iter().flat_map(|a| a.iter()).all(|p| p.x.is_finite() && p.y.is_finite()));
+        assert!(s
+            .iter()
+            .flat_map(|a| a.iter())
+            .all(|p| p.x.is_finite() && p.y.is_finite()));
         assert!(center_marker_radius(1e-9).is_finite());
     }
 
