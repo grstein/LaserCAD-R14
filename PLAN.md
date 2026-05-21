@@ -88,7 +88,7 @@ src/
 | LCV-035 | Entity painter (line/circle/arc) | 3 | Done | implementer-rust | sonnet | LCV-021, LCV-031 |
 | LCV-036 | Selection highlight rendering | 3 | Done | implementer-rust | sonnet | LCV-035, LCV-027 |
 | LCV-037 | Preview overlay (live tool preview) | 3 | Done | implementer-rust | sonnet | LCV-035 |
-| LCV-038 | Snap marker rendering | 3 | In Progress | implementer-rust | sonnet | LCV-031, LCV-016 |
+| LCV-038 | Snap marker rendering | 3 | Done | implementer-rust | sonnet | LCV-031, LCV-016 |
 | LCV-040 | Tool trait + ToolManager | 4 | Draft | architect | opus | LCV-022, LCV-032 |
 | LCV-041 | Pointer input plumbing through ToolManager | 4 | Draft | implementer-rust | sonnet | LCV-040 |
 | LCV-042 | SelectTool (point pick + window/crossing box) | 4 | Draft | implementer-rust | sonnet | LCV-041, LCV-015, LCV-027 |
@@ -155,6 +155,12 @@ On every invocation, the `project-manager`:
 
 > Single-writer: `project-manager`. Most recent entries at the top. Format: `YYYY-MM-DD HH:MM — LCV-NNN status — note`.
 
+- 2026-05-18 — Phase 3 complete — all render demands LCV-033..038 Done.
+- 2026-05-18 — LCV-038 Done — snap marker rendering reviewed and approved.
+- 2026-05-18 — LCV-037 Done — preview overlay reviewed and approved.
+- 2026-05-18 — LCV-036 Done — selection highlight reviewed and approved.
+- 2026-05-18 — LCV-035 Done — entity painter reviewed and approved.
+- 2026-05-18 — LCV-034 Done — bed renderer reviewed and approved.
 - 2026-05-18 — LCV-034 In Progress — bed renderer up next.
 - 2026-05-18 — LCV-033 Done — grid renderer reviewed and approved.
 - 2026-05-18 — LCV-033 In Progress — grid renderer implementation present, awaiting commit+review.
