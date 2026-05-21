@@ -52,7 +52,13 @@ impl Tool for LineTool {
         }
     }
 
-    fn on_pointer_down(&mut self, pos: Vec2, _shift: bool, doc: &mut Document, history: &mut History) {
+    fn on_pointer_down(
+        &mut self,
+        pos: Vec2,
+        _shift: bool,
+        doc: &mut Document,
+        history: &mut History,
+    ) {
         match self.state {
             State::Idle => {
                 self.state = State::WaitingSecondPoint {
@@ -79,7 +85,14 @@ impl Tool for LineTool {
         }
     }
 
-    fn on_pointer_up(&mut self, _pos: Vec2, _shift: bool, _doc: &mut Document, _history: &mut History) {}
+    fn on_pointer_up(
+        &mut self,
+        _pos: Vec2,
+        _shift: bool,
+        _doc: &mut Document,
+        _history: &mut History,
+    ) {
+    }
 
     fn on_key(&mut self, key: egui::Key, _app: &mut App) {
         if matches!(key, egui::Key::Escape | egui::Key::Enter) {
@@ -129,7 +142,7 @@ mod tests {
     #[test]
     fn first_click_transitions_to_waiting() {
         let (mut t, mut doc, mut h) = make();
-        t.on_pointer_down(Vec2::new(1.0, 2.0), &mut doc, &mut h);
+        t.on_pointer_down(Vec2::new(1.0, 2.0), false, &mut doc, &mut h);
         assert!(t.status_text().contains("end"));
         assert!(t.preview().is_empty()); // cursor == p1 still
     }
@@ -139,7 +152,7 @@ mod tests {
         let (mut t, mut doc, mut h) = make();
         let p1 = Vec2::new(0.0, 0.0);
         let p2 = Vec2::new(10.0, 0.0);
-        t.on_pointer_down(p1, &mut doc, &mut h);
+        t.on_pointer_down(p1, false, &mut doc, &mut h);
         t.on_pointer_move(p2, &mut doc);
         let pv = t.preview();
         assert_eq!(pv.len(), 1);
@@ -156,8 +169,8 @@ mod tests {
     fn degenerate_second_click_ignored() {
         let (mut t, mut doc, mut h) = make();
         let p = Vec2::new(5.0, 5.0);
-        t.on_pointer_down(p, &mut doc, &mut h);
-        t.on_pointer_down(p, &mut doc, &mut h);
+        t.on_pointer_down(p, false, &mut doc, &mut h);
+        t.on_pointer_down(p, false, &mut doc, &mut h);
         assert_eq!(doc.entity_count(), 0);
         assert!(!h.can_undo());
     }
@@ -165,8 +178,8 @@ mod tests {
     #[test]
     fn second_click_commits_and_chains() {
         let (mut t, mut doc, mut h) = make();
-        t.on_pointer_down(Vec2::new(0.0, 0.0), &mut doc, &mut h);
-        t.on_pointer_down(Vec2::new(10.0, 0.0), &mut doc, &mut h);
+        t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
+        t.on_pointer_down(Vec2::new(10.0, 0.0), false, &mut doc, &mut h);
         assert_eq!(doc.entity_count(), 1);
         assert!(h.can_undo());
         assert!(t.status_text().contains("end")); // still chaining
@@ -175,23 +188,23 @@ mod tests {
     #[test]
     fn chain_draws_second_line() {
         let (mut t, mut doc, mut h) = make();
-        t.on_pointer_down(Vec2::new(0.0, 0.0), &mut doc, &mut h);
-        t.on_pointer_down(Vec2::new(10.0, 0.0), &mut doc, &mut h);
-        t.on_pointer_down(Vec2::new(10.0, 10.0), &mut doc, &mut h);
+        t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
+        t.on_pointer_down(Vec2::new(10.0, 0.0), false, &mut doc, &mut h);
+        t.on_pointer_down(Vec2::new(10.0, 10.0), false, &mut doc, &mut h);
         assert_eq!(doc.entity_count(), 2);
     }
 
     #[test]
     fn escape_and_enter_cancel_to_idle() {
         let (mut t, mut doc, mut h) = make();
-        t.on_pointer_down(Vec2::new(0.0, 0.0), &mut doc, &mut h);
+        t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
         t.on_pointer_move(Vec2::new(5.0, 5.0), &mut doc);
         assert!(!t.preview().is_empty());
         let mut app = crate::app::App::default();
         t.on_key(egui::Key::Escape, &mut app);
         assert!(t.preview().is_empty());
         assert!(t.status_text().contains("start"));
-        t.on_pointer_down(Vec2::new(0.0, 0.0), &mut doc, &mut h);
+        t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
         t.on_key(egui::Key::Enter, &mut app);
         assert!(t.preview().is_empty());
     }

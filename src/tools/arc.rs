@@ -83,7 +83,13 @@ impl Tool for ArcTool {
         "ARC"
     }
 
-    fn on_pointer_down(&mut self, pos: Vec2, _shift: bool, doc: &mut Document, history: &mut History) {
+    fn on_pointer_down(
+        &mut self,
+        pos: Vec2,
+        _shift: bool,
+        doc: &mut Document,
+        history: &mut History,
+    ) {
         match self.state {
             ArcState::Idle => self.state = ArcState::WaitingEnd { start: pos },
             ArcState::WaitingEnd { start } => {
@@ -106,7 +112,14 @@ impl Tool for ArcTool {
         self.cursor = pos;
     }
 
-    fn on_pointer_up(&mut self, _pos: Vec2, _shift: bool, _doc: &mut Document, _history: &mut History) {}
+    fn on_pointer_up(
+        &mut self,
+        _pos: Vec2,
+        _shift: bool,
+        _doc: &mut Document,
+        _history: &mut History,
+    ) {
+    }
 
     fn on_key(&mut self, key: egui::Key, _app: &mut App) {
         if key == egui::Key::Escape {
@@ -218,11 +231,11 @@ mod tests {
         let (mut doc, mut hist) = doc_and_hist();
         let mut t = ArcTool::default();
 
-        t.on_pointer_down(Vec2::new(1.0, 0.0), &mut doc, &mut hist);
+        t.on_pointer_down(Vec2::new(1.0, 0.0), false, &mut doc, &mut hist);
         t.on_pointer_move(Vec2::new(0.0, 0.0), &mut doc);
         assert!(matches!(t.preview()[0], Entity::Line(_)));
 
-        t.on_pointer_down(Vec2::new(-1.0, 0.0), &mut doc, &mut hist);
+        t.on_pointer_down(Vec2::new(-1.0, 0.0), false, &mut doc, &mut hist);
         t.on_pointer_move(Vec2::new(0.0, 1.0), &mut doc);
         let p = t.preview();
         assert_eq!(p.len(), 1);
@@ -234,8 +247,8 @@ mod tests {
     fn collinear_cursor_shows_two_lines() {
         let (mut doc, mut hist) = doc_and_hist();
         let mut t = ArcTool::default();
-        t.on_pointer_down(Vec2::new(0.0, 0.0), &mut doc, &mut hist);
-        t.on_pointer_down(Vec2::new(2.0, 0.0), &mut doc, &mut hist);
+        t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut hist);
+        t.on_pointer_down(Vec2::new(2.0, 0.0), false, &mut doc, &mut hist);
         t.on_pointer_move(Vec2::new(1.0, 0.0), &mut doc);
         let p = t.preview();
         assert_eq!(p.len(), 2);
@@ -247,9 +260,9 @@ mod tests {
     fn third_click_commits_and_resets() {
         let (mut doc, mut hist) = doc_and_hist();
         let mut t = ArcTool::default();
-        t.on_pointer_down(Vec2::new(1.0, 0.0), &mut doc, &mut hist);
-        t.on_pointer_down(Vec2::new(-1.0, 0.0), &mut doc, &mut hist);
-        t.on_pointer_down(Vec2::new(0.0, 1.0), &mut doc, &mut hist);
+        t.on_pointer_down(Vec2::new(1.0, 0.0), false, &mut doc, &mut hist);
+        t.on_pointer_down(Vec2::new(-1.0, 0.0), false, &mut doc, &mut hist);
+        t.on_pointer_down(Vec2::new(0.0, 1.0), false, &mut doc, &mut hist);
         assert_eq!(doc.entity_count(), 1);
         assert!(matches!(doc.entities[0], Entity::Arc(_)));
         assert_eq!(t.state, ArcState::Idle);
@@ -262,9 +275,9 @@ mod tests {
         let mut t = ArcTool::default();
         let start = Vec2::new(0.0, 0.0);
         let end = Vec2::new(2.0, 0.0);
-        t.on_pointer_down(start, &mut doc, &mut hist);
-        t.on_pointer_down(end, &mut doc, &mut hist);
-        t.on_pointer_down(Vec2::new(1.0, 0.0), &mut doc, &mut hist);
+        t.on_pointer_down(start, false, &mut doc, &mut hist);
+        t.on_pointer_down(end, false, &mut doc, &mut hist);
+        t.on_pointer_down(Vec2::new(1.0, 0.0), false, &mut doc, &mut hist);
         assert_eq!(doc.entity_count(), 0);
         assert_eq!(t.state, ArcState::WaitingMid { start, end });
     }
@@ -276,14 +289,14 @@ mod tests {
         let mut t = ArcTool::default();
         let mut app = crate::app::App::default();
 
-        t.on_pointer_down(Vec2::new(0.0, 0.0), &mut doc, &mut hist);
+        t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut hist);
         t.on_key(egui::Key::Escape, &mut app);
         assert_eq!(t.state, ArcState::Idle);
 
         // Full commit → undo → redo.
-        t.on_pointer_down(Vec2::new(1.0, 0.0), &mut doc, &mut hist);
-        t.on_pointer_down(Vec2::new(-1.0, 0.0), &mut doc, &mut hist);
-        t.on_pointer_down(Vec2::new(0.0, 1.0), &mut doc, &mut hist);
+        t.on_pointer_down(Vec2::new(1.0, 0.0), false, &mut doc, &mut hist);
+        t.on_pointer_down(Vec2::new(-1.0, 0.0), false, &mut doc, &mut hist);
+        t.on_pointer_down(Vec2::new(0.0, 1.0), false, &mut doc, &mut hist);
         assert_eq!(doc.entity_count(), 1);
         hist.undo(&mut doc);
         assert_eq!(doc.entity_count(), 0);

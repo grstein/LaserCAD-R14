@@ -42,7 +42,13 @@ impl Tool for CircleTool {
         "CIRCLE"
     }
 
-    fn on_pointer_down(&mut self, pos: Vec2, _shift: bool, doc: &mut Document, history: &mut History) {
+    fn on_pointer_down(
+        &mut self,
+        pos: Vec2,
+        _shift: bool,
+        doc: &mut Document,
+        history: &mut History,
+    ) {
         match self.state {
             CircleState::Idle => {
                 self.state = CircleState::WaitingRadius { center: pos };
@@ -62,7 +68,14 @@ impl Tool for CircleTool {
         self.cursor = pos;
     }
 
-    fn on_pointer_up(&mut self, _pos: Vec2, _shift: bool, _doc: &mut Document, _history: &mut History) {}
+    fn on_pointer_up(
+        &mut self,
+        _pos: Vec2,
+        _shift: bool,
+        _doc: &mut Document,
+        _history: &mut History,
+    ) {
+    }
 
     fn on_key(&mut self, key: egui::Key, _app: &mut App) {
         if key == egui::Key::Escape {
@@ -119,7 +132,7 @@ mod tests {
     fn first_click_enters_waiting_radius_no_commit() {
         let (mut t, mut doc, mut h) = make();
         let c = Vec2::new(10.0, 20.0);
-        t.on_pointer_down(c, &mut doc, &mut h);
+        t.on_pointer_down(c, false, &mut doc, &mut h);
         assert_eq!(t.state, CircleState::WaitingRadius { center: c });
         assert_eq!(doc.entity_count(), 0);
     }
@@ -127,7 +140,7 @@ mod tests {
     #[test]
     fn preview_reflects_cursor_distance() {
         let (mut t, mut doc, mut h) = make();
-        t.on_pointer_down(Vec2::new(0.0, 0.0), &mut doc, &mut h);
+        t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
         t.on_pointer_move(Vec2::new(5.0, 0.0), &mut doc);
         let prev = t.preview();
         assert_eq!(prev.len(), 1);
@@ -141,8 +154,8 @@ mod tests {
     #[test]
     fn second_click_commits_and_returns_idle() {
         let (mut t, mut doc, mut h) = make();
-        t.on_pointer_down(Vec2::new(0.0, 0.0), &mut doc, &mut h);
-        t.on_pointer_down(Vec2::new(3.0, 4.0), &mut doc, &mut h); // r = 5
+        t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
+        t.on_pointer_down(Vec2::new(3.0, 4.0), false, &mut doc, &mut h); // r = 5
         assert_eq!(t.state, CircleState::Idle);
         assert_eq!(doc.entity_count(), 1);
         if let Entity::Circle(c) = doc.entities[0] {
@@ -157,8 +170,8 @@ mod tests {
     fn degenerate_second_click_ignored() {
         let (mut t, mut doc, mut h) = make();
         let center = Vec2::new(1.0, 1.0);
-        t.on_pointer_down(center, &mut doc, &mut h);
-        t.on_pointer_down(center, &mut doc, &mut h); // r = 0
+        t.on_pointer_down(center, false, &mut doc, &mut h);
+        t.on_pointer_down(center, false, &mut doc, &mut h); // r = 0
         assert_eq!(t.state, CircleState::WaitingRadius { center });
         assert_eq!(doc.entity_count(), 0);
     }
@@ -167,7 +180,7 @@ mod tests {
     fn escape_cancels_to_idle() {
         let (mut t, mut doc, mut h) = make();
         let mut app = crate::app::App::default();
-        t.on_pointer_down(Vec2::new(5.0, 5.0), &mut doc, &mut h);
+        t.on_pointer_down(Vec2::new(5.0, 5.0), false, &mut doc, &mut h);
         t.on_key(egui::Key::Escape, &mut app);
         assert_eq!(t.state, CircleState::Idle);
         assert!(t.preview().is_empty());
@@ -176,7 +189,7 @@ mod tests {
     #[test]
     fn cancel_resets_to_idle() {
         let (mut t, mut doc, mut h) = make();
-        t.on_pointer_down(Vec2::new(2.0, 3.0), &mut doc, &mut h);
+        t.on_pointer_down(Vec2::new(2.0, 3.0), false, &mut doc, &mut h);
         t.cancel();
         assert_eq!(t.state, CircleState::Idle);
     }
@@ -184,8 +197,8 @@ mod tests {
     #[test]
     fn committed_circle_is_undoable() {
         let (mut t, mut doc, mut h) = make();
-        t.on_pointer_down(Vec2::new(0.0, 0.0), &mut doc, &mut h);
-        t.on_pointer_down(Vec2::new(10.0, 0.0), &mut doc, &mut h);
+        t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
+        t.on_pointer_down(Vec2::new(10.0, 0.0), false, &mut doc, &mut h);
         assert_eq!(doc.entity_count(), 1);
         h.undo(&mut doc);
         assert_eq!(doc.entity_count(), 0);
