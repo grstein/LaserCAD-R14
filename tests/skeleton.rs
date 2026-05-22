@@ -26,7 +26,7 @@ fn module_tree_is_wired() {
         std::any::TypeId::of::<render::Camera>(),
         &text::CAP_HEIGHT_HERSHEY,
         &tools::MODULE,
-        &ui::MODULE,
+        ui::CANVAS_BG,
         &util::MODULE,
     );
 }

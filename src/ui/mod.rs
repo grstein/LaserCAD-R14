@@ -4,7 +4,6 @@
 //! Submodules arrive with demands LCV-065 .. LCV-071.
 
 pub mod statusbar;
+pub mod theme;
 pub use statusbar::{draw_statusbar, format_coords};
-
-/// Placeholder module witness; retired when all LCV-06x submodules land.
-pub const MODULE: &str = "ui";
+pub use theme::{apply_theme, CANVAS_BG};
