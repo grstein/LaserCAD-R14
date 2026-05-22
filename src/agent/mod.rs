@@ -6,4 +6,7 @@
 //!
 //! Submodules arrive with demands LCV-075 .. LCV-080.
 
+pub mod transport;
+pub use transport::{chat_completion, Message, TransportError};
+
 pub const MODULE: &str = "agent";

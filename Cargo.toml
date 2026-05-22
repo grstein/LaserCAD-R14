@@ -12,10 +12,14 @@ repository = ""
 directories = "5"
 eframe = "0.29"
 egui = "0.29"
+reqwest = { version = "0.12", features = ["json", "blocking"] }
 rfd = { version = "0.14", default-features = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+
+[dev-dependencies]
+mockito = "1"
 
 [profile.release]
 opt-level = "s"
