@@ -11,6 +11,9 @@
 
 mod snap;
 
+mod agent_poll;
+pub use agent_poll::poll_agent_rx;
+
 pub use snap::resolve_snap;
 
 use std::time::{Duration, Instant};
@@ -70,6 +73,19 @@ pub struct App {
     pub grid_enabled: bool,
     /// Whether ortho mode is active. Toggled by F8 (LCV-070/LCV-053). Defaults to false.
     pub ortho_enabled: bool,
+    /// Whether the AI assistant side panel is visible (LCV-080).
+    /// Toggled by the 🤖 toolbar button.
+    pub agent_panel_open: bool,
+    /// Chat history as `(role, content)` pairs (LCV-080).
+    /// Role is one of `"user"`, `"assistant"`, or `"error"`.
+    pub agent_chat: Vec<(String, String)>,
+    /// Live contents of the AI text-input widget; cleared on submit (LCV-080).
+    pub agent_input_draft: String,
+    /// `true` while a background agent thread is in flight (LCV-080).
+    /// The Send button is disabled and a spinner is shown when this is `true`.
+    pub agent_busy: bool,
+    /// Receiver polled every frame; `Some` while a turn is in flight (LCV-080).
+    pub agent_rx: Option<std::sync::mpsc::Receiver<crate::agent::AgentPanelMsg>>,
 }
 
 impl Default for App {
@@ -91,6 +107,11 @@ impl Default for App {
             snap_enabled: true,
             grid_enabled: true,
             ortho_enabled: false,
+            agent_panel_open: false,
+            agent_chat: Vec::new(),
+            agent_input_draft: String::new(),
+            agent_busy: false,
+            agent_rx: None,
         }
     }
 }
@@ -154,6 +175,22 @@ impl eframe::App for App {
         egui::SidePanel::left("toolbar").show(ctx, |ui| {
             crate::ui::draw_toolbar(ui, self);
         });
+
+        // Poll agent background thread (LCV-080).
+        poll_agent_rx(self);
+        if self.agent_busy {
+            ctx.request_repaint();
+        }
+
+        // Agent panel (LCV-080) — rendered only when open.
+        if self.agent_panel_open {
+            egui::SidePanel::right("agent_panel")
+                .resizable(true)
+                .default_width(300.0)
+                .show(ctx, |ui| {
+                    crate::agent::draw_agent_panel(ui, self);
+                });
+        }
 
         egui::CentralPanel::default().show(ctx, |ui| {
             let (rect, response) =
@@ -545,5 +582,57 @@ mod tests {
         let mut active2 = snap;
         suppress_snap_if_disabled(true, &mut active2);
         assert!(active2.is_some());
+    }
+
+    // ── LCV-080 tests ─────────────────────────────────────────────────────────
+
+    /// LCV-080 AC#1 — all five agent fields have the correct default values.
+    #[test]
+    fn app_default_agent_fields() {
+        let a = App::default();
+        assert!(!a.agent_panel_open);
+        assert!(a.agent_chat.is_empty());
+        assert!(!a.agent_busy);
+        assert!(a.agent_rx.is_none());
+        assert!(a.agent_input_draft.is_empty());
+    }
+
+    /// LCV-080 AC#13 — `Reply` message appends an assistant entry and clears
+    /// busy + receiver.
+    #[test]
+    fn agent_rx_reply_updates_chat_and_clears_busy() {
+        use crate::agent::AgentPanelMsg;
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut app = App {
+            agent_rx: Some(rx),
+            agent_busy: true,
+            ..App::default()
+        };
+        tx.send(AgentPanelMsg::Reply("done".into())).unwrap();
+        poll_agent_rx(&mut app);
+        assert_eq!(
+            app.agent_chat.last(),
+            Some(&("assistant".into(), "done".into())),
+        );
+        assert!(!app.agent_busy);
+        assert!(app.agent_rx.is_none());
+    }
+
+    /// LCV-080 AC#14 — `Error` message appends an error entry and clears
+    /// busy + receiver.
+    #[test]
+    fn agent_rx_error_updates_chat_and_clears_busy() {
+        use crate::agent::AgentPanelMsg;
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut app = App {
+            agent_rx: Some(rx),
+            agent_busy: true,
+            ..App::default()
+        };
+        tx.send(AgentPanelMsg::Error("err".into())).unwrap();
+        poll_agent_rx(&mut app);
+        assert_eq!(app.agent_chat.last(), Some(&("error".into(), "err".into())));
+        assert!(!app.agent_busy);
+        assert!(app.agent_rx.is_none());
     }
 }

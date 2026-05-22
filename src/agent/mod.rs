@@ -17,3 +17,6 @@ pub use tools::{dispatch_tool_call, tool_definitions, ToolCallError};
 
 pub mod loop_;
 pub use loop_::{run_agent_turn, AgentError, MAX_TOOL_CALLS_PER_TURN};
+
+pub mod panel;
+pub use panel::{draw_agent_panel, AgentPanelMsg};
