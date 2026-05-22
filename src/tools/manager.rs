@@ -134,6 +134,14 @@ impl ToolManager {
         self.active.on_key(key, app);
     }
 
+    /// Forward a typed character to the active tool (LCV-048 TextTool).
+    ///
+    /// No `&mut App` borrow is needed — `on_text_input` does not call back into
+    /// `App`, so `std::mem::take` is unnecessary here.
+    pub fn on_text_input(&mut self, ch: char) {
+        self.active.on_text_input(ch);
+    }
+
     /// Get the preview geometry from the active tool. Returns an empty vector
     /// if the tool has no in-progress preview.
     pub fn preview(&self) -> Vec<Entity> {
@@ -426,5 +434,23 @@ mod tests {
         let recorded = calls.borrow();
         assert_eq!(recorded.len(), 1);
         assert_eq!(recorded[0], "42");
+    }
+
+    /// LCV-048 AC#7 — `SelectTool::on_text_input` is a no-op (default impl).
+    #[test]
+    fn select_tool_on_text_input_is_noop() {
+        SelectTool::default().on_text_input('x');
+        SelectTool::default().on_text_input(' ');
+        SelectTool::default().on_text_input('\n');
+    }
+
+    /// LCV-048 AC#8 — `ToolManager::on_text_input` with the default SelectTool
+    /// does not panic.
+    #[test]
+    fn tool_manager_on_text_input_noop_for_select() {
+        let mut mgr = ToolManager::default();
+        mgr.on_text_input('a');
+        mgr.on_text_input('Z');
+        mgr.on_text_input('!');
     }
 }

@@ -253,6 +253,24 @@ impl eframe::App for App {
                 self.tool_manager = tm;
             }
 
+            // Character input → active tool (LCV-048 TextTool).
+            let typed_chars: Vec<char> = ctx.input(|i| {
+                i.events
+                    .iter()
+                    .filter_map(|e| {
+                        if let egui::Event::Text(t) = e {
+                            Some(t.chars().collect::<Vec<char>>())
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten()
+                    .collect()
+            });
+            for ch in typed_chars {
+                self.tool_manager.on_text_input(ch);
+            }
+
             // Autosave flush (LCV-059): fire when the document has been dirty
             // for longer than AUTOSAVE_DEBOUNCE without a flush.
             if let Some(since) = self.dirty_since {

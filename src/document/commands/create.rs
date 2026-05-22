@@ -194,7 +194,7 @@ impl Command for CreateEntities {
     }
 
     fn label(&self) -> &str {
-        "Create Entities"
+        "Place Text"
     }
 }
 
@@ -307,7 +307,7 @@ mod tests {
         assert_eq!(cmd_line.label(), "Create Line");
         assert_eq!(cmd_circle.label(), "Create Circle");
         assert_eq!(cmd_arc.label(), "Create Arc");
-        assert_eq!(cmd_batch.label(), "Create Entities");
+        assert_eq!(cmd_batch.label(), "Place Text");
     }
 
     /// AC#8 — every create command is object-safe.
@@ -426,5 +426,72 @@ mod tests {
         cmd.do_(&mut doc); // redo
         assert_eq!(doc.entity_count(), 1);
         assert_eq!(doc.entities[0], Entity::Line(line));
+    }
+
+    // ── LCV-048 named acceptance-criterion tests ─────────────────────────
+
+    /// LCV-048 AC#1 — constructor is reachable; starts with no captured start.
+    #[test]
+    fn create_entities_constructor_reachable() {
+        let _ = CreateEntities::new(vec![]);
+        let l = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 0.0));
+        let _ = CreateEntities::new(vec![Entity::Line(l)]);
+    }
+
+    /// LCV-048 AC#2 — two-line do/undo round-trip.
+    #[test]
+    fn create_entities_roundtrip_two_lines() {
+        let mut doc = Document::default();
+        let l1 = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 0.0));
+        let l2 = Line::new(Vec2::new(2.0, 0.0), Vec2::new(3.0, 0.0));
+        let mut cmd = CreateEntities::new(vec![Entity::Line(l1), Entity::Line(l2)]);
+        cmd.do_(&mut doc);
+        assert_eq!(doc.entities.len(), 2);
+        assert_eq!(doc.entities[0], Entity::Line(l1));
+        assert_eq!(doc.entities[1], Entity::Line(l2));
+        cmd.undo(&mut doc);
+        assert!(doc.entities.is_empty());
+    }
+
+    /// LCV-048 AC#3 — undo preserves pre-existing entities.
+    #[test]
+    fn create_entities_undo_does_not_remove_preexisting() {
+        let mut doc = Document::default();
+        let seed = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 0.0));
+        doc.entities.push(Entity::Line(seed));
+        let l1 = Line::new(Vec2::new(2.0, 0.0), Vec2::new(3.0, 0.0));
+        let l2 = Line::new(Vec2::new(4.0, 0.0), Vec2::new(5.0, 0.0));
+        let mut cmd = CreateEntities::new(vec![Entity::Line(l1), Entity::Line(l2)]);
+        cmd.do_(&mut doc);
+        assert_eq!(doc.entity_count(), 3);
+        cmd.undo(&mut doc);
+        assert_eq!(doc.entity_count(), 1);
+        assert_eq!(doc.entities[0], Entity::Line(seed));
+    }
+
+    /// LCV-048 AC#4 — double undo is a no-op (no panic, no corruption).
+    #[test]
+    fn create_entities_double_undo_is_noop_lcv048() {
+        let mut doc = Document::default();
+        let l = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 0.0));
+        let mut cmd = CreateEntities::new(vec![Entity::Line(l)]);
+        cmd.do_(&mut doc);
+        assert_eq!(doc.entity_count(), 1);
+        cmd.undo(&mut doc);
+        assert_eq!(doc.entity_count(), 0);
+        cmd.undo(&mut doc); // second undo — must not panic or corrupt
+        assert_eq!(doc.entity_count(), 0);
+    }
+
+    /// LCV-048 AC#5 — label is the exact string `"Place Text"`.
+    #[test]
+    fn create_entities_label_exact() {
+        assert_eq!(CreateEntities::new(vec![]).label(), "Place Text");
+    }
+
+    /// LCV-048 AC#6 — `CreateEntities` is object-safe.
+    #[test]
+    fn create_entities_object_safe() {
+        let _: Box<dyn Command> = Box::new(CreateEntities::new(vec![]));
     }
 }

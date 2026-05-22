@@ -15,6 +15,7 @@ pub mod pointer_event;
 pub mod polyline;
 pub mod rect;
 pub mod select;
+pub mod text;
 pub mod tool;
 pub mod trim;
 
@@ -28,6 +29,7 @@ pub use pointer_event::{PointerButton, PointerEvent};
 pub use polyline::PolylineTool;
 pub use rect::RectTool;
 pub use select::SelectTool;
+pub use text::TextTool;
 pub use tool::Tool;
 pub use trim::TrimTool;
 
