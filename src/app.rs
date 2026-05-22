@@ -50,6 +50,9 @@ pub struct App {
     /// Persisted user preferences (recent files, etc.). Loaded from the
     /// platform config directory on startup; written back on change (LCV-058).
     pub settings: Settings,
+    /// Controls whether the About dialog is visible. Set to `true` by the
+    /// Help → About menu item (LCV-065); reset to `false` by its × button.
+    pub about_open: bool,
 }
 
 impl App {
@@ -71,7 +74,6 @@ impl eframe::App for App {
         egui::TopBottomPanel::bottom("statusbar").show(ctx, |ui| {
             crate::ui::draw_statusbar(ui, self);
         });
-
 
         egui::CentralPanel::default().show(ctx, |ui| {
             let (rect, response) =
@@ -207,6 +209,10 @@ impl eframe::App for App {
             // Always repaint so cursor-coords and smooth camera motion stay live.
             ctx.request_repaint();
         });
+
+        // Modal dialogs (LCV-069) — rendered after the CentralPanel so they
+        // float above the canvas.
+        crate::ui::about_dialog(ctx, &mut self.about_open);
     }
 }
 
@@ -331,5 +337,12 @@ mod tests {
     fn app_default_settings_equals_settings_default() {
         let app = App::default();
         assert_eq!(app.settings, crate::io::settings::Settings::default());
+    }
+
+    /// LCV-069 AC#7 / §5 — `App::default().about_open` is `false`.
+    #[test]
+    fn app_default_about_open_is_false() {
+        let app = App::default();
+        assert!(!app.about_open);
     }
 }
