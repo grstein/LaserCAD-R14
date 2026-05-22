@@ -85,6 +85,17 @@ pub trait Tool {
     /// Clears any in-progress state and preview geometry.
     fn cancel(&mut self);
 
+    /// Handle text input submitted from the command-line widget (LCV-068).
+    ///
+    /// Called when the user presses Enter in the command-line strip while this
+    /// tool is active. `input` contains the trimmed text that was in the field.
+    /// The default implementation is a no-op; tools that accept numeric or
+    /// coordinate input override this method.
+    ///
+    /// The method must remain object-safe — no generic parameters, no `Self`
+    /// bounds.
+    fn on_command_input(&mut self, _input: &str, _doc: &mut Document, _history: &mut History) {}
+
     /// Optionally hand control to a successor tool after a pointer event.
     ///
     /// Returns `Some(tool)` exactly once when the active tool wants to
@@ -102,5 +113,29 @@ pub trait Tool {
     /// Introduced by demand LCV-049.
     fn take_successor(&mut self) -> Option<Box<dyn Tool>> {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tools::SelectTool;
+
+    /// LCV-068 AC#4 — `Tool` remains object-safe after adding `on_command_input`.
+    #[test]
+    fn tool_with_command_input_is_object_safe() {
+        // If this compiles, the trait is object-safe.
+        let _: Box<dyn Tool> = Box::new(SelectTool::default());
+    }
+
+    /// LCV-068 AC#4 — `SelectTool::on_command_input` is a no-op (default impl).
+    #[test]
+    fn select_tool_on_command_input_is_noop() {
+        let mut tool = SelectTool::default();
+        let mut doc = Document::default();
+        let mut hist = History::default();
+        // Must not panic and must not mutate the document.
+        tool.on_command_input("50", &mut doc, &mut hist);
+        assert_eq!(doc.entity_count(), 0);
     }
 }

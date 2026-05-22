@@ -61,6 +61,12 @@ pub struct App {
     pub dirty_since: Option<Instant>,
     /// Controls whether the About dialog is visible.
     pub about_open: bool,
+    /// Text buffer for the command-line widget (LCV-068).
+    ///
+    /// Bound to the single-line `TextEdit` in the bottom command-line strip.
+    /// Submitted (Enter) and cleared to `""` by `draw_command_line`; also
+    /// cleared on Escape.
+    pub command_line_input: String,
 }
 
 impl App {
@@ -98,6 +104,10 @@ impl eframe::App for App {
 
         egui::TopBottomPanel::bottom("statusbar").show(ctx, |ui| {
             crate::ui::draw_statusbar(ui, self);
+        });
+
+        egui::TopBottomPanel::bottom("command_line").show(ctx, |ui| {
+            crate::ui::draw_command_line(ui, self);
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -386,5 +396,12 @@ mod tests {
     fn app_default_about_open_is_false() {
         let app = App::default();
         assert!(!app.about_open);
+    }
+
+    /// LCV-068 AC#3 — `App::default().command_line_input` is the empty string.
+    #[test]
+    fn app_default_command_line_input_is_empty() {
+        let app = App::default();
+        assert!(app.command_line_input.is_empty());
     }
 }

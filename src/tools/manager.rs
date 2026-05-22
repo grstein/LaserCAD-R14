@@ -140,6 +140,22 @@ impl ToolManager {
         self.active.preview()
     }
 
+    /// Context-sensitive prompt text for the command-line widget (LCV-068).
+    ///
+    /// Delegates to `active.status_text()`. When `SelectTool` is active this
+    /// returns `"Select"`; other tools may return richer prompts.
+    pub fn active_status_text(&self) -> &'static str {
+        self.active.status_text()
+    }
+
+    /// Forward a command-line text submission to the active tool (LCV-068).
+    ///
+    /// Called after the user presses Enter in the command-line widget.
+    /// `input` is the text that was in the field at submission time.
+    pub fn on_command_input(&mut self, input: &str, doc: &mut Document, history: &mut History) {
+        self.active.on_command_input(input, doc, history);
+    }
+
     /// Forward `take_successor` to the active tool.
     ///
     /// Returns `Some(t)` exactly once after the active tool requests a hand-off
@@ -335,5 +351,80 @@ mod tests {
             &mut hist,
         );
         assert_eq!(*ups.borrow(), 1, "middle release must be no-op");
+    }
+
+    /// LCV-068 AC#5 — `active_status_text` returns `"Select"` when `SelectTool`
+    /// is active (delegates to `status_text()` which defaults to `name()`).
+    #[test]
+    fn tool_manager_active_status_text_defaults_to_name() {
+        let manager = ToolManager::default();
+        assert_eq!(manager.active_status_text(), "Select");
+    }
+
+    /// LCV-068 AC#5 — `active_status_text` reflects an overridden `status_text`.
+    #[test]
+    fn tool_manager_active_status_text_reflects_override() {
+        struct PromptTool;
+        impl Tool for PromptTool {
+            fn name(&self) -> &'static str {
+                "Prompt"
+            }
+            fn status_text(&self) -> &'static str {
+                "LINE: Click start point"
+            }
+            fn on_pointer_down(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
+            fn on_pointer_move(&mut self, _: Vec2, _: &mut Document) {}
+            fn on_pointer_up(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
+            fn on_key(&mut self, _: egui::Key, _: &mut App) {}
+            fn preview(&self) -> Vec<Entity> {
+                vec![]
+            }
+            fn cancel(&mut self) {}
+        }
+
+        let manager = ToolManager::new(Box::new(PromptTool));
+        assert_eq!(manager.active_status_text(), "LINE: Click start point");
+    }
+
+    /// LCV-068 AC#6 — `on_command_input` delegates to the active tool.
+    #[test]
+    fn tool_manager_on_command_input_delegates() {
+        struct RecordTool {
+            calls: Rc<RefCell<Vec<String>>>,
+        }
+        impl Tool for RecordTool {
+            fn name(&self) -> &'static str {
+                "Record"
+            }
+            fn on_pointer_down(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
+            fn on_pointer_move(&mut self, _: Vec2, _: &mut Document) {}
+            fn on_pointer_up(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
+            fn on_key(&mut self, _: egui::Key, _: &mut App) {}
+            fn preview(&self) -> Vec<Entity> {
+                vec![]
+            }
+            fn cancel(&mut self) {}
+            fn on_command_input(
+                &mut self,
+                input: &str,
+                _doc: &mut Document,
+                _history: &mut History,
+            ) {
+                self.calls.borrow_mut().push(input.to_owned());
+            }
+        }
+
+        let calls = Rc::new(RefCell::new(Vec::<String>::new()));
+        let mut manager = ToolManager::new(Box::new(RecordTool {
+            calls: calls.clone(),
+        }));
+        let mut doc = Document::default();
+        let mut hist = History::default();
+
+        manager.on_command_input("42", &mut doc, &mut hist);
+
+        let recorded = calls.borrow();
+        assert_eq!(recorded.len(), 1);
+        assert_eq!(recorded[0], "42");
     }
 }
