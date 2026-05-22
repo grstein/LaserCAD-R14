@@ -5,7 +5,7 @@
 - **Depends on**: LCV-007
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: implementer-rust — binary size: `-rwxr-xr-x 8.4M target/release/lasercad` (Linux x86-64, stripped ELF, well within 20 MiB envelope)
 
 ## Problem
 
