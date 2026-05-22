@@ -125,12 +125,28 @@ impl Tool for SelectTool {
     }
 
     fn on_key(&mut self, key: egui::Key, app: &mut App) {
-        if key == egui::Key::Escape {
-            self.cancel();
-            app.history.commit(
-                Box::new(SelectionCommand::new(Vec::<usize>::new())),
-                &mut app.document,
-            );
+        match key {
+            egui::Key::Escape => {
+                self.cancel();
+                app.history.commit(
+                    Box::new(SelectionCommand::new(Vec::<usize>::new())),
+                    &mut app.document,
+                );
+            }
+            egui::Key::Delete | egui::Key::Backspace => {
+                if !app.document.selection.is_empty() {
+                    let indices: Vec<usize> = app.document.selection.iter().collect();
+                    app.history.commit(
+                        Box::new(crate::document::DeleteEntities::new(indices)),
+                        &mut app.document,
+                    );
+                    app.history.commit(
+                        Box::new(SelectionCommand::new(Vec::<usize>::new())),
+                        &mut app.document,
+                    );
+                }
+            }
+            _ => {}
         }
     }
 

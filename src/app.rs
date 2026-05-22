@@ -185,6 +185,18 @@ impl eframe::App for App {
                 self.tool_manager = tm;
             }
 
+            // Delete / Backspace: route to active tool (LCV-052).
+            if ctx.input(|i| i.key_pressed(egui::Key::Delete)) {
+                let mut tm = std::mem::take(&mut self.tool_manager);
+                tm.handle_key(egui::Key::Delete, self);
+                self.tool_manager = tm;
+            }
+            if ctx.input(|i| i.key_pressed(egui::Key::Backspace)) {
+                let mut tm = std::mem::take(&mut self.tool_manager);
+                tm.handle_key(egui::Key::Backspace, self);
+                self.tool_manager = tm;
+            }
+
             // Always repaint so cursor-coords and smooth camera motion stay live.
             ctx.request_repaint();
         });
