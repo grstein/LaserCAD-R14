@@ -15,6 +15,7 @@ pub mod polyline;
 pub mod rect;
 pub mod select;
 pub mod tool;
+pub mod trim;
 
 pub use arc::ArcTool;
 pub use circle::CircleTool;
@@ -26,6 +27,7 @@ pub use polyline::PolylineTool;
 pub use rect::RectTool;
 pub use select::SelectTool;
 pub use tool::Tool;
+pub use trim::TrimTool;
 
 /// Module witness for the skeleton test. Will retire once all tools land.
 pub const MODULE: &str = "tools";
