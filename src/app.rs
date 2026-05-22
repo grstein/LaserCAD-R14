@@ -256,6 +256,14 @@ impl eframe::App for App {
                 self.tool_manager = tm;
             }
 
+            // Undo / Redo (LCV-075).
+            if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::Z)) {
+                self.history.undo(&mut self.document);
+            }
+            if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::Y)) {
+                self.history.redo(&mut self.document);
+            }
+
             // Character input → active tool (LCV-048 TextTool).
             let typed_chars: Vec<char> = ctx.input(|i| {
                 i.events
