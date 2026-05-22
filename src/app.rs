@@ -29,7 +29,6 @@ const WHEEL_ZOOM_FACTOR: f64 = 1.1;
 
 /// Live application state. Owned by the eframe runtime via
 /// [`crate::run`] and ticked once per frame in [`App::update`].
-#[derive(Default)]
 pub struct App {
     /// The CAD document — entities, schema, bounds.
     pub document: Document,
@@ -61,6 +60,39 @@ pub struct App {
     pub dirty_since: Option<Instant>,
     /// Controls whether the About dialog is visible.
     pub about_open: bool,
+    /// Whether snap is active. Toggled by `F3` (LCV-070). Defaults to `true`.
+    pub snap_enabled: bool,
+    /// Whether the grid is rendered. Toggled by `F7` (LCV-070). Defaults to `true`.
+    pub grid_enabled: bool,
+    /// Whether ortho mode is active. Toggled by `F8` (LCV-070). Defaults to `false`.
+    /// Full ortho behaviour (movement clamping) lands with LCV-053.
+    pub ortho_enabled: bool,
+}
+
+impl Default for App {
+    /// Construct `App` with sensible defaults.
+    ///
+    /// - `snap_enabled` and `grid_enabled` are `true` (LCV-070 AC#4).
+    /// - `ortho_enabled` is `false` (full ortho behaviour is LCV-053).
+    /// - All other fields delegate to their own `Default` impls.
+    fn default() -> Self {
+        Self {
+            document: Document::default(),
+            history: History::default(),
+            camera: Camera::default(),
+            bed: Bed::default(),
+            last_cursor_world: None,
+            preview_entities: Vec::new(),
+            active_snap: None,
+            tool_manager: ToolManager::default(),
+            settings: Settings::default(),
+            dirty_since: None,
+            about_open: false,
+            snap_enabled: true,
+            grid_enabled: true,
+            ortho_enabled: false,
+        }
+    }
 }
 
 impl App {
@@ -90,10 +122,25 @@ impl App {
         self.history.commit(cmd, &mut self.document);
         self.dirty_since.get_or_insert_with(Instant::now);
     }
+
+    /// Create a new, empty document. Full implementation lands with LCV-062.
+    pub fn action_new(&mut self) {}
+
+    /// Open a document from disk via a file dialog. Full implementation lands
+    /// with LCV-062.
+    pub fn action_open(&mut self) {}
+
+    /// Save the current document to disk. Full implementation lands with
+    /// LCV-062.
+    pub fn action_save(&mut self) {}
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        crate::ui::process_shortcuts(ctx, self);
+        // Clear snap each frame when snap is disabled (LCV-070 AC#16).
+        suppress_snap_if_disabled(self.snap_enabled, &mut self.active_snap);
+
         crate::ui::apply_theme(ctx);
 
         egui::TopBottomPanel::bottom("statusbar").show(ctx, |ui| {
@@ -115,7 +162,9 @@ impl eframe::App for App {
                 egui::Stroke::new(1.0, egui::Color32::from_gray(64)),
             );
 
-            crate::render::draw_grid(&painter, rect, &self.camera);
+            if self.grid_enabled {
+                crate::render::draw_grid(&painter, rect, &self.camera);
+            }
             crate::render::draw_bed(&painter, rect, &self.camera, &self.bed);
             crate::render::draw_entities(
                 &painter,
@@ -145,8 +194,10 @@ impl eframe::App for App {
             if response.hovered() {
                 if let Some(hover_pos) = response.hover_pos() {
                     // Resolve snap; viewport-local pos = hover_pos - rect.min.
-                    self.active_snap =
-                        resolve_snap(hover_pos, rect, &self.camera, &self.document.entities);
+                    if self.snap_enabled {
+                        self.active_snap =
+                            resolve_snap(hover_pos, rect, &self.camera, &self.document.entities);
+                    }
                     let world_pos = self.active_snap.map(|s| s.point).unwrap_or_else(|| {
                         self.camera.screen_to_world(hover_pos - rect.min.to_vec2())
                     });
@@ -269,6 +320,18 @@ pub fn handle_zoom_extents(camera: &mut Camera, document: &Document, viewport_si
     camera.zoom_extents(document.bounds(), viewport_size);
 }
 
+/// Clear `active_snap` when snap is disabled.
+///
+/// Called at the top of each frame (before panel rendering) in `App::update`
+/// so that no snap marker is rendered while snap is turned off, even if
+/// `active_snap` was set by a previous frame. Extracted here for testability
+/// (LCV-070 AC#16).
+pub fn suppress_snap_if_disabled(snap_enabled: bool, active_snap: &mut Option<SnapResult>) {
+    if !snap_enabled {
+        *active_snap = None;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -378,5 +441,47 @@ mod tests {
     fn app_default_about_open_is_false() {
         let app = App::default();
         assert!(!app.about_open);
+    }
+
+    /// LCV-070 AC#4 — `App::default()` has `snap_enabled == true`.
+    #[test]
+    fn app_default_snap_enabled_is_true() {
+        let app = App::default();
+        assert!(app.snap_enabled);
+    }
+
+    /// LCV-070 AC#4 — `App::default()` has `grid_enabled == true`.
+    #[test]
+    fn app_default_grid_enabled_is_true() {
+        let app = App::default();
+        assert!(app.grid_enabled);
+    }
+
+    /// LCV-070 — `App::default()` has `ortho_enabled == false`.
+    #[test]
+    fn app_default_ortho_enabled_is_false() {
+        let app = App::default();
+        assert!(!app.ortho_enabled);
+    }
+
+    /// LCV-070 AC#16 — `suppress_snap_if_disabled` clears `active_snap` when
+    /// `snap_enabled` is `false`, leaves it alone when `true`.
+    #[test]
+    fn suppress_snap_clears_when_disabled() {
+        use crate::geometry::{SnapKind, SnapResult};
+        let snap = Some(SnapResult {
+            point: Vec2::new(1.0, 2.0),
+            kind: SnapKind::Endpoint,
+            primary_idx: 0,
+            secondary_idx: None,
+        });
+
+        let mut active = snap;
+        suppress_snap_if_disabled(false, &mut active);
+        assert!(active.is_none(), "should be cleared when snap disabled");
+
+        let mut active2 = snap;
+        suppress_snap_if_disabled(true, &mut active2);
+        assert!(active2.is_some(), "should be preserved when snap enabled");
     }
 }

@@ -8,24 +8,30 @@
 pub mod arc;
 pub mod circle;
 pub mod delete;
+pub mod extend;
 pub mod line;
 pub mod manager;
+pub mod move_tool;
 pub mod pointer_event;
 pub mod polyline;
 pub mod rect;
 pub mod select;
 pub mod tool;
+pub mod trim;
 
 pub use arc::ArcTool;
 pub use circle::CircleTool;
 pub use delete::DeleteTool;
+pub use extend::ExtendTool;
 pub use line::LineTool;
 pub use manager::ToolManager;
+pub use move_tool::MoveTool;
 pub use pointer_event::{PointerButton, PointerEvent};
 pub use polyline::PolylineTool;
 pub use rect::RectTool;
 pub use select::SelectTool;
 pub use tool::Tool;
+pub use trim::TrimTool;
 
 /// Module witness for the skeleton test. Will retire once all tools land.
 pub const MODULE: &str = "tools";
