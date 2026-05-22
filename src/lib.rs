@@ -44,7 +44,7 @@ pub fn run() -> eframe::Result<()> {
     eframe::run_native(
         "LaserCAD v2",
         native_options,
-        Box::new(|_cc| Ok(Box::<app::App>::default())),
+        Box::new(|_cc| Ok(Box::new(app::App::new()))),
     )
 }
 

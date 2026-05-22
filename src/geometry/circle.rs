@@ -15,6 +15,8 @@
 //!
 //! Frozen by demand LCV-012.
 
+use serde::{Deserialize, Serialize};
+
 use crate::geometry::vec2::Vec2;
 
 /// A circle in millimeter space, defined by a center and a radius.
@@ -23,7 +25,7 @@ use crate::geometry::vec2::Vec2;
 /// the port is easy to cross-reference. Equality (`==`) is bit-exact `f64`
 /// comparison on the center and the radius; tolerance-aware checks should
 /// compare each component explicitly.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Circle {
     /// Center of the circle.
     pub center: Vec2,

@@ -13,6 +13,8 @@
 //!
 //! Frozen by demand LCV-011.
 
+use serde::{Deserialize, Serialize};
+
 use crate::geometry::epsilon::EPSILON;
 use crate::geometry::vec2::Vec2;
 
@@ -22,7 +24,7 @@ use crate::geometry::vec2::Vec2;
 /// port is easy to cross-reference. Equality (`==`) is bit-exact `f64`
 /// comparison on both endpoints; tolerance-aware checks should compare each
 /// endpoint via [`Vec2::approx_eq`].
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Line {
     /// Start endpoint.
     pub p1: Vec2,

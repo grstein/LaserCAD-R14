@@ -16,6 +16,8 @@
 //!
 //! Introduced by demand LCV-020.
 
+use serde::{Deserialize, Serialize};
+
 use crate::geometry::{Arc, Circle, Line, Vec2};
 
 /// A document-level entity: a tagged union over the kernel's geometry
@@ -30,7 +32,7 @@ use crate::geometry::{Arc, Circle, Line, Vec2};
 /// `PartialEq`. No `Eq` / `Hash` because every variant transitively carries
 /// `f64`. Tolerance-aware comparisons live on the inner types
 /// (`Vec2::approx_eq` and friends).
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Entity {
     /// A line segment.
     Line(Line),

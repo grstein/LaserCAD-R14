@@ -7,5 +7,8 @@
 //! Submodules arrive with demands LCV-055 .. LCV-062.
 
 pub const MODULE: &str = "io";
+pub mod autosave;
 pub mod settings;
 pub mod svg;
+
+pub use autosave::{clear_autosave, load_autosave, save_autosave};

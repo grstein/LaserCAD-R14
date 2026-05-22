@@ -16,6 +16,8 @@
 //!
 //! Frozen by demand LCV-013.
 
+use serde::{Deserialize, Serialize};
+
 use crate::geometry::epsilon::EPSILON;
 use crate::geometry::vec2::Vec2;
 use core::f64::consts::{FRAC_PI_2, PI, TAU};
@@ -27,7 +29,7 @@ use core::f64::consts::{FRAC_PI_2, PI, TAU};
 /// (`center`, `r`, `startAngle`, `endAngle`, `ccw`) so the port is easy to
 /// cross-reference. Equality (`==`) is bit-exact `f64` comparison on every
 /// field; tolerance-aware checks should compare each component explicitly.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Arc {
     /// Center of the arc's parent circle.
     pub center: Vec2,
