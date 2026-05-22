@@ -68,6 +68,11 @@ pub trait Tool {
     /// typically calls `self.cancel()` internally.
     fn on_key(&mut self, key: egui::Key, app: &mut App);
 
+    /// Character input from the keyboard (e.g. letter/digit typed by the
+    /// operator while a text tool is active). The default implementation is a
+    /// no-op; override in tools that accept typed input (LCV-048).
+    fn on_text_input(&mut self, _ch: char) {}
+
     /// Context-sensitive status bar text for the current tool state.
     ///
     /// Defaults to `self.name()`. Override to return richer prompts that
