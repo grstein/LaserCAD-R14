@@ -5,5 +5,7 @@
 
 pub mod statusbar;
 pub mod theme;
+pub mod toolbar;
 pub use statusbar::{draw_statusbar, format_coords};
 pub use theme::{apply_theme, CANVAS_BG};
+pub use toolbar::draw_toolbar;
