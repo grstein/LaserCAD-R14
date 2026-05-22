@@ -22,7 +22,8 @@ Thumbs.db
 *.bak
 
 # Distribution artifacts (built locally)
-/dist
+dist/
+build/
 *.AppImage
 *.deb
 *.rpm
