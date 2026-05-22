@@ -31,10 +31,23 @@ pub fn format_coords(pos: Option<Vec2>) -> String {
     }
 }
 
+/// Return the ORTHO mode badge string when ortho is active.
+///
+/// Returns `Some("ORTHO")` when `ortho == true`, `None` otherwise.
+/// Used by [`draw_statusbar`] to conditionally show the badge (LCV-053).
+pub(crate) fn format_ortho(ortho: bool) -> Option<&'static str> {
+    if ortho {
+        Some("ORTHO")
+    } else {
+        None
+    }
+}
+
 /// Render the status bar into `ui`.
 ///
 /// Displays — left to right — cursor coordinates, a separator, the active tool
-/// name (uppercased), a separator, and the document entity count.
+/// name (uppercased), a separator, the document entity count, and — when ortho
+/// mode is on — a separator followed by `"ORTHO"` (LCV-053).
 ///
 /// **Call site**: add a `TopBottomPanel::bottom("statusbar")` *before* the
 /// `CentralPanel` in `App::update`.
@@ -49,6 +62,10 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &App) {
         ui.label(&tool_str);
         ui.separator();
         ui.label(format!("Entities: {count}"));
+        if let Some(badge) = format_ortho(app.ortho) {
+            ui.separator();
+            ui.label(badge);
+        }
     });
 }
 
@@ -96,5 +113,17 @@ mod tests {
         // 1234.56 is 7 chars — the field is at least that wide.
         assert!(s.contains("1234.56"), "x value present");
         assert!(s.contains("9876.54"), "y value present");
+    }
+
+    /// LCV-053 AC#13 — `format_ortho(true)` returns `Some("ORTHO")`.
+    #[test]
+    fn format_ortho_true_returns_some_badge() {
+        assert_eq!(format_ortho(true), Some("ORTHO"));
+    }
+
+    /// LCV-053 AC#13 — `format_ortho(false)` returns `None`.
+    #[test]
+    fn format_ortho_false_returns_none() {
+        assert_eq!(format_ortho(false), None);
     }
 }

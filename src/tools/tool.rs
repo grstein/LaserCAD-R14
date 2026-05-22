@@ -81,6 +81,19 @@ pub trait Tool {
         self.name()
     }
 
+    /// The anchor point for ortho / snap constraints: the last committed
+    /// endpoint that constrains the next cursor position.
+    ///
+    /// Returns `Some(p)` when the tool is awaiting a second point (i.e. has a
+    /// fixed first point); returns `None` in idle state or for tools that have
+    /// no meaningful anchor (select, move, etc.). Defaults to `None`.
+    ///
+    /// Object-safe: no generic parameters, takes only `&self`, returns
+    /// `Option<Vec2>`. Introduced by demand LCV-053.
+    fn anchor(&self) -> Option<crate::geometry::Vec2> {
+        None
+    }
+
     /// Preview geometry for the current tool state. Returns an empty vector
     /// if the tool has no in-progress preview. The returned entities are
     /// painted with a translucent amber stroke by `draw_preview` (LCV-037).
@@ -142,5 +155,12 @@ mod tests {
         // Must not panic and must not mutate the document.
         tool.on_command_input("50", &mut doc, &mut hist);
         assert_eq!(doc.entity_count(), 0);
+    }
+
+    /// LCV-053 AC#11 — `Tool::anchor()` default returns `None`; `SelectTool`
+    /// has no override, so it inherits the default.
+    #[test]
+    fn tool_default_anchor_is_none() {
+        assert_eq!(SelectTool::default().anchor(), None);
     }
 }
