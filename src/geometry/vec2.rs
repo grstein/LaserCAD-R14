@@ -10,6 +10,8 @@
 
 use core::ops::{Add, Div, Mul, Neg, Sub};
 
+use serde::{Deserialize, Serialize};
+
 use crate::geometry::epsilon::EPSILON;
 
 /// 2D point or vector in millimeter space.
@@ -17,7 +19,7 @@ use crate::geometry::epsilon::EPSILON;
 /// Equality (`==`) is bit-exact `f64` comparison; use [`Vec2::approx_eq`] for
 /// tolerance-aware checks. See `AGENTS.md` § "Units and types" for the
 /// kernel-wide contract.
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Vec2 {
     /// X coordinate in millimeters.
     pub x: f64,

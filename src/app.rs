@@ -13,11 +13,16 @@ mod snap;
 
 pub use snap::resolve_snap;
 
+use std::time::{Duration, Instant};
+
 use crate::document::{Command, Document, Entity, History};
 use crate::geometry::{SnapResult, Vec2};
 use crate::io::settings::Settings;
 use crate::render::{Bed, Camera};
 use crate::tools::{PointerButton, PointerEvent, ToolManager};
+
+/// Debounce delay before an unsaved change triggers an autosave write.
+const AUTOSAVE_DEBOUNCE: Duration = Duration::from_secs(5);
 
 /// Factor applied per mouse-wheel notch. `> 1.0` zooms in; `< 1.0` zooms out.
 const WHEEL_ZOOM_FACTOR: f64 = 1.1;
@@ -50,17 +55,41 @@ pub struct App {
     /// Persisted user preferences (recent files, etc.). Loaded from the
     /// platform config directory on startup; written back on change (LCV-058).
     pub settings: Settings,
+    /// Set to `Some(Instant::now())` the first time the document is dirtied
+    /// after the last autosave flush (or after startup). Cleared back to
+    /// `None` after each successful autosave write.  The autosave fires when
+    /// the elapsed time since the first dirty exceeds [`AUTOSAVE_DEBOUNCE`].
+    ///
+    /// Not serialised; `Instant` is not `Serialize`.
+    pub dirty_since: Option<Instant>,
 }
 
 impl App {
+    /// Construct the application, restoring from autosave if a recovery file
+    /// is available.
+    ///
+    /// Calls [`Self::default()`] for all fields, then overwrites `document`
+    /// with the autosaved one (if present and schema-compatible).
+    /// LCV-059 AC#1.
+    pub fn new() -> Self {
+        let mut app = Self::default();
+        if let Some(recovered) = crate::io::load_autosave() {
+            app.document = recovered;
+        }
+        app
+    }
+
     /// Commit a command to the document and history stack.
     ///
     /// This is the **only legal path** for tools to mutate the document.
     /// The command is executed via `history.commit(cmd, &mut document)`.
+    /// Sets `dirty_since` to the current instant if it is not already set,
+    /// starting the autosave debounce timer (LCV-059).
     ///
     /// LCV-040 AC#7, AC#8.
     pub fn commit(&mut self, cmd: Box<dyn Command>) {
         self.history.commit(cmd, &mut self.document);
+        self.dirty_since.get_or_insert_with(Instant::now);
     }
 }
 
@@ -202,6 +231,15 @@ impl eframe::App for App {
                 let mut tm = std::mem::take(&mut self.tool_manager);
                 tm.handle_key(egui::Key::Backspace, self);
                 self.tool_manager = tm;
+            }
+
+            // Autosave flush (LCV-059): fire when the document has been dirty
+            // for longer than AUTOSAVE_DEBOUNCE without a flush.
+            if let Some(since) = self.dirty_since {
+                if since.elapsed() >= AUTOSAVE_DEBOUNCE {
+                    let _ = crate::io::save_autosave(&self.document);
+                    self.dirty_since = None;
+                }
             }
 
             // Always repaint so cursor-coords and smooth camera motion stay live.
