@@ -70,7 +70,7 @@ pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: 
     let ctrl_only = modifiers.command_only();
 
     // Ctrl+Z / Ctrl+Y — undo / redo (unconditional; fires even with kbd focus).
-    // Ctrl+N / Ctrl+O / Ctrl+S — file operations (stubs until LCV-062 lands).
+    // Ctrl+N / Ctrl+O / Ctrl+S — file operations (LCV-062).
     if ctrl_only {
         match key {
             Key::Z => {
@@ -95,6 +95,12 @@ pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: 
             }
             _ => {}
         }
+    }
+
+    // Ctrl+Shift+S — Save As (LCV-062).
+    if modifiers.command && modifiers.shift && !modifiers.alt && key == Key::S {
+        crate::io::action_save_as(app);
+        return;
     }
 
     // Toggle keys — bare, unconditional (fire even with kbd focus).
