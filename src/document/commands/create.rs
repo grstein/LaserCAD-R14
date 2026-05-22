@@ -1,10 +1,15 @@
-//! Primitive-creation commands: [`CreateLine`], [`CreateCircle`], [`CreateArc`].
+//! Primitive-creation commands: [`CreateLine`], [`CreateCircle`], [`CreateArc`],
+//! [`CreateEntities`].
 //!
-//! Each command appends exactly one [`crate::document::Entity`] inside `do_`,
-//! captures the resulting index, and removes the entity at that index inside
-//! `undo`. The Phase 4 drawing tools (`LineTool` LCV-043, `CircleTool` LCV-046,
-//! `ArcTool` LCV-047) and the agent's CAD tool registry (LCV-078) construct
-//! these commands and hand them to `App::commit`.
+//! The single-entity commands (`CreateLine`, `CreateCircle`, `CreateArc`) each
+//! append exactly one [`crate::document::Entity`] inside `do_`, capture the
+//! resulting index, and remove the entity at that index inside `undo`.
+//!
+//! [`CreateEntities`] appends an arbitrary `Vec<Entity>` atomically — all
+//! entities land in one `history.commit` so a single Ctrl+Z reverses the whole
+//! batch. It records the tail-index of the vector before appending; `undo`
+//! truncates back to that position. The history stack's LIFO guarantee ensures
+//! no other entity was appended between `do_` and `undo`.
 //!
 //! `captured_index: Option<usize>` starts `None`, becomes `Some(i)` after
 //! `do_`, and returns to `None` after `undo` (via [`Option::take`]). A second
@@ -17,6 +22,7 @@
 //! the pre-`do_` state.
 //!
 //! MUST NOT import `egui`, `eframe`, or `rfd`. Introduced by demand LCV-023.
+//! [`CreateEntities`] introduced by demand LCV-045.
 
 use super::Command;
 use crate::document::{Document, Entity};
@@ -137,6 +143,61 @@ impl Command for CreateArc {
     }
 }
 
+/// Append a batch of [`Entity`] values to a [`Document`] as one atomic
+/// operation (LCV-045).
+///
+/// `do_` records the pre-append vector length as `captured_start`, then
+/// pushes every entity in order. `undo` truncates the vector back to
+/// `captured_start`. The history stack's LIFO guarantee means no other
+/// entity can have been appended between `do_` and `undo`, so `truncate`
+/// exactly reverses the append.
+///
+/// A double-`undo` is a no-op: `captured_start` is cleared by
+/// [`Option::take`], so the second call finds `None` and does nothing.
+///
+/// Redo works by calling `do_` a second time, which re-captures a fresh
+/// `captured_start` at the new tail of the vector and pushes all entities
+/// again.
+#[derive(Debug)]
+pub struct CreateEntities {
+    /// The entities that `do_` will append, in order.
+    pub entities: Vec<Entity>,
+    /// Vector length before `do_` pushed; `None` before the first `do_`
+    /// or after `undo`. Module-private to prevent caller tampering.
+    captured_start: Option<usize>,
+}
+
+impl CreateEntities {
+    /// Build a [`CreateEntities`] for the given `entities`.
+    /// `captured_start` starts `None`.
+    pub fn new(entities: Vec<Entity>) -> Self {
+        Self {
+            entities,
+            captured_start: None,
+        }
+    }
+}
+
+impl Command for CreateEntities {
+    fn do_(&mut self, doc: &mut Document) {
+        // Re-capture on redo: clear any prior start so LIFO truncate is safe.
+        self.captured_start = Some(doc.entities.len());
+        for &entity in &self.entities {
+            doc.entities.push(entity);
+        }
+    }
+
+    fn undo(&mut self, doc: &mut Document) {
+        if let Some(start) = self.captured_start.take() {
+            doc.entities.truncate(start);
+        }
+    }
+
+    fn label(&self) -> &str {
+        "Create Entities"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -242,9 +303,11 @@ mod tests {
         let cmd_line = CreateLine::new(Line::new(Vec2::default(), Vec2::new(1.0, 0.0)));
         let cmd_circle = CreateCircle::new(Circle::new(Vec2::default(), 1.0));
         let cmd_arc = CreateArc::new(Arc::new(Vec2::default(), 1.0, 0.0, FRAC_PI_2, true));
+        let cmd_batch = CreateEntities::new(vec![]);
         assert_eq!(cmd_line.label(), "Create Line");
         assert_eq!(cmd_circle.label(), "Create Circle");
         assert_eq!(cmd_arc.label(), "Create Arc");
+        assert_eq!(cmd_batch.label(), "Create Entities");
     }
 
     /// AC#8 — every create command is object-safe.
@@ -260,6 +323,7 @@ mod tests {
             1.0,
             true,
         )));
+        let _: Box<dyn Command> = Box::new(CreateEntities::new(vec![]));
     }
 
     /// `captured_index.take()` makes a double `undo` a no-op rather than a
@@ -279,5 +343,88 @@ mod tests {
         cmd.undo(&mut doc);
         assert_eq!(doc.entities.len(), 1);
         assert_eq!(doc.entities[0], Entity::Line(seed));
+    }
+
+    // ── CreateEntities tests ────────────────────────────────────────────
+
+    /// LCV-045 — empty batch is a no-op for both `do_` and `undo`.
+    #[test]
+    fn create_entities_empty_batch_noop() {
+        let mut doc = Document::default();
+        let mut cmd = CreateEntities::new(vec![]);
+        cmd.do_(&mut doc);
+        assert_eq!(doc.entity_count(), 0);
+        cmd.undo(&mut doc);
+        assert_eq!(doc.entity_count(), 0);
+    }
+
+    /// LCV-045 — two-entity round-trip: `do_` appends both; `undo` removes both.
+    #[test]
+    fn create_entities_two_entity_roundtrip() {
+        let mut doc = Document::default();
+        let line_a = Line::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0));
+        let line_b = Line::new(Vec2::new(10.0, 0.0), Vec2::new(10.0, 5.0));
+        let mut cmd = CreateEntities::new(vec![Entity::Line(line_a), Entity::Line(line_b)]);
+
+        cmd.do_(&mut doc);
+        assert_eq!(doc.entity_count(), 2);
+        assert_eq!(doc.entities[0], Entity::Line(line_a));
+        assert_eq!(doc.entities[1], Entity::Line(line_b));
+
+        cmd.undo(&mut doc);
+        assert_eq!(doc.entity_count(), 0);
+    }
+
+    /// LCV-045 — existing entities before the batch are preserved on undo.
+    #[test]
+    fn create_entities_preserves_prior_entities_on_undo() {
+        let mut doc = Document::default();
+        let seed = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 0.0));
+        doc.entities.push(Entity::Line(seed));
+
+        let new_line = Line::new(Vec2::new(5.0, 0.0), Vec2::new(6.0, 0.0));
+        let mut cmd = CreateEntities::new(vec![Entity::Line(new_line)]);
+
+        cmd.do_(&mut doc);
+        assert_eq!(doc.entity_count(), 2);
+
+        cmd.undo(&mut doc);
+        assert_eq!(doc.entity_count(), 1);
+        assert_eq!(doc.entities[0], Entity::Line(seed));
+    }
+
+    /// LCV-045 — double undo is a no-op (captured_start is cleared by take).
+    #[test]
+    fn create_entities_double_undo_is_noop() {
+        let mut doc = Document::default();
+        let seed = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 0.0));
+        doc.entities.push(Entity::Line(seed));
+
+        let extra = Line::new(Vec2::new(2.0, 0.0), Vec2::new(3.0, 0.0));
+        let mut cmd = CreateEntities::new(vec![Entity::Line(extra)]);
+
+        cmd.do_(&mut doc);
+        assert_eq!(doc.entity_count(), 2);
+        cmd.undo(&mut doc);
+        assert_eq!(doc.entity_count(), 1);
+        cmd.undo(&mut doc); // second undo must be a no-op
+        assert_eq!(doc.entity_count(), 1);
+        assert_eq!(doc.entities[0], Entity::Line(seed));
+    }
+
+    /// LCV-045 — redo (second `do_`) re-appends all entities.
+    #[test]
+    fn create_entities_redo_reappends() {
+        let mut doc = Document::default();
+        let line = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 0.0));
+        let mut cmd = CreateEntities::new(vec![Entity::Line(line)]);
+
+        cmd.do_(&mut doc);
+        assert_eq!(doc.entity_count(), 1);
+        cmd.undo(&mut doc);
+        assert_eq!(doc.entity_count(), 0);
+        cmd.do_(&mut doc); // redo
+        assert_eq!(doc.entity_count(), 1);
+        assert_eq!(doc.entities[0], Entity::Line(line));
     }
 }

@@ -54,7 +54,7 @@ pub mod edit;
 pub mod select;
 pub mod trim;
 
-pub use create::{CreateArc, CreateCircle, CreateLine};
+pub use create::{CreateArc, CreateCircle, CreateEntities, CreateLine};
 pub use edit::{DeleteEntities, MoveEntities};
 pub use select::SelectionCommand;
 pub use trim::{ExtendEntity, TrimEntity};

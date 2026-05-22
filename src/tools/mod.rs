@@ -12,6 +12,7 @@ pub mod line;
 pub mod manager;
 pub mod pointer_event;
 pub mod polyline;
+pub mod rect;
 pub mod select;
 pub mod tool;
 
@@ -22,6 +23,7 @@ pub use line::LineTool;
 pub use manager::ToolManager;
 pub use pointer_event::{PointerButton, PointerEvent};
 pub use polyline::PolylineTool;
+pub use rect::RectTool;
 pub use select::SelectTool;
 pub use tool::Tool;
 
