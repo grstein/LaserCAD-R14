@@ -100,6 +100,10 @@ impl eframe::App for App {
             crate::ui::draw_statusbar(ui, self);
         });
 
+        egui::SidePanel::left("toolbar").show(ctx, |ui| {
+            crate::ui::draw_toolbar(ui, self);
+        });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             let (rect, response) =
                 ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
