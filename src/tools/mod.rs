@@ -8,6 +8,7 @@
 pub mod arc;
 pub mod circle;
 pub mod delete;
+pub mod extend;
 pub mod line;
 pub mod manager;
 pub mod move_;
@@ -22,6 +23,7 @@ pub mod trim;
 pub use arc::ArcTool;
 pub use circle::CircleTool;
 pub use delete::DeleteTool;
+pub use extend::ExtendTool;
 pub use line::LineTool;
 pub use manager::ToolManager;
 pub use move_::MoveTool;
