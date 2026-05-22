@@ -59,8 +59,11 @@ pub struct App {
     /// after the last autosave flush (or after startup). Cleared back to
     /// `None` after each successful autosave write.
     pub dirty_since: Option<Instant>,
-    /// Controls whether the About dialog is visible.
+    /// Controls visibility of the About dialog.
     pub about_open: bool,
+    /// Controls visibility of the Agent Settings dialog.
+    /// The LCV-065 menubar will set this to `true`; LCV-076 owns the field.
+    pub agent_settings_open: bool,
     /// Text buffer for the command-line widget (LCV-068).
     ///
     /// Bound to the single-line `TextEdit` in the bottom command-line strip.
@@ -269,6 +272,25 @@ impl eframe::App for App {
         // Modal dialogs (LCV-069) — rendered after the CentralPanel so they
         // float above the canvas.
         crate::ui::about_dialog(ctx, &mut self.about_open);
+
+        // LCV-076 — Agent Settings dialog.
+        {
+            let open = &mut self.agent_settings_open;
+            let settings = &mut self.settings;
+            let was_open = *open;
+            egui::Window::new("Agent Settings")
+                .open(open)
+                .resizable(false)
+                .collapsible(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .show(ctx, |ui| {
+                    crate::agent::settings_ui::draw_agent_settings(ui, settings);
+                });
+            // Save on dialog close (× button or programmatic close).
+            if was_open && !*open {
+                settings.save().ok();
+            }
+        }
     }
 }
 
@@ -407,5 +429,12 @@ mod tests {
     fn app_default_command_line_input_is_empty() {
         let app = App::default();
         assert!(app.command_line_input.is_empty());
+    }
+
+    /// LCV-076 AC#9 — `App::default().agent_settings_open` is `false`.
+    #[test]
+    fn app_default_agent_settings_open_is_false() {
+        let app = App::default();
+        assert!(!app.agent_settings_open);
     }
 }
