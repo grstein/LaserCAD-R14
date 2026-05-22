@@ -102,6 +102,16 @@ pub fn draw_toolbar(ui: &mut egui::Ui, app: &mut App) {
             app.tool_manager.set_tool(tool);
         }
     }
+
+    // ── AI assistant toggle (LCV-080) ─────────────────────────────────────────
+    ui.separator();
+    if ui
+        .selectable_label(app.agent_panel_open, "🤖")
+        .on_hover_text("AI Assistant")
+        .clicked()
+    {
+        app.agent_panel_open = !app.agent_panel_open;
+    }
 }
 
 // ---------------------------------------------------------------------------
