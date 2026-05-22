@@ -11,3 +11,6 @@ pub mod transport;
 pub use transport::{chat_completion, Message, TransportError};
 
 pub const MODULE: &str = "agent";
+
+pub mod tools;
+pub use tools::{dispatch_tool_call, tool_definitions, ToolCallError};
