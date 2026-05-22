@@ -66,6 +66,7 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        crate::ui::apply_theme(ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
             let (rect, response) =
                 ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
@@ -74,7 +75,7 @@ impl eframe::App for App {
             self.camera.viewport_size_px = [rect.width(), rect.height()];
 
             let painter = ui.painter_at(rect);
-            painter.rect_filled(rect, 0.0, egui::Color32::from_gray(24));
+            painter.rect_filled(rect, 0.0, crate::ui::CANVAS_BG);
             painter.rect_stroke(
                 rect,
                 0.0,

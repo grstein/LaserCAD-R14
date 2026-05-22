@@ -3,4 +3,5 @@
 //!
 //! Submodules arrive with demands LCV-065 .. LCV-071.
 
-pub const MODULE: &str = "ui";
+pub mod theme;
+pub use theme::{apply_theme, CANVAS_BG};

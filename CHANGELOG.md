@@ -34,3 +34,4 @@ This is the v2 (green-field, pure Rust + egui) line of LaserCAD R14. The v1 line
 - Preview overlay: in-progress tool geometry renders as translucent amber (LCV-037).
 - Snap markers: orange endpoint/midpoint/center/intersection indicators at snap point (LCV-038).
 - Tool framework: Tool trait, ToolManager, SelectTool stub, App::commit (LCV-040).
+- Dark CAD theme: `CANVAS_BG` (#1a1a1a) constant and `apply_theme` function in `src/ui/theme`; applied every frame in `App::update` (LCV-071).
