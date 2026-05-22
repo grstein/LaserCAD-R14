@@ -6,4 +6,6 @@
 //!
 //! Submodules arrive with demands LCV-075 .. LCV-080.
 
+pub mod settings_ui;
+
 pub const MODULE: &str = "agent";

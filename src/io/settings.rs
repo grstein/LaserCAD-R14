@@ -56,7 +56,7 @@ pub enum SettingsError {
 ///
 /// All fields carry `#[serde(default)]` so that a settings file written by an
 /// older version of the app remains loadable after new fields are added.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
     /// Ordered list of recently opened file paths (most recent first).
@@ -64,6 +64,30 @@ pub struct Settings {
     /// Capped at [`RECENT_FILES_CAP`] entries.  Use [`push_recent_file`] to
     /// add entries; never push directly.
     pub recent_files: Vec<String>,
+
+    /// OpenAI-compatible API base URL.
+    /// Default: `"https://api.openai.com/v1"`.
+    #[serde(default = "default_agent_endpoint")]
+    pub agent_endpoint: String,
+
+    /// API key sent in the `Authorization: Bearer …` header.
+    /// Default: `""` (agent disabled until set).
+    #[serde(default)]
+    pub agent_api_key: String,
+}
+
+fn default_agent_endpoint() -> String {
+    "https://api.openai.com/v1".to_string()
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            recent_files: Vec::new(),
+            agent_endpoint: default_agent_endpoint(),
+            agent_api_key: String::new(),
+        }
+    }
 }
 
 /// Maximum number of entries kept in [`Settings::recent_files`].
@@ -286,6 +310,49 @@ mod tests {
         fs::write(&tmp, b"{ this is not json }").unwrap();
         let s = load_from(&tmp);
         assert_eq!(s, Settings::default());
+        let _ = fs::remove_file(&tmp);
+    }
+
+    // ------------------------------------------------------------------
+    // LCV-076 — agent settings fields
+    // ------------------------------------------------------------------
+
+    /// §T1 — AC 1 + AC 2 — agent field defaults.
+    #[test]
+    fn agent_field_defaults() {
+        let s = Settings::default();
+        assert_eq!(s.agent_endpoint, "https://api.openai.com/v1");
+        assert_eq!(s.agent_api_key, "");
+    }
+
+    /// §T2 — AC 4 — agent-field round-trip preserves non-default values.
+    #[test]
+    fn agent_fields_round_trip() {
+        let tmp = std::env::temp_dir().join("lcv076_agent_roundtrip.json");
+
+        let original = Settings {
+            agent_endpoint: "https://openrouter.ai/api/v1".into(),
+            agent_api_key: "sk-test".into(),
+            ..Settings::default()
+        };
+
+        save_to(&original, &tmp).unwrap();
+        let loaded = load_from(&tmp);
+
+        assert_eq!(original, loaded);
+        let _ = fs::remove_file(&tmp);
+    }
+
+    /// §T2b — AC 3 — legacy JSON (no agent fields) deserialises to defaults.
+    #[test]
+    fn legacy_json_without_agent_fields_uses_defaults() {
+        let tmp = std::env::temp_dir().join("lcv076_legacy_compat.json");
+        fs::write(&tmp, r#"{"recent_files":[]}"#).unwrap();
+
+        let result = load_from(&tmp);
+        assert_eq!(result.agent_endpoint, "https://api.openai.com/v1");
+        assert_eq!(result.agent_api_key, "");
+
         let _ = fs::remove_file(&tmp);
     }
 }
