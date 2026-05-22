@@ -9,11 +9,13 @@
 pub const MODULE: &str = "io";
 pub mod autosave;
 pub mod dialogs;
+pub mod recent;
 pub mod settings;
 pub mod svg;
 
 pub use autosave::{clear_autosave, load_autosave, save_autosave};
 pub use dialogs::{open_file_dialog, pick_folder_dialog, save_file_dialog};
+pub use recent::{open_recent, recent_files, OpenRecentError};
 
 #[cfg(test)]
 mod tests {
