@@ -7,6 +7,7 @@
 
 pub mod arc;
 pub mod circle;
+pub mod delete;
 pub mod line;
 pub mod manager;
 pub mod pointer_event;
@@ -16,6 +17,7 @@ pub mod tool;
 
 pub use arc::ArcTool;
 pub use circle::CircleTool;
+pub use delete::DeleteTool;
 pub use line::LineTool;
 pub use manager::ToolManager;
 pub use pointer_event::{PointerButton, PointerEvent};
