@@ -4,4 +4,6 @@
 //!
 //! Submodules arrive with demands LCV-056 (export) and LCV-057 (import).
 
-pub const MODULE: &str = "io::svg";
+pub mod export;
+
+pub use export::export_svg;
