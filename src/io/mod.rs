@@ -14,6 +14,7 @@ pub mod svg;
 
 pub use autosave::{clear_autosave, load_autosave, save_autosave};
 pub use dialogs::{open_file_dialog, pick_folder_dialog, save_file_dialog};
+pub use svg::{import_svg, SvgImportError};
 
 #[cfg(test)]
 mod tests {
