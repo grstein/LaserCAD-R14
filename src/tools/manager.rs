@@ -139,6 +139,17 @@ impl ToolManager {
     pub fn preview(&self) -> Vec<Entity> {
         self.active.preview()
     }
+
+    /// Forward `take_successor` to the active tool.
+    ///
+    /// Returns `Some(t)` exactly once after the active tool requests a hand-off
+    /// (e.g. [`MoveTool`](crate::tools::MoveTool) after a successful commit).
+    /// Returns `None` otherwise.
+    ///
+    /// Introduced by demand LCV-049.
+    pub fn take_successor(&mut self) -> Option<Box<dyn Tool>> {
+        self.active.take_successor()
+    }
 }
 
 impl Default for ToolManager {

@@ -84,4 +84,23 @@ pub trait Tool {
     /// Reset the tool to idle state. Called on Escape press or tool switch.
     /// Clears any in-progress state and preview geometry.
     fn cancel(&mut self);
+
+    /// Optionally hand control to a successor tool after a pointer event.
+    ///
+    /// Returns `Some(tool)` exactly once when the active tool wants to
+    /// transfer control (e.g. [`MoveTool`](super::MoveTool) returns a fresh
+    /// [`SelectTool`](super::SelectTool) after a successful commit). The flag
+    /// is **single-shot**: subsequent calls return `None` until the next
+    /// qualifying event.
+    ///
+    /// The default implementation always returns `None`. Existing tools
+    /// ([`LineTool`](super::LineTool), [`SelectTool`](super::SelectTool), …)
+    /// do not need to override this method.
+    ///
+    /// The trait remains object-safe — no generics, no `Self` bounds.
+    ///
+    /// Introduced by demand LCV-049.
+    fn take_successor(&mut self) -> Option<Box<dyn Tool>> {
+        None
+    }
 }

@@ -164,6 +164,10 @@ impl eframe::App for App {
                             &mut self.document,
                             &mut self.history,
                         );
+                        // LCV-049: poll for a successor tool after press events.
+                        if let Some(t) = self.tool_manager.take_successor() {
+                            self.tool_manager.set_tool(t);
+                        }
                     }
                     self.tool_manager.on_pointer_event(
                         &PointerEvent::Move { world_pos },
@@ -181,6 +185,10 @@ impl eframe::App for App {
                             &mut self.document,
                             &mut self.history,
                         );
+                        // LCV-049: poll for a successor tool after release events.
+                        if let Some(t) = self.tool_manager.take_successor() {
+                            self.tool_manager.set_tool(t);
+                        }
                     }
 
                     // Wheel zoom around cursor.
