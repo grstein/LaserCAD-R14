@@ -15,7 +15,7 @@
 //! Hit-testing helpers live in [`hit`] (distance, pick, box predicates).
 //! MUST NOT import `eframe` or `rfd`. Introduced by demand LCV-042.
 
-mod hit;
+pub(crate) mod hit;
 
 use crate::app::App;
 use crate::document::{Document, Entity, History, SelectionCommand};
