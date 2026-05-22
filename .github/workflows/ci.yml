@@ -1,23 +1,97 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
 
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
 
 jobs:
-  linux:
-    name: fmt + clippy + test (Linux)
-    runs-on: ubuntu-24.04
+  # ──────────────────────────────────────────────────────────────────────────
+  # test: fmt + clippy + cargo test on all three platforms
+  # Runs on every PR, every push to main, and every v*.*.* tag push.
+  # ──────────────────────────────────────────────────────────────────────────
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022, macos-13]
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install system deps for eframe (glow backend)
+      - name: Install system deps for eframe glow backend (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxkbcommon-dev \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libgl1-mesa-dev \
+            xvfb
+
+      - name: Start Xvfb on display :99 (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          Xvfb :99 -screen 0 1024x768x24 &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
+      - name: Install Rust toolchain (from rust-toolchain.toml)
+        run: rustup show
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Gate 1 — cargo fmt --all -- --check
+        run: cargo fmt --all -- --check
+
+      - name: Gate 2 — cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Gate 3 — cargo test --all
+        run: cargo test --all
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # build: release binary, uploaded as a named artifact per platform.
+  # Runs on the same triggers as test; starts only after all test legs pass.
+  # ──────────────────────────────────────────────────────────────────────────
+  build:
+    name: build (${{ matrix.os }})
+    needs: [test]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            artifact-name: binary-linux
+            binary-path: target/release/lasercad
+          - os: windows-2022
+            artifact-name: binary-windows
+            binary-path: target/release/lasercad.exe
+          - os: macos-13
+            artifact-name: binary-macos
+            binary-path: target/release/lasercad
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system deps for eframe glow backend (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -30,22 +104,152 @@ jobs:
       - name: Install Rust toolchain (from rust-toolchain.toml)
         run: rustup show
 
-      - name: Cache cargo registry, git db, and target
-        uses: actions/cache@v4
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
         with:
+          key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Upload release binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: ${{ matrix.binary-path }}
+          retention-days: 1
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # package: run platform packaging scripts and upload installable artifacts.
+  # Runs only on v*.*.* tag pushes; starts only after all build legs pass.
+  # ──────────────────────────────────────────────────────────────────────────
+  package:
+    name: package (${{ matrix.os }})
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            binary-artifact: binary-linux
+            binary-dest: target/release/lasercad
+            package-artifact: package-linux
+          - os: windows-2022
+            binary-artifact: binary-windows
+            binary-dest: target/release/lasercad.exe
+            package-artifact: package-windows
+          - os: macos-13
+            binary-artifact: binary-macos
+            binary-dest: target/release/lasercad
+            package-artifact: package-macos
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download release binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.binary-artifact }}
+          path: target/release
+
+      - name: Mark binary executable (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: chmod +x ${{ matrix.binary-dest }}
+
+      - name: Package (Linux) — AppImage + deb
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          ./scripts/build-appimage.sh
+          ./scripts/build-deb.sh
+
+      - name: Package (Windows) — MSI via Git Bash
+        if: runner.os == 'Windows'
+        run: bash ./scripts/build-msi.sh
+
+      - name: Package (macOS) — DMG
+        if: runner.os == 'macOS'
+        run: ./scripts/build-dmg.sh
+
+      - name: Upload package artifact (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-linux
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+            dist/lasercad-x86_64.AppImage
+            dist/lasercad_*_amd64.deb
+          retention-days: 1
 
-      - name: Gate 1 - cargo fmt --all -- --check
-        run: cargo fmt --all -- --check
+      - name: Upload package artifact (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-windows
+          path: dist/lasercad-x86_64.msi
+          retention-days: 1
 
-      - name: Gate 2 - cargo clippy --all-targets -- -D warnings
-        run: cargo clippy --all-targets -- -D warnings
+      - name: Upload package artifact (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-macos
+          path: dist/lasercad-x86_64.dmg
+          retention-days: 1
 
-      - name: Gate 3 - cargo test --all
-        run: cargo test --all
+  # ──────────────────────────────────────────────────────────────────────────
+  # release: download all package artifacts and publish a GitHub release.
+  # Single job (no matrix); runs only on v*.*.* tag pushes after package done.
+  # ──────────────────────────────────────────────────────────────────────────
+  release:
+    name: GitHub Release
+    needs: [package]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download package-linux
+        uses: actions/download-artifact@v4
+        with:
+          name: package-linux
+          path: dist
+
+      - name: Download package-windows
+        uses: actions/download-artifact@v4
+        with:
+          name: package-windows
+          path: dist
+
+      - name: Download package-macos
+        uses: actions/download-artifact@v4
+        with:
+          name: package-macos
+          path: dist
+
+      - name: Extract CHANGELOG section for this tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" \
+            CHANGELOG.md > /tmp/release-notes.md
+          [ -s /tmp/release-notes.md ] || { echo "No CHANGELOG section for ${VERSION}"; exit 1; }
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "LaserCAD v2 ${{ github.ref_name }}" \
+            --notes-file /tmp/release-notes.md \
+            dist/lasercad-x86_64.AppImage \
+            dist/lasercad_*_amd64.deb \
+            dist/lasercad-x86_64.msi \
+            dist/lasercad-x86_64.dmg
