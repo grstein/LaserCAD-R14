@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=LaserCAD
+GenericName=2D CAD for Laser Cutting
+Comment=2D CAD for laser cutting — LaserGRBL compatible
+Exec=lasercad %F
+Icon=lasercad
+Terminal=false
+Categories=Graphics;Engineering;
+MimeType=image/svg+xml;
+Keywords=CAD;laser;cutting;LaserGRBL;
+StartupNotify=true
