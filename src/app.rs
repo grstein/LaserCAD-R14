@@ -57,11 +57,10 @@ pub struct App {
     pub settings: Settings,
     /// Set to `Some(Instant::now())` the first time the document is dirtied
     /// after the last autosave flush (or after startup). Cleared back to
-    /// `None` after each successful autosave write.  The autosave fires when
-    /// the elapsed time since the first dirty exceeds [`AUTOSAVE_DEBOUNCE`].
-    ///
-    /// Not serialised; `Instant` is not `Serialize`.
+    /// `None` after each successful autosave write.
     pub dirty_since: Option<Instant>,
+    /// Controls whether the About dialog is visible.
+    pub about_open: bool,
 }
 
 impl App {
@@ -100,7 +99,6 @@ impl eframe::App for App {
         egui::TopBottomPanel::bottom("statusbar").show(ctx, |ui| {
             crate::ui::draw_statusbar(ui, self);
         });
-
 
         egui::CentralPanel::default().show(ctx, |ui| {
             let (rect, response) =
@@ -245,6 +243,10 @@ impl eframe::App for App {
             // Always repaint so cursor-coords and smooth camera motion stay live.
             ctx.request_repaint();
         });
+
+        // Modal dialogs (LCV-069) — rendered after the CentralPanel so they
+        // float above the canvas.
+        crate::ui::about_dialog(ctx, &mut self.about_open);
     }
 }
 
@@ -369,5 +371,12 @@ mod tests {
     fn app_default_settings_equals_settings_default() {
         let app = App::default();
         assert_eq!(app.settings, crate::io::settings::Settings::default());
+    }
+
+    /// LCV-069 AC#7 / §5 — `App::default().about_open` is `false`.
+    #[test]
+    fn app_default_about_open_is_false() {
+        let app = App::default();
+        assert!(!app.about_open);
     }
 }
