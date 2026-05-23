@@ -96,6 +96,13 @@ impl Tool for PolylineTool {
     ) {
     }
 
+    fn anchor(&self) -> Option<Vec2> {
+        match self.state {
+            State::WaitingSecondPoint { p1, .. } => Some(p1),
+            State::Idle => None,
+        }
+    }
+
     fn on_key(&mut self, key: egui::Key, _app: &mut App) {
         if matches!(key, egui::Key::Escape | egui::Key::Enter) {
             self.cancel();
@@ -279,5 +286,22 @@ mod tests {
     #[test]
     fn object_safe() {
         let _: Box<dyn Tool> = Box::new(PolylineTool::new());
+    }
+
+    // ── LCV-053 AC: anchor ──────────────────────────────────────────────
+
+    /// AC#9 — `anchor()` returns `None` when idle.
+    #[test]
+    fn polyline_tool_anchor_idle_is_none() {
+        let t = PolylineTool::new();
+        assert_eq!(t.anchor(), None);
+    }
+
+    /// AC#9 — `anchor()` returns `Some(p1)` after first click.
+    #[test]
+    fn polyline_tool_anchor_waiting_returns_p1() {
+        let (mut t, mut doc, mut h) = make();
+        t.on_pointer_down(Vec2::new(3.0, 8.0), false, &mut doc, &mut h);
+        assert_eq!(t.anchor(), Some(Vec2::new(3.0, 8.0)));
     }
 }

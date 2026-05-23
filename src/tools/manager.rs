@@ -174,6 +174,15 @@ impl ToolManager {
     pub fn take_successor(&mut self) -> Option<Box<dyn Tool>> {
         self.active.take_successor()
     }
+
+    /// The active tool's anchor point for ortho / snap constraints.
+    ///
+    /// Returns `None` when the active tool has no live anchor (e.g. idle
+    /// state or a tool without the concept of a first point). Delegates
+    /// directly to [`Tool::anchor`]. Introduced by demand LCV-053.
+    pub fn anchor(&self) -> Option<crate::geometry::Vec2> {
+        self.active.anchor()
+    }
 }
 
 impl Default for ToolManager {
@@ -186,6 +195,7 @@ impl Default for ToolManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::App;
     use crate::tools::pointer_event::{PointerButton, PointerEvent};
     use crate::tools::SelectTool;
     use std::cell::RefCell;
@@ -452,5 +462,23 @@ mod tests {
         mgr.on_text_input('a');
         mgr.on_text_input('Z');
         mgr.on_text_input('!');
+    }
+
+    /// LCV-053 AC#10 — `ToolManager::anchor()` delegates to the active tool.
+    ///
+    /// With `LineTool` active: idle → `None`; after first click → `Some(p1)`.
+    #[test]
+    fn tool_manager_anchor_delegates_to_active_tool() {
+        use crate::tools::LineTool;
+        let mut manager = ToolManager::new(Box::new(LineTool::new()));
+        assert_eq!(manager.anchor(), None, "idle LineTool has no anchor");
+
+        let mut app = App::default();
+        manager.handle_pointer_down(Vec2::new(1.0, 2.0), &mut app);
+        assert_eq!(
+            manager.anchor(),
+            Some(Vec2::new(1.0, 2.0)),
+            "anchor should be the first click point"
+        );
     }
 }

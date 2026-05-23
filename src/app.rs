@@ -9,11 +9,12 @@
 //! The render pipeline (camera, grid, bed, entities, preview, snaps) attaches
 //! to the `CentralPanel` viewport rect set up by [`App::update`].
 
+mod ortho;
 mod snap;
 
 mod agent_poll;
 pub use agent_poll::poll_agent_rx;
-
+pub use ortho::apply_ortho;
 pub use snap::resolve_snap;
 
 use std::time::{Duration, Instant};
@@ -246,6 +247,16 @@ impl eframe::App for App {
                     let world_pos = self.active_snap.map(|s| s.point).unwrap_or_else(|| {
                         self.camera.screen_to_world(hover_pos - rect.min.to_vec2())
                     });
+                    // Ortho lock (LCV-053): clamp to nearest cardinal axis from
+                    // the active tool's anchor, when ortho mode is active.
+                    let world_pos = if self.ortho_enabled {
+                        match self.tool_manager.anchor() {
+                            Some(anchor) => apply_ortho(anchor, world_pos),
+                            None => world_pos,
+                        }
+                    } else {
+                        world_pos
+                    };
                     self.last_cursor_world = Some(world_pos);
 
                     // Pointer events (LCV-041).
@@ -333,6 +344,11 @@ impl eframe::App for App {
                 let mut tm = std::mem::take(&mut self.tool_manager);
                 tm.handle_key(egui::Key::Backspace, self);
                 self.tool_manager = tm;
+            }
+
+            // F8: toggle ortho lock (LCV-053).
+            if ctx.input(|i| i.key_pressed(egui::Key::F8)) {
+                self.ortho_enabled = !self.ortho_enabled;
             }
 
             // Undo / Redo (LCV-075).

@@ -94,6 +94,13 @@ impl Tool for LineTool {
     ) {
     }
 
+    fn anchor(&self) -> Option<Vec2> {
+        match self.state {
+            State::WaitingSecondPoint { p1, .. } => Some(p1),
+            State::Idle => None,
+        }
+    }
+
     fn on_key(&mut self, key: egui::Key, _app: &mut App) {
         if matches!(key, egui::Key::Escape | egui::Key::Enter) {
             self.cancel();
@@ -215,5 +222,30 @@ mod tests {
         t.cancel();
         assert!(t.preview().is_empty());
         let _: Box<dyn Tool> = Box::new(LineTool::new());
+    }
+
+    /// LCV-053 AC#7 — `anchor()` returns `None` when idle.
+    #[test]
+    fn line_tool_anchor_idle_is_none() {
+        let t = LineTool::new();
+        assert_eq!(t.anchor(), None);
+    }
+
+    /// LCV-053 AC#8 — `anchor()` returns `Some(p1)` after first click.
+    #[test]
+    fn line_tool_anchor_waiting_returns_p1() {
+        let (mut t, mut doc, mut h) = make();
+        t.on_pointer_down(Vec2::new(7.0, 4.0), false, &mut doc, &mut h);
+        assert_eq!(t.anchor(), Some(Vec2::new(7.0, 4.0)));
+    }
+
+    /// LCV-053 AC#8 (precision) — anchor advances to the newly committed
+    /// endpoint after a second click commits a segment and chains.
+    #[test]
+    fn line_tool_anchor_updates_after_second_commit() {
+        let (mut t, mut doc, mut h) = make();
+        t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
+        t.on_pointer_down(Vec2::new(10.0, 0.0), false, &mut doc, &mut h);
+        assert_eq!(t.anchor(), Some(Vec2::new(10.0, 0.0)));
     }
 }
