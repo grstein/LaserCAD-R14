@@ -17,6 +17,7 @@ pub use agent_poll::poll_agent_rx;
 pub use ortho::apply_ortho;
 pub use snap::resolve_snap;
 
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use crate::document::{Command, Document, Entity, History};
@@ -87,6 +88,12 @@ pub struct App {
     pub agent_busy: bool,
     /// Receiver polled every frame; `Some` while a turn is in flight (LCV-080).
     pub agent_rx: Option<std::sync::mpsc::Receiver<crate::agent::AgentPanelMsg>>,
+    /// Path of the file most recently opened or saved. `None` for an unsaved
+    /// new document (LCV-062).
+    pub current_file: Option<std::path::PathBuf>,
+    /// When `Some`, a modal error window is rendered on the next frame; cleared
+    /// when the user dismisses it (LCV-062).
+    pub error_message: Option<String>,
 }
 
 impl Default for App {
@@ -113,6 +120,8 @@ impl Default for App {
             agent_input_draft: String::new(),
             agent_busy: false,
             agent_rx: None,
+            current_file: None,
+            error_message: None,
         }
     }
 }
@@ -145,16 +154,20 @@ impl App {
         self.dirty_since.get_or_insert_with(Instant::now);
     }
 
-    /// Create a new, empty document. Full implementation lands with LCV-062.
-    pub fn action_new(&mut self) {}
+    /// Create a new, empty document (LCV-062).
+    pub fn action_new(&mut self) {
+        crate::io::action_new(self);
+    }
 
-    /// Open a document from disk via a file dialog. Full implementation lands
-    /// with LCV-062.
-    pub fn action_open(&mut self) {}
+    /// Open a document from disk via a file dialog (LCV-062).
+    pub fn action_open(&mut self) {
+        crate::io::action_open(self);
+    }
 
-    /// Save the current document to disk. Full implementation lands with
-    /// LCV-062.
-    pub fn action_save(&mut self) {}
+    /// Save the current document to disk (LCV-062).
+    pub fn action_save(&mut self) {
+        crate::io::action_save(self);
+    }
 }
 
 impl eframe::App for App {
@@ -412,6 +425,13 @@ impl eframe::App for App {
                 settings.save().ok();
             }
         }
+
+        // LCV-062 — Error modal: rendered last so it floats above everything.
+        if let Some(msg) = self.error_message.clone() {
+            if crate::ui::error_dialog(ctx, "Error", &msg) {
+                self.error_message = None;
+            }
+        }
     }
 }
 
@@ -578,6 +598,20 @@ mod tests {
         assert!(app.snap_enabled);
         assert!(app.grid_enabled);
         assert!(!app.ortho_enabled);
+    }
+
+    /// LCV-062 AC#2 — App::default().current_file is None.
+    #[test]
+    fn app_default_current_file_is_none() {
+        let app = App::default();
+        assert!(app.current_file.is_none());
+    }
+
+    /// LCV-062 AC#2 — App::default().error_message is None.
+    #[test]
+    fn app_default_error_message_is_none() {
+        let app = App::default();
+        assert!(app.error_message.is_none());
     }
 
     /// LCV-070 AC#16 — suppress_snap_if_disabled clears active_snap when disabled.
