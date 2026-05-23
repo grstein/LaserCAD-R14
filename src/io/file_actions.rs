@@ -109,6 +109,43 @@ pub fn action_save(app: &mut App) {
     clear_autosave();
 }
 
+/// Load a document from a known file path (no dialog).
+///
+/// Called by the File → Open Recent menu to load a path that was already
+/// chosen by the operator. On success the document, history, current-file
+/// path, and recent-files list are updated and the autosave file is cleared.
+/// On I/O or parse failure `app.error_message` is set; the existing document
+/// is left unchanged.
+pub fn action_open_path(app: &mut App, path: PathBuf) {
+    let content = match fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(e) => {
+            app.error_message = Some(format!("Could not read '{}': {e}", path.display()));
+            return;
+        }
+    };
+
+    let entities = match import_svg(&content) {
+        Ok(v) => v,
+        Err(e) => {
+            app.error_message = Some(format!("SVG import failed: {e}"));
+            return;
+        }
+    };
+
+    app.document = Document {
+        entities,
+        ..Document::default()
+    };
+    app.history = History::default();
+    app.current_file = Some(path.clone());
+    app.dirty_since = None;
+    app.settings
+        .push_recent_file(path.to_string_lossy().into_owned());
+    let _ = app.settings.save();
+    clear_autosave();
+}
+
 /// Present a save dialog and write the document to the chosen path.
 ///
 /// The default filename is the current file's name component, or

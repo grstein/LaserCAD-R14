@@ -164,9 +164,19 @@ impl App {
         crate::io::action_open(self);
     }
 
+    /// Load a document from a known path (LCV-065, used by Open Recent).
+    pub fn action_open_path(&mut self, path: PathBuf) {
+        crate::io::action_open_path(self, path);
+    }
+
     /// Save the current document to disk (LCV-062).
     pub fn action_save(&mut self) {
         crate::io::action_save(self);
+    }
+
+    /// Save the current document to a new path via a save dialog (LCV-065).
+    pub fn action_save_as(&mut self) {
+        crate::io::action_save_as(self);
     }
 }
 
@@ -177,6 +187,10 @@ impl eframe::App for App {
         suppress_snap_if_disabled(self.snap_enabled, &mut self.active_snap);
 
         crate::ui::apply_theme(ctx);
+
+        egui::TopBottomPanel::top("menubar").show(ctx, |ui| {
+            crate::ui::draw_menubar(ui, self);
+        });
 
         egui::TopBottomPanel::bottom("statusbar").show(ctx, |ui| {
             crate::ui::draw_statusbar(ui, self);
