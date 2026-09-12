@@ -913,11 +913,11 @@
       "id": "LCV-101",
       "title": "Load persisted settings in App::new + OpenRouter default endpoint",
       "phase": 10,
-      "status": "InProgress",
+      "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Defect D2: Settings::load() is never called; App::new uses Settings::default().",
+      "note": "Reviewed and APPROVED. Reviewer proved the wiring end to end in an isolated tree copy with XDG_CONFIG_HOME pointed at scratch dirs, and confirmed the real user settings file was byte-identical after an 8 s app run.",
       "demand_file": "docs/product/demands/LCV-101-settings-load-on-startup.md",
       "drive_order": 2,
       "shipped_commit": "e3258d2"
@@ -938,13 +938,14 @@
       "id": "LCV-103",
       "title": "Keyboard routing: kill double dispatch, guard wants_keyboard_input, route Enter to tools",
       "phase": 10,
-      "status": "Ready",
+      "status": "InProgress",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Defects D4, D5, D8.",
+      "note": "Implemented with mutation testing: each defect was re-introduced locally to confirm the right tests fail. Found that the Escape branch in src/ui/command_line.rs never ran, because egui 0.29.1 clears focus at the start of the frame carrying Escape; fixed by using lost_focus() instead of has_focus(). AC 17 manual GUI smoke is unverified by hand and belongs in the user final checklist.",
       "demand_file": "docs/product/demands/LCV-103-keyboard-routing.md",
-      "drive_order": 3
+      "drive_order": 3,
+      "shipped_commit": "88bc4c9"
     },
     {
       "id": "LCV-104",
