@@ -1,10 +1,11 @@
 # LCV-108 — Docs sync: CHANGELOG, README status, AGENTS.md reality, backlog consistency
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 10
 - **Depends on**: LCV-100, LCV-101, LCV-102, LCV-103, LCV-104, LCV-105, LCV-106, LCV-107 (lands last in Marco 0)
 - **Suggested agent**: demand-manager
 - **Suggested model**: sonnet
+- **Implementation**: b24da80 — docs(LCV-108): sync CHANGELOG, README, AGENTS.md and demand status for Marco 0
 
 ## Problem
 

@@ -6,7 +6,8 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-108 | Docs sync: CHANGELOG, README status, AGENTS.md reality, backlog consistency | 10 | LCV-100, LCV-101, LCV-102, LCV-103, LCV-104, LCV-105, LCV-106, LCV-107 |
+
+_None._
 
 ## In Progress
 
@@ -101,6 +102,7 @@ _None._
 | LCV-105 | Cleanup: orphan files, Select-All through a Command, `app/` split, MODULE retirement, window title | 10 | 2026-09-12 | 0d1d52b |
 | LCV-106 | OffsetTool: product decision and removal | 10 | 2026-09-12 | adbc878 |
 | LCV-107 | CI: Windows package job invokes `build-msi.ps1` via PowerShell | 10 | 2026-09-12 | c5b5be4 |
+| LCV-108 | Docs sync: CHANGELOG, README status, AGENTS.md reality, backlog consistency | 10 | 2026-09-12 | b24da80 |
 
 ## Blocked
 
