@@ -900,25 +900,27 @@
       "id": "LCV-100",
       "title": "SVG export/import Y-axis inversion (world Y-up -> SVG Y-down)",
       "phase": 10,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Defect D1: exported SVG is mirrored vertically in LaserGRBL/Inkscape. Highest priority of Marco 0.",
+      "note": "Reviewed and APPROVED by reviewer-rust: gate re-run, app launch confirmed on Wayland, arc goldens and the import inverse re-derived independently, emitted bytes checked. Optional follow-up: tighten EXPORT_QUANTISATION_TOL in tests/lcv100_svg_orientation.rs from 1e-3 toward the observed 5e-5 bound.",
       "demand_file": "docs/product/demands/LCV-100-svg-y-axis-inversion.md",
-      "drive_order": 1
+      "drive_order": 1,
+      "shipped_commit": "3d8aec4"
     },
     {
       "id": "LCV-101",
       "title": "Load persisted settings in App::new + OpenRouter default endpoint",
       "phase": 10,
-      "status": "Ready",
+      "status": "InProgress",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
       "note": "Defect D2: Settings::load() is never called; App::new uses Settings::default().",
       "demand_file": "docs/product/demands/LCV-101-settings-load-on-startup.md",
-      "drive_order": 2
+      "drive_order": 2,
+      "shipped_commit": "e3258d2"
     },
     {
       "id": "LCV-102",
