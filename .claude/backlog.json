@@ -926,23 +926,24 @@
       "id": "LCV-102",
       "title": "Autosave actually fires (dirty tracking at the pipeline level, 800 ms debounce)",
       "phase": 10,
-      "status": "Ready",
+      "status": "InProgress",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
       "note": "Defect D3: tools call history.commit directly, so dirty_since is never set.",
       "demand_file": "docs/product/demands/LCV-102-autosave-dirty-tracking.md",
-      "drive_order": 4
+      "drive_order": 4,
+      "shipped_commit": "a958d29"
     },
     {
       "id": "LCV-103",
       "title": "Keyboard routing: kill double dispatch, guard wants_keyboard_input, route Enter to tools",
       "phase": 10,
-      "status": "InProgress",
+      "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Implemented with mutation testing: each defect was re-introduced locally to confirm the right tests fail. Found that the Escape branch in src/ui/command_line.rs never ran, because egui 0.29.1 clears focus at the start of the frame carrying Escape; fixed by using lost_focus() instead of has_focus(). AC 17 manual GUI smoke is unverified by hand and belongs in the user final checklist.",
+      "note": "APPROVED WITH FOLLOW-UPS. Reviewer independently re-introduced the F8 duplicate and the ungated F block in a scratch worktree and confirmed only the matching tests fail, and verified in the vendored egui 0.29.1 source that the old has_focus() Escape branch was dead. Non-blocking follow-ups: tests/app/input.rs tool_routed_keys_are_enter_delete_backspace is tautological; AC 9 uses the command line TextEdit as a stand-in for the agent chat box.",
       "demand_file": "docs/product/demands/LCV-103-keyboard-routing.md",
       "drive_order": 3,
       "shipped_commit": "88bc4c9"
