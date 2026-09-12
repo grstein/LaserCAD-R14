@@ -5,7 +5,7 @@
 - **Depends on**: LCV-035
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: feat(LCV-037): preview overlay — translucent amber entities for live tool preview (6530bad)
+- **Implementation**: 6530bad — feat(LCV-037): preview overlay — translucent amber entities for live tool preview
 
 ## Problem
 

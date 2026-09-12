@@ -5,7 +5,7 @@
 - **Depends on**: LCV-013
 - **Suggested agent**: architect
 - **Suggested model**: opus
-- **Implementation**: implementer-rust (task #69); b6cdd46
+- **Implementation**: b6cdd46 — feat(LCV-020): introduce Entity enum and SCHEMA_VERSION=1 in document model
 
 ## Problem
 

@@ -1,11 +1,12 @@
 # LCV-080 — Agent panel — chat UI for AI assistant
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 7
 - **Depends on**: LCV-079
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: ee10f2a — feat(LCV-080): agent panel — chat UI with background thread and scroll history
+- **Note**: this id was planned as the command-line ":" / "/ai" prefix wiring; it shipped as an agent chat side panel. Prefix routing is deferred.
 
 ## Problem
 

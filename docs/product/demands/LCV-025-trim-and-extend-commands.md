@@ -5,7 +5,7 @@
 - **Depends on**: LCV-023, LCV-024
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #72); 59be8e7
+- **Implementation**: 59be8e7 — feat(LCV-025): add TrimEntity + ExtendEntity commands
 
 ## Problem
 

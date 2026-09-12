@@ -5,7 +5,7 @@
 - **Depends on**: LCV-031
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: feat(LCV-034): bed renderer — rectangle fill, border, outer overlay (ee8cea4)
+- **Implementation**: ee8cea4 — feat(LCV-034): bed renderer — rectangle fill, border, outer overlay
 
 ## Problem
 

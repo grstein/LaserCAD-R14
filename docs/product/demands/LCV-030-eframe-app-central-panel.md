@@ -5,7 +5,7 @@
 - **Depends on**: LCV-007
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #106); 24b118a; AC#7 manual smoke pending human display
+- **Implementation**: 24b118a — feat(LCV-030): wire eframe::App into central panel and retire render MODULE
 
 ## Problem
 

@@ -1,11 +1,11 @@
 # LCV-049 — MoveTool — move selected entities
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 4
 - **Depends on**: LCV-041 (Done), LCV-024 (Done), LCV-042 (Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: 498eb0d — feat(LCV-049): MoveTool — two-click move selected entities
 
 ## Problem
 

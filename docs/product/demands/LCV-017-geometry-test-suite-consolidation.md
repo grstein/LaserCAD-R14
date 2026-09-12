@@ -5,7 +5,7 @@
 - **Depends on**: LCV-016
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #39); bdb4830
+- **Implementation**: bdb4830 — feat(LCV-017): consolidate geometry kernel integration tests
 
 ## Problem
 

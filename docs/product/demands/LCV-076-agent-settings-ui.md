@@ -1,6 +1,7 @@
 # LCV-076 — Agent settings UI (API key + endpoint)
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: 8b545c6 — feat(LCV-076): agent settings UI — endpoint + API key fields
 - **Phase**: 7
 - **Depends on**: LCV-058 (Done), LCV-069 (Ready)
 - **Suggested agent**: implementer-rust

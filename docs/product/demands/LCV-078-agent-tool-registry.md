@@ -1,6 +1,7 @@
 # LCV-078 — Agent tool registry (CAD actions exposed to LLM)
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: 86c473e — feat(LCV-078): agent tool registry — JSON schemas + dispatch for 5 CAD functions
 - **Phase**: 7
 - **Depends on**: LCV-023 (done), LCV-024 (done)
 - **Suggested agent**: implementer-rust

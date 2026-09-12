@@ -5,7 +5,7 @@
 - **Depends on**: LCV-010
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #36); caad4e4
+- **Implementation**: caad4e4 — feat(LCV-013): add Arc geometry primitive with wrap-aware bbox and contains_angle
 
 ## Problem
 

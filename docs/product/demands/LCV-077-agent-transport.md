@@ -1,11 +1,11 @@
 # LCV-077 — Agent transport — blocking reqwest client for OpenAI-compatible API
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 7
 - **Depends on**: LCV-076
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: 16a7683 — feat(LCV-077): agent HTTP transport (blocking reqwest, OpenAI-compatible)
 
 ## Problem
 

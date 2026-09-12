@@ -1,6 +1,7 @@
 # LCV-086 — Linux .deb package
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: 5de9175 — feat(LCV-086): Linux .deb package build script
 - **Phase**: 8
 - **Depends on**: LCV-085
 - **Suggested agent**: implementer-rust

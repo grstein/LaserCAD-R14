@@ -1,6 +1,7 @@
 # LCV-068 — Command-line widget (bottom dock)
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: 4c36e58 — feat(LCV-068): command-line widget with prompt and text input
 - **Phase**: 6
 - **Depends on**: LCV-040 (Done)
 - **Suggested agent**: implementer-rust

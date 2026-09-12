@@ -1,6 +1,7 @@
 # LCV-071 — Theme + visual polish
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: 31c492d — feat(LCV-071): dark CAD theme — CANVAS_BG + apply_theme
 - **Phase**: 6
 - **Depends on**: LCV-030
 - **Suggested agent**: implementer-rust

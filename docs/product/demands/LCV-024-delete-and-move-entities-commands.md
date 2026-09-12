@@ -5,7 +5,7 @@
 - **Depends on**: LCV-022
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #74); c8f4e1e
+- **Implementation**: c8f4e1e — feat(LCV-024): add DeleteEntities + MoveEntities commands; Entity::translate
 
 ## Problem
 

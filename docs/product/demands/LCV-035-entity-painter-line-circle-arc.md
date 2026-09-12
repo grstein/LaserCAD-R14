@@ -5,7 +5,7 @@
 - **Depends on**: LCV-021, LCV-031
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: feat(LCV-035): entity painter — line, circle, arc tessellation (422f457)
+- **Implementation**: 422f457 — feat(LCV-035): entity painter — line, circle, arc tessellation
 
 ## Problem
 

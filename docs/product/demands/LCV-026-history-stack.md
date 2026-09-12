@@ -5,7 +5,7 @@
 - **Depends on**: LCV-022
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #70); 2fd3960
+- **Implementation**: 2fd3960 — feat(LCV-026): add 200-deep undo/redo history stack
 
 ## Problem
 

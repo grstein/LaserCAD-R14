@@ -1,6 +1,7 @@
 # LCV-050 — TrimTool
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: a88fe1f — feat(LCV-050): TrimTool — click to trim entity at intersections
 - **Phase**: 4
 - **Depends on**: LCV-041 (Done), LCV-025 (Done)
 - **Suggested agent**: implementer-rust

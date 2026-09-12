@@ -5,7 +5,7 @@
 - **Depends on**: LCV-035, LCV-027
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: feat(LCV-036): selection highlight — cyan-blue halo over selected entities (fbd0e99)
+- **Implementation**: fbd0e99 — feat(LCV-036): selection highlight — cyan-blue halo over selected entities
 
 ## Problem
 

@@ -1,11 +1,11 @@
 # LCV-058 — Settings store (JSON file via directories)
 
-- **Status**: In Progress
+- **Status**: Done
 - **Phase**: 5
 - **Depends on**: LCV-007
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: feat(LCV-058): settings store — JSON persistence via serde + directories
+- **Implementation**: 30f9ca0 — feat(LCV-058): settings store — JSON persistence via serde + directories
 
 ## Problem
 

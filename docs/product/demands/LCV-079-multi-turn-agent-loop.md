@@ -1,6 +1,7 @@
 # LCV-079 — Multi-turn agent loop (run AI agent conversation with tool calls)
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: cbd63ec — feat(LCV-079): multi-turn agent loop — orchestrates LLM conversation with CAD tool dispatch
 - **Phase**: 7
 - **Depends on**: LCV-077 (HTTP transport), LCV-078 (agent tool registry)
 - **Suggested agent**: implementer-rust

@@ -1,11 +1,11 @@
 # LCV-090 — Windows MSI installer build
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 8
 - **Depends on**: LCV-087, LCV-089
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: 318909a — feat(LCV-090): Windows MSI installer — WiX source + build-msi.ps1
 
 ## Problem
 

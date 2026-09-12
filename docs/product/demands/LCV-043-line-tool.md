@@ -1,6 +1,7 @@
 # LCV-043 — LineTool
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: e36b840 — feat(LCV-043): LineTool — click-click line drawing with chain and preview
 - **Phase**: 4
 - **Depends on**: LCV-041 (Done), LCV-023 (Done), LCV-037 (Done)
 - **Suggested agent**: implementer-rust

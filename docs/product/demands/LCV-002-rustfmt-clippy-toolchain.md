@@ -5,7 +5,7 @@
 - **Depends on**: LCV-001
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #11); b6464983
+- **Implementation**: b6464983 — feat(LCV-002): lock rustfmt + clippy + rust-toolchain configuration
 
 ## Problem
 

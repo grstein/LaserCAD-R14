@@ -1,11 +1,11 @@
 # LCV-044 — PolylineTool
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 4
 - **Depends on**: LCV-043 (Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: 1af93b9 — feat(LCV-044): PolylineTool — connected line segments with PLINE name
 
 ## Problem
 

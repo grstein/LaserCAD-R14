@@ -1,6 +1,7 @@
 # LCV-046 — CircleTool
 
-- **Status**: Draft
+- **Status**: Done
+- **Implementation**: fe57b7c — feat(LCV-046): CircleTool — center-radius circle drawing with preview
 - **Phase**: 4
 - **Depends on**: LCV-041 (done), LCV-023 (done), LCV-037 (done)
 - **Suggested agent**: implementer-rust

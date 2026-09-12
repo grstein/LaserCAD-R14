@@ -1,6 +1,8 @@
 # LCV-075 — Undo/Redo keyboard shortcuts (Ctrl+Z / Ctrl+Y) + status bar flash
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: 1ac0219 — feat(LCV-075): Ctrl+Z undo / Ctrl+Y redo keyboard shortcuts
+- **Note**: this id was planned as the agent regex classifier; it shipped as Ctrl+Z / Ctrl+Y undo-redo shortcuts. src/agent/classifier.rs does not exist.
 - **Phase**: 6
 - **Depends on**: LCV-026 (done), LCV-030 (done), LCV-067 (done)
 - **Suggested agent**: implementer-rust

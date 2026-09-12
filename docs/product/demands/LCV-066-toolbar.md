@@ -1,6 +1,7 @@
 # LCV-066 — Toolbar — left-side tool palette
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: e5e94e5 — feat(LCV-066): left-side toolbar with tool activation buttons
 - **Phase**: 6
 - **Depends on**: LCV-040 (Done), LCV-042, LCV-043, LCV-044, LCV-045, LCV-046, LCV-047, LCV-048, LCV-049, LCV-050, LCV-051, LCV-052
 - **Suggested agent**: implementer-rust

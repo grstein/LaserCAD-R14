@@ -1,11 +1,11 @@
 # LCV-032 — Viewport wiring (pointer input → tools)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 3
 - **Depends on**: LCV-031
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: 33bae5a — feat(LCV-032): viewport wiring — pointer hover, wheel zoom, middle-drag pan, zoom-extents key
 
 ## Problem
 

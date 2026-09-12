@@ -5,7 +5,7 @@
 - **Depends on**: LCV-020
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #68); 0bf5943
+- **Implementation**: 0bf5943 — feat(LCV-021): add Document struct with bounds, Default, and Selection placeholder
 
 ## Problem
 

@@ -5,7 +5,7 @@
 - **Depends on**: LCV-007
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #35); 2f2a8bf
+- **Implementation**: 2f2a8bf — feat(LCV-010): introduce Vec2 + EPSILON in geometry kernel
 
 ## Problem
 

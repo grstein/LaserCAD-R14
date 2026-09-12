@@ -1,11 +1,11 @@
 # LCV-060 — Recent files (store-backed)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 5
 - **Depends on**: LCV-058
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: 76f0af4 — feat(LCV-060): recent files — push/cap/deduplicate in Settings
 
 ## Problem
 

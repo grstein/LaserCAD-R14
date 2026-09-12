@@ -5,7 +5,7 @@
 - **Depends on**: LCV-011, LCV-012, LCV-013
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #38); b7a9882
+- **Implementation**: b7a9882 — feat(LCV-015): add Rect with contains/crosses predicates for line, circle, arc
 
 ## Problem
 

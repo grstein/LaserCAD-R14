@@ -5,7 +5,7 @@
 - **Depends on**: LCV-022, LCV-032, LCV-037
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: feat(LCV-040): Tool trait + ToolManager + SelectTool stub + App::commit (ca7c234)
+- **Implementation**: ca7c234 — feat(LCV-040): Tool trait + ToolManager + SelectTool stub + App::commit
 
 ## Problem
 

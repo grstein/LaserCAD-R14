@@ -1,6 +1,7 @@
 # LCV-059 — Autosave (debounced, restore on boot)
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: 011d7ee — feat(LCV-059): autosave — 5s debounce + restore on boot via DocumentEnvelope
 - **Phase**: 5
 - **Depends on**: LCV-058, LCV-021
 - **Suggested agent**: implementer-rust

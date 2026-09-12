@@ -1,6 +1,7 @@
 # LCV-052 — DeleteTool / Delete key
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: c976c36 — feat(LCV-052): DeleteTool (ERASE) + Delete key in SelectTool
 - **Phase**: 4
 - **Depends on**: LCV-041 (Done), LCV-024 (Done)
 - **Suggested agent**: implementer-rust

@@ -5,7 +5,7 @@
 - **Depends on**: none
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #3); fd6a31d
+- **Implementation**: fd6a31d — feat(LCV-001): formalize Cargo project skeleton + dependency lock
 
 ## Problem
 

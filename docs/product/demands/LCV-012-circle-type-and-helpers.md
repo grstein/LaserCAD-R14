@@ -5,7 +5,7 @@
 - **Depends on**: LCV-010
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #40); 4ff9ee4
+- **Implementation**: 4ff9ee4 — feat(LCV-012): add Circle geometry primitive with bbox and angular helpers
 
 ## Problem
 

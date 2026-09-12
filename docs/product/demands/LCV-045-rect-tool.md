@@ -1,6 +1,7 @@
 # LCV-045 — RectTool
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: db24e9c — feat(LCV-045): RectTool — two-click rectangle from corner to corner
 - **Phase**: 4
 - **Depends on**: LCV-043 (Done), LCV-041 (Done), LCV-023 (Done), LCV-037 (Done)
 - **Suggested agent**: implementer-rust

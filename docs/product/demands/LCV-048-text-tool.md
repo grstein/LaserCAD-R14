@@ -1,6 +1,7 @@
 # LCV-048 — TextTool (Hershey-based)
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: b59aa63 — feat(LCV-048): TextTool — click-to-place Hershey stroke text
 - **Phase**: 4
 - **Depends on**: LCV-055 (Done), LCV-043 (Done), LCV-040 (Done), LCV-041 (Done), LCV-037 (Done)
 - **Suggested agent**: implementer-rust

@@ -5,7 +5,7 @@
 - **Depends on**: LCV-001
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #12); fe4f5c94; AC9 pending push to remote
+- **Implementation**: fe4f5c94 — feat(LCV-004): pin Linux CI workflow with three gates and Cargo cache
 
 ## Problem
 

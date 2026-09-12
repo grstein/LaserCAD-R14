@@ -1,6 +1,7 @@
 # LCV-041 — Pointer input plumbing through ToolManager
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: a628859 — feat(LCV-041): PointerEvent type + ToolManager::on_pointer_event + snap resolve
 - **Phase**: 4
 - **Depends on**: LCV-040, LCV-016
 - **Suggested agent**: implementer-rust

@@ -1,11 +1,12 @@
 # LCV-031 — Camera (world↔screen, zoom, pan, zoom-extents)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 3
 - **Depends on**: LCV-021, LCV-030
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: <to be filled by demand-manager>
+- **Implementation**: 33bae5a — feat(LCV-032): viewport wiring — pointer hover, wheel zoom, middle-drag pan, zoom-extents key
+- **Note**: the camera shipped inside the LCV-032 commit; no standalone feat(LCV-031) commit exists.
 
 ## Problem
 

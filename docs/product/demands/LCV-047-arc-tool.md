@@ -1,6 +1,7 @@
 # LCV-047 — ArcTool
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: d0656a3 — feat(LCV-047): ArcTool — 3-point arc drawing with circumcenter math and preview
 - **Phase**: 4
 - **Depends on**: LCV-041 (Done), LCV-023 (Done), LCV-037 (Done)
 - **Suggested agent**: implementer-rust

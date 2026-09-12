@@ -1,6 +1,7 @@
 # LCV-062 — File actions — New / Open / Save / Save As wired to dialogs and SVG I/O
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: e7566c4 — feat(LCV-062): file actions — New/Open/Save/Save-As wired to SVG I/O
 - **Phase**: 5
 - **Depends on**: LCV-056 (done), LCV-057 (done), LCV-061 (done)
 - **Suggested agent**: implementer-rust

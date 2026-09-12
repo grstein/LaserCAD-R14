@@ -1,11 +1,12 @@
 # LCV-054 — OffsetTool — Offset a Line or Arc by Distance
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 4
 - **Depends on**: LCV-041 (Done), LCV-023 (Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: 3c99f68 — feat(LCV-054): OffsetTool — offset line/arc at fixed distance
+- **Note**: shipped as OffsetTool. The original LCV-054 scope ("snap integration into all drawing tools") was already delivered by LCV-041. OFFSET is an explicit non-goal in docs/product/README.md; keep-or-delete decision is tracked in LCV-106.
 
 ## Problem
 

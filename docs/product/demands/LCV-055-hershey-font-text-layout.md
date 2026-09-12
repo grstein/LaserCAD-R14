@@ -1,11 +1,11 @@
 # LCV-055 — Hershey font data + text layout
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 5
 - **Depends on**: LCV-011 (Done), LCV-020
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: 60138bf — feat(LCV-055): Hershey font data + text layout engine
 
 ## Problem
 

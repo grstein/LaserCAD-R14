@@ -5,7 +5,7 @@
 - **Depends on**: LCV-021
 - **Suggested agent**: architect
 - **Suggested model**: opus
-- **Implementation**: implementer-rust (task #71); af28f9b
+- **Implementation**: af28f9b — feat(LCV-022): introduce Command trait with do_/undo round-trip contract
 
 ## Problem
 

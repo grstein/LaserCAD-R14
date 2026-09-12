@@ -1,11 +1,11 @@
 # LCV-085 — Linux AppImage build
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 8
 - **Depends on**: LCV-075, LCV-076, LCV-077, LCV-078, LCV-079, LCV-080
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: 2a8883c — feat(LCV-085): Linux AppImage build script
 
 ## Problem
 

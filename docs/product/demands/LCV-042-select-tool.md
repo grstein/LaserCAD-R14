@@ -1,6 +1,7 @@
 # LCV-042 — SelectTool (point pick + window/crossing box)
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: ee2a16d — feat(LCV-042): SelectTool — point pick, window/crossing box, shift-toggle
 - **Phase**: 4
 - **Depends on**: LCV-041 (done), LCV-015 (done), LCV-027 (done)
 - **Suggested agent**: implementer-rust

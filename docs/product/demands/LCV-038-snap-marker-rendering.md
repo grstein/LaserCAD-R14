@@ -5,7 +5,7 @@
 - **Depends on**: LCV-031, LCV-016
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: feat(LCV-038): snap marker rendering — endpoint/midpoint/center/intersection shapes (7db1ddb)
+- **Implementation**: 7db1ddb — feat(LCV-038): snap marker rendering — endpoint/midpoint/center/intersection shapes
 
 ## Problem
 

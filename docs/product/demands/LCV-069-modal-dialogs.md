@@ -1,11 +1,11 @@
 # LCV-069 — Modal dialogs (confirm / error / about)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 6
 - **Depends on**: LCV-030 (Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: 7960ec9 — feat(LCV-069): modal dialogs (confirm/error/about)
 
 ## Problem
 

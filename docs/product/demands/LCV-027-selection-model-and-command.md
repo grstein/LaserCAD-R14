@@ -5,7 +5,7 @@
 - **Depends on**: LCV-022
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #73); d7429cf
+- **Implementation**: d7429cf — feat(LCV-027): concretize Selection and add SelectionCommand
 
 ## Problem
 

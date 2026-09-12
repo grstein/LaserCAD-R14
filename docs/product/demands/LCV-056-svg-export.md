@@ -1,11 +1,11 @@
 # LCV-056 — SVG export (cut/mark/engrave presets, LaserGRBL)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 5
 - **Depends on**: LCV-021 (Done), LCV-013 (Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: f6a402e — feat(LCV-056): SVG export (cut/mark/engrave, LaserGRBL-compatible)
 
 ## Problem
 

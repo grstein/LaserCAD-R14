@@ -1,6 +1,7 @@
 # LCV-070 — Keyboard shortcuts (tool activation hotkeys)
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: 35a804a — feat(LCV-070): keyboard shortcuts — L/C/A/P/R/E/M tool hotkeys + F8 ortho
 - **Phase**: 6
 - **Depends on**: LCV-040 (Done), LCV-053, LCV-062, LCV-065
 - **Suggested agent**: implementer-rust

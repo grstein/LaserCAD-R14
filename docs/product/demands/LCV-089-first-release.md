@@ -1,11 +1,12 @@
 # LCV-089 — First 0.1.0 release tag + GitHub release
 
-- **Status**: Ready
+- **Status**: Blocked
 - **Phase**: 8
 - **Depends on**: LCV-085, LCV-086, LCV-088
-- **Suggested agent**: implementer-rust
+- **Suggested agent**: project-manager
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: b936570 — chore(LCV-089): bump Cargo.toml to v0.1.0, finalize CHANGELOG, add release.sh
+- **Note**: b936570 bumped Cargo.toml to 0.1.0, finalized the CHANGELOG and added scripts/release.sh, but no git tag and no GitHub release exist (the repository has no git remote). Blocked on the user choosing a remote.
 
 ## Problem
 

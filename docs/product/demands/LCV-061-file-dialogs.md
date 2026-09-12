@@ -1,6 +1,7 @@
 # LCV-061 — File dialogs (rfd wrapper)
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: 4e664ea — feat(LCV-061): file dialogs — rfd wrappers for open/save/pick-folder
 - **Phase**: 5
 - **Depends on**: LCV-007 (done)
 - **Suggested agent**: implementer-rust

@@ -1,11 +1,11 @@
 # LCV-091 — macOS .dmg / app bundle
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 9
 - **Depends on**: LCV-087, LCV-088, LCV-089
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: 3ca6879 — feat(LCV-091): macOS .dmg app bundle — build-dmg.sh with sips/iconutil/hdiutil
 
 ## Problem
 

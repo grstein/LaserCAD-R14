@@ -7,53 +7,7 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
 
-## Draft (awaiting refinement)
-
-| ID | Title | Phase |
-|---|---|---|
-| LCV-041 | Pointer input plumbing | 4 |
-| LCV-042 | SelectTool | 4 |
-| LCV-043 | LineTool | 4 |
-| LCV-044 | PolylineTool | 4 |
-| LCV-045 | RectTool | 4 |
-| LCV-046 | CircleTool | 4 |
-| LCV-047 | ArcTool | 4 |
-| LCV-048 | TextTool (Hershey) | 4 |
-| LCV-049 | MoveTool | 4 |
-| LCV-050 | TrimTool | 4 |
-| LCV-051 | ExtendTool | 4 |
-| LCV-052 | DeleteTool | 4 |
-| LCV-053 | Ortho lock toggle | 4 |
-| LCV-054 | Snap integration into drawing tools | 4 |
-| LCV-055 | Hershey font data + text layout | 5 |
-| LCV-056 | SVG export (LaserGRBL-compatible) | 5 |
-| LCV-057 | SVG import (roxmltree) | 5 |
-| LCV-058 | Settings store | 5 |
-| LCV-059 | Autosave | 5 |
-| LCV-060 | Recent files | 5 |
-| LCV-061 | File dialogs (rfd) | 5 |
-| LCV-062 | New / Open / Save / Save As / Exit | 5 |
-| LCV-065 | Menubar | 6 |
-| LCV-066 | Toolbar | 6 |
-| LCV-067 | Status bar | 6 |
-| LCV-068 | Command-line widget | 6 |
-| LCV-069 | Modal dialogs | 6 |
-| LCV-070 | Keyboard shortcuts | 6 |
-| LCV-071 | Theme | 6 |
-| LCV-075 | Agent classifier | 7 |
-| LCV-076 | Agent settings dialog | 7 |
-| LCV-077 | HTTP transport | 7 |
-| LCV-078 | Agent tool registry | 7 |
-| LCV-079 | Multi-turn loop | 7 |
-| LCV-080 | Command-line `:` / `/ai` wiring | 7 |
-| LCV-085 | Linux AppImage build | 8 |
-| LCV-086 | Linux .deb package | 8 |
-| LCV-087 | Release profile tuning | 8 |
-| LCV-088 | Icons + .desktop entry | 8 |
-| LCV-089 | First 0.1.0 release | 8 |
-| LCV-090 | Windows MSI/NSIS build | 9 |
-| LCV-091 | macOS dmg + notarization | 9 |
-| LCV-092 | CI multi-platform pipeline | 9 |
+_None._
 
 ## In Progress
 
@@ -66,23 +20,13 @@ _None._
 
 | ID | Title | Phase | Shipped | Commit |
 |---|---|---|---|---|
-| LCV-040 | Tool trait + ToolManager | 4 | 2026-05-18 | ca7c234 |
-| LCV-038 | Snap marker rendering | 3 | 2026-05-18 | 7db1ddb |
-| LCV-037 | Preview overlay | 3 | 2026-05-18 | 6530bad |
-| LCV-036 | Selection highlight rendering | 3 | 2026-05-18 | fbd0e99 |
-| LCV-035 | Entity painter | 3 | 2026-05-18 | 422f457 |
-| LCV-030 | eframe::App impl + central panel | 3 | 2026-05-17 | 24b118a |
-| LCV-031 | Camera (world↔screen, zoom, pan, zoom-extents) | 3 | 2026-05-17 | 24b118a |
-| LCV-032 | Viewport wiring (pointer input → tools) | 3 | 2026-05-18 | 33bae5a |
-| LCV-033 | Grid renderer (responsive minor/major) | 3 | 2026-05-18 | a51f2b9 |
-| LCV-034 | Bed renderer | 3 | 2026-05-18 | ee8cea4 |
 | LCV-001 | Cargo project skeleton + dependency lock | 0 | 2026-05-17 | fd6a31d |
 | LCV-002 | rustfmt + clippy config + rust-toolchain pin | 0 | 2026-05-17 | b6464983 |
-| LCV-003 | ADR 0001 — pure Rust + egui decision | 0 | 2026-05-17 | _(scaffold commit)_ |
+| LCV-003 | ADR 0001 — pure Rust + egui decision | 0 | 2026-05-17 | cb563b2 |
 | LCV-004 | CI workflow (fmt + clippy + test, Linux) | 0 | 2026-05-17 | fe4f5c94 |
-| LCV-005 | README + LICENSE-MIT + LICENSE-APACHE + CHANGELOG scaffold | 0 | 2026-05-17 | _(scaffold commit)_ |
-| LCV-006 | Agent harness alive — `.claude/agents/*.md` present | 0 | 2026-05-17 | _(scaffold commit)_ |
-| LCV-007 | Bootstrap egui window — title "LaserCAD v2 — bootstrap" | 0 | 2026-05-17 | d94e038 |
+| LCV-005 | README + LICENSE-MIT + LICENSE-APACHE + CHANGELOG scaffold | 0 | 2026-05-17 | cb563b2 |
+| LCV-006 | Agent harness alive — confirm .claude/agents/*.md round-trip | 0 | 2026-05-17 | cb563b2 |
+| LCV-007 | Bootstrap egui window — title 'LaserCAD v2 — bootstrap' | 0 | 2026-05-17 | d94e038 |
 | LCV-010 | Vec2 + epsilon | 1 | 2026-05-17 | 2f2a8bf |
 | LCV-011 | Line type + bbox + helpers | 1 | 2026-05-17 | c6f09f9 |
 | LCV-012 | Circle type + bbox + helpers | 1 | 2026-05-17 | 4ff9ee4 |
@@ -99,6 +43,78 @@ _None._
 | LCV-025 | TrimEntities + ExtendEntities commands | 2 | 2026-05-17 | 59be8e7 |
 | LCV-026 | History stack (200-deep, undo/redo) | 2 | 2026-05-17 | 2fd3960 |
 | LCV-027 | Selection model + SelectionCommand | 2 | 2026-05-17 | d7429cf |
+| LCV-030 | eframe::App impl + central panel | 3 | 2026-05-17 | 24b118a |
+| LCV-031 | Camera (world↔screen, zoom, pan, zoom-extents) | 3 | 2026-05-17 | 33bae5a |
+| LCV-032 | Viewport wiring (pointer input → tools) | 3 | 2026-05-17 | 33bae5a |
+| LCV-033 | Grid renderer (responsive minor/major) | 3 | 2026-05-17 | a51f2b9 |
+| LCV-034 | Bed renderer (rectangle + dark outer overlay) | 3 | 2026-05-17 | ee8cea4 |
+| LCV-035 | Entity painter (line/circle/arc) | 3 | 2026-05-17 | 422f457 |
+| LCV-036 | Selection highlight rendering | 3 | 2026-05-17 | fbd0e99 |
+| LCV-037 | Preview overlay (live tool preview) | 3 | 2026-05-17 | 6530bad |
+| LCV-038 | Snap marker rendering | 3 | 2026-05-17 | 7db1ddb |
+| LCV-040 | Tool trait + ToolManager | 4 | 2026-05-17 | ca7c234 |
+| LCV-041 | Pointer input plumbing through ToolManager | 4 | 2026-05-17 | a628859 |
+| LCV-042 | SelectTool (point pick + window/crossing box) | 4 | 2026-05-17 | ee2a16d |
+| LCV-043 | LineTool | 4 | 2026-05-17 | e36b840 |
+| LCV-044 | PolylineTool | 4 | 2026-05-17 | 1af93b9 |
+| LCV-045 | RectTool | 4 | 2026-05-17 | db24e9c |
+| LCV-046 | CircleTool | 4 | 2026-05-17 | fe57b7c |
+| LCV-047 | ArcTool | 4 | 2026-05-17 | d0656a3 |
+| LCV-048 | TextTool (Hershey-based) | 4 | 2026-05-17 | b59aa63 |
+| LCV-049 | MoveTool | 4 | 2026-05-17 | 498eb0d |
+| LCV-050 | TrimTool | 4 | 2026-05-17 | a88fe1f |
+| LCV-051 | ExtendTool | 4 | 2026-05-17 | f0c6fb1 |
+| LCV-052 | DeleteTool / Delete key | 4 | 2026-05-17 | c976c36 |
+| LCV-053 | Ortho lock toggle | 4 | 2026-05-17 | 90ea0b4 |
+| LCV-054 | Snap integration into all drawing tools | 4 | 2026-05-17 | 3c99f68 |
+| LCV-055 | Hershey font data + text layout | 5 | 2026-05-17 | 60138bf |
+| LCV-056 | SVG export (cut/mark/engrave presets, LaserGRBL) | 5 | 2026-05-17 | f6a402e |
+| LCV-057 | SVG import (roxmltree, strict subset) | 5 | 2026-05-17 | d5b2edb |
+| LCV-058 | Settings store (JSON file via directories) | 5 | 2026-05-17 | 30f9ca0 |
+| LCV-059 | Autosave (debounced, restore on boot) | 5 | 2026-05-17 | 011d7ee |
+| LCV-060 | Recent files (store-backed) | 5 | 2026-05-17 | 76f0af4 |
+| LCV-061 | File dialogs (rfd wrapper) | 5 | 2026-05-17 | 4e664ea |
+| LCV-062 | New / Open / Save / Save As / Exit actions | 5 | 2026-05-17 | e7566c4 |
+| LCV-065 | Menubar (File / Edit / View / Tools / Help) | 6 | 2026-05-17 | e47d974 |
+| LCV-066 | Toolbar with tool buttons | 6 | 2026-05-17 | e5e94e5 |
+| LCV-067 | Status bar (coords / units / active tool) | 6 | 2026-05-17 | 9584a71 |
+| LCV-068 | Command-line widget (bottom dock) | 6 | 2026-05-17 | 4c36e58 |
+| LCV-069 | Modal dialogs (confirm / error / about) | 6 | 2026-05-17 | 7960ec9 |
+| LCV-070 | Keyboard shortcuts (L/P/R/C/A, F3/F7/F8, Ctrl+Z/Y/N/O/S) | 6 | 2026-05-17 | 35a804a |
+| LCV-071 | Theme + visual polish | 6 | 2026-05-17 | 31c492d |
+| LCV-075 | Agent classifier (regex routing) | 7 | 2026-05-17 | 1ac0219 |
+| LCV-076 | Agent settings dialog (API key / model / endpoint) | 7 | 2026-05-17 | 8b545c6 |
+| LCV-077 | HTTP transport (reqwest + tokio) | 7 | 2026-05-17 | 16a7683 |
+| LCV-078 | Agent tool registry (CAD actions exposed to LLM) | 7 | 2026-05-17 | 86c473e |
+| LCV-079 | Multi-turn loop with iteration cap | 7 | 2026-05-17 | cbd63ec |
+| LCV-080 | Command-line wires ':' / '/ai' prefixes to agent | 7 | 2026-05-17 | ee10f2a |
+| LCV-085 | Linux AppImage build | 8 | 2026-05-17 | 2a8883c |
+| LCV-086 | Linux .deb package | 8 | 2026-05-17 | 5de9175 |
+| LCV-087 | Release profile tuning + binary strip | 8 | 2026-05-17 | 5cc4909 |
+| LCV-088 | Icons + .desktop entry | 8 | 2026-05-17 | c5b9028 |
+| LCV-090 | Windows MSI/NSIS build | 9 | 2026-05-17 | 318909a |
+| LCV-091 | macOS dmg + notarization | 9 | 2026-05-17 | 3ca6879 |
+| LCV-092 | CI multi-platform pipeline | 9 | 2026-05-17 | 263e7cc |
+
+## Blocked
+
+| ID | Title | Reason |
+|---|---|---|
+| LCV-089 | First 0.1.0 release tag + GitHub release | Awaiting git remote |
+
+## Draft (awaiting refinement)
+
+| ID | Title | Phase |
+|---|---|---|
+| LCV-100 | SVG export/import Y-axis inversion (world Y-up -> SVG Y-down) | 10 |
+| LCV-101 | Load persisted settings in App::new + OpenRouter default endpoint | 10 |
+| LCV-102 | Autosave actually fires (dirty tracking at the pipeline level, 800 ms debounce) | 10 |
+| LCV-103 | Keyboard routing: kill double dispatch, guard wants_keyboard_input, route Enter to tools | 10 |
+| LCV-104 | Reachability: TextTool + full toolbar + Tools menu + Agent settings menu item | 10 |
+| LCV-105 | Cleanup: orphan files, Select-All via SelectionCommand, split app.rs, retire MODULE placeholders | 10 |
+| LCV-106 | Product decision: keep or delete OffsetTool (shipped under the LCV-054 id) | 10 |
+| LCV-107 | CI fix: Windows package job invokes build-msi.ps1 via PowerShell | 10 |
+| LCV-108 | Docs sync: CHANGELOG, README status, AGENTS.md reality, backlog consistency | 10 |
 
 ## Rejected
 

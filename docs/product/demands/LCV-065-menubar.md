@@ -1,6 +1,7 @@
 # LCV-065 — Menubar (File / Edit / View / Help)
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: e47d974 — feat(LCV-065): menubar — File/Edit/View/Help menus with keyboard shortcut hints
 - **Phase**: 6
 - **Depends on**: LCV-062, LCV-060 (Done), LCV-069 (Done), LCV-031 (Done), LCV-034 (Done)
 - **Suggested agent**: implementer-rust

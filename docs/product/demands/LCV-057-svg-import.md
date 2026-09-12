@@ -1,6 +1,7 @@
 # LCV-057 — SVG import (roxmltree, strict subset)
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: d5b2edb — feat(LCV-057): SVG import — parse lines, circles, arcs from LaserGRBL SVG files
 - **Phase**: 5
 - **Depends on**: LCV-056
 - **Suggested agent**: implementer-rust

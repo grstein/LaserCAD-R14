@@ -5,7 +5,7 @@
 - **Depends on**: LCV-011, LCV-012
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #41); fdade9b; AC#11 numeric inconsistency reconciled by implementer using segment-outside coords — product-owner may amend AC text
+- **Implementation**: fdade9b — feat(LCV-014): add line/line, line/circle, circle/circle intersection routines
 
 ## Problem
 

@@ -1,11 +1,11 @@
 # LCV-053 — Ortho lock toggle (F8)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 4
 - **Depends on**: LCV-041 (Done), LCV-043 (Done), LCV-044 (Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: 90ea0b4 — feat(LCV-053): F8 ortho toggle — constrain pointer to cardinal directions
 
 ## Problem
 

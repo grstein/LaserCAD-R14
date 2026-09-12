@@ -5,7 +5,7 @@
 - **Depends on**: LCV-022
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #75); e9f3f82
+- **Implementation**: e9f3f82 — feat(LCV-023): add CreateLine/Circle/Arc commands with captured-index undo
 
 ## Problem
 

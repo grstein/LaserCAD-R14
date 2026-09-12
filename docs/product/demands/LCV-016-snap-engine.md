@@ -5,7 +5,7 @@
 - **Depends on**: LCV-014
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #37); ccadb5e
+- **Implementation**: ccadb5e — feat(LCV-016): add snap engine with endpoint/midpoint/center/intersection kinds
 
 ## Problem
 

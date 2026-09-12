@@ -5,7 +5,7 @@
 - **Depends on**: LCV-001, LCV-002
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #10); d94e038; AC5 manual smoke pending human verification
+- **Implementation**: d94e038 — feat(LCV-007): freeze bootstrap window contract via APP_TITLE / DEFAULT_WINDOW_SIZE
 
 ## Problem
 

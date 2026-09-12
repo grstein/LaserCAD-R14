@@ -5,7 +5,7 @@
 - **Depends on**: LCV-010
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (task #42); c6f09f9
+- **Implementation**: c6f09f9 — feat(LCV-011): add Line geometry primitive with bbox and closest-point helpers
 
 ## Problem
 

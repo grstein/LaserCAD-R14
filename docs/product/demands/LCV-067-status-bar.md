@@ -1,6 +1,7 @@
 # LCV-067 — Status bar (coords / units / active tool)
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: 9584a71 — feat(LCV-067): status bar — coords, tool name, entity count
 - **Phase**: 6
 - **Depends on**: LCV-030 (Done)
 - **Suggested agent**: implementer-rust

@@ -1,11 +1,11 @@
 # LCV-088 — Icons + .desktop entry
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 8
 - **Depends on**: LCV-085
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: c5b9028 — feat(LCV-088): SVG icon + .desktop entry for Linux desktop integration
 
 ## Problem
 

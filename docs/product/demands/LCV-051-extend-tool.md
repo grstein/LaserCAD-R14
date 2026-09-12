@@ -1,11 +1,11 @@
 # LCV-051 — ExtendTool
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 4
 - **Depends on**: LCV-041 (Done), LCV-025 (Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: f0c6fb1 — feat(LCV-051): ExtendTool — extend entity to nearest boundary
 
 ## Problem
 
