@@ -1,4 +1,4 @@
-# LCV-105 — Cleanup: orphan files, Select-All through a Command, `app.rs` split, MODULE retirement
+# LCV-105 — Cleanup: orphan files, Select-All through a Command, `app.rs` split, MODULE retirement, window title
 
 - **Status**: Ready
 - **Phase**: 10
@@ -32,6 +32,11 @@ that claim, and each one is a rule the project already wrote down and then broke
   `tools/` and `util/`, and `tests/skeleton.rs` still asserts on them. They were
   meant to retire "as each module's owning demand lands"; every one of those
   demands has landed.
+- The window the operator sees is titled **"LaserCAD v2 — bootstrap"**
+  (`src/lib.rs:23`). That word was honest in Phase 0 and is now the single most
+  visible thing in the product: it is what the OS task bar, the window switcher
+  and every screenshot show. A release called v0.1.0 cannot ship a window that
+  calls itself a bootstrap.
 
 ## Scope
 
@@ -99,13 +104,30 @@ deep-path imports from outside the module.
   `agent::classifier` (a file that does not exist) as a kernel module, and drops
   `util` with it.
 
+### 6. Retire the bootstrap window title
+
+- `src/lib.rs:23`: `pub const APP_TITLE: &str = "LaserCAD v2 — bootstrap";`
+  becomes `pub const APP_TITLE: &str = "LaserCAD v2";`.
+- The LCV-007 contract is **updated, not worked around**: the unit test
+  `bootstrap_window_contract` (`src/lib.rs:60-61`) keeps its name and keeps
+  asserting the constant, with the new literal — the test is edited, never
+  renamed away, deleted or `#[ignore]`d.
+  `DEFAULT_WINDOW_SIZE == [1280.0, 800.0]` is unchanged and stays asserted.
+- The doc comments that describe the constant (`src/lib.rs:20`) and
+  `run()` (`src/lib.rs:31`) stop calling the window a bootstrap; the reference
+  to the LCV-007 contract stays, with this demand noted as the amendment.
+- Nothing else about the window changes: same `ViewportBuilder`, same inner
+  size, same min inner size, same `eframe::run_native` call shape.
+
 ## Out of scope
 
-- **Any behaviour change outside the four listed fixes.** The split is a pure
+- **Any behaviour change outside the six listed items.** The split is a pure
   move: no renamed public item, no changed signature, no new field.
 - **Refactoring tools, renderers, io, or the agent.** Only `src/app.rs`,
   `src/ui/menubar.rs`, `src/tools/select/mod.rs`, `src/lib.rs`, the four
   `mod.rs` placeholders and `tests/skeleton.rs` are touched.
+- **Any other branding change**: no window icon, no `.desktop` name, no
+  `Cargo.toml` `description`, no about-dialog text. One constant, one literal.
 - **`src/text/hershey_data.rs` (976 lines).** It is a generated glyph table with
   no logic; the 300-line cap is not applied to it in this demand.
 - **New tests for pre-existing behaviour** beyond the criteria below.
@@ -185,7 +207,21 @@ deep-path imports from outside the module.
     demand: `cargo doc` builds and `cargo test --all` passes with the same test
     count as before, minus none.
 
-18. `cargo fmt --all -- --check`, `cargo clippy --all-targets -- -D warnings`,
+18. **The window title is `LaserCAD v2`.**
+    `grep -rn 'LaserCAD v2 — bootstrap' src/ tests/` returns no match, and
+    `lasercad::APP_TITLE == "LaserCAD v2"`. The new literal appears in exactly
+    two places in the tree — the constant definition and the unit test that
+    asserts it. Surviving occurrences of the word "bootstrap" in `src/lib.rs`
+    are only the test name and the sentence that names the LCV-007 contract;
+    no doc comment still calls the *window* a bootstrap.
+
+19. **The LCV-007 contract test survives, updated.** `src/lib.rs` still contains
+    `#[test] fn bootstrap_window_contract` — same name, so `git log -S` keeps
+    tracking the contract; it asserts the new `APP_TITLE` literal and
+    `DEFAULT_WINDOW_SIZE == [1280.0, 800.0]`. No `#[ignore]`, no deletion, no
+    assertion dropped.
+
+20. `cargo fmt --all -- --check`, `cargo clippy --all-targets -- -D warnings`,
     and `cargo test --all` all exit 0.
 
 ## Expected tests
@@ -210,13 +246,19 @@ deep-path imports from outside the module.
 - **(AC 14)**: `cargo test --test skeleton`.
 - **(AC 16)**: `grep -rnE '^use (egui|eframe|rfd)' src/geometry src/document
   src/io/svg src/text` returns no match.
-- **(AC 17, 18)**: the three build gates; compare the `cargo test --all` summary
+- **(AC 18)**: static check — `grep -rn 'LaserCAD v2 — bootstrap' src/ tests/`
+  returns nothing, and each remaining `grep -n bootstrap src/lib.rs` hit is
+  reviewed to confirm it names the LCV-007 contract, not the window.
+- **(AC 19)**: `cargo test --lib tests::bootstrap_window_contract` passes, and
+  `git diff src/lib.rs` shows the test edited rather than removed or renamed.
+- **(AC 17, 20)**: the three build gates; compare the `cargo test --all` summary
   line before and after.
-- **Manual smoke**: `cargo run`. Draw three lines, Edit > Select All → all three
-  highlight; Ctrl+Z → the previous selection comes back. Press Escape on an
-  empty selection five times, then Ctrl+Z → the last drawn line is undone (not
-  five no-op selection commits). Every tool, menu, dialog and the agent panel
-  still open and behave as before the split.
+- **Manual smoke**: `cargo run`. The OS title bar and task-bar entry read
+  **LaserCAD v2** — no "bootstrap". Draw three lines, Edit > Select All → all
+  three highlight; Ctrl+Z → the previous selection comes back. Press Escape on
+  an empty selection five times, then Ctrl+Z → the last drawn line is undone
+  (not five no-op selection commits). Every tool, menu, dialog and the agent
+  panel still open and behave as before the split.
 
 ## Risks
 
@@ -236,6 +278,15 @@ deep-path imports from outside the module.
   the two must both land before Marco 0 closes.
 - **`src/app/tests.rs` may contain a genuinely unique assertion** beyond the one
   identified. AC 2 forces the implementer to check rather than assume.
+- **Amending a frozen contract.** LCV-007 deliberately froze `APP_TITLE` so no
+  later demand could rename it silently. Changing it here is the opposite of
+  silent: the constant, its test and the LCV-007 demand body all move together
+  (see the handoff in Notes). Any future title change needs the same treatment.
+- **Stale copies of the old title in docs.** `PLAN.md`, `CHANGELOG.md`,
+  `docs/product/backlog.md` and three demand files still quote
+  "LaserCAD v2 — bootstrap". None of them is this demand's to edit; LCV-108 and
+  the `project-manager` close that gap, and a reader who hits one of them before
+  then sees history, not a live claim.
 
 ## Open questions
 
@@ -257,3 +308,23 @@ deep-path imports from outside the module.
   new rule.
 - Millimeter canonicity and the LaserGRBL SVG export rules are untouched by this
   demand — no coordinate or export path is moved.
+
+### Handoff — the LCV-007 window-title contract
+
+Item 6 changes a value that `docs/product/demands/LCV-007-bootstrap-egui-window.md`
+froze, so the demand record must follow the code (none of this is
+`implementer-rust` scope):
+
+- `product-owner` amends the LCV-007 body: the title line, the Scope bullet
+  pinning `"LaserCAD v2 — bootstrap"`, and the acceptance criterion asserting it
+  are annotated as **amended by LCV-105** — original text kept, per the
+  AGENTS.md hygiene rule for superseded decisions.
+- `demand-manager` (LCV-108) records the new title in `CHANGELOG.md` and fixes
+  the `[Unreleased]` entry that still announces the bootstrap title, and updates
+  the LCV-007 row wording in `docs/product/backlog.md` and
+  `.claude/backlog.json`.
+- `project-manager` owns the matching line in `PLAN.md`.
+- `src/lib.rs` is the only place in the tree where the literal was ever allowed
+  (LCV-007 required it to appear nowhere else in `src/`), so no packaging file,
+  `.desktop` entry, WiX source or script needs touching — verified: `grep` finds
+  the old string only in `src/lib.rs` and in documentation.

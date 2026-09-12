@@ -63,7 +63,10 @@ paperwork match the software.
   - Packaging and CI: LCV-085..088, LCV-090..092.
   - Marco 0: LCV-100..107 — mostly `### Fixed` (SVG Y-axis, settings load,
     autosave firing at 800 ms, keyboard routing, tool reachability, CI Windows
-    packaging) and `### Removed` (OffsetTool).
+    packaging), `### Removed` (OffsetTool, LCV-106) and `### Changed` (window
+    title "LaserCAD v2 — bootstrap" → "LaserCAD v2", LCV-105). The existing
+    entry announcing the bootstrap title is **corrected in place**, not
+    duplicated.
 - Scaffold-only demands (LCV-001..006) may be covered by a single line that
   names their ids.
 - Nothing in the file may claim a release date or a published artifact.
@@ -111,6 +114,12 @@ paperwork match the software.
   - LCV-080 — "Command-line wires ':' / '/ai' prefixes to agent" → "Agent panel
     — chat UI for AI assistant".
   - LCV-077 — drop "tokio" from the title ("HTTP transport (reqwest + tokio)").
+  - LCV-007 — "Bootstrap egui window — title 'LaserCAD v2 — bootstrap'"
+    (`docs/product/backlog.md:29`, `.claude/backlog.json:77`) → "Bootstrap egui
+    window — title 'LaserCAD v2'". The window-title contract was amended by
+    LCV-105; the id stays `Done` and keeps a `note` recording the original
+    literal. Do not edit the LCV-007 demand body — `product-owner` owns that
+    annotation.
 - LCV-100..108 end at `Done` in all three stores.
 - LCV-089 stays `Blocked` with its reason ("awaiting git remote") intact.
 
@@ -202,18 +211,24 @@ paperwork match the software.
     match their demand-file headings, each carrying a `note` that records the
     originally-planned scope.
 
-16. LCV-100..108 are `Done` in all three stores; LCV-089 is still `Blocked` with
+16. `grep -rn "LaserCAD v2 — bootstrap" docs/ .claude/ CHANGELOG.md README.md`
+    returns nothing outside a `note` field or a historical CHANGELOG line that
+    explicitly says the title was changed by LCV-105. The LCV-007 rows in
+    `docs/product/backlog.md` and `.claude/backlog.json` read "title
+    'LaserCAD v2'" and LCV-007 is still `Done`.
+
+17. LCV-100..108 are `Done` in all three stores; LCV-089 is still `Blocked` with
     its reason intact.
 
-17. `.claude/backlog.json` is valid JSON
+18. `.claude/backlog.json` is valid JSON
     (`python3 -c "import json;json.load(open('.claude/backlog.json'))"` exits 0).
 
-18. No file under `src/`, `tests/`, `.github/`, and not `Cargo.toml` or
+19. No file under `src/`, `tests/`, `.github/`, and not `Cargo.toml` or
     `PLAN.md`, is modified by this demand (`git diff --name-only` shows only
     `CHANGELOG.md`, `README.md`, `AGENTS.md`, `docs/product/backlog.md`,
     `.claude/backlog.json` and demand files).
 
-19. `cargo test --all` still exits 0 (docs-only change; regression guard).
+20. `cargo test --all` still exits 0 (docs-only change; regression guard).
 
 ## Expected tests
 
@@ -225,11 +240,14 @@ paperwork match the software.
   compared against the module tree; a read of the SVG checklist against
   `src/io/svg/export.rs`.
 - **(AC 12)**: the Python status-consistency snippet; expected output `[]`.
-- **(AC 13, 14, 15, 16)**: a read of `docs/product/backlog.md` section by
+- **(AC 13, 14, 15, 17)**: a read of `docs/product/backlog.md` section by
   section against `.claude/backlog.json`.
-- **(AC 17)**: `json.load` parse check.
-- **(AC 18)**: `git diff --name-only` before committing.
-- **(AC 19)**: `cargo test --all`.
+- **(AC 16)**: `grep -rn "LaserCAD v2 — bootstrap" docs/ .claude/ CHANGELOG.md
+  README.md`, inspecting each surviving hit to confirm it is a historical
+  `note` and not a live claim about the current window title.
+- **(AC 18)**: `json.load` parse check.
+- **(AC 19)**: `git diff --name-only` before committing.
+- **(AC 20)**: `cargo test --all`.
 - **Manual**: read `[Unreleased]` top to bottom as a first-time user. Every
   entry must describe an observable behaviour (what the operator can now do),
   not an internal refactor, and must name its LCV id.
