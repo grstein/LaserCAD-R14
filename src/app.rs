@@ -30,7 +30,8 @@ use crate::render::{Bed, Camera};
 use crate::tools::{PointerButton, PointerEvent, ToolManager};
 
 /// Debounce delay before an unsaved change triggers an autosave write.
-const AUTOSAVE_DEBOUNCE: Duration = Duration::from_secs(5);
+/// 800 ms matches LaserCAD v1 (ADR 0002 §B).
+const AUTOSAVE_DEBOUNCE: Duration = Duration::from_millis(800);
 
 /// Factor applied per mouse-wheel notch. `> 1.0` zooms in; `< 1.0` zooms out.
 const WHEEL_ZOOM_FACTOR: f64 = 1.1;
@@ -66,6 +67,14 @@ pub struct App {
     /// after the last autosave flush (or after startup). Cleared back to
     /// `None` after each successful autosave write.
     pub dirty_since: Option<Instant>,
+    /// The `history.revision()` value last observed by [`App::sync_dirty`] /
+    /// [`App::mark_clean`]. Comparing against this — not against
+    /// `history.len()`, which is not monotonic across an undo-then-commit —
+    /// is how `sync_dirty` detects "something changed since the last
+    /// autosave" for every mutation source at once: tools that call
+    /// `history.commit` directly, the agent's commit sites, and undo/redo
+    /// (ADR 0002 §B).
+    pub last_synced_revision: u64,
     /// Controls visibility of the About dialog.
     pub about_open: bool,
     /// Controls visibility of the Agent Settings dialog.
@@ -117,6 +126,7 @@ impl Default for App {
             tool_manager: ToolManager::default(),
             settings: Settings::default(),
             dirty_since: None,
+            last_synced_revision: 0,
             about_open: false,
             agent_settings_open: false,
             command_line_input: String::new(),
@@ -162,15 +172,49 @@ impl App {
 
     /// Commit a command to the document and history stack.
     ///
-    /// This is the **only legal path** for tools to mutate the document.
-    /// The command is executed via `history.commit(cmd, &mut document)`.
-    /// Sets `dirty_since` to the current instant if it is not already set,
-    /// starting the autosave debounce timer (LCV-059).
+    /// `TextTool` is the only caller of this method; every other tool calls
+    /// `history.commit` directly with no `&mut App` (LCV-041). Both paths are
+    /// covered by the same dirty signal: [`App::sync_dirty`] reads
+    /// `history.revision()`, not this method (LCV-102 / ADR 0002 §B).
     ///
     /// LCV-040 AC#7, AC#8.
     pub fn commit(&mut self, cmd: Box<dyn Command>) {
         self.history.commit(cmd, &mut self.document);
-        self.dirty_since.get_or_insert_with(Instant::now);
+    }
+
+    /// The **only** writer of `dirty_since = Some(_)` (ADR 0002 §B). Called
+    /// exactly once per frame, at the end of [`App::update_ui`], immediately
+    /// before the autosave-flush check.
+    ///
+    /// Compares `history.revision()` against `last_synced_revision`: if they
+    /// differ, something committed, undid, or redid since the last sync, so
+    /// `dirty_since` is armed via `get_or_insert_with(Instant::now)` — which
+    /// preserves an already-set instant, so the debounce is measured from the
+    /// *first* unsaved change, not the latest one — and `last_synced_revision`
+    /// is advanced to the current revision. Calling it twice with no
+    /// intervening mutation is a no-op the second time.
+    fn sync_dirty(&mut self) {
+        let revision = self.history.revision();
+        if revision != self.last_synced_revision {
+            self.dirty_since.get_or_insert_with(Instant::now);
+            self.last_synced_revision = revision;
+        }
+    }
+
+    /// The **only** writer that resets `dirty_since` to `None`. Clears the
+    /// debounce timer and resyncs `last_synced_revision` to the current
+    /// `history.revision()` in one step (ADR 0002 §B).
+    ///
+    /// Resyncing the revision here — not just clearing `dirty_since` — is
+    /// mandatory wherever `history` is replaced with a fresh one (`action_new`
+    /// / `action_open` / `action_open_path`): a fresh `History` reports
+    /// revision `0`, and without resyncing, the very next frame's
+    /// `sync_dirty` would see `0 != last_synced_revision` and re-dirty a
+    /// document that was just loaded or reset. Call this **after** any
+    /// `history` replacement, never before.
+    pub fn mark_clean(&mut self) {
+        self.dirty_since = None;
+        self.last_synced_revision = self.history.revision();
     }
 
     /// Create a new, empty document (LCV-062).
@@ -374,13 +418,19 @@ impl App {
             // No key is read here: `src/app/input.rs` is the single gate
             // (LCV-103 / ADR 0002 §A6).
 
+            // Sync the dirty signal from the history revision (ADR 0002 §B).
+            // Exactly one call per frame, unconditional, right before the
+            // flush check below.
+            self.sync_dirty();
+
             // Autosave flush (LCV-059): fire when the document has been dirty
             // for longer than AUTOSAVE_DEBOUNCE without a flush.
-            if let Some(since) = self.dirty_since {
-                if since.elapsed() >= AUTOSAVE_DEBOUNCE {
-                    let _ = crate::io::save_autosave(&self.document);
-                    self.dirty_since = None;
-                }
+            if autosave_due(self.dirty_since, Instant::now()) {
+                let _ = crate::io::save_autosave(&self.document);
+                // Cleared unconditionally: a failed write is dropped, not
+                // retried every frame. The next document change re-arms the
+                // debounce (AC 18).
+                self.mark_clean();
             }
 
             // Always repaint so cursor-coords and smooth camera motion stay live.
@@ -432,6 +482,18 @@ impl eframe::App for App {
 // ---------------------------------------------------------------------------
 // Testable helpers
 // ---------------------------------------------------------------------------
+
+/// Is an armed dirty timer old enough to flush? `dirty_since` is `None` when
+/// the document is clean; `Some(t)` means it has been unsaved-dirty since
+/// `t`. `now` is a parameter (not `Instant::now()` internally) so the
+/// boundary can be tested without a real clock delay (ADR 0002 §A4 rule 2). The
+/// boundary is inclusive: exactly `AUTOSAVE_DEBOUNCE` elapsed is due.
+pub fn autosave_due(dirty_since: Option<Instant>, now: Instant) -> bool {
+    match dirty_since {
+        Some(since) => now.saturating_duration_since(since) >= AUTOSAVE_DEBOUNCE,
+        None => false,
+    }
+}
 
 /// Apply a wheel-zoom step to `camera` anchored at `screen_anchor`.
 pub fn handle_wheel_zoom(camera: &mut Camera, screen_anchor: egui::Pos2, factor: f64) {
@@ -709,5 +771,166 @@ mod tests {
         assert_eq!(app.agent_chat.last(), Some(&("error".into(), "err".into())));
         assert!(!app.agent_busy);
         assert!(app.agent_rx.is_none());
+    }
+
+    // ── LCV-102 tests — autosave dirty tracking (ADR 0002 §B) ──────────────
+
+    use crate::document::CreateLine;
+    use crate::geometry::Line;
+
+    fn some_line() -> Line {
+        Line::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0))
+    }
+
+    /// AC 6 — `App::default()` initialises `last_synced_revision` to `0`.
+    #[test]
+    fn app_default_last_synced_revision_is_zero() {
+        let app = App::default();
+        assert_eq!(app.last_synced_revision, 0);
+    }
+
+    /// AC 15 — the debounce constant matches v1 (800 ms).
+    #[test]
+    fn autosave_debounce_is_800ms() {
+        assert_eq!(AUTOSAVE_DEBOUNCE, Duration::from_millis(800));
+    }
+
+    /// AC 16 — `autosave_due` boundary cases, none of which pauses the clock.
+    #[test]
+    fn autosave_due_boundaries() {
+        let now = Instant::now();
+        assert!(!autosave_due(None, now), "clean document is never due");
+        assert!(!autosave_due(
+            now.checked_sub(Duration::from_millis(799)),
+            now
+        ));
+        assert!(
+            autosave_due(now.checked_sub(Duration::from_millis(800)), now),
+            "boundary is inclusive (>=)"
+        );
+        assert!(autosave_due(now.checked_sub(Duration::from_secs(5)), now));
+    }
+
+    /// AC 9 — the regression test for the defect this demand fixes: tools
+    /// bypass `App::commit` and call `history.commit` directly, so
+    /// `sync_dirty` must observe that mutation through `History::revision()`
+    /// alone. Before the fix, nothing but `App::commit` ever armed
+    /// `dirty_since`, so a direct `history.commit` left it `None` forever.
+    #[test]
+    fn direct_history_commit_marks_document_dirty() {
+        let mut app = App::default();
+        assert!(app.dirty_since.is_none());
+
+        app.history
+            .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
+        app.sync_dirty();
+
+        assert!(
+            app.dirty_since.is_some(),
+            "a history.commit bypassing App::commit must still dirty the document"
+        );
+    }
+
+    /// AC 7 — `sync_dirty` is idempotent without an intervening mutation, and
+    /// preserves the *first* dirty instant rather than refreshing it.
+    #[test]
+    fn sync_dirty_is_idempotent_without_mutation() {
+        let mut app = App::default();
+        app.history
+            .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
+
+        app.sync_dirty();
+        let first = app.dirty_since.expect("first sync must arm dirty_since");
+
+        app.sync_dirty();
+        assert_eq!(
+            app.dirty_since,
+            Some(first),
+            "a second sync with no new revision must not move the instant"
+        );
+    }
+
+    /// AC 8 — `mark_clean` clears `dirty_since` and resyncs the revision, so
+    /// an immediately following `sync_dirty` stays clean.
+    #[test]
+    fn mark_clean_clears_and_resyncs() {
+        let mut app = App::default();
+        app.history
+            .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
+        app.sync_dirty();
+        assert!(app.dirty_since.is_some());
+
+        app.mark_clean();
+        assert!(app.dirty_since.is_none());
+        assert_eq!(app.last_synced_revision, app.history.revision());
+
+        app.sync_dirty();
+        assert!(
+            app.dirty_since.is_none(),
+            "no new revision since mark_clean, so sync_dirty must stay clean"
+        );
+    }
+
+    /// AC 10 — undo re-dirties the document (undone away from what is saved).
+    #[test]
+    fn undo_marks_document_dirty() {
+        let mut app = App::default();
+        app.history
+            .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
+        app.sync_dirty();
+        app.mark_clean();
+        assert!(app.dirty_since.is_none());
+
+        assert!(app.history.undo(&mut app.document));
+        app.sync_dirty();
+        assert!(app.dirty_since.is_some(), "undo must dirty the document");
+    }
+
+    /// AC 10 — redo re-dirties the document.
+    #[test]
+    fn redo_marks_document_dirty() {
+        let mut app = App::default();
+        app.history
+            .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
+        app.history.undo(&mut app.document);
+        app.sync_dirty();
+        app.mark_clean();
+        assert!(app.dirty_since.is_none());
+
+        assert!(app.history.redo(&mut app.document));
+        app.sync_dirty();
+        assert!(app.dirty_since.is_some(), "redo must dirty the document");
+    }
+
+    /// AC 11 — a no-op undo on a clean, empty history must not dirty it.
+    #[test]
+    fn no_op_undo_does_not_dirty() {
+        let mut app = App::default();
+        assert!(!app.history.undo(&mut app.document));
+        app.sync_dirty();
+        assert!(app.dirty_since.is_none());
+    }
+
+    /// AC 12 — replacing `history` with a fresh one and calling `mark_clean`
+    /// must not let the very next `sync_dirty` re-dirty the just-loaded
+    /// document (this is the case that motivates resyncing the revision
+    /// inside `mark_clean`, ADR 0002 §B).
+    #[test]
+    fn replacing_history_then_mark_clean_stays_clean() {
+        let mut app = App::default();
+        app.history
+            .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
+        app.sync_dirty();
+        assert!(app.dirty_since.is_some());
+
+        app.history = History::default();
+        app.mark_clean();
+        assert!(app.dirty_since.is_none());
+
+        app.sync_dirty();
+        assert!(
+            app.dirty_since.is_none(),
+            "a fresh History at revision 0 must not re-dirty after mark_clean"
+        );
     }
 }

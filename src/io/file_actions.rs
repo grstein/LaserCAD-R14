@@ -37,7 +37,7 @@ pub fn action_new(app: &mut App) {
     app.document = Document::default();
     app.history = History::default();
     app.current_file = None;
-    app.dirty_since = None;
+    app.mark_clean();
     clear_autosave();
 }
 
@@ -77,7 +77,7 @@ pub fn action_open(app: &mut App) {
     };
     app.history = History::default();
     app.current_file = Some(path.clone());
-    app.dirty_since = None;
+    app.mark_clean();
     app.settings
         .push_recent_file(path.to_string_lossy().into_owned());
     let _ = app.settings.save();
@@ -87,9 +87,10 @@ pub fn action_open(app: &mut App) {
 /// Save the document to the current file path.
 ///
 /// If no file path is known (`app.current_file` is `None`) this function
-/// delegates to [`action_save_as`].  On success `app.dirty_since` is cleared
-/// and the autosave file is removed.  On I/O failure `app.error_message` is
-/// set; `app.current_file` is never modified by this function.
+/// delegates to [`action_save_as`].  On success `app.mark_clean()` clears the
+/// dirty timer and the autosave file is removed.  On I/O failure
+/// `app.error_message` is set; `app.current_file` is never modified by this
+/// function.
 pub fn action_save(app: &mut App) {
     let path = match app.current_file.clone() {
         Some(p) => p,
@@ -105,7 +106,7 @@ pub fn action_save(app: &mut App) {
         return;
     }
 
-    app.dirty_since = None;
+    app.mark_clean();
     clear_autosave();
 }
 
@@ -139,7 +140,7 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
     };
     app.history = History::default();
     app.current_file = Some(path.clone());
-    app.dirty_since = None;
+    app.mark_clean();
     app.settings
         .push_recent_file(path.to_string_lossy().into_owned());
     let _ = app.settings.save();
@@ -179,7 +180,7 @@ pub fn action_save_as(app: &mut App) {
     }
 
     app.current_file = Some(path.clone());
-    app.dirty_since = None;
+    app.mark_clean();
     app.settings
         .push_recent_file(path.to_string_lossy().into_owned());
     let _ = app.settings.save();

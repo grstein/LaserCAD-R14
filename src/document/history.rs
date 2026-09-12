@@ -33,6 +33,12 @@ pub struct History {
     redo_stack: Vec<Box<dyn Command>>,
     /// Cap on `undo_stack.len()`. Exposed via [`History::max_depth`].
     max_depth: usize,
+    /// Monotonic counter, bumped on every `commit` and on every `undo`/`redo`
+    /// that actually did work (ADR 0002 §B). This is the document-dirty
+    /// signal: `App::sync_dirty` compares it against a last-synced value
+    /// instead of sampling `len()`, which is not monotonic across an
+    /// undo-then-commit in the same frame.
+    revision: u64,
 }
 
 impl History {
@@ -48,28 +54,41 @@ impl History {
             undo_stack: VecDeque::new(),
             redo_stack: Vec::new(),
             max_depth: depth,
+            revision: 0,
         }
+    }
+
+    /// Monotonic revision counter (ADR 0002 §B). Starts at `0` and
+    /// increments by exactly one on every `commit`, and on every `undo` /
+    /// `redo` that returns `true`. Never decreases and never resets on its
+    /// own — replacing the whole `History` (e.g. `action_new`) is the only
+    /// way it goes back to `0`.
+    pub fn revision(&self) -> u64 {
+        self.revision
     }
 
     /// Run a command against `doc`, remember it for undo, invalidate redo.
     ///
     /// Steps: `cmd.do_(doc)`, push onto `undo_stack`, drop the oldest entry
-    /// if over `max_depth`, clear `redo_stack`.
+    /// if over `max_depth`, clear `redo_stack`, bump `revision`.
     pub fn commit(&mut self, mut cmd: Box<dyn Command>, doc: &mut Document) {
         cmd.do_(doc);
         self.undo_stack.push_back(cmd);
         self.enforce_depth_cap();
         self.redo_stack.clear();
+        self.revision += 1;
     }
 
     /// Reverse the most recent commit. Returns `true` if a command was undone,
     /// `false` if the undo stack was empty (document unchanged). The undone
-    /// command moves onto the redo stack.
+    /// command moves onto the redo stack. Bumps `revision` iff it returns
+    /// `true`.
     pub fn undo(&mut self, doc: &mut Document) -> bool {
         match self.undo_stack.pop_back() {
             Some(mut cmd) => {
                 cmd.undo(doc);
                 self.redo_stack.push(cmd);
+                self.revision += 1;
                 true
             }
             None => false,
@@ -78,13 +97,15 @@ impl History {
 
     /// Replay the most recently undone command. Returns `true` on success,
     /// `false` if the redo stack was empty. The redone command moves back
-    /// onto the undo stack and the depth cap is re-checked there.
+    /// onto the undo stack and the depth cap is re-checked there. Bumps
+    /// `revision` iff it returns `true`.
     pub fn redo(&mut self, doc: &mut Document) -> bool {
         match self.redo_stack.pop() {
             Some(mut cmd) => {
                 cmd.do_(doc);
                 self.undo_stack.push_back(cmd);
                 self.enforce_depth_cap();
+                self.revision += 1;
                 true
             }
             None => false,
@@ -294,5 +315,90 @@ mod tests {
         let cmd: Box<dyn Command> = Box::new(CreateLine::new(line_a()));
         h.commit(cmd, &mut doc);
         assert_eq!(h.len(), 1);
+    }
+
+    // --- LCV-102 — revision counter (ADR 0002 §B) ---------------------------
+
+    /// AC 1 — every constructor starts at revision `0`.
+    #[test]
+    fn revision_starts_at_zero() {
+        assert_eq!(History::new().revision(), 0);
+        assert_eq!(History::default().revision(), 0);
+        assert_eq!(History::with_depth(3).revision(), 0);
+    }
+
+    /// AC 2 — commit increments the revision by exactly one per call,
+    /// including commits that evict the oldest entry at the depth cap.
+    #[test]
+    fn commit_increments_revision() {
+        let mut doc = Document::default();
+        let mut h = History::new();
+        h.commit(Box::new(CreateLine::new(line_a())), &mut doc);
+        h.commit(Box::new(CreateLine::new(line_b())), &mut doc);
+        h.commit(Box::new(NoOpCommand), &mut doc);
+        assert_eq!(h.revision(), 3);
+
+        let mut doc2 = Document::default();
+        let mut capped = History::with_depth(2);
+        for _ in 0..4 {
+            capped.commit(Box::new(NoOpCommand), &mut doc2);
+        }
+        assert_eq!(capped.len(), 2, "depth cap evicted the oldest entries");
+        assert_eq!(capped.revision(), 4, "eviction still counts as a commit");
+    }
+
+    /// AC 3 — undo/redo bump the revision only on the branch that did work.
+    #[test]
+    fn undo_and_redo_increment_revision_only_when_work_is_done() {
+        let mut doc = Document::default();
+        let mut h = History::new();
+
+        // No-op undo/redo on an empty history: no revision change.
+        assert!(!h.undo(&mut doc));
+        assert_eq!(h.revision(), 0);
+        assert!(!h.redo(&mut doc));
+        assert_eq!(h.revision(), 0);
+
+        h.commit(Box::new(CreateLine::new(line_a())), &mut doc);
+        assert_eq!(h.revision(), 1);
+
+        assert!(h.undo(&mut doc));
+        assert_eq!(h.revision(), 2, "a successful undo bumps the revision");
+        assert!(!h.undo(&mut doc), "undo stack is empty now");
+        assert_eq!(h.revision(), 2, "a no-op undo must not bump the revision");
+
+        assert!(h.redo(&mut doc));
+        assert_eq!(h.revision(), 3, "a successful redo bumps the revision");
+        assert!(!h.redo(&mut doc), "redo stack is empty now");
+        assert_eq!(h.revision(), 3, "a no-op redo must not bump the revision");
+    }
+
+    /// AC 4 — the revision is monotonically non-decreasing across any
+    /// commit/undo/redo sequence: a commit-undo-commit sequence yields three
+    /// distinct increasing values, a property `history.len()` does not have
+    /// (`len()` goes 1 -> 0 -> 1, i.e. it repeats).
+    #[test]
+    fn revision_is_monotonic_across_commit_undo_commit() {
+        let mut doc = Document::default();
+        let mut h = History::new();
+
+        h.commit(Box::new(CreateLine::new(line_a())), &mut doc);
+        let after_first_commit = h.revision();
+        assert_eq!(h.len(), 1);
+
+        assert!(h.undo(&mut doc));
+        let after_undo = h.revision();
+        assert_eq!(h.len(), 0);
+
+        h.commit(Box::new(CreateLine::new(line_b())), &mut doc);
+        let after_second_commit = h.revision();
+        assert_eq!(h.len(), 1, "history.len() repeats: 1 -> 0 -> 1");
+
+        assert_eq!(
+            (after_first_commit, after_undo, after_second_commit),
+            (1, 2, 3)
+        );
+        assert!(after_first_commit < after_undo);
+        assert!(after_undo < after_second_commit);
     }
 }
