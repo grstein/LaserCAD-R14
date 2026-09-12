@@ -155,6 +155,18 @@ On every invocation, the `project-manager`:
 
 > Single-writer: `project-manager`. Most recent entries at the top. Format: `YYYY-MM-DD HH:MM — LCV-NNN status — note`.
 
+- 2026-09-12 — Marco 0 complete — LCV-100..108 Done, LCV-054 Rejected; gate green (632 lib + 67 integration + 5 doc tests); awaiting the user's manual smoke test before tag v0.1.0.
+- 2026-09-12 — LCV-108 Done — CHANGELOG, README, AGENTS.md and every demand Status line synced to reality; the fictional [0.1.0] - 2025-06-15 section folded back into [Unreleased].
+- 2026-09-12 — LCV-105 Done — src/app.rs split into src/app/ submodules, all under the 300-line cap; orphans and MODULE placeholders retired; Select All is undoable; window title is now LaserCAD v2.
+- 2026-09-12 — LCV-107 Done — CI Windows package job invokes build-msi.ps1 through PowerShell and installs Rust and cargo-wix. No remote created and nothing pushed; that decision is the user's.
+- 2026-09-12 — LCV-106 Done, LCV-054 Rejected — OffsetTool deleted; it was an explicit product non-goal shipped by accident under the LCV-054 id.
+- 2026-09-12 — LCV-104 Done — TextTool reachable at last: toolbar button, D shortcut, Tools menu; toolbar completed; Help > Agent settings opens the agent window.
+- 2026-09-12 — LCV-102 Done — autosave actually fires, driven by a History revision counter with an 800 ms debounce; proven to reach disk in an isolated probe.
+- 2026-09-12 — LCV-103 Done — keyboard input routed through one focus-gated dispatcher; F8 and Ctrl+Z act once per press; Enter reaches the active tool.
+- 2026-09-12 — LCV-101 Done — settings load at startup; agent endpoint defaults to OpenRouter; corrupt settings are backed up rather than lost.
+- 2026-09-12 — LCV-100 Done — SVG export and import flip Y, so exported files open the right way up in LaserGRBL and Inkscape. The worst defect in the project.
+- 2026-09-12 — ADR 0002 accepted — headless input regression tests via App::update_ui, and autosave dirty tracking on a History revision counter.
+- 2026-09-12 — Marco 0 opened — backlog reconciled against git history (LCV-010..092 closed as shipped, LCV-089 Blocked); LCV-100..108 created and refined to Ready.
 - 2026-05-18 — LCV-040 Done — Tool trait + ToolManager shipped, Phase 4 open.
 - 2026-05-18 — Phase 3 complete — all render demands LCV-033..038 Done.
 - 2026-05-18 — LCV-038 Done — snap marker rendering reviewed and approved.

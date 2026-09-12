@@ -551,7 +551,7 @@
       "id": "LCV-054",
       "title": "Snap integration into all drawing tools",
       "phase": 4,
-      "status": "Done",
+      "status": "Rejected",
       "depends_on": [
         "LCV-016",
         "LCV-043",
@@ -559,7 +559,7 @@
         "LCV-047"
       ],
       "suggested_agent": "implementer-rust",
-      "note": "RETITLED: shipped as OffsetTool, not \"snap integration into drawing tools\" (that was already delivered by LCV-041 global snap resolve). OffsetTool is an explicit non-goal in docs/product/README.md — decision pending in LCV-106.",
+      "note": "RETITLED then REJECTED. The id was planned as \"snap integration into all drawing tools\", already delivered by LCV-041, and shipped instead as OffsetTool in 3c99f68. Offset is an explicit non-goal in docs/product/README.md, so LCV-106 deleted the tool in adbc878. The shipping commit is kept for traceability.",
       "shipped_commit": "3c99f68"
     },
     {
@@ -1004,13 +1004,14 @@
       "id": "LCV-108",
       "title": "Docs sync: CHANGELOG, README status, AGENTS.md reality, backlog consistency",
       "phase": 10,
-      "status": "InProgress",
+      "status": "Done",
       "depends_on": [],
       "suggested_agent": "demand-manager",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Closes the May-2026 drive paperwork and records Marco 0.",
+      "note": "CHANGELOG folded the fictional \"[0.1.0] - 2025-06-15\" section back into a single [Unreleased]; README status is Alpha (0.1.0 pending); AGENTS.md corrected for the std::thread + reqwest::blocking reality, the non-existent agent/classifier.rs and the post-split module tree. Follow-up commit eae206d marked the demand itself Done.",
       "demand_file": "docs/product/demands/LCV-108-docs-sync.md",
-      "drive_order": 9
+      "drive_order": 9,
+      "shipped_commit": "b24da80"
     }
   ]
 }
