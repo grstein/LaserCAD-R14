@@ -96,6 +96,11 @@ pub struct App {
     pub error_message: Option<String>,
 }
 
+/// The test constructor (ADR 0002 §A2). Touches no filesystem: `settings`
+/// is `Settings::default()`, `document` is never replaced with an autosaved
+/// or persisted one. Safe to call from any `#[cfg(test)]` context. Boot code
+/// must use [`App::new`] instead, which additionally reads the platform
+/// config directory and the platform data directory.
 impl Default for App {
     fn default() -> Self {
         Self {
@@ -127,14 +132,25 @@ impl Default for App {
 }
 
 impl App {
-    /// Construct the application, restoring from autosave if a recovery file
-    /// is available.
+    /// Construct the application: boot-only. Reads the platform **config**
+    /// directory (via [`Settings::load`]) and the platform **data**
+    /// directory (via [`crate::io::load_autosave`]) — the two real
+    /// filesystem locations `App::default()` never touches. MUST NOT be
+    /// called from tests (ADR 0002 §A2); tests use [`App::default`].
     ///
-    /// Calls [`Self::default()`] for all fields, then overwrites `document`
-    /// with the autosaved one (if present and schema-compatible).
-    /// LCV-059 AC#1.
+    /// Calls [`Self::default()`] for all fields, then:
+    /// - loads persisted settings — recent files, agent endpoint, agent API
+    ///   key — overwriting the default `settings`;
+    /// - overwrites `document` with the autosaved one, if present and
+    ///   schema-compatible (LCV-059 AC#1).
+    ///
+    /// Performs no write of its own: no `settings.save()`, no autosave
+    /// write, no file created on the startup path.
     pub fn new() -> Self {
-        let mut app = Self::default();
+        let mut app = Self {
+            settings: Settings::load(),
+            ..Self::default()
+        };
         if let Some(recovered) = crate::io::load_autosave() {
             app.document = recovered;
         }

@@ -9,8 +9,13 @@
 //!
 //! `load()` and `load_from()` are both **infallible** — they return
 //! [`Settings::default()`] on any error (missing file, parse failure, no
-//! platform dir).  `save` and `save_to` return a [`Result`] so callers can
-//! log or surface the error.
+//! platform dir). A file that exists but fails to parse is renamed to a
+//! `.bak` sibling before defaults are returned (mirroring the `.tmp` staging
+//! file used by `save_to`), so the unreadable bytes are preserved rather than
+//! silently discarded; if that rename itself fails (e.g. an unwritable
+//! directory), the failure is ignored and defaults are still returned. A
+//! missing file is left alone — no `.bak`, no side effects. `save` and
+//! `save_to` return a [`Result`] so callers can log or surface the error.
 //!
 //! ## Atomic write
 //!
@@ -66,7 +71,7 @@ pub struct Settings {
     pub recent_files: Vec<String>,
 
     /// OpenAI-compatible API base URL.
-    /// Default: `"https://api.openai.com/v1"`.
+    /// Default: `"https://openrouter.ai/api/v1"`.
     #[serde(default = "default_agent_endpoint")]
     pub agent_endpoint: String,
 
@@ -77,7 +82,7 @@ pub struct Settings {
 }
 
 fn default_agent_endpoint() -> String {
-    "https://api.openai.com/v1".to_string()
+    "https://openrouter.ai/api/v1".to_string()
 }
 
 impl Default for Settings {
@@ -132,14 +137,30 @@ impl Settings {
 
 /// Load settings from `path` (infallible).
 ///
-/// Returns [`Settings::default()`] if the file does not exist or is not valid
-/// JSON that matches the [`Settings`] schema.
+/// - A missing file returns [`Settings::default()`] with no side effects: no
+///   file is created.
+/// - A file that exists but does not parse as [`Settings`] JSON is
+///   **preserved**, not overwritten: it is renamed to a `.bak` sibling (an
+///   existing `.bak` is replaced) before [`Settings::default()`] is
+///   returned. If the rename fails (e.g. the directory is not writable),
+///   that failure is ignored — `load_from` still returns defaults and never
+///   panics.
+/// - A file that parses successfully is left untouched: `load_from` never
+///   truncates, creates, or rewrites the file it reads.
 pub(crate) fn load_from(path: &Path) -> Settings {
     let content = match std::fs::read_to_string(path) {
         Ok(s) => s,
         Err(_) => return Settings::default(),
     };
-    serde_json::from_str(&content).unwrap_or_default()
+    match serde_json::from_str(&content) {
+        Ok(settings) => settings,
+        Err(_) => {
+            // Best-effort: an unwritable directory must not turn a corrupt
+            // settings file into a panic, so the rename's Result is dropped.
+            let _ = std::fs::rename(path, sibling_with_suffix(path, "bak"));
+            Settings::default()
+        }
+    }
 }
 
 /// Persist `settings` to `path` using an atomic rename.
@@ -152,21 +173,27 @@ pub(crate) fn save_to(settings: &Settings, path: &Path) -> Result<(), SettingsEr
         std::fs::create_dir_all(parent)?;
     }
 
-    let tmp_path: PathBuf = {
-        let mut p = path.to_path_buf();
-        let stem = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("settings");
-        p.set_file_name(format!("{stem}.tmp"));
-        p
-    };
+    let tmp_path = sibling_with_suffix(path, "tmp");
 
     let json = serde_json::to_string_pretty(settings)?;
     std::fs::write(&tmp_path, json)?;
     std::fs::rename(&tmp_path, path)?;
 
     Ok(())
+}
+
+/// Returns `path` with `.<suffix>` appended to its file name, e.g.
+/// `settings.json` + `"tmp"` → `settings.json.tmp`. Shared by `save_to`'s
+/// atomic-write staging file and `load_from`'s corrupt-file backup, so the
+/// two derivations can never collide with each other.
+fn sibling_with_suffix(path: &Path, suffix: &str) -> PathBuf {
+    let mut p = path.to_path_buf();
+    let stem = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("settings");
+    p.set_file_name(format!("{stem}.{suffix}"));
+    p
 }
 
 // ---------------------------------------------------------------------------
@@ -238,11 +265,19 @@ mod tests {
     // load_from / save_to
     // ------------------------------------------------------------------
 
-    /// AC#5 — load_from with a nonexistent path returns Settings::default().
+    /// AC#5 (LCV-058) / AC 9 (LCV-101) — load_from with a nonexistent path
+    /// returns Settings::default(), and leaves the filesystem untouched: no
+    /// file and no `.bak` sibling are created.
     #[test]
-    fn load_from_nonexistent_path_returns_default() {
-        let result = load_from(Path::new("/tmp/__lcv058_no_such_file_xyz__.json"));
+    fn load_from_nonexistent_path_returns_default_and_creates_nothing() {
+        let path = Path::new("/tmp/__lcv058_no_such_file_xyz__.json");
+        let bak = Path::new("/tmp/__lcv058_no_such_file_xyz__.json.bak");
+
+        let result = load_from(path);
+
         assert_eq!(result, Settings::default());
+        assert!(!path.exists());
+        assert!(!bak.exists());
     }
 
     /// AC#6 — load_from with a valid JSON file returns the deserialised settings.
@@ -303,13 +338,96 @@ mod tests {
         let _ = fs::remove_file(&tmp);
     }
 
-    /// Malformed JSON returns Settings::default() without panicking.
+    /// AC 10 — a corrupt file is renamed to a `.bak` sibling (byte-identical
+    /// to the original) rather than overwritten, and `load_from` returns
+    /// defaults without panicking. Covers three cases: garbled JSON, an
+    /// empty file, and a pre-existing `.bak` being replaced.
     #[test]
-    fn load_from_malformed_json_returns_default() {
-        let tmp = std::env::temp_dir().join("lcv058_bad_json.json");
-        fs::write(&tmp, b"{ this is not json }").unwrap();
-        let s = load_from(&tmp);
-        assert_eq!(s, Settings::default());
+    fn load_from_corrupt_file_backs_it_up() {
+        let dir = std::env::temp_dir().join("lcv101_corrupt_backup");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        let bak = dir.join("settings.json.bak");
+
+        // Case 1: garbled JSON is backed up and defaults are returned.
+        let garbage: &[u8] = b"{ this is not json }";
+        fs::write(&path, garbage).unwrap();
+        let result = load_from(&path);
+        assert_eq!(result, Settings::default());
+        assert!(
+            !path.exists(),
+            "corrupt file must be moved away, not left in place"
+        );
+        assert_eq!(
+            fs::read(&bak).unwrap(),
+            garbage,
+            ".bak bytes must be identical to the corrupt input"
+        );
+
+        // Case 2: a second corrupt write replaces the existing .bak.
+        let garbage2: &[u8] = b"{ still not json }";
+        fs::write(&path, garbage2).unwrap();
+        let result2 = load_from(&path);
+        assert_eq!(result2, Settings::default());
+        assert_eq!(
+            fs::read(&bak).unwrap(),
+            garbage2,
+            "a pre-existing .bak must be replaced by the newer corrupt file"
+        );
+
+        // Case 3: an empty file is corrupt too (not valid JSON).
+        fs::write(&path, b"").unwrap();
+        let result3 = load_from(&path);
+        assert_eq!(result3, Settings::default());
+        assert!(!path.exists());
+        assert_eq!(fs::read(&bak).unwrap(), b"");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// AC 11 — if the `.bak` rename fails (here: the containing directory is
+    /// not writable), `load_from` still returns defaults and does not panic.
+    /// Unix-only: relies on directory-permission enforcement that Windows
+    /// ACLs do not model the same way, and this repo's primary platform is
+    /// Linux (AGENTS.md).
+    #[cfg(unix)]
+    #[test]
+    fn load_from_corrupt_file_survives_failed_backup() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = std::env::temp_dir().join("lcv101_readonly_dir");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        fs::write(&path, b"{ not json }").unwrap();
+
+        // Strip write permission from the directory: rename() needs write
+        // access on the containing directory, not on the file itself.
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o500)).unwrap();
+
+        let result = load_from(&path);
+
+        // Restore permissions before any cleanup, or remove_dir_all fails.
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
+
+        assert_eq!(result, Settings::default());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// AC 12 — a file that parses successfully is left byte-for-byte
+    /// unchanged: `load_from` never truncates, creates, or rewrites it.
+    #[test]
+    fn load_from_does_not_modify_a_valid_file() {
+        let tmp = std::env::temp_dir().join("lcv101_valid_unmodified.json");
+        let json = r#"{"recent_files":["foo.lcad"],"agent_endpoint":"https://openrouter.ai/api/v1","agent_api_key":""}"#;
+        fs::write(&tmp, json).unwrap();
+
+        let before = fs::read(&tmp).unwrap();
+        let _ = load_from(&tmp);
+        let after = fs::read(&tmp).unwrap();
+
+        assert_eq!(before, after);
         let _ = fs::remove_file(&tmp);
     }
 
@@ -317,21 +435,25 @@ mod tests {
     // LCV-076 — agent settings fields
     // ------------------------------------------------------------------
 
-    /// §T1 — AC 1 + AC 2 — agent field defaults.
+    /// §T1 — AC 1 + AC 2 (LCV-076) / AC 5 + AC 6 (LCV-101) — agent field
+    /// defaults: OpenRouter endpoint, empty key, empty recent list.
     #[test]
     fn agent_field_defaults() {
         let s = Settings::default();
-        assert_eq!(s.agent_endpoint, "https://api.openai.com/v1");
+        assert_eq!(s.agent_endpoint, "https://openrouter.ai/api/v1");
         assert_eq!(s.agent_api_key, "");
+        assert!(s.recent_files.is_empty());
     }
 
-    /// §T2 — AC 4 — agent-field round-trip preserves non-default values.
+    /// §T2 — AC 4 (LCV-076) / AC 14 (LCV-101) — agent-field round-trip
+    /// preserves a non-default endpoint, proving persistence rather than
+    /// tautologically matching the (now identical) default.
     #[test]
     fn agent_fields_round_trip() {
         let tmp = std::env::temp_dir().join("lcv076_agent_roundtrip.json");
 
         let original = Settings {
-            agent_endpoint: "https://openrouter.ai/api/v1".into(),
+            agent_endpoint: "https://api.openai.com/v1".into(),
             agent_api_key: "sk-test".into(),
             ..Settings::default()
         };
@@ -340,17 +462,33 @@ mod tests {
         let loaded = load_from(&tmp);
 
         assert_eq!(original, loaded);
+        assert_ne!(loaded.agent_endpoint, Settings::default().agent_endpoint);
         let _ = fs::remove_file(&tmp);
     }
 
-    /// §T2b — AC 3 — legacy JSON (no agent fields) deserialises to defaults.
+    /// AC 7 — a settings file that stores an explicit (non-default)
+    /// endpoint keeps it: the fallback default must not clobber a value the
+    /// user actually set.
+    #[test]
+    fn explicit_endpoint_in_file_is_preserved() {
+        let tmp = std::env::temp_dir().join("lcv101_explicit_endpoint.json");
+        fs::write(&tmp, r#"{"agent_endpoint":"https://api.openai.com/v1"}"#).unwrap();
+
+        let result = load_from(&tmp);
+        assert_eq!(result.agent_endpoint, "https://api.openai.com/v1");
+
+        let _ = fs::remove_file(&tmp);
+    }
+
+    /// §T2b — AC 3 (LCV-076) / AC 8 (LCV-101) — legacy JSON (no agent
+    /// fields) deserialises to the OpenRouter default.
     #[test]
     fn legacy_json_without_agent_fields_uses_defaults() {
         let tmp = std::env::temp_dir().join("lcv076_legacy_compat.json");
         fs::write(&tmp, r#"{"recent_files":[]}"#).unwrap();
 
         let result = load_from(&tmp);
-        assert_eq!(result.agent_endpoint, "https://api.openai.com/v1");
+        assert_eq!(result.agent_endpoint, "https://openrouter.ai/api/v1");
         assert_eq!(result.agent_api_key, "");
 
         let _ = fs::remove_file(&tmp);
