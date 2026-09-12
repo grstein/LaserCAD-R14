@@ -166,9 +166,18 @@ jobs:
           ./scripts/build-appimage.sh
           ./scripts/build-deb.sh
 
-      - name: Package (Windows) — MSI via Git Bash
+      - name: Install Rust toolchain (from rust-toolchain.toml) (Windows)
         if: runner.os == 'Windows'
-        run: bash ./scripts/build-msi.sh
+        run: rustup show
+
+      - name: Install cargo-wix (Windows)
+        if: runner.os == 'Windows'
+        run: cargo install cargo-wix --locked
+
+      - name: Package (Windows) — MSI via PowerShell
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/build-msi.ps1
 
       - name: Package (macOS) — DMG
         if: runner.os == 'macOS'
