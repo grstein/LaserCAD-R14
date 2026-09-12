@@ -926,11 +926,11 @@
       "id": "LCV-102",
       "title": "Autosave actually fires (dirty tracking at the pipeline level, 800 ms debounce)",
       "phase": 10,
-      "status": "InProgress",
+      "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Defect D3: tools call history.commit directly, so dirty_since is never set.",
+      "note": "APPROVED. Reviewer proved the end-to-end path in a scratch clone with HOME redirected: a tool-driven edit produced an autosave file on disk after 0.83 s of real wall-clock time, and reverting sync_dirty to a no-op made 8 tests fail. The real user data directory was never touched.",
       "demand_file": "docs/product/demands/LCV-102-autosave-dirty-tracking.md",
       "drive_order": 4,
       "shipped_commit": "a958d29"
@@ -952,13 +952,14 @@
       "id": "LCV-104",
       "title": "Reachability: TextTool + full toolbar + Tools menu + Agent settings menu item",
       "phase": 10,
-      "status": "Ready",
+      "status": "InProgress",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
       "note": "Defects D6 and D7-partial.",
       "demand_file": "docs/product/demands/LCV-104-tool-reachability.md",
-      "drive_order": 5
+      "drive_order": 5,
+      "shipped_commit": "4b8c243"
     },
     {
       "id": "LCV-105",
