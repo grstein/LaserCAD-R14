@@ -182,6 +182,7 @@ Default answers:
 
 - [`PLAN.md`](PLAN.md) — live roadmap (demand table, phases, PM execution log).
 - [`docs/adr/0001-pure-rust-egui.md`](docs/adr/0001-pure-rust-egui.md) — framework decision.
+- [`docs/adr/0002-headless-input-tests-and-dirty-tracking.md`](docs/adr/0002-headless-input-tests-and-dirty-tracking.md) — headless `App::update_ui` regression-test pattern, the single keyboard gate, and `History::revision()` as the autosave dirty signal.
 - [`docs/product/README.md`](docs/product/README.md) — product principles.
 - [`docs/product/product-owner-agent.md`](docs/product/product-owner-agent.md) — demand format and lifecycle.
 - [`docs/product/backlog.md`](docs/product/backlog.md) — prioritized backlog by state.
