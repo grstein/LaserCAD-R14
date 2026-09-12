@@ -900,91 +900,109 @@
       "id": "LCV-100",
       "title": "SVG export/import Y-axis inversion (world Y-up -> SVG Y-down)",
       "phase": 10,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Defect D1: exported SVG is mirrored vertically in LaserGRBL/Inkscape. Highest priority of Marco 0."
+      "note": "Defect D1: exported SVG is mirrored vertically in LaserGRBL/Inkscape. Highest priority of Marco 0.",
+      "demand_file": "docs/product/demands/LCV-100-svg-y-axis-inversion.md",
+      "drive_order": 1
     },
     {
       "id": "LCV-101",
       "title": "Load persisted settings in App::new + OpenRouter default endpoint",
       "phase": 10,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Defect D2: Settings::load() is never called; App::new uses Settings::default()."
+      "note": "Defect D2: Settings::load() is never called; App::new uses Settings::default().",
+      "demand_file": "docs/product/demands/LCV-101-settings-load-on-startup.md",
+      "drive_order": 2
     },
     {
       "id": "LCV-102",
       "title": "Autosave actually fires (dirty tracking at the pipeline level, 800 ms debounce)",
       "phase": 10,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Defect D3: tools call history.commit directly, so dirty_since is never set."
+      "note": "Defect D3: tools call history.commit directly, so dirty_since is never set.",
+      "demand_file": "docs/product/demands/LCV-102-autosave-dirty-tracking.md",
+      "drive_order": 4
     },
     {
       "id": "LCV-103",
       "title": "Keyboard routing: kill double dispatch, guard wants_keyboard_input, route Enter to tools",
       "phase": 10,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Defects D4, D5, D8."
+      "note": "Defects D4, D5, D8.",
+      "demand_file": "docs/product/demands/LCV-103-keyboard-routing.md",
+      "drive_order": 3
     },
     {
       "id": "LCV-104",
       "title": "Reachability: TextTool + full toolbar + Tools menu + Agent settings menu item",
       "phase": 10,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Defects D6 and D7-partial."
+      "note": "Defects D6 and D7-partial.",
+      "demand_file": "docs/product/demands/LCV-104-tool-reachability.md",
+      "drive_order": 5
     },
     {
       "id": "LCV-105",
       "title": "Cleanup: orphan files, Select-All via SelectionCommand, split app.rs, retire MODULE placeholders",
       "phase": 10,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Defect D10 plus accumulated hygiene debt."
+      "note": "Defect D10 plus accumulated hygiene debt.",
+      "demand_file": "docs/product/demands/LCV-105-cleanup-and-app-split.md",
+      "drive_order": 8
     },
     {
       "id": "LCV-106",
       "title": "Product decision: keep or delete OffsetTool (shipped under the LCV-054 id)",
       "phase": 10,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [],
       "suggested_agent": "product-owner",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "OFFSET is an explicit non-goal in docs/product/README.md. Recommendation: delete (KISS)."
+      "note": "OFFSET is an explicit non-goal in docs/product/README.md. Recommendation: delete (KISS).",
+      "demand_file": "docs/product/demands/LCV-106-offset-tool-decision.md",
+      "drive_order": 6
     },
     {
       "id": "LCV-107",
       "title": "CI fix: Windows package job invokes build-msi.ps1 via PowerShell",
       "phase": 10,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Defect D9. Creating a git remote and pushing is OUT OF SCOPE until the user decides repo name/visibility."
+      "note": "Defect D9. Creating a git remote and pushing is OUT OF SCOPE until the user decides repo name/visibility.",
+      "demand_file": "docs/product/demands/LCV-107-ci-windows-msi-invocation.md",
+      "drive_order": 7
     },
     {
       "id": "LCV-108",
       "title": "Docs sync: CHANGELOG, README status, AGENTS.md reality, backlog consistency",
       "phase": 10,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [],
       "suggested_agent": "demand-manager",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Closes the May-2026 drive paperwork and records Marco 0."
+      "note": "Closes the May-2026 drive paperwork and records Marco 0.",
+      "demand_file": "docs/product/demands/LCV-108-docs-sync.md",
+      "drive_order": 9
     }
   ]
 }
