@@ -147,12 +147,13 @@ cosmetic: see the repeat-rewrite finding above. There is no single-event
    never a hand-rolled `Event::Key`. Otherwise egui marks the next press on the
    same key as a repeat and `dispatch_shortcuts` drops it.
 
-**A5. Reference test — the F8 case (LCV-101). Verified to compile and pass
+**A5. Reference test — the F8 case (D4, demand LCV-103). Verified to compile
+and pass
 against egui 0.29.1** (validated in a scratch crate with a stand-in `App` whose
 `update_ui` mirrors the `src/ui/shortcuts.rs` event filter):
 
 ```rust
-//! tests/lcv101.rs — regression: F8 must toggle ortho exactly once per press.
+//! tests/lcv103.rs — regression: F8 must toggle ortho exactly once per press.
 
 mod harness;
 
@@ -252,6 +253,14 @@ Backspace routing to the active tool, `F` / `Ctrl+0` zoom-extents, and the
 `src/app/input.rs` behind the same gate. `dispatch_shortcuts` keeps its current
 signature, so every test in `tests/lcv070.rs` keeps passing.
 
+There is a **third** dispatch site to remove that the first draft of this ADR
+did not name: `src/ui/command_line.rs:37-46` reads `Key::Escape`, calls
+`ToolManager::handle_key` itself, and then papers over the collision with
+`ui.input_mut(|i| i.consume_key(…))`. The widget keeps "clear my own buffer" and
+nothing else; cancelling the tool is the gate's job. A `consume_key` call that
+exists to hide a double dispatch is the smell this decision removes — treat a
+new one as a review blocker.
+
 The gate table is the contract:
 
 | class | keys | fires while a text widget has focus |
@@ -263,6 +272,11 @@ The gate table is the contract:
 | tool activation | `L P R C A M E T X` | **no** |
 | tool key routing | `Enter`, `Delete`, `Backspace` | **no** |
 | typed characters | `Event::Text` | **no** |
+
+The *rows* are the contract; the tool-activation *set* is not frozen. It lists
+the bindings that exist today, and LCV-104 adds `D` for `TextTool`. A new tool
+key joins that row without amending this ADR — what may not change without one
+is a key's gate column.
 
 `Enter` must be gated: `src/ui/command_line.rs:50` already consumes Enter to
 submit the command line, and an ungated route would both submit the command line
