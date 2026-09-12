@@ -7,13 +7,16 @@
 //! mutate the document directly.
 //!
 //! The render pipeline (camera, grid, bed, entities, preview, snaps) attaches
-//! to the `CentralPanel` viewport rect set up by [`App::update`].
+//! to the `CentralPanel` viewport rect set up by [`App::update_ui`], the frame
+//! body that `eframe::App::update` delegates to (ADR 0002 §A1).
 
+mod input;
 mod ortho;
 mod snap;
 
 mod agent_poll;
 pub use agent_poll::poll_agent_rx;
+pub use input::process_input;
 pub use ortho::apply_ortho;
 pub use snap::resolve_snap;
 
@@ -33,7 +36,7 @@ const AUTOSAVE_DEBOUNCE: Duration = Duration::from_secs(5);
 const WHEEL_ZOOM_FACTOR: f64 = 1.1;
 
 /// Live application state. Owned by the eframe runtime via
-/// [`crate::run`] and ticked once per frame in [`App::update`].
+/// [`crate::run`] and ticked once per frame in [`App::update_ui`].
 pub struct App {
     /// The CAD document — entities, schema, bounds.
     pub document: Document,
@@ -194,11 +197,20 @@ impl App {
     pub fn action_save_as(&mut self) {
         crate::io::action_save_as(self);
     }
-}
 
-impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    /// The whole frame body (ADR 0002 §A1).
+    ///
+    /// [`eframe::App::update`] delegates here and does nothing else; headless
+    /// regression tests drive this method directly through
+    /// [`egui::Context::run`] (`tests/harness/mod.rs`). Keep it an
+    /// orchestrator: each phase belongs in its own function so LCV-105 can
+    /// split `src/app.rs` mechanically.
+    pub fn update_ui(&mut self, ctx: &egui::Context) {
+        // The two — and only two — keyboard readers (ADR 0002 §A6): the
+        // shortcut table, then the focus gate. Both run before any panel so
+        // Escape cancels the tool in the same frame the command line clears.
         crate::ui::process_shortcuts(ctx, self);
+        process_input(ctx, self);
         // Clear snap each frame when snap is disabled (LCV-070 AC#16).
         suppress_snap_if_disabled(self.snap_enabled, &mut self.active_snap);
 
@@ -359,66 +371,8 @@ impl eframe::App for App {
                 handle_pan(&mut self.camera, response.drag_delta());
             }
 
-            // Zoom-extents keys.
-            if ctx.input(|i| i.key_pressed(egui::Key::F))
-                || ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::Num0))
-            {
-                handle_zoom_extents(
-                    &mut self.camera,
-                    &self.document,
-                    [rect.width(), rect.height()],
-                );
-            }
-
-            // Escape key to tool (LCV-040 AC#13).
-            if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
-                let mut tm = std::mem::take(&mut self.tool_manager);
-                tm.handle_key(egui::Key::Escape, self);
-                self.tool_manager = tm;
-            }
-
-            // Delete / Backspace: route to active tool (LCV-052).
-            if ctx.input(|i| i.key_pressed(egui::Key::Delete)) {
-                let mut tm = std::mem::take(&mut self.tool_manager);
-                tm.handle_key(egui::Key::Delete, self);
-                self.tool_manager = tm;
-            }
-            if ctx.input(|i| i.key_pressed(egui::Key::Backspace)) {
-                let mut tm = std::mem::take(&mut self.tool_manager);
-                tm.handle_key(egui::Key::Backspace, self);
-                self.tool_manager = tm;
-            }
-
-            // F8: toggle ortho lock (LCV-053).
-            if ctx.input(|i| i.key_pressed(egui::Key::F8)) {
-                self.ortho_enabled = !self.ortho_enabled;
-            }
-
-            // Undo / Redo (LCV-075).
-            if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::Z)) {
-                self.history.undo(&mut self.document);
-            }
-            if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::Y)) {
-                self.history.redo(&mut self.document);
-            }
-
-            // Character input → active tool (LCV-048 TextTool).
-            let typed_chars: Vec<char> = ctx.input(|i| {
-                i.events
-                    .iter()
-                    .filter_map(|e| {
-                        if let egui::Event::Text(t) = e {
-                            Some(t.chars().collect::<Vec<char>>())
-                        } else {
-                            None
-                        }
-                    })
-                    .flatten()
-                    .collect()
-            });
-            for ch in typed_chars {
-                self.tool_manager.on_text_input(ch);
-            }
+            // No key is read here: `src/app/input.rs` is the single gate
+            // (LCV-103 / ADR 0002 §A6).
 
             // Autosave flush (LCV-059): fire when the document has been dirty
             // for longer than AUTOSAVE_DEBOUNCE without a flush.
@@ -465,6 +419,16 @@ impl eframe::App for App {
     }
 }
 
+impl eframe::App for App {
+    /// Delegation only — the frame body lives in [`App::update_ui`] so tests
+    /// can drive it without an `eframe::Frame` (ADR 0002 §A1). Nothing else
+    /// may be added here: a future demand that needs `&mut eframe::Frame`
+    /// passes a narrowed value into `update_ui` instead.
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.update_ui(ctx);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Testable helpers
 // ---------------------------------------------------------------------------
@@ -480,13 +444,21 @@ pub fn handle_pan(camera: &mut Camera, delta_screen_px: egui::Vec2) {
 }
 
 /// Fit the document bounds to the viewport.
+///
+/// No-ops on a zero-area viewport (LCV-103). `Camera::default()` carries the
+/// `[0.0, 0.0]` sentinel until the first `CentralPanel` syncs a real size, and
+/// the keyboard gate runs before that panel — zooming to a zero-area rect
+/// would reset the camera for no reason.
 pub fn handle_zoom_extents(camera: &mut Camera, document: &Document, viewport_size: [f32; 2]) {
+    if viewport_size[0] <= 0.0 || viewport_size[1] <= 0.0 {
+        return;
+    }
     camera.zoom_extents(document.bounds(), viewport_size);
 }
 
 /// Clear `active_snap` when snap is disabled.
 ///
-/// Called at the top of each frame (before panel rendering) in `App::update`
+/// Called at the top of each frame (before panel rendering) in `App::update_ui`
 /// so that no snap marker is rendered while snap is turned off, even if
 /// `active_snap` was set by a previous frame. Extracted here for testability
 /// (LCV-070 AC#16).
@@ -584,6 +556,29 @@ mod tests {
         assert_eq!(cam.center_world, Vec2::new(0.0, 0.0));
         assert_eq!(cam.mm_per_px, 1.0);
         assert_eq!(cam.viewport_size_px, [800.0, 600.0]);
+    }
+
+    /// LCV-103 AC#14 — `handle_zoom_extents` no-ops on a zero-area viewport.
+    ///
+    /// The keyboard gate runs before the `CentralPanel`, so on frame 0 it
+    /// reads the `[0.0, 0.0]` sentinel of a fresh `Camera`. Pressing `F`
+    /// then must leave the camera exactly as it was.
+    #[test]
+    fn zoom_extents_noop_on_zero_area_viewport() {
+        let mut cam = Camera {
+            center_world: Vec2::new(7.0, -3.0),
+            mm_per_px: 4.0,
+            viewport_size_px: [0.0, 0.0],
+        };
+        let doc = Document::default();
+        handle_zoom_extents(&mut cam, &doc, [0.0, 0.0]);
+        assert_eq!(cam.center_world, Vec2::new(7.0, -3.0));
+        assert_eq!(cam.mm_per_px, 4.0);
+        assert_eq!(cam.viewport_size_px, [0.0, 0.0]);
+
+        // A viewport with one zero dimension is equally degenerate.
+        handle_zoom_extents(&mut cam, &doc, [800.0, 0.0]);
+        assert_eq!(cam.mm_per_px, 4.0);
     }
 
     /// LCV-037 AC#7 — `App` carries `preview_entities` defaulting to empty.

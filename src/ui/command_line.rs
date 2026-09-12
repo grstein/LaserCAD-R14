@@ -8,8 +8,11 @@
 //! **Enter** submits the current text to the active tool via
 //! `ToolManager::on_command_input`, then clears the field.
 //!
-//! **Escape** clears the field, cancels the active tool, and consumes the key
-//! event so the viewport's Escape handler does not double-fire.
+//! **Escape** clears the field — and nothing else. Cancelling the active tool
+//! belongs to the keyboard gate in `src/app/input.rs`, which already ran this
+//! frame (LCV-103 / ADR 0002 §A6). This widget must never route a key into
+//! the active tool, and must never take a key event out of the input state to
+//! hide a collision: a second reader of a key is a double dispatch.
 //!
 //! MUST NOT import `eframe` or `rfd`. Introduced by demand LCV-068.
 
@@ -18,7 +21,7 @@ use crate::app::App;
 /// Draw the command-line strip inside `ui`.
 ///
 /// Call this inside `egui::TopBottomPanel::bottom("command_line")` in
-/// [`crate::app::App::update`]. The panel must be declared **after**
+/// [`crate::app::App::update_ui`]. The panel must be declared **after**
 /// `"statusbar"` so egui stacks it above the status bar.
 pub fn draw_command_line(ui: &mut egui::Ui, app: &mut App) {
     ui.horizontal(|ui| {
@@ -32,16 +35,14 @@ pub fn draw_command_line(ui: &mut egui::Ui, app: &mut App) {
             egui::TextEdit::singleline(&mut app.command_line_input).desired_width(f32::INFINITY),
         );
 
-        // Escape: clear, cancel tool, consume key so the viewport handler
-        // does not fire a second time in the same frame.
-        if response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+        // Escape: clear this widget's own buffer, nothing else.
+        //
+        // `lost_focus()`, not `has_focus()`: egui drops keyboard focus at the
+        // *start* of the frame carrying an Escape press (a `TextEdit`'s event
+        // filter has `escape: false`), so by the time the widget is drawn it
+        // no longer has focus — it only just lost it.
+        if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
             app.command_line_input.clear();
-            let mut tm = std::mem::take(&mut app.tool_manager);
-            tm.handle_key(egui::Key::Escape, app);
-            app.tool_manager = tm;
-            ui.input_mut(|i| {
-                i.consume_key(egui::Modifiers::NONE, egui::Key::Escape);
-            });
             return;
         }
 
