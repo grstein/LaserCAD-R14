@@ -15,7 +15,7 @@ use crate::geometry::{Arc, Line, Rect, Vec2};
 
 /// Distance threshold for point-picking: entities closer than this (mm) to
 /// the cursor are candidates; the closest one wins.
-pub(crate) const PICK_THRESHOLD_MM: f64 = 5.0;
+pub(super) const PICK_THRESHOLD_MM: f64 = 5.0;
 
 // ---------------------------------------------------------------------------
 // Pick helpers
@@ -73,7 +73,7 @@ pub(super) fn pick_closest(pos: Vec2, entities: &[Entity]) -> Option<usize> {
 // ---------------------------------------------------------------------------
 
 /// Euclidean distance from `p` to the nearest point on `entity`'s stroke.
-pub(crate) fn entity_distance_to_point(entity: &Entity, p: Vec2) -> f64 {
+pub(super) fn entity_distance_to_point(entity: &Entity, p: Vec2) -> f64 {
     match entity {
         Entity::Line(l) => l.distance_to_point(p),
         Entity::Circle(c) => c.distance_to_point(p).abs(),
