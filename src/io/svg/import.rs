@@ -1,10 +1,19 @@
 //! SVG import — pure function that parses a LaserCAD-exported SVG string.
 //! Returns [`Vec<Entity>`]; recognises `<line>`, `<circle>`, `<path d="M…A…"/>`.
 //! Silently skips unknown elements; coordinates are bare mm values (no unit suffix).
-//! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`. — LCV-057.
+//!
+//! SVG is Y-down and the world is Y-up, so every parsed Y is un-mirrored
+//! through [`crate::util::flip_y`] (`y_world = BED_HEIGHT_MM - y_svg`, the
+//! exact inverse of `export.rs`'s map — `flip_y` is an involution). Because a
+//! mirror reverses handedness, [`Arc::ccw`] is the **negation** of the SVG
+//! sweep flag and the centre-selection sign is inverted accordingly.
+//!
+//! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`. — LCV-057,
+//! Y mirror by LCV-100.
 
 use crate::document::entity::Entity;
 use crate::geometry::{Arc, Circle, Line, Vec2, EPSILON};
+use crate::util::flip_y;
 
 /// Errors returned by [`import_svg`].
 #[derive(Debug, thiserror::Error)]
@@ -60,7 +69,7 @@ fn collect(node: roxmltree::Node<'_, '_>, out: &mut Vec<Entity>) -> Result<(), S
 fn parse_line(n: roxmltree::Node<'_, '_>) -> Result<Entity, SvgImportError> {
     let (x1, y1) = (attr_f64(n, "line", "x1")?, attr_f64(n, "line", "y1")?);
     let (x2, y2) = (attr_f64(n, "line", "x2")?, attr_f64(n, "line", "y2")?);
-    let (p1, p2) = (Vec2::new(x1, y1), Vec2::new(x2, y2));
+    let (p1, p2) = (Vec2::new(x1, flip_y(y1)), Vec2::new(x2, flip_y(y2)));
     Ok(Entity::Line(Line::new(p1, p2)))
 }
 
@@ -71,7 +80,7 @@ fn parse_circle(n: roxmltree::Node<'_, '_>) -> Result<Entity, SvgImportError> {
         let v = n.attribute("r").unwrap_or("").to_string();
         return Err(malformed("circle", "r", v));
     }
-    Ok(Entity::Circle(Circle::new(Vec2::new(cx, cy), r)))
+    Ok(Entity::Circle(Circle::new(Vec2::new(cx, flip_y(cy)), r)))
 }
 
 fn malformed(element: &'static str, attr: &'static str, value: String) -> SvgImportError {
@@ -112,7 +121,9 @@ fn parse_path(n: roxmltree::Node<'_, '_>) -> Result<Option<Entity>, SvgImportErr
     if (rx - ry).abs() > EPSILON || xar.abs() > EPSILON {
         return Err(SvgImportError::MalformedPath(d.to_string()));
     }
-    // Reconstruct arc center from endpoint encoding (LCV-057 §Arc reconstruction).
+    // Un-mirror both endpoints into world space first, then reconstruct the
+    // centre there (LCV-057 §Arc reconstruction, mirrored by LCV-100).
+    let (sy, ey) = (flip_y(sy), flip_y(ey));
     let (dx, dy) = (ex - sx, ey - sy);
     let chord = dx.hypot(dy);
     if chord < EPSILON || chord > 2.0 * rx + EPSILON {
@@ -121,11 +132,13 @@ fn parse_path(n: roxmltree::Node<'_, '_>) -> Result<Option<Entity>, SvgImportErr
     let (mx, my) = ((sx + ex) / 2.0, (sy + ey) / 2.0);
     let h = (rx * rx - (chord / 2.0).powi(2)).max(0.0).sqrt();
     let (ux, uy) = (-dy / chord, dx / chord);
-    let sign: f64 = if large_arc == sweep_flag { -1.0 } else { 1.0 };
+    // Sign branches swapped relative to the un-mirrored reading: in world
+    // space the SVG sweep flag denotes the opposite handedness.
+    let sign: f64 = if large_arc == sweep_flag { 1.0 } else { -1.0 };
     let (cx, cy) = (mx + sign * h * ux, my + sign * h * uy);
     let (sa, ea) = ((sy - cy).atan2(sx - cx), (ey - cy).atan2(ex - cx));
     let ctr = Vec2::new(cx, cy);
-    Ok(Some(Entity::Arc(Arc::new(ctr, rx, sa, ea, sweep_flag))))
+    Ok(Some(Entity::Arc(Arc::new(ctr, rx, sa, ea, !sweep_flag))))
 }
 
 fn tok_f64(t: &str, d: &str) -> Result<f64, SvgImportError> {
@@ -138,16 +151,26 @@ mod tests {
     use super::*;
     use core::f64::consts::{FRAC_PI_2, PI};
 
+    // Golden fixtures below are in the LCV-100 convention: SVG Y-down with the
+    // bed as the canvas, i.e. world Y = 400 − SVG Y.
     const LINE_SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><line x1="1.0000" y1="2.0000" x2="11.0000" y2="7.0000"/></svg>"#;
-    const ARC_CCW_Q: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M 10.0000 0.0000 A 10.0000 10.0000 0 0 1 0.0000 10.0000"/></svg>"#;
-    const ARC_LARGE_H: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M 10.0000 0.0000 A 10.0000 10.0000 0 1 1 -10.0000 0.0000"/></svg>"#;
-    const ARC_CW_Q: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M 10.0000 0.0000 A 10.0000 10.0000 0 0 0 0.0000 -10.0000"/></svg>"#;
+    const ARC_CCW_Q: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M 10.0000 400.0000 A 10.0000 10.0000 0 0 0 0.0000 390.0000"/></svg>"#;
+    const ARC_LARGE: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M 110.0000 300.0000 A 10.0000 10.0000 0 1 0 100.0000 310.0000"/></svg>"#;
+    const ARC_CW_Q: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M 0.0000 390.0000 A 10.0000 10.0000 0 0 1 10.0000 400.0000"/></svg>"#;
     const PATH_MALFORMED: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M 0 0 A notanumber 10 0 0 1 5 5"/></svg>"#;
     const MIXED_SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><line x1="1" y1="2" x2="3" y2="4"/><rect/><circle cx="5" cy="5" r="3"/></svg>"#;
     const G_GROUPS_SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><g><line x1="0" y1="0" x2="10" y2="10"/></g><g/><g/></svg>"#;
 
     fn svg(inner: &str) -> String {
         format!(r#"<svg xmlns="http://www.w3.org/2000/svg">{inner}</svg>"#)
+    }
+
+    fn only_arc(src: &str) -> Arc {
+        let es = import_svg(src).unwrap();
+        match es[0] {
+            Entity::Arc(a) => a,
+            _ => panic!("not an arc"),
+        }
     }
 
     #[test]
@@ -174,8 +197,8 @@ mod tests {
         let Entity::Line(l) = es[0] else {
             panic!("not a line")
         };
-        assert!((l.p1.x - 1.0).abs() < EPSILON && (l.p1.y - 2.0).abs() < EPSILON);
-        assert!((l.p2.x - 11.0).abs() < EPSILON && (l.p2.y - 7.0).abs() < EPSILON);
+        assert!((l.p1.x - 1.0).abs() < EPSILON && (l.p1.y - 398.0).abs() < EPSILON);
+        assert!((l.p2.x - 11.0).abs() < EPSILON && (l.p2.y - 393.0).abs() < EPSILON);
     }
 
     #[test]
@@ -184,16 +207,32 @@ mod tests {
         let Entity::Circle(c) = es[0] else {
             panic!("not a circle")
         };
-        assert!((c.center.x - 5.0).abs() < EPSILON && (c.center.y - 5.0).abs() < EPSILON);
+        assert!((c.center.x - 5.0).abs() < EPSILON && (c.center.y - 395.0).abs() < EPSILON);
+        assert!((c.r - 3.0).abs() < EPSILON);
+    }
+
+    /// LCV-100 AC 13 — X is untouched, Y is un-mirrored on both elements.
+    #[test]
+    fn import_line_and_circle_unflip_y() {
+        let es = import_svg(&svg(
+            r#"<line x1="1" y1="2" x2="11" y2="7"/><circle cx="5" cy="5" r="3"/>"#,
+        ))
+        .unwrap();
+        let Entity::Line(l) = es[0] else {
+            panic!("not a line")
+        };
+        assert!((l.p1.x - 1.0).abs() < EPSILON && (l.p1.y - 398.0).abs() < EPSILON);
+        assert!((l.p2.x - 11.0).abs() < EPSILON && (l.p2.y - 393.0).abs() < EPSILON);
+        let Entity::Circle(c) = es[1] else {
+            panic!("not a circle")
+        };
+        assert!((c.center.x - 5.0).abs() < EPSILON && (c.center.y - 395.0).abs() < EPSILON);
         assert!((c.r - 3.0).abs() < EPSILON);
     }
 
     #[test]
     fn arc_ccw_quarter_reconstructed_correctly() {
-        let es = import_svg(ARC_CCW_Q).unwrap();
-        let Entity::Arc(a) = es[0] else {
-            panic!("not an arc")
-        };
+        let a = only_arc(ARC_CCW_Q);
         assert!(a.center.x.abs() < EPSILON && a.center.y.abs() < EPSILON);
         assert!((a.r - 10.0).abs() < EPSILON && a.start_angle.abs() < EPSILON);
         assert!((a.end_angle - FRAC_PI_2).abs() < EPSILON && a.ccw);
@@ -201,18 +240,76 @@ mod tests {
 
     #[test]
     fn arc_large_flag_selects_correct_center() {
-        let es = import_svg(ARC_LARGE_H).unwrap();
-        let Entity::Arc(a) = es[0] else {
-            panic!("not an arc")
-        };
-        assert!(a.center.x.abs() < EPSILON && a.center.y.abs() < EPSILON);
-        assert!((a.r - 10.0).abs() < EPSILON && (a.end_angle - PI).abs() < EPSILON && a.ccw);
+        let a = only_arc(ARC_LARGE);
+        assert!((a.center.x - 100.0).abs() < EPSILON && (a.center.y - 100.0).abs() < EPSILON);
+        assert!((a.r - 10.0).abs() < EPSILON);
+        assert!((a.sweep_angle() - 3.0 * FRAC_PI_2).abs() < EPSILON && a.ccw);
     }
 
     #[test]
-    fn arc_cw_sweep_flag_zero_sets_ccw_false() {
-        let es = import_svg(ARC_CW_Q).unwrap();
-        assert!(matches!(es[0], Entity::Arc(a) if !a.ccw));
+    fn arc_cw_sweep_flag_one_sets_ccw_false() {
+        assert!(!only_arc(ARC_CW_Q).ccw);
+    }
+
+    /// LCV-100 AC 14 — each exported golden path reconstructs its source arc.
+    /// Raw `start_angle`/`end_angle` may differ by a multiple of 2π because the
+    /// importer normalises through `atan2`, so endpoints and sweep are compared
+    /// instead.
+    #[test]
+    fn import_arc_golden_paths_reconstruct_source_arcs() {
+        let semicircle =
+            svg(r#"<path d="M 10.0000 400.0000 A 10.0000 10.0000 0 0 0 -10.0000 400.0000"/>"#);
+        let cases: [(&str, Arc); 4] = [
+            (
+                ARC_CCW_Q,
+                Arc::new(Vec2::new(0.0, 0.0), 10.0, 0.0, FRAC_PI_2, true),
+            ),
+            (
+                ARC_CW_Q,
+                Arc::new(Vec2::new(0.0, 0.0), 10.0, FRAC_PI_2, 0.0, false),
+            ),
+            (
+                &semicircle,
+                Arc::new(Vec2::new(0.0, 0.0), 10.0, 0.0, PI, true),
+            ),
+            (
+                ARC_LARGE,
+                Arc::new(Vec2::new(100.0, 100.0), 10.0, 0.0, 3.0 * FRAC_PI_2, true),
+            ),
+        ];
+        for (src, expected) in cases {
+            let a = only_arc(src);
+            assert!((a.center.x - expected.center.x).abs() < EPSILON, "{src}");
+            assert!((a.center.y - expected.center.y).abs() < EPSILON, "{src}");
+            assert!((a.r - expected.r).abs() < EPSILON, "{src}");
+            let (sp, esp) = (a.start_point(), expected.start_point());
+            let (ep, eep) = (a.end_point(), expected.end_point());
+            assert!(
+                (sp.x - esp.x).abs() < EPSILON && (sp.y - esp.y).abs() < EPSILON,
+                "{src}"
+            );
+            assert!(
+                (ep.x - eep.x).abs() < EPSILON && (ep.y - eep.y).abs() < EPSILON,
+                "{src}"
+            );
+            assert_eq!(a.ccw, expected.ccw, "{src}");
+            assert!(
+                (a.sweep_angle() - expected.sweep_angle()).abs() < EPSILON,
+                "{src}"
+            );
+        }
+    }
+
+    /// The lower half of the same semicircle differs only in the sweep flag and
+    /// must import as the CW arc.
+    #[test]
+    fn arc_semicircle_sweep_flag_selects_handedness() {
+        let lower = only_arc(&svg(
+            r#"<path d="M 10.0000 400.0000 A 10.0000 10.0000 0 0 1 -10.0000 400.0000"/>"#,
+        ));
+        assert!(!lower.ccw);
+        assert!((lower.sweep_angle() - PI).abs() < EPSILON);
+        assert!(lower.center.x.abs() < EPSILON && lower.center.y.abs() < EPSILON);
     }
 
     #[test]

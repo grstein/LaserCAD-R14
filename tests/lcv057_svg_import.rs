@@ -1,5 +1,9 @@
 //! Integration tests for SVG import — full coverage of LCV-057 acceptance
 //! criteria (AC 7–18). Smoke checks (AC 4–6) live in `src/io/svg/import.rs`.
+//!
+//! Coordinates follow the LCV-100 convention: SVG is Y-down over a 400 mm bed,
+//! so an imported world Y is `400 − y_svg` and an SVG `sweep-flag` of 1 means a
+//! **clockwise** world arc.
 
 use lasercad::document::{Document, Entity};
 use lasercad::geometry::{Arc, Circle, Line, Vec2, EPSILON};
@@ -20,9 +24,9 @@ fn line_element_parsed_to_entity_line() {
         panic!("expected Entity::Line")
     };
     assert!((l.p1.x - 1.0).abs() < EPSILON);
-    assert!((l.p1.y - 2.0).abs() < EPSILON);
+    assert!((l.p1.y - 398.0).abs() < EPSILON);
     assert!((l.p2.x - 11.0).abs() < EPSILON);
-    assert!((l.p2.y - 7.0).abs() < EPSILON);
+    assert!((l.p2.y - 393.0).abs() < EPSILON);
 }
 
 /// AC 8 — `<circle>` element parsed to Entity::Circle with correct fields.
@@ -35,14 +39,14 @@ fn circle_element_parsed_to_entity_circle() {
         panic!("expected Entity::Circle")
     };
     assert!((c.center.x - 5.0).abs() < EPSILON);
-    assert!((c.center.y - 5.0).abs() < EPSILON);
+    assert!((c.center.y - 395.0).abs() < EPSILON);
     assert!((c.r - 3.0).abs() < EPSILON);
 }
 
 /// AC 9 — CCW quarter-arc reconstructed to correct center, r, angles, ccw.
 #[test]
 fn arc_ccw_quarter_reconstructed_correctly() {
-    let src = svg_wrap(r#"<path d="M 10.0000 0.0000 A 10.0000 10.0000 0 0 1 0.0000 10.0000"/>"#);
+    let src = svg_wrap(r#"<path d="M 10.0000 400.0000 A 10.0000 10.0000 0 0 0 0.0000 390.0000"/>"#);
     let entities = import_svg(&src).unwrap();
     assert_eq!(entities.len(), 1);
     let Entity::Arc(a) = &entities[0] else {
@@ -60,27 +64,33 @@ fn arc_ccw_quarter_reconstructed_correctly() {
     assert!(a.ccw);
 }
 
-/// AC 10 — large-arc CCW half-circle selects center at origin.
+/// AC 10 — large-arc flag selects the far center; the mirror leaves it alone.
 #[test]
 fn arc_large_flag_selects_correct_center() {
-    let src = svg_wrap(r#"<path d="M 10.0000 0.0000 A 10.0000 10.0000 0 1 1 -10.0000 0.0000"/>"#);
+    let src =
+        svg_wrap(r#"<path d="M 110.0000 300.0000 A 10.0000 10.0000 0 1 0 100.0000 310.0000"/>"#);
     let entities = import_svg(&src).unwrap();
     assert_eq!(entities.len(), 1);
     let Entity::Arc(a) = &entities[0] else {
         panic!("expected Entity::Arc")
     };
-    assert!((a.center.x).abs() < 1e-6, "cx={}", a.center.x);
-    assert!((a.center.y).abs() < 1e-6, "cy={}", a.center.y);
+    assert!((a.center.x - 100.0).abs() < 1e-6, "cx={}", a.center.x);
+    assert!((a.center.y - 100.0).abs() < 1e-6, "cy={}", a.center.y);
     assert!((a.r - 10.0).abs() < EPSILON);
     assert!((a.start_angle).abs() < 1e-6);
-    assert!((a.end_angle - PI).abs() < 1e-6, "end={}", a.end_angle);
+    assert!(
+        (a.sweep_angle() - 3.0 * PI / 2.0).abs() < 1e-6,
+        "sweep={}",
+        a.sweep_angle()
+    );
     assert!(a.ccw);
 }
 
-/// AC 11 — CW arc (sweep=0) sets ccw=false.
+/// AC 11 — an SVG sweep flag of 1 is a clockwise world arc (the mirror
+/// reverses handedness — LCV-100).
 #[test]
-fn arc_cw_sweep_flag_zero_sets_ccw_false() {
-    let src = svg_wrap(r#"<path d="M 10.0000 0.0000 A 10.0000 10.0000 0 0 0 0.0000 -10.0000"/>"#);
+fn arc_cw_sweep_flag_one_sets_ccw_false() {
+    let src = svg_wrap(r#"<path d="M 0.0000 390.0000 A 10.0000 10.0000 0 0 1 10.0000 400.0000"/>"#);
     let entities = import_svg(&src).unwrap();
     assert_eq!(entities.len(), 1);
     let Entity::Arc(a) = &entities[0] else {

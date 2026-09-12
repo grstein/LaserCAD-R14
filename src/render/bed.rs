@@ -8,6 +8,7 @@
 
 use crate::geometry::Vec2;
 use crate::render::Camera;
+use crate::util::{BED_HEIGHT_MM, BED_WIDTH_MM};
 
 /// Laser bed configuration: size and world-space origin.
 ///
@@ -16,8 +17,11 @@ use crate::render::Camera;
 ///   of the bed (so the bed spans `[origin.x, origin.x + size_mm[0]]` ×
 ///   `[origin.y, origin.y + size_mm[1]]`).
 ///
-/// Default: 400×400 mm bed at world origin, matching common GRBL hobbyist
-/// machine sizes (Ortur LM2/LM3, Atomstack A5/A10).
+/// Default: the shared bed constants ([`BED_WIDTH_MM`] × [`BED_HEIGHT_MM`],
+/// 400×400 mm) at the world origin, matching common GRBL hobbyist machine
+/// sizes (Ortur LM2/LM3, Atomstack A5/A10). The SVG exporter mirrors Y around
+/// the very same [`BED_HEIGHT_MM`], so the bed drawn here and the canvas
+/// written to file are one number (LCV-100).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Bed {
     /// Bed size in millimeters `[width, height]`.
@@ -29,7 +33,7 @@ pub struct Bed {
 impl Default for Bed {
     fn default() -> Self {
         Self {
-            size_mm: [400.0, 400.0],
+            size_mm: [BED_WIDTH_MM, BED_HEIGHT_MM],
             origin_world: Vec2::new(0.0, 0.0),
         }
     }
@@ -146,6 +150,13 @@ mod tests {
         let bed = Bed::default();
         assert_eq!(bed.size_mm, [400.0, 400.0]);
         assert_eq!(bed.origin_world, Vec2::new(0.0, 0.0));
+    }
+
+    /// LCV-100 AC 3 — the default bed and the SVG exporter share one source
+    /// of truth, so the mirrored canvas always matches the drawn bed.
+    #[test]
+    fn bed_default_uses_shared_constants() {
+        assert_eq!(Bed::default().size_mm, [BED_WIDTH_MM, BED_HEIGHT_MM]);
     }
 
     /// AC#3 — Default bed's corners are at `[(0,0), (400,0), (400,400), (0,400)]`.
