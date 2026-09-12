@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Persistent LCV-XXX backlog. Live source of truth across sessions. The project-manager rehydrates Claude Tasks from this file at session start, and writes back after every status change. PLAN.md, backlog.md, and demand files reflect content but are no longer the live status board. Milestone Marco 0 (LCV-100..108) targets tag v0.1.0.",
+  "description": "Persistent LCV-XXX backlog. Live source of truth across sessions. The project-manager rehydrates Claude Tasks from this file at session start, and writes back after every status change. PLAN.md, backlog.md, and demand files reflect content but are no longer the live status board. Marco 0 (LCV-100..108) shipped; user tags v0.1.0. Milestone Marco 1 (LCV-110..116) targets tag v0.2.0 — functional parity with v1.0.0.",
   "status_legend": [
     "Draft",
     "Refining",
@@ -1012,6 +1012,87 @@
       "demand_file": "docs/product/demands/LCV-108-docs-sync.md",
       "drive_order": 9,
       "shipped_commit": "b24da80"
+    },
+    {
+      "id": "LCV-110",
+      "title": "Command-line parser (pure kernel module): X,Y / @X,Y / distance / aliases / toggles / zoom",
+      "phase": 11,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "demand_file": "docs/product/demands/LCV-110-command-line-parser.md",
+      "drive_order": 1
+    },
+    {
+      "id": "LCV-111",
+      "title": "Wire the parser into the tools: on_command_input, per-phase prompts, focus-on-typing",
+      "phase": 11,
+      "status": "Draft",
+      "depends_on": [
+        "LCV-110"
+      ],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "demand_file": "docs/product/demands/LCV-111-command-line-tool-wiring.md",
+      "drive_order": 2
+    },
+    {
+      "id": "LCV-112",
+      "title": "TEXT complete: raw-input mode for string then height, single undo",
+      "phase": 11,
+      "status": "Draft",
+      "depends_on": [
+        "LCV-111"
+      ],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "demand_file": "docs/product/demands/LCV-112-text-tool-raw-input.md",
+      "drive_order": 3
+    },
+    {
+      "id": "LCV-113",
+      "title": "Confirm discard on New / Open / Exit when the document is dirty",
+      "phase": 11,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "demand_file": "docs/product/demands/LCV-113-confirm-discard.md",
+      "drive_order": 4
+    },
+    {
+      "id": "LCV-114",
+      "title": "Configurable bed size (1..2000 mm), persisted in the SVG width/height and read on import",
+      "phase": 11,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "demand_file": "docs/product/demands/LCV-114-configurable-bed-size.md",
+      "drive_order": 5
+    },
+    {
+      "id": "LCV-115",
+      "title": "Export preset selector (cut / mark / engrave) for the whole document",
+      "phase": 11,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "demand_file": "docs/product/demands/LCV-115-export-preset-selector.md",
+      "drive_order": 6
+    },
+    {
+      "id": "LCV-116",
+      "title": "Chrome: clickable SNAP/GRID/ORTHO statusbar toggles, autosave indicator, F1 shortcuts dialog, View zoom in/out",
+      "phase": 11,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "demand_file": "docs/product/demands/LCV-116-ui-chrome-completion.md",
+      "drive_order": 7
     }
   ]
 }
