@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Persistent LCV-XXX backlog. Live source of truth across sessions. The project-manager rehydrates Claude Tasks from this file at session start, and writes back after every status change. PLAN.md, backlog.md, and demand files reflect content but are no longer the live status board.",
+  "description": "Persistent LCV-XXX backlog. Live source of truth across sessions. The project-manager rehydrates Claude Tasks from this file at session start, and writes back after every status change. PLAN.md, backlog.md, and demand files reflect content but are no longer the live status board. Milestone Marco 0 (LCV-100..108) targets tag v0.1.0.",
   "status_legend": [
     "Draft",
     "Refining",
@@ -35,7 +35,7 @@
     },
     {
       "id": "LCV-003",
-      "title": "ADR 0001 \u2014 pure Rust + egui decision",
+      "title": "ADR 0001 — pure Rust + egui decision",
       "phase": 0,
       "status": "Done",
       "depends_on": [],
@@ -65,7 +65,7 @@
     },
     {
       "id": "LCV-006",
-      "title": "Agent harness alive \u2014 confirm .claude/agents/*.md round-trip",
+      "title": "Agent harness alive — confirm .claude/agents/*.md round-trip",
       "phase": 0,
       "status": "Done",
       "depends_on": [],
@@ -74,7 +74,7 @@
     },
     {
       "id": "LCV-007",
-      "title": "Bootstrap egui window \u2014 title 'LaserCAD v2 \u2014 bootstrap'",
+      "title": "Bootstrap egui window — title 'LaserCAD v2 — bootstrap'",
       "phase": 0,
       "status": "Done",
       "depends_on": [
@@ -89,134 +89,147 @@
       "id": "LCV-010",
       "title": "Vec2 + epsilon",
       "phase": 1,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-007"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "2f2a8bf"
     },
     {
       "id": "LCV-011",
       "title": "Line type + bbox + helpers",
       "phase": 1,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-010"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "c6f09f9"
     },
     {
       "id": "LCV-012",
       "title": "Circle type + bbox + helpers",
       "phase": 1,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-010"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "4ff9ee4"
     },
     {
       "id": "LCV-013",
       "title": "Arc type + bbox + containsAngle + endpoints",
       "phase": 1,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-010"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "caad4e4"
     },
     {
       "id": "LCV-014",
       "title": "Line-line / line-circle / circle-circle intersections",
       "phase": 1,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-011",
         "LCV-012"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "fdade9b"
     },
     {
       "id": "LCV-015",
       "title": "Rect predicates (contains/crosses line/circle/arc)",
       "phase": 1,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-011",
         "LCV-012",
         "LCV-013"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "b7a9882"
     },
     {
       "id": "LCV-016",
       "title": "Snap engine (endpoint/midpoint/center/intersection)",
       "phase": 1,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-014"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "ccadb5e"
     },
     {
       "id": "LCV-017",
       "title": "Geometry test suite consolidation",
       "phase": 1,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-016"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "bdb4830"
     },
     {
       "id": "LCV-020",
       "title": "Entity enum + schema_version=1",
       "phase": 2,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-013"
       ],
-      "suggested_agent": "architect"
+      "suggested_agent": "architect",
+      "shipped_commit": "b6cdd46"
     },
     {
       "id": "LCV-021",
       "title": "Document struct + bounds + Default",
       "phase": 2,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-020"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "0bf5943"
     },
     {
       "id": "LCV-022",
       "title": "Command trait + do/undo semantics",
       "phase": 2,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-021"
       ],
-      "suggested_agent": "architect"
+      "suggested_agent": "architect",
+      "shipped_commit": "af28f9b"
     },
     {
       "id": "LCV-023",
       "title": "CreateLine / CreateCircle / CreateArc commands",
       "phase": 2,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-022"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "e9f3f82"
     },
     {
       "id": "LCV-024",
       "title": "DeleteEntities + MoveEntities commands",
       "phase": 2,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-022"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "c8f4e1e"
     },
     {
       "id": "LCV-025",
@@ -266,564 +279,712 @@
     },
     {
       "id": "LCV-031",
-      "title": "Camera (world\u2194screen, zoom, pan, zoom-extents)",
+      "title": "Camera (world↔screen, zoom, pan, zoom-extents)",
       "phase": 3,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [
         "LCV-021",
         "LCV-030"
       ],
       "suggested_agent": "implementer-rust",
-      "demand_file": "docs/product/demands/LCV-031-camera-world-screen-zoom-pan.md"
+      "demand_file": "docs/product/demands/LCV-031-camera-world-screen-zoom-pan.md",
+      "note": "Camera shipped inside the LCV-032 commit; no standalone feat(LCV-031) commit exists.",
+      "shipped_commit": "33bae5a"
     },
     {
       "id": "LCV-032",
-      "title": "Viewport wiring (pointer input \u2192 tools)",
+      "title": "Viewport wiring (pointer input → tools)",
       "phase": 3,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [
         "LCV-031"
       ],
       "suggested_agent": "implementer-rust",
-      "demand_file": "docs/product/demands/LCV-032-viewport-pointer-input-wiring.md"
+      "demand_file": "docs/product/demands/LCV-032-viewport-pointer-input-wiring.md",
+      "shipped_commit": "33bae5a"
     },
     {
       "id": "LCV-033",
       "title": "Grid renderer (responsive minor/major)",
       "phase": 3,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [
         "LCV-031"
       ],
       "suggested_agent": "implementer-rust",
-      "demand_file": "docs/product/demands/LCV-033-grid-renderer-responsive.md"
+      "demand_file": "docs/product/demands/LCV-033-grid-renderer-responsive.md",
+      "shipped_commit": "a51f2b9"
     },
     {
       "id": "LCV-034",
       "title": "Bed renderer (rectangle + dark outer overlay)",
       "phase": 3,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [
         "LCV-031"
       ],
       "suggested_agent": "implementer-rust",
-      "demand_file": "docs/product/demands/LCV-034-bed-renderer-rectangle-overlay.md"
+      "demand_file": "docs/product/demands/LCV-034-bed-renderer-rectangle-overlay.md",
+      "shipped_commit": "ee8cea4"
     },
     {
       "id": "LCV-035",
       "title": "Entity painter (line/circle/arc)",
       "phase": 3,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [
         "LCV-021",
         "LCV-031"
       ],
       "suggested_agent": "implementer-rust",
-      "demand_file": "docs/product/demands/LCV-035-entity-painter-line-circle-arc.md"
+      "demand_file": "docs/product/demands/LCV-035-entity-painter-line-circle-arc.md",
+      "shipped_commit": "422f457"
     },
     {
       "id": "LCV-036",
       "title": "Selection highlight rendering",
       "phase": 3,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [
         "LCV-035",
         "LCV-027"
       ],
       "suggested_agent": "implementer-rust",
-      "demand_file": "docs/product/demands/LCV-036-selection-highlight-rendering.md"
+      "demand_file": "docs/product/demands/LCV-036-selection-highlight-rendering.md",
+      "shipped_commit": "fbd0e99"
     },
     {
       "id": "LCV-037",
       "title": "Preview overlay (live tool preview)",
       "phase": 3,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [
         "LCV-035"
       ],
       "suggested_agent": "implementer-rust",
-      "demand_file": "docs/product/demands/LCV-037-preview-overlay.md"
+      "demand_file": "docs/product/demands/LCV-037-preview-overlay.md",
+      "shipped_commit": "6530bad"
     },
     {
       "id": "LCV-038",
       "title": "Snap marker rendering",
       "phase": 3,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [
         "LCV-031",
         "LCV-016"
       ],
       "suggested_agent": "implementer-rust",
-      "demand_file": "docs/product/demands/LCV-038-snap-marker-rendering.md"
+      "demand_file": "docs/product/demands/LCV-038-snap-marker-rendering.md",
+      "shipped_commit": "7db1ddb"
     },
     {
       "id": "LCV-040",
       "title": "Tool trait + ToolManager",
       "phase": 4,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-022",
         "LCV-032"
       ],
-      "suggested_agent": "architect"
+      "suggested_agent": "architect",
+      "shipped_commit": "ca7c234"
     },
     {
       "id": "LCV-041",
       "title": "Pointer input plumbing through ToolManager",
       "phase": 4,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-040"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "a628859"
     },
     {
       "id": "LCV-042",
       "title": "SelectTool (point pick + window/crossing box)",
       "phase": 4,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-041",
         "LCV-015",
         "LCV-027"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "ee2a16d"
     },
     {
       "id": "LCV-043",
       "title": "LineTool",
       "phase": 4,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-041",
         "LCV-023",
         "LCV-037"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "e36b840"
     },
     {
       "id": "LCV-044",
       "title": "PolylineTool",
       "phase": 4,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-043"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "1af93b9"
     },
     {
       "id": "LCV-045",
       "title": "RectTool",
       "phase": 4,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-043"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "db24e9c"
     },
     {
       "id": "LCV-046",
       "title": "CircleTool",
       "phase": 4,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-041",
         "LCV-023",
         "LCV-037"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "fe57b7c"
     },
     {
       "id": "LCV-047",
       "title": "ArcTool",
       "phase": 4,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-041",
         "LCV-023",
         "LCV-037"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "d0656a3"
     },
     {
       "id": "LCV-048",
       "title": "TextTool (Hershey-based)",
       "phase": 4,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-055",
         "LCV-043"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "b59aa63"
     },
     {
       "id": "LCV-049",
       "title": "MoveTool",
       "phase": 4,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-041",
         "LCV-024",
         "LCV-042"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "498eb0d"
     },
     {
       "id": "LCV-050",
       "title": "TrimTool",
       "phase": 4,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-041",
         "LCV-025"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "a88fe1f"
     },
     {
       "id": "LCV-051",
       "title": "ExtendTool",
       "phase": 4,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-041",
         "LCV-025"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "f0c6fb1"
     },
     {
       "id": "LCV-052",
       "title": "DeleteTool / Delete key",
       "phase": 4,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-041",
         "LCV-024"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "c976c36"
     },
     {
       "id": "LCV-053",
       "title": "Ortho lock toggle",
       "phase": 4,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-041"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "90ea0b4"
     },
     {
       "id": "LCV-054",
       "title": "Snap integration into all drawing tools",
       "phase": 4,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-016",
         "LCV-043",
         "LCV-046",
         "LCV-047"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "note": "RETITLED: shipped as OffsetTool, not \"snap integration into drawing tools\" (that was already delivered by LCV-041 global snap resolve). OffsetTool is an explicit non-goal in docs/product/README.md — decision pending in LCV-106.",
+      "shipped_commit": "3c99f68"
     },
     {
       "id": "LCV-055",
       "title": "Hershey font data + text layout",
       "phase": 5,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-011"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "60138bf"
     },
     {
       "id": "LCV-056",
       "title": "SVG export (cut/mark/engrave presets, LaserGRBL)",
       "phase": 5,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-021",
         "LCV-013"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "f6a402e"
     },
     {
       "id": "LCV-057",
       "title": "SVG import (roxmltree, strict subset)",
       "phase": 5,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-056"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "d5b2edb"
     },
     {
       "id": "LCV-058",
       "title": "Settings store (JSON file via directories)",
       "phase": 5,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-007"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "30f9ca0"
     },
     {
       "id": "LCV-059",
       "title": "Autosave (debounced, restore on boot)",
       "phase": 5,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-058",
         "LCV-021"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "011d7ee"
     },
     {
       "id": "LCV-060",
       "title": "Recent files (store-backed)",
       "phase": 5,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-058"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "76f0af4"
     },
     {
       "id": "LCV-061",
       "title": "File dialogs (rfd wrapper)",
       "phase": 5,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-007"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "4e664ea"
     },
     {
       "id": "LCV-062",
       "title": "New / Open / Save / Save As / Exit actions",
       "phase": 5,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-056",
         "LCV-057",
         "LCV-061"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "e7566c4"
     },
     {
       "id": "LCV-065",
       "title": "Menubar (File / Edit / View / Tools / Help)",
       "phase": 6,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-062"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "e47d974"
     },
     {
       "id": "LCV-066",
       "title": "Toolbar with tool buttons",
       "phase": 6,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-040"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "e5e94e5"
     },
     {
       "id": "LCV-067",
       "title": "Status bar (coords / units / active tool)",
       "phase": 6,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-030"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "9584a71"
     },
     {
       "id": "LCV-068",
       "title": "Command-line widget (bottom dock)",
       "phase": 6,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-040"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "4c36e58"
     },
     {
       "id": "LCV-069",
       "title": "Modal dialogs (confirm / error / about)",
       "phase": 6,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-030"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "7960ec9"
     },
     {
       "id": "LCV-070",
       "title": "Keyboard shortcuts (L/P/R/C/A, F3/F7/F8, Ctrl+Z/Y/N/O/S)",
       "phase": 6,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-065"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "35a804a"
     },
     {
       "id": "LCV-071",
       "title": "Theme + visual polish",
       "phase": 6,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-030"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "31c492d"
     },
     {
       "id": "LCV-075",
       "title": "Agent classifier (regex routing)",
       "phase": 7,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-068"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "note": "RETITLED: shipped as Ctrl+Z/Ctrl+Y undo/redo shortcuts, not the agent regex classifier. src/agent/classifier.rs does not exist.",
+      "shipped_commit": "1ac0219"
     },
     {
       "id": "LCV-076",
       "title": "Agent settings dialog (API key / model / endpoint)",
       "phase": 7,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-058",
         "LCV-069"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "8b545c6"
     },
     {
       "id": "LCV-077",
       "title": "HTTP transport (reqwest + tokio)",
       "phase": 7,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-076"
       ],
-      "suggested_agent": "architect"
+      "suggested_agent": "architect",
+      "shipped_commit": "16a7683"
     },
     {
       "id": "LCV-078",
       "title": "Agent tool registry (CAD actions exposed to LLM)",
       "phase": 7,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-023",
         "LCV-024"
       ],
-      "suggested_agent": "architect"
+      "suggested_agent": "architect",
+      "shipped_commit": "86c473e"
     },
     {
       "id": "LCV-079",
       "title": "Multi-turn loop with iteration cap",
       "phase": 7,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-077",
         "LCV-078"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "cbd63ec"
     },
     {
       "id": "LCV-080",
       "title": "Command-line wires ':' / '/ai' prefixes to agent",
       "phase": 7,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-075",
         "LCV-079"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "note": "RETITLED: shipped as an agent chat side panel, not the command-line \":\" / \"/ai\" prefix wiring. Prefix routing is deferred to Marco 2 (LCV-122).",
+      "shipped_commit": "ee10f2a"
     },
     {
       "id": "LCV-085",
       "title": "Linux AppImage build",
       "phase": 8,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-080"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "2a8883c"
     },
     {
       "id": "LCV-086",
       "title": "Linux .deb package",
       "phase": 8,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-085"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "5de9175"
     },
     {
       "id": "LCV-087",
       "title": "Release profile tuning + binary strip",
       "phase": 8,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-007"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "5cc4909"
     },
     {
       "id": "LCV-088",
       "title": "Icons + .desktop entry",
       "phase": 8,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-085"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "c5b9028"
     },
     {
       "id": "LCV-089",
       "title": "First 0.1.0 release tag + GitHub release",
       "phase": 8,
-      "status": "Draft",
+      "status": "Blocked",
       "depends_on": [
         "LCV-085",
         "LCV-086",
         "LCV-088"
       ],
-      "suggested_agent": "project-manager"
+      "suggested_agent": "project-manager",
+      "note": "PARTIAL: b936570 bumped Cargo.toml to 0.1.0, finalized CHANGELOG and added scripts/release.sh, but no git tag and no GitHub release exist (no git remote configured). Blocked on the user choosing a remote — see LCV-107.",
+      "shipped_commit": "b936570"
     },
     {
       "id": "LCV-090",
       "title": "Windows MSI/NSIS build",
       "phase": 9,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-089"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "318909a"
     },
     {
       "id": "LCV-091",
       "title": "macOS dmg + notarization",
       "phase": 9,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-089"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "shipped_commit": "3ca6879"
     },
     {
       "id": "LCV-092",
       "title": "CI multi-platform pipeline",
       "phase": 9,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
         "LCV-090",
         "LCV-091"
       ],
-      "suggested_agent": "implementer-rust"
+      "suggested_agent": "implementer-rust",
+      "note": "CI workflow file committed but never executed: the repository has no git remote, so the matrix has never run. Windows package job is broken (see LCV-107 / defect D9).",
+      "shipped_commit": "263e7cc"
+    },
+    {
+      "id": "LCV-100",
+      "title": "SVG export/import Y-axis inversion (world Y-up -> SVG Y-down)",
+      "phase": 10,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "note": "Defect D1: exported SVG is mirrored vertically in LaserGRBL/Inkscape. Highest priority of Marco 0."
+    },
+    {
+      "id": "LCV-101",
+      "title": "Load persisted settings in App::new + OpenRouter default endpoint",
+      "phase": 10,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "note": "Defect D2: Settings::load() is never called; App::new uses Settings::default()."
+    },
+    {
+      "id": "LCV-102",
+      "title": "Autosave actually fires (dirty tracking at the pipeline level, 800 ms debounce)",
+      "phase": 10,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "note": "Defect D3: tools call history.commit directly, so dirty_since is never set."
+    },
+    {
+      "id": "LCV-103",
+      "title": "Keyboard routing: kill double dispatch, guard wants_keyboard_input, route Enter to tools",
+      "phase": 10,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "note": "Defects D4, D5, D8."
+    },
+    {
+      "id": "LCV-104",
+      "title": "Reachability: TextTool + full toolbar + Tools menu + Agent settings menu item",
+      "phase": 10,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "note": "Defects D6 and D7-partial."
+    },
+    {
+      "id": "LCV-105",
+      "title": "Cleanup: orphan files, Select-All via SelectionCommand, split app.rs, retire MODULE placeholders",
+      "phase": 10,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "note": "Defect D10 plus accumulated hygiene debt."
+    },
+    {
+      "id": "LCV-106",
+      "title": "Product decision: keep or delete OffsetTool (shipped under the LCV-054 id)",
+      "phase": 10,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "product-owner",
+      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "note": "OFFSET is an explicit non-goal in docs/product/README.md. Recommendation: delete (KISS)."
+    },
+    {
+      "id": "LCV-107",
+      "title": "CI fix: Windows package job invokes build-msi.ps1 via PowerShell",
+      "phase": 10,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "note": "Defect D9. Creating a git remote and pushing is OUT OF SCOPE until the user decides repo name/visibility."
+    },
+    {
+      "id": "LCV-108",
+      "title": "Docs sync: CHANGELOG, README status, AGENTS.md reality, backlog consistency",
+      "phase": 10,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "demand-manager",
+      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "note": "Closes the May-2026 drive paperwork and records Marco 0."
     }
   ]
 }
