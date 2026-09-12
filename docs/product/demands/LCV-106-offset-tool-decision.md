@@ -1,14 +1,16 @@
 # LCV-106 — OffsetTool: product decision and removal
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 10
 - **Depends on**: none (may land any time in Marco 0; independent of LCV-100..104)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: adbc878 — refactor(LCV-106): delete OffsetTool, an explicit product non-goal shipped by accident
+- **Note**: this demand text originally stated `offset.rs` held 24 inline tests; a test-count bisection at removal time confirmed it held 23 (lib test count dropped 647 -> 624). Corrected in place per LCV-108.
 
 ## Problem
 
-`src/tools/offset.rs` (207 lines, 24 inline tests) shipped in commit `3c99f68`
+`src/tools/offset.rs` (207 lines, 23 inline tests) shipped in commit `3c99f68`
 under the LCV-054 id. Two things are wrong with that:
 
 1. The LCV-054 slot was planned as "snap integration into all drawing tools",
@@ -52,7 +54,7 @@ The alternative — promoting it to a documented exception by amending
 
 ## Scope
 
-- `git rm src/tools/offset.rs` (the file and its 24 inline tests go together).
+- `git rm src/tools/offset.rs` (the file and its 23 inline tests go together).
 - `src/tools/mod.rs`: delete `pub mod offset;` (line 15) and
   `pub use offset::OffsetTool;` (line 31).
 - `src/tools/select/hit.rs`: revert the visibility widening that commit
@@ -103,7 +105,7 @@ The alternative — promoting it to a documented exception by amending
    tool definition references OFFSET:
    `grep -rni "offset" src/ui/ src/agent/` returns no match.
 
-8. The test count drops by exactly the 24 tests that lived inside
+8. The test count drops by exactly the 23 tests that lived inside
    `src/tools/offset.rs`, and no other test is removed or modified.
 
 9. `docs/product/README.md:36` still reads `- No fillet / chamfer / offset.`
@@ -126,7 +128,7 @@ The alternative — promoting it to a documented exception by amending
   unit tests pass unchanged.
 - **(AC 7)**: static `grep` across `src/ui/` and `src/agent/`.
 - **(AC 8)**: compare the `cargo test --all` summary lines before and after; the
-  only delta is the 24 offset tests.
+  only delta is the 23 offset tests.
 - **(AC 9)**: `grep -n "fillet" docs/product/README.md`.
 - **(AC 10)**: the three build gates.
 - **Manual smoke**: `cargo run`. Every toolbar button, every Tools-menu entry

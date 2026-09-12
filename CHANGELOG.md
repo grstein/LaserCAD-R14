@@ -4,15 +4,15 @@ All notable changes to LaserCAD v2 are documented in this file. The format is ba
 
 This is the v2 (green-field, pure Rust + egui) line of LaserCAD R14. The v1 line (TypeScript + Tauri) is maintained in a separate directory and its history is recorded in its own CHANGELOG.
 
-## [Unreleased]
+No version of LaserCAD v2 has been tagged or released yet. Everything below is unreleased.
 
-## [0.1.0] - 2025-06-15
+## [Unreleased]
 
 ### Added
 
-- Initial scaffold: Cargo project skeleton, agent harness under `.claude/agents/` (six agents), `AGENTS.md`, `CLAUDE.md`, `PLAN.md`, `README.md`, dual MIT/Apache license, empty module tree, ADR 0001 recording the pure-Rust + egui decision, CI workflow scaffold (Linux), bootstrap egui window placeholder.
+- Initial scaffold: Cargo project skeleton, agent harness under `.claude/agents/` (six agents), `AGENTS.md`, `CLAUDE.md`, `PLAN.md`, `README.md`, dual MIT/Apache license, empty module tree, ADR 0001 recording the pure-Rust + egui decision, CI workflow scaffold (Linux), bootstrap egui window placeholder. See LCV-001, LCV-002, LCV-003, LCV-004, LCV-005, LCV-006.
 - App shell upgraded to a real CentralPanel viewport (dark canvas placeholder). See LCV-030.
-- Native bootstrap window opens at 1280×800 with title "LaserCAD v2 — bootstrap". See LCV-007.
+- Native bootstrap window opens at 1280×800. Its initial title, "LaserCAD v2 — bootstrap", was later renamed to "LaserCAD v2" — see the Changed entry below. See LCV-007.
 - Geometry kernel introduces Vec2 and EPSILON. See LCV-010.
 - Geometry kernel adds Line primitive (bbox, closest point, distance helpers). See LCV-011.
 - Geometry kernel adds Circle primitive (bbox, point-at-angle, signed distance, containment). See LCV-012.
@@ -29,6 +29,7 @@ This is the v2 (green-field, pure Rust + egui) line of LaserCAD R14. The v1 line
 - Document model adds TrimEntity + ExtendEntity commands (Line/Circle pairs; Arc targets deferred). See LCV-025.
 - Document model adds 200-deep undo/redo history stack. See LCV-026.
 - Document model concretizes Selection (HashSet-backed) and adds SelectionCommand. See LCV-027.
+- Camera (world↔screen transform, zoom, pan, zoom-extents) and viewport pointer-input wiring connect the render surface to mouse and wheel input. See LCV-031, LCV-032.
 - Grid renderer: responsive 1-2-5 decade ladder grid (minor spacing adapts across zoom range; major lines every 10 minors). See LCV-033.
 - Bed renderer: 400×400 mm work-area rectangle with dark outside overlay (LCV-034).
 - Entity painter: draws lines, circles, and arcs from the Document on the viewport (LCV-035).
@@ -36,4 +37,34 @@ This is the v2 (green-field, pure Rust + egui) line of LaserCAD R14. The v1 line
 - Preview overlay: in-progress tool geometry renders as translucent amber (LCV-037).
 - Snap markers: orange endpoint/midpoint/center/intersection indicators at snap point (LCV-038).
 - Tool framework: Tool trait, ToolManager, SelectTool stub, App::commit (LCV-040).
-- Dark CAD theme: `CANVAS_BG` (#1a1a1a) constant and `apply_theme` function in `src/ui/theme`; applied every frame in `App::update` (LCV-071).
+- Full drawing and modify toolkit, AutoCAD-R14-shaped: Select (point pick, window/crossing box, shift-toggle), Line, Polyline, Rect, Circle, Arc, Text (Hershey stroke font, click-to-place), Move, Trim, Extend, Delete/Erase, and an F8 ortho lock. See LCV-041, LCV-042, LCV-043, LCV-044, LCV-045, LCV-046, LCV-047, LCV-048, LCV-049, LCV-050, LCV-051, LCV-052, LCV-053.
+- Hershey stroke font data and text layout engine, backing the Text tool. See LCV-055.
+- SVG export with cut/mark/engrave color presets, LaserGRBL-compatible output (`fill="none"`, one `<g>` per preset colour, arcs as `A` path commands). See LCV-056.
+- SVG import (via `roxmltree`) reads the same strict subset back in, so exported files round-trip. See LCV-057.
+- Settings persisted to a JSON file (via the `directories` crate); a recent-files list; native file open/save dialogs (`rfd`); New / Open / Save / Save As / Exit actions wired to SVG I/O. See LCV-058, LCV-060, LCV-061, LCV-062.
+- Autosave with restore-on-boot. See LCV-059.
+- Full UI chrome: menubar (File / Edit / View / Tools / Help), a left-side toolbar with tool buttons, a status bar (coordinates, active tool, entity count), a bottom command-line widget, modal dialogs (confirm / error / about), keyboard shortcuts for tools and view toggles, and a dark CAD theme. See LCV-065, LCV-066, LCV-067, LCV-068, LCV-069, LCV-070, LCV-071.
+- Undo/Redo keyboard shortcuts (Ctrl+Z / Ctrl+Y) with a status-bar flash on trigger. See LCV-075.
+- Optional agent harness (Linux): a settings dialog for endpoint / API key / model, a blocking HTTP transport against OpenAI-compatible chat APIs, a tool registry exposing CAD actions to the model, a multi-turn conversation loop with an iteration cap, and a chat side panel. The agent can read and narrate the drawing but does not yet modify it end-to-end from chat. See LCV-076, LCV-077, LCV-078, LCV-079, LCV-080.
+- Packaging: Linux AppImage and `.deb` builds, a tuned release profile (LTO, strip, `panic=abort`), an application icon and `.desktop` entry, a Windows MSI installer, a macOS `.dmg` bundle, and a multi-platform CI pipeline (test / build / package / release jobs for Linux, Windows, macOS). See LCV-085, LCV-086, LCV-087, LCV-088, LCV-090, LCV-091, LCV-092.
+- TextTool is now reachable from the toolbar, the `D` shortcut, and the Tools menu; the toolbar gained Rect, Move, Trim, Extend and Text buttons; Help > Agent settings opens the agent configuration window. See LCV-104.
+- Documentation sync: `CHANGELOG.md`, `README.md`, `AGENTS.md` and the demand backlog were brought back in line with shipped behavior, closing Marco 0. See LCV-108.
+
+### Changed
+
+- Settings now load at startup: the recent-files list and the agent configuration persist across restarts. The default agent endpoint is now OpenRouter. See LCV-101.
+- Window title changed from "LaserCAD v2 — bootstrap" to "LaserCAD v2". See LCV-105 (contract originally frozen by LCV-007).
+- Edit > Select All is now undoable: it goes through the same `SelectionCommand` / history path as every other selection change, instead of bypassing it. See LCV-105.
+
+### Fixed
+
+- SVG export and import now flip the Y axis, so files exported from LaserCAD open right-way-up in LaserGRBL and Inkscape; the canvas matches the 400×400 mm bed. See LCV-100.
+- Settings that fail to parse are backed up to `settings.json.bak` instead of being silently discarded. See LCV-101.
+- Autosave now actually fires: an edit debounces for 800 ms against a document revision counter and then writes to disk, instead of never triggering. See LCV-102.
+- Keyboard input now goes through a single focus-gated dispatcher: F8 and Ctrl+Z each act once per key press instead of double-firing, and typing into a text field no longer also zooms the viewport or deletes the selection. Enter now reaches the active tool, so TEXT and Polyline can be finished from the keyboard. See LCV-103.
+- Escape while a tool is idle no longer pushes a no-op entry onto the undo history. See LCV-105.
+- CI's Windows package job now invokes `build-msi.ps1` through PowerShell, with Rust and `cargo-wix` installed first, instead of failing to run the script. See LCV-107.
+
+### Removed
+
+- OffsetTool was deleted: it is an explicit product non-goal (see `docs/product/README.md`) that had shipped by accident under the LCV-054 id. See LCV-106 (LCV-054 is rejected).

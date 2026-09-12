@@ -42,7 +42,7 @@ Native prerequisites are documented in `docs/build-local.md` once Phase 0 lands.
 ```
 src/
 ├── main.rs                 # thin: parse argv, init tracing, run app
-├── app.rs                  # eframe::App impl, top-level state, wiring
+├── app/                    # eframe::App impl, top-level state, wiring (mod.rs, input.rs, viewport.rs, panels.rs, autosave.rs, ortho.rs, snap.rs, agent_poll.rs)
 ├── lib.rs                  # re-exports for tests
 ├── geometry/               # pure kernel: vec2, line, circle, arc, intersect, snap, rect, epsilon
 ├── document/               # entity model, schema, commands, history, selection
@@ -51,9 +51,9 @@ src/
 ├── io/                     # settings, autosave, recent, file dialogs (rfd wrapper)
 ├── io/svg/                 # export, import (roxmltree)
 ├── ui/                     # menubar, toolbar, statusbar, command_line, dialogs, shortcuts, theme
-├── agent/                  # classifier, transport (reqwest), tools registry, multi-turn loop, settings_ui
+├── agent/                  # transport (reqwest::blocking), tool registry, multi-turn loop, settings_ui, panel (chat UI)
 ├── text/                   # Hershey font, layout
-└── util/                   # units, paths
+└── util/                   # units (mm bed constants, world↔SVG Y flip)
 ```
 
 Hard rules on the tree:
@@ -68,7 +68,6 @@ The following modules MUST NOT import `egui`, `eframe`, or `rfd`:
 - `src/geometry/*`
 - `src/document/*`
 - `src/io/svg/*`
-- `src/agent/classifier.rs`
 - `src/text/*`
 
 This is the "kernel". It must remain testable as a pure Rust library and runnable in a future headless / CLI / WASM context. Reviewers (`reviewer-rust`) check this on every demand.
@@ -86,7 +85,7 @@ This is the "kernel". It must remain testable as a pure Rust library and runnabl
 
 ### State and mutation (hard contract)
 
-The `App` struct in `src/app.rs` owns mutable state. The contract:
+The `App` struct in `src/app/mod.rs` owns mutable state. The contract:
 
 - **All entity mutation goes through `Command` trait + the history stack in `src/document/history.rs`.**
 - **Tools never mutate `Document` directly**; they construct a `Box<dyn Command>` and call `App::commit(cmd)`.
@@ -103,7 +102,7 @@ egui's `update(&mut self, ctx, frame)` is the single tick. Inside it:
 3. Repaint the viewport (grid, bed, entities, preview, snap markers).
 4. Render UI chrome (menubar, toolbar, command line, statusbar, dialogs).
 
-Async work (HTTP for the agent, autosave timer) lives on a `tokio` runtime owned by `App`; results are channeled back and `ctx.request_repaint()` is called to wake the UI.
+Async work (HTTP for the agent) runs on a plain `std::thread` (`src/agent/panel.rs:141`) that calls a blocking `reqwest::blocking::Client` (`src/agent/transport.rs:94`); this crate does not depend on `tokio`. The result comes back through a `std::sync::mpsc::Receiver` polled once per frame (`src/app/agent_poll.rs`), and `ctx.request_repaint()` is called each frame to keep the UI live while a turn is in flight. The autosave timer is not async at all: it is a debounce check against `History::revision()` run inline in `App::update` (`src/app/autosave.rs`).
 
 ### SVG export (LaserGRBL compatibility)
 
@@ -147,7 +146,7 @@ If you are the main Claude Code agent and the user asks for project work, defaul
 ## Implementation Rules
 
 - Keep **millimeters canonical** in document, geometry, command line, and SVG export. Radians in the kernel.
-- Keep the **kernel pure**: no `egui`/`eframe`/`rfd` imports in `geometry/`, `document/`, `io/svg/`, `agent/classifier.rs`, `text/`.
+- Keep the **kernel pure**: no `egui`/`eframe`/`rfd` imports in `geometry/`, `document/`, `io/svg/`, `text/`.
 - **All entity mutation through `Command` trait + history stack.** No direct `Document.entities` mutation outside `document::commands` and `document::history`.
 - **No `unsafe`** without an inline justification and an ADR.
 - **No `unwrap()` / `expect()`** in library code except where an invariant is documented; tests can unwrap.

@@ -1,10 +1,11 @@
 # LCV-104 — Reachability: TEXT tool, full toolbar, Tools menu, Agent settings item
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 10
 - **Depends on**: LCV-103 (keyboard gate + Enter routing)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: 4b8c243 — feat(LCV-104): make TextTool reachable and complete the toolbar, Tools menu and agent settings entry
 
 ## Problem
 

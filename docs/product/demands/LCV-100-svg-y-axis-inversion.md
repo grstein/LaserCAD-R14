@@ -1,10 +1,11 @@
 # LCV-100 — SVG export/import Y-axis inversion (world Y-up ↔ SVG Y-down)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 10
 - **Depends on**: LCV-056 (Done), LCV-057 (Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: 3d8aec4 — feat(LCV-100): flip Y axis on SVG export and import so output matches the screen
 
 ## Problem
 

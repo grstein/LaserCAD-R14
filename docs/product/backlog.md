@@ -6,8 +6,7 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-
-_None._
+| LCV-108 | Docs sync: CHANGELOG, README status, AGENTS.md reality, backlog consistency | 10 | LCV-100, LCV-101, LCV-102, LCV-103, LCV-104, LCV-105, LCV-106, LCV-107 |
 
 ## In Progress
 
@@ -26,7 +25,7 @@ _None._
 | LCV-004 | CI workflow (fmt + clippy + test, Linux) | 0 | 2026-05-17 | fe4f5c94 |
 | LCV-005 | README + LICENSE-MIT + LICENSE-APACHE + CHANGELOG scaffold | 0 | 2026-05-17 | cb563b2 |
 | LCV-006 | Agent harness alive — confirm .claude/agents/*.md round-trip | 0 | 2026-05-17 | cb563b2 |
-| LCV-007 | Bootstrap egui window — title 'LaserCAD v2 — bootstrap' | 0 | 2026-05-17 | d94e038 |
+| LCV-007 | Bootstrap egui window — title 'LaserCAD v2' | 0 | 2026-05-17 | d94e038 |
 | LCV-010 | Vec2 + epsilon | 1 | 2026-05-17 | 2f2a8bf |
 | LCV-011 | Line type + bbox + helpers | 1 | 2026-05-17 | c6f09f9 |
 | LCV-012 | Circle type + bbox + helpers | 1 | 2026-05-17 | 4ff9ee4 |
@@ -66,7 +65,6 @@ _None._
 | LCV-051 | ExtendTool | 4 | 2026-05-17 | f0c6fb1 |
 | LCV-052 | DeleteTool / Delete key | 4 | 2026-05-17 | c976c36 |
 | LCV-053 | Ortho lock toggle | 4 | 2026-05-17 | 90ea0b4 |
-| LCV-054 | Snap integration into all drawing tools | 4 | 2026-05-17 | 3c99f68 |
 | LCV-055 | Hershey font data + text layout | 5 | 2026-05-17 | 60138bf |
 | LCV-056 | SVG export (cut/mark/engrave presets, LaserGRBL) | 5 | 2026-05-17 | f6a402e |
 | LCV-057 | SVG import (roxmltree, strict subset) | 5 | 2026-05-17 | d5b2edb |
@@ -82,12 +80,12 @@ _None._
 | LCV-069 | Modal dialogs (confirm / error / about) | 6 | 2026-05-17 | 7960ec9 |
 | LCV-070 | Keyboard shortcuts (L/P/R/C/A, F3/F7/F8, Ctrl+Z/Y/N/O/S) | 6 | 2026-05-17 | 35a804a |
 | LCV-071 | Theme + visual polish | 6 | 2026-05-17 | 31c492d |
-| LCV-075 | Agent classifier (regex routing) | 7 | 2026-05-17 | 1ac0219 |
+| LCV-075 | Undo/Redo keyboard shortcuts (Ctrl+Z / Ctrl+Y) + status bar flash | 7 | 2026-05-17 | 1ac0219 |
 | LCV-076 | Agent settings dialog (API key / model / endpoint) | 7 | 2026-05-17 | 8b545c6 |
-| LCV-077 | HTTP transport (reqwest + tokio) | 7 | 2026-05-17 | 16a7683 |
+| LCV-077 | Agent transport — blocking reqwest client for OpenAI-compatible API | 7 | 2026-05-17 | 16a7683 |
 | LCV-078 | Agent tool registry (CAD actions exposed to LLM) | 7 | 2026-05-17 | 86c473e |
 | LCV-079 | Multi-turn loop with iteration cap | 7 | 2026-05-17 | cbd63ec |
-| LCV-080 | Command-line wires ':' / '/ai' prefixes to agent | 7 | 2026-05-17 | ee10f2a |
+| LCV-080 | Agent panel — chat UI for AI assistant | 7 | 2026-05-17 | ee10f2a |
 | LCV-085 | Linux AppImage build | 8 | 2026-05-17 | 2a8883c |
 | LCV-086 | Linux .deb package | 8 | 2026-05-17 | 5de9175 |
 | LCV-087 | Release profile tuning + binary strip | 8 | 2026-05-17 | 5cc4909 |
@@ -95,6 +93,14 @@ _None._
 | LCV-090 | Windows MSI/NSIS build | 9 | 2026-05-17 | 318909a |
 | LCV-091 | macOS dmg + notarization | 9 | 2026-05-17 | 3ca6879 |
 | LCV-092 | CI multi-platform pipeline | 9 | 2026-05-17 | 263e7cc |
+| LCV-100 | SVG export/import Y-axis inversion (world Y-up ↔ SVG Y-down) | 10 | 2026-09-12 | 3d8aec4 |
+| LCV-101 | Load persisted settings at startup (+ OpenRouter default endpoint) | 10 | 2026-09-12 | e3258d2 |
+| LCV-102 | Autosave actually fires (History revision as the dirty signal) | 10 | 2026-09-12 | a958d29 |
+| LCV-103 | Keyboard routing: single gate, no double dispatch, Enter reaches the tool | 10 | 2026-09-12 | 88bc4c9 |
+| LCV-104 | Reachability: TEXT tool, full toolbar, Tools menu, Agent settings item | 10 | 2026-09-12 | 4b8c243 |
+| LCV-105 | Cleanup: orphan files, Select-All through a Command, `app/` split, MODULE retirement, window title | 10 | 2026-09-12 | 0d1d52b |
+| LCV-106 | OffsetTool: product decision and removal | 10 | 2026-09-12 | adbc878 |
+| LCV-107 | CI: Windows package job invokes `build-msi.ps1` via PowerShell | 10 | 2026-09-12 | c5b5be4 |
 
 ## Blocked
 
@@ -106,22 +112,14 @@ _None._
 
 | ID | Title | Phase |
 |---|---|---|
-| LCV-100 | SVG export/import Y-axis inversion (world Y-up -> SVG Y-down) | 10 |
-| LCV-101 | Load persisted settings in App::new + OpenRouter default endpoint | 10 |
-| LCV-102 | Autosave actually fires (dirty tracking at the pipeline level, 800 ms debounce) | 10 |
-| LCV-103 | Keyboard routing: kill double dispatch, guard wants_keyboard_input, route Enter to tools | 10 |
-| LCV-104 | Reachability: TextTool + full toolbar + Tools menu + Agent settings menu item | 10 |
-| LCV-105 | Cleanup: orphan files, Select-All via SelectionCommand, split app.rs, retire MODULE placeholders | 10 |
-| LCV-106 | Product decision: keep or delete OffsetTool (shipped under the LCV-054 id) | 10 |
-| LCV-107 | CI fix: Windows package job invokes build-msi.ps1 via PowerShell | 10 |
-| LCV-108 | Docs sync: CHANGELOG, README status, AGENTS.md reality, backlog consistency | 10 |
+
+_None._
 
 ## Rejected
 
 | ID | Title | Reason |
 |---|---|---|
-
-_None._
+| LCV-054 | OffsetTool — Offset a Line or Arc by Distance | Removed by LCV-106 (commit adbc878): OFFSET is an explicit non-goal (`docs/product/README.md`); the id was originally planned for "snap integration into all drawing tools," a capability already delivered by LCV-041. |
 
 ## Superseded
 

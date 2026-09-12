@@ -1,10 +1,11 @@
 # LCV-105 — Cleanup: orphan files, Select-All through a Command, `app.rs` split, MODULE retirement, window title
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 10
 - **Depends on**: LCV-100, LCV-101, LCV-102, LCV-103, LCV-104 (all must be Done — this demand moves the code they edit)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: 0d1d52b — refactor(LCV-105): split app.rs under the LOC cap, retire orphans and placeholders, fix Select-All
 
 ## Problem
 

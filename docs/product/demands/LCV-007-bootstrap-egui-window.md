@@ -1,4 +1,4 @@
-# LCV-007 — Bootstrap egui window — title "LaserCAD v2 — bootstrap"
+# LCV-007 — Bootstrap egui window — title "LaserCAD v2"
 
 - **Status**: Done
 - **Phase**: 0
@@ -6,6 +6,7 @@
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
 - **Implementation**: d94e038 — feat(LCV-007): freeze bootstrap window contract via APP_TITLE / DEFAULT_WINDOW_SIZE
+- **Note**: the window-title contract this demand froze was originally the literal "LaserCAD v2 — bootstrap"; LCV-105 (commit 0d1d52b) amended `APP_TITLE` to "LaserCAD v2". The Problem/Scope/Acceptance-criteria/Expected-tests text below is the historical record of what was specified and tested at ship time (commit d94e038) and intentionally still reads "LaserCAD v2 — bootstrap"; it is not a description of the current constant value. Corrected in place per LCV-108.
 
 ## Problem
 

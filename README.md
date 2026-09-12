@@ -6,7 +6,7 @@ LaserCAD v2 is a green-field rewrite of [LaserCAD R14 v1](../LaserCAD-R14/) that
 
 ## Status
 
-Pre-alpha. The scaffold is in; feature work is tracked in [`PLAN.md`](PLAN.md). First target: feature parity with v1.0.0 (drawing + modify tools, snaps, undo/redo, command line, SVG export/import, autosave, native dialogs, agent harness) on Linux.
+Alpha (0.1.0 pending). The core draw-to-SVG workflow works today: drawing and modify tools, snaps, ortho lock, undo/redo, SVG export/import (LaserGRBL-compatible), autosave, recent files, and native file dialogs, on Linux. The command line is still a stub (typed coordinate/command entry is not wired up yet), and the optional agent chat panel can read and narrate the drawing but does not yet modify it. Feature work is tracked in [`PLAN.md`](PLAN.md). No release has been tagged yet — `Cargo.toml` says `0.1.0`, but there is no `v0.1.0` git tag and no published artifact.
 
 ## Build
 
@@ -33,7 +33,7 @@ sudo apt install -y build-essential libxkbcommon-dev libxcb-render0-dev libxcb-s
 
 See [`AGENTS.md`](AGENTS.md) for the full agent and architecture rules. Short version:
 
-- `src/` is one Rust crate, divided into pure-kernel modules (`geometry`, `document`, `io/svg`, `agent/classifier`, `text`) and UI modules (`render`, `tools`, `ui`, `io`, `agent`).
+- `src/` is one Rust crate, divided into pure-kernel modules (`geometry`, `document`, `io/svg`, `text`) and UI modules (`render`, `tools`, `ui`, `io`, `agent`, `app`).
 - Kernel modules MUST NOT import `egui`, `eframe`, or `rfd` — they stay testable as a pure library.
 - mm canonical everywhere except `render/camera.rs`. Radians in the kernel.
 - All entity mutation through the `Command` trait + history stack.

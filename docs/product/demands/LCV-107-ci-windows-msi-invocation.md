@@ -1,10 +1,11 @@
 # LCV-107 — CI: Windows package job invokes `build-msi.ps1` via PowerShell
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 10
 - **Depends on**: none
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: c5b5be4 — fix(LCV-107): invoke build-msi.ps1 through PowerShell in the CI package job
 
 ## Problem
 

@@ -1,10 +1,11 @@
 # LCV-103 — Keyboard routing: single gate, no double dispatch, Enter reaches the tool
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 10
 - **Depends on**: none (ADR 0002 is Accepted). Sequencing with LCV-102 — see Notes.
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: 88bc4c9 — fix(LCV-103): route keyboard input through one gated dispatcher and deliver Enter to tools
 
 ## Problem
 

@@ -1,10 +1,11 @@
 # LCV-102 — Autosave actually fires (History revision as the dirty signal)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 10
 - **Depends on**: LCV-059 (Done), LCV-026 (Done); ADR 0002 §B
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: a958d29 — fix(LCV-102): track document revisions so autosave actually fires, with an 800 ms debounce
 
 ## Problem
 

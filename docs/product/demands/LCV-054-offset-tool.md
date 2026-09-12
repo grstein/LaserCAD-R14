@@ -1,12 +1,12 @@
 # LCV-054 — OffsetTool — Offset a Line or Arc by Distance
 
-- **Status**: Done
+- **Status**: Rejected
 - **Phase**: 4
 - **Depends on**: LCV-041 (Done), LCV-023 (Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: 3c99f68 — feat(LCV-054): OffsetTool — offset line/arc at fixed distance
-- **Note**: shipped as OffsetTool. The original LCV-054 scope ("snap integration into all drawing tools") was already delivered by LCV-041. OFFSET is an explicit non-goal in docs/product/README.md; keep-or-delete decision is tracked in LCV-106.
+- **Implementation**: 3c99f68 — feat(LCV-054): OffsetTool — offset line/arc at fixed distance (removed by adbc878 — refactor(LCV-106): delete OffsetTool, an explicit product non-goal shipped by accident)
+- **Note**: shipped as OffsetTool, then rejected and deleted. The original LCV-054 scope ("snap integration into all drawing tools") was already delivered by LCV-041. Offset is an explicit non-goal in `docs/product/README.md` ("No fillet / chamfer / offset."). LCV-106 made the keep-or-delete call and removed the code in commit adbc878; this id stays `Rejected` rather than `Done` so the paperwork matches the product decision, while the shipping commit reference is kept for traceability.
 
 ## Problem
 

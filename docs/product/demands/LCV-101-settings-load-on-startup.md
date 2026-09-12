@@ -1,10 +1,11 @@
 # LCV-101 — Load persisted settings at startup (+ OpenRouter default endpoint)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 10
 - **Depends on**: LCV-058 (Done), LCV-076 (Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: e3258d2 — feat(LCV-101): load persisted settings at startup and default the agent to OpenRouter
 
 ## Problem
 
