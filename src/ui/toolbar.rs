@@ -5,51 +5,98 @@
 //! button activates the corresponding tool via
 //! [`crate::tools::ToolManager::set_tool`].
 //!
-//! Only tools that exist in the current codebase are included.  Rect, Text,
-//! and Move buttons will be added when those tools land (LCV-045 et al.).
+//! [`TOOLS`] is the single source of truth for every v0.1.0 tool: it drives
+//! this toolbar *and* the Tools menu in `crate::ui::menubar` — there is no
+//! second list. One drawing tool that exists in `src/tools/` is deliberately
+//! not in this table; LCV-106 decides its fate.
 //!
-//! Introduced by demand LCV-066.
+//! Introduced by demand LCV-066; extended to the full eleven-tool set and
+//! made the Tools-menu data source by LCV-104.
 
 use crate::app::App;
-use crate::tools::{ArcTool, CircleTool, DeleteTool, LineTool, PolylineTool, SelectTool, Tool};
+use crate::tools::{
+    ArcTool, CircleTool, DeleteTool, ExtendTool, LineTool, MoveTool, PolylineTool, RectTool,
+    SelectTool, TextTool, Tool, TrimTool,
+};
 
-/// Pairing of a user-facing button label with the tool's canonical `name()`.
+/// One toolbar / Tools-menu entry.
 ///
-/// The two values diverge because several tools use uppercase internal names
-/// (`"LINE"`, `"ERASE"`, …) while the toolbar shows mixed-case labels.
-struct ToolEntry {
-    /// Text displayed on the toolbar button.
-    label: &'static str,
+/// `label` and `tool_name` diverge because several tools use uppercase
+/// internal names (`"LINE"`, `"ERASE"`, …) while the UI shows mixed-case
+/// labels. `shortcut` is the bare-key hint shown in the Tools menu (`None`
+/// for `Select`, which has no keyboard binding).
+pub(crate) struct ToolEntry {
+    /// Text displayed on the toolbar button and in the Tools menu.
+    pub(crate) label: &'static str,
     /// String returned by [`Tool::name`]; used to detect the active tool for
     /// highlight purposes.
-    tool_name: &'static str,
+    pub(crate) tool_name: &'static str,
+    /// Keyboard shortcut hint (`src/ui/shortcuts.rs::TOOL_KEYS`), if any.
+    pub(crate) shortcut: Option<&'static str>,
 }
 
-/// Toolbar entries in top-to-bottom display order.
-const TOOLS: &[ToolEntry] = &[
+/// Index of the first "modify group" entry (`Move`). The toolbar draws a
+/// separator immediately before it, splitting the draw tools (Select …
+/// Text) from the modify tools (Move … Delete).
+const MODIFY_GROUP_START: usize = 7;
+
+/// Toolbar / Tools-menu entries, in display order (LCV-104 acceptance
+/// table). This is the eleven-tool v0.1.0 set.
+pub(crate) const TOOLS: &[ToolEntry] = &[
     ToolEntry {
         label: "Select",
         tool_name: "Select",
+        shortcut: None,
     },
     ToolEntry {
         label: "Line",
         tool_name: "LINE",
+        shortcut: Some("L"),
     },
     ToolEntry {
         label: "Polyline",
         tool_name: "PLINE",
+        shortcut: Some("P"),
+    },
+    ToolEntry {
+        label: "Rect",
+        tool_name: "RECT",
+        shortcut: Some("R"),
     },
     ToolEntry {
         label: "Circle",
         tool_name: "CIRCLE",
+        shortcut: Some("C"),
     },
     ToolEntry {
         label: "Arc",
         tool_name: "ARC",
+        shortcut: Some("A"),
+    },
+    ToolEntry {
+        label: "Text",
+        tool_name: "TEXT",
+        shortcut: Some("D"),
+    },
+    ToolEntry {
+        label: "Move",
+        tool_name: "MOVE",
+        shortcut: Some("M"),
+    },
+    ToolEntry {
+        label: "Trim",
+        tool_name: "TRIM",
+        shortcut: Some("T"),
+    },
+    ToolEntry {
+        label: "Extend",
+        tool_name: "EXTEND",
+        shortcut: Some("X"),
     },
     ToolEntry {
         label: "Delete",
         tool_name: "ERASE",
+        shortcut: Some("E"),
     },
 ];
 
@@ -57,16 +104,23 @@ const TOOLS: &[ToolEntry] = &[
 #[allow(clippy::len_zero)]
 const _: () = assert!(TOOLS.len() >= 1);
 
-/// Construct a fresh tool instance keyed on the button **label**.
+/// Construct a fresh tool instance keyed on the button / menu-item **label**.
 ///
-/// Returns `None` for unknown labels (forward-compatible guard).
-fn make_tool(label: &str) -> Option<Box<dyn Tool>> {
+/// Returns `None` for unknown labels (forward-compatible guard). `TrimTool`
+/// and `DeleteTool` are unit structs, constructed directly rather than via
+/// `::default()`.
+pub(crate) fn make_tool(label: &str) -> Option<Box<dyn Tool>> {
     match label {
         "Select" => Some(Box::new(SelectTool::default())),
         "Line" => Some(Box::new(LineTool::default())),
         "Polyline" => Some(Box::new(PolylineTool::default())),
+        "Rect" => Some(Box::new(RectTool::default())),
         "Circle" => Some(Box::new(CircleTool::default())),
         "Arc" => Some(Box::new(ArcTool::default())),
+        "Text" => Some(Box::new(TextTool::default())),
+        "Move" => Some(Box::new(MoveTool::default())),
+        "Trim" => Some(Box::new(TrimTool)),
+        "Extend" => Some(Box::new(ExtendTool::default())),
         "Delete" => Some(Box::new(DeleteTool)),
         _ => None,
     }
@@ -74,13 +128,15 @@ fn make_tool(label: &str) -> Option<Box<dyn Tool>> {
 
 /// Render the left-side toolbar into `ui`.
 ///
-/// Draws one [`egui::SelectableLabel`] per tool.  The currently active tool
-/// button is rendered in its selected/highlighted state.  Clicking an inactive
-/// button calls [`ToolManager::set_tool`](crate::tools::ToolManager::set_tool),
-/// which cancels any in-progress state on the old tool before switching.
+/// Draws one [`egui::SelectableLabel`] per tool, with a separator between the
+/// draw group (Select … Text) and the modify group (Move … Delete). The
+/// currently active tool button is rendered in its selected/highlighted
+/// state. Clicking an inactive button calls
+/// [`ToolManager::set_tool`](crate::tools::ToolManager::set_tool), which
+/// cancels any in-progress state on the old tool before switching.
 ///
 /// **Call site**: inside a `SidePanel::left("toolbar")` added in
-/// [`crate::app::App::update`], *after* the bottom status-bar panel and
+/// [`crate::app::App::update_ui`], *after* the bottom status-bar panel and
 /// *before* the `CentralPanel`.
 pub fn draw_toolbar(ui: &mut egui::Ui, app: &mut App) {
     // `active_tool_name` returns `&'static str` — the borrow on `app` ends
@@ -90,7 +146,10 @@ pub fn draw_toolbar(ui: &mut egui::Ui, app: &mut App) {
     // Collect the label of the clicked button (at most one per frame).
     let mut clicked: Option<&'static str> = None;
 
-    for entry in TOOLS {
+    for (i, entry) in TOOLS.iter().enumerate() {
+        if i == MODIFY_GROUP_START {
+            ui.separator();
+        }
         let is_active = active == entry.tool_name;
         if ui.selectable_label(is_active, entry.label).clicked() {
             clicked = Some(entry.label);
@@ -148,6 +207,14 @@ mod tests {
         assert!(make_tool("NonExistentTool").is_none());
     }
 
+    /// LCV-104 AC#3 — TextTool is reachable from the toolbar/menu table for
+    /// the first time.
+    #[test]
+    fn text_tool_is_reachable_from_toolbar() {
+        let tool = make_tool("Text").expect("\"Text\" must be a known toolbar label");
+        assert_eq!(tool.name(), "TEXT");
+    }
+
     /// LCV-066 AC — default `App` active tool is "Select", which corresponds
     /// to the first toolbar entry.
     #[test]
@@ -181,5 +248,20 @@ mod tests {
                 entry.tool_name
             );
         }
+    }
+
+    /// LCV-104 AC#1, AC#4 — the table is exactly the eleven v0.1.0 tools, in
+    /// the acceptance-criteria order.
+    #[test]
+    fn toolbar_table_is_the_v010_tool_set() {
+        assert_eq!(TOOLS.len(), 11, "TOOLS must have exactly eleven entries");
+        let labels: Vec<&str> = TOOLS.iter().map(|e| e.label).collect();
+        assert_eq!(
+            labels,
+            vec![
+                "Select", "Line", "Polyline", "Rect", "Circle", "Arc", "Text", "Move", "Trim",
+                "Extend", "Delete",
+            ]
+        );
     }
 }

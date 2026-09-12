@@ -10,8 +10,8 @@ use egui::{Key, Modifiers};
 
 use crate::app::App;
 use crate::tools::{
-    ArcTool, CircleTool, DeleteTool, ExtendTool, LineTool, MoveTool, PolylineTool, RectTool, Tool,
-    TrimTool,
+    ArcTool, CircleTool, DeleteTool, ExtendTool, LineTool, MoveTool, PolylineTool, RectTool,
+    TextTool, Tool, TrimTool,
 };
 
 /// Called once per frame — the first statement of `App::update` — before any
@@ -45,6 +45,11 @@ pub fn process_shortcuts(ctx: &egui::Context, app: &mut App) {
 
 /// Tool-activation dispatch table: `(key, constructor)` pairs iterated in a
 /// loop inside [`dispatch_shortcuts`].
+///
+/// `D` (LCV-104) activates `TextTool` — the AutoCAD R14 `DTEXT` mnemonic.
+/// `T`, `X`, `E`, `M`, `R` were already taken (TRIM, EXTEND, ERASE, MOVE,
+/// RECT), so `D` is the only free letter; see the demand Notes for the full
+/// rejection rationale. This is a settled product decision, not an option.
 type ToolCtor = fn() -> Box<dyn Tool>;
 const TOOL_KEYS: &[(Key, ToolCtor)] = &[
     (Key::L, || Box::new(LineTool::default())),
@@ -56,6 +61,7 @@ const TOOL_KEYS: &[(Key, ToolCtor)] = &[
     (Key::E, || Box::new(DeleteTool)),
     (Key::T, || Box::new(TrimTool)),
     (Key::X, || Box::new(ExtendTool::default())),
+    (Key::D, || Box::new(TextTool::default())),
 ];
 
 /// Inner, testable dispatch. Called from [`process_shortcuts`]; also called
@@ -130,5 +136,43 @@ pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: 
                 return;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ui::toolbar::TOOLS;
+    use std::collections::HashSet;
+
+    /// LCV-104 AC#11 — `TOOL_KEYS` contains exactly `{L, P, R, C, A, M, E, T,
+    /// X, D}`, no duplicate key, and every entry's constructed tool matches
+    /// the toolbar entry advertising the same shortcut letter.
+    #[test]
+    fn tool_keys_are_unique_and_match_toolbar_shortcuts() {
+        let mut seen_keys = HashSet::new();
+        for &(key, ctor) in TOOL_KEYS {
+            let letter = format!("{key:?}");
+            assert!(
+                seen_keys.insert(letter.clone()),
+                "duplicate TOOL_KEYS key: {letter}"
+            );
+
+            let entry = TOOLS
+                .iter()
+                .find(|e| e.shortcut == Some(letter.as_str()))
+                .unwrap_or_else(|| panic!("no toolbar entry advertises shortcut {letter}"));
+            assert_eq!(
+                ctor().name(),
+                entry.tool_name,
+                "TOOL_KEYS[{letter}] constructs the wrong tool"
+            );
+        }
+
+        let expected: HashSet<String> = ["L", "P", "R", "C", "A", "M", "E", "T", "X", "D"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect();
+        assert_eq!(seen_keys, expected);
     }
 }

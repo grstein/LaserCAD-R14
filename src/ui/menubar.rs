@@ -1,10 +1,16 @@
-//! Menubar — File / Edit / View / Help (LCV-065).
+//! Menubar — File / Edit / View / Tools / Help (LCV-065, Tools added by
+//! LCV-104).
 //!
 //! One public entry point: [`draw_menubar`].  Shortcut text is label-only;
 //! dispatch lives in `crate::ui::shortcuts` (LCV-070).  No `rfd`/`eframe`.
+//!
+//! The Tools menu has no tool list of its own: it iterates
+//! `crate::ui::toolbar::TOOLS`, the same table that drives the toolbar, so
+//! the two surfaces cannot drift apart.
 
 use crate::app::App;
 use crate::geometry::Vec2;
+use crate::ui::toolbar::{make_tool, TOOLS};
 
 /// Render the menubar strip.  Must be the first panel in `App::update`.
 pub fn draw_menubar(ui: &mut egui::Ui, app: &mut App) {
@@ -12,6 +18,7 @@ pub fn draw_menubar(ui: &mut egui::Ui, app: &mut App) {
         file_menu(ui, app);
         edit_menu(ui, app);
         view_menu(ui, app);
+        tools_menu(ui, app);
         help_menu(ui, app);
     });
 }
@@ -109,11 +116,36 @@ fn view_menu(ui: &mut egui::Ui, app: &mut App) {
     });
 }
 
+/// The Tools menu (LCV-104). One `ui.button` per `toolbar::TOOLS` entry,
+/// labelled `"<label>\t<shortcut>"` when a shortcut exists and `"<label>"`
+/// otherwise. Clicking closes the menu and activates the tool the same way
+/// the toolbar button does.
+fn tools_menu(ui: &mut egui::Ui, app: &mut App) {
+    ui.menu_button("Tools", |ui| {
+        for entry in TOOLS {
+            let text = match entry.shortcut {
+                Some(key) => format!("{}\t{}", entry.label, key),
+                None => entry.label.to_owned(),
+            };
+            if ui.button(text).clicked() {
+                ui.close_menu();
+                if let Some(tool) = make_tool(entry.label) {
+                    app.tool_manager.set_tool(tool);
+                }
+            }
+        }
+    });
+}
+
 fn help_menu(ui: &mut egui::Ui, app: &mut App) {
     ui.menu_button("Help", |ui| {
         if ui.button("About").clicked() {
             ui.close_menu();
             do_about(app);
+        }
+        if ui.button("Agent settings…").clicked() {
+            ui.close_menu();
+            do_agent_settings(app);
         }
     });
 }
@@ -127,6 +159,7 @@ pub(crate) fn do_select_all(app: &mut App) {
 #[rustfmt::skip] pub(crate) fn do_zoom_in(app: &mut App) { app.camera.zoom_in(1.25); }
 #[rustfmt::skip] pub(crate) fn do_zoom_out(app: &mut App) { app.camera.zoom_out(1.25); }
 #[rustfmt::skip] pub(crate) fn do_about(app: &mut App) { app.about_open = true; }
+#[rustfmt::skip] pub(crate) fn do_agent_settings(app: &mut App) { app.agent_settings_open = true; }
 
 /// Fit the viewport to the laser bed bounding box.
 pub(crate) fn do_fit_to_bed(app: &mut App) {
@@ -241,5 +274,68 @@ mod tests {
     fn open_recent_submenu_empty_message() {
         let mut app = App::default();
         run_menubar(&mut app); // must not panic with empty recent list
+    }
+
+    // -----------------------------------------------------------------------
+    // LCV-104 — Tools menu, Help > Agent settings
+    // -----------------------------------------------------------------------
+
+    /// LCV-104 AC#5 — the bar renders five top-level menus (File, Edit, View,
+    /// Tools, Help) without panicking; the Tools menu is new here.
+    #[test]
+    fn menubar_renders_five_menus_without_panic() {
+        let mut app = App::default();
+        run_menubar(&mut app);
+    }
+
+    /// LCV-104 AC#5 — structural check: the five `*_menu` helpers are called,
+    /// in order, from `draw_menubar`. Reading the function's own source is
+    /// deliberate: it proves the call order without needing pixels or a
+    /// side-channel recorder.
+    #[test]
+    fn menubar_has_five_menus_in_order() {
+        let src = include_str!("menubar.rs");
+        let calls = [
+            "file_menu(ui, app)",
+            "edit_menu(ui, app)",
+            "view_menu(ui, app)",
+            "tools_menu(ui, app)",
+            "help_menu(ui, app)",
+        ];
+        let mut last = 0usize;
+        for call in calls {
+            let idx = src
+                .find(call)
+                .unwrap_or_else(|| panic!("draw_menubar must call {call}"));
+            assert!(
+                idx > last,
+                "{call} must be called after the previous menu in draw_menubar"
+            );
+            last = idx;
+        }
+    }
+
+    /// LCV-104 AC#7 — activating each Tools-menu entry sets the active tool:
+    /// `make_tool(entry.label)` followed by `set_tool` leaves
+    /// `active_tool_name() == entry.tool_name`, for every table entry.
+    #[test]
+    fn tools_menu_entries_activate_their_tool() {
+        let mut app = App::default();
+        for entry in TOOLS {
+            let tool =
+                make_tool(entry.label).unwrap_or_else(|| panic!("no tool for {}", entry.label));
+            app.tool_manager.set_tool(tool);
+            assert_eq!(app.tool_manager.active_tool_name(), entry.tool_name);
+        }
+    }
+
+    /// LCV-104 AC#12 — `do_agent_settings` sets `app.agent_settings_open`,
+    /// mirroring `help_about_sets_about_open`.
+    #[test]
+    fn help_agent_settings_sets_flag() {
+        let mut app = App::default();
+        assert!(!app.agent_settings_open);
+        do_agent_settings(&mut app);
+        assert!(app.agent_settings_open);
     }
 }
