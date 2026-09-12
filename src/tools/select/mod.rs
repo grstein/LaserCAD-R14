@@ -127,11 +127,18 @@ impl Tool for SelectTool {
     fn on_key(&mut self, key: egui::Key, app: &mut App) {
         match key {
             egui::Key::Escape => {
+                // Cancel the in-progress drag unconditionally, but commit the
+                // clearing command only when there is a selection to clear.
+                // Escape is the most-pressed key in a CAD session, and an
+                // empty SelectionCommand on an empty selection is a no-op that
+                // would make Ctrl+Z stop feeling like undo (LCV-105).
                 self.cancel();
-                app.history.commit(
-                    Box::new(SelectionCommand::new(Vec::<usize>::new())),
-                    &mut app.document,
-                );
+                if !app.document.selection.is_empty() {
+                    app.history.commit(
+                        Box::new(SelectionCommand::new(Vec::<usize>::new())),
+                        &mut app.document,
+                    );
+                }
             }
             egui::Key::Delete | egui::Key::Backspace => {
                 if !app.document.selection.is_empty() {
@@ -298,5 +305,55 @@ mod tests {
         slide(&mut tool, Vec2::new(10.0, 10.0));
         tool.cancel();
         assert!(tool.preview().is_empty());
+    }
+
+    /// LCV-105 AC#6 — Escape with nothing selected commits nothing: the undo
+    /// stack must not collect one no-op `SelectionCommand` per Escape press.
+    #[test]
+    fn escape_with_empty_selection_commits_nothing() {
+        let mut tool = SelectTool::default();
+        let mut app = crate::app::App::default();
+        assert!(app.document.selection.is_empty());
+
+        tool.on_key(egui::Key::Escape, &mut app);
+        tool.on_key(egui::Key::Escape, &mut app);
+
+        assert!(
+            !app.history.can_undo(),
+            "Escape on an empty selection must leave the undo stack untouched"
+        );
+    }
+
+    /// LCV-105 AC#7 — Escape with a live selection still clears it, exactly
+    /// once: one undo restores the two selected indices.
+    #[test]
+    fn escape_with_selection_clears_it_once() {
+        let mut tool = SelectTool::default();
+        let mut app = crate::app::App::default();
+        for _ in 0..3 {
+            app.document
+                .entities
+                .push(Entity::Line(crate::geometry::Line::new(
+                    Vec2::new(0.0, 0.0),
+                    Vec2::new(1.0, 0.0),
+                )));
+        }
+        app.history.commit(
+            Box::new(SelectionCommand::new(vec![0usize, 2usize])),
+            &mut app.document,
+        );
+        assert_eq!(app.document.selection.len(), 2);
+
+        tool.on_key(egui::Key::Escape, &mut app);
+        assert!(app.document.selection.is_empty(), "Escape must clear it");
+
+        assert!(app.history.undo(&mut app.document));
+        let mut restored: Vec<usize> = app.document.selection.iter().collect();
+        restored.sort_unstable();
+        assert_eq!(
+            restored,
+            vec![0usize, 2usize],
+            "exactly one command was pushed, so one undo restores the selection"
+        );
     }
 }

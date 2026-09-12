@@ -2,8 +2,6 @@
 //!
 //! Tools never mutate `Document` directly — they construct a `Command` and call
 //! `history.commit(cmd, doc)`. State machines stay inside individual tool files.
-//!
-//! Submodules arrive with demands LCV-040 .. LCV-054.
 
 pub mod arc;
 pub mod circle;
@@ -34,6 +32,3 @@ pub use select::SelectTool;
 pub use text::TextTool;
 pub use tool::Tool;
 pub use trim::TrimTool;
-
-/// Module witness for the skeleton test. Will retire once all tools land.
-pub const MODULE: &str = "tools";

@@ -62,7 +62,7 @@ pub fn draw_command_line(ui: &mut egui::Ui, app: &mut App) {
 mod tests {
     // The widget itself is exercised manually (headless environment).
     // The structural / delegation tests live in their respective modules.
-    // See: src/app.rs   — app_default_command_line_input_is_empty  (AC#3)
+    // See: src/app/mod.rs — app_default_command_line_input_is_empty  (AC#3)
     //      src/tools/tool.rs  — object-safety + no-op tests         (AC#4)
     //      src/tools/manager.rs — active_status_text + delegation   (AC#5, AC#6)
 }

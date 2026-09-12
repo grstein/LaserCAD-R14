@@ -9,6 +9,7 @@
 //! the two surfaces cannot drift apart.
 
 use crate::app::App;
+use crate::document::SelectionCommand;
 use crate::geometry::Vec2;
 use crate::ui::toolbar::{make_tool, TOOLS};
 
@@ -150,10 +151,23 @@ fn help_menu(ui: &mut egui::Ui, app: &mut App) {
     });
 }
 
-/// Select every entity in the document.
+/// Select every entity in the document, through the history stack.
+///
+/// The selection is part of `Document` and is mutated only by a
+/// [`SelectionCommand`] (AGENTS.md mutation contract), so Ctrl+Z after
+/// Edit > Select All restores the selection the operator had before —
+/// accidentally selecting 400 entities is no longer a one-way door (LCV-105).
+///
+/// An empty document commits nothing: selecting nothing where there is
+/// nothing to select is a no-op, and a no-op in the undo stack costs the
+/// operator a Ctrl+Z press for no change.
 pub(crate) fn do_select_all(app: &mut App) {
     let n = app.document.entity_count();
-    app.document.selection.set(0..n);
+    if n == 0 {
+        return;
+    }
+    app.history
+        .commit(Box::new(SelectionCommand::new(0..n)), &mut app.document);
 }
 
 #[rustfmt::skip] pub(crate) fn do_zoom_in(app: &mut App) { app.camera.zoom_in(1.25); }
@@ -230,8 +244,9 @@ mod tests {
         assert!(app.about_open);
     }
 
-    #[test] // AC#11
-    fn select_all_covers_all_entities() {
+    /// Three lines pushed straight into the document — test-only setup, the
+    /// production path is `CreateLine` through the history stack.
+    fn app_with_three_lines() -> App {
         let mut app = App::default();
         for _ in 0..3 {
             app.document.entities.push(Entity::Line(Line::new(
@@ -239,8 +254,47 @@ mod tests {
                 Vec2::new(1.0, 0.0),
             )));
         }
+        app
+    }
+
+    #[test] // AC#11
+    fn select_all_covers_all_entities() {
+        let mut app = app_with_three_lines();
         do_select_all(&mut app);
         assert_eq!(app.document.selection.len(), 3);
+    }
+
+    /// LCV-105 AC#4 — Select All is undoable: one `history.undo` restores
+    /// exactly the selection that was live before the menu item was clicked.
+    #[test]
+    fn select_all_is_undoable() {
+        let mut app = app_with_three_lines();
+        app.history.commit(
+            Box::new(SelectionCommand::new(vec![1usize])),
+            &mut app.document,
+        );
+        assert_eq!(app.document.selection.len(), 1);
+
+        do_select_all(&mut app);
+        assert_eq!(app.document.selection.len(), 3);
+
+        assert!(app.history.undo(&mut app.document));
+        let restored: Vec<usize> = app.document.selection.iter().collect();
+        assert_eq!(
+            restored,
+            vec![1usize],
+            "undo must restore the previous selection"
+        );
+    }
+
+    /// LCV-105 AC#5 — Select All on an empty document commits nothing, so it
+    /// cannot leave a no-op on the undo stack.
+    #[test]
+    fn select_all_on_empty_document_commits_nothing() {
+        let mut app = App::default();
+        do_select_all(&mut app);
+        assert!(app.document.selection.is_empty());
+        assert!(!app.history.can_undo());
     }
 
     #[test] // AC#12 zoom in

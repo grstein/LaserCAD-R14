@@ -5,8 +5,12 @@
 //! space, builds a tolerance in mm from the pixel threshold, and queries the
 //! geometry snap engine over the current document entities.
 //!
-//! Lives in `src/app/snap.rs` (a sub-module of `app`) to keep `app.rs`
-//! under the 300-LOC hard cap.
+//! [`suppress_snap_if_disabled`] is the matching frame-level guard: it clears
+//! any stale snap while snap mode is off.
+//!
+//! Lives in `src/app/snap.rs` (a sub-module of `app`) to keep `mod.rs` under
+//! the 300-LOC hard cap; both functions are re-exported as
+//! `lasercad::app::…`.
 
 use crate::document::Entity;
 use crate::geometry::{snap, SnapEntity, SnapResult};
@@ -36,6 +40,18 @@ pub fn resolve_snap(
     let tolerance_mm = SNAP_TOLERANCE_PX * camera.mm_per_px;
     let snappables: Vec<SnapEntity> = entities.iter().map(to_snap_entity).collect();
     snap(world_pos, tolerance_mm, &snappables)
+}
+
+/// Clear `active_snap` when snap is disabled.
+///
+/// Called at the top of each frame (before panel rendering) from
+/// [`App::update_ui`](crate::app::App::update_ui) so that no snap marker is
+/// rendered while snap is turned off, even if `active_snap` was set by a
+/// previous frame. Extracted for testability (LCV-070 AC#16).
+pub fn suppress_snap_if_disabled(snap_enabled: bool, active_snap: &mut Option<SnapResult>) {
+    if !snap_enabled {
+        *active_snap = None;
+    }
 }
 
 fn to_snap_entity(e: &Entity) -> SnapEntity {
@@ -105,6 +121,27 @@ mod tests {
             &[circle],
         );
         assert!(result.is_none());
+    }
+
+    /// LCV-070 AC#16 — `suppress_snap_if_disabled` clears `active_snap` when
+    /// snap mode is off, and leaves it alone when snap is on.
+    #[test]
+    fn suppress_snap_clears_when_disabled() {
+        use crate::geometry::{SnapKind, SnapResult};
+        let snap = Some(SnapResult {
+            point: Vec2::new(1.0, 2.0),
+            kind: SnapKind::Endpoint,
+            primary_idx: 0,
+            secondary_idx: None,
+        });
+
+        let mut active = snap;
+        suppress_snap_if_disabled(false, &mut active);
+        assert!(active.is_none());
+
+        let mut active2 = snap;
+        suppress_snap_if_disabled(true, &mut active2);
+        assert!(active2.is_some());
     }
 
     /// rect.min offset is applied: non-zero rect origin shifts the conversion.

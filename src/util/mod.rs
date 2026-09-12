@@ -7,5 +7,3 @@
 pub mod units;
 
 pub use units::{flip_y, BED_HEIGHT_MM, BED_WIDTH_MM};
-
-pub const MODULE: &str = "util";

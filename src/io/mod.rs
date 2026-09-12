@@ -3,10 +3,7 @@
 //!
 //! `io::svg` is part of the kernel and MUST NOT import UI deps; the rest of
 //! `io` (dialogs, recent, etc.) may use `rfd` and `directories`.
-//!
-//! Submodules arrive with demands LCV-055 .. LCV-062.
 
-pub const MODULE: &str = "io";
 pub mod autosave;
 pub mod dialogs;
 pub mod file_actions;
