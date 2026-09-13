@@ -1,6 +1,6 @@
 # LCV-110 — Command-line parser: a pure kernel module for `X,Y`, `@X,Y`, distance, aliases, toggles and zoom
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 11
 - **Depends on**: none (ADR 0003 is the binding contract; Marco 0 is Done)
 - **Suggested agent**: implementer-rust

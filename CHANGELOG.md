@@ -49,6 +49,7 @@ No version of LaserCAD v2 has been tagged or released yet. Everything below is u
 - Packaging: Linux AppImage and `.deb` builds, a tuned release profile (LTO, strip, `panic=abort`), an application icon and `.desktop` entry, a Windows MSI installer, a macOS `.dmg` bundle, and a multi-platform CI pipeline (test / build / package / release jobs for Linux, Windows, macOS). See LCV-085, LCV-086, LCV-087, LCV-088, LCV-090, LCV-091, LCV-092.
 - TextTool is now reachable from the toolbar, the `D` shortcut, and the Tools menu; the toolbar gained Rect, Move, Trim, Extend and Text buttons; Help > Agent settings opens the agent configuration window. See LCV-104.
 - Documentation sync: `CHANGELOG.md`, `README.md`, `AGENTS.md` and the demand backlog were brought back in line with shipped behavior, closing Marco 0. See LCV-108.
+- Repository URL is now set in `Cargo.toml` and a CI status badge added to `README.md`. See LCV-107.
 
 ### Changed
 
@@ -63,7 +64,11 @@ No version of LaserCAD v2 has been tagged or released yet. Everything below is u
 - Autosave now actually fires: an edit debounces for 800 ms against a document revision counter and then writes to disk, instead of never triggering. See LCV-102.
 - Keyboard input now goes through a single focus-gated dispatcher: F8 and Ctrl+Z each act once per key press instead of double-firing, and typing into a text field no longer also zooms the viewport or deletes the selection. Enter now reaches the active tool, so TEXT and Polyline can be finished from the keyboard. See LCV-103.
 - Escape while a tool is idle no longer pushes a no-op entry onto the undo history. See LCV-105.
-- CI's Windows package job now invokes `build-msi.ps1` through PowerShell, with Rust and `cargo-wix` installed first, instead of failing to run the script. See LCV-107.
+- CI's Windows package job now invokes `build-msi.ps1` through PowerShell, with Rust and `cargo-wix` installed first. Previously the script could not run. See LCV-107.
+- Windows CI format gate no longer fails: added `.gitattributes` with `* text=auto eol=lf` so that even on a Windows runner with `newline_style = "Unix"` in `rustfmt.toml`, the checkout preserves Unix line endings. See LCV-107.
+- macOS CI no longer hangs on a retired runner: moved from `macos-13` (retired 2025-12-04) to `macos-15` (active, arm64). See LCV-107.
+- macOS packaging now works on Apple Silicon: the DMG output name no longer hardcodes `x86_64`; it is now determined at build time by the host triplet, so `scripts/build-dmg.sh` on arm64 produces `dist/lasercad-aarch64.dmg` as expected. See LCV-107.
+- CI matrix now passes `test` and `build` stages end-to-end for the first time: ubuntu-24.04, windows-2022, and macos-15. See LCV-107.
 
 ### Removed
 

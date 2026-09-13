@@ -1,6 +1,6 @@
 # LCV-116 — Chrome completion: clickable mode toggles, autosave indicator, F1 shortcuts dialog, Ortho in the View menu
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 11
 - **Depends on**: LCV-102 (Done), LCV-104 (Done), LCV-105 (Done)
 - **Suggested agent**: implementer-rust

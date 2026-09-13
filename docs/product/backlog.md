@@ -6,8 +6,13 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-
-_None._
+| LCV-110 | Command-line parser: a pure kernel module for `X,Y`, `@X,Y`, distance, aliases, toggles and zoom | 11 | — |
+| LCV-111 | Wire the parser into the tools: `on_command_input`, R14 prompts, focus-on-typing | 11 | LCV-110 |
+| LCV-112 | TEXT complete: raw-input mode for the string, then the height, in exactly one undo step | 11 | LCV-111 |
+| LCV-113 | Confirm discard on New / Open / Exit when the document has unsaved changes | 11 | — |
+| LCV-114 | Configurable bed size (1..2000 mm), stored in the document and read back on import | 11 | — |
+| LCV-115 | Export preset selector (cut / mark / engrave) | 11 | LCV-114 |
+| LCV-116 | Chrome completion: clickable mode toggles, autosave indicator, F1 shortcuts dialog, Ortho in the View menu | 11 | — |
 
 ## In Progress
 
@@ -108,7 +113,7 @@ _None._
 
 | ID | Title | Reason |
 |---|---|---|
-| LCV-089 | First 0.1.0 release tag + GitHub release | Awaiting git remote |
+| LCV-089 | First 0.1.0 release tag + GitHub release | Remote + CI in place; awaiting user manual smoke test and v0.1.0 tag |
 
 ## Draft (awaiting refinement)
 

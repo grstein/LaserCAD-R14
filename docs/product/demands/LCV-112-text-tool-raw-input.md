@@ -1,6 +1,6 @@
 # LCV-112 — TEXT complete: raw-input mode for the string, then the height, in exactly one undo step
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 11
 - **Depends on**: LCV-111 (`ToolInput`, `src/app/cmdline.rs::submit`, the focus plumbing)
 - **Suggested agent**: implementer-rust

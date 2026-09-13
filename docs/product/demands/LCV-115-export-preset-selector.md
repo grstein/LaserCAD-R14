@@ -1,6 +1,6 @@
 # LCV-115 — Export preset selector (cut / mark / engrave)
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 11
 - **Depends on**: LCV-114, LCV-100 (Done), LCV-057 (Done)
 - **Suggested agent**: implementer-rust

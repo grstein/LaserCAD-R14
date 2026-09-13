@@ -1,6 +1,6 @@
 # LCV-111 — Wire the parser into the tools: `on_command_input`, R14 prompts, focus-on-typing
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 11
 - **Depends on**: LCV-110 (the parser, `ToolKind`, `tools::make`, the recall ring)
 - **Suggested agent**: implementer-rust
