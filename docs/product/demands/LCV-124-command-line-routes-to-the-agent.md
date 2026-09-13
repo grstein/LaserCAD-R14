@@ -143,9 +143,19 @@ command: \"{text}\"")`, which is where the routing decision belongs.
   control.
 - **Unit / AC 2** — a table test, one row per precedence rule and at least
   these cases: `":line"`, `"/ai line"`, `"/AI line"`, `":50,25"`, `":snap"`,
-  `"l"`, `"snap"`, `"z"`, `"50,25"`, `"@10,0"`, `"37.5"`, `""`, `"lien"` — each
-  asserted with `agent_available` both `true` and `false`, so the table is 26
-  assertions and the availability flag is proved to matter.
+  `"l"`, `"snap"`, `"ze"`, `"z"`, `"50,25"`, `"@10,0"`, `"37.5"`, `""`,
+  `"lien"` — each asserted with `agent_available` both `true` and `false`, so
+  the availability flag is proved to matter.
+
+  > **Correction, 2026-09-13 (`product-owner`).** As first written this list put
+  > `"z"` among the rule-3 CAD rows, calling it a zoom word. It is not one: the
+  > grammar's zoom forms are `"ze"` and `"zoom <in|out|extents>"`, so
+  > `parse("z")` is `Unknown("z")` and `"z"` is a **rule 4** row — CAD without a
+  > key, agent with one. Both the implementer and the reviewer found this
+  > independently; `src/agent/classifier.rs::tests` documents it correctly by
+  > name and the shipped behaviour is right. `"ze"` is added above as the rule-3
+  > zoom row the table was missing, and `"z"` stays as a rule-4 row. See
+  > §Risks and LCV-131.
 - **Integration / AC 2 rule 1** — with `TextTool` active and awaiting its
   string, `submit(app, ":hello")` puts `:hello` into the text being drawn, does
   not set `agent_busy`, and does not push to the recall ring. ADR 0002 §A2:
@@ -219,6 +229,21 @@ command: \"{text}\"")`, which is where the routing decision belongs.
   in. ADR 0007 §D9 already says the architecture supports either and that it is
   one boolean in `classify`. No ADR change and no re-architecture is needed, so
   do **not** pre-build a setting for it now.
+- **The typo hazard has a second half that is *not* a typo, and it is not
+  accepted — it is LCV-131.** Refinement of LCV-129 found that the v2 grammar
+  accepts only the single-letter aliases plus `text`, so every **full AutoCAD
+  command name** is `Unknown` and therefore reaches the model when a key is
+  configured: `line`, `circle`, `erase`, `zoom`, and the abbreviation `z`.
+  `parse("line")` being `Unknown` is asserted today at
+  `src/cmdline/parse.rs:296`, and `parse("zoom")` at `:289`. In R14 the full
+  name is the *primary* spelling and the letter is the shortcut, so this fires
+  on the most ordinary keystroke an AutoCAD operator can make — and the model it
+  reaches holds `create_line`, so the answer to the prompt `line` may well be a
+  line drawn somewhere nobody asked for. The four mitigations above are the
+  right answer for `lien`, which is a mistake; they are the wrong answer for
+  `line`, which is the operator using the product correctly. **LCV-131** is
+  open to give the grammar its own words back. Nothing in LCV-124 changes: this
+  paragraph is the record of the behaviour while that demand is unscheduled.
 - **`:` is a plausible prefix for a future CAD feature** (R14 has none, but
   named views or scripts might want it). If that day comes, the prefix moves and
   the classifier is the one place that changes.
