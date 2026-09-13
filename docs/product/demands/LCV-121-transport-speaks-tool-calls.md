@@ -1,6 +1,6 @@
 # LCV-121 — The transport speaks tool calls
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 12
 - **Depends on**: none (first demand of Marco 2; blocks LCV-122, LCV-123, LCV-125)
 - **Suggested agent**: implementer-rust

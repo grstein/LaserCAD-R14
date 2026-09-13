@@ -1,6 +1,6 @@
 # LCV-123 — The agent turn draws on the operator's real drawing
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 12
 - **Depends on**: LCV-121, LCV-122
 - **Suggested agent**: implementer-rust

@@ -1,6 +1,6 @@
 # LCV-122 — The bridge: one action, one command, one undo entry
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 12
 - **Depends on**: LCV-121
 - **Suggested agent**: implementer-rust

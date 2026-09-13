@@ -7,6 +7,24 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
 | LCV-120 | The viewport never lets the app idle | 11 | — |
+| LCV-127 | The drag term of `viewport_is_live` has no behavioural test | 11 | LCV-120 |
+| LCV-121 | The transport speaks tool calls | 12 | — |
+| LCV-122 | The bridge: one action, one command, one undo entry | 12 | LCV-121 |
+| LCV-123 | The agent turn draws on the operator's real drawing | 12 | LCV-121, LCV-122 |
+| LCV-124 | The command line can reach the agent | 12 | LCV-123 |
+| LCV-125 | The panel shows what the agent did to the drawing | 12 | LCV-121, LCV-123 |
+
+**Marco 2 drive order**: LCV-121 → LCV-122 → LCV-123 run as one unbroken
+sequence — do not start the next until the previous one is `Done`. Once
+LCV-123 ships, LCV-124 and LCV-125 may run in parallel.
+
+> **Release hazard, LCV-121 → LCV-123 (do not tag or cut a release in this
+> window).** Once LCV-121 ships, the transport can return tool calls, but
+> `panel.rs::submit` still dispatches them against a throwaway
+> `Document::default()` until LCV-123 ships — the agent will confidently
+> report geometry that never appears on the operator's canvas. The
+> application is strictly worse in this window than it is today. This
+> hazard closes the moment LCV-123 reaches `Done`.
 
 ## In Progress
 

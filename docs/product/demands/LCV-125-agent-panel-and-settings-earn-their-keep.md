@@ -1,6 +1,6 @@
 # LCV-125 — The panel shows what the agent did to the drawing
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 12
 - **Depends on**: LCV-121, LCV-123
 - **Suggested agent**: implementer-rust

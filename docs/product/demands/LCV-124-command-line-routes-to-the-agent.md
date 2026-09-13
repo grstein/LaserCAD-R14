@@ -1,6 +1,6 @@
 # LCV-124 — The command line can reach the agent
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 12
 - **Depends on**: LCV-123
 - **Suggested agent**: implementer-rust
