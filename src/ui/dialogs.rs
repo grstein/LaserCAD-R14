@@ -136,7 +136,8 @@ pub(crate) struct ShortcutGroup {
 /// Every row here is a real binding, verified against the only two files that
 /// read keys: `src/ui/shortcuts.rs` (the Ctrl combinations and `F3` / `F7` /
 /// `F8` / `F1`) and `src/app/input.rs` (`Esc`, `Enter`, `Delete`,
-/// `Backspace`, `F`, `Ctrl+0`). Nothing aspirational goes in this table — the
+/// `Backspace`, `F`, `Ctrl+0`, `ArrowUp` / `ArrowDown` command recall, and the
+/// typed-character seed). Nothing aspirational goes in this table — the
 /// dialog documents what exists, it does not propose.
 ///
 /// The tool letters are deliberately absent: they are generated from
@@ -170,6 +171,14 @@ pub(crate) const SHORTCUT_GROUPS: &[ShortcutGroup] = &[
             ("Enter", "Accept / finish the current tool step"),
             ("Esc", "Cancel the current operation"),
             ("Delete / Backspace", "Sent to the active tool"),
+        ],
+    },
+    ShortcutGroup {
+        heading: "Command line",
+        rows: &[
+            ("Any other character", "Start a command in the command line"),
+            ("ArrowUp", "Previous command (command line focused)"),
+            ("ArrowDown", "Next command (command line focused)"),
         ],
     },
     ShortcutGroup {
@@ -380,6 +389,21 @@ mod tests {
             ("Drawing", "Enter", "Accept / finish the current tool step"),
             ("Drawing", "Esc", "Cancel the current operation"),
             ("Drawing", "Delete / Backspace", "Sent to the active tool"),
+            (
+                "Command line",
+                "Any other character",
+                "Start a command in the command line",
+            ),
+            (
+                "Command line",
+                "ArrowUp",
+                "Previous command (command line focused)",
+            ),
+            (
+                "Command line",
+                "ArrowDown",
+                "Next command (command line focused)",
+            ),
             ("Help", "F1", "This dialog"),
         ];
         let actual: Vec<(&str, &str, &str)> = SHORTCUT_GROUPS
@@ -423,6 +447,12 @@ mod tests {
             ("Enter", &["Key::Enter"]),
             ("Esc", &["Key::Escape"]),
             ("Delete / Backspace", &["Key::Delete", "Key::Backspace"]),
+            (
+                "Any other character",
+                &["typed_chars(", "focus_command_line"],
+            ),
+            ("ArrowUp", &["Key::ArrowUp"]),
+            ("ArrowDown", &["Key::ArrowDown"]),
             ("F1", &["Key::F1"]),
         ];
 
