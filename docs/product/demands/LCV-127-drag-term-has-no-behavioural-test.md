@@ -1,11 +1,11 @@
 # LCV-127 — The drag term of `viewport_is_live` has no behavioural test
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 11
 - **Depends on**: LCV-120
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: implementer-rust (97d1867)
 
 ## Problem
 
