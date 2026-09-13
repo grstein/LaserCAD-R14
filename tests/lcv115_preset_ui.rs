@@ -16,9 +16,12 @@
 //!    and what this file proves is that the render path runs with each preset
 //!    without panicking and leaves the field alone.
 //! 2. No `Ctrl+O` / `Ctrl+S` / `Ctrl+Shift+S` and no call to `action_open`,
-//!    `action_open_path`, `action_save` or `action_save_as`: they reach native
-//!    dialogs, disarmed outside `crate::run` by ADR 0005, and the open paths
-//!    write the developer's real `settings.json`.
+//!    `action_open_path`, `action_save` or `action_save_as`. `action_open`
+//!    and `action_save_as` reach native dialogs, disarmed outside
+//!    `crate::run` by ADR 0005. The other two are drivable from a test since
+//!    LCV-119 injected their persistence paths (ADR 0006), but they belong to
+//!    the file actions' own unit tests, not to this file, whose subject is
+//!    the preset as *session state* across a frame.
 //!
 //! The menu *click* is likewise not simulated — a nested `menu_button` needs
 //! two pointer frames and hit-testing (same limitation LCV-114's bed-dialog

@@ -13,8 +13,9 @@
 //!   `app.bed_dialog` directly, exactly as the demand prescribes.
 //! - The **OK/Cancel click** is likewise driven through
 //!   `apply_bed_dialog_result`, the half of the split that needs no pointer
-//!   (same shape as LCV-113 AC 11). Clicking OK for real would also reach
-//!   `Settings::save`, which writes the developer's own config file.
+//!   (same shape as LCV-113 AC 11). Since LCV-119 the settings write behind
+//!   OK is path-injected (ADR 0006), so it reaches nothing in a test `App`;
+//!   the pointer limitation is now the only reason for the split.
 //! - No `Ctrl+O` / `Ctrl+S` anywhere: they reach a native dialog (ADR 0005).
 
 mod harness;

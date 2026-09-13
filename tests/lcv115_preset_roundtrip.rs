@@ -7,15 +7,14 @@
 //! draws the same geometry — the only visible difference is a colour.
 //!
 //! `action_open` / `action_open_path` / `action_save` are deliberately **not**
-//! called here. They open native dialogs (ADR 0005 disarms those outside
-//! `crate::run`, so a test that reached one would panic) and the open paths end
-//! in `Settings::save()`, which writes the developer's real
-//! `~/.config/lasercad/settings.json`. The `app`-level wiring those functions
-//! provide is covered by the bounded source scans
-//! `both_open_paths_adopt_the_file_preset` and
-//! `both_save_paths_export_in_the_session_preset` in `src/io/file_actions.rs`;
-//! what is covered here is the pipeline they call — the same split LCV-114
-//! used for the bed.
+//! called here: this file's job is the kernel pipeline, with no `App` and no
+//! filesystem. Their `app`-level wiring is covered in
+//! `src/io/file_actions.rs` — `both_open_paths_adopt_the_file_preset` is a
+//! behavioural test against a temporary directory since LCV-119 injected the
+//! persistence paths (ADR 0006), while `open_via_the_dialog_adopts_the_file_preset`
+//! and `both_save_paths_export_in_the_session_preset` remain bounded source
+//! scans because `action_open` and `action_save_as` open a native dialog that
+//! ADR 0005 keeps unreachable from any test.
 //!
 //! Kernel-only: no `App`, no egui, no filesystem.
 

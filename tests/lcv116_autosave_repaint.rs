@@ -31,9 +31,12 @@
 //! `egui::Context::run` — and `src/app/mod.rs` carries a bounded source scan
 //! pinning that `update_ui` still calls it, immediately after the flush.
 //!
-//! ADR 0002 §A4 rule 2: no test here lets the debounce actually elapse. Every
-//! `dirty_since` is freshly stamped, and `flush_if_due` is never called, so
-//! nothing is written to the developer's real data directory.
+//! No test here lets the debounce actually elapse: every `dirty_since` is
+//! freshly stamped and `flush_if_due` is never called, because what is under
+//! test is the *scheduling* decision, not the write. Since LCV-119 that is a
+//! matter of focus rather than of safety — these `App`s carry
+//! `autosave_path: None`, so a fired autosave would write nothing anywhere
+//! (ADR 0006).
 
 mod harness;
 

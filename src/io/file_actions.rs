@@ -611,6 +611,53 @@ mod tests {
         let _ = std::fs::remove_file(&tmp);
     }
 
+    /// LCV-119 AC 9 — `action_save` removes the autosave file it was given.
+    ///
+    /// The site is `action_save`'s `app.clear_autosave()`, which nothing
+    /// pinned until this test: every other `action_save` test builds a bare
+    /// `App::default()` with only `current_file` set, so deleting the call
+    /// left the whole suite green. The regression it guards is user-visible
+    /// and silent — a stale recovery file that outlives a save means a crash
+    /// straight after `File > Save` recovers the *wrong* document, the one
+    /// from before the save.
+    ///
+    /// Both halves, as everywhere in this demand: an injected path is
+    /// cleared, and a pathless `App` deletes nothing it was never given.
+    #[test]
+    fn action_save_clears_the_injected_autosave_file() {
+        let dir = tempdir("save_clears_autosave");
+        let autosave = seeded_autosave(&dir);
+
+        let mut app = App {
+            current_file: Some(dir.join("saved.svg")),
+            ..app_with_tempdir(&dir)
+        };
+        action_save(&mut app);
+
+        assert_eq!(app.error_message, None, "the save must succeed");
+        assert!(
+            dir.join("saved.svg").is_file(),
+            "positive control: the document really was written"
+        );
+        assert!(
+            !autosave.exists(),
+            "a saved document must not leave a stale recovery file behind"
+        );
+
+        // The pathless half: same action, nothing to clear, nothing cleared.
+        let dir = tempdir("save_clears_nothing");
+        let bystander = seeded_autosave(&dir);
+        let mut app = App {
+            current_file: Some(dir.join("saved.svg")),
+            ..App::default()
+        };
+        action_save(&mut app);
+        assert!(
+            bystander.exists(),
+            "a pathless App must not delete a file it was never given"
+        );
+    }
+
     /// AC 9 — action_save clears dirty_since on success.
     #[test]
     fn action_save_clears_dirty_since() {

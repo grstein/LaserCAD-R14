@@ -26,9 +26,12 @@ use crate::util::{clamp_bed_mm, BED_MAX_MM, BED_MIN_MM};
 /// reaches the document until OK.
 ///
 /// The settings write lives here rather than in [`apply_bed_dialog_result`]
-/// for the same reason as the Agent Settings window (`src/app/panels.rs`): a
-/// helper that tests call directly must not touch the operator's real config
-/// file. `Settings::save`'s failure is swallowed, as everywhere else.
+/// for the same reason as the Agent Settings window (`src/app/panels.rs`):
+/// persisting a preference is a UI-boundary concern, not part of the pure
+/// helper that tests call directly. Since LCV-119 that helper could not reach
+/// a real user file in any case — [`App::persist_settings`] writes only where
+/// `App::new` pointed it, and is a no-op in a test `App` — and it swallows a
+/// failed write, as everywhere else.
 pub fn draw_bed_dialog(ctx: &egui::Context, app: &mut App) {
     let Some(mut draft) = app.bed_dialog else {
         return;
