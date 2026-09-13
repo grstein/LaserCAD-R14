@@ -1,6 +1,6 @@
 # LCV-133 — The F1 dialog hides five of its eight groups behind its own fold
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 11
 - **Depends on**: LCV-126 (Done — it put the `Command line` group in the table this demand makes visible). **Ordering, not a dependency**: this demand must land **before** LCV-132. See §Notes.
 - **Suggested agent**: implementer-rust

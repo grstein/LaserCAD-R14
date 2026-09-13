@@ -6,8 +6,7 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-
-_None._
+| LCV-133 | The F1 dialog hides five of its eight groups behind its own fold | 11 | LCV-126 |
 
 **Marco 2 — complete, 2026-09-13.** All five demands are `Done` and reviewed: **LCV-121** (`d584f4d`), **LCV-122**
 (`61d609b`…`ff267ec`), **LCV-123** (`6102c68`, `e7ba0a6`, `af5ef82`),
