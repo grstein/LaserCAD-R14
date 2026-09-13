@@ -1,6 +1,12 @@
 # ADR 0007 — The agent turn mutates the live document through a fenced rendezvous, never a snapshot
 
 - **Status**: Accepted
+- **Amended**: 2026-09-13 — refinement into LCV-121..125 found one internal
+  contradiction and three silences. §D2a is new and resolves the contradiction
+  (§D4 claimed `get_index` still range-checks, which §D1 forbids it from being
+  able to do). §D4 gains the fence's home and its stickiness. §D11 is new and
+  covers channel disconnection. §"The 121→123 window" is new and records a
+  sequencing hazard. Nothing already decided is reversed.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
@@ -75,10 +81,11 @@ multi-step turn:
 
 The stale-index question the lead raised — *the model asks to move entity 7 and
 the user deleted entity 7 two seconds ago* — has a specific shape that matters:
-if index 7 is now **out of range** the existing `get_index` check refuses it
-loudly; if it is still in range but is now **a different entity**, nothing
-anywhere notices and the drawing is silently corrupted. No amount of care inside
-the thread can see that. It has to be fenced from outside.
+if index 7 is now **out of range** that is catchable, but only somewhere that
+can see the document (§D2a); if it is still in range but is now **a different
+entity**, nothing anywhere notices and the drawing is silently corrupted. No
+amount of care inside the thread can see either one. Both have to be checked
+from outside.
 
 ## Decision
 
@@ -133,6 +140,43 @@ Queries ride the same path — `QueryEntities` is answered by formatting the liv
 `Sender` without answering — the app is closing, the turn was abandoned, the
 frame loop is gone — aborts the turn cleanly with no extra machinery.
 
+### D2a — Validation splits where the document does: shape in the thread, range at the apply site
+
+*(Added by amendment. §D4 originally claimed out-of-range indices were "still
+caught where they already are, in `get_index`". They are not, and cannot be:
+`get_index` takes a `doc_len`, and §D1 forbids the thread from holding anything
+it could compute one from. The ADR was asking a pure function to validate
+against data the design denies it. Resolved as product-owner proposed during the
+refinement of LCV-122.)*
+
+`tools.rs::parse_tool_call` keeps every check that is a property of the
+**arguments alone**, and keeps them hand-rolled, with its per-field error
+messages — that is the whole reason §Alternatives rejected deriving
+`AgentAction` from serde:
+
+- missing field, wrong JSON type;
+- non-finite numbers;
+- a radius that is not positive and finite;
+- an index that is not a non-negative integer.
+
+The one check that is a property of the **document** — `index < entities.len()`
+— moves to `src/app/agent_apply.rs`, where the document is in hand, and yields
+`AgentOutcome::Refused` naming the index and the current entity count. A refusal
+is information: it goes back to the model as the tool result and the model can
+re-`query_entities` and retry.
+
+The two failures therefore travel different routes, and that is deliberate:
+
+- a **shape** failure never leaves the thread. No `Act` is sent, no frame is
+  waited on; the thread turns `ToolCallError` straight into the `tool` result.
+  A malformed argument list has nothing to do with the document and must not
+  reach the frame loop.
+- a **range** failure is an `Act` that was sent, applied against nothing, and
+  answered `Refused`.
+
+`get_index` loses its `doc_len` parameter and its out-of-range arm; that arm's
+wording is reproduced at the apply site.
+
 ### D3 — One thread→UI channel carrying a richer enum; the reply channel rides inside the message
 
 `AgentPanelMsg` is renamed to `AgentEvent`, moved out of the egui-importing
@@ -151,8 +195,21 @@ Every mutation in this program bumps `History::revision()` exactly once, and the
 UI thread is its only writer. That makes it a complete sequencer, already built
 and already tested (ADR 0002 §B).
 
-`src/app/agent_turn.rs` records `expected = history.revision()` when the turn
-starts, and before applying each `Act`:
+The fence is a type, `TurnFence`, and it lives in **`src/app/agent_turn.rs`** —
+declared there by LCV-122 and driven there by LCV-123, so it is in its final
+home from the first commit that mentions it. It is a struct over two `u64`s and
+a `bool`; it needs no `App`, no `Document` and no egui, so it is unit-testable
+against plain integers wherever it sits.
+
+*(It does not go in `bridge.rs`, which was the alternative considered during
+refinement. `bridge.rs` is the protocol, shared with and visible to the worker
+thread. The fence is the one thing in this design the thread is specifically not
+allowed to evaluate — putting its type where the thread can reach it is an
+invitation to a future demand evaluating it on the wrong side. The coalesce gate
+in §D6 is the same revision arithmetic and belongs in the same file.)*
+
+`agent_turn.rs` records `expected = history.revision()` when the turn starts,
+and before applying each `Act`:
 
 - if `history.revision() != expected`, the user has committed something since
   the model last looked. The action is **refused** with a message that says so
@@ -164,9 +221,26 @@ starts, and before applying each `Act`:
 This is what closes the move-entity-7 hole. The fence proves that no mutation
 the model does not know about happened between the model's read and its write,
 so "in range but now a different entity" cannot occur while the fence holds.
-Out-of-range is still caught where it already is, in `get_index`.
+Out-of-range is a separate check at a separate site — §D2a.
 
-The fence is deliberately conservative: `SelectionCommand` bumps the revision
+**A tripped fence is sticky for the rest of the turn.** It does not re-arm, not
+even after a `QueryEntities` that would give the model a fresh read. Every
+subsequent action is refused with the same message, each refusal consumes one
+step of the budget, and the turn ends when the model stops asking or the budget
+runs out — at most 32 wasted round trips, which is the bound that makes "do
+nothing cleverer" affordable.
+
+Stickiness is not just conservatism. It is what keeps §D6's coalesce gate sound.
+Once tripped, the agent commits nothing further, so the `n` entries the gate
+wants to fold are still contiguous at the top of the undo stack or the gate's
+equality fails and it declines to fold — two outcomes, both correct. A
+re-arming fence would resume committing *after* a foreign commit had landed in
+the middle of the run, breaking the contiguity the gate depends on and requiring
+either two composites or a cleverer gate. That is the corruption door of
+§Alternatives' "defer application" entry, arriving by a third route. Refuse it
+the same way.
+
+The fence is otherwise deliberately conservative: `SelectionCommand` bumps the revision
 too, so clicking an entity mid-turn aborts. That is correct — `query_selection`
 means something different afterwards — and it costs a re-prompt in a case that
 barely happens, since the user is watching a spinner.
@@ -242,9 +316,11 @@ src/agent/
   settings_ui.rs   egui form.
   panel.rs         egui chat + tool-call transcript. Renders and reports.
 src/app/
-  agent_turn.rs    spawn the thread, hold the fence, coalesce at turn end.
-  agent_apply.rs   AgentAction -> Box<dyn Command> -> App::commit; outcomes.
-  agent_poll.rs    drain AgentEvent until Empty; dispatch; answer.
+  agent_turn.rs    spawn the thread; TurnFence (D4); coalesce gate (D6).
+  agent_apply.rs   AgentAction -> Box<dyn Command> -> App::commit; range check
+                   (D2a); outcomes.
+  agent_poll.rs    drain AgentEvent until Empty or Disconnected (D11);
+                   dispatch; answer.
 ```
 
 Three rules follow, and they are the ones reviewers check:
@@ -307,6 +383,35 @@ no-op without an injected `settings_path`. One rule is added on top: **a test
 that injects a `settings_path` must not also set a real API key.** `mockito`
 tests use a dummy.
 
+### D11 — A disconnected channel is a terminal event; `agent_busy` must always come back down
+
+*(Added by amendment; the ADR was silent and the silence has teeth.)*
+
+`agent_busy` is not merely the spinner's flag. `App::update_ui` reads it to
+decide whether to `ctx.request_repaint()`, and under §D2 it is also what keeps
+frames turning so an in-flight rendezvous can advance. That makes it a
+**liveness invariant with two directions**: while it is `true` the app never
+idles, and the rendezvous only progresses while it is `true`.
+
+So a turn that ends without saying so is not a cosmetic bug. A worker thread
+that panics, or returns after cancellation, or is killed at shutdown, leaves
+`agent_busy` stuck `true`, and the app then requests a repaint every frame for
+the rest of the session — silently reopening LCV-120, the demand that shipped to
+stop exactly that, with a symptom that surfaces nowhere near the agent.
+
+Therefore:
+
+- `poll_agent_rx` treats `TryRecvError::Disconnected` as a **terminal event**,
+  equivalent to `Failed`: clear `agent_busy`, clear `agent_rx`, and push a line
+  into the chat so the operator sees an ended turn rather than an immortal
+  spinner.
+- the `Sender` is **moved into the thread closure** and held nowhere else, so a
+  panicking or returning thread closes the channel as a matter of course. There
+  is no path by which the thread stops and the channel stays open.
+- `agent_busy` is cleared on **every** exit: `Done`, `Failed`, `Disconnected`.
+  A reviewer checking this design checks that list, and a test mutating any one
+  of the three must fail.
+
 ## Consequences
 
 **Easier.**
@@ -346,6 +451,31 @@ tests use a dummy.
 - Real-endpoint behaviour is validated by a human, not by CI: `mockito` covers
   every code path, and **"first real prompt against OpenRouter with the user's
   own key"** joins LCV-089's existing manual smoke checklist.
+
+## The 121→123 window — a recorded sequencing hazard
+
+*(Added by amendment, surfaced during refinement.)*
+
+This decision is delivered by LCV-121 (transport speaks tool calls), LCV-122
+(the bridge) and LCV-123 (the turn runs against the real document). **The three
+must land as one sequence, and no release may be cut between them.**
+
+The reason is that `panel.rs::submit` keeps dispatching against a throwaway
+`Document::default()` until LCV-123 deletes it. Today that is harmless, because
+the transport cannot return a tool call at all and so nothing is ever dispatched
+into the throwaway. The moment tool calls can come back over the wire and reach
+`run_agent_turn`, the agent starts confidently reporting geometry that never
+appears on the canvas — a *worse* product than the one that shipped, and a
+silent one.
+
+The mitigation is cheap and is a requirement, not advice: **LCV-121 and LCV-122
+deliver the capability without enabling it.** `run_agent_turn`'s live send path
+is unchanged by both — it does not put a `tools` key on the wire and does not
+dispatch a returned `tool_calls` array. LCV-121 proves the new code against
+`mockito`; LCV-123 is what replaces the send path, deletes the throwaway
+document and turns the feature on, in one commit. An implementer who wires tool
+calls into the live path early has re-created the hazard even though every test
+is green.
 
 ## Alternatives considered
 
