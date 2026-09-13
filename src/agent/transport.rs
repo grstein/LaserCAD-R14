@@ -14,8 +14,27 @@
 //! own copy. The API key is written into the `Authorization` header and
 //! nowhere else: no variant of [`TransportError`] carries it, and the request
 //! is never logged.
+//!
+//! **Every call is bounded** (LCV-129). A client with no timeout blocks its
+//! worker thread for as long as the socket stays open, which is forever
+//! against a black-holed endpoint — and a worker that never returns never
+//! sends a terminal event, so the turn never ends and the app never idles
+//! again (ADR 0007 §D11). The two windows below are what stops that; the
+//! operator's way out of a *slow* endpoint is the panel's Cancel button.
 
 use crate::agent::wire::{AssistantMessage, ChatMessage, ChatResponse};
+use std::time::Duration;
+
+/// Wall-clock budget for one whole `/chat/completions` call — connect, send,
+/// and read the entire response — deliberately generous because nothing is
+/// streamed, so time-to-first-byte is a reasoning model's whole generation
+/// time and Cancel, not this number, is what answers an impatient operator.
+const AGENT_REQUEST_TIMEOUT_SECS: u64 = 120;
+
+/// Budget for the TCP/TLS connect alone, so the commonest real failure — a
+/// typo'd host, or one that black-holes packets — is readable in 10 s instead
+/// of sitting for the OS default (~130 s on Linux).
+const AGENT_CONNECT_TIMEOUT_SECS: u64 = 10;
 
 /// Errors that can occur when calling the OpenAI-compatible chat endpoint.
 ///
@@ -23,9 +42,18 @@ use crate::agent::wire::{AssistantMessage, ChatMessage, ChatResponse};
 /// which holds the API key — never appears in any of these.
 #[derive(Debug, thiserror::Error)]
 pub enum TransportError {
-    /// Network-level or connection error (DNS, TLS, timeout, etc.).
+    /// Network-level or connection error (DNS, TLS, refused socket, etc.).
+    /// A timeout is **not** one of these — it is [`TransportError::Timeout`].
     #[error("HTTP request failed: {0}")]
     Request(#[from] reqwest::Error),
+
+    /// The call ran out of the window it was given, at the connect or at any
+    /// later point up to the last byte of the body.
+    #[error("The endpoint did not answer within {secs} s. It may be slow, unreachable, or the endpoint URL may be wrong — check Help > Agent settings, or press Cancel and try a shorter prompt.")]
+    Timeout {
+        /// The window that elapsed, in whole seconds.
+        secs: u64,
+    },
 
     /// HTTP 401: the key is missing, wrong, or refused by this endpoint.
     #[error("Authentication failed (HTTP 401): the API key is missing, invalid, or not accepted by this endpoint. Check Help > Agent settings.")]
@@ -95,6 +123,27 @@ fn status_error(status: u16, body: String) -> TransportError {
     }
 }
 
+/// Map one `reqwest` failure onto the error the operator should read.
+///
+/// **Every** `reqwest::Error` raised by a bounded call goes through here — the
+/// build, the `send` and the body read alike, because a response whose headers
+/// arrived can still stall halfway down its body — so a timeout is never
+/// reported as a generic request failure. That is also why no `?` is applied
+/// directly to a `reqwest` result below.
+///
+/// Which window is named is the one that actually elapsed: a connect timeout
+/// answers `is_connect()` as well as `is_timeout()`, a total timeout only the
+/// latter. A connect that gave up after 10 s must not claim it waited 120.
+fn request_error(error: reqwest::Error, request: Duration, connect: Duration) -> TransportError {
+    if error.is_timeout() {
+        let window = if error.is_connect() { connect } else { request };
+        return TransportError::Timeout {
+            secs: window.as_secs(),
+        };
+    }
+    TransportError::Request(error)
+}
+
 /// POST one conversation to an OpenAI-compatible `/chat/completions` endpoint
 /// and return the assistant message it answered with.
 ///
@@ -109,13 +158,48 @@ fn status_error(status: u16, body: String) -> TransportError {
 ///
 /// `endpoint` may or may not have a trailing slash; it is normalised
 /// automatically. A new [`reqwest::blocking::Client`] is created per call
-/// (connection pooling is deliberately out of scope).
+/// (connection pooling is deliberately out of scope), bounded by
+/// [`AGENT_REQUEST_TIMEOUT_SECS`] in total and [`AGENT_CONNECT_TIMEOUT_SECS`]
+/// on the connect.
+///
+/// # Errors
+///
+/// [`TransportError::Timeout`] when either window elapses; see
+/// [`TransportError`] for the rest.
 pub fn chat_completion(
     endpoint: &str,
     api_key: &str,
     model: &str,
     messages: &[ChatMessage],
     tools: &serde_json::Value,
+) -> Result<AssistantMessage, TransportError> {
+    chat_completion_with_timeout(
+        endpoint,
+        api_key,
+        model,
+        messages,
+        tools,
+        Duration::from_secs(AGENT_REQUEST_TIMEOUT_SECS),
+        Duration::from_secs(AGENT_CONNECT_TIMEOUT_SECS),
+    )
+}
+
+/// [`chat_completion`] with both windows injected.
+///
+/// Private, and it stays private: the public surface is exactly one
+/// `chat_completion`, whose windows are the two constants above and are not an
+/// operator's to choose (they are a function of the model's latency, which
+/// nobody knows in advance). The seam exists so a test can drive a 250 ms
+/// window against a socket it owns and prove the bound fires without sleeping
+/// for two minutes to do it.
+fn chat_completion_with_timeout(
+    endpoint: &str,
+    api_key: &str,
+    model: &str,
+    messages: &[ChatMessage],
+    tools: &serde_json::Value,
+    request: Duration,
+    connect: Duration,
 ) -> Result<AssistantMessage, TransportError> {
     let url = format!("{}/chat/completions", endpoint.trim_end_matches('/'));
     let body = ChatRequest {
@@ -124,8 +208,17 @@ pub fn chat_completion(
         tools: tools_for_request(tools),
     };
 
-    let client = reqwest::blocking::Client::new();
-    let response = client.post(&url).bearer_auth(api_key).json(&body).send()?;
+    let client = reqwest::blocking::Client::builder()
+        .timeout(request)
+        .connect_timeout(connect)
+        .build()
+        .map_err(|error| request_error(error, request, connect))?;
+    let response = client
+        .post(&url)
+        .bearer_auth(api_key)
+        .json(&body)
+        .send()
+        .map_err(|error| request_error(error, request, connect))?;
 
     let status = response.status();
     if !status.is_success() {
@@ -134,7 +227,9 @@ pub fn chat_completion(
         return Err(status_error(status.as_u16(), truncated));
     }
 
-    let text = response.text()?;
+    let text = response
+        .text()
+        .map_err(|error| request_error(error, request, connect))?;
     let parsed: ChatResponse = serde_json::from_str(&text)?;
 
     let message = parsed
@@ -630,6 +725,187 @@ mod tests {
         );
         assert!(matches!(result, Err(TransportError::Request(_))));
         assert_no_key(&result.unwrap_err().to_string());
+    }
+
+    // ── LCV-129: the call is bounded ─────────────────────────────────────────
+
+    /// The implementation section of this file: everything before the bare
+    /// `#[cfg(test)]` at column 0, so a scan can never match the test source
+    /// written next to it.
+    fn implementation_section() -> &'static str {
+        let src = include_str!("transport.rs");
+        let at = src
+            .find("\n#[cfg(test)]")
+            .expect("transport.rs must have a bare #[cfg(test)] marker");
+        &src[..at]
+    }
+
+    /// LCV-129 AC 1 — **bounded source scan**: the client is built through the
+    /// builder, with both windows, and the unbounded constructor is gone.
+    ///
+    /// A runtime test cannot see this. Two of the three ways to lose the bound
+    /// — deleting `.timeout(..)`, or going back to `Client::new()` — leave
+    /// every other test in this file green, because mockito answers instantly
+    /// and an instant answer needs no window.
+    ///
+    /// Shown to discriminate: every needle is first looked up in a witness that
+    /// spells out both the old line and the new block, through the same
+    /// `contains` that does the real work. A needle that had been silently
+    /// misspelt fails against the witness before the real haystack is consulted.
+    #[test]
+    fn ac1_the_client_is_built_with_both_windows_source_scan() {
+        let witness = "let client = reqwest::blocking::Client::new(); \
+                       reqwest::blocking::Client::builder() \
+                           .timeout(request).connect_timeout(connect).build() \
+                       const AGENT_REQUEST_TIMEOUT_SECS: u64 = 120; \
+                       const AGENT_CONNECT_TIMEOUT_SECS: u64 = 10; \
+                       Duration::from_secs(AGENT_REQUEST_TIMEOUT_SECS)";
+        let required = [
+            concat!("AGENT_REQUEST_TIMEOUT", "_SECS"),
+            concat!("AGENT_CONNECT_TIMEOUT", "_SECS"),
+            concat!("Client::build", "er()"),
+            concat!(".time", "out("),
+            concat!(".connect_time", "out("),
+        ];
+        let forbidden = concat!("Client::n", "ew()");
+        for needle in required.iter().chain(std::iter::once(&forbidden)) {
+            assert!(
+                witness.contains(needle),
+                "control: `{needle}` must be a needle that can match something"
+            );
+        }
+
+        let implementation = implementation_section();
+        for needle in required {
+            assert!(
+                implementation.contains(needle),
+                "AC 1: the bounded client must be built with `{needle}`"
+            );
+        }
+        assert!(
+            !implementation.contains(forbidden),
+            "AC 1: `{forbidden}` builds an unbounded client — the whole defect"
+        );
+    }
+
+    /// LCV-129 AC 2 — the sentence an operator reads when a call runs out of
+    /// time, pinned character for character and carrying no key.
+    ///
+    /// Assembled with `concat!` so the scan above — and any future one — cannot
+    /// match this literal, and asserted for both windows: a connect that gave
+    /// up after 10 s must not claim it waited 120.
+    #[test]
+    fn ac2_a_timeout_says_exactly_what_the_operator_must_read() {
+        let shown = TransportError::Timeout { secs: 120 }.to_string();
+        assert_eq!(
+            shown,
+            concat!(
+                "The endpoint did not answer within 120 s. It may be slow, ",
+                "unreachable, or the endpoint URL may be wrong — check ",
+                "Help > Agent settings, or press Cancel and try a shorter prompt."
+            )
+        );
+        assert_no_key(&shown);
+        assert!(
+            TransportError::Timeout { secs: 10 }
+                .to_string()
+                .starts_with(concat!("The endpoint did not answer within 10 s.")),
+            "the number in the sentence is the window that really elapsed"
+        );
+    }
+
+    /// One loopback fixture, one bounded call, and whatever error it produced.
+    ///
+    /// `reply` is what the fixture writes before it stalls: `None` accepts the
+    /// connection and never answers at all; `Some(head)` answers with headers
+    /// promising a body it then never sends. Either way the fixture thread ends
+    /// on its own — it blocks in a `read` that returns the moment the client
+    /// gives up and closes, so nothing here sleeps and nothing is left running.
+    ///
+    /// The windows are deliberately different: 250 ms for the whole request and
+    /// seven seconds for the connect, which both fixtures complete instantly.
+    /// So a `Timeout` naming `0` seconds (250 ms, truncated) proves the request
+    /// window was the one reported, and a `7` would prove it was not.
+    fn timeout_case(reply: Option<&'static str>) -> TransportError {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").expect("loopback must be bindable");
+        let url = format!(
+            "http://{}",
+            listener
+                .local_addr()
+                .expect("the fixture must have an address")
+        );
+        let fixture = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("the client must connect");
+            if let Some(head) = reply {
+                let _ = stream.write_all(head.as_bytes());
+                let _ = stream.flush();
+            }
+            // Drain until the client hangs up. This is the stall: the request
+            // is read and never answered.
+            let mut sink = [0u8; 1024];
+            while matches!(stream.read(&mut sink), Ok(n) if n > 0) {}
+        });
+
+        let (done, result) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let answer = chat_completion_with_timeout(
+                &url,
+                "",
+                "m",
+                &[ChatMessage::user("x")],
+                &Value::Null,
+                std::time::Duration::from_millis(250),
+                std::time::Duration::from_secs(7),
+            );
+            drop(done.send(answer));
+        });
+        let answer = result
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("AC 3: an unbounded client hangs here — the call never gave up");
+        fixture.join().expect("the fixture thread must not panic");
+        answer.expect_err("a fixture that never answers cannot produce a message")
+    }
+
+    /// LCV-129 AC 3 — the bound really fires, on both halves of a call.
+    ///
+    /// Two fixtures this test binds and owns: one that accepts and never
+    /// writes (the send stalls), one that writes a header promising 100 bytes
+    /// and then sends none (the *body read* stalls — a response can arrive
+    /// half-way and stop, which is why the mapper is on `text()` too).
+    ///
+    /// **Nothing here passes because of a sleep.** The pass comes from the
+    /// implementation giving up after its injected 250 ms; the
+    /// `recv_timeout(5 s)` bounds a *failure*, so a regression that drops
+    /// `.timeout(..)` fails this test in five seconds instead of hanging the
+    /// whole suite on a socket nothing will ever close. The green path costs
+    /// about half a second in total and sleeps nowhere.
+    ///
+    /// **Inventory note for LCV-130**: these two sockets are reached through
+    /// `reqwest`, which honours `HTTP_PROXY`, so under a proxy they are dialled
+    /// through it like every other request in this file. They carry no key (the
+    /// call is made with an empty one) and no system prompt, but they belong on
+    /// LCV-130's list all the same.
+    #[test]
+    fn ac3_both_halves_of_a_call_give_up_when_the_endpoint_stalls() {
+        for (what, reply) in [
+            ("a socket that accepts and never answers", None),
+            (
+                "a header promising a body that never comes",
+                Some("HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n"),
+            ),
+        ] {
+            let error = timeout_case(reply);
+            match error {
+                TransportError::Timeout { secs } => assert_eq!(
+                    secs, 0,
+                    "{what}: the request window (250 ms) is the one that elapsed, not the connect one"
+                ),
+                other => panic!("{what} must be a Timeout, got {other:?}"),
+            }
+        }
     }
 
     // ── AC 2: the wire types are declared once, in wire.rs ───────────────────
