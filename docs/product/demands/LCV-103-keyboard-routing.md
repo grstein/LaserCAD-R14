@@ -150,6 +150,17 @@ this demand implements decision **A** of that ADR.
    `enter_reaches_the_tool_exactly_once_while_focused` and still asserts
    `history.len() == 1` — one commit, not two.
 
+   **Vehicle changed again by the LCV-112 rework** (commit 307cfad): once
+   LCV-112 rebuilt `TextTool` around raw input, `TextTool::on_key` lost its
+   `Enter` arm (only `Escape` remains), so the witness test's `TextTool`
+   vehicle stopped detecting a reintroduced double dispatch — a broken gate
+   would land on a no-op and the test would not move. The test was repointed
+   to `LineTool`, whose `on_key` still cancels the tool back to `Idle` on
+   `Enter`, so a double-dispatched Enter is visible again, this time as a
+   status-text regression (`"LINE Specify first point:"` a beat early instead
+   of chaining to the next segment). The assertion is unchanged:
+   `history.len() == 1` — one commit, not two.
+
 9. **`F` is gated.** With a `TextEdit` focused, a frame carrying the character
    `f` leaves `camera.mm_per_px` and `camera.center_world` bit-identical to
    their values before the frame. With nothing focused and a non-empty
