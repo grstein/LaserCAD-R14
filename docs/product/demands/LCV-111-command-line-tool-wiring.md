@@ -1,10 +1,11 @@
 # LCV-111 — Wire the parser into the tools: `on_command_input`, R14 prompts, focus-on-typing
 
-- **Status**: Ready
+- **Status**: In Progress
 - **Phase**: 11
 - **Depends on**: LCV-110 (the parser, `ToolKind`, `tools::make`, the recall ring)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: implementer-rust (in progress; review returned one blocking finding)
 
 ## Problem
 
@@ -220,6 +221,12 @@ keyboard-first flow the product promises actually starts with the keyboard.
    4. If the parse is anything other than `Empty`, push the trimmed `raw` to
       `app.command_history` — **including `Unknown`**, because recall exists so
       a typo can be fixed. `Empty` is not pushed.
+
+      **Implementation note** (commit 29ac39a): A blank Enter increments neither
+      `len()` nor the history; instead, `CommandHistory::push` is always called
+      unconditionally and the push method itself skips the append while still
+      resetting the recall cursor, preserving v1 parity. The observable intent
+      remains: `len()` unchanged for a blank entry. See ADR 0003 §A4.
    5. Dispatch per AC 10.
 
 10. **Dispatch table.**

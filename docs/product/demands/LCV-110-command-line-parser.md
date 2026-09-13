@@ -1,10 +1,11 @@
 # LCV-110 — Command-line parser: a pure kernel module for `X,Y`, `@X,Y`, distance, aliases, toggles and zoom
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 11
 - **Depends on**: none (ADR 0003 is the binding contract; Marco 0 is Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: 66af950, 29ac39a — feat(LCV-110): command-line parser kernel, fix(LCV-110): blank push still resets recall cursor
 
 ## Problem
 

@@ -6,8 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-110 | Command-line parser: a pure kernel module for `X,Y`, `@X,Y`, distance, aliases, toggles and zoom | 11 | — |
-| LCV-111 | Wire the parser into the tools: `on_command_input`, R14 prompts, focus-on-typing | 11 | LCV-110 |
 | LCV-112 | TEXT complete: raw-input mode for the string, then the height, in exactly one undo step | 11 | LCV-111 |
 | LCV-113 | Confirm discard on New / Open / Exit when the document has unsaved changes | 11 | — |
 | LCV-114 | Configurable bed size (1..2000 mm), stored in the document and read back on import | 11 | — |
@@ -18,8 +16,7 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Owner | Started |
 |---|---|---|---|---|
-
-_None._
+| LCV-111 | Wire the parser into the tools: `on_command_input`, R14 prompts, focus-on-typing | 11 | implementer-rust | 2026-09-12 |
 
 ## Done
 
@@ -108,6 +105,7 @@ _None._
 | LCV-106 | OffsetTool: product decision and removal | 10 | 2026-09-12 | adbc878 |
 | LCV-107 | CI: Windows package job invokes `build-msi.ps1` via PowerShell | 10 | 2026-09-12 | c5b5be4 |
 | LCV-108 | Docs sync: CHANGELOG, README status, AGENTS.md reality, backlog consistency | 10 | 2026-09-12 | b24da80 |
+| LCV-110 | Command-line parser: a pure kernel module for `X,Y`, `@X,Y`, distance, aliases, toggles and zoom | 11 | 2026-09-12 | 66af950 |
 
 ## Blocked
 

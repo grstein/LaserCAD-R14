@@ -50,6 +50,8 @@ No version of LaserCAD v2 has been tagged or released yet. Everything below is u
 - TextTool is now reachable from the toolbar, the `D` shortcut, and the Tools menu; the toolbar gained Rect, Move, Trim, Extend and Text buttons; Help > Agent settings opens the agent configuration window. See LCV-104.
 - Documentation sync: `CHANGELOG.md`, `README.md`, `AGENTS.md` and the demand backlog were brought back in line with shipped behavior, closing Marco 0. See LCV-108.
 - Repository URL is now set in `Cargo.toml` and a CI status badge added to `README.md`. See LCV-107.
+- Command-line parser: a pure kernel module (`src/cmdline/`) for parsing absolute coordinates (`X,Y`), relative offsets (`@X,Y`), bare distances, tool aliases, and toggle/zoom commands; includes a 50-entry recall ring and consolidates tool lookup tables into a single `ToolKind` identity map. See LCV-110.
+- Command line now drives the drawing tools: typed absolute and relative coordinates and direct distances reach LINE, PLINE, RECT, CIRCLE, ARC and MOVE; each drawing phase shows an AutoCAD-R14-style prompt; pressing an unbound alphanumeric key focuses the command line; arrow keys recall previous commands. See LCV-111.
 
 ### Changed
 

@@ -138,6 +138,18 @@ this demand implements decision **A** of that ADR.
    (`history.can_undo() == false`). A single Enter press never both submits the
    command line and commits the tool.
 
+   **Superseded by LCV-111 AC 14** (commit 533e24a): The criterion's core concern
+   was preventing double dispatch (one Enter both submitting the command line and
+   committing the tool). LCV-111 restructures input so that an empty focused
+   command line reaching Enter now routes directly to the tool (e.g., to finish a
+   polyline), because that is how AutoCAD R14 works and the command line takes
+   focus only on user typing. The double-dispatch problem is solved instead by an
+   early `wants_kbd` gate in `process_input` that blocks the tool route entirely
+   while focus is active, eliminating the second path structurally. The test
+   `tests/lcv103.rs::enter_is_suppressed_while_text_widget_focused` is renamed to
+   `enter_reaches_the_tool_exactly_once_while_focused` and still asserts
+   `history.len() == 1` — one commit, not two.
+
 9. **`F` is gated.** With a `TextEdit` focused, a frame carrying the character
    `f` leaves `camera.mm_per_px` and `camera.center_world` bit-identical to
    their values before the frame. With nothing focused and a non-empty
