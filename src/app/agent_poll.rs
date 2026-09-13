@@ -14,6 +14,12 @@
 //! agent. So `agent_busy` is cleared on **every** exit — `Done`, `Failed` and a
 //! dropped sender alike — and a worker thread that panics or returns closes the
 //! channel as a matter of course, because the `Sender` is moved into it.
+//!
+//! There is a **fourth** exit the ADR does not yet enumerate: a worker that
+//! vanishes between sending an `Act` and reading its answer. The reply channel
+//! is then dead while the event channel may still look alive, so nothing else
+//! would ever bring `agent_busy` down. It is handled below with the other
+//! three, and pinned by a test.
 
 use crate::agent::AgentEvent;
 use crate::app::{agent_apply, App};
@@ -41,7 +47,13 @@ pub fn poll_agent_rx(app: &mut App) {
             Ok(AgentEvent::Act { action, reply }) => {
                 let outcome = agent_apply::apply(app, &action);
                 if reply.send(outcome).is_err() {
-                    // The worker stopped waiting. Nothing more can arrive.
+                    // The worker stopped waiting — it panicked or returned
+                    // between sending the `Act` and reading the answer — so
+                    // nothing more can arrive. This is the fourth turn exit,
+                    // and the only one that writes no chat row: the operator
+                    // already sees the turn stop, and the action really was
+                    // applied, so an error row would be a lie about the
+                    // drawing. What matters is that `agent_busy` comes down.
                     end_turn(app, None);
                     return;
                 }

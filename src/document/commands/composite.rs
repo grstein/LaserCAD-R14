@@ -45,17 +45,6 @@ impl CompositeCommand {
             label: label.into(),
         }
     }
-
-    /// How many child commands this entry folds. `0` is legal but useless.
-    pub fn len(&self) -> usize {
-        self.commands.len()
-    }
-
-    /// Does this entry fold no commands at all? Paired with [`Self::len`] to
-    /// satisfy clippy's `len_without_is_empty`.
-    pub fn is_empty(&self) -> bool {
-        self.commands.is_empty()
-    }
 }
 
 impl Command for CompositeCommand {
@@ -128,8 +117,6 @@ mod tests {
     fn composite_label_is_the_stored_string() {
         let composite = CompositeCommand::new(vec![], "Agent: draw a square");
         assert_eq!(composite.label(), "Agent: draw a square");
-        assert!(composite.is_empty());
-        assert_eq!(composite.len(), 0);
     }
 
     /// AC 11 — `do_` runs the children **forward**. Run in reverse the same

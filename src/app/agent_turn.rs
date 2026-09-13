@@ -235,6 +235,42 @@ mod tests {
         assert!(!fence.may_coalesce(14, 4), "a tripped fence must not fold");
     }
 
+    /// AC 13 — the gate anchors on the **turn's start revision**, never on the
+    /// last advanced expectation.
+    ///
+    /// Every other `may_coalesce` test above runs on a fence that was never
+    /// advanced, where `start` and `expected` hold the same number and so are
+    /// indistinguishable. The real LCV-123 flow advances the fence after each
+    /// apply, so by the end `expected == current`, their difference is `0`, and
+    /// a gate anchored on `expected` would return `false` for the rest of time:
+    /// the turn would quietly leave `n` separate undo entries behind instead of
+    /// one, which is AC 13's whole point, and nothing would say a word. So this
+    /// test advances first, then coalesces.
+    #[test]
+    fn the_gate_anchors_on_the_start_revision_not_the_last_advance() {
+        let mut fence = TurnFence::new(10);
+        fence.advance(11);
+        fence.advance(12);
+        assert!(
+            fence.may_coalesce(12, 2),
+            "two commits since revision 10 fold into one, however often the \
+             fence was advanced along the way"
+        );
+        assert!(
+            !fence.may_coalesce(13, 2),
+            "a third revision the turn did not make still breaks the run"
+        );
+
+        // And the same fence, advanced all the way to a four-commit turn.
+        let mut fence = TurnFence::new(100);
+        for revision in 101..=104 {
+            assert_eq!(fence.check(revision - 1), Ok(()));
+            fence.advance(revision);
+        }
+        assert!(fence.may_coalesce(104, 4), "four commits, four revisions");
+        assert!(!fence.may_coalesce(104, 3), "a foreign commit hid in there");
+    }
+
     /// The `current - start` in `may_coalesce` is unsigned subtraction one line
     /// away from a panic. A revision below the start cannot happen in practice
     /// — `revision()` is monotonic — but the arithmetic must survive it.

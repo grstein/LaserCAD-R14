@@ -39,9 +39,10 @@ mod persist;
 mod snap;
 mod viewport;
 
-pub mod agent_apply;
+mod agent_apply;
 mod agent_poll;
 mod agent_turn;
+pub use agent_apply::apply;
 pub use agent_poll::poll_agent_rx;
 pub use agent_turn::{run_agent_turn, TurnFence, AGENT_FENCE_REFUSAL};
 pub use autosave::{autosave_due, schedule_flush_repaint};
@@ -619,6 +620,63 @@ mod tests {
         );
         assert!(!app.agent_busy);
         assert!(app.agent_rx.is_none());
+    }
+
+    /// The fourth turn exit (ADR 0007 §D11, extended) — the worker vanishes
+    /// between sending an `Act` and reading its answer.
+    ///
+    /// The event channel still looks alive, because the worker's `Sender` for
+    /// it has not been dropped yet, so neither `Done`, nor `Failed`, nor
+    /// `Disconnected` will ever arrive. Only the dead reply channel says
+    /// anything is wrong. Leaving `agent_busy` up here is not a cosmetic bug:
+    /// `App::update_ui` requests a repaint on every frame while it is set, so
+    /// the app would spin for the rest of the session — LCV-120, reopened, with
+    /// a symptom that surfaces nowhere near the agent.
+    ///
+    /// Dropping the receiving end before polling is exactly what a panicking
+    /// worker does, and `Sender::send` reports it on the next call. No thread,
+    /// no sleep.
+    #[test]
+    fn a_worker_that_stops_listening_mid_act_still_ends_the_turn() {
+        use crate::agent::{AgentAction, AgentEvent, AgentOutcome};
+        let (tx, rx) = std::sync::mpsc::channel::<AgentEvent>();
+        let (reply, answers) = std::sync::mpsc::channel::<AgentOutcome>();
+        let mut app = App {
+            agent_rx: Some(rx),
+            agent_busy: true,
+            ..App::default()
+        };
+        tx.send(AgentEvent::Act {
+            action: AgentAction::CreateCircle {
+                cx: 0.0,
+                cy: 0.0,
+                r: 1.0,
+            },
+            reply,
+        })
+        .unwrap();
+        drop(answers);
+
+        poll_agent_rx(&mut app);
+
+        assert!(
+            !app.agent_busy,
+            "a worker that stopped listening must not leave the app spinning"
+        );
+        assert!(app.agent_rx.is_none(), "nothing more can arrive");
+        assert!(
+            app.agent_chat.is_empty(),
+            "this exit writes no chat row: the action was applied, so an error \
+             row would misdescribe the drawing"
+        );
+        assert_eq!(
+            app.document.entity_count(),
+            1,
+            "the action itself was applied before the answer was lost"
+        );
+
+        // The event channel is still open — this is the point of the test.
+        drop(tx);
     }
 
     // ── LCV-102 tests — autosave dirty tracking (ADR 0002 §B) ──────────────

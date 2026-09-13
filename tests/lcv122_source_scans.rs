@@ -5,8 +5,9 @@
 //!
 //! - **AC 3** — no file under `src/agent/` holds document state, except
 //!   `panel.rs`, and that exception list is exactly one file long.
-//! - **AC 4** — the identifier `AgentPanelMsg` appears nowhere in `src/` or
-//!   `tests/`.
+//! - **AC 4 / AC 5** — the two identifiers LCV-122 retired appear nowhere in
+//!   `src/` or `tests/`. They are deliberately not spelled out here; the test
+//!   below builds them from fragments.
 //!
 //! Every scan follows the two rules that keep a scan able to fail (AGENTS.md;
 //! the canonical example is `guard_is_runtime_not_cfg` in `src/io/dialogs.rs`):
@@ -177,11 +178,16 @@ fn the_bridge_names_no_document_and_no_ui() {
 /// tree, tests included: a stale reference in a test is exactly as wrong as one
 /// in the implementation, and there is no reason for either name to survive.
 ///
-/// The retired names are never written out in this test — not in a needle, not
-/// in an assertion message — because either one would make the file match
-/// itself and the scan would report its own source forever. The pairs below are
-/// `(retired, replacement)`, and the replacement doubles as the positive
-/// control: if the haystack were empty or mis-read, the control fails first.
+/// Two things keep this scan from matching its own source, and it is worth
+/// being precise about which does the work. First, `files_containing` ignores
+/// any line whose first non-space characters are `//`, so a retired name
+/// written in a doc comment — here or anywhere else in the tree — is invisible
+/// to it. Second, and not relying on the first, the needles below are assembled
+/// with `concat!` and the assertion message interpolates `{gone}` at runtime, so
+/// neither retired name appears as a literal in this file's compiled text
+/// either. The pairs are `(retired, replacement)`, and the replacement doubles
+/// as the positive control: if the haystack were empty or mis-read, the control
+/// fails first.
 #[test]
 fn the_retired_identifiers_are_gone_from_src_and_tests() {
     let retired = [

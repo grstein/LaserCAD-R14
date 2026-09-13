@@ -47,7 +47,7 @@ pub(crate) const AGENT_SYSTEM_PROMPT: &str =
 
 // ── Error ────────────────────────────────────────────────────────────────────
 
-/// Errors that [`run_agent_turn`] can return.
+/// Errors that [`crate::app::run_agent_turn`] can return.
 #[derive(Debug)]
 pub enum AgentError {
     /// HTTP or serialisation failure from the transport layer.
