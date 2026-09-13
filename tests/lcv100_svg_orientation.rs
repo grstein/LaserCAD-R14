@@ -2,14 +2,14 @@
 //! mirror.
 //!
 //! These tests pin **absolute** exported strings for asymmetric figures. That
-//! is the whole point: a round-trip test (`import_svg(&export_svg(&doc))`)
+//! is the whole point: a round-trip test (`import_svg(&export_svg(&doc, p))`)
 //! cannot detect a symmetric transform bug, because the exporter's error and
 //! the importer's error cancel each other exactly. Only a hand-checked golden
 //! tells us the file a laser actually reads is the right way up.
 
 use lasercad::document::{Document, Entity};
 use lasercad::geometry::{Arc, Circle, Line, Vec2, EPSILON};
-use lasercad::io::svg::{export_svg, import_svg};
+use lasercad::io::svg::{export_svg, import_svg, Preset};
 use lasercad::text::layout_text;
 use lasercad::util::{flip_y, DEFAULT_BED_HEIGHT_MM};
 use std::f64::consts::{FRAC_PI_2, PI};
@@ -43,7 +43,7 @@ fn l_shape_bottom_leg_has_larger_svg_y() {
         Entity::Line(Line::new(Vec2::new(10.0, 10.0), Vec2::new(10.0, 60.0))),
         Entity::Line(Line::new(Vec2::new(10.0, 10.0), Vec2::new(40.0, 10.0))),
     ]);
-    let svg = export_svg(&doc);
+    let svg = export_svg(&doc, Preset::Cut);
 
     let vertical = r#"<line x1="10.0000" y1="390.0000" x2="10.0000" y2="340.0000"/>"#;
     let horizontal = r#"<line x1="10.0000" y1="390.0000" x2="40.0000" y2="390.0000"/>"#;
@@ -76,7 +76,7 @@ fn hershey_text_is_not_mirrored() {
     }
 
     let doc = doc_of(entities.clone());
-    let svg = export_svg(&doc);
+    let svg = export_svg(&doc, Preset::Cut);
 
     // (a) Round-trip preserves every endpoint.
     let imported = import_svg(&svg).unwrap().entities;
@@ -130,7 +130,9 @@ fn round_trip_preserves_all_entity_kinds() {
     let mut entities = vec![Entity::Line(line), Entity::Circle(circle)];
     entities.extend(arcs.iter().map(|a| Entity::Arc(*a)));
 
-    let imported = import_svg(&export_svg(&doc_of(entities))).unwrap().entities;
+    let imported = import_svg(&export_svg(&doc_of(entities), Preset::Cut))
+        .unwrap()
+        .entities;
     assert_eq!(imported.len(), 6);
 
     let Entity::Line(l) = imported[0] else {

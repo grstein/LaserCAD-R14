@@ -12,7 +12,7 @@
 
 use lasercad::document::{Document, Entity};
 use lasercad::geometry::{Arc, Circle, Line, Vec2};
-use lasercad::io::svg::{export_svg, import_svg};
+use lasercad::io::svg::{export_svg, import_svg, Preset};
 use lasercad::util::{DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
 
 /// Millimetres. The demand asks for 1e-9; the exporter quantises coordinates
@@ -37,7 +37,7 @@ fn line(y: f64) -> Entity {
 #[test]
 fn roundtrip_at_a_non_default_bed_preserves_world_coordinates() {
     let doc = doc_with([300.0, 180.0], vec![line(50.0)]);
-    let svg = export_svg(&doc);
+    let svg = export_svg(&doc, Preset::Cut);
 
     // The header states the document's bed, in both places LaserGRBL reads.
     assert!(svg.contains(r#"width="300mm""#), "{svg}");
@@ -70,7 +70,7 @@ fn roundtrip_at_the_default_bed() {
         [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM],
         vec![line(50.0)],
     );
-    let svg = export_svg(&doc);
+    let svg = export_svg(&doc, Preset::Cut);
     assert!(svg.contains(r#"width="400mm""#), "{svg}");
     assert!(svg.contains(r#"height="400mm""#), "{svg}");
     assert!(svg.contains(r#"y1="350.0000""#), "{svg}");
@@ -101,7 +101,7 @@ fn roundtrip_at_a_non_default_bed_preserves_circles_and_arcs() {
             )),
         ],
     );
-    let imported = import_svg(&export_svg(&doc)).unwrap();
+    let imported = import_svg(&export_svg(&doc, Preset::Cut)).unwrap();
     assert_eq!(imported.bed_mm, [128.0, 128.0]);
 
     let Entity::Circle(c) = imported.entities[0] else {
@@ -132,10 +132,10 @@ fn roundtrip_at_a_non_default_bed_preserves_circles_and_arcs() {
 #[test]
 fn reexporting_an_imported_file_is_byte_stable() {
     let doc = doc_with([300.0, 180.0], vec![line(50.0), line(90.0)]);
-    let first = export_svg(&doc);
+    let first = export_svg(&doc, Preset::Cut);
     let imported = import_svg(&first).unwrap();
     let reopened = doc_with(imported.bed_mm, imported.entities);
-    assert_eq!(export_svg(&reopened), first);
+    assert_eq!(export_svg(&reopened, Preset::Cut), first);
 }
 
 /// AC 16 — the AGENTS.md SVG-export checklist must describe what the code now

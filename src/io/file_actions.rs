@@ -38,6 +38,10 @@ use crate::io::{clear_autosave, open_file_dialog, save_file_dialog};
 ///
 /// The blank document is seeded with the operator's configured default bed
 /// (LCV-114 AC 11) so `File > New` lands on their machine, not on 400 × 400.
+///
+/// `app.export_preset` is deliberately **not** reset (LCV-115 AC 5): the
+/// export profile is a property of the session's job, not of the document,
+/// and an operator doing three mark jobs in a row picks it once.
 pub fn action_new(app: &mut App) {
     app.document = Document {
         bed_mm: app.settings.clamped_default_bed_mm(),
@@ -54,8 +58,8 @@ pub fn action_new(app: &mut App) {
 /// If the user cancels the dialog this function returns immediately without
 /// modifying any `App` field.  On I/O or parse failure `app.error_message` is
 /// set to a descriptive string and the existing document is left unchanged.
-/// On success the document, history, current-file path, and recent-files list
-/// are all updated and the autosave file is cleared.
+/// On success the document, history, current-file path, export preset, and
+/// recent-files list are all updated and the autosave file is cleared.
 pub fn action_open(app: &mut App) {
     let path = match open_file_dialog() {
         Some(p) => p,
@@ -82,6 +86,10 @@ pub fn action_open(app: &mut App) {
     // the *file's* bed (LCV-114 AC 10): re-saving it must not re-mirror every
     // Y around a different height. The settings seed is deliberately left
     // alone — opening a file does not re-home the operator's machine.
+    //
+    // The session adopts the *file's* preset too (LCV-115 AC 9), so Ctrl+S on
+    // a marking file returns its geometry to the `mark` group.
+    app.export_preset = imported.preset;
     app.document = Document {
         entities: imported.entities,
         bed_mm: imported.bed_mm,
@@ -96,7 +104,8 @@ pub fn action_open(app: &mut App) {
     clear_autosave();
 }
 
-/// Save the document to the current file path.
+/// Save the document to the current file path, in `app.export_preset`'s
+/// colour group (LCV-115 AC 5).
 ///
 /// If no file path is known (`app.current_file` is `None`) this function
 /// delegates to [`action_save_as`].  On success `app.mark_saved()` marks the
@@ -112,7 +121,7 @@ pub fn action_save(app: &mut App) {
         }
     };
 
-    let svg = export_svg(&app.document);
+    let svg = export_svg(&app.document, app.export_preset);
     if let Err(e) = fs::write(&path, svg.as_bytes()) {
         app.error_message = Some(format!("Could not write '{}': {e}", path.display()));
         return;
@@ -126,7 +135,8 @@ pub fn action_save(app: &mut App) {
 ///
 /// Called by the File → Open Recent menu to load a path that was already
 /// chosen by the operator. On success the document, history, current-file
-/// path, and recent-files list are updated and the autosave file is cleared.
+/// path, export preset, and recent-files list are updated and the autosave
+/// file is cleared.
 /// On I/O or parse failure `app.error_message` is set; the existing document
 /// is left unchanged.
 pub fn action_open_path(app: &mut App, path: PathBuf) {
@@ -146,7 +156,9 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
         }
     };
 
-    // Adopts the file's bed, same as `action_open` (LCV-114 AC 10).
+    // Adopts the file's bed and preset, same as `action_open` (LCV-114 AC 10,
+    // LCV-115 AC 9).
+    app.export_preset = imported.preset;
     app.document = Document {
         entities: imported.entities,
         bed_mm: imported.bed_mm,
@@ -161,7 +173,8 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
     clear_autosave();
 }
 
-/// Present a save dialog and write the document to the chosen path.
+/// Present a save dialog and write the document to the chosen path, in
+/// `app.export_preset`'s colour group (LCV-115 AC 5).
 ///
 /// The default filename is the current file's name component, or
 /// `"untitled.svg"` when no file is open.  A `.svg` extension is appended if
@@ -187,7 +200,7 @@ pub fn action_save_as(app: &mut App) {
         path.set_extension("svg");
     }
 
-    let svg = export_svg(&app.document);
+    let svg = export_svg(&app.document, app.export_preset);
     if let Err(e) = fs::write(&path, svg.as_bytes()) {
         app.error_message = Some(format!("Could not write '{}': {e}", path.display()));
         return;
@@ -314,6 +327,84 @@ mod tests {
             );
         }
     }
+
+    /// LCV-115 AC 9 — both open paths adopt the *file's* preset, from
+    /// `ImportedSvg::preset`, and never hard-code one. Source scan: driving
+    /// `action_open*` from a test would pop a native dialog (ADR 0005) and
+    /// would rewrite the developer's real `settings.json`, so the behaviour is
+    /// covered at kernel level in `tests/lcv115_preset_roundtrip.rs` and the
+    /// wiring is covered here — the same split LCV-114 used for the bed.
+    #[test]
+    fn both_open_paths_adopt_the_file_preset() {
+        let src = include_str!("file_actions.rs");
+        for (start_marker, end_marker) in [
+            (
+                "pub fn action_open(app: &mut App)",
+                "\n/// Save the document",
+            ),
+            (
+                "pub fn action_open_path(app: &mut App, path: PathBuf)",
+                "\n/// Present a save dialog",
+            ),
+        ] {
+            let start = src
+                .find(start_marker)
+                .unwrap_or_else(|| panic!("{start_marker} must exist"));
+            let end = src[start..]
+                .find(end_marker)
+                .unwrap_or_else(|| panic!("{start_marker} must be followed by {end_marker}"))
+                + start;
+            let body = &src[start..end];
+            assert!(
+                body.contains("import_svg(&content)"),
+                "positive control: {start_marker} must import the file"
+            );
+            assert!(
+                body.contains("app.export_preset = imported.preset;"),
+                "{start_marker} must adopt the file's preset (AC 9)"
+            );
+            for literal in ["Preset::Cut", "Preset::Mark", "Preset::Engrave"] {
+                assert!(
+                    !body.contains(literal),
+                    "{start_marker} must not hard-code {literal}"
+                );
+            }
+        }
+    }
+
+    /// LCV-115 AC 5 — both save paths export in the *session's* preset. Same
+    /// reason as above for the scan: `action_save_as` opens a native dialog.
+    #[test]
+    fn both_save_paths_export_in_the_session_preset() {
+        let src = include_str!("file_actions.rs");
+        for (start_marker, end_marker) in [
+            (
+                "pub fn action_save(app: &mut App)",
+                "\n/// Load a document from a known file path",
+            ),
+            ("pub fn action_save_as(app: &mut App)", "\n#[cfg(test)]"),
+        ] {
+            let start = src
+                .find(start_marker)
+                .unwrap_or_else(|| panic!("{start_marker} must exist"));
+            let end = src[start..]
+                .find(end_marker)
+                .unwrap_or_else(|| panic!("{start_marker} must be followed by {end_marker}"))
+                + start;
+            let body = &src[start..end];
+            assert!(
+                body.contains("fs::write(&path, svg.as_bytes())"),
+                "positive control: {start_marker} must write the file"
+            );
+            assert!(
+                body.contains("export_svg(&app.document, app.export_preset)"),
+                "{start_marker} must export in the session preset (AC 5)"
+            );
+        }
+    }
+
+    // `action_new` keeping the preset (LCV-115 AC 5) is covered in
+    // `tests/lcv115_preset_ui.rs`, where the demand places it.
 
     /// AC 3 — action_new clears current_file.
     #[test]

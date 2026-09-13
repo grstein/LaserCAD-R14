@@ -9,5 +9,5 @@ pub mod export;
 pub mod header;
 pub mod import;
 
-pub use export::export_svg;
+pub use export::{export_svg, Preset};
 pub use import::{import_svg, ImportedSvg, SvgImportError};

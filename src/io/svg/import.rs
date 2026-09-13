@@ -14,9 +14,14 @@
 //! at 300 × 180 must land back on the world coordinates it was exported from,
 //! whatever bed the open document happens to be on.
 //!
+//! The enclosing `<g id="…">` is read too (LCV-115): the file's export preset
+//! is the one whose group first produced geometry, so an open / edit / re-save
+//! round trip cannot silently demote a marking job to a cutting job.
+//!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`. — LCV-057,
-//! Y mirror by LCV-100, bed by LCV-114.
+//! Y mirror by LCV-100, bed by LCV-114, preset by LCV-115.
 
+use super::export::Preset;
 use super::header::parse_bed;
 use crate::document::entity::Entity;
 use crate::geometry::{Arc, Circle, Line, Vec2, EPSILON};
@@ -58,8 +63,9 @@ pub enum SvgImportError {
     },
 }
 
-/// The result of a successful [`import_svg`]: the geometry, plus the bed size
-/// the file declares (LCV-114 AC 7).
+/// The result of a successful [`import_svg`]: the geometry, plus the two
+/// file-level properties the opened document adopts — the bed size it declares
+/// (LCV-114 AC 7) and its export preset (LCV-115 AC 8).
 ///
 /// `bed_mm` is `[width, height]` in millimetres and is the axis pair the
 /// entities were un-mirrored with, so installing both together —
@@ -72,13 +78,20 @@ pub struct ImportedSvg {
     /// The bed size declared by the file's root `<svg>`, or the default bed
     /// when it declares none.
     pub bed_mm: [f64; 2],
+    /// The preset of the first recognised `<g>` whose subtree produced an
+    /// entity, or [`Preset::Cut`] when the file has no recognised group.
+    /// `App::export_preset` adopts it on open, so re-saving a marking file
+    /// returns its geometry to the `mark` group instead of demoting it to a
+    /// cut (LCV-115 AC 9).
+    pub preset: Preset,
 }
 
 /// Parse an SVG string and return its geometry together with its bed size.
 ///
 /// Depth-first traversal; `<line>`, `<circle>`, `<path d="M…A…"/>` → entities.
 /// Everything else is silently skipped. The bed comes from the root header
-/// (see [`parse_bed`]) and is the axis every Y is un-mirrored around.
+/// (see [`parse_bed`]) and is the axis every Y is un-mirrored around; the
+/// preset comes from the enclosing `<g id="…">` (see [`collect`]).
 /// Returns the first error encountered, having mutated nothing: the caller's
 /// document is untouched on `Err` (LCV-114 AC 9).
 pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
@@ -89,16 +102,35 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
     }
     let bed_mm = parse_bed(root)?;
     let mut entities = Vec::new();
-    collect(root, &mut entities, bed_mm[1])?;
-    Ok(ImportedSvg { entities, bed_mm })
+    let mut preset = None;
+    collect(root, &mut entities, bed_mm[1], None, &mut preset)?;
+    Ok(ImportedSvg {
+        entities,
+        bed_mm,
+        // No recognised group produced geometry: bare geometry, an empty file
+        // or an unknown group id all mean "cut" (LCV-115 AC 8).
+        preset: preset.unwrap_or(Preset::Cut),
+    })
 }
 
+/// Walk `node`'s element subtree, appending recognised geometry to `out`.
+///
+/// `group` is the preset of the nearest enclosing recognised `<g>`, and
+/// `found` is the detection result: the first `group` that was `Some` when an
+/// entity was appended wins, and it is never overwritten afterwards
+/// (LCV-115 AC 8). Geometry outside any recognised group leaves `found`
+/// untouched, so a file whose only `cut` group is empty still reports the
+/// populated `mark` group that follows it — which is exactly the shape this
+/// crate's own exporter writes.
 fn collect(
     node: roxmltree::Node<'_, '_>,
     out: &mut Vec<Entity>,
     bed_h: f64,
+    group: Option<Preset>,
+    found: &mut Option<Preset>,
 ) -> Result<(), SvgImportError> {
     for child in node.children().filter(|n| n.is_element()) {
+        let before = out.len();
         match child.tag_name().name() {
             "line" => out.push(parse_line(child, bed_h)?),
             "circle" => out.push(parse_circle(child, bed_h)?),
@@ -107,10 +139,24 @@ fn collect(
                     out.push(e);
                 }
             }
-            _ => collect(child, out, bed_h)?,
+            _ => collect(child, out, bed_h, group_of(child, group), found)?,
+        }
+        if found.is_none() && out.len() > before {
+            *found = group;
         }
     }
     Ok(())
+}
+
+/// The preset in force inside `node`: its own `id` when `node` is a `<g>`
+/// carrying a recognised one, otherwise the enclosing `group` unchanged.
+fn group_of(node: roxmltree::Node<'_, '_>, group: Option<Preset>) -> Option<Preset> {
+    if node.tag_name().name() != "g" {
+        return group;
+    }
+    node.attribute("id")
+        .and_then(Preset::from_group_id)
+        .or(group)
 }
 
 fn parse_line(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Entity, SvgImportError> {
@@ -427,7 +473,7 @@ mod tests {
         doc.entities.push(Entity::Circle(cir));
         let arc = Arc::new(Vec2::default(), 10.0, 0.0, FRAC_PI_2, true);
         doc.entities.push(Entity::Arc(arc));
-        let imp = import_svg(&export_svg(&doc)).unwrap().entities;
+        let imp = import_svg(&export_svg(&doc, Preset::Cut)).unwrap().entities;
         assert_eq!(imp.len(), 3);
         if let (Entity::Line(l), Entity::Circle(c), Entity::Arc(a)) = (imp[0], imp[1], imp[2]) {
             assert!((l.p1.x - 1.0).abs() < EPSILON && (l.p1.y - 2.0).abs() < EPSILON);
@@ -531,5 +577,77 @@ mod tests {
     #[test]
     fn import_svg_reachable_via_module_path() {
         let _f: fn(&str) -> Result<ImportedSvg, SvgImportError> = import_svg;
+    }
+
+    // ── LCV-115 — the file carries its export preset ──────────────────────
+
+    /// Wrap `inner` in a `<g id="…">` the way this crate's exporter does.
+    fn grouped(id: &str, inner: &str) -> String {
+        svg(&format!(r#"<g id="{id}" fill="none">{inner}</g>"#))
+    }
+
+    const A_LINE: &str = r#"<line x1="0" y1="0" x2="10" y2="10"/>"#;
+
+    /// LCV-115 AC#8 — each recognised group id maps to its preset, and the
+    /// geometry still lands in `entities` either way.
+    #[test]
+    fn import_detects_preset_from_group_id() {
+        for preset in Preset::ALL {
+            let imported = import_svg(&grouped(preset.id(), A_LINE)).unwrap();
+            assert_eq!(imported.preset, preset, "id={}", preset.id());
+            assert_eq!(imported.entities.len(), 1, "id={}", preset.id());
+        }
+    }
+
+    /// LCV-115 AC#8 — geometry outside any group, and an empty file, are
+    /// `Cut`: the safe reading is the one the operator already expects.
+    #[test]
+    fn import_defaults_to_cut_for_bare_geometry() {
+        assert_eq!(import_svg(LINE_SVG).unwrap().preset, Preset::Cut);
+        assert_eq!(import_svg(&svg("")).unwrap().preset, Preset::Cut);
+        assert_eq!(import_svg(G_GROUPS_SVG).unwrap().preset, Preset::Cut);
+    }
+
+    /// LCV-115 AC#8 — an empty `cut` group followed by a populated `mark` one
+    /// reports `Mark`. This is exactly the file this crate's exporter writes
+    /// for a marking job, so it is the real-world case, not an edge case.
+    #[test]
+    fn import_ignores_empty_groups_and_takes_the_first_group_with_geometry() {
+        let src = svg(&format!(
+            r#"<g id="cut"></g><g id="mark">{A_LINE}</g><g id="engrave"></g>"#
+        ));
+        let imported = import_svg(&src).unwrap();
+        assert_eq!(imported.preset, Preset::Mark);
+        assert_eq!(imported.entities.len(), 1);
+
+        // …and the first *populated* group wins when two are populated.
+        let both = svg(&format!(
+            r#"<g id="engrave">{A_LINE}</g><g id="mark">{A_LINE}</g>"#
+        ));
+        assert_eq!(import_svg(&both).unwrap().preset, Preset::Engrave);
+    }
+
+    /// LCV-115 AC#8 — an id this crate does not know is not a preset; nested
+    /// geometry inherits the nearest *recognised* enclosing group instead.
+    #[test]
+    fn import_defaults_to_cut_for_unknown_group_id() {
+        let unknown = grouped("layer1", A_LINE);
+        assert_eq!(import_svg(&unknown).unwrap().preset, Preset::Cut);
+
+        let nested = svg(&format!(r#"<g id="mark"><g id="layer1">{A_LINE}</g></g>"#));
+        assert_eq!(import_svg(&nested).unwrap().preset, Preset::Mark);
+    }
+
+    /// LCV-115 AC#8 — matching is on the exact id, not a prefix or a
+    /// case-insensitive fold: `Preset::from_group_id` is the single decoder
+    /// and it is exact.
+    #[test]
+    fn preset_group_ids_match_exactly() {
+        for id in ["CUT", "cut-1", "marks", " mark", ""] {
+            assert_eq!(Preset::from_group_id(id), None, "id={id:?}");
+        }
+        for preset in Preset::ALL {
+            assert_eq!(Preset::from_group_id(preset.id()), Some(preset));
+        }
     }
 }

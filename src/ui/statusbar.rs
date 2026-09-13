@@ -5,10 +5,15 @@
 //! - [`draw_statusbar`] — egui widget that reads live state from [`App`] and
 //!   renders the bar.
 //!
+//! The badge formatters ([`format_ortho`], [`format_preset`]) are crate-private
+//! pure functions: the bar itself cannot be scraped for text, so they are what
+//! the tests assert on.
+//!
 //! Introduced by demand LCV-067.
 
 use crate::app::App;
 use crate::geometry::Vec2;
+use crate::io::Preset;
 
 /// Format cursor world-space coordinates for display in the status bar.
 ///
@@ -43,11 +48,26 @@ pub(crate) fn format_ortho(ortho: bool) -> Option<&'static str> {
     }
 }
 
+/// Return the status-bar label for an export preset.
+///
+/// `"CUT"` / `"MARK"` / `"ENGRAVE"`, uppercase to match the tool and ORTHO
+/// segments. Unconditional — unlike [`format_ortho`] there is no "off" state,
+/// because every save writes into exactly one preset and an operator who
+/// cannot see which one can burn through the workpiece (LCV-115 AC 7).
+pub(crate) fn format_preset(preset: Preset) -> &'static str {
+    match preset {
+        Preset::Cut => "CUT",
+        Preset::Mark => "MARK",
+        Preset::Engrave => "ENGRAVE",
+    }
+}
+
 /// Render the status bar into `ui`.
 ///
 /// Displays — left to right — cursor coordinates, a separator, the active tool
-/// name (uppercased), a separator, the document entity count, and — when ortho
-/// mode is on — a separator followed by `"ORTHO"` (LCV-053).
+/// name (uppercased), a separator, the document entity count, a separator and
+/// the active export preset (LCV-115), and — when ortho mode is on — a
+/// separator followed by `"ORTHO"` (LCV-053).
 ///
 /// **Call site**: add a `TopBottomPanel::bottom("statusbar")` *before* the
 /// `CentralPanel` in `App::update`.
@@ -62,6 +82,8 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &App) {
         ui.label(&tool_str);
         ui.separator();
         ui.label(format!("Entities: {count}"));
+        ui.separator();
+        ui.label(format_preset(app.export_preset));
         if let Some(badge) = format_ortho(app.ortho_enabled) {
             ui.separator();
             ui.label(badge);
@@ -125,5 +147,52 @@ mod tests {
     #[test]
     fn format_ortho_false_returns_none() {
         assert_eq!(format_ortho(false), None);
+    }
+
+    /// LCV-115 AC#7 — all three presets have an uppercase badge, and it is the
+    /// preset's `id()` uppercased, so the label can never name a different
+    /// group than the one the exporter writes.
+    #[test]
+    fn format_preset_covers_all_three_variants() {
+        assert_eq!(format_preset(Preset::Cut), "CUT");
+        assert_eq!(format_preset(Preset::Mark), "MARK");
+        assert_eq!(format_preset(Preset::Engrave), "ENGRAVE");
+        for preset in Preset::ALL {
+            assert_eq!(
+                format_preset(preset),
+                preset.id().to_uppercase(),
+                "badge must be the group id, uppercased"
+            );
+        }
+    }
+
+    /// LCV-115 AC#7 — the preset segment is unconditional and sits between the
+    /// entity count and the conditional ORTHO badge. Bounded to `draw_statusbar`
+    /// so this test's own body cannot satisfy the scan.
+    #[test]
+    fn status_bar_shows_the_preset_after_the_entity_count() {
+        let src = include_str!("statusbar.rs");
+        let start = src
+            .find("pub fn draw_statusbar(")
+            .expect("draw_statusbar must exist");
+        let end = src[start..]
+            .find("\n#[cfg(test)]")
+            .expect("tests must follow the implementation")
+            + start;
+        let body = &src[start..end];
+        let count = body
+            .find("Entities: {count}")
+            .expect("entity count present");
+        let preset = body
+            .find("format_preset(app.export_preset)")
+            .expect("preset badge present");
+        let ortho = body
+            .find("format_ortho(app.ortho_enabled)")
+            .expect("ortho badge present");
+        assert!(count < preset && preset < ortho, "count, preset, ortho");
+        assert!(
+            !body[..preset].contains("if "),
+            "the preset badge must not sit behind a conditional"
+        );
     }
 }

@@ -15,7 +15,7 @@ pub use autosave::{clear_autosave, load_autosave, save_autosave};
 pub use dialogs::{arm_native_dialogs, open_file_dialog, pick_folder_dialog, save_file_dialog};
 pub use file_actions::{action_new, action_open, action_open_path, action_save, action_save_as};
 pub use recent::{open_recent, recent_files, OpenRecentError};
-pub use svg::{import_svg, SvgImportError};
+pub use svg::{export_svg, import_svg, ImportedSvg, Preset, SvgImportError};
 
 #[cfg(test)]
 mod tests {

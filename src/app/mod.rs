@@ -49,6 +49,7 @@ use crate::cmdline::CommandHistory;
 use crate::document::{Command, Document, Entity, History};
 use crate::geometry::{SnapResult, Vec2};
 use crate::io::settings::Settings;
+use crate::io::Preset;
 use crate::render::Camera;
 use crate::tools::ToolManager;
 
@@ -96,6 +97,18 @@ pub struct App {
     /// closed (LCV-114). The document's bed is only touched when OK is
     /// pressed, through a `SetBedSize` command; see `src/app/bed_dialog.rs`.
     pub bed_dialog: Option<[f64; 2]>,
+    /// The LaserGRBL colour group every exported entity is written into
+    /// (LCV-115). Read by `action_save` / `action_save_as`, chosen from
+    /// `File > Export preset ▸`, shown in the status bar, and adopted from the
+    /// file by `action_open` / `action_open_path`.
+    ///
+    /// **Session state, deliberately not persisted** — not in [`Settings`],
+    /// not in the [`Document`], not in the autosave envelope. It resets to
+    /// [`Preset::Cut`] at every app start: a preset that survived a restart
+    /// would let yesterday's marking job silently cut today's, which burns
+    /// through the workpiece. `File > New` does **not** reset it, so three
+    /// mark jobs in one session are one choice, not three.
+    pub export_preset: Preset,
     /// Text buffer for the command-line widget (LCV-068).
     pub command_line_input: String,
     /// The 50-entry command recall ring walked by ArrowUp / ArrowDown while
