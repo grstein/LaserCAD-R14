@@ -22,9 +22,19 @@ carrying `authorization: Bearer sk-test-DO-NOT-LEAK` and the full system prompt,
 touching nothing had sent a bearer token and the agent's whole system prompt to
 a third party, and reported success.
 
-That specific leak is being closed inside LCV-124 by making the endpoint
-*unparseable* rather than *unreachable*. Two things are left over, and they are
-this demand:
+That specific leak is closed inside LCV-124 (`a1b37aa`) by making the endpoint
+*unparseable* rather than *unreachable*. **It is closed in one file, not two.**
+`a1b37aa` fixed `tests/lcv124_command_line_routing.rs`, whose
+`UNPARSEABLE_ENDPOINT` now carries the whole story in a doc comment. It did not
+touch `src/agent/transport.rs::unreachable_endpoint_is_a_request_error`, which
+still calls `chat_completion("http://127.0.0.1:1", DUMMY_KEY, …)` and therefore
+still posts `authorization: Bearer sk-test-DO-NOT-LEAK` to whatever `HTTP_PROXY`
+names. The key is a dummy and no system prompt rides along — this is not a
+second incident — but it is the same defect, live in the tree, and it is the
+concrete thing AC 3 has to remove. Its stated purpose ("an unreachable endpoint
+is a `Request` error, not a panic") is why it cannot simply copy LCV-124's
+unparseable string: an unparseable URL tests the builder path, not the connect
+path. Three things are left over, and they are this demand:
 
 **1. The suite does not run behind a proxy.** Under the same `HTTP_PROXY`, the
 **23 mockito-backed tests** across `src/agent/transport.rs`,
@@ -39,7 +49,10 @@ file-level inventory, by `mockito::Server::new()` construction site —
 `tests/lcv123_agent_turn.rs` 2 — is smaller than 23 because several sites sit in
 loops and shared helpers that back more than one test.
 
-**2. The rule underneath it was never written down.** "A test is isolated from
+**2. One leaking fixture survives.** Named above:
+`src/agent/transport.rs::unreachable_endpoint_is_a_request_error`.
+
+**3. The rule underneath it was never written down.** "A test is isolated from
 the network because the address is unreachable" is the assumption that failed,
 and nothing in `AGENTS.md` forbids the next person making it. Unreachability is
 a property of the *environment*, which a test does not control; unparseability
@@ -90,12 +103,20 @@ is what needs recording, because it generalises past reqwest and past the agent.
    `no_proxy` and `proxy` (built with `concat!`) appear nowhere in it. The fix
    is in the test environment, never in the transport.
 
-3. **No test depends on an address being unreachable.** A scan over `src/` and
-   `tests/` finds no occurrence of `127.0.0.1:1` or any other
-   "nothing-listens-here" endpoint literal used as a stand-in for "the network
-   is off". The scan lives in `tests/`, so it cannot match itself; needles built
-   with `concat!`; paths rebuilt from `components()` joined with `/`; shown to
-   discriminate.
+3. **No test depends on an address being unreachable.**
+   `src/agent/transport.rs::unreachable_endpoint_is_a_request_error` stops
+   using `http://127.0.0.1:1` while keeping what it actually tests — that a
+   connect failure is `TransportError::Request` and not a panic. It must still
+   exercise the **connect** path, so LCV-124's unparseable string is the wrong
+   substitute (that is the builder path). The likely shape is a
+   `TcpListener` bound to `127.0.0.1:0`, its port read, and the listener
+   dropped, so the port is closed *and* the test owns the fact — which only
+   works once AC 1's mechanism is in place, which is why the two ship together.
+   Then a scan over `src/` and `tests/` finds no occurrence of `127.0.0.1:1`
+   or any other "nothing-listens-here" endpoint literal used as a stand-in for
+   "the network is off". The scan lives in `tests/`, so it cannot match itself;
+   needles built with `concat!`; paths rebuilt from `components()` joined with
+   `/`; shown to discriminate.
 
 4. **The rule is written where the next person will read it.**
    `AGENTS.md` §Implementation Rules gains one entry, in the existing voice,
@@ -166,8 +187,9 @@ is what needs recording, because it generalises past reqwest and past the agent.
   **reproduced** leak — a listener on the proxy address captured a real `POST`
   with `authorization: Bearer sk-test-DO-NOT-LEAK` and the full system prompt
   while the suite reported 11 passed, 0 failed.
-- Priority: **low and explicitly so.** The failure mode is loud, the leak half
-  is fixed in LCV-124, and nothing an operator can do is affected. It is filed
+- Priority: **low and explicitly so.** The failure mode is loud, the incident
+  half is fixed in LCV-124 (`a1b37aa`), the fixture that survives carries a
+  dummy key and no system prompt, and nothing an operator can do is affected. It is filed
   so the afternoon it costs is spent once, by someone who reads this file first.
 - LCV-129 adds two loopback `TcpListener` fixtures reached through `reqwest`
   (its AC 3). They join this demand's inventory and are subject to the same fix;
