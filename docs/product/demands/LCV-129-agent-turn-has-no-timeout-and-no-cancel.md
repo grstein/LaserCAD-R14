@@ -336,6 +336,18 @@ repository and the local gate is the authoritative standard.
 - **Unit / AC 8** — the two bounded panel scans; plus a headless
   `App::update_ui` frame with `agent_panel_open = true` and `agent_busy = true`
   that completes (ADR 0002 §A2: `App::default()`, never `App::new()`).
+
+  > **Conditional, added 2026-09-13.** If LCV-132 has landed by the time this
+  > demand is implemented, assert AC 8 and AC 7 as **painted text** instead of
+  > as scans: `harness::lines_on_surface_of` over a frame with
+  > `agent_busy = true` puts a line reading `Cancel` on the panel surface, the
+  > same frame with `agent_busy = false` does not, and after `cancel_turn` the
+  > cancel note and the undo-shape note come back as consecutive lines in that
+  > order. A scan proves the `Cancel` literal is written; it cannot prove the
+  > button was painted, and it cannot prove the two notes are in the right
+  > order — which is the whole of AC 7's second sentence. If LCV-132 has not
+  > landed, keep the scans and **do not block on it**; do not write a private
+  > shape collector here, because LCV-132 AC 3 exists to delete exactly that.
 - **Integration / AC 9** — post-cancel state, the repaint condition, and a
   second `start_turn` being accepted.
 - **Unit / AC 10** — both rendezvous-failure cases, no thread, no sleep.
