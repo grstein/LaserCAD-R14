@@ -132,19 +132,46 @@ is exactly how a wrong `delete_entity 3` happens.
 
 6. **`agent_poll` drains until `Empty`.** `poll_agent_rx` loops. In one frame it
    handles an unbounded number of `Act`s and then the terminal event, in the
-   order received. The `if let Ok(msg) = rx.try_recv()`/`agent_rx = None`
-   shape that exists today is gone: it drained exactly one message per frame and
-   cleared the channel unconditionally, which would swallow the first `Act` and
-   kill every turn.
+   order received. The pre-LCV-122 `if let Ok(msg) = rx.try_recv()` /
+   `agent_rx = None` shape must not come back: it drained exactly one message
+   per frame and cleared the channel unconditionally, which would swallow the
+   first `Act` and kill every turn. (LCV-122 landed the loop and the
+   `take()`/put-back; this demand preserves them.)
 
-7. **`agent_rx` and `agent_busy` are cleared only on a terminal event.** After a
-   frame that carried only `Act`s, `app.agent_rx.is_some()` and
-   `app.agent_busy` are both still true. They are cleared on `Done`, on
-   `Failed`, **and on `TryRecvError::Disconnected`** — a thread that panicked or
-   returned after cancellation must not leave the app permanently `agent_busy`,
-   because `src/app/mod.rs` requests a repaint on that flag and the app would
-   never idle again (LCV-120). The disconnected path appends an `error` row
-   reading `The agent turn ended unexpectedly.`
+7. **`agent_rx` and `agent_busy` are cleared on every turn exit, and only on a
+   turn exit.** After a frame that carried only `Act`s,
+   `app.agent_rx.is_some()` and `app.agent_busy` are both still true. ADR 0007
+   §D11 names **four** exits, and each one is a tail call to the single
+   `end_turn` that clears both flags and writes at most one row:
+   1. `Done` — the assistant's text, role `assistant`.
+   2. `Failed` — the worker's error, role `error`.
+   3. `TryRecvError::Disconnected` — the worker's `Sender` dropped without a
+      verdict: it panicked, it returned after cancellation, or the app is
+      closing. Row: the constant `agent_poll::AGENT_LOST_MESSAGE`, role
+      `error`.
+   4. **`reply.send(outcome)` returning `Err` while the UI thread is holding an
+      `Act`** — the worker vanished between asking and reading the answer.
+      Row: **the same constant and the same `error` role as (3)**, asserted
+      equal to (3)'s row rather than to a literal. Why the same row and not
+      silence: the reply `Sender` is built per request and rides inside the
+      `Act` (§D3), and a live worker blocks on its other half until the answer
+      arrives (§D2), so it cannot drop the receiving end while an `Act` is
+      outstanding. An `Err` from `reply.send` therefore means the worker is
+      gone, which means the event channel is closed too and (3) would have
+      written that row an instant later. Two spellings of "the worker is gone"
+      must not show the operator two different things. This arm **returns**; it
+      does not fall through to the next `try_recv`, because a dead reply
+      channel has to be sufficient on its own (§D11). The action that was
+      already applied stays applied and stays undoable.
+
+   The property all four share, and the one the tests pin: **a turn that does
+   not end in a clean `Done` says so in the transcript with role `error`, and
+   every exit leaves the app idle.** A turn that leaves `agent_busy` set is a
+   permanent repaint loop — `src/app/mod.rs` requests a repaint on every frame
+   while the flag is set — which is LCV-120 reopened with a symptom that
+   surfaces nowhere near the agent. The **wording** of `AGENT_LOST_MESSAGE`
+   belongs to the code, not to this demand: every assertion names the constant,
+   so polishing the sentence can never fail a test or stale this file.
 
 8. **An action really lands on the operator's drawing.** Deterministic
    integration test, no HTTP and no thread: the test calls `arm_turn`, keeps the
@@ -271,7 +298,21 @@ is exactly how a wrong `delete_entity 3` happens.
     (built with `concat!`) is absent from every `agent_chat` content and from
     `command_feedback`.
 
-22. **Gates.** `cargo fmt --all -- --check`,
+22. **Turn-end work is the same on every exit.** `end_turn` is the only place a
+    turn ends (ADR 0007 §D11), so the AC 10 coalesce and the AC 11 note row run
+    on **all four** exits, under the same `may_coalesce` gate and the same
+    applied-action counter — not only on `Done`. An operator whose worker died
+    after three applied actions gets the same undo shape as one whose turn
+    finished: one `Ctrl+Z` if the fence held, three separate steps if it did
+    not. Anything else leaves half a turn's geometry on the bed with no single
+    way to take it off again before cutting. The action applied in exit (4)
+    **counts**: it is already in `History`, so a coalesce that excluded it would
+    strand it as a separate undo step. Exit (4) therefore always produces a note
+    row; an exit that applied zero actions produces none (AC 11). Row order at
+    turn end is fixed and asserted: the terminal row first (`assistant` or
+    `error`), then the `note` row.
+
+23. **Gates.** `cargo fmt --all -- --check`,
     `cargo clippy --all-targets -- -D warnings`, `cargo test --all` exit 0.
 
 ## Expected tests
@@ -294,8 +335,16 @@ is exactly how a wrong `delete_entity 3` happens.
   assert both actions applied in that one frame and the turn terminated in that
   same frame. A second test pushes only `Act` and asserts
   `agent_rx.is_some() && agent_busy` after the frame. A third **drops** the
-  `Sender` without a terminal event and asserts the next frame clears
-  `agent_busy` / `agent_rx` and appends the `error` row — the anti-stall guard.
+  event `Sender` without a terminal event and asserts the next frame clears
+  `agent_busy` / `agent_rx` and appends an `error` row carrying
+  `AGENT_LOST_MESSAGE` — the anti-stall guard. A fourth covers exit (4): push
+  one `Act`, **drop its reply `Receiver` before the frame and keep the event
+  `Sender` alive** — so no `Disconnected` can arrive and only the dead reply
+  channel says anything is wrong — then assert the frame clears `agent_busy` /
+  `agent_rx`, that the action really was applied, and that the row it appended
+  is **equal to the row the third test asserted** (compare against the
+  constant, and against the other exit's `(role, text)` pair; never against a
+  copy of the sentence).
 - **Integration / AC 8** — the deterministic single-action test described in
   AC 8, including reading the outcome back off the test's own reply receiver.
 - **Integration / AC 9** — two tests, one with a user `CreateCircle` and one
@@ -307,6 +356,12 @@ is exactly how a wrong `delete_entity 3` happens.
   The fence-aborted counterpart asserts `n` separate entries and the other
   sentence. A one-action turn and a zero-action turn assert their own sentences
   (and the absence of one).
+- **Integration / AC 22** — a three-action turn ended by `Disconnected`, and a
+  three-action turn ended by exit (4): in both, `history.len()` grew by exactly
+  1, one `Ctrl+Z` empties what the turn drew (including exit (4)'s last
+  action), and the `note` row is present and sits **after** the `error` row. A
+  fence-aborted counterpart ended by `Disconnected` asserts three separate undo
+  entries and the other sentence.
 - **Integration / AC 12** — a user commit succeeds while an `Act` is
   outstanding; plus a scan that no `*_open` flag is written by the three turn
   functions.
@@ -353,7 +408,13 @@ is exactly how a wrong `delete_entity 3` happens.
   `Act` → AC 8 fails by name;
   (g) delete `if self.agent_busy { ctx.request_repaint(); }` → the mockito
   end-to-end test times out and fails by name. **This mutation is the proof
-  that the repaint is load-bearing for progress**; run it and report it.
+  that the repaint is load-bearing for progress**; run it and report it;
+  (h) delete the `reply.send` failure arm and let it fall through to the next
+  `try_recv` → AC 7's exit-(4) test, which deliberately keeps the event
+  `Sender` alive, leaves `agent_busy` set and fails by name;
+  (i) make exit (4) end the turn **silently** (`end_turn(app, None)`, the
+  pre-amendment behaviour) → AC 7's same-row assertion fails by name;
+  (j) skip the coalesce on the two lost exits → AC 22 fails by name.
 - **[manual] smoke, recorded on LCV-089's checklist** — first real prompt
   against OpenRouter with the user's own API key. No CI test may reach a real
   endpoint.
@@ -380,16 +441,17 @@ is exactly how a wrong `delete_entity 3` happens.
 
 ## Risks
 
-- **The borrow in `poll_agent_rx` is the first thing that will fight the
-  implementer.** `&app.agent_rx` cannot be held across `apply(app, …)`. Take the
-  `Receiver` out with `app.agent_rx.take()` at the top of the loop and put it
-  back unless the event was terminal — that also makes AC 7 explicit rather than
-  incidental.
+- **The borrow in `poll_agent_rx` is what shaped that function.**
+  `&app.agent_rx` cannot be held across `apply(app, …)`, so LCV-122 already
+  takes the `Receiver` out with `app.agent_rx.take()` at the top of the loop and
+  puts it back only on `Empty`. Preserve that shape: it is what makes AC 7
+  explicit rather than incidental — every path that leaves the loop without
+  putting the receiver back is a tail call to `end_turn`.
 - **A stalled turn is a busy loop.** `agent_busy` stuck true means
   `ctx.request_repaint()` every frame forever, which is exactly the defect
-  LCV-120 just closed. Every exit path — `Done`, `Failed`, `Disconnected`, and
-  a `start_turn` that spawns a thread that panics — must clear it. AC 7 is the
-  guard.
+  LCV-120 just closed. All four exit paths — `Done`, `Failed`, `Disconnected`,
+  a failed `reply.send` — plus a `start_turn` that spawns a thread that panics,
+  must clear it. AC 7 is the guard.
 - **The fence is deliberately conservative and will surprise people.** Clicking
   an entity mid-turn bumps the revision through `SelectionCommand` and aborts
   the turn. That is correct — `query_selection` means something different
@@ -416,8 +478,18 @@ is exactly how a wrong `delete_entity 3` happens.
   §D1 (the thread owns nothing), §D2 (rendezvous, one at a time), §D3 (one
   channel, reply rides inside), §D4 (the fence), §D5 (index disclosure), §D6
   (coalesce, gated), §D7 (budget, clamped at the read site), §D8 (file
-  responsibilities and the three boundary rules). This demand implements it; it
-  does not re-decide it.
+  responsibilities and the three boundary rules), §D11 as amended 2026-09-13
+  (**four** turn exits, all through one `end_turn`, and exits (3) and (4)
+  showing the operator the same row). This demand implements it; it does not
+  re-decide it.
+- **No sentence the operator reads is quoted from the code into an AC.** AC 7
+  names `agent_poll::AGENT_LOST_MESSAGE` instead of reproducing it, because a
+  demand that hardcodes copy forces a demand round-trip every time the wording
+  is polished, and this repo has already spent a review round on stale doc
+  comments. Non-normative, for the reader only: today the constant reads
+  *"Agent turn ended without a reply."* — if that changes, nothing here needs
+  to. The sentences in AC 11 are different: nothing in `src/` owns them yet,
+  so the demand is where they are decided.
 - **`src/app/mod.rs`'s `if self.agent_busy { ctx.request_repaint(); }` is the
   one repaint site this demand must leave alive.** LCV-120 was explicitly told
   not to remove it, and ADR 0007 §Consequences explains why: the rendezvous only
