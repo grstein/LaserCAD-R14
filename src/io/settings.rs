@@ -1,21 +1,25 @@
 //! User-preference persistence via a JSON file in the platform config directory.
 //!
-//! ## Two-layer API
+//! ## One path-injected API (ADR 0006)
 //!
-//! - **Public** [`load()`] / [`Settings::save()`]: resolve the platform path via
-//!   [`directories::ProjectDirs`] and delegate to the path-injected variants.
-//! - **`pub(crate)`** [`load_from()`] / [`save_to()`]: accept an explicit
-//!   [`std::path::Path`] so unit tests can inject a temporary path.
+//! - [`platform_path()`] resolves the real per-user file through
+//!   [`directories::ProjectDirs`]. It is called from exactly one place,
+//!   `App::new()`, which stores the result on the `App` it returns; nothing
+//!   below boot resolves a real user location.
+//! - [`load_from()`] / [`save_to()`] take an explicit [`std::path::Path`], so
+//!   the only way to read or write settings is to hand over a path. A test
+//!   points that path at a temporary directory; a process that was given no
+//!   path (`App::default()`) writes nothing at all.
 //!
-//! `load()` and `load_from()` are both **infallible** — they return
+//! `load_from()` is **infallible** — it returns
 //! [`Settings::default()`] on any error (missing file, parse failure, no
 //! platform dir). A file that exists but fails to parse is renamed to a
 //! `.bak` sibling before defaults are returned (mirroring the `.tmp` staging
 //! file used by `save_to`), so the unreadable bytes are preserved rather than
 //! silently discarded; if that rename itself fails (e.g. an unwritable
 //! directory), the failure is ignored and defaults are still returned. A
-//! missing file is left alone — no `.bak`, no side effects. `save` and
-//! `save_to` return a [`Result`] so callers can log or surface the error.
+//! missing file is left alone — no `.bak`, no side effects. `save_to` returns
+//! a [`Result`] so callers can log or surface the error.
 //!
 //! ## Atomic write
 //!
@@ -41,11 +45,6 @@ use crate::util::{clamp_bed_mm, DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
 /// The *read* path is infallible — it returns [`Settings::default()`] instead.
 #[derive(Debug, thiserror::Error)]
 pub enum SettingsError {
-    /// The platform could not supply a config directory (rare, but possible on
-    /// some minimal Linux installations without `$HOME`).
-    #[error("could not determine platform config directory")]
-    NoPlatformPath,
-
     /// JSON serialisation failed.
     #[error("JSON serialisation error: {0}")]
     Json(#[from] serde_json::Error),
@@ -143,26 +142,6 @@ impl Settings {
             clamp_bed_mm(self.default_bed_mm[1]),
         ]
     }
-
-    /// Load settings from the platform config directory (infallible).
-    ///
-    /// Returns [`Settings::default()`] if the platform directory is
-    /// unavailable, the file does not exist, or parsing fails.
-    pub fn load() -> Settings {
-        match platform_path() {
-            Some(path) => load_from(&path),
-            None => Settings::default(),
-        }
-    }
-
-    /// Persist settings to the platform config directory.
-    ///
-    /// Uses an atomic write: serialises to a `.tmp` sibling first, then
-    /// renames to the final path.
-    pub fn save(&self) -> Result<(), SettingsError> {
-        let path = platform_path().ok_or(SettingsError::NoPlatformPath)?;
-        save_to(self, &path)
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -236,7 +215,12 @@ fn sibling_with_suffix(path: &Path, suffix: &str) -> PathBuf {
 
 /// Returns the canonical settings file path for this platform, or `None` if
 /// `directories` cannot resolve a config dir (e.g. no `$HOME`).
-fn platform_path() -> Option<PathBuf> {
+///
+/// **Boot-only (ADR 0006).** The single caller is `App::new()`, which stores
+/// the result on the `App` it returns and hands it to every later read and
+/// write. Calling this anywhere else reopens the defect LCV-119 closed: a
+/// test would reach the developer's real `~/.config/lasercad/settings.json`.
+pub(crate) fn platform_path() -> Option<PathBuf> {
     directories::ProjectDirs::from("", "", "lasercad")
         .map(|dirs| dirs.config_dir().join("settings.json"))
 }

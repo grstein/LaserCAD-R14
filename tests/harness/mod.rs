@@ -7,8 +7,12 @@
 //! 1. **Never send `Ctrl+O`, `Ctrl+S` or `Ctrl+Shift+S`.** They reach
 //!    `src/io/file_actions.rs`, which opens a blocking native `rfd` dialog and
 //!    hangs the run. `Ctrl+N` and `Ctrl+Z` / `Ctrl+Y` are safe.
-//! 2. **Never let the autosave debounce elapse.** A fired autosave writes to
-//!    the user's real data directory.
+//! 2. **Autosave is path-injected (LCV-119, ADR 0006).** An `App` built by
+//!    `App::default()` carries `autosave_path: None`, so a fired autosave
+//!    writes nothing at all — letting the debounce elapse is now harmless.
+//!    A test that wants a real flush sets `autosave_path` to a file inside a
+//!    temporary directory it owns and asserts on those bytes; never point it
+//!    at the user's real data directory.
 //! 3. **Pointer tests run a warm-up frame** carrying `PointerMoved` alone
 //!    before the frame carrying `PointerButton`: with both in one frame the
 //!    widget rect is not yet registered for hit-testing, `response.hovered()`

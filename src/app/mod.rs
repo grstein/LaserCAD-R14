@@ -14,7 +14,8 @@
 //! discard-confirmation dialog, LCV-113), `bed_dialog` (the Bed size… modal,
 //! LCV-114). `init` holds the two `App` constructors — `Default` and
 //! [`App::new`] — moved out of this file to stay under the 300-LOC
-//! implementation cap (LCV-115). `ortho`, `snap` and `agent_poll`
+//! implementation cap (LCV-115); `persist` holds the three methods that are
+//! the only readers of the two injected path fields (LCV-119, ADR 0006). `ortho`, `snap` and `agent_poll`
 //! hold pure helpers those phases call, and `cmdline` resolves one submitted
 //! command line into a [`ToolInput`](crate::cmdline::ToolInput) (LCV-111).
 //!
@@ -29,6 +30,7 @@ mod init;
 mod input;
 mod ortho;
 mod panels;
+mod persist;
 mod snap;
 mod viewport;
 
@@ -77,6 +79,14 @@ pub struct App {
     /// Persisted user preferences (recent files, etc.). Loaded from the
     /// platform config directory on startup; written back on change (LCV-058).
     pub settings: Settings,
+    /// Where `settings` is written back, resolved once at boot (ADR 0006).
+    /// `None` means this process does not persist settings and every write is
+    /// a no-op — the state `App::default()` leaves it in.
+    pub settings_path: Option<std::path::PathBuf>,
+    /// Where the crash-recovery autosave file lives, resolved once at boot
+    /// (ADR 0006). `None` means this process neither writes nor deletes an
+    /// autosave file — the state `App::default()` leaves it in.
+    pub autosave_path: Option<std::path::PathBuf>,
     /// Set to `Some(Instant::now())` the first time the document is dirtied
     /// after the last autosave flush (or after startup). Cleared back to
     /// `None` after each successful autosave write.
@@ -323,6 +333,17 @@ mod tests {
             !implementation.contains("pub bed:"),
             "App must not own a bed; the document does (LCV-114 AC 4)"
         );
+    }
+
+    /// LCV-119 AC 3 / ADR 0006 — the test constructor is given no real user
+    /// location, so every persistence call it can reach is a no-op. This is
+    /// the property that stops `cargo test` writing the developer's
+    /// `~/.config/lasercad` and deleting their `~/.local/share/lasercad`.
+    #[test]
+    fn app_default_has_no_persistence_paths() {
+        let app = App::default();
+        assert_eq!(app.settings_path, None);
+        assert_eq!(app.autosave_path, None);
     }
 
     /// LCV-114 AC 14 — the Bed size… modal starts closed.

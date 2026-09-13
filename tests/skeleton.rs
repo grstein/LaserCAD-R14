@@ -20,7 +20,7 @@ fn module_tree_is_wired() {
         std::any::TypeId::of::<cmdline::CommandHistory>(),
         &document::SCHEMA_VERSION,
         &geometry::EPSILON,
-        io::load_autosave as fn() -> Option<document::Document>,
+        std::any::TypeId::of::<io::Preset>(),
         std::any::TypeId::of::<render::Camera>(),
         &text::CAP_HEIGHT_HERSHEY,
         std::any::TypeId::of::<tools::ToolManager>(),

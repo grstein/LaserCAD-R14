@@ -27,11 +27,14 @@ use crate::io::Preset;
 use crate::render::Camera;
 use crate::tools::ToolManager;
 
-/// The test constructor (ADR 0002 §A2). Touches no filesystem: `settings`
-/// is `Settings::default()`, `document` is never replaced with an autosaved
-/// or persisted one. Safe to call from any `#[cfg(test)]` context. Boot code
-/// must use [`App::new`] instead, which additionally reads the platform
-/// config directory and the platform data directory.
+/// The test constructor (ADR 0002 §A2). Touches no filesystem, and — since
+/// LCV-119 / ADR 0006 — *cannot*: `settings_path` and `autosave_path` are
+/// both `None`, so every persistence call the resulting `App` can reach is a
+/// no-op. `settings` is `Settings::default()` and `document` is never
+/// replaced with an autosaved one. Safe to call from any `#[cfg(test)]`
+/// context; a test that wants real persistence points the two path fields at
+/// a temporary directory it owns. Boot code must use [`App::new`] instead,
+/// which resolves the two real platform locations.
 impl Default for App {
     fn default() -> Self {
         Self {
@@ -43,6 +46,8 @@ impl Default for App {
             active_snap: None,
             tool_manager: ToolManager::default(),
             settings: Settings::default(),
+            settings_path: None,
+            autosave_path: None,
             dirty_since: None,
             last_synced_revision: 0,
             last_autosave_at: None,
@@ -73,28 +78,47 @@ impl Default for App {
 }
 
 impl App {
-    /// Construct the application: boot-only. Reads the platform **config**
-    /// directory (via [`Settings::load`]) and the platform **data**
-    /// directory (via [`crate::io::load_autosave`]) — the two real
-    /// filesystem locations `App::default()` never touches. MUST NOT be
-    /// called from tests (ADR 0002 §A2); tests use [`App::default`].
+    /// Construct the application: boot-only. **The one place in the tree
+    /// that resolves a real per-user filesystem location** (LCV-119,
+    /// ADR 0006): it calls the two `platform_path` resolvers, stores their
+    /// results in `settings_path` / `autosave_path`, and every later read or
+    /// write goes through those fields. MUST NOT be called from tests
+    /// (ADR 0002 §A2); tests use [`App::default`].
     ///
     /// Calls [`Self::default()`] for all fields, then:
-    /// - loads persisted settings — recent files, agent endpoint, agent API
-    ///   key — overwriting the default `settings`;
-    /// - overwrites `document` with the autosaved one, if present and
-    ///   schema-compatible (LCV-059 AC#1) — the envelope's own `bed_mm` wins;
+    /// - loads persisted settings from the resolved config path — recent
+    ///   files, agent endpoint, agent API key — overwriting the default
+    ///   `settings`;
+    /// - overwrites `document` with the autosaved one from the resolved data
+    ///   path, if present and schema-compatible (LCV-059 AC#1) — the
+    ///   envelope's own `bed_mm` wins;
     /// - otherwise seeds the blank document's bed from
     ///   `settings.default_bed_mm` (LCV-114 AC 11).
     ///
-    /// Performs no write of its own: no `settings.save()`, no autosave
-    /// write, no file created on the startup path.
+    /// A platform that supplies no config or data directory degrades to
+    /// defaults, never to a panic: an unresolved path is the same `None` the
+    /// test constructor carries, and simply means this process does not
+    /// persist.
+    ///
+    /// Performs no write of its own: no settings write, no autosave write, no
+    /// file created on the startup path.
     pub fn new() -> Self {
+        let settings_path = crate::io::settings::platform_path();
+        let autosave_path = crate::io::autosave::platform_path();
         let mut app = Self {
-            settings: Settings::load(),
+            settings: settings_path
+                .as_deref()
+                .map(crate::io::settings::load_from)
+                .unwrap_or_default(),
+            settings_path,
+            autosave_path,
             ..Self::default()
         };
-        if let Some(recovered) = crate::io::load_autosave() {
+        let recovered = app
+            .autosave_path
+            .as_deref()
+            .and_then(crate::io::autosave::load_autosave_from);
+        if let Some(recovered) = recovered {
             app.document = recovered;
         } else {
             app.document.bed_mm = app.settings.clamped_default_bed_mm();
@@ -105,6 +129,77 @@ impl App {
 
 #[cfg(test)]
 mod tests {
+    /// LCV-119 AC 2 / ADR 0006 — `App::new` is the **only** place that
+    /// resolves a real per-user filesystem location, and it must fill *both*
+    /// path fields. If it ever stops filling one, the app silently stops
+    /// persisting that half and no behavioural test can notice, because no
+    /// test may call `App::new` (ADR 0002 §A2). This scan is the only guard
+    /// against that failure mode, so it is deliberately literal.
+    ///
+    /// The haystack stops at the test module and is further narrowed to
+    /// `App::new`'s body, and each needle is assembled with `concat!` so it
+    /// never appears whole in this test's own source: the scan cannot match
+    /// itself.
+    #[test]
+    fn boot_resolves_and_stores_both_real_user_paths() {
+        let body = app_new_body();
+        assert!(
+            body.contains(concat!("crate::io::settings::", "platform_path()")),
+            "App::new must resolve the settings path (AC 2)"
+        );
+        assert!(
+            body.contains(concat!("crate::io::autosave::", "platform_path()")),
+            "App::new must resolve the autosave path (AC 2)"
+        );
+        for field in [concat!("settings", "_path,"), concat!("autosave", "_path,")] {
+            assert!(
+                body.contains(field),
+                "App::new must store `{field}` on the App it returns (AC 2)"
+            );
+        }
+        assert!(
+            body.contains("..Self::default()"),
+            "positive control: App::new still builds on the test constructor"
+        );
+    }
+
+    /// LCV-119 AC 11 — boot performs no write of its own. A settings write on
+    /// the startup path would rewrite the operator's file with whatever
+    /// parsed (or failed to parse), before they have touched anything.
+    #[test]
+    fn boot_performs_no_write_of_its_own() {
+        let body = app_new_body();
+        assert!(
+            body.contains(concat!("crate::io::settings::", "load_from")),
+            "positive control: boot reads the settings file"
+        );
+        for writer in [
+            concat!("save", "_to("),
+            concat!("persist", "_settings()"),
+            concat!("write", "_autosave()"),
+        ] {
+            assert!(
+                !body.contains(writer),
+                "App::new must not `{writer}` on the startup path (AC 11)"
+            );
+        }
+    }
+
+    /// The source text of `App::new`'s body, bounded to the implementation
+    /// section (everything before the bare `#[cfg(test)]` anchor) and then to
+    /// the function itself.
+    fn app_new_body() -> &'static str {
+        let src = include_str!("init.rs");
+        let cfg_test_at = src
+            .find("\n#[cfg(test)]")
+            .expect("init.rs must have a test module to bound the scan");
+        let implementation = &src[..cfg_test_at];
+        let start = implementation
+            .find("pub fn new() -> Self {")
+            .expect("App::new must exist");
+        &implementation[start..]
+    }
+
     /// LCV-114 AC 11, boot half — a cold start with no autosave seeds the
     /// blank document from the settings default; a recovered autosave keeps
     /// its own bed.

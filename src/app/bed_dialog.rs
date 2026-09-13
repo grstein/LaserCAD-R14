@@ -62,7 +62,7 @@ pub fn draw_bed_dialog(ctx: &egui::Context, app: &mut App) {
     app.bed_dialog = Some(draft);
     if let Some(result) = result {
         if apply_bed_dialog_result(app, result) {
-            app.settings.save().ok();
+            app.persist_settings();
         }
     }
 }

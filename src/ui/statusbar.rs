@@ -125,7 +125,8 @@ pub(crate) fn format_preset(preset: Preset) -> &'static str {
 /// `write_pending` wins over `ever_saved`: what the operator needs to know is
 /// whether the *current* state of the drawing is on disk.
 ///
-/// This does **not** report autosave *failures*. `save_autosave`'s error is
+/// This does **not** report autosave *failures*. The error behind
+/// `App::write_autosave`'s `false` is
 /// swallowed today (LCV-102); surfacing it is its own demand. What the
 /// indicator distinguishes is "an autosave has happened this session" from
 /// "none has", which is honest with the information available.

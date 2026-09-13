@@ -67,20 +67,25 @@ pub fn draw_dialogs(ctx: &egui::Context, app: &mut App) {
 /// The Agent Settings window (LCV-076). Persists the settings when the window
 /// closes, whether by the × button or programmatically.
 fn agent_settings_dialog(ctx: &egui::Context, app: &mut App) {
-    let open = &mut app.agent_settings_open;
-    let settings = &mut app.settings;
-    let was_open = *open;
-    egui::Window::new("Agent Settings")
-        .open(open)
-        .resizable(false)
-        .collapsible(false)
-        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-        .show(ctx, |ui| {
-            crate::agent::settings_ui::draw_agent_settings(ui, settings);
-        });
+    let was_open = app.agent_settings_open;
+    {
+        // The window borrows `agent_settings_open` and `settings` mutably for
+        // its whole lifetime; `App::persist_settings` needs `&App`, so the
+        // borrows are scoped and the write happens after they end (LCV-119).
+        let open = &mut app.agent_settings_open;
+        let settings = &mut app.settings;
+        egui::Window::new("Agent Settings")
+            .open(open)
+            .resizable(false)
+            .collapsible(false)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .show(ctx, |ui| {
+                crate::agent::settings_ui::draw_agent_settings(ui, settings);
+            });
+    }
     // Save on dialog close (× button or programmatic close).
-    if was_open && !*open {
-        settings.save().ok();
+    if was_open && !app.agent_settings_open {
+        app.persist_settings();
     }
 }
 

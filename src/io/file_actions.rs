@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use crate::app::App;
 use crate::document::{Document, History};
 use crate::io::svg::{export_svg, import_svg};
-use crate::io::{clear_autosave, open_file_dialog, save_file_dialog};
+use crate::io::{open_file_dialog, save_file_dialog};
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -50,7 +50,7 @@ pub fn action_new(app: &mut App) {
     app.history = History::default();
     app.current_file = None;
     app.mark_saved();
-    clear_autosave();
+    app.clear_autosave();
 }
 
 /// Open a document from disk via a native file-open dialog.
@@ -100,8 +100,8 @@ pub fn action_open(app: &mut App) {
     app.mark_saved();
     app.settings
         .push_recent_file(path.to_string_lossy().into_owned());
-    let _ = app.settings.save();
-    clear_autosave();
+    app.persist_settings();
+    app.clear_autosave();
 }
 
 /// Save the document to the current file path, in `app.export_preset`'s
@@ -128,7 +128,7 @@ pub fn action_save(app: &mut App) {
     }
 
     app.mark_saved();
-    clear_autosave();
+    app.clear_autosave();
 }
 
 /// Load a document from a known file path (no dialog).
@@ -169,8 +169,8 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
     app.mark_saved();
     app.settings
         .push_recent_file(path.to_string_lossy().into_owned());
-    let _ = app.settings.save();
-    clear_autosave();
+    app.persist_settings();
+    app.clear_autosave();
 }
 
 /// Present a save dialog and write the document to the chosen path, in
@@ -210,8 +210,8 @@ pub fn action_save_as(app: &mut App) {
     app.mark_saved();
     app.settings
         .push_recent_file(path.to_string_lossy().into_owned());
-    let _ = app.settings.save();
-    clear_autosave();
+    app.persist_settings();
+    app.clear_autosave();
 }
 
 // ---------------------------------------------------------------------------
@@ -223,7 +223,76 @@ mod tests {
     use super::*;
     use crate::document::{CreateLine, Entity};
     use crate::geometry::{Line, Vec2};
+    use crate::io::Preset;
+    use std::path::Path;
     use std::time::Instant;
+
+    // --- tempdir fixtures (LCV-119 / ADR 0006) ------------------------------
+
+    /// A private, empty directory under the system temp dir, named after the
+    /// test that owns it so parallel tests never share one. Leftovers from a
+    /// previous run are removed first, which is what makes the `read_dir`
+    /// counting assertions meaningful.
+    fn tempdir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("lcv119_fa_{name}"));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// An `App` whose two persistence paths point inside `dir` — the ADR 0006
+    /// way to drive a file action from a test. Nothing it writes escapes the
+    /// temporary directory.
+    fn app_with_tempdir(dir: &Path) -> App {
+        App {
+            settings_path: Some(dir.join("settings.json")),
+            autosave_path: Some(dir.join("autosave.json")),
+            ..App::default()
+        }
+    }
+
+    /// Write a real SVG into `dir` carrying `bed_mm` in its header and one
+    /// line in `preset`'s colour group, through the production exporter, so
+    /// the test reads back exactly what the app would have written.
+    fn svg_file(dir: &Path, name: &str, bed_mm: [f64; 2], preset: Preset) -> PathBuf {
+        let mut doc = Document {
+            bed_mm,
+            ..Document::default()
+        };
+        doc.entities.push(Entity::Line(Line::new(
+            Vec2::new(10.0, 10.0),
+            Vec2::new(40.0, 25.0),
+        )));
+        let path = dir.join(name);
+        fs::write(&path, export_svg(&doc, preset)).unwrap();
+        path
+    }
+
+    /// A stand-in crash-recovery file at `dir/autosave.json`.
+    fn seeded_autosave(dir: &Path) -> PathBuf {
+        let path = dir.join("autosave.json");
+        fs::write(&path, br#"{"probe":"lcv119"}"#).unwrap();
+        path
+    }
+
+    /// The source text of `fn action_open`, bounded to the implementation
+    /// section and then to the function, so a test body can never satisfy a
+    /// scan over it.
+    fn action_open_body() -> &'static str {
+        let src = include_str!("file_actions.rs");
+        let cfg_test_at = src
+            .find("\n#[cfg(test)]")
+            .expect("file_actions.rs must have a bare #[cfg(test)] anchor");
+        let implementation = &src[..cfg_test_at];
+        let start = implementation
+            .find("pub fn action_open(app: &mut App)")
+            .expect("action_open must exist");
+        let end = implementation[start..]
+            .find("\n/// Save the document")
+            .expect("action_open is followed by action_save")
+            + start;
+        &implementation[start..end]
+    }
 
     // --- AC 1 — compile-time function-signature check -----------------------
 
@@ -274,102 +343,170 @@ mod tests {
         assert_eq!(app.document.bed_mm, [1.0, 2000.0]);
     }
 
-    /// LCV-114 AC 10 — both open paths install the *file's* bed and neither
-    /// writes the settings seed.
+    /// LCV-114 AC 10, repaid behaviourally by LCV-119 AC 12 — `action_open_path`
+    /// installs the *file's* bed, leaves the operator's settings seed alone,
+    /// persists the recent-files list, and drops the stale recovery file.
     ///
-    /// A source scan rather than a behavioural test: `action_open` opens a
-    /// native dialog (ADR 0005 — it panics outside `crate::run`) and
-    /// `action_open_path` calls `settings.save()`, which would overwrite the
-    /// developer's real `settings.json` — including their API key — with the
-    /// `Settings::default()` a test `App` carries. The behaviour these two
-    /// lines produce is covered end-to-end, without the filesystem, by
-    /// `tests/lcv114_bed_roundtrip.rs`.
+    /// Every path this test touches is inside a temporary directory it owns:
+    /// `settings_path` and `autosave_path` are injected (ADR 0006), so the
+    /// developer's real `~/.config/lasercad` and `~/.local/share/lasercad`
+    /// are not involved. Before LCV-119 this test could not be written at all
+    /// and the criterion was paid for with a source scan.
     ///
-    /// The haystack is bounded to each function's body, so this test's own
+    /// The `action_open` half stays a scan, in
+    /// [`open_via_the_dialog_adopts_the_file_bed_and_leaves_the_seed_alone`].
+    #[test]
+    fn both_open_paths_adopt_the_file_bed_and_leave_the_seed_alone() {
+        let dir = tempdir("open_path_bed");
+        // A bed that is neither the 400 mm default nor the settings seed, so
+        // neither fallback can accidentally satisfy the assertion.
+        let file_bed = [265.0, 185.0];
+        let svg = svg_file(&dir, "bed.svg", file_bed, Preset::Cut);
+        let autosave = seeded_autosave(&dir);
+
+        let mut app = app_with_tempdir(&dir);
+        app.settings.default_bed_mm = [333.0, 222.0];
+        action_open_path(&mut app, svg.clone());
+
+        assert_eq!(app.error_message, None, "the open must succeed");
+        assert_eq!(
+            app.document.bed_mm, file_bed,
+            "the document adopts the file's bed (LCV-114 AC 10)"
+        );
+        assert_eq!(
+            app.settings.default_bed_mm,
+            [333.0, 222.0],
+            "opening a file must not re-home the operator's default"
+        );
+
+        let persisted = crate::io::settings::load_from(&dir.join("settings.json"));
+        assert_eq!(
+            persisted.recent_files.first().map(String::as_str),
+            Some(svg.to_string_lossy().as_ref()),
+            "the opened path is persisted at the front of the recent list"
+        );
+        assert_eq!(
+            persisted.default_bed_mm,
+            [333.0, 222.0],
+            "and the persisted seed is the operator's, not the file's"
+        );
+        assert!(
+            !autosave.exists(),
+            "the stale recovery file is dropped once a document is opened"
+        );
+    }
+
+    /// LCV-114 AC 10, dialog half — `action_open` opens a native `rfd` dialog,
+    /// which [ADR 0005](../../docs/adr/0005-native-dialogs-disarmed-by-default.md)
+    /// deliberately keeps unreachable from any test: it panics outside
+    /// `crate::run`. That is the only reason this half is a source scan, and
+    /// it does not expire — LCV-119 repaid the `action_open_path` half above
+    /// and ADR 0006 explicitly rules out injecting `rfd`.
+    ///
+    /// The haystack is bounded to the function's body, so this test's own
     /// source cannot satisfy it, and every claim has a positive control: the
     /// absence assertion sits next to presence assertions over the same slice.
     #[test]
-    fn both_open_paths_adopt_the_file_bed_and_leave_the_seed_alone() {
-        let src = include_str!("file_actions.rs");
-        for (start_marker, end_marker) in [
-            (
-                "pub fn action_open(app: &mut App)",
-                "\n/// Save the document",
-            ),
-            (
-                "pub fn action_open_path(app: &mut App, path: PathBuf)",
-                "\n/// Present a save dialog",
-            ),
-        ] {
-            let start = src
-                .find(start_marker)
-                .unwrap_or_else(|| panic!("{start_marker} must exist"));
-            let end = src[start..]
-                .find(end_marker)
-                .unwrap_or_else(|| panic!("{start_marker} must be followed by {end_marker}"))
-                + start;
-            let body = &src[start..end];
+    fn open_via_the_dialog_adopts_the_file_bed_and_leaves_the_seed_alone() {
+        let body = action_open_body();
+        assert!(
+            body.contains("import_svg(&content)"),
+            "positive control: action_open must import the file"
+        );
+        assert!(
+            body.contains("entities: imported.entities,"),
+            "positive control: the entities come from the import"
+        );
+        assert!(
+            body.contains("bed_mm: imported.bed_mm,"),
+            "action_open must adopt the file's bed (AC 10)"
+        );
+        assert!(
+            !body.contains("default_bed_mm"),
+            "opening a file must not re-home the operator's default (AC 10)"
+        );
+    }
+
+    /// LCV-115 AC 9, repaid behaviourally by LCV-119 AC 13 — `action_open_path`
+    /// adopts the *file's* preset, so Ctrl+S on a marking file returns its
+    /// geometry to the `mark` group instead of cutting through the workpiece.
+    /// The session starts on `Preset::Cut`, so a no-op implementation cannot
+    /// pass. Tempdir-injected paths (ADR 0006); the dialog half is
+    /// [`open_via_the_dialog_adopts_the_file_preset`].
+    #[test]
+    fn both_open_paths_adopt_the_file_preset() {
+        let dir = tempdir("open_path_preset");
+        let svg = svg_file(&dir, "mark.svg", [400.0, 400.0], Preset::Mark);
+
+        let mut app = app_with_tempdir(&dir);
+        assert_eq!(
+            app.export_preset,
+            Preset::Cut,
+            "positive control: the session starts on Cut"
+        );
+
+        action_open_path(&mut app, svg);
+
+        assert_eq!(app.error_message, None, "the open must succeed");
+        assert_eq!(
+            app.export_preset,
+            Preset::Mark,
+            "the session adopts the file's preset (LCV-115 AC 9)"
+        );
+    }
+
+    /// LCV-115 AC 9, dialog half — a source scan for the ADR 0005 reason and
+    /// that reason alone: `action_open` opens a native dialog no test may
+    /// reach.
+    #[test]
+    fn open_via_the_dialog_adopts_the_file_preset() {
+        let body = action_open_body();
+        assert!(
+            body.contains("import_svg(&content)"),
+            "positive control: action_open must import the file"
+        );
+        assert!(
+            body.contains("app.export_preset = imported.preset;"),
+            "action_open must adopt the file's preset (AC 9)"
+        );
+        for literal in ["Preset::Cut", "Preset::Mark", "Preset::Engrave"] {
             assert!(
-                body.contains("import_svg(&content)"),
-                "positive control: {start_marker} must import the file"
-            );
-            assert!(
-                body.contains("entities: imported.entities,"),
-                "positive control: the entities come from the import"
-            );
-            assert!(
-                body.contains("bed_mm: imported.bed_mm,"),
-                "{start_marker} must adopt the file's bed (AC 10)"
-            );
-            assert!(
-                !body.contains("default_bed_mm"),
-                "opening a file must not re-home the operator's default (AC 10)"
+                !body.contains(literal),
+                "action_open must not hard-code {literal}"
             );
         }
     }
 
-    /// LCV-115 AC 9 — both open paths adopt the *file's* preset, from
-    /// `ImportedSvg::preset`, and never hard-code one. Source scan: driving
-    /// `action_open*` from a test would pop a native dialog (ADR 0005) and
-    /// would rewrite the developer's real `settings.json`, so the behaviour is
-    /// covered at kernel level in `tests/lcv115_preset_roundtrip.rs` and the
-    /// wiring is covered here — the same split LCV-114 used for the bed.
+    /// LCV-119 AC 11 — `action_new` removes the autosave file it was *given*
+    /// and, with no path injected, removes nothing at all. The second half is
+    /// the regression this whole demand exists for: `cargo test` used to
+    /// delete the developer's real `~/.local/share/lasercad/autosave.json`
+    /// through exactly this call.
     #[test]
-    fn both_open_paths_adopt_the_file_preset() {
-        let src = include_str!("file_actions.rs");
-        for (start_marker, end_marker) in [
-            (
-                "pub fn action_open(app: &mut App)",
-                "\n/// Save the document",
-            ),
-            (
-                "pub fn action_open_path(app: &mut App, path: PathBuf)",
-                "\n/// Present a save dialog",
-            ),
-        ] {
-            let start = src
-                .find(start_marker)
-                .unwrap_or_else(|| panic!("{start_marker} must exist"));
-            let end = src[start..]
-                .find(end_marker)
-                .unwrap_or_else(|| panic!("{start_marker} must be followed by {end_marker}"))
-                + start;
-            let body = &src[start..end];
-            assert!(
-                body.contains("import_svg(&content)"),
-                "positive control: {start_marker} must import the file"
-            );
-            assert!(
-                body.contains("app.export_preset = imported.preset;"),
-                "{start_marker} must adopt the file's preset (AC 9)"
-            );
-            for literal in ["Preset::Cut", "Preset::Mark", "Preset::Engrave"] {
-                assert!(
-                    !body.contains(literal),
-                    "{start_marker} must not hard-code {literal}"
-                );
-            }
-        }
+    fn action_new_clears_only_the_injected_autosave_file() {
+        let dir = tempdir("new_clears_autosave");
+        let autosave = seeded_autosave(&dir);
+
+        let mut app = App {
+            autosave_path: Some(autosave.clone()),
+            ..App::default()
+        };
+        action_new(&mut app);
+        assert!(!autosave.exists(), "the injected autosave file is removed");
+
+        let dir = tempdir("new_clears_nothing");
+        let bystander = seeded_autosave(&dir);
+        let mut app = App::default();
+        action_new(&mut app);
+        assert!(
+            bystander.exists(),
+            "a pathless App must not delete a file it was never given"
+        );
+        assert_eq!(
+            std::fs::read_dir(&dir).unwrap().count(),
+            1,
+            "and must not create anything either"
+        );
     }
 
     /// LCV-115 AC 5 — both save paths export in the *session's* preset. Same

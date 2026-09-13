@@ -14,7 +14,8 @@
 //! ## Out of scope
 //!
 //! - File-existence checking (stale-path tombstoning).
-//! - Calling `settings.save()` — the caller owns persistence timing.
+//! - Persisting the settings — the caller owns persistence timing, through
+//!   `App::persist_settings` (ADR 0006).
 //! - SVG parsing / document replacement (LCV-057, LCV-062).
 
 use std::path::PathBuf;
@@ -60,7 +61,7 @@ pub fn recent_files(settings: &Settings) -> &[String] {
 ///
 /// # Caller responsibilities
 ///
-/// - Call `settings.save()` to persist the updated list.
+/// - Call `App::persist_settings` to persist the updated list.
 /// - Pass the returned [`PathBuf`] to the SVG importer (LCV-062).
 pub fn open_recent(index: usize, settings: &mut Settings) -> Result<PathBuf, OpenRecentError> {
     let len = settings.recent_files.len();

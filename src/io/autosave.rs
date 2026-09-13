@@ -1,13 +1,19 @@
 //! Crash-recovery autosave: debounced periodic save to the platform data dir,
 //! restored on the next boot if the file is present.
 //!
-//! ## Two-layer API
+//! ## One path-injected API (ADR 0006)
 //!
-//! - **Public** [`save_autosave`] / [`load_autosave`] / [`clear_autosave`]: resolve
-//!   the platform path via [`directories::ProjectDirs`] and delegate to the
-//!   path-injected variants.
-//! - **`pub(crate)`** [`save_autosave_to`] / [`load_autosave_from`]: accept an
-//!   explicit [`std::path::Path`] so unit tests can inject a temporary path.
+//! - [`platform_path()`] resolves the real per-user file through
+//!   [`directories::ProjectDirs`]. It is called from exactly one place,
+//!   `App::new()`, which stores the result on the `App` it returns; nothing
+//!   below boot resolves a real user location.
+//! - [`save_autosave_to`] / [`load_autosave_from`] / [`clear_autosave_at`]
+//!   take an explicit [`std::path::Path`], so the only way to touch an
+//!   autosave file is to hand over a path. A test points that path at a
+//!   temporary directory; a process that was given no path
+//!   (`App::default()`) neither writes nor deletes anything. Before LCV-119
+//!   this module's pathless wrappers made `cargo test` delete the
+//!   developer's own crash-recovery file on every run.
 //!
 //! ## On-disk format
 //!
@@ -18,7 +24,7 @@
 //! still recovers, at the default bed; [`SCHEMA_VERSION`] is therefore **not**
 //! bumped — the policy bumps it only on a breaking change.
 //! The schema version must match [`crate::document::entity::SCHEMA_VERSION`];
-//! any mismatch causes [`load_autosave`] to return `None` (safe silent
+//! any mismatch causes [`load_autosave_from`] to return `None` (safe silent
 //! discard).
 //!
 //! ## Kernel purity
@@ -43,10 +49,6 @@ use crate::util::{DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
 /// The *read* path is infallible — it returns `None` instead.
 #[derive(Debug, thiserror::Error)]
 pub enum AutosaveError {
-    /// The platform data directory could not be resolved.
-    #[error("could not determine platform data directory")]
-    NoPlatformPath,
-
     /// JSON serialisation failed.
     #[error("JSON serialisation error: {0}")]
     Json(#[from] serde_json::Error),
@@ -80,41 +82,7 @@ fn default_envelope_bed_mm() -> [f64; 2] {
 }
 
 // ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
-/// Persist `doc` to the platform autosave file.
-///
-/// Uses an atomic rename: writes to a `.tmp` sibling first, then renames to
-/// the final path to avoid leaving a corrupt file on a mid-write crash.
-/// Returns an error if the platform data directory cannot be resolved or if
-/// I/O fails; the caller should log but not surface this to the user.
-pub fn save_autosave(doc: &Document) -> Result<(), Box<dyn std::error::Error>> {
-    let path = platform_path().ok_or(AutosaveError::NoPlatformPath)?;
-    save_autosave_to(doc, &path).map_err(Into::into)
-}
-
-/// Restore a document from the platform autosave file.
-///
-/// Returns `None` on any error: missing file, parse failure, version mismatch,
-/// or no platform directory.  This is intentionally infallible so boot always
-/// succeeds.
-pub fn load_autosave() -> Option<Document> {
-    let path = platform_path()?;
-    load_autosave_from(&path)
-}
-
-/// Delete the platform autosave file if it exists.
-///
-/// Silently ignores errors (file already absent, permission denied, etc.).
-pub fn clear_autosave() {
-    if let Some(path) = platform_path() {
-        let _ = std::fs::remove_file(path);
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Path-injected helpers (pub(crate) for testing)
+// Path-injected API (ADR 0006 — the caller always supplies the path)
 // ---------------------------------------------------------------------------
 
 /// Persist `doc` to `path` using an atomic rename.
@@ -168,13 +136,28 @@ pub(crate) fn load_autosave_from(path: &Path) -> Option<Document> {
     })
 }
 
+/// Delete the autosave file at `path` if it exists.
+///
+/// Silently ignores every error (file already absent, permission denied,
+/// read-only medium): crash recovery is best-effort and a failure to tidy up
+/// must never abort the file action that asked for it.
+pub(crate) fn clear_autosave_at(path: &Path) {
+    let _ = std::fs::remove_file(path);
+}
+
 // ---------------------------------------------------------------------------
 // Platform path resolution
 // ---------------------------------------------------------------------------
 
 /// Returns `{data_dir}/lasercad/autosave.json`, or `None` if the platform
 /// cannot supply a data directory.
-fn platform_path() -> Option<PathBuf> {
+///
+/// **Boot-only (ADR 0006).** The single caller is `App::new()`, which stores
+/// the result on the `App` it returns and hands it to every later read,
+/// write and delete. Calling this anywhere else reopens the defect LCV-119
+/// closed: `cargo test` used to delete the developer's real
+/// `~/.local/share/lasercad/autosave.json` through exactly this resolver.
+pub(crate) fn platform_path() -> Option<PathBuf> {
     directories::ProjectDirs::from("", "", "lasercad")
         .map(|dirs| dirs.data_local_dir().join("autosave.json"))
 }

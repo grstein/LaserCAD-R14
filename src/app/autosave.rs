@@ -44,19 +44,24 @@ pub fn autosave_due(dirty_since: Option<Instant>, now: Instant) -> bool {
 /// call so the flush sees this frame's mutations.
 pub fn flush_if_due(app: &mut App) {
     if autosave_due(app.dirty_since, Instant::now()) {
-        record_autosave_outcome(app, crate::io::save_autosave(&app.document).is_ok());
+        // Two statements, not one: `record_autosave_outcome(app, app.write_autosave())`
+        // borrows `app` mutably and immutably in the same expression.
+        let wrote = app.write_autosave();
+        record_autosave_outcome(app, wrote);
     }
 }
 
 /// Apply the outcome of one autosave write attempt (LCV-116 AC 7).
 ///
 /// Split out of [`flush_if_due`] so both branches are reachable from a unit
-/// test without writing to the operator's real data directory — ADR 0002 §A4
-/// rule 2 forbids a test that lets a real flush happen, and there is no
-/// path-injected seam on [`crate::io::save_autosave`]. `flush_if_due` is the
-/// only caller and passes `save_autosave(...).is_ok()`; a bounded source scan
-/// in this file's tests pins that, so the seam cannot be rewired to a
-/// hard-coded `true`.
+/// test without needing a real write at all. Since LCV-119 / ADR 0006 there
+/// *is* a path-injected seam underneath —
+/// [`App::write_autosave`](super::App::write_autosave) writes to the autosave
+/// location this process was given at boot, and is a no-op returning `false`
+/// when it was given none — so a test may also drive the real write against a
+/// temporary directory it owns. `flush_if_due` is the only caller and passes the real
+/// `app.write_autosave()` result; a bounded source scan in this file's tests
+/// pins that, so the seam cannot be rewired to a hard-coded `true`.
 ///
 /// - `wrote == true` → stamp `last_autosave_at`. This is the only writer of
 ///   that field in the tree.
@@ -152,15 +157,35 @@ mod tests {
     }
 
     /// LCV-105 — a clean app is never flushed, so `flush_if_due` touches no
-    /// file and leaves the app clean. (A dirty app is deliberately not tested
-    /// here: a due flush writes to the real platform data directory —
-    /// ADR 0002 §A4 rule 2.)
+    /// file and leaves the app clean.
     #[test]
     fn flush_is_a_noop_while_clean() {
         let mut app = App::default();
         assert!(app.dirty_since.is_none());
         flush_if_due(&mut app);
         assert!(app.dirty_since.is_none());
+    }
+
+    /// LCV-119 — the case ADR 0002 §A4 rule 2 used to forbid outright: a
+    /// **due** flush on an `App::default()`. It writes nothing, because
+    /// `autosave_path` is `None`, and still clears the debounce so the check
+    /// cannot spin once per frame. Before LCV-119 this test could not exist —
+    /// it would have written the developer's real data directory.
+    #[test]
+    fn a_due_flush_with_no_injected_path_writes_nothing_and_still_settles() {
+        let mut app = App {
+            dirty_since: Instant::now().checked_sub(Duration::from_secs(5)),
+            ..App::default()
+        };
+        assert!(autosave_due(app.dirty_since, Instant::now()));
+
+        flush_if_due(&mut app);
+
+        assert!(
+            app.last_autosave_at.is_none(),
+            "a pathless App must not claim a save it did not make"
+        );
+        assert!(app.dirty_since.is_none(), "but the debounce is cleared");
     }
 
     /// LCV-116 AC 7 — a successful write stamps `last_autosave_at` and clears
@@ -228,14 +253,18 @@ mod tests {
     fn flush_feeds_the_real_write_result_into_the_outcome() {
         let body = flush_if_due_body();
         assert!(
-            body.contains("crate::io::save_autosave(&app.document).is_ok()"),
+            body.contains(concat!("let wrote = app.", "write_autosave();")),
             "flush_if_due must pass the real write result, not a literal"
         );
         assert!(
-            body.contains("record_autosave_outcome(app,"),
-            "positive control: the outcome helper is called from flush_if_due"
+            body.contains(concat!("record_autosave_outcome(app, ", "wrote);")),
+            "positive control: the real result reaches the outcome helper"
         );
-        for literal in ["record_autosave_outcome(app, true)", "let _ = crate::io"] {
+        for literal in [
+            concat!("record_autosave_outcome(app, ", "true)"),
+            concat!("record_autosave_outcome(app, ", "false)"),
+            concat!("let _ = app.", "write_autosave()"),
+        ] {
             assert!(!body.contains(literal), "flush_if_due must not {literal}");
         }
     }
