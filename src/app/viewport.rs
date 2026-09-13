@@ -42,9 +42,31 @@ pub fn draw(ctx: &egui::Context, app: &mut App) {
             handle_pan(&mut app.camera, response.drag_delta());
         }
 
-        // Always repaint so cursor-coords and smooth camera motion stay live.
-        ctx.request_repaint();
+        // Ask for a follow-up frame only while the canvas is live — see
+        // `viewport_is_live` and AGENTS.md §Event flow → Repaint policy. The
+        // status-bar coordinates are unaffected: `last_cursor_world` is written
+        // only inside `handle_hover`, which already runs under
+        // `response.hovered()`.
+        if viewport_is_live(&response, app) {
+            ctx.request_repaint();
+        }
     });
+}
+
+/// Is anything on the canvas moving, so that this frame needs a successor?
+///
+/// Exactly three terms and no fourth (LCV-120): the pointer is over the canvas,
+/// a drag is in progress — `dragged()` covers every button, including the
+/// middle-button pan handled just above the call — or a tool preview is on
+/// screen. Deliberately **not** `ToolManager::anchor`: a tool that is armed and
+/// waiting for its first click has nothing moving, and waking on it would keep
+/// the app running for most of a session.
+///
+/// Called after [`paint`], which is what assigns `app.preview_entities` from
+/// the active tool, so the third term reads this frame's preview rather than
+/// the previous one's.
+fn viewport_is_live(response: &egui::Response, app: &App) -> bool {
+    response.hovered() || response.dragged() || !app.preview_entities.is_empty()
 }
 
 /// Paint the canvas background and the whole render pipeline into `rect`.
@@ -197,6 +219,221 @@ pub fn handle_zoom_extents(camera: &mut Camera, document: &Document, viewport_si
 mod tests {
     use super::*;
     use crate::geometry::Vec2;
+
+    /// The source above the bare `#[cfg(test)]` at column 0 — the only slice a
+    /// source scan may read (ADR 0004's boundary, reused here). Bounding every
+    /// haystack this way is what stops a scan from matching the needle literal
+    /// in its own assertion and passing vacuously. Needles are built with
+    /// `concat!` on top of that, so the same text never appears verbatim in
+    /// both halves of a check.
+    fn implementation_of(src: &str) -> &str {
+        let at = src
+            .find("\n#[cfg(test)]")
+            .expect("a scanned file must have a bare #[cfg(test)] to bound the scan");
+        &src[..at]
+    }
+
+    /// Same boundary, for files that may carry no inline test module at all.
+    fn implementation_or_all(src: &str) -> &str {
+        match src.find("\n#[cfg(test)]") {
+            Some(at) => &src[..at],
+            None => src,
+        }
+    }
+
+    /// Every `.rs` file under `dir`, recursively.
+    fn rs_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(dir).expect("the source tree must be readable") {
+            let path = entry.expect("a readable directory entry").path();
+            if path.is_dir() {
+                rs_files(&path, out);
+            } else if path.extension().is_some_and(|e| e == "rs") {
+                out.push(path);
+            }
+        }
+    }
+
+    /// LCV-120 AC 1 — the predicate is private, named, and has exactly three
+    /// terms in the agreed order, with no fourth on the tool anchor.
+    ///
+    /// The `anchor` absence assertion is the one that could pass vacuously, so
+    /// it carries its own discrimination proof: the same needle *is* present in
+    /// the file at large (`handle_hover` reads `tool_manager.anchor()`), which
+    /// shows the scan would find it if it had been added to the predicate.
+    #[test]
+    fn the_live_predicate_has_exactly_three_terms() {
+        let implementation = implementation_of(include_str!("viewport.rs"));
+        let signature = concat!(
+            "fn viewport_is_",
+            "live(response: &egui::Response, app: &App) -> bool {"
+        );
+        let body = implementation
+            .split_once(signature)
+            .expect("AC 1: viewport_is_live must exist with that exact signature")
+            .1
+            .split_once("\n}")
+            .expect("the predicate must close")
+            .0;
+        assert!(
+            !body.trim().is_empty(),
+            "positive control: the scanned predicate body must not be empty"
+        );
+        assert!(
+            !implementation.contains(concat!("pub fn viewport_is_", "live")),
+            "AC 1: the predicate is private"
+        );
+
+        let hovered = body
+            .find(concat!("response.", "hovered()"))
+            .expect("AC 1: term 1 is response.hovered()");
+        let dragged = body
+            .find(concat!("response.", "dragged()"))
+            .expect("AC 1: term 2 is response.dragged(), which covers every button");
+        let preview = body
+            .find(concat!("!app.preview_", "entities.is_empty()"))
+            .expect("AC 1: term 3 is the live tool preview");
+        assert!(
+            hovered < dragged && dragged < preview,
+            "AC 1: the three terms must appear in that order"
+        );
+        assert_eq!(
+            body.matches("||").count(),
+            2,
+            "AC 1: exactly three terms, no fourth"
+        );
+
+        let anchor = concat!("anch", "or()");
+        assert!(
+            !body.contains(anchor),
+            "AC 1: no fourth term on the tool anchor — an armed tool has nothing moving"
+        );
+        assert!(
+            implementation.contains(anchor),
+            "discrimination control: the anchor needle is findable in this file, \
+             so its absence from the predicate is a real absence"
+        );
+    }
+
+    /// LCV-120 AC 2 — the repaint request is inside the guard, and the guard
+    /// sits after `paint` (so `preview_entities` is this frame's) and after the
+    /// middle-drag pan block.
+    #[test]
+    fn the_canvas_repaint_is_guarded_by_the_predicate() {
+        let implementation = implementation_of(include_str!("viewport.rs"));
+        let draw = implementation
+            .split_once("pub fn draw(")
+            .expect("draw must exist")
+            .1
+            .split_once("\n}\n")
+            .expect("draw must close")
+            .0;
+
+        let guard = draw
+            .find(concat!("if viewport_is_", "live(&response, app) {"))
+            .expect("AC 2: the repaint must be guarded by the named predicate");
+        let call = draw
+            .find(concat!("ctx.request_", "repaint();"))
+            .expect("positive control: draw must still ask for frames at all");
+        assert!(guard < call, "AC 2: the guard must precede the request");
+        assert_eq!(
+            implementation
+                .matches(concat!("ctx.request_", "repaint"))
+                .count(),
+            1,
+            "AC 2: exactly one repaint call site in this file"
+        );
+
+        let paint = draw
+            .find("paint(ui, rect, app);")
+            .expect("positive control: draw must paint");
+        let pan = draw
+            .find("handle_pan(&mut app.camera, response.drag_delta());")
+            .expect("positive control: draw must handle the middle-drag pan");
+        assert!(
+            paint < guard && pan < guard,
+            "AC 2: the guard reads this frame's preview and this frame's drag"
+        );
+    }
+
+    /// LCV-120 AC 3 — the comment no longer justifies the repaint with a
+    /// feature that does not exist. `Camera::pan` / `zoom_around` /
+    /// `zoom_extents` are all instantaneous; there is no animation in this tree.
+    #[test]
+    fn the_repaint_comment_claims_no_animation() {
+        let implementation = implementation_of(include_str!("viewport.rs"));
+        assert!(
+            implementation.contains(concat!("follow-up ", "frame")),
+            "positive control: the replacement comment must be in the scanned slice"
+        );
+        for claim in [
+            concat!("smooth ", "camera"),
+            concat!("anim", "ation"),
+            concat!("anim", "at"),
+            concat!("Always ", "repaint"),
+        ] {
+            assert!(
+                !implementation.contains(claim),
+                "AC 3: the comment must not claim {claim:?} — no such feature exists"
+            );
+        }
+    }
+
+    /// LCV-120 AC 8 — every `ctx.request_repaint*` call in `src/` is inside an
+    /// `if`, and there are exactly three of them: the agent turn in flight, the
+    /// pending autosave write, and the live canvas.
+    ///
+    /// The walk is over the real tree rather than three `include_str!`s so a
+    /// fourth site added in a fourth file is caught too.
+    #[test]
+    fn every_repaint_request_in_src_is_conditional() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut files = Vec::new();
+        rs_files(&root, &mut files);
+        files.sort();
+        assert!(
+            files.len() > 30,
+            "positive control: the walk must see the whole tree, saw {}",
+            files.len()
+        );
+
+        let needle = concat!("ctx.request_", "repaint");
+        let mut sites = Vec::new();
+        for path in &files {
+            let src = std::fs::read_to_string(path).expect("a readable source file");
+            let lines: Vec<&str> = implementation_or_all(&src).lines().collect();
+            for (i, line) in lines.iter().enumerate() {
+                if !line.contains(needle) {
+                    continue;
+                }
+                // The nearest preceding statement, comments and blanks skipped.
+                let guard = lines[..i]
+                    .iter()
+                    .rev()
+                    .map(|l| l.trim())
+                    .find(|l| !l.is_empty() && !l.starts_with("//"))
+                    .unwrap_or("");
+                let relative = path
+                    .strip_prefix(&root)
+                    .expect("every walked file is under src/")
+                    .to_string_lossy()
+                    .into_owned();
+                sites.push((relative, guard.to_string()));
+            }
+        }
+
+        let files: Vec<&str> = sites.iter().map(|(f, _)| f.as_str()).collect();
+        assert_eq!(
+            files,
+            ["app/autosave.rs", "app/mod.rs", "app/viewport.rs"],
+            "AC 8: exactly three repaint call sites live in src/"
+        );
+        for (file, guard) in &sites {
+            assert!(
+                guard.starts_with("if ") && guard.ends_with('{'),
+                "AC 8: the repaint in {file} must sit inside an `if`, found {guard:?}"
+            );
+        }
+    }
 
     /// LCV-114 AC 4/AC 15 — the canvas builds its bed from the document
     /// every frame and keeps no copy, so a `SetBedSize` is visible on the

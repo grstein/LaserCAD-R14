@@ -9,7 +9,7 @@
 //! # The shortcut this file exists to block
 //!
 //! A blanket `ctx.request_repaint()` would also make AC 10 pass, at the cost of
-//! burning a core forever. Both halves are therefore asserted:
+//! never letting the app idle at all. Both halves are therefore asserted:
 //!
 //! * a **dirty** app schedules a repaint inside the debounce window, and
 //! * a **clean** app schedules nothing sub-second.
@@ -17,18 +17,24 @@
 //! The second assertion is what fails if the guard is replaced by a blanket
 //! repaint. Verified by temporarily doing exactly that.
 //!
-//! # Why this drives `schedule_flush_repaint` and not `App::update_ui`
+//! # Why this file still drives `schedule_flush_repaint` directly
 //!
-//! `src/app/viewport.rs` already contains an unconditional per-frame
-//! `ctx.request_repaint()` ("Always repaint so cursor-coords and smooth camera
-//! motion stay live"), which predates this demand. It pins `repaint_delay` at
-//! zero on every full frame, clean or dirty, so the clean half of the contract
-//! is not observable through `update_ui` today and the demand's premise that
-//! autosave never fires on an idle app is, in practice, already masked by it.
-//! Removing that line is a rendering-policy change this demand did not ask for.
-//! So the contract is asserted at the granularity where it is real —
+//! When LCV-116 landed, `src/app/viewport.rs` called `ctx.request_repaint()`
+//! unconditionally on every frame, which pinned `repaint_delay` at zero on
+//! every full frame, clean or dirty: the clean half of the contract was not
+//! observable through `update_ui` at all, so it was asserted here instead, at
+//! the granularity where it was real. **LCV-120 closed that**: the canvas now
+//! asks for a follow-up frame only while it is hovered, dragged or previewing,
+//! and `tests/lcv120_idle_repaint.rs` asserts both halves through the real
+//! `App::update_ui` — an idle app sleeps, and a dirty one is woken by
+//! `schedule_flush_repaint` and by nothing else, which is what makes this
+//! function load-bearing rather than redundant.
+//!
+//! This file keeps the narrower, unit-granularity assertions on
 //! `schedule_flush_repaint` itself, driven through a genuine
-//! `egui::Context::run` — and `src/app/mod.rs` carries a bounded source scan
+//! `egui::Context::run`: a failure here names the scheduler rather than the
+//! whole frame, and the shrinking-deadline and going-clean cases below are not
+//! visible from `update_ui`. `src/app/mod.rs` carries a bounded source scan
 //! pinning that `update_ui` still calls it, immediately after the flush.
 //!
 //! No test here lets the debounce actually elapse: every `dirty_since` is
