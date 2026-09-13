@@ -230,6 +230,32 @@ AppImage and `.deb` as downloadable assets.
   - Confirm the bed rectangle on the canvas visibly redraws at the new size
     after OK, and that `View > Fit to Bed` frames it.
 
+- **Manual smoke / export preset selector (LCV-115)**: the LCV-115 reviewer
+  found that nested menu button and radio item hit-testing is simulated
+  nowhere in the suite. Before tagging:
+  - The status bar reads `CUT` on a cold start.
+  - `File > Export preset` then Mark flips the status bar to `MARK`.
+  - Save, and confirm the geometry sits inside the mark group with the cut
+    and engrave groups empty.
+  - Open that file in real LaserGRBL and confirm it is recognised as blue and
+    marked.
+  - `File > New` keeps `MARK`, and a restart resets to `CUT`.
+
+- **Manual smoke / chrome completion (LCV-116)**: before tagging:
+  - The three mode indicators render unselected on a cold start and the bar
+    reads no autosave yet.
+  - Clicking each of the three indicators visibly toggles it, actually
+    changes the behaviour, and agrees with the matching function key and
+    View menu checkbox.
+  - Draw a line, stop touching the app, and watch the indicator settle from
+    pending to autosaved hands off. This will probably pass today for the
+    wrong reason, because of the unconditional repaint recorded in LCV-120 —
+    which is exactly why it stays a manual check.
+  - F1 opens the dialog, it scrolls on a short window, and the close button
+    works.
+  - With the Text tool active and characters typed, F1 still opens, and
+    pressing the letter L types the character rather than switching tools.
+
 ## Open questions
 
 *(none)*

@@ -6,8 +6,8 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-115 | Export preset selector (cut / mark / engrave) | 11 | LCV-114 |
-| LCV-116 | Chrome completion: clickable mode toggles, autosave indicator, F1 shortcuts dialog, Ortho in the View menu | 11 | — |
+
+_None._
 
 ## In Progress
 
@@ -110,6 +110,8 @@ _None._
 | LCV-114 | Configurable bed size (1..2000 mm), stored in the document and read back on import | 11 | 2026-09-13 | bd49c11 |
 | LCV-117 | Hershey glyph table: 22 alphanumeric glyphs (plus `?`) render below the baseline | 11 | 2026-09-13 | d696f7c |
 | LCV-118 | Disarm native file dialogs outside the app binary | 11 | 2026-09-13 | fa158c0, 5e74557 |
+| LCV-115 | Export preset selector (cut / mark / engrave) | 11 | 2026-09-13 | 2f20fdd, 24e36aa |
+| LCV-116 | Chrome completion: clickable mode toggles, autosave indicator, F1 shortcuts dialog, Ortho in the View menu | 11 | 2026-09-13 | fd9b4e4, 900f0c7 |
 
 ## Blocked
 
@@ -121,8 +123,8 @@ _None._
 
 | ID | Title | Phase |
 |---|---|---|
-
-_None._
+| LCV-119 | Disarm Settings persistence outside the app binary | 11 |
+| LCV-120 | The viewport repaints unconditionally every frame | 11 |
 
 ## Rejected
 

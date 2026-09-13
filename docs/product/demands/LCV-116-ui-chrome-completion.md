@@ -1,10 +1,11 @@
 # LCV-116 — Chrome completion: clickable mode toggles, autosave indicator, F1 shortcuts dialog, Ortho in the View menu
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 11
 - **Depends on**: LCV-102 (Done), LCV-104 (Done), LCV-105 (Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: implementer-rust (commits fd9b4e4, 900f0c7 — the latter a Windows-only CI fix comparing a path against a forward-slash literal, no production code wrong; CI run 34747953068 green; reviewed, APPROVED — the reviewer independently reproduced both of the implementer's disclosed deviations and found no surviving mutation among more than twenty probes)
 
 ## Problem
 

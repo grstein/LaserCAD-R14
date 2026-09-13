@@ -1,10 +1,11 @@
 # LCV-115 — Export preset selector (cut / mark / engrave)
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 11
 - **Depends on**: LCV-114, LCV-100 (Done), LCV-057 (Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: implementer-rust (commits 2f20fdd, 24e36aa; CI run 34745657869 green; reviewed, APPROVED on the first pass — no mutation survived, the reviewer independently reproduced the byte-identity check against a real worktree and confirmed all six bounded source scans discriminate)
 
 ## Problem
 
