@@ -7,9 +7,12 @@
 //!
 //! Since LCV-122 one more rule joins them (ADR 0007 §D1): **no file here holds
 //! document state.** `Document`, `History`, `Vec<Entity>` and `Arc<Mutex<_>>`
-//! appear nowhere under `src/agent/` — except in `panel.rs`, whose throwaway
-//! pair LCV-123 deletes. `tests/lcv122_source_scans.rs` enforces that, with the
-//! exception list asserted to be exactly one file long so it cannot grow.
+//! appear nowhere under `src/agent/`, with **no exceptions**. LCV-122 carried
+//! one — `panel.rs`, which built a throwaway `Document`/`History` pair for
+//! every turn — and LCV-123 deleted it: the turn now runs against the
+//! operator's real document on the UI thread (`src/app/agent_turn.rs`), and
+//! this directory never names one. `tests/lcv122_source_scans.rs` enforces
+//! that, and asserts its exception list **empty**; re-opening it needs an ADR.
 
 pub mod wire;
 pub use wire::{AssistantMessage, ChatMessage, ChatResponse, Choice, ToolCall, ToolCallFunction};

@@ -86,8 +86,14 @@ fn sections(dir: &str, bound: bool, minimum: usize) -> Vec<(String, String)> {
 ///
 /// Comment lines are skipped, so these scans are about what the compiler sees
 /// rather than about prose: `src/agent/mod.rs`'s module header names `Document`
-/// precisely to say which file is allowed to hold one, and a scan that counted
-/// that as a use would force the rule to go undocumented to stay true.
+/// and `History` precisely to state that no file here may hold one, and a scan
+/// that counted those as uses would force the rule to go undocumented to stay
+/// true.
+///
+/// The cost is that prose is **unscanned**, so a header can drift out of step
+/// with the code it describes and nothing here notices — LCV-123's review
+/// caught exactly that in `src/agent/mod.rs`. Skipping comments is still the
+/// right trade; it just is not free.
 fn files_containing(sections: &[(String, String)], needle: &str) -> Vec<String> {
     sections
         .iter()

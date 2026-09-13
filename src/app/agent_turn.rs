@@ -42,9 +42,9 @@
 //! the `ask` seam, whoever owns the drawing. In the app that is [`ask_ui`],
 //! which blocks on the UI thread's answer; in a test it is a closure.
 
-use crate::agent::bridge::{AgentAction, AgentEvent, AgentOutcome};
-use crate::agent::wire::ChatMessage;
-use crate::agent::{agent_loop, AgentError, AGENT_SYSTEM_PROMPT};
+use crate::agent::{
+    agent_loop, AgentAction, AgentError, AgentEvent, AgentOutcome, ChatMessage, AGENT_SYSTEM_PROMPT,
+};
 use crate::app::App;
 use std::sync::mpsc::{channel, Sender};
 
@@ -252,7 +252,7 @@ pub fn start_turn(app: &mut App, prompt: &str) {
 /// file, so `0` and `200` are both things a real file can say. Clamping here,
 /// once, is what lets everything downstream treat the number as sane.
 fn turn_step_budget(app: &App) -> u8 {
-    crate::agent::loop_::clamp_step_budget(app.settings.agent_step_budget)
+    crate::agent::clamp_step_budget(app.settings.agent_step_budget)
 }
 
 /// The undo-stack label for a turn: `Agent:` and the prompt, trimmed and cut to

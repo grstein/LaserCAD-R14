@@ -174,15 +174,29 @@ mod tests {
         }
         assert!(
             !AGENT_SYSTEM_PROMPT.contains("stable id"),
-            "control: entity ids are explicitly not stable yet (ADR 0007 §D5),              so a prompt that promised them would be lying to the model"
+            "control: entity ids are explicitly not stable yet (ADR 0007 §D5), \
+             so a prompt that promised them would be lying to the model"
         );
         // The pre-existing unit statement survives the rewrite.
-        assert!(AGENT_SYSTEM_PROMPT.contains("millimetres (mm)"));
-        assert!(AGENT_SYSTEM_PROMPT.contains("degrees"));
-        // And the refusal advice is "stop", not "try again".
         assert!(
-            AGENT_SYSTEM_PROMPT.contains("instead of\nretrying")
-                || AGENT_SYSTEM_PROMPT.contains("instead of retrying")
+            AGENT_SYSTEM_PROMPT.contains("millimetres (mm)"),
+            "the unit statement must survive any prompt rewrite"
+        );
+        assert!(
+            AGENT_SYSTEM_PROMPT.contains("degrees"),
+            "angles are named at the UI in degrees, and the prompt says so"
+        );
+        // And the refusal advice is "stop", not "try again". One spelling, not
+        // two: the constant is built from `\`-continuations and holds no
+        // newline at all, so a `"instead of\nretrying"` alternative could never
+        // match and would quietly carry none of this assertion.
+        assert!(
+            AGENT_SYSTEM_PROMPT.contains("instead of retrying"),
+            "a sticky fence cannot be retried, so the prompt must not suggest it"
+        );
+        assert!(
+            !AGENT_SYSTEM_PROMPT.contains('\n'),
+            "the reason the single spelling above is enough"
         );
     }
 

@@ -1,4 +1,5 @@
-//! LCV-122 — apply one [`AgentAction`] to the live document (ADR 0007 §D2a/§D5).
+//! LCV-122 / LCV-123 — apply one [`AgentAction`] to the live document, and
+//! transcribe its outcome (ADR 0007 §D2a/§D5).
 //!
 //! This is the UI-thread half of the bridge. The worker thread names what it
 //! wants; this file decides what really happens, against the drawing the
@@ -29,7 +30,7 @@
 //! Imports `egui` nowhere, `eframe` nowhere, `rfd` nowhere, and spawns no
 //! thread.
 
-use crate::agent::bridge::{AgentAction, AgentOutcome};
+use crate::agent::{AgentAction, AgentOutcome};
 use crate::app::App;
 use crate::document::{
     Command, CreateArc, CreateCircle, CreateLine, DeleteEntities, Document, Entity, MoveEntities,

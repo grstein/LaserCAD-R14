@@ -1,7 +1,11 @@
-//! LCV-080 / LCV-122 — the once-per-frame drain of the agent channel.
+//! LCV-080 / LCV-122 / LCV-123 — the once-per-frame drain of the agent
+//! channel, and everything one turn owes the document on its way out.
 //!
 //! Extracted from `App::update` so the polling logic is unit-testable
-//! headlessly, with no egui context.
+//! headlessly, with no egui context. Since LCV-123 the drain also *applies*:
+//! ADR 0007 §D8 gives this file the drain, the dispatch, the answer and the
+//! turn end, which is why the fence check, the coalesce gate and the undo note
+//! live here rather than in `agent_turn.rs`.
 //!
 //! ## Why a turn must always announce its end (ADR 0007 §D11)
 //!
@@ -28,8 +32,7 @@
 //! the operator the same row: two spellings of one fact must never look like
 //! two different facts.
 
-use crate::agent::bridge::{AgentAction, AgentOutcome};
-use crate::agent::AgentEvent;
+use crate::agent::{AgentAction, AgentEvent, AgentOutcome};
 use crate::app::{agent_apply, App};
 use std::sync::mpsc::TryRecvError;
 
@@ -226,6 +229,35 @@ mod tests {
 
         assert_eq!(app.agent_chat.len(), rows, "no note row for zero actions");
         assert_eq!(app.history.len(), stack);
+    }
+
+    /// ADR 0007 §D11 — [`end_turn`] is the one place that clears `agent_rx`,
+    /// and it clears it whichever exit got here.
+    ///
+    /// `poll_agent_rx` **takes** the receiver at the top of the drain, so on
+    /// every path through this file the field is already `None` by the time
+    /// `end_turn` runs and the assignment looks like dead code. It is not the
+    /// assignment that is load-bearing, it is the *property*: a future exit
+    /// that puts the receiver back before ending the turn — the shape the
+    /// `Empty` arm already has — would otherwise latch `agent_busy` on a dead
+    /// channel for the rest of the session. Calling `end_turn` directly with
+    /// the receiver in place is the only way to state that, so this test does.
+    #[test]
+    fn end_turn_clears_the_channel_even_when_it_is_still_there() {
+        let (_tx, rx) = std::sync::mpsc::channel::<AgentEvent>();
+        let mut app = App {
+            agent_rx: Some(rx),
+            agent_busy: true,
+            ..Default::default()
+        };
+
+        end_turn(&mut app, None);
+
+        assert!(
+            app.agent_rx.is_none(),
+            "the channel is dropped on the way out"
+        );
+        assert!(!app.agent_busy, "and the flag goes with it");
     }
 
     /// The applied-action counter must not survive its turn: a second turn

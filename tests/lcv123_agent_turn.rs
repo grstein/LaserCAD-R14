@@ -22,7 +22,7 @@
 
 mod harness;
 
-use harness::{frame, tap, SCREEN};
+use harness::{frame, tap};
 use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome};
 use lasercad::app::{arm_turn, start_turn, App, AGENT_FENCE_REFUSAL, AGENT_LOST_MESSAGE};
 use lasercad::document::{CreateCircle, SelectionCommand};
@@ -892,10 +892,4 @@ fn the_agent_repaint_is_guarded_on_the_busy_flag() {
         guard.contains(flag),
         "AC 19: the repaint in src/app/mod.rs must be guarded on `{flag}`, found {guard:?}"
     );
-}
-
-/// The harness constant is used, so the screen rect above is the real one.
-#[test]
-fn the_screen_rect_is_the_harness_one() {
-    assert_eq!(SCREEN, [1280.0, 800.0]);
 }
