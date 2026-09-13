@@ -29,17 +29,23 @@ impl CommandHistory {
 
     /// Record a submitted line.
     ///
-    /// The entry is trimmed first. If the trimmed entry is empty it is
-    /// **ignored entirely** — `len()` is unchanged and the recall cursor is
-    /// left exactly as it was, so an empty push mid-recall does not disturb
-    /// an in-progress Up/Down walk.
+    /// The entry is trimmed first. If the trimmed entry is empty, `len()` is
+    /// left unchanged — no entry is appended and nothing is evicted — but
+    /// the recall cursor still resets to "no recall in progress", exactly as
+    /// a non-blank push does.
+    ///
+    /// This matches v1: every Enter unconditionally exits recall mode before
+    /// the line is executed (`command-line.ts:192-196` resets
+    /// `historyIndex` regardless of whether the line is blank), and
+    /// `CommandHistory` is where that behaviour now lives since ADR 0003 §A4
+    /// moved the cursor out of the widget.
     ///
     /// Otherwise the trimmed entry is appended as the newest, evicting the
     /// oldest first if the ring already held [`CAPACITY`](Self::CAPACITY)
-    /// entries, and the recall cursor resets to "no recall in progress".
-    /// Duplicates are stored, not merged.
+    /// entries. Duplicates are stored, not merged.
     pub fn push(&mut self, entry: &str) {
         let trimmed = entry.trim();
+        self.cursor = None;
         if trimmed.is_empty() {
             return;
         }
@@ -47,7 +53,6 @@ impl CommandHistory {
             self.entries.pop_front();
         }
         self.entries.push_back(trimmed.to_owned());
-        self.cursor = None;
     }
 
     /// Recall an older entry (the Up key).
@@ -117,6 +122,29 @@ mod tests {
         h.push("\t");
         assert_eq!(h.len(), 0);
         assert!(h.is_empty());
+    }
+
+    /// A blank push still resets the cursor mid-recall, even though it
+    /// appends nothing. This is v1 parity, not a stylistic choice: v1's
+    /// Enter handler resets `historyIndex` unconditionally, before deciding
+    /// whether the line is blank (`../LaserCAD-R14/src/ui/command-line.ts:192-196`).
+    #[test]
+    fn blank_push_still_resets_cursor_mid_recall() {
+        let mut h = CommandHistory::default();
+        h.push("a");
+        h.push("b");
+        h.push("c");
+        assert_eq!(h.older(), Some("c".to_owned()));
+        assert_eq!(h.older(), Some("b".to_owned()));
+
+        h.push("   "); // blank: len() unchanged, but recall still restarts
+        assert_eq!(h.len(), 3, "a blank push must not append an entry");
+        assert_eq!(
+            h.older(),
+            Some("c".to_owned()),
+            "a blank push must still reset the cursor (v1 parity: \
+             command-line.ts:192-196 resets historyIndex on every Enter)"
+        );
     }
 
     #[test]
