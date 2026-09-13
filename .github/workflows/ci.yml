@@ -113,7 +113,7 @@ jobs:
         run: cargo build --release
 
       - name: Upload release binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact-name }}
           path: ${{ matrix.binary-path }}
@@ -150,7 +150,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download release binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ${{ matrix.binary-artifact }}
           path: target/release
@@ -185,7 +185,7 @@ jobs:
 
       - name: Upload package artifact (Linux)
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: package-linux
           path: |
@@ -195,7 +195,7 @@ jobs:
 
       - name: Upload package artifact (Windows)
         if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: package-windows
           path: dist/lasercad-x86_64.msi
@@ -203,7 +203,7 @@ jobs:
 
       - name: Upload package artifact (macOS)
         if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: package-macos
           path: dist/lasercad-aarch64.dmg
@@ -226,19 +226,19 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download package-linux
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: package-linux
           path: dist
 
       - name: Download package-windows
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: package-windows
           path: dist
 
       - name: Download package-macos
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: package-macos
           path: dist
