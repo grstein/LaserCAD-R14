@@ -23,11 +23,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-2022, macos-13]
+        os: [ubuntu-24.04, windows-2022, macos-15]
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install system deps for eframe glow backend (Linux)
         if: runner.os == 'Linux'
@@ -82,13 +82,13 @@ jobs:
           - os: windows-2022
             artifact-name: binary-windows
             binary-path: target/release/lasercad.exe
-          - os: macos-13
+          - os: macos-15
             artifact-name: binary-macos
             binary-path: target/release/lasercad
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install system deps for eframe glow backend (Linux)
         if: runner.os == 'Linux'
@@ -140,14 +140,14 @@ jobs:
             binary-artifact: binary-windows
             binary-dest: target/release/lasercad.exe
             package-artifact: package-windows
-          - os: macos-13
+          - os: macos-15
             binary-artifact: binary-macos
             binary-dest: target/release/lasercad
             package-artifact: package-macos
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download release binary
         uses: actions/download-artifact@v4
@@ -206,7 +206,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: package-macos
-          path: dist/lasercad-x86_64.dmg
+          path: dist/lasercad-aarch64.dmg
           retention-days: 1
 
   # ──────────────────────────────────────────────────────────────────────────
@@ -223,7 +223,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download package-linux
         uses: actions/download-artifact@v4
@@ -261,4 +261,4 @@ jobs:
             dist/lasercad-x86_64.AppImage \
             dist/lasercad_*_amd64.deb \
             dist/lasercad-x86_64.msi \
-            dist/lasercad-x86_64.dmg
+            dist/lasercad-aarch64.dmg
