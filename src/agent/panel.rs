@@ -8,17 +8,16 @@
 //! **Purity rule**: this file may import `egui` but MUST NOT import `eframe`
 //! or `rfd`. The panel function receives `ui: &mut egui::Ui` directly.
 //!
-//! **The single documented exception to ADR 0007 §D1** (LCV-122 AC 3): this is
-//! the only file under `src/agent/` that names `Document` or `History`. It
-//! constructs the throwaway pair that [`submit`] hands to the turn, which is a
-//! defect ADR 0007 exists to close and which LCV-123 closes in one commit, by
-//! replacing the spawn below with the fenced rendezvous. Nothing new may be
-//! added to this exception, and `tests/lcv122_source_scans.rs` asserts the
-//! exception list is exactly one file long.
+//! **This file renders and reports** (ADR 0007 §D8). It spawns no thread and
+//! constructs no `Document` and no `History` — until LCV-123 it did all three,
+//! against a throwaway document whose geometry went nowhere, and it was the one
+//! documented exception to ADR 0007 §D1. That exception is now empty:
+//! `tests/lcv122_source_scans.rs` asserts no file under `src/agent/` names a
+//! document, and this file's own `the_panel_renders_and_reports` asserts it
+//! here by name. Submitting a prompt is one call into [`crate::app::start_turn`],
+//! which owns the fence, the thread and the settings reads.
 
-use crate::agent::AgentEvent;
 use crate::app::App;
-use crate::document::{Document, History};
 
 // ── Public render entry ───────────────────────────────────────────────────────
 
@@ -103,68 +102,21 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
     });
 
     if do_submit {
-        submit(app);
+        let prompt = app.agent_input_draft.trim().to_owned();
+        if !prompt.is_empty() && !app.agent_busy {
+            // Cleared before the turn is armed, so the field is empty the
+            // instant the operator's row appears in the chat above.
+            app.agent_input_draft = String::new();
+            crate::app::start_turn(app, &prompt);
+        }
     }
-}
-
-// ── Submit logic ──────────────────────────────────────────────────────────────
-
-/// Pull the current input draft, push a user message onto the history, spawn
-/// the background agent thread, and arm the receiver channel.
-///
-/// Returns early when `agent_input_draft` is empty or `agent_busy` is already
-/// `true` (guard against double-submit within a single frame).
-fn submit(app: &mut App) {
-    let text = app.agent_input_draft.trim().to_string();
-    if text.is_empty() || app.agent_busy {
-        return;
-    }
-
-    // 1. Record the user turn.
-    app.agent_chat.push(("user".into(), text.clone()));
-    // 2. Clear the draft.
-    app.agent_input_draft = String::new();
-
-    // 3. Clone settings so the spawned thread owns its own copy. The budget
-    //    is clamped here, at the read site: the stored value comes from a
-    //    hand-editable JSON file (ADR 0007 §D7). This is the temporary home of
-    //    both reads — LCV-123 moves them into `src/app/agent_turn.rs`.
-    let endpoint = app.settings.agent_endpoint.clone();
-    let api_key = app.settings.agent_api_key.clone();
-    let model = app.settings.agent_model.clone();
-    let step_budget = crate::agent::loop_::clamp_step_budget(app.settings.agent_step_budget);
-
-    // 4. Arm the channel.
-    let (tx, rx) = std::sync::mpsc::channel::<AgentEvent>();
-    app.agent_rx = Some(rx);
-    app.agent_busy = true;
-
-    // 5. Spawn OS thread (run_agent_turn is synchronous / blocking).
-    std::thread::spawn(move || {
-        let mut doc = Document::default();
-        let mut history = History::default();
-        let result = crate::app::run_agent_turn(
-            &text,
-            &endpoint,
-            &api_key,
-            &model,
-            step_budget,
-            &mut doc,
-            &mut history,
-        );
-        let msg = match result {
-            Ok(reply) => AgentEvent::Done(reply),
-            Err(e) => AgentEvent::Failed(e.to_string()),
-        };
-        tx.send(msg).ok();
-    });
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::agent::AgentEvent;
 
     /// LCV-080 AC#3, retargeted by LCV-122 — the terminal events the spawned
     /// thread sends are distinct, and they are now the bridge's, not the
@@ -181,34 +133,53 @@ mod tests {
         );
     }
 
-    /// LCV-121 AC 14 — `submit` is the one place that reads the two new agent
-    /// settings until LCV-123 moves the spawn into `src/app/agent_turn.rs`, and
-    /// it must clamp the budget rather than trust the stored value.
+    /// LCV-123 AC 2 / ADR 0007 §D8 — the panel renders and reports. It builds
+    /// no document state and starts no thread; the whole of submitting is one
+    /// call into `crate::app::start_turn`.
     ///
-    /// A bounded source scan: spawning a real turn needs a socket and a live
-    /// `egui::Ui`, and the property at stake is *what submit reads*. The
-    /// haystack stops at the bare `#[cfg(test)]` at column 0 and the needles
-    /// are built with `concat!`, so this test cannot match its own source.
+    /// A bounded source scan, because the property is *what this file is
+    /// allowed to contain* and no runtime test can observe absence. The
+    /// haystack stops at the bare `#[cfg(test)]` at column 0 and every needle
+    /// is built with `concat!`, so this test cannot match its own source — and
+    /// the loop below proves it: each needle is first found in a witness string
+    /// that spells out what the pre-LCV-123 `submit` did, so a needle that had
+    /// been silently misspelt fails here instead of passing vacuously.
     #[test]
-    fn submit_reads_the_model_and_clamps_the_budget() {
+    fn the_panel_renders_and_reports() {
         let src = include_str!("panel.rs");
         let at = src
             .find("\n#[cfg(test)]")
             .expect("panel.rs must have a bare #[cfg(test)] marker");
         let implementation = &src[..at];
 
-        for needle in [
-            concat!("settings.agent_", "model"),
-            concat!("clamp_step", "_budget(app.settings.agent_step_budget)"),
+        assert!(
+            implementation.contains(concat!("crate::app::start", "_turn(app, &prompt)")),
+            "positive control: submitting must be one call into start_turn"
+        );
+
+        // What `submit` used to be, verbatim enough for every needle to hit.
+        let witness = "let mut doc = Document::default(); \
+                       let mut history = History::default(); \
+                       let (tx, rx) = std::sync::mpsc::channel::<AgentEvent>(); \
+                       std::thread::spawn(move || {}); fn submit(app: &mut App)";
+        for forbidden in [
+            concat!("Doc", "ument"),
+            concat!("His", "tory"),
+            concat!("thread", "::spawn"),
+            concat!("mpsc", "::channel"),
+            concat!("fn sub", "mit"),
         ] {
             assert!(
-                implementation.contains(needle),
-                "submit must pass `{needle}` into run_agent_turn"
+                witness.contains(forbidden),
+                "control: `{forbidden}` must be a needle that can match something"
+            );
+            let hit = implementation
+                .lines()
+                .find(|l| l.contains(forbidden) && !l.trim_start().starts_with("//"));
+            assert!(
+                hit.is_none(),
+                "panel.rs must not name `{forbidden}`: {hit:?}"
             );
         }
-        assert!(
-            !implementation.contains(concat!("app.settings.agent_step_budget,")),
-            "the stored budget must reach run_agent_turn only through the clamp"
-        );
     }
 }

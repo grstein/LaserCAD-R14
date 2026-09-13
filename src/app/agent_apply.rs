@@ -19,6 +19,12 @@
 //! - **Say what shifted.** Positional indices renumber on every delete, so each
 //!   outcome reports the resulting entity count, and a delete names the entity
 //!   it removed and the indices that moved down (ADR 0007 §D5).
+//! - **Every action leaves a row.** LCV-123 AC 23: the sentence handed back to
+//!   the model is appended verbatim to `agent_chat` by [`transcribe`], here,
+//!   the one place that already holds both the action and its narration. The
+//!   operator and the model therefore read the same words, and a transcript
+//!   that disagrees with what the model was told is impossible by construction.
+//!   No variant is special-cased — a query gets a row like anything else.
 //!
 //! Imports `egui` nowhere, `eframe` nowhere, `rfd` nowhere, and spawns no
 //! thread.
@@ -26,8 +32,7 @@
 use crate::agent::bridge::{AgentAction, AgentOutcome};
 use crate::app::App;
 use crate::document::{
-    Command, CreateArc, CreateCircle, CreateLine, DeleteEntities, Document, Entity, History,
-    MoveEntities,
+    Command, CreateArc, CreateCircle, CreateLine, DeleteEntities, Document, Entity, MoveEntities,
 };
 use crate::geometry::{Arc as GeoArc, Circle, Line, Vec2};
 
@@ -44,34 +49,37 @@ enum Planned {
 /// The single entry point the frame loop calls when an `AgentEvent::Act`
 /// arrives. Mutating variants commit exactly one command — `history.revision()`
 /// advances by one and `Ctrl+Z` takes it back. Query variants commit nothing
-/// and leave `revision()` untouched.
+/// and leave `revision()` untouched. Either way the outcome is transcribed
+/// before it is returned (AC 23).
 pub fn apply(app: &mut App, action: &AgentAction) -> AgentOutcome {
-    match plan(action, &app.document) {
+    let outcome = match plan(action, &app.document) {
         Planned::Answer(outcome) => outcome,
         Planned::Commit(command, sentence) => {
             app.commit(command);
             AgentOutcome::Ok(with_count(&sentence, app.document.entity_count()))
         }
-    }
+    };
+    transcribe(app, &outcome);
+    outcome
 }
 
-/// The same application against a bare document and history.
+/// Append one `agent_chat` row for `outcome`, content **verbatim** (AC 23).
 ///
-/// `crate::app::run_agent_turn` still drives a throwaway pair until LCV-123
-/// replaces it with the fenced rendezvous; keeping one `plan` behind both entry
-/// points is what guarantees the two paths cannot drift apart in the meantime.
-pub(crate) fn apply_to_document(
-    action: &AgentAction,
-    doc: &mut Document,
-    history: &mut History,
-) -> AgentOutcome {
-    match plan(action, doc) {
-        Planned::Answer(outcome) => outcome,
-        Planned::Commit(command, sentence) => {
-            history.commit(command, doc);
-            AgentOutcome::Ok(with_count(&sentence, doc.entity_count()))
-        }
-    }
+/// Two roles, and the split is the one thing the operator most needs to see at
+/// a glance: `tool` is something that happened, `refused` is something that did
+/// not. LCV-125 decides how each looks; this decides only that it exists.
+///
+/// Called by [`apply`] for everything it decides, and by `agent_poll` for the
+/// one outcome `apply` never sees — a fence refusal, which is a property of the
+/// turn rather than of the action (ADR 0007 §D4).
+pub(crate) fn transcribe(app: &mut App, outcome: &AgentOutcome) {
+    let role = if outcome.is_refused() {
+        "refused"
+    } else {
+        "tool"
+    };
+    app.agent_chat
+        .push((role.to_owned(), outcome.text().to_owned()));
 }
 
 /// Decide, against the pre-mutation document, what this action becomes.
@@ -186,18 +194,28 @@ fn sweep(start: f64, end: f64, ccw: bool) -> String {
     format!("{:.1}°→{:.1}° {dir}", start.to_degrees(), end.to_degrees())
 }
 
-/// One line naming an entity's kind and its mm geometry, so a wrong target is
-/// legible in the transcript instead of invisible (ADR 0007 §D5).
-fn describe(entity: &Entity) -> String {
+/// The one word that says what an entity is.
+fn kind(entity: &Entity) -> &'static str {
     match entity {
-        Entity::Line(l) => format!("line, {} → {} mm", pt(l.p1.x, l.p1.y), pt(l.p2.x, l.p2.y)),
+        Entity::Line(_) => "line",
+        Entity::Circle(_) => "circle",
+        Entity::Arc(_) => "arc",
+    }
+}
+
+/// An entity's mm geometry, without its kind. Split from [`describe`] because
+/// the two readers want different punctuation: a listing row reads
+/// `0: line (0, 0) → …`, while a delete reads `Deleted entity 0 (line, …)`.
+fn geometry(entity: &Entity) -> String {
+    match entity {
+        Entity::Line(l) => format!("{} → {} mm", pt(l.p1.x, l.p1.y), pt(l.p2.x, l.p2.y)),
         Entity::Circle(c) => format!(
-            "circle, center {} mm, r = {:.3} mm",
+            "center {} mm, r = {:.3} mm",
             pt(c.center.x, c.center.y),
             c.r
         ),
         Entity::Arc(a) => format!(
-            "arc, center {} mm, r = {:.3} mm, {}",
+            "center {} mm, r = {:.3} mm, {}",
             pt(a.center.x, a.center.y),
             a.r,
             sweep(a.start_angle, a.end_angle, a.ccw)
@@ -205,14 +223,37 @@ fn describe(entity: &Entity) -> String {
     }
 }
 
+/// One phrase naming an entity's kind and its mm geometry, so a wrong target is
+/// legible in the transcript instead of invisible (ADR 0007 §D5).
+fn describe(entity: &Entity) -> String {
+    format!("{}, {}", kind(entity), geometry(entity))
+}
+
+/// The bed, in the same mm-to-3-decimals format as everything else.
+///
+/// Read from the live [`Document::bed_mm`], never from the default constant:
+/// an operator who set a 300 × 200 bed and asks the agent to fill it must not
+/// be told about a 400 × 400 one (AC 14).
+fn bed_line(doc: &Document) -> String {
+    format!("Bed {:.3} × {:.3} mm.", doc.bed_mm[0], doc.bed_mm[1])
+}
+
 /// `QueryEntities`: the whole drawing, one entity per line, indices first.
+///
+/// The header says the count even when it is zero — the model needs to know
+/// that it looked and found nothing, which reads differently from a tool that
+/// failed to answer.
 fn list_entities(doc: &Document) -> String {
     if doc.entities.is_empty() {
-        return "The drawing is empty.".to_string();
+        return format!("The drawing is empty (0 entities). {}", bed_line(doc));
     }
-    let mut out = format!("The drawing has {} entities.", doc.entity_count());
+    let mut out = format!(
+        "The drawing has {} entities. {}",
+        doc.entity_count(),
+        bed_line(doc)
+    );
     for (i, entity) in doc.entities.iter().enumerate() {
-        out.push_str(&format!("\n{i}: {}", describe(entity)));
+        out.push_str(&format!("\n{i}: {} {}", kind(entity), geometry(entity)));
     }
     out
 }
@@ -226,7 +267,10 @@ fn list_selection(doc: &Document) -> String {
     let mut indices: Vec<usize> = doc.selection.iter().collect();
     indices.sort_unstable();
     if indices.is_empty() {
-        return "Nothing is selected.".to_string();
+        return format!(
+            "Nothing is selected (the drawing has {} entities).",
+            doc.entity_count()
+        );
     }
     let list: Vec<String> = indices.iter().map(|i| i.to_string()).collect();
     format!(
@@ -435,26 +479,64 @@ mod tests {
         }
     }
 
-    /// AC 8 — `QueryEntities` really reads the live drawing: it names every
-    /// index and every kind that is in it.
+    /// LCV-123 AC 14 — `QueryEntities` really reads the live drawing: the
+    /// header counts it, the bed line measures it, and one row per entity
+    /// names its index, its kind and its mm geometry.
+    ///
+    /// The listing rows are asserted **whole**, not by `contains`, because the
+    /// row is the thing the model reads back before it decides which index to
+    /// delete: a stray or missing field there is a wrong cut.
     #[test]
     fn query_entities_lists_the_live_drawing() {
+        let mut app = app_with(vec![
+            line(0.0),
+            circle(),
+            Entity::Arc(GeoArc::new(Vec2::new(0.0, 0.0), 8.0, 0.0, FRAC_PI_2, true)),
+        ]);
+        assert_eq!(
+            apply(&mut app, &AgentAction::QueryEntities).into_text(),
+            "The drawing has 3 entities. Bed 400.000 × 400.000 mm.\n\
+             0: line (0.000, 0.000) → (10.000, 0.000) mm\n\
+             1: circle center (10.000, 10.000) mm, r = 5.000 mm\n\
+             2: arc center (0.000, 0.000) mm, r = 8.000 mm, 0.0°→90.0° ccw"
+        );
+    }
+
+    /// AC 14 — an empty drawing says so **and still says how many**, so the
+    /// model can tell "I looked and it is empty" from "the tool said nothing".
+    #[test]
+    fn query_entities_on_an_empty_drawing_still_reports_a_count_and_a_bed() {
         let mut app = App::default();
         assert_eq!(
             apply(&mut app, &AgentAction::QueryEntities).into_text(),
-            "The drawing is empty."
+            "The drawing is empty (0 entities). Bed 400.000 × 400.000 mm."
         );
-        let mut app = app_with(vec![line(0.0), circle()]);
-        let text = apply(&mut app, &AgentAction::QueryEntities).into_text();
-        assert!(text.starts_with("The drawing has 2 entities."), "{text}");
-        assert!(
-            text.contains("\n0: line, (0.000, 0.000) → (10.000, 0.000) mm"),
-            "{text}"
-        );
-        assert!(
-            text.contains("\n1: circle, center (10.000, 10.000) mm, r = 5.000 mm"),
-            "{text}"
-        );
+    }
+
+    /// AC 14 — the bed line follows [`Document::bed_mm`], never a constant.
+    ///
+    /// Run at two different, non-square bed sizes: a hardcoded `400.000 ×
+    /// 400.000` passes the test above and fails both rows here, and a line that
+    /// printed the same number twice fails on the asymmetric bed.
+    #[test]
+    fn the_bed_line_follows_the_documents_own_bed() {
+        for (bed, expected) in [
+            ([300.0, 200.0], "Bed 300.000 × 200.000 mm."),
+            ([1200.5, 600.25], "Bed 1200.500 × 600.250 mm."),
+        ] {
+            let mut app = App::default();
+            app.document.bed_mm = bed;
+            let empty = apply(&mut app, &AgentAction::QueryEntities).into_text();
+            assert!(empty.ends_with(expected), "{empty}");
+
+            let mut app = app_with(vec![line(0.0)]);
+            app.document.bed_mm = bed;
+            let listed = apply(&mut app, &AgentAction::QueryEntities).into_text();
+            assert!(
+                listed.starts_with(&format!("The drawing has 1 entities. {expected}")),
+                "{listed}"
+            );
+        }
     }
 
     /// AC 8 — `QuerySelection` reports the live selection in **ascending index
@@ -474,7 +556,8 @@ mod tests {
         let mut app = app_with(entities);
         assert_eq!(
             apply(&mut app, &AgentAction::QuerySelection).into_text(),
-            "Nothing is selected."
+            "Nothing is selected (the drawing has 14 entities).",
+            "AC 15 — an empty selection still reports the drawing's size"
         );
 
         for chosen in [
@@ -492,6 +575,87 @@ mod tests {
                 "the indices must be ascending, whatever order the HashSet yields"
             );
         }
+    }
+
+    /// AC 15 — the 2-of-3 wording, with the indices ascending and comma-space
+    /// separated, on the exact shape the demand names.
+    #[test]
+    fn query_selection_reports_two_of_three() {
+        let mut app = app_with(vec![line(0.0), line(1.0), circle()]);
+        app.commit(Box::new(SelectionCommand::new(vec![2, 0])));
+        assert_eq!(
+            apply(&mut app, &AgentAction::QuerySelection).into_text(),
+            "2 of 3 entities are selected: 0, 2."
+        );
+    }
+
+    /// AC 15 — an empty drawing has nothing selected and says `0`.
+    #[test]
+    fn query_selection_on_an_empty_drawing() {
+        let mut app = App::default();
+        assert_eq!(
+            apply(&mut app, &AgentAction::QuerySelection).into_text(),
+            "Nothing is selected (the drawing has 0 entities)."
+        );
+    }
+
+    // ── AC 23: every action leaves a row ─────────────────────────────────────
+
+    /// AC 23 — one row per action, role `tool`, content the outcome
+    /// **verbatim**: the operator and the model read the same sentence.
+    #[test]
+    fn an_applied_action_appends_its_outcome_verbatim() {
+        let mut app = App::default();
+        let outcome = apply(
+            &mut app,
+            &AgentAction::CreateLine {
+                x1: 0.0,
+                y1: 0.0,
+                x2: 20.0,
+                y2: 0.0,
+            },
+        );
+        assert_eq!(
+            app.agent_chat,
+            vec![("tool".to_owned(), outcome.text().to_owned())]
+        );
+        assert!(app.agent_chat[0].1.starts_with("Line created:"));
+    }
+
+    /// AC 23 — a refusal is role `refused`, not `tool`. Mutation (k) writes
+    /// `tool` here; this is the assertion that catches it.
+    #[test]
+    fn a_refused_action_appends_a_refused_row() {
+        let mut app = App::default();
+        let outcome = apply(&mut app, &AgentAction::Delete { index: 7 });
+        assert!(outcome.is_refused());
+        assert_eq!(
+            app.agent_chat,
+            vec![("refused".to_owned(), outcome.text().to_owned())]
+        );
+    }
+
+    /// AC 23 — a query is not special-cased: it appends a `tool` row like
+    /// anything else, and it still commits nothing. Mutation (l) skips this
+    /// row; the role sequence here is what goes red.
+    #[test]
+    fn a_query_appends_a_row_like_any_other_action() {
+        let mut app = app_with(vec![line(0.0)]);
+        let before = app.history.revision();
+        let entities = apply(&mut app, &AgentAction::QueryEntities);
+        let selection = apply(&mut app, &AgentAction::QuerySelection);
+        assert_eq!(
+            app.agent_chat,
+            vec![
+                ("tool".to_owned(), entities.text().to_owned()),
+                ("tool".to_owned(), selection.text().to_owned()),
+            ]
+        );
+        assert_eq!(
+            app.history.revision(),
+            before,
+            "AC 16 — a query commits nothing"
+        );
     }
 
     // ── AC 9: every mutating outcome carries the resulting count ─────────────

@@ -3,8 +3,9 @@
 //! Two claims that are about the whole tree rather than about any one file, so
 //! they live here rather than in a module's test block:
 //!
-//! - **AC 3** — no file under `src/agent/` holds document state, except
-//!   `panel.rs`, and that exception list is exactly one file long.
+//! - **AC 3**, as tightened by LCV-123 AC 1 — no file under `src/agent/` holds
+//!   document state, and the exception list that used to hold `panel.rs` is now
+//!   asserted **empty**.
 //! - **AC 4 / AC 5** — the two identifiers LCV-122 retired appear nowhere in
 //!   `src/` or `tests/`. They are deliberately not spelled out here; the test
 //!   below builds them from fragments.
@@ -98,46 +99,108 @@ fn files_containing(sections: &[(String, String)], needle: &str) -> Vec<String> 
         .collect()
 }
 
-/// The one file allowed to name document state under `src/agent/`, until
-/// LCV-123 deletes the throwaway pair inside it.
-const AGENT_DOCUMENT_EXCEPTIONS: [&str; 1] = ["panel.rs"];
-
-/// AC 3 / ADR 0007 §D1 — the background thread owns no document state, so no
-/// file it can reach names any.
+/// The files allowed to name document state under `src/agent/`.
 ///
-/// The exception list is asserted by **length as well as contents**: an
-/// exception list that silently grows is the thing this AC exists to stop, and
-/// a `contains` check would let a second file join it unnoticed.
+/// LCV-122 shipped this holding `panel.rs`, because `panel.rs` still built the
+/// throwaway `Document` that made the agent's edits go nowhere. LCV-123 deleted
+/// that, so the list is empty — and it is a list rather than an inlined
+/// `is_empty()` so that the day someone wants an exception back, the diff says
+/// so in one obvious place.
+const AGENT_DOCUMENT_EXCEPTIONS: [&str; 0] = [];
+
+/// The needles that spell "this file holds document state".
+const DOCUMENT_NEEDLES: [&str; 5] = [
+    concat!("crate::", "document"),
+    concat!("Doc", "ument"),
+    concat!("His", "tory"),
+    concat!("Arc<", "Mutex"),
+    concat!("Vec<", "Entity>"),
+];
+
+/// AC 3 / ADR 0007 §D1, tightened by LCV-123 AC 1 — the background thread owns
+/// no document state, so **no** file it can reach names any.
+///
+/// ## How this scan is shown to discriminate
+///
+/// An absence assertion whose needles are misspelt passes for free, and the
+/// obvious control — "the needle must find the one file that legitimately has
+/// it" — died with the exception it pointed at. So the control is synthetic and
+/// per-needle: each needle is first run against a witness section that spells
+/// out what `panel.rs` used to contain, through the **same** `files_containing`
+/// that does the real work. A needle that cannot find itself in the witness
+/// fails here, before the real haystack is ever consulted.
+///
+/// The haystack gets its own control too: the walk must see at least eight
+/// files, and `bridge.rs` — which is in the scan's own directory — must be
+/// findable by a needle that is genuinely there.
 #[test]
-fn no_agent_file_but_panel_holds_document_state() {
+fn no_agent_file_holds_document_state() {
     let agent = sections("src/agent", true, 8);
 
-    // Positive control, and a tight one: the needle set below must really find
-    // `panel.rs`, or the whole scan is vacuous. `panel.rs` names `Document` in
-    // code today; when LCV-123 removes it, this control fails loudly and the
-    // exception list comes out with it.
-    let panel = files_containing(&agent, concat!("Doc", "ument"));
-    assert_eq!(
-        panel, AGENT_DOCUMENT_EXCEPTIONS,
-        "positive control: the scan must still see panel.rs's throwaway document"
-    );
-    assert_eq!(
-        AGENT_DOCUMENT_EXCEPTIONS.len(),
-        1,
-        "AC 3 names exactly one exception; a longer list is a review blocker"
+    assert!(
+        !files_containing(&agent, concat!("Agent", "Action")).is_empty(),
+        "positive control: the haystack must really be src/agent's source"
     );
 
-    for needle in [
-        concat!("crate::", "document"),
-        concat!("Doc", "ument"),
-        concat!("His", "tory"),
-        concat!("Arc<", "Mutex"),
-        concat!("Vec<", "Entity>"),
-    ] {
+    // What `panel.rs` looked like before LCV-123, one line per needle.
+    let witness: Vec<(String, String)> = vec![(
+        "witness.rs".to_owned(),
+        "use crate::document::{Document, History};\n         let held: Arc<Mutex<Document>> = todo!();\n         let snapshot: Vec<Entity> = doc.entities.clone();\n"
+            .to_owned(),
+    )];
+
+    for needle in DOCUMENT_NEEDLES {
+        assert_eq!(
+            files_containing(&witness, needle),
+            ["witness.rs"],
+            "control: `{needle}` must be a needle that can still find document state"
+        );
         let offenders = files_containing(&agent, needle);
         assert!(
-            offenders.iter().all(|f| AGENT_DOCUMENT_EXCEPTIONS.contains(&f.as_str())),
+            offenders
+                .iter()
+                .all(|f| AGENT_DOCUMENT_EXCEPTIONS.contains(&f.as_str())),
             "AC 3: `{needle}` may only appear in {AGENT_DOCUMENT_EXCEPTIONS:?}, found in {offenders:?}"
+        );
+    }
+
+    // Bound through a slice so this reads as a runtime check: clippy rejects
+    // `is_empty()` called straight on a `const`, and the point of the
+    // assertion is the *policy*, not a compile-time fact.
+    let exceptions: &[&str] = &AGENT_DOCUMENT_EXCEPTIONS;
+    assert!(
+        exceptions.is_empty(),
+        "LCV-123 AC 1: the exception list is empty; re-opening it needs an ADR"
+    );
+}
+
+/// LCV-123 AC 2 — `panel.rs` in particular starts no turn of its own.
+///
+/// Named separately from the scan above because the rule ADR 0007 §D8 states is
+/// broader than "no document": the panel renders and reports, so it spawns no
+/// thread and opens no channel either. Same witness technique.
+#[test]
+fn the_panel_spawns_nothing() {
+    let agent = sections("src/agent", true, 8);
+    let (_, panel) = agent
+        .iter()
+        .find(|(path, _)| path == "panel.rs")
+        .expect("positive control: src/agent/panel.rs must exist");
+    assert!(
+        panel.contains(concat!("pub fn draw_agent", "_panel")),
+        "positive control: the panel's render entry must be in panel.rs"
+    );
+    let witness = "let (tx, rx) = std::sync::mpsc::channel::<AgentEvent>();\n                   std::thread::spawn(move || run());\n";
+    for needle in [concat!("thread", "::spawn"), concat!("mpsc", "::channel")] {
+        assert!(
+            witness.contains(needle),
+            "control: `{needle}` must be able to match a real spawn"
+        );
+        assert!(
+            !panel
+                .lines()
+                .any(|l| l.contains(needle) && !l.trim_start().starts_with("//")),
+            "AC 2: panel.rs must not name `{needle}`"
         );
     }
 }

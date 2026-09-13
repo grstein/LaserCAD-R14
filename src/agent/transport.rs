@@ -210,20 +210,33 @@ mod tests {
 
     // ── AC 4: the request carries the tools ──────────────────────────────────
 
-    /// AC 4 — a non-empty tools array reaches the body with every entry.
+    /// AC 4 — a non-empty tools array reaches the body with every entry, and
+    /// the request is authenticated.
+    ///
+    /// The `Authorization` header is asserted **here**, on the one mock that
+    /// already inspects a real request, rather than in a test of its own: until
+    /// LCV-123 nothing pinned it, and deleting `.bearer_auth(…)` from
+    /// `chat_completion` left the whole suite green. `match_header` makes the
+    /// mock refuse to answer an unauthenticated request, so the mutant fails on
+    /// `result.is_ok()` below. The expected value is assembled with `concat!`
+    /// so no grep for the dummy key finds a whole one in this file.
     #[test]
     fn tools_array_is_sent_in_the_request_body() {
         let mut server = mockito::Server::new();
         let bodies = Bodies::default();
         let _mock = server
             .mock("POST", "/chat/completions")
+            .match_header(
+                "authorization",
+                concat!("Bearer ", "sk-test-", "DO-NOT-LEAK"),
+            )
             .match_request(bodies.matcher())
             .with_status(200)
             .with_body(ok_text("ok"))
             .create();
 
         let tools = crate::agent::tools::tool_definitions();
-        assert_eq!(tools.as_array().map(|a| a.len()), Some(5), "fixture check");
+        assert_eq!(tools.as_array().map(|a| a.len()), Some(7), "fixture check");
 
         let result = chat_completion(
             &server.url(),
@@ -237,8 +250,8 @@ mod tests {
         let body = bodies.json(0);
         assert_eq!(
             body["tools"].as_array().map(|a| a.len()),
-            Some(5),
-            "AC 4: all five tool schemas must reach the wire, body was {body}"
+            Some(7),
+            "AC 4: all seven tool schemas must reach the wire, body was {body}"
         );
         assert_eq!(body["tools"][0]["function"]["name"], "create_line");
     }

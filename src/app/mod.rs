@@ -43,8 +43,8 @@ mod agent_apply;
 mod agent_poll;
 mod agent_turn;
 pub use agent_apply::apply;
-pub use agent_poll::poll_agent_rx;
-pub use agent_turn::{run_agent_turn, TurnFence, AGENT_FENCE_REFUSAL};
+pub use agent_poll::{poll_agent_rx, AGENT_LOST_MESSAGE};
+pub use agent_turn::{arm_turn, run_agent_turn, start_turn, TurnFence, AGENT_FENCE_REFUSAL};
 pub use autosave::{autosave_due, schedule_flush_repaint};
 pub use bed_dialog::{apply_bed_dialog_result, draw_bed_dialog};
 pub use cmdline::submit;
@@ -171,7 +171,8 @@ pub struct App {
     /// Toggled by the 🤖 toolbar button.
     pub agent_panel_open: bool,
     /// Chat history as `(role, content)` pairs (LCV-080).
-    /// Role is one of `"user"`, `"assistant"`, or `"error"`.
+    /// Role is one of `"user"`, `"assistant"`, `"error"`, `"tool"`,
+    /// `"refused"` or `"note"` (LCV-123 AC 23; LCV-125 renders them).
     pub agent_chat: Vec<(String, String)>,
     /// Live contents of the AI text-input widget; cleared on submit (LCV-080).
     pub agent_input_draft: String,
@@ -180,6 +181,14 @@ pub struct App {
     pub agent_busy: bool,
     /// Receiver polled every frame; `Some` while a turn is in flight (LCV-080).
     pub agent_rx: Option<std::sync::mpsc::Receiver<crate::agent::AgentEvent>>,
+    /// Guards the in-flight turn against commits it did not make (ADR 0007
+    /// §D4). Re-armed by `arm_turn`; meaningless while `agent_busy` is false.
+    pub agent_fence: TurnFence,
+    /// How many of the in-flight turn's actions really changed the drawing.
+    /// Read once at turn end by the coalesce and the note row (AC 10, AC 11).
+    pub agent_applied: usize,
+    /// The undo-stack label a coalesced turn gets: `Agent:` plus the prompt.
+    pub agent_turn_label: String,
     /// Path of the file most recently opened or saved. `None` for an unsaved
     /// new document (LCV-062).
     pub current_file: Option<std::path::PathBuf>,
@@ -240,6 +249,12 @@ impl App {
         // Poll agent background thread (LCV-080).
         poll_agent_rx(self);
         if self.agent_busy {
+            // Load-bearing for *progress*, not just for the spinner (ADR 0007
+            // §Consequences). The worker blocks on a reply that only
+            // `poll_agent_rx` above can send, and that line only runs inside a
+            // frame — so an app that stops painting stalls the turn forever,
+            // mid-drawing. LCV-123 mutation (g) is the proof: delete this and
+            // the end-to-end turn test times out.
             ctx.request_repaint();
         }
         panels::draw_agent_side_panel(ctx, self);
@@ -275,6 +290,13 @@ impl eframe::App for App {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The roles in `agent_chat`, in order — the shape LCV-123 AC 23 fixes.
+    /// Asserting on roles rather than on `last()` is what makes an inserted or
+    /// reordered row visible instead of silently shifting the tail.
+    fn roles(app: &App) -> Vec<&str> {
+        app.agent_chat.iter().map(|(r, _)| r.as_str()).collect()
+    }
 
     /// LCV-030 AC#1 — `App::default()` produces an empty document and an
     /// empty history.
@@ -498,10 +520,7 @@ mod tests {
         poll_agent_rx(&mut app);
         assert_eq!(
             app.agent_chat.last(),
-            Some(&(
-                "error".into(),
-                crate::app::agent_poll::AGENT_LOST_MESSAGE.to_owned()
-            )),
+            Some(&("error".into(), AGENT_LOST_MESSAGE.to_owned())),
         );
         assert!(!app.agent_busy, "a lost turn must clear agent_busy");
         assert!(app.agent_rx.is_none());
@@ -557,9 +576,18 @@ mod tests {
         assert_eq!(app.document.entity_count(), 1);
         assert_eq!(app.history.revision(), before + 1);
         assert!(app.history.can_undo());
+        // LCV-123 AC 23 — the row order of a one-action turn: the action's
+        // `tool` row, the terminal row, then the note (AC 22).
         assert_eq!(
-            app.agent_chat.last(),
-            Some(&("assistant".into(), "drawn".into())),
+            roles(&app),
+            ["tool", "assistant", "note"],
+            "{:?}",
+            app.agent_chat
+        );
+        assert_eq!(app.agent_chat[0].1, outcome.text(), "verbatim, AC 23");
+        assert_eq!(
+            app.agent_chat[1],
+            ("assistant".to_owned(), "drawn".to_owned())
         );
         assert!(!app.agent_busy);
     }
@@ -606,17 +634,19 @@ mod tests {
             app.agent_rx.is_some(),
             "dropping the receiver here strands every later tool call"
         );
-        assert!(
-            app.agent_chat.is_empty(),
-            "an Act writes no chat row of its own"
+        assert_eq!(
+            roles(&app),
+            ["tool"],
+            "an Act writes its transcript row (AC 23) and no verdict"
         );
 
         // The turn ends only when a terminal event arrives, on a later frame.
         tx.send(AgentEvent::Done("drawn".into())).unwrap();
         poll_agent_rx(&mut app);
+        assert_eq!(roles(&app), ["tool", "assistant", "note"]);
         assert_eq!(
-            app.agent_chat.last(),
-            Some(&("assistant".into(), "drawn".into())),
+            app.agent_chat[1],
+            ("assistant".to_owned(), "drawn".to_owned())
         );
         assert!(!app.agent_busy);
         assert!(app.agent_rx.is_none());
@@ -671,11 +701,13 @@ mod tests {
         );
         assert!(app.agent_rx.is_none(), "nothing more can arrive");
         assert_eq!(
-            app.agent_chat.last(),
-            Some(&(
-                "error".into(),
-                crate::app::agent_poll::AGENT_LOST_MESSAGE.to_owned()
-            )),
+            roles(&app),
+            ["tool", "error", "note"],
+            "the applied action, the verdict, then the undo shape (AC 22, AC 23)"
+        );
+        assert_eq!(
+            app.agent_chat.get(1),
+            Some(&("error".into(), AGENT_LOST_MESSAGE.to_owned())),
             "this exit reports the same fact as a dropped sender — the worker \
              is gone — so it must show the operator the same row (ADR 0007 §D11)"
         );

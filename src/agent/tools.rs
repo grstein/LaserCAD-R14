@@ -65,7 +65,12 @@ pub enum ToolCallError {
 }
 
 /// OpenAI function-calling schemas. Order: create_line(0) create_circle(1)
-/// create_arc(2) delete_entity(3) move_entity(4).
+/// create_arc(2) delete_entity(3) move_entity(4) query_entities(5)
+/// query_selection(6).
+///
+/// The two queries take no arguments at all — an explicitly empty
+/// `properties` / `required` pair rather than an absent `parameters`, because
+/// some providers reject a function schema without one (LCV-123 AC 13).
 pub fn tool_definitions() -> Value {
     json!([
       {"type":"function","function":{"name":"create_line",
@@ -97,7 +102,13 @@ pub fn tool_definitions() -> Value {
         "parameters":{"type":"object",
           "properties":{"index":{"type":"integer"},"dx":{"type":"number"},
                         "dy":{"type":"number"}},
-          "required":["index","dx","dy"]}}}
+          "required":["index","dx","dy"]}}},
+      {"type":"function","function":{"name":"query_entities",
+        "description":"List every entity in the drawing with its zero-based index, kind and mm geometry, plus the bed size. Call this before deleting or moving an entity you did not create in this turn.",
+        "parameters":{"type":"object","properties":{},"required":[]}}},
+      {"type":"function","function":{"name":"query_selection",
+        "description":"List the zero-based indices of the entities the operator currently has selected.",
+        "parameters":{"type":"object","properties":{},"required":[]}}}
     ])
 }
 
@@ -180,6 +191,11 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
             let index = get_index(args, "move_entity")?;
             Ok(AgentAction::Move { index, dx, dy })
         }
+        // Read-only, argument-free: whatever the model sends as arguments —
+        // `{}`, a stray field, or nothing at all — the answer is the same, so
+        // there is no shape to check and nothing to refuse (AC 14, AC 15).
+        "query_entities" => Ok(AgentAction::QueryEntities),
+        "query_selection" => Ok(AgentAction::QuerySelection),
         _ => Err(ToolCallError::UnknownTool(name.to_owned())),
     }
 }
@@ -195,22 +211,29 @@ mod tests {
     fn err(nm: &str, a: Value) -> ToolCallError { parse_tool_call(nm, &a).unwrap_err() }
     fn req(d: &Value, i: usize) -> Value { d[i]["function"]["parameters"]["required"].clone() }
 
-    // ── Schema (5 tests, unchanged by LCV-122) ───────────────────────────────
+    // ── Schema (LCV-123 AC 13: five tools became seven) ──────────────────────
 
+    /// AC 13 — the count. Renamed with the number it now pins: a test called
+    /// `..._is_five` asserting `7` is a lie a reader has to read the body to
+    /// catch.
     #[test]
-    fn tool_definitions_array_length_is_five() {
-        assert_eq!(tool_definitions().as_array().unwrap().len(), 5);
+    fn tool_definitions_array_length_is_seven() {
+        assert_eq!(tool_definitions().as_array().unwrap().len(), 7);
     }
+    /// AC 13 — the order is part of the contract: every other schema test and
+    /// `transport.rs`'s wire assertions index into this array.
     #[test]
     fn tool_definitions_names_in_order() {
         let d = tool_definitions();
-        let n = ["create_line","create_circle","create_arc","delete_entity","move_entity"];
+        let n = ["create_line","create_circle","create_arc","delete_entity","move_entity",
+                 "query_entities","query_selection"];
         for (i, nm) in n.iter().enumerate() { assert_eq!(d[i]["function"]["name"], *nm); }
+        assert_eq!(d[n.len()], Value::Null, "and nothing after them");
     }
     #[test]
     fn tool_definitions_types_are_function() {
         let d = tool_definitions();
-        for i in 0..5 { assert_eq!(d[i]["type"], "function"); }
+        for i in 0..7 { assert_eq!(d[i]["type"], "function"); }
     }
     #[test]
     fn tool_definitions_required_fields() {
@@ -220,6 +243,31 @@ mod tests {
         assert_eq!(req(&d,2), json!(["cx","cy","r","start_deg","end_deg","ccw"]));
         assert_eq!(req(&d,3), json!(["index"]));
         assert_eq!(req(&d,4), json!(["index","dx","dy"]));
+    }
+    /// AC 13 — both queries declare an **empty** object, not a missing one:
+    /// `properties` is `{}` and `required` is `[]`, both present.
+    #[test]
+    fn the_two_query_schemas_take_no_parameters() {
+        let d = tool_definitions();
+        for i in [5, 6] {
+            let params = &d[i]["function"]["parameters"];
+            assert_eq!(params["type"], "object", "schema {i}");
+            assert_eq!(params["properties"], json!({}), "schema {i}");
+            assert_eq!(params["required"], json!([]), "schema {i}");
+            assert!(params["properties"].is_object(), "schema {i} must be {{}}, not null");
+            assert!(params["required"].is_array(), "schema {i} must be [], not null");
+        }
+    }
+    /// AC 14, AC 15 — both queries parse with **any** arguments object, since
+    /// there is nothing in it to read: `{}`, a stray field, or JSON null.
+    #[test]
+    fn the_two_queries_parse_with_any_arguments() {
+        for (nm, expected) in [("query_entities", AgentAction::QueryEntities),
+                               ("query_selection", AgentAction::QuerySelection)] {
+            for args in [json!({}), json!({"ignored":1}), Value::Null] {
+                assert_eq!(ok(nm, args.clone()), expected, "{nm} with {args}");
+            }
+        }
     }
     #[test]
     fn tool_definitions_arc_ccw_is_boolean() {

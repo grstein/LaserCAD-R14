@@ -38,12 +38,27 @@ pub fn clamp_step_budget(value: u8) -> u8 {
 
 /// Hard-coded system prompt injected as the first message of every turn.
 /// Must not be user-configurable in v0.1.0 (see demand Out of scope).
+///
+/// The second half is the index contract of ADR 0007 §D5. Entity handles are
+/// positional until stable ids land, so the two things that can silently
+/// corrupt a drawing — the model's own deletes renumbering what it is about to
+/// touch, and the operator drawing between the model's read and its write —
+/// are disclosed in words rather than left to be discovered. The refusal
+/// sentence is the fence's (`crate::app::AGENT_FENCE_REFUSAL`) seen from the
+/// model's side: retrying cannot help, because the fence is sticky.
 pub(crate) const AGENT_SYSTEM_PROMPT: &str =
     "You are a CAD assistant embedded in LaserCAD v2, a 2D laser-cutting CAD \
      tool. All coordinates and dimensions are in millimetres (mm). Angles at \
      the user interface are in degrees. Use the provided tools to create, \
      modify, or query the open drawing. Prefer the fewest tool calls that \
-     satisfy the request. Confirm what you did in one or two concise sentences.";
+     satisfy the request. Confirm what you did in one or two concise \
+     sentences. Entity handles are positional indices into the drawing: entity \
+     0 is the first entity, and deleting an entity renumbers every higher \
+     index down by one. The drawing may also have changed since you last read \
+     it, so call query_entities before any delete_entity or move_entity whose \
+     index you did not read during this turn. If an action is refused because \
+     the drawing changed, stop and tell the operator what happened instead of \
+     retrying.";
 
 // ── Error ────────────────────────────────────────────────────────────────────
 
@@ -59,6 +74,13 @@ pub enum AgentError {
     IterationLimitExceeded(u8),
     /// The endpoint answered with neither content nor tool calls.
     NoContent,
+    /// The UI thread stopped answering: the app is closing, the turn was
+    /// abandoned, or the frame loop is gone (ADR 0007 §D2). The worker returns
+    /// on this **without** sending a terminal event — there is nobody left to
+    /// read one, and inventing a row for a turn the app already forgot about
+    /// would be the only thing that could show up in a *later* turn's
+    /// transcript.
+    Cancelled,
 }
 
 impl std::fmt::Display for AgentError {
@@ -70,6 +92,7 @@ impl std::fmt::Display for AgentError {
                 write!(f, "step budget exceeded ({budget} tool calls per turn)")
             }
             Self::NoContent => write!(f, "API response contained neither content nor tool calls"),
+            Self::Cancelled => write!(f, "the turn was cancelled"),
         }
     }
 }
@@ -129,6 +152,51 @@ where
 mod tests {
     use super::*;
     use crate::agent::wire::ToolCall;
+
+    // ── LCV-123 AC 17: the index contract is disclosed ───────────────────────
+
+    /// AC 17 / ADR 0007 §D5 — the prompt tells the model, in words, that entity
+    /// handles are **positional**, that a delete **renumbers** what comes after
+    /// it, and that `query_entities` is how it re-reads the drawing.
+    ///
+    /// The haystack is the constant itself, not this file's source, so the
+    /// scan cannot match its own needles however they are spelt — the failure
+    /// mode ADR 0004 keeps catching. The control is the other direction: a term
+    /// that must be **absent**, proving `contains` is really being evaluated
+    /// against the prompt and not against something that says yes to anything.
+    #[test]
+    fn the_system_prompt_discloses_the_index_contract() {
+        for needle in ["positional", "renumber", "query_entities"] {
+            assert!(
+                AGENT_SYSTEM_PROMPT.contains(needle),
+                "the prompt must say `{needle}`: {AGENT_SYSTEM_PROMPT}"
+            );
+        }
+        assert!(
+            !AGENT_SYSTEM_PROMPT.contains("stable id"),
+            "control: entity ids are explicitly not stable yet (ADR 0007 §D5),              so a prompt that promised them would be lying to the model"
+        );
+        // The pre-existing unit statement survives the rewrite.
+        assert!(AGENT_SYSTEM_PROMPT.contains("millimetres (mm)"));
+        assert!(AGENT_SYSTEM_PROMPT.contains("degrees"));
+        // And the refusal advice is "stop", not "try again".
+        assert!(
+            AGENT_SYSTEM_PROMPT.contains("instead of\nretrying")
+                || AGENT_SYSTEM_PROMPT.contains("instead of retrying")
+        );
+    }
+
+    /// The `Cancelled` variant exists, is distinct, and reads as an ended turn
+    /// rather than as a failure the operator has to act on (AC 5).
+    #[test]
+    fn cancelled_is_its_own_error_with_its_own_wording() {
+        let cancelled = AgentError::Cancelled;
+        assert_ne!(
+            std::mem::discriminant(&cancelled),
+            std::mem::discriminant(&AgentError::NoContent)
+        );
+        assert_eq!(cancelled.to_string(), "the turn was cancelled");
+    }
 
     fn text_reply(text: &str) -> Result<AssistantMessage, AgentError> {
         Ok(AssistantMessage {

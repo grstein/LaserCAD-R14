@@ -1,4 +1,5 @@
-//! LCV-122 — the turn's UI-side driver: [`TurnFence`] and [`run_agent_turn`].
+//! LCV-122 / LCV-123 — the turn's UI-side driver: [`TurnFence`],
+//! [`arm_turn`], [`start_turn`] and [`run_agent_turn`].
 //!
 //! ## Why the fence is here and not in `src/agent/bridge.rs`
 //!
@@ -25,14 +26,27 @@
 //! sound — once tripped the agent commits nothing more, so the entries the gate
 //! wants to fold stay contiguous at the top of the undo stack.
 //!
-//! LCV-123 owns the instance: it constructs the fence at turn start and calls
-//! it from the frame loop. This demand ships the type, tested against plain
-//! `u64`s.
+//! [`arm_turn`] constructs the fence at turn start; `agent_poll` checks it once
+//! per action and reads its coalesce gate once per turn. The two call sites sit
+//! there rather than here because they are frame-loop work, and ADR 0007 §D8
+//! gives `agent_poll` the drain, the dispatch and the answer; what this file
+//! owns is the fence itself and the arithmetic it answers with.
+//!
+//! ## What crosses the thread boundary
+//!
+//! [`start_turn`] is the only place a turn's thread is spawned. Four owned
+//! `String`s, one `u8` and one `Sender` cross into it — no `Document`, no
+//! `History`, no `App`, nothing borrowed (ADR 0007 §D1). [`run_agent_turn`] is
+//! then control flow only: it knows how to talk to an endpoint and how to feed
+//! a tool result back, and it learns what a tool call *did* by asking, through
+//! the `ask` seam, whoever owns the drawing. In the app that is [`ask_ui`],
+//! which blocks on the UI thread's answer; in a test it is a closure.
 
+use crate::agent::bridge::{AgentAction, AgentEvent, AgentOutcome};
 use crate::agent::wire::ChatMessage;
 use crate::agent::{agent_loop, AgentError, AGENT_SYSTEM_PROMPT};
-use crate::app::agent_apply;
-use crate::document::{Document, History};
+use crate::app::App;
+use std::sync::mpsc::{channel, Sender};
 
 /// What the model is told when a foreign commit landed mid-turn (ADR 0007 §D4).
 ///
@@ -100,35 +114,41 @@ impl TurnFence {
     }
 }
 
-/// Drive one complete agent turn: send `prompt` to `endpoint` as `model`,
-/// apply the tool calls it asks for, return the final assistant text.
+/// The longest prompt prefix an undo label carries (AC 10).
+const LABEL_CHARS: usize = 40;
+
+/// Drive one complete agent turn: send `prompt` to `endpoint` as `model`, ask
+/// `ask` to carry out every tool call the model requests, return its final
+/// text.
+///
+/// Owns no document state of any kind (ADR 0007 §D1). `ask` is the whole seam:
+/// it receives one [`AgentAction`] and answers with what really happened to the
+/// real drawing. In the app that answer comes from another thread; here it is
+/// just a call.
 ///
 /// `model` and `step_budget` are the caller's to choose — they come from
 /// `Settings`, and the budget must already have been through
-/// `crate::agent::clamp_step_budget`. At most `step_budget` actions are applied
-/// per turn.
-///
-/// **Intermediate state, LCV-122 only.** The `doc` / `history` pair is still
-/// supplied by the caller, and `src/agent/panel.rs` still supplies a throwaway
-/// one, so the geometry goes nowhere the operator can see. LCV-123 replaces
-/// both parameters with the fenced rendezvous of ADR 0007 §D1–§D4; until then
-/// ADR 0007 §"The 121→123 window" is the reason no release may be cut.
+/// [`crate::agent::clamp_step_budget`]. At most `step_budget` actions are
+/// applied per turn.
 ///
 /// # Errors
 ///
 /// [`AgentError`] for a transport failure, a malformed tool call, an exhausted
-/// step budget, or a reply carrying neither text nor tool calls. An action the
-/// document refuses is **not** an error: the refusal goes back to the model as
-/// the tool result and the turn continues.
-pub fn run_agent_turn(
+/// step budget, a reply carrying neither text nor tool calls, or
+/// [`AgentError::Cancelled`] when `ask` reports that nobody is left to answer.
+/// An action the document *refuses* is **not** an error: the refusal goes back
+/// to the model as the tool result and the turn continues (ADR 0007 §D2a).
+pub fn run_agent_turn<A>(
     prompt: &str,
     endpoint: &str,
     api_key: &str,
     model: &str,
     step_budget: u8,
-    doc: &mut Document,
-    history: &mut History,
-) -> Result<String, AgentError> {
+    ask: &mut A,
+) -> Result<String, AgentError>
+where
+    A: FnMut(AgentAction) -> Result<AgentOutcome, AgentError>,
+{
     let mut messages = vec![
         ChatMessage::system(AGENT_SYSTEM_PROMPT),
         ChatMessage::user(prompt),
@@ -143,25 +163,163 @@ pub fn run_agent_turn(
             .map_err(|e| AgentError::Transport(e.to_string()))
     };
     let mut dispatch_fn = |name: &str, args: &str| {
-        let value = serde_json::from_str::<serde_json::Value>(args)
-            .map_err(|e| AgentError::ToolDispatch(e.to_string()))?;
+        // The argument-free queries are routinely called with `""` rather than
+        // `"{}"`, which is not JSON; both mean the same empty object here.
+        let value = if args.trim().is_empty() {
+            serde_json::Value::Null
+        } else {
+            serde_json::from_str::<serde_json::Value>(args)
+                .map_err(|e| AgentError::ToolDispatch(e.to_string()))?
+        };
         let action = crate::agent::parse_tool_call(name, &value)
             .map_err(|e| AgentError::ToolDispatch(e.to_string()))?;
         // A refusal is a tool result, not a failure (ADR 0007 §D2a).
-        Ok(agent_apply::apply_to_document(&action, doc, history).into_text())
+        Ok(ask(action)?.into_text())
     };
     agent_loop(&mut send_fn, &mut dispatch_fn, &mut messages, step_budget)
+}
+
+/// The worker thread's `ask`: one rendezvous with the UI thread (ADR 0007 §D2).
+///
+/// A fresh one-shot channel per action, so the reply `Sender` rides inside the
+/// message and nothing is ever parked on `App` (§D3). Both failures mean the
+/// same thing — the UI is gone, or has abandoned this turn — and both are
+/// [`AgentError::Cancelled`], on which the caller returns without sending a
+/// terminal event, because there is nobody left to read one.
+fn ask_ui(tx: &Sender<AgentEvent>, action: AgentAction) -> Result<AgentOutcome, AgentError> {
+    let (reply, answer) = channel::<AgentOutcome>();
+    tx.send(AgentEvent::Act { action, reply })
+        .map_err(|_| AgentError::Cancelled)?;
+    answer.recv().map_err(|_| AgentError::Cancelled)
+}
+
+/// Put `app` into a turn and hand back the `Sender` the turn will report on.
+///
+/// Everything a turn needs before anything can arrive: the `user` row, the busy
+/// flag, the channel, a fence armed at the current revision, a zeroed
+/// applied-action counter and the undo label the coalesce will use.
+///
+/// `pub` rather than `pub(crate)` because it is the seam the integration tests
+/// drive: they arm a turn, keep the `Sender`, and push events into it by hand
+/// instead of standing up a thread and a socket. That makes every assertion
+/// about applying, fencing, coalescing and ending a turn deterministic.
+pub fn arm_turn(app: &mut App, prompt: &str) -> Sender<AgentEvent> {
+    let (tx, rx) = channel::<AgentEvent>();
+    app.agent_chat.push(("user".to_owned(), prompt.to_owned()));
+    app.agent_busy = true;
+    app.agent_rx = Some(rx);
+    app.agent_fence = TurnFence::new(app.history.revision());
+    app.agent_applied = 0;
+    app.agent_turn_label = turn_label(prompt);
+    tx
+}
+
+/// Arm a turn and spawn the thread that runs it. The panel's Send button and
+/// (from LCV-124) the command line both land here.
+///
+/// A no-op while a turn is in flight: one `agent_rx` and one fence mean one
+/// turn (ADR 0007 §Revisit criteria), and a second `arm_turn` would drop the
+/// first turn's receiver on the floor and strand its thread.
+pub fn start_turn(app: &mut App, prompt: &str) {
+    if app.agent_busy {
+        return;
+    }
+    // Cloned, never borrowed: the thread outlives this frame (ADR 0007 §D1).
+    let endpoint = app.settings.agent_endpoint.clone();
+    let api_key = app.settings.agent_api_key.clone();
+    let model = app.settings.agent_model.clone();
+    let step_budget = turn_step_budget(app);
+    let prompt = prompt.to_owned();
+    let tx = arm_turn(app, &prompt);
+    std::thread::spawn(move || {
+        let result = {
+            let mut ask = |action| ask_ui(&tx, action);
+            run_agent_turn(&prompt, &endpoint, &api_key, &model, step_budget, &mut ask)
+        };
+        match result {
+            Ok(reply) => drop(tx.send(AgentEvent::Done(reply))),
+            // Nobody is listening — saying so would only surface in a later
+            // turn's transcript (ADR 0007 §D2).
+            Err(AgentError::Cancelled) => {}
+            Err(error) => drop(tx.send(AgentEvent::Failed(error.to_string()))),
+        }
+    });
+}
+
+/// The step budget this turn may spend, clamped **at the read site**.
+///
+/// ADR 0007 §D7: `settings.agent_step_budget` comes from a hand-editable JSON
+/// file, so `0` and `200` are both things a real file can say. Clamping here,
+/// once, is what lets everything downstream treat the number as sane.
+fn turn_step_budget(app: &App) -> u8 {
+    crate::agent::loop_::clamp_step_budget(app.settings.agent_step_budget)
+}
+
+/// The undo-stack label for a turn: `Agent:` and the prompt, trimmed and cut to
+/// [`LABEL_CHARS`] characters with an `…` when it did not fit (AC 10).
+///
+/// Counted in `char`s, not bytes: the prompt is whatever the operator typed,
+/// and slicing a UTF-8 string at byte 40 panics on the first accented word.
+fn turn_label(prompt: &str) -> String {
+    let trimmed = prompt.trim();
+    let mut label = String::from("Agent: ");
+    label.extend(trimmed.chars().take(LABEL_CHARS));
+    if trimmed.chars().nth(LABEL_CHARS).is_some() {
+        label.push('…');
+    }
+    label
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::agent::AGENT_STEP_BUDGET_DEFAULT;
+    use crate::app::agent_apply;
     use serde_json::{json, Value};
     use std::sync::{Arc, Mutex};
 
-    fn ctx() -> (Document, History) {
-        (Document::default(), History::new())
+    /// The `ask` seam, wired to a real `App`, recording what it was asked.
+    ///
+    /// This is the shape ADR 0007 §D1 buys: the turn is exercised end to end
+    /// against a live document with no thread, no channel and no socket
+    /// between them, because the only thing the turn knows how to do with an
+    /// action is hand it to whoever owns the drawing.
+    struct Applier {
+        app: App,
+        seen: Vec<AgentAction>,
+        cancel: bool,
+    }
+
+    impl Applier {
+        fn new() -> Self {
+            // ADR 0002 §A2: `App::default()` never touches the developer's
+            // real settings or autosave paths.
+            Self {
+                app: App::default(),
+                seen: Vec::new(),
+                cancel: false,
+            }
+        }
+
+        /// Report, on every ask, that nobody is left to answer (AC 5).
+        fn cancelling() -> Self {
+            Self {
+                cancel: true,
+                ..Self::new()
+            }
+        }
+
+        fn ask(&mut self, action: AgentAction) -> Result<AgentOutcome, AgentError> {
+            self.seen.push(action.clone());
+            if self.cancel {
+                return Err(AgentError::Cancelled);
+            }
+            Ok(agent_apply::apply(&mut self.app, &action))
+        }
+
+        fn entities(&self) -> usize {
+            self.app.document.entity_count()
+        }
     }
 
     // ── AC 13: the fence ───────────────────────────────────────────────────
@@ -281,6 +439,163 @@ mod tests {
         assert!(!fence.may_coalesce(9, 2));
     }
 
+    // ── AC 3: arming, and refusing to arm twice ──────────────────────────────
+
+    /// AC 3 — arming records the operator's words, raises the busy flag, parks
+    /// a live `Receiver` on `App`, and hands back the `Sender` that feeds it.
+    ///
+    /// The `Sender` is exercised rather than merely returned: a channel whose
+    /// other half never reached `App` would still type-check here.
+    #[test]
+    fn arm_turn_records_the_user_row_and_arms_a_live_channel() {
+        let mut app = App::default();
+        let tx = arm_turn(&mut app, "draw a 20 mm square");
+
+        assert_eq!(
+            app.agent_chat,
+            vec![("user".to_owned(), "draw a 20 mm square".to_owned())]
+        );
+        assert!(app.agent_busy);
+        assert!(app.agent_rx.is_some());
+        assert_eq!(app.agent_applied, 0);
+        assert_eq!(app.agent_turn_label, "Agent: draw a 20 mm square");
+
+        tx.send(AgentEvent::Done("hi".to_owned()))
+            .expect("the returned Sender must reach the Receiver on App");
+        match app
+            .agent_rx
+            .as_ref()
+            .expect("armed")
+            .try_recv()
+            .expect("and the event must arrive on the Receiver App is holding")
+        {
+            AgentEvent::Done(text) => assert_eq!(text, "hi"),
+            _ => panic!("the event must arrive intact"),
+        }
+    }
+
+    /// AC 3 — the fence is armed at the revision the turn starts from, not at
+    /// zero. A fence built on `0` would refuse the very first action of any
+    /// turn in a session that had ever drawn anything.
+    #[test]
+    fn arm_turn_anchors_the_fence_on_the_current_revision() {
+        let mut app = App::default();
+        app.commit(Box::new(crate::document::CreateLine::new(
+            crate::geometry::Line::new(
+                crate::geometry::Vec2::new(0.0, 0.0),
+                crate::geometry::Vec2::new(1.0, 0.0),
+            ),
+        )));
+        let revision = app.history.revision();
+        assert_ne!(revision, 0, "the fixture must have moved the revision");
+
+        let _tx = arm_turn(&mut app, "go on");
+        assert_eq!(app.agent_fence, TurnFence::new(revision));
+        assert_eq!(app.agent_fence.check(revision), Ok(()));
+    }
+
+    /// AC 3 — a second turn is refused while one is in flight, and refused
+    /// *silently*: `start_turn` touches nothing. One `agent_rx` and one fence
+    /// mean one turn, and re-arming would strand the running thread.
+    ///
+    /// Asserted on a busy `App` whose channel was armed by hand, so no thread
+    /// and no socket are involved.
+    #[test]
+    fn start_turn_on_a_busy_app_changes_nothing() {
+        let mut app = App::default();
+        let _tx = arm_turn(&mut app, "the first prompt");
+        let chat = app.agent_chat.clone();
+        let fence = app.agent_fence.clone();
+        let label = app.agent_turn_label.clone();
+        let armed = app.agent_rx.as_ref().map(std::ptr::from_ref);
+
+        start_turn(&mut app, "the second prompt");
+
+        assert_eq!(app.agent_chat, chat, "no row for a turn that never started");
+        assert_eq!(app.agent_fence, fence, "the running turn keeps its fence");
+        assert_eq!(app.agent_turn_label, label);
+        assert_eq!(
+            app.agent_rx.as_ref().map(std::ptr::from_ref),
+            armed,
+            "the running turn keeps its receiver"
+        );
+        assert!(app.agent_busy);
+    }
+
+    // ── AC 18: the budget is read and clamped here ───────────────────────────
+
+    /// AC 18 / ADR 0007 §D7 — the stored budget is clamped at this read site.
+    /// `0` and `200` are both things a hand-edited settings file can say.
+    #[test]
+    fn the_budget_is_clamped_where_it_is_read() {
+        for (stored, expected) in [(0, 1), (1, 1), (12, 12), (32, 32), (200, 32), (255, 32)] {
+            let mut app = App::default();
+            app.settings.agent_step_budget = stored;
+            assert_eq!(turn_step_budget(&app), expected, "stored {stored}");
+        }
+    }
+
+    /// AC 18 — the settings module knows nothing about the agent. The clamp
+    /// belongs to the reader, not to the store: `io/settings.rs` deserialises
+    /// whatever the JSON says and hands it over unjudged, which is why the
+    /// clamp above has to exist.
+    #[test]
+    fn the_settings_module_does_not_import_the_agent() {
+        let src = include_str!("../io/settings.rs");
+        let at = src
+            .find("\n#[cfg(test)]")
+            .expect("settings.rs must have a bare #[cfg(test)] marker");
+        let implementation = &src[..at];
+        assert!(
+            implementation.contains(concat!("pub agent_step", "_budget: u8")),
+            "positive control: settings must still hold the stored budget"
+        );
+        let needle = concat!("crate::", "agent");
+        assert!(
+            concat!("use crate::", "agent::clamp_step_budget;").contains(needle),
+            "control: the needle must match a real import"
+        );
+        let hit = implementation
+            .lines()
+            .find(|l| l.contains(needle) && !l.trim_start().starts_with("//"));
+        assert!(
+            hit.is_none(),
+            "AC 18: io/settings.rs must not reach into the agent: {hit:?}"
+        );
+    }
+
+    // ── AC 10: the undo label ────────────────────────────────────────────────
+
+    /// AC 10 — the label is `Agent:` plus the trimmed prompt, cut at 40
+    /// characters with an `…` only when something was actually cut.
+    #[test]
+    fn the_turn_label_trims_and_truncates_at_forty_characters() {
+        assert_eq!(turn_label("  draw a square  "), "Agent: draw a square");
+        // Exactly 40 characters: kept whole, no ellipsis.
+        let forty = "a".repeat(40);
+        assert_eq!(turn_label(&forty), format!("Agent: {forty}"));
+        // Forty-one: forty kept, one ellipsis.
+        let forty_one = "b".repeat(41);
+        assert_eq!(
+            turn_label(&forty_one),
+            format!("Agent: {}…", "b".repeat(40))
+        );
+    }
+
+    /// AC 10 — the cut counts `char`s, not bytes. Slicing this prompt at byte
+    /// 40 lands inside a multi-byte character and panics.
+    #[test]
+    fn the_turn_label_cuts_on_character_boundaries() {
+        let prompt = "desenhe um quadrado de vinte milímetros no canto";
+        let label = turn_label(prompt);
+        assert!(label.ends_with('…'), "{label}");
+        assert_eq!(label.chars().count(), "Agent: ".len() + 40 + 1);
+        assert!(
+            label.starts_with("Agent: desenhe um quadrado de vinte milí"),
+            "{label}"
+        );
+    }
+
     // ── The turn, over a real socket ─────────────────────────────────────────
 
     // ── mockito: the whole turn, over a real socket ──────────────────────────
@@ -367,20 +682,29 @@ mod tests {
             .with_body(r#"{"choices":[{"message":{"role":"assistant","content":"Done."}}]}"#)
             .create();
 
-        let (mut doc, mut history) = ctx();
+        let mut applier = Applier::new();
         let reply = run_agent_turn(
             "draw a line",
             &server.url(),
             "k",
             "test/model",
             AGENT_STEP_BUDGET_DEFAULT,
-            &mut doc,
-            &mut history,
+            &mut |action| applier.ask(action),
         )
         .expect("the turn must finish");
 
         assert_eq!(reply, "Done.");
-        assert_eq!(doc.entities.len(), 1, "the tool call really was dispatched");
+        assert_eq!(applier.entities(), 1, "the tool call really was dispatched");
+        assert_eq!(
+            applier.seen,
+            [AgentAction::CreateLine {
+                x1: 0.0,
+                y1: 0.0,
+                x2: 20.0,
+                y2: 0.0
+            }],
+            "AC 4: one ask per tool call, carrying the parsed action"
+        );
         assert_eq!(bodies.len(), 2, "exactly two round trips");
 
         let second = bodies.json(1);
@@ -402,7 +726,7 @@ mod tests {
         );
         assert_eq!(
             second["tools"].as_array().map(|t| t.len()),
-            Some(5),
+            Some(7),
             "every round offers the tools, body was {second}"
         );
     }
@@ -440,23 +764,26 @@ mod tests {
             )
             .create();
 
-        let (mut doc, mut history) = ctx();
-        let before = history.revision();
+        let mut applier = Applier::new();
+        let before = applier.app.history.revision();
         let reply = run_agent_turn(
             "delete entity 7",
             &server.url(),
             "k",
             "test/model",
             AGENT_STEP_BUDGET_DEFAULT,
-            &mut doc,
-            &mut history,
+            &mut |action| applier.ask(action),
         )
         .expect("a refused tool call must not fail the turn");
 
         assert_eq!(reply, "There is nothing there.");
         assert_eq!(bodies.len(), 2, "the turn went another round");
-        assert_eq!(doc.entities.len(), 0, "nothing was applied");
-        assert_eq!(history.revision(), before, "nothing was committed");
+        assert_eq!(applier.entities(), 0, "nothing was applied");
+        assert_eq!(
+            applier.app.history.revision(),
+            before,
+            "nothing was committed"
+        );
 
         let second = bodies.json(1);
         let msgs = second["messages"].as_array().expect("messages array");
@@ -483,15 +810,14 @@ mod tests {
                 .with_body(r#"{"choices":[{"message":{"role":"assistant","content":"hi"}}]}"#)
                 .create();
 
-            let (mut doc, mut history) = ctx();
+            let mut applier = Applier::new();
             let reply = run_agent_turn(
                 "hello",
                 &server.url(),
                 "k",
                 model,
                 AGENT_STEP_BUDGET_DEFAULT,
-                &mut doc,
-                &mut history,
+                &mut |action| applier.ask(action),
             );
             assert_eq!(reply.unwrap(), "hi");
             assert_eq!(bodies.len(), 1);
@@ -511,15 +837,14 @@ mod tests {
             .with_body(tool_call_body("call_loop", LINE_ARGS))
             .create();
 
-        let (mut doc, mut history) = ctx();
+        let mut applier = Applier::new();
         let result = run_agent_turn(
             "draw forever",
             &server.url(),
             "k",
             "test/model",
             2,
-            &mut doc,
-            &mut history,
+            &mut |action| applier.ask(action),
         );
 
         match result {
@@ -532,7 +857,7 @@ mod tests {
             other => panic!("expected the budget to stop the turn, got {other:?}"),
         }
         assert_eq!(
-            doc.entities.len(),
+            applier.entities(),
             2,
             "at most the budget may be dispatched"
         );
@@ -549,15 +874,14 @@ mod tests {
             .with_body("nope")
             .create();
 
-        let (mut doc, mut history) = ctx();
+        let mut applier = Applier::new();
         let result = run_agent_turn(
             "hello",
             &server.url(),
             "k",
             "test/model",
             AGENT_STEP_BUDGET_DEFAULT,
-            &mut doc,
-            &mut history,
+            &mut |action| applier.ask(action),
         );
         match result {
             Err(AgentError::Transport(message)) => {
@@ -567,6 +891,253 @@ mod tests {
                 );
             }
             other => panic!("expected a transport error, got {other:?}"),
+        }
+    }
+
+    // ── AC 4, AC 5: the ask seam ─────────────────────────────────────────────
+
+    /// AC 4 — one ask per tool call, in the order the model asked, and the
+    /// string the ask answered with is what the model reads back.
+    ///
+    /// Two calls in **one** assistant message, so an implementation that
+    /// handled only the first — or that reordered them — cannot pass. The
+    /// arguments differ in every field, so a transposition is visible too.
+    #[test]
+    fn every_tool_call_becomes_one_ask_in_order() {
+        let mut server = mockito::Server::new();
+        let bodies = Bodies::default();
+        let _first = server
+            .mock("POST", "/chat/completions")
+            .with_status(200)
+            .with_body(
+                json!({"choices": [{"message": {
+                    "role": "assistant",
+                    "content": Value::Null,
+                    "tool_calls": [
+                        {"id": "a", "type": "function", "function":
+                            {"name": "create_line",
+                             "arguments": r#"{"x1":0,"y1":0,"x2":20,"y2":0}"#}},
+                        {"id": "b", "type": "function", "function":
+                            {"name": "create_circle",
+                             "arguments": r#"{"cx":5,"cy":6,"r":3}"#}}
+                    ]
+                }}]})
+                .to_string(),
+            )
+            .expect(1)
+            .create();
+        let _second = server
+            .mock("POST", "/chat/completions")
+            .match_request(bodies.matcher())
+            .with_status(200)
+            .with_body(r#"{"choices":[{"message":{"role":"assistant","content":"Done."}}]}"#)
+            .create();
+
+        let mut applier = Applier::new();
+        let reply = run_agent_turn(
+            "draw",
+            &server.url(),
+            "k",
+            "test/model",
+            AGENT_STEP_BUDGET_DEFAULT,
+            &mut |action| applier.ask(action),
+        )
+        .expect("the turn must finish");
+
+        assert_eq!(reply, "Done.");
+        assert_eq!(
+            applier.seen,
+            [
+                AgentAction::CreateLine {
+                    x1: 0.0,
+                    y1: 0.0,
+                    x2: 20.0,
+                    y2: 0.0
+                },
+                AgentAction::CreateCircle {
+                    cx: 5.0,
+                    cy: 6.0,
+                    r: 3.0
+                },
+            ],
+            "AC 4: one ask per tool call, in order"
+        );
+        assert_eq!(applier.entities(), 2);
+
+        // And each ask's answer is the tool result the model reads back.
+        let second = bodies.json(1);
+        let msgs = second["messages"].as_array().expect("messages array");
+        assert_eq!(msgs[3]["tool_call_id"], "a");
+        assert!(
+            msgs[3]["content"]
+                .as_str()
+                .is_some_and(|c| c.starts_with("Line created:")),
+            "body was {second}"
+        );
+        assert_eq!(msgs[4]["tool_call_id"], "b");
+        assert!(
+            msgs[4]["content"]
+                .as_str()
+                .is_some_and(|c| c.starts_with("Circle created:")),
+            "body was {second}"
+        );
+    }
+
+    /// AC 5 — an ask that reports cancellation ends the turn **immediately**.
+    ///
+    /// The UI is gone, or has abandoned this turn, so there is nothing left to
+    /// answer any further question and nothing to spend another request on. The
+    /// mock is `.expect(1)`: a turn that carried on would send a second one and
+    /// this assertion is what says so.
+    #[test]
+    fn a_cancelled_ask_returns_at_once_and_sends_nothing_more() {
+        let mut server = mockito::Server::new();
+        let mock = server
+            .mock("POST", "/chat/completions")
+            .with_status(200)
+            .with_body(tool_call_body("call_gone", LINE_ARGS))
+            .expect(1)
+            .create();
+
+        let mut applier = Applier::cancelling();
+        let result = run_agent_turn(
+            "draw a line",
+            &server.url(),
+            "k",
+            "test/model",
+            AGENT_STEP_BUDGET_DEFAULT,
+            &mut |action| applier.ask(action),
+        );
+
+        assert!(
+            matches!(result, Err(AgentError::Cancelled)),
+            "got {result:?}"
+        );
+        assert_eq!(applier.seen.len(), 1, "it stops at the first dead ask");
+        assert_eq!(applier.entities(), 0, "and nothing was applied");
+        mock.assert();
+    }
+
+    /// AC 4 / AC 8 — the real ask seam **asks**. Every test above this one
+    /// substitutes its own callback for [`ask_ui`], so nothing there would
+    /// notice a seam that fabricated an answer and never sent an `Act` — the
+    /// mutation that silently disconnects the model from the drawing.
+    ///
+    /// Two halves, both deterministic and neither one timed:
+    ///
+    /// - a `Sender` whose `Receiver` is already gone must report cancellation
+    ///   rather than success, and needs no second thread at all;
+    /// - a live rendezvous, where this thread plays the UI: it blocks on the
+    ///   channel until the `Act` arrives, checks the action crossed intact,
+    ///   answers, and joins. A seam that fabricated would drop its `Sender`
+    ///   without sending, so `recv` fails here instead of hanging.
+    #[test]
+    fn the_ask_seam_sends_the_action_and_waits_for_the_answer() {
+        let action = AgentAction::CreateLine {
+            x1: 1.0,
+            y1: 2.0,
+            x2: 3.0,
+            y2: 4.0,
+        };
+
+        let (dead_tx, dead_rx) = channel::<AgentEvent>();
+        drop(dead_rx);
+        assert!(
+            matches!(ask_ui(&dead_tx, action.clone()), Err(AgentError::Cancelled)),
+            "no listener means cancelled, never a fabricated success"
+        );
+
+        let (tx, rx) = channel::<AgentEvent>();
+        let sent = action.clone();
+        let worker = std::thread::spawn(move || ask_ui(&tx, sent));
+
+        let event = rx.recv().expect("the ask must put an Act on the channel");
+        let AgentEvent::Act {
+            action: crossed,
+            reply,
+        } = event
+        else {
+            panic!("the ask must send an Act, not a terminal event");
+        };
+        assert_eq!(crossed, action, "the action crosses the channel intact");
+        reply
+            .send(AgentOutcome::Ok("the UI answered".to_owned()))
+            .expect("the ask must still be waiting on its reply channel");
+
+        let answered = worker.join().expect("the ask thread must not panic");
+        assert_eq!(
+            answered.expect("an answered ask succeeds").text(),
+            "the UI answered",
+            "the seam returns the UI's answer, not one of its own"
+        );
+    }
+
+    /// AC 1 — `run_agent_turn` owns no document state: this file's
+    /// implementation section names neither type, nor a snapshot of one, nor a
+    /// shared handle to one.
+    ///
+    /// The needles are checked against a witness first, so a misspelt one
+    /// fails here instead of passing over any haystack at all.
+    #[test]
+    fn the_turn_owns_no_document_state() {
+        let src = include_str!("agent_turn.rs");
+        let at = src
+            .find("\n#[cfg(test)]")
+            .expect("agent_turn.rs must have a bare #[cfg(test)] marker");
+        let implementation = &src[..at];
+
+        let witness = "use crate::document::{Document, History}; \
+                       let shared: Arc<Mutex<Document>> = x; \
+                       let snapshot: Vec<Entity> = y; let d = Document::default();";
+        for forbidden in [
+            concat!("crate::", "document"),
+            concat!("Doc", "ument"),
+            concat!("His", "tory"),
+            concat!("Arc<", "Mutex"),
+            concat!("Vec<", "Entity>"),
+        ] {
+            assert!(
+                witness.contains(forbidden),
+                "control: `{forbidden}` must be able to match real document state"
+            );
+            let hit = implementation
+                .lines()
+                .find(|l| l.contains(forbidden) && !l.trim_start().starts_with("//"));
+            assert!(
+                hit.is_none(),
+                "AC 1: run_agent_turn's file must not name `{forbidden}`: {hit:?}"
+            );
+        }
+    }
+
+    /// AC 12 — arming, spawning and finishing a turn open no dialog and block
+    /// nothing. The operator keeps drawing while the agent works.
+    ///
+    /// Every `*_open` flag on `App` is a modal or a panel; a turn that set one
+    /// would take the canvas away, which ADR 0007 §D4 names a non-goal. The
+    /// scan covers both files that run turn code.
+    #[test]
+    fn no_turn_function_opens_a_dialog() {
+        let witness = "app.agent_settings_open = true; app.agent_panel_open = false;";
+        for (name, src) in [
+            ("agent_turn.rs", include_str!("agent_turn.rs")),
+            ("agent_poll.rs", include_str!("agent_poll.rs")),
+        ] {
+            let at = src
+                .find("\n#[cfg(test)]")
+                .expect("a bare #[cfg(test)] marker");
+            let needle = concat!("_open", " =");
+            assert!(
+                witness.contains(needle),
+                "control: `{needle}` must match a real write"
+            );
+            let hit = src[..at]
+                .lines()
+                .find(|l| l.contains(needle) && !l.trim_start().starts_with("//"));
+            assert!(
+                hit.is_none(),
+                "AC 12: {name} must not write a dialog flag: {hit:?}"
+            );
         }
     }
 
