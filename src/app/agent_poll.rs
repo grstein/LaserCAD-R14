@@ -15,11 +15,18 @@
 //! dropped sender alike — and a worker thread that panics or returns closes the
 //! channel as a matter of course, because the `Sender` is moved into it.
 //!
-//! There is a **fourth** exit the ADR does not yet enumerate: a worker that
-//! vanishes between sending an `Act` and reading its answer. The reply channel
-//! is then dead while the event channel may still look alive, so nothing else
-//! would ever bring `agent_busy` down. It is handled below with the other
-//! three, and pinned by a test.
+//! The **fourth** exit is a worker that vanishes between sending an `Act` and
+//! reading its answer. The reply channel is then dead while the event channel
+//! may still look alive, so nothing else would ever bring `agent_busy` down.
+//! It reports the same thing as a dropped sender does — the worker is gone —
+//! so it writes the same row, and ADR 0007 §D11 requires that: two spellings
+//! of one fact must never show the operator different things.
+//!
+//! What holds all four together is not the list but the invariant under it:
+//! [`end_turn`] is the only place in the program that writes
+//! `agent_busy = false` or clears `agent_rx` after startup, and every path out
+//! of [`poll_agent_rx`] that does not put the receiver back is a tail call to
+//! it. A fifth exit must obey that, not this paragraph.
 
 use crate::agent::AgentEvent;
 use crate::app::{agent_apply, App};
@@ -47,14 +54,15 @@ pub fn poll_agent_rx(app: &mut App) {
             Ok(AgentEvent::Act { action, reply }) => {
                 let outcome = agent_apply::apply(app, &action);
                 if reply.send(outcome).is_err() {
-                    // The worker stopped waiting — it panicked or returned
-                    // between sending the `Act` and reading the answer — so
-                    // nothing more can arrive. This is the fourth turn exit,
-                    // and the only one that writes no chat row: the operator
-                    // already sees the turn stop, and the action really was
-                    // applied, so an error row would be a lie about the
-                    // drawing. What matters is that `agent_busy` comes down.
-                    end_turn(app, None);
+                    // The fourth turn exit: the worker panicked or returned
+                    // between sending this `Act` and reading its answer. It
+                    // reports the same fact as `Disconnected` below, one
+                    // instant earlier, so it writes the same row (ADR 0007
+                    // §D11). It returns rather than falling through, because
+                    // falling through assumes both channels die in the same
+                    // instant; where they do not, `try_recv` says `Empty`, the
+                    // receiver goes back, and `agent_busy` latches for good.
+                    end_turn(app, Some(("error", AGENT_LOST_MESSAGE.to_string())));
                     return;
                 }
             }

@@ -633,6 +633,12 @@ mod tests {
     /// the app would spin for the rest of the session — LCV-120, reopened, with
     /// a symptom that surfaces nowhere near the agent.
     ///
+    /// It writes the same row as a dropped sender: a live worker is blocked on
+    /// the other half of this reply channel until the answer arrives, so an
+    /// `Err` from `send` means the worker is gone, which means the event
+    /// channel is closed too. Falling through would have printed that row one
+    /// iteration later — the row is the fact, not the arm.
+    ///
     /// Dropping the receiving end before polling is exactly what a panicking
     /// worker does, and `Sender::send` reports it on the next call. No thread,
     /// no sleep.
@@ -664,10 +670,14 @@ mod tests {
             "a worker that stopped listening must not leave the app spinning"
         );
         assert!(app.agent_rx.is_none(), "nothing more can arrive");
-        assert!(
-            app.agent_chat.is_empty(),
-            "this exit writes no chat row: the action was applied, so an error \
-             row would misdescribe the drawing"
+        assert_eq!(
+            app.agent_chat.last(),
+            Some(&(
+                "error".into(),
+                crate::app::agent_poll::AGENT_LOST_MESSAGE.to_owned()
+            )),
+            "this exit reports the same fact as a dropped sender — the worker \
+             is gone — so it must show the operator the same row (ADR 0007 §D11)"
         );
         assert_eq!(
             app.document.entity_count(),
