@@ -253,8 +253,11 @@ impl App {
             // §Consequences). The worker blocks on a reply that only
             // `poll_agent_rx` above can send, and that line only runs inside a
             // frame — so an app that stops painting stalls the turn forever,
-            // mid-drawing. LCV-123 mutation (g) is the proof: delete this and
-            // the end-to-end turn test times out.
+            // mid-drawing. No headless test catches its deletion — a test
+            // loop drives `update_ui` on its own schedule and never asks egui
+            // whether a repaint was requested — so what pins it is a scan of
+            // this *condition*: `the_agent_repaint_is_guarded_on_the_busy_flag`
+            // in `tests/lcv123_agent_turn.rs`.
             ctx.request_repaint();
         }
         panels::draw_agent_side_panel(ctx, self);
