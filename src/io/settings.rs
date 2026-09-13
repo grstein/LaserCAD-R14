@@ -30,6 +30,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::util::{clamp_bed_mm, DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
+
 // ---------------------------------------------------------------------------
 // Error type
 // ---------------------------------------------------------------------------
@@ -79,10 +81,28 @@ pub struct Settings {
     /// Default: `""` (agent disabled until set).
     #[serde(default)]
     pub agent_api_key: String,
+
+    /// The bed size, in millimetres `[width, height]`, that a **new** document
+    /// starts at (LCV-114 AC 11).
+    ///
+    /// A seed, never the truth: the live bed is
+    /// [`Document::bed_mm`](crate::document::Document::bed_mm). Written only
+    /// by the Bed size… dialog — opening a 300 × 200 file must not re-home the
+    /// operator's machine. Read it through [`Settings::clamped_default_bed_mm`]
+    /// rather than directly: a hand-edited settings file can hold anything.
+    ///
+    /// Needs its own serde default because the field's `Default`
+    /// (`[0.0, 0.0]`) would be a zero-sized bed.
+    #[serde(default = "default_bed_mm")]
+    pub default_bed_mm: [f64; 2],
 }
 
 fn default_agent_endpoint() -> String {
     "https://openrouter.ai/api/v1".to_string()
+}
+
+fn default_bed_mm() -> [f64; 2] {
+    [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM]
 }
 
 impl Default for Settings {
@@ -91,6 +111,7 @@ impl Default for Settings {
             recent_files: Vec::new(),
             agent_endpoint: default_agent_endpoint(),
             agent_api_key: String::new(),
+            default_bed_mm: default_bed_mm(),
         }
     }
 }
@@ -108,6 +129,19 @@ impl Settings {
         self.recent_files.retain(|p| p != &path);
         self.recent_files.insert(0, path);
         self.recent_files.truncate(RECENT_FILES_CAP);
+    }
+
+    /// [`Settings::default_bed_mm`] with each axis held inside
+    /// `BED_MIN_MM ..= BED_MAX_MM` (LCV-114 AC 11).
+    ///
+    /// The stored value comes from a JSON file the operator can edit, so every
+    /// reader — `File > New` and the cold-boot seed — goes through this rather
+    /// than trusting the field.
+    pub fn clamped_default_bed_mm(&self) -> [f64; 2] {
+        [
+            clamp_bed_mm(self.default_bed_mm[0]),
+            clamp_bed_mm(self.default_bed_mm[1]),
+        ]
     }
 
     /// Load settings from the platform config directory (infallible).
@@ -492,5 +526,61 @@ mod tests {
         assert_eq!(result.agent_api_key, "");
 
         let _ = fs::remove_file(&tmp);
+    }
+
+    /// LCV-114 AC 11 — the seed defaults to the 400 mm pair, not to the
+    /// field's own `[0.0, 0.0]`, which would be a zero-sized bed.
+    #[test]
+    fn default_bed_mm_is_the_default_bed() {
+        assert_eq!(
+            Settings::default().default_bed_mm,
+            [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM]
+        );
+    }
+
+    /// LCV-114 AC 11 — a settings file written before this demand still loads
+    /// with a usable bed seed rather than a zero-sized one.
+    #[test]
+    fn legacy_json_without_default_bed_mm_uses_the_default_bed() {
+        let tmp = std::env::temp_dir().join("lcv114_legacy_bed.json");
+        fs::write(&tmp, r#"{"recent_files":[]}"#).unwrap();
+
+        let result = load_from(&tmp);
+        assert_eq!(
+            result.default_bed_mm,
+            [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM]
+        );
+
+        let _ = fs::remove_file(&tmp);
+    }
+
+    /// LCV-114 AC 11 — a chosen seed survives a save/load cycle.
+    #[test]
+    fn default_bed_mm_round_trips_through_the_file() {
+        let tmp = std::env::temp_dir().join("lcv114_bed_seed.json");
+        let s = Settings {
+            default_bed_mm: [300.0, 180.0],
+            ..Settings::default()
+        };
+        save_to(&s, &tmp).unwrap();
+
+        assert_eq!(load_from(&tmp).default_bed_mm, [300.0, 180.0]);
+
+        let _ = fs::remove_file(&tmp);
+    }
+
+    /// LCV-114 AC 11 — the file is operator-editable, so every reader goes
+    /// through the clamp rather than trusting the stored pair.
+    #[test]
+    fn clamped_default_bed_mm_holds_each_axis_in_range() {
+        let mut s = Settings {
+            default_bed_mm: [0.0, 5000.0],
+            ..Settings::default()
+        };
+        assert_eq!(s.clamped_default_bed_mm(), [1.0, 2000.0]);
+        s.default_bed_mm = [300.0, 180.0];
+        assert_eq!(s.clamped_default_bed_mm(), [300.0, 180.0]);
+        s.default_bed_mm = [f64::NAN, 180.0];
+        assert_eq!(s.clamped_default_bed_mm(), [DEFAULT_BED_WIDTH_MM, 180.0]);
     }
 }

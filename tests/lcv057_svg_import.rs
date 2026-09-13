@@ -18,7 +18,7 @@ fn svg_wrap(inner: &str) -> String {
 #[test]
 fn line_element_parsed_to_entity_line() {
     let src = svg_wrap(r#"<line x1="1.0000" y1="2.0000" x2="11.0000" y2="7.0000"/>"#);
-    let entities = import_svg(&src).unwrap();
+    let entities = import_svg(&src).unwrap().entities;
     assert_eq!(entities.len(), 1);
     let Entity::Line(l) = &entities[0] else {
         panic!("expected Entity::Line")
@@ -33,7 +33,7 @@ fn line_element_parsed_to_entity_line() {
 #[test]
 fn circle_element_parsed_to_entity_circle() {
     let src = svg_wrap(r#"<circle cx="5.0000" cy="5.0000" r="3.0000"/>"#);
-    let entities = import_svg(&src).unwrap();
+    let entities = import_svg(&src).unwrap().entities;
     assert_eq!(entities.len(), 1);
     let Entity::Circle(c) = &entities[0] else {
         panic!("expected Entity::Circle")
@@ -47,7 +47,7 @@ fn circle_element_parsed_to_entity_circle() {
 #[test]
 fn arc_ccw_quarter_reconstructed_correctly() {
     let src = svg_wrap(r#"<path d="M 10.0000 400.0000 A 10.0000 10.0000 0 0 0 0.0000 390.0000"/>"#);
-    let entities = import_svg(&src).unwrap();
+    let entities = import_svg(&src).unwrap().entities;
     assert_eq!(entities.len(), 1);
     let Entity::Arc(a) = &entities[0] else {
         panic!("expected Entity::Arc")
@@ -69,7 +69,7 @@ fn arc_ccw_quarter_reconstructed_correctly() {
 fn arc_large_flag_selects_correct_center() {
     let src =
         svg_wrap(r#"<path d="M 110.0000 300.0000 A 10.0000 10.0000 0 1 0 100.0000 310.0000"/>"#);
-    let entities = import_svg(&src).unwrap();
+    let entities = import_svg(&src).unwrap().entities;
     assert_eq!(entities.len(), 1);
     let Entity::Arc(a) = &entities[0] else {
         panic!("expected Entity::Arc")
@@ -91,7 +91,7 @@ fn arc_large_flag_selects_correct_center() {
 #[test]
 fn arc_cw_sweep_flag_one_sets_ccw_false() {
     let src = svg_wrap(r#"<path d="M 0.0000 390.0000 A 10.0000 10.0000 0 0 1 10.0000 400.0000"/>"#);
-    let entities = import_svg(&src).unwrap();
+    let entities = import_svg(&src).unwrap().entities;
     assert_eq!(entities.len(), 1);
     let Entity::Arc(a) = &entities[0] else {
         panic!("expected Entity::Arc")
@@ -141,7 +141,7 @@ fn path_with_non_numeric_a_command_returns_malformed_path() {
 #[test]
 fn non_arc_path_silently_skipped() {
     let src = svg_wrap(r#"<path d="M 0 0 L 10 10"/>"#);
-    assert!(import_svg(&src).unwrap().is_empty());
+    assert!(import_svg(&src).unwrap().entities.is_empty());
 }
 
 /// AC 16 — `<rect>` and other unknown elements are silently skipped.
@@ -152,7 +152,7 @@ fn unknown_elements_silently_skipped() {
            <rect width="10" height="10"/>
            <circle cx="5" cy="5" r="3"/>"#,
     );
-    let entities = import_svg(&src).unwrap();
+    let entities = import_svg(&src).unwrap().entities;
     assert_eq!(entities.len(), 2);
     assert!(matches!(entities[0], Entity::Line(_)));
     assert!(matches!(entities[1], Entity::Circle(_)));
@@ -166,7 +166,7 @@ fn entities_inside_g_groups_collected() {
         <g id="mark"></g>
         <g id="engrave"></g>
     </svg>"#;
-    let entities = import_svg(src).unwrap();
+    let entities = import_svg(src).unwrap().entities;
     assert_eq!(entities.len(), 1);
     assert!(matches!(entities[0], Entity::Line(_)));
 }
@@ -190,7 +190,7 @@ fn round_trip_line_circle_arc() {
     )));
 
     let svg = export_svg(&doc);
-    let imported = import_svg(&svg).unwrap();
+    let imported = import_svg(&svg).unwrap().entities;
     assert_eq!(imported.len(), 3);
 
     let Entity::Line(l) = &imported[0] else {

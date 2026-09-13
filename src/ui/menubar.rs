@@ -50,6 +50,14 @@ fn file_menu(ui: &mut egui::Ui, app: &mut App) {
             app.action_save_as();
         }
         ui.separator();
+        // LCV-114: the bed belongs to the document, so its dialog belongs to
+        // the File menu. Opening it only parks a draft; nothing is committed
+        // until OK (see `src/app/bed_dialog.rs`).
+        if ui.button("Bed size…").clicked() {
+            ui.close_menu();
+            app.bed_dialog = Some(app.document.bed_mm);
+        }
+        ui.separator();
         if ui.button("Exit").clicked() {
             ui.close_menu();
             if app.request_exit() {
@@ -183,11 +191,15 @@ pub(crate) fn do_select_all(app: &mut App) {
 #[rustfmt::skip] pub(crate) fn do_agent_settings(app: &mut App) { app.agent_settings_open = true; }
 
 /// Fit the viewport to the laser bed bounding box.
+///
+/// Built from `document.bed_mm` at the point of use (LCV-114 AC 4/AC 15), so
+/// resizing the bed reframes to the new rectangle with no extra bookkeeping.
 pub(crate) fn do_fit_to_bed(app: &mut App) {
-    let min = app.bed.origin_world;
+    let bed = crate::render::Bed::from_size_mm(app.document.bed_mm);
+    let min = bed.origin_world;
     let max = Vec2::new(
-        app.bed.origin_world.x + app.bed.size_mm[0],
-        app.bed.origin_world.y + app.bed.size_mm[1],
+        bed.origin_world.x + bed.size_mm[0],
+        bed.origin_world.y + bed.size_mm[1],
     );
     let vp = app.camera.viewport_size_px;
     app.camera.zoom_extents(Some((min, max)), vp);
@@ -337,11 +349,10 @@ mod tests {
         assert!(app.camera.mm_per_px > before);
     }
 
-    #[test] // AC#13
+    #[test] // AC#13, re-homed onto the document by LCV-114 AC 4
     fn fit_to_bed_uses_bed_bounds() {
         let mut app = App::default();
-        app.bed.size_mm = [200.0, 100.0];
-        app.bed.origin_world = Vec2::new(0.0, 0.0);
+        app.document.bed_mm = [200.0, 100.0];
         app.camera.viewport_size_px = [800.0, 600.0];
         do_fit_to_bed(&mut app);
         assert!((app.camera.center_world.x - 100.0).abs() < 1e-9);
@@ -391,6 +402,52 @@ mod tests {
             );
             last = idx;
         }
+    }
+
+    /// LCV-114 AC 15 — `do_fit_to_bed` frames whatever bed the document
+    /// currently has, so a `SetBedSize` needs no renderer bookkeeping.
+    #[test]
+    fn fit_to_bed_follows_a_resized_document_bed() {
+        let mut app = App::default();
+        app.camera.viewport_size_px = [800.0, 600.0];
+        do_fit_to_bed(&mut app);
+        let framed_default = app.camera.center_world;
+        app.document.bed_mm = [300.0, 180.0];
+        do_fit_to_bed(&mut app);
+        assert!((app.camera.center_world.x - 150.0).abs() < 1e-9);
+        assert!((app.camera.center_world.y - 90.0).abs() < 1e-9);
+        assert!(app.camera.center_world != framed_default);
+    }
+
+    /// LCV-114 AC 14 — `Bed size…` sits in the File menu directly above
+    /// `Exit`, with a separator between them. The haystack is bounded to
+    /// `file_menu`'s body, so this test's own source cannot satisfy it, and
+    /// the neighbouring entries are asserted positively: an ordering scan
+    /// that found nothing would fail on `Save As…` first.
+    #[test]
+    fn file_menu_has_bed_size_directly_above_exit() {
+        let src = include_str!("menubar.rs");
+        let start = src.find("fn file_menu(").expect("file_menu must exist");
+        let end = src[start..]
+            .find("\nfn recent_submenu(")
+            .expect("file_menu must be followed by recent_submenu")
+            + start;
+        let body = &src[start..end];
+        let save_as = body.find("\"Save As…").expect("Save As… must be present");
+        let bed = body.find("\"Bed size…").expect("Bed size… must be present");
+        let exit = body.find("\"Exit\"").expect("Exit must be present");
+        assert!(
+            save_as < bed && bed < exit,
+            "order: Save As…, Bed size…, Exit"
+        );
+        assert!(
+            body[bed..exit].contains("ui.separator();"),
+            "Bed size… must be separated from Exit"
+        );
+        assert!(
+            body[save_as..bed].contains("ui.separator();"),
+            "Bed size… must be separated from the save entries"
+        );
     }
 
     /// LCV-104 AC#7 — activating each Tools-menu entry sets the active tool:

@@ -60,7 +60,10 @@ fn paint(ui: &egui::Ui, rect: egui::Rect, app: &mut App) {
     if app.grid_enabled {
         crate::render::draw_grid(&painter, rect, &app.camera);
     }
-    crate::render::draw_bed(&painter, rect, &app.camera, &app.bed);
+    // The bed is the document's, rebuilt every frame (LCV-114 AC 4/AC 15):
+    // no cached copy, so a `SetBedSize` shows up on the very next frame.
+    let bed = crate::render::Bed::from_size_mm(app.document.bed_mm);
+    crate::render::draw_bed(&painter, rect, &app.camera, &bed);
     crate::render::draw_entities(
         &painter,
         rect,
@@ -194,6 +197,35 @@ pub fn handle_zoom_extents(camera: &mut Camera, document: &Document, viewport_si
 mod tests {
     use super::*;
     use crate::geometry::Vec2;
+
+    /// LCV-114 AC 4/AC 15 — the canvas builds its bed from the document
+    /// every frame and keeps no copy, so a `SetBedSize` is visible on the
+    /// next frame with no cache to invalidate.
+    ///
+    /// A bounded source scan: `draw_viewport` needs a live `egui::Ui` and a
+    /// painter, and the property at stake is *where the size comes from*.
+    /// Each claim carries a positive control over the same slice, so an
+    /// absence assertion cannot pass vacuously.
+    #[test]
+    fn the_canvas_bed_comes_from_the_document() {
+        let src = include_str!("viewport.rs");
+        let cfg_test_at = src
+            .find("\n#[cfg(test)]")
+            .expect("viewport.rs must have a test module to bound the scan");
+        let implementation = &src[..cfg_test_at];
+        assert!(
+            implementation.contains("crate::render::draw_bed(&painter, rect, &app.camera, &bed)"),
+            "positive control: the canvas must draw the bed"
+        );
+        assert!(
+            implementation.contains("crate::render::Bed::from_size_mm(app.document.bed_mm)"),
+            "the drawn bed must be built from the document (AC 4)"
+        );
+        assert!(
+            !implementation.contains("app.bed"),
+            "there is no App-owned bed to read (AC 4)"
+        );
+    }
 
     /// LCV-032 AC#8 — wheel zoom helper with positive factor zooms in.
     #[test]

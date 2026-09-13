@@ -120,8 +120,8 @@ Async work (HTTP for the agent) runs on a plain `std::thread` (`src/agent/panel.
 
 `src/io/svg/export.rs` follows the LaserGRBL export checklist:
 
-- `xmlns` on the root `<svg>`; `width`/`height` are the **bed size in mm** (`BED_WIDTH_MM`/`BED_HEIGHT_MM` from `src/util/units.rs`); `viewBox` is `0 0 <BED_WIDTH_MM> <BED_HEIGHT_MM>` in SVG coordinates (no unit suffix).
-- **Y is mirrored on export**: `y_svg = BED_HEIGHT_MM - y_world` via `crate::util::flip_y`, because the world is Y-up and SVG is Y-down. Import applies the same involution in reverse. X, radii and stroke widths are untouched.
+- `xmlns` on the root `<svg>`; `width`/`height` are **the document's bed size in mm** (`Document::bed_mm`, seeded from `DEFAULT_BED_WIDTH_MM`/`DEFAULT_BED_HEIGHT_MM` in `src/util/units.rs` and configurable through `File > Bed size…`); `viewBox` is `0 0 <bed_width> <bed_height>` in SVG coordinates (no unit suffix). Import reads the same header back and the opened document adopts it.
+- **Y is mirrored on export**: `y_svg = flip_y(y_world, bed_height)` via `crate::util::flip_y`, where `bed_height` is `Document::bed_mm[1]` of the document being written — never a constant — because the world is Y-up and SVG is Y-down. Import applies the same involution in reverse, around the bed height the file itself declares. X, radii and stroke widths are untouched.
 - `fill="none"` forced; no live text; no `filter`/`mask`/`clipPath`.
 - One `<g>` per preset color: **cut** red `#ff0000`, **mark** blue `#0000ff`, **engrave** green `#00aa00`; `stroke-width="0.1"` mm.
 - Arcs as `<path d="M sx sy A r r 0 large sweep ex ey"/>` (not bézier). The mirror reverses handedness, so `sweep` is **inverted** relative to `Arc::ccw` (`sweep = 0` for a CCW world arc) while `large` is unchanged; start and end points keep their roles.

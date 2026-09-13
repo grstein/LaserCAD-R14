@@ -19,6 +19,7 @@
 
 use crate::document::{Entity, Selection};
 use crate::geometry::Vec2;
+use crate::util::{DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
 
 /// The drawing the operator is editing.
 ///
@@ -31,7 +32,7 @@ use crate::geometry::Vec2;
 /// Deliberately not `Copy` and not `Clone`: a full document clone would be a
 /// silent O(n) cost, and no current consumer needs one. A future demand can
 /// add `Clone` when it has a concrete reason.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Document {
     /// Placed geometric entities, in insertion order. The index inside this
     /// vector is the entity's addressable handle until a stable-id demand
@@ -40,6 +41,34 @@ pub struct Document {
     /// Current selection state. Concretized by LCV-027 — see
     /// [`crate::document::selection`] for the type definition.
     pub selection: Selection,
+    /// Machine bed size in millimetres, `[width, height]` (LCV-114).
+    ///
+    /// The **single owner** of the current bed: it is written into the SVG
+    /// header on export, read back on import, carried in the autosave
+    /// envelope, and changed only through
+    /// [`SetBedSize`](crate::document::SetBedSize) so Ctrl+Z reaches it.
+    /// `bed_mm[1]` is the axis `crate::util::flip_y` mirrors around, which is
+    /// why no export or import path may substitute a constant for it.
+    pub bed_mm: [f64; 2],
+}
+
+/// A blank document on a [`DEFAULT_BED_WIDTH_MM`] × [`DEFAULT_BED_HEIGHT_MM`]
+/// bed.
+///
+/// Written by hand rather than derived (LCV-114 AC 3): `#[derive(Default)]`
+/// would produce a `[0.0, 0.0]` bed, i.e. a zero mirror axis and a degenerate
+/// SVG canvas. `File > New` overwrites this with the operator's configured
+/// default (`Settings::default_bed_mm`); this value is what a `Document`
+/// constructed in code or recovered from a pre-LCV-114 autosave envelope
+/// starts at.
+impl Default for Document {
+    fn default() -> Self {
+        Self {
+            entities: Vec::new(),
+            selection: Selection::default(),
+            bed_mm: [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM],
+        }
+    }
 }
 
 impl Document {
@@ -88,6 +117,7 @@ mod tests {
         let doc = Document {
             entities: Vec::new(),
             selection: Selection::default(),
+            bed_mm: [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM],
         };
         assert_eq!(doc.entity_count(), 0);
     }
@@ -104,6 +134,26 @@ mod tests {
         let doc = Document::default();
         assert!(doc.entities.is_empty());
         assert_eq!(doc.entity_count(), 0);
+    }
+
+    /// LCV-114 AC 3 — a blank document starts on the default bed. The
+    /// derived `Default` this replaced would have produced `[0.0, 0.0]`.
+    #[test]
+    fn document_default_bed_is_400_square() {
+        let doc = Document::default();
+        assert_eq!(doc.bed_mm, [400.0, 400.0]);
+        assert_eq!(doc.bed_mm, [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM]);
+    }
+
+    /// LCV-114 AC 3 — `..Default::default()` still fills the bed in, which is
+    /// the shape `src/io/file_actions.rs` and `src/io/autosave.rs` use.
+    #[test]
+    fn document_struct_update_syntax_fills_the_bed() {
+        let doc = Document {
+            entities: Vec::new(),
+            ..Document::default()
+        };
+        assert_eq!(doc.bed_mm, [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM]);
     }
 
     /// AC#4 — `bounds()` over an empty document returns `None`.

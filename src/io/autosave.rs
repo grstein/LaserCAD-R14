@@ -11,8 +11,12 @@
 //!
 //! ## On-disk format
 //!
-//! A JSON object `{ "schema_version": 1, "entities": [...] }`.  Only entities
-//! are persisted — selection and history are ephemeral and are not included.
+//! A JSON object `{ "schema_version": 1, "entities": [...], "bed_mm": [W, H] }`.
+//! Only entities and the bed size are persisted — selection and history are
+//! ephemeral and are not included. `bed_mm` is additive and carries its own
+//! serde default (LCV-114 AC 13), so an envelope written before that demand
+//! still recovers, at the default bed; [`SCHEMA_VERSION`] is therefore **not**
+//! bumped — the policy bumps it only on a breaking change.
 //! The schema version must match [`crate::document::entity::SCHEMA_VERSION`];
 //! any mismatch causes [`load_autosave`] to return `None` (safe silent
 //! discard).
@@ -28,6 +32,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::document::{entity::SCHEMA_VERSION, Document, Entity};
+use crate::util::{DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
 
 // ---------------------------------------------------------------------------
 // Error type
@@ -63,6 +68,15 @@ struct DocumentEnvelope {
     schema_version: u32,
     /// The placed entities, in insertion order.
     entities: Vec<Entity>,
+    /// The document's bed size in millimetres `[width, height]` (LCV-114).
+    /// Absent in envelopes written before LCV-114; those recover at the
+    /// default bed rather than failing to load at all.
+    #[serde(default = "default_envelope_bed_mm")]
+    bed_mm: [f64; 2],
+}
+
+fn default_envelope_bed_mm() -> [f64; 2] {
+    [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM]
 }
 
 // ---------------------------------------------------------------------------
@@ -126,6 +140,7 @@ pub(crate) fn save_autosave_to(doc: &Document, path: &Path) -> Result<(), Autosa
     let envelope = DocumentEnvelope {
         schema_version: SCHEMA_VERSION,
         entities: doc.entities.clone(),
+        bed_mm: doc.bed_mm,
     };
     let json = serde_json::to_string_pretty(&envelope)?;
     std::fs::write(&tmp_path, json)?;
@@ -148,6 +163,7 @@ pub(crate) fn load_autosave_from(path: &Path) -> Option<Document> {
 
     Some(Document {
         entities: envelope.entities,
+        bed_mm: envelope.bed_mm,
         ..Document::default()
     })
 }
@@ -272,5 +288,45 @@ mod tests {
         let doc = load_autosave_from(&path).unwrap();
         assert_eq!(doc.entity_count(), 0);
         let _ = std::fs::remove_file(&path);
+    }
+
+    /// LCV-114 AC 13 — an envelope written before this demand has no
+    /// `bed_mm`; it must still load, at the default bed. Without the field
+    /// default, a single stale autosave.json would make the app boot empty.
+    #[test]
+    fn envelope_without_bed_mm_loads_at_the_default() {
+        let path = tmp_path("lcv114_no_bed.json");
+        let json = format!(r#"{{"schema_version":{SCHEMA_VERSION},"entities":[]}}"#);
+        std::fs::write(&path, json).unwrap();
+
+        let doc = load_autosave_from(&path).expect("a pre-LCV-114 envelope must still load");
+        assert_eq!(doc.bed_mm, [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM]);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// LCV-114 AC 13 — a non-default bed survives the write/read cycle, so a
+    /// crash recovery comes back on the operator's machine size.
+    #[test]
+    fn envelope_round_trips_bed_mm() {
+        let path = tmp_path("lcv114_bed_roundtrip.json");
+        let mut doc = sample_doc();
+        doc.bed_mm = [300.0, 180.0];
+        save_autosave_to(&doc, &path).unwrap();
+
+        let raw = std::fs::read_to_string(&path).unwrap();
+        assert!(raw.contains("bed_mm"), "the envelope must carry it: {raw}");
+
+        let back = load_autosave_from(&path).unwrap();
+        assert_eq!(back.bed_mm, [300.0, 180.0]);
+        assert_eq!(back.entity_count(), doc.entity_count());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// LCV-114 AC 13 — `bed_mm` is additive and back-compatible, so the
+    /// schema stamp does **not** move. The policy bumps it only on a breaking
+    /// change; the test above is what makes that claim true.
+    #[test]
+    fn schema_version_is_unchanged_by_the_bed_field() {
+        assert_eq!(SCHEMA_VERSION, 1);
     }
 }

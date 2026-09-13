@@ -4,11 +4,15 @@
 //! with a dark translucent overlay covering everything outside the bed.
 //! The visual contrast makes the printable area obvious at a glance.
 //!
-//! Introduced by demand LCV-034.
+//! The size drawn is **not** a constant: it is the open document's
+//! `bed_mm`, passed in by the viewport through [`Bed::from_size_mm`]
+//! (LCV-114). The constants below seed a blank document only.
+//!
+//! Introduced by demand LCV-034; parameterised by LCV-114.
 
 use crate::geometry::Vec2;
 use crate::render::Camera;
-use crate::util::{BED_HEIGHT_MM, BED_WIDTH_MM};
+use crate::util::{DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
 
 /// Laser bed configuration: size and world-space origin.
 ///
@@ -17,11 +21,12 @@ use crate::util::{BED_HEIGHT_MM, BED_WIDTH_MM};
 ///   of the bed (so the bed spans `[origin.x, origin.x + size_mm[0]]` ×
 ///   `[origin.y, origin.y + size_mm[1]]`).
 ///
-/// Default: the shared bed constants ([`BED_WIDTH_MM`] × [`BED_HEIGHT_MM`],
-/// 400×400 mm) at the world origin, matching common GRBL hobbyist machine
-/// sizes (Ortur LM2/LM3, Atomstack A5/A10). The SVG exporter mirrors Y around
-/// the very same [`BED_HEIGHT_MM`], so the bed drawn here and the canvas
-/// written to file are one number (LCV-100).
+/// Default: the blank-document seed ([`DEFAULT_BED_WIDTH_MM`] ×
+/// [`DEFAULT_BED_HEIGHT_MM`], 400×400 mm) at the world origin, matching common
+/// GRBL hobbyist machine sizes (Ortur LM2/LM3, Atomstack A5/A10). A live
+/// viewport builds its `Bed` from `Document::bed_mm` via [`Bed::from_size_mm`],
+/// which is the very height the SVG exporter mirrors around — so the bed drawn
+/// here and the canvas written to file stay one number (LCV-100, LCV-114).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Bed {
     /// Bed size in millimeters `[width, height]`.
@@ -33,13 +38,29 @@ pub struct Bed {
 impl Default for Bed {
     fn default() -> Self {
         Self {
-            size_mm: [BED_WIDTH_MM, BED_HEIGHT_MM],
+            size_mm: [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM],
             origin_world: Vec2::new(0.0, 0.0),
         }
     }
 }
 
 impl Bed {
+    /// Build a bed of `size_mm` millimetres anchored at the world origin.
+    ///
+    /// This is how the viewport turns the open document's
+    /// [`bed_mm`](crate::document::Document::bed_mm) into something drawable
+    /// (LCV-114 AC 3): the renderer holds no bed state of its own, so changing
+    /// the document's bed is visible on the very next frame.
+    ///
+    /// The size is taken as given — the caller is responsible for having
+    /// clamped it (see [`crate::util::clamp_bed_mm`]).
+    pub fn from_size_mm(size_mm: [f64; 2]) -> Self {
+        Self {
+            size_mm,
+            origin_world: Vec2::new(0.0, 0.0),
+        }
+    }
+
     /// Return the four world-space corners of the bed in the order:
     /// `[bottom_left, bottom_right, top_right, top_left]`.
     pub fn corners(&self) -> [Vec2; 4] {
@@ -152,11 +173,28 @@ mod tests {
         assert_eq!(bed.origin_world, Vec2::new(0.0, 0.0));
     }
 
-    /// LCV-100 AC 3 — the default bed and the SVG exporter share one source
-    /// of truth, so the mirrored canvas always matches the drawn bed.
+    /// LCV-100 AC 3 — the default bed and the blank-document seed share one
+    /// source of truth.
     #[test]
     fn bed_default_uses_shared_constants() {
-        assert_eq!(Bed::default().size_mm, [BED_WIDTH_MM, BED_HEIGHT_MM]);
+        assert_eq!(
+            Bed::default().size_mm,
+            [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM]
+        );
+    }
+
+    /// LCV-114 AC 3 — an arbitrary document bed becomes a drawable bed at the
+    /// world origin, with no clamping or reinterpretation on the way through.
+    #[test]
+    fn bed_from_size_mm_takes_the_document_bed_verbatim() {
+        let bed = Bed::from_size_mm([300.0, 180.0]);
+        assert_eq!(bed.size_mm, [300.0, 180.0]);
+        assert_eq!(bed.origin_world, Vec2::new(0.0, 0.0));
+        assert_eq!(bed.corners()[2], Vec2::new(300.0, 180.0));
+        assert_eq!(
+            Bed::from_size_mm([DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM]),
+            Bed::default()
+        );
     }
 
     /// AC#3 — Default bed's corners are at `[(0,0), (400,0), (400,400), (0,400)]`.

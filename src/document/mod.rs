@@ -15,7 +15,7 @@ pub mod state;
 
 pub use commands::{
     Command, CreateArc, CreateCircle, CreateLine, DeleteEntities, ExtendEntity, MoveEntities,
-    NoOpCommand, SelectionCommand, TrimEntity,
+    NoOpCommand, SelectionCommand, SetBedSize, TrimEntity,
 };
 pub use entity::{Entity, SCHEMA_VERSION};
 pub use history::{History, HISTORY_DEPTH};

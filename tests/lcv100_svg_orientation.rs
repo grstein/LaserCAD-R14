@@ -11,7 +11,7 @@ use lasercad::document::{Document, Entity};
 use lasercad::geometry::{Arc, Circle, Line, Vec2, EPSILON};
 use lasercad::io::svg::{export_svg, import_svg};
 use lasercad::text::layout_text;
-use lasercad::util::flip_y;
+use lasercad::util::{flip_y, DEFAULT_BED_HEIGHT_MM};
 use std::f64::consts::{FRAC_PI_2, PI};
 
 /// Round-trip tolerance for coordinates that are not exactly representable in
@@ -51,8 +51,8 @@ fn l_shape_bottom_leg_has_larger_svg_y() {
     assert!(svg.contains(horizontal), "{svg}");
 
     // The leg that is lowest in the world carries the largest SVG y.
-    let bottom_leg_svg_y = flip_y(10.0);
-    let free_end_svg_y = flip_y(60.0);
+    let bottom_leg_svg_y = flip_y(10.0, DEFAULT_BED_HEIGHT_MM);
+    let free_end_svg_y = flip_y(60.0, DEFAULT_BED_HEIGHT_MM);
     assert!(
         bottom_leg_svg_y > free_end_svg_y,
         "bottom leg {bottom_leg_svg_y} must sit below {free_end_svg_y} in SVG space"
@@ -79,7 +79,7 @@ fn hershey_text_is_not_mirrored() {
     let svg = export_svg(&doc);
 
     // (a) Round-trip preserves every endpoint.
-    let imported = import_svg(&svg).unwrap();
+    let imported = import_svg(&svg).unwrap().entities;
     assert_eq!(imported.len(), entities.len());
     for (before, after) in entities.iter().zip(imported.iter()) {
         let (Entity::Line(a), Entity::Line(b)) = (before, after) else {
@@ -97,7 +97,10 @@ fn hershey_text_is_not_mirrored() {
 
     // (b) The lowest world Y appears mirrored, and never raw as a y1/y2 value.
     assert!(
-        svg.contains(&format!("{:.4}", flip_y(min_world_y))),
+        svg.contains(&format!(
+            "{:.4}",
+            flip_y(min_world_y, DEFAULT_BED_HEIGHT_MM)
+        )),
         "flipped min Y missing: {svg}"
     );
     assert!(
@@ -127,7 +130,7 @@ fn round_trip_preserves_all_entity_kinds() {
     let mut entities = vec![Entity::Line(line), Entity::Circle(circle)];
     entities.extend(arcs.iter().map(|a| Entity::Arc(*a)));
 
-    let imported = import_svg(&export_svg(&doc_of(entities))).unwrap();
+    let imported = import_svg(&export_svg(&doc_of(entities))).unwrap().entities;
     assert_eq!(imported.len(), 6);
 
     let Entity::Line(l) = imported[0] else {

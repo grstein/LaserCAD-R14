@@ -1,16 +1,23 @@
 //! SVG import — pure function that parses a LaserCAD-exported SVG string.
-//! Returns [`Vec<Entity>`]; recognises `<line>`, `<circle>`, `<path d="M…A…"/>`.
-//! Silently skips unknown elements; coordinates are bare mm values (no unit suffix).
+//! Returns an [`ImportedSvg`] (entities plus the file's bed size); recognises
+//! `<line>`, `<circle>`, `<path d="M…A…"/>`. Silently skips unknown elements;
+//! geometry coordinates are bare mm values (no unit suffix).
 //!
 //! SVG is Y-down and the world is Y-up, so every parsed Y is un-mirrored
-//! through [`crate::util::flip_y`] (`y_world = BED_HEIGHT_MM - y_svg`, the
-//! exact inverse of `export.rs`'s map — `flip_y` is an involution). Because a
+//! through [`crate::util::flip_y`] (`y_world = bed_height - y_svg`, the exact
+//! inverse of `export.rs`'s map — `flip_y` is an involution). Because a
 //! mirror reverses handedness, [`Arc::ccw`] is the **negation** of the SVG
 //! sweep flag and the centre-selection sign is inverted accordingly.
 //!
+//! The mirror axis is the **file's own** bed height, read from the root
+//! `<svg>` header by [`super::header::parse_bed`] (LCV-114): a file authored
+//! at 300 × 180 must land back on the world coordinates it was exported from,
+//! whatever bed the open document happens to be on.
+//!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`. — LCV-057,
-//! Y mirror by LCV-100.
+//! Y mirror by LCV-100, bed by LCV-114.
 
+use super::header::parse_bed;
 use crate::document::entity::Entity;
 use crate::geometry::{Arc, Circle, Line, Vec2, EPSILON};
 use crate::util::flip_y;
@@ -34,53 +41,99 @@ pub enum SvgImportError {
     /// A `<path>` whose `d` begins with `M … A …` but contains a non-numeric token.
     #[error("malformed path data: {0:?}")]
     MalformedPath(String),
+    /// A root `<svg>` bed attribute (`width`, `height` or `viewBox`) that is
+    /// present but unusable: unparseable, non-finite, ≤ 0, or outside
+    /// `1.0..=2000.0` mm (LCV-114 AC 9).
+    ///
+    /// Out-of-range values are rejected rather than clamped: a 5000 mm canvas
+    /// silently held to 2000 mm would place every coordinate wrongly while
+    /// looking plausible, whereas this error tells the truth and leaves the
+    /// open document untouched.
+    #[error("<svg> attribute {attr}={value:?} is not a usable bed size (expected 1..=2000 mm)")]
+    MalformedBedDimension {
+        /// The offending attribute name: `"width"`, `"height"` or `"viewBox"`.
+        attr: &'static str,
+        /// Its raw, unmodified attribute value.
+        value: String,
+    },
 }
 
-/// Parse an SVG string and return all recognised geometry entities.
+/// The result of a successful [`import_svg`]: the geometry, plus the bed size
+/// the file declares (LCV-114 AC 7).
+///
+/// `bed_mm` is `[width, height]` in millimetres and is the axis pair the
+/// entities were un-mirrored with, so installing both together —
+/// `document.bed_mm = imported.bed_mm` **before** the entities — is what makes
+/// an open / edit / re-save round-trip byte-stable.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImportedSvg {
+    /// Recognised geometry, in document order.
+    pub entities: Vec<Entity>,
+    /// The bed size declared by the file's root `<svg>`, or the default bed
+    /// when it declares none.
+    pub bed_mm: [f64; 2],
+}
+
+/// Parse an SVG string and return its geometry together with its bed size.
+///
 /// Depth-first traversal; `<line>`, `<circle>`, `<path d="M…A…"/>` → entities.
-/// Everything else is silently skipped. Returns the first error encountered.
-pub fn import_svg(src: &str) -> Result<Vec<Entity>, SvgImportError> {
+/// Everything else is silently skipped. The bed comes from the root header
+/// (see [`parse_bed`]) and is the axis every Y is un-mirrored around.
+/// Returns the first error encountered, having mutated nothing: the caller's
+/// document is untouched on `Err` (LCV-114 AC 9).
+pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
     let doc = roxmltree::Document::parse(src)?;
     let root = doc.root_element();
     if root.tag_name().name() != "svg" {
         return Err(SvgImportError::NoSvgRoot);
     }
+    let bed_mm = parse_bed(root)?;
     let mut entities = Vec::new();
-    collect(root, &mut entities)?;
-    Ok(entities)
+    collect(root, &mut entities, bed_mm[1])?;
+    Ok(ImportedSvg { entities, bed_mm })
 }
 
-fn collect(node: roxmltree::Node<'_, '_>, out: &mut Vec<Entity>) -> Result<(), SvgImportError> {
+fn collect(
+    node: roxmltree::Node<'_, '_>,
+    out: &mut Vec<Entity>,
+    bed_h: f64,
+) -> Result<(), SvgImportError> {
     for child in node.children().filter(|n| n.is_element()) {
         match child.tag_name().name() {
-            "line" => out.push(parse_line(child)?),
-            "circle" => out.push(parse_circle(child)?),
+            "line" => out.push(parse_line(child, bed_h)?),
+            "circle" => out.push(parse_circle(child, bed_h)?),
             "path" => {
-                if let Some(e) = parse_path(child)? {
+                if let Some(e) = parse_path(child, bed_h)? {
                     out.push(e);
                 }
             }
-            _ => collect(child, out)?,
+            _ => collect(child, out, bed_h)?,
         }
     }
     Ok(())
 }
 
-fn parse_line(n: roxmltree::Node<'_, '_>) -> Result<Entity, SvgImportError> {
+fn parse_line(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Entity, SvgImportError> {
     let (x1, y1) = (attr_f64(n, "line", "x1")?, attr_f64(n, "line", "y1")?);
     let (x2, y2) = (attr_f64(n, "line", "x2")?, attr_f64(n, "line", "y2")?);
-    let (p1, p2) = (Vec2::new(x1, flip_y(y1)), Vec2::new(x2, flip_y(y2)));
+    let (p1, p2) = (
+        Vec2::new(x1, flip_y(y1, bed_h)),
+        Vec2::new(x2, flip_y(y2, bed_h)),
+    );
     Ok(Entity::Line(Line::new(p1, p2)))
 }
 
-fn parse_circle(n: roxmltree::Node<'_, '_>) -> Result<Entity, SvgImportError> {
+fn parse_circle(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Entity, SvgImportError> {
     let (cx, cy) = (attr_f64(n, "circle", "cx")?, attr_f64(n, "circle", "cy")?);
     let r = attr_f64(n, "circle", "r")?;
     if r <= 0.0 {
         let v = n.attribute("r").unwrap_or("").to_string();
         return Err(malformed("circle", "r", v));
     }
-    Ok(Entity::Circle(Circle::new(Vec2::new(cx, flip_y(cy)), r)))
+    Ok(Entity::Circle(Circle::new(
+        Vec2::new(cx, flip_y(cy, bed_h)),
+        r,
+    )))
 }
 
 fn malformed(element: &'static str, attr: &'static str, value: String) -> SvgImportError {
@@ -101,7 +154,7 @@ fn attr_f64(
         .map_err(|_| malformed(el, a, raw.to_string()))
 }
 
-fn parse_path(n: roxmltree::Node<'_, '_>) -> Result<Option<Entity>, SvgImportError> {
+fn parse_path(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Option<Entity>, SvgImportError> {
     let Some(d) = n.attribute("d") else {
         return Ok(None);
     };
@@ -123,7 +176,7 @@ fn parse_path(n: roxmltree::Node<'_, '_>) -> Result<Option<Entity>, SvgImportErr
     }
     // Un-mirror both endpoints into world space first, then reconstruct the
     // centre there (LCV-057 §Arc reconstruction, mirrored by LCV-100).
-    let (sy, ey) = (flip_y(sy), flip_y(ey));
+    let (sy, ey) = (flip_y(sy, bed_h), flip_y(ey, bed_h));
     let (dx, dy) = (ex - sx, ey - sy);
     let chord = dx.hypot(dy);
     if chord < EPSILON || chord > 2.0 * rx + EPSILON {
@@ -166,7 +219,7 @@ mod tests {
     }
 
     fn only_arc(src: &str) -> Arc {
-        let es = import_svg(src).unwrap();
+        let es = import_svg(src).unwrap().entities;
         match es[0] {
             Entity::Arc(a) => a,
             _ => panic!("not an arc"),
@@ -175,7 +228,9 @@ mod tests {
 
     #[test]
     fn empty_svg_returns_no_entities() {
-        let es = import_svg(r#"<svg xmlns="http://www.w3.org/2000/svg"/>"#).unwrap();
+        let es = import_svg(r#"<svg xmlns="http://www.w3.org/2000/svg"/>"#)
+            .unwrap()
+            .entities;
         assert!(es.is_empty());
     }
 
@@ -193,7 +248,7 @@ mod tests {
 
     #[test]
     fn line_element_parsed_to_entity_line() {
-        let es = import_svg(LINE_SVG).unwrap();
+        let es = import_svg(LINE_SVG).unwrap().entities;
         let Entity::Line(l) = es[0] else {
             panic!("not a line")
         };
@@ -203,7 +258,9 @@ mod tests {
 
     #[test]
     fn circle_element_parsed_to_entity_circle() {
-        let es = import_svg(&svg(r#"<circle cx="5.0000" cy="5.0000" r="3.0000"/>"#)).unwrap();
+        let es = import_svg(&svg(r#"<circle cx="5.0000" cy="5.0000" r="3.0000"/>"#))
+            .unwrap()
+            .entities;
         let Entity::Circle(c) = es[0] else {
             panic!("not a circle")
         };
@@ -217,7 +274,8 @@ mod tests {
         let es = import_svg(&svg(
             r#"<line x1="1" y1="2" x2="11" y2="7"/><circle cx="5" cy="5" r="3"/>"#,
         ))
-        .unwrap();
+        .unwrap()
+        .entities;
         let Entity::Line(l) = es[0] else {
             panic!("not a line")
         };
@@ -336,20 +394,22 @@ mod tests {
 
     #[test]
     fn non_arc_path_silently_skipped() {
-        let es = import_svg(&svg(r#"<path d="M 0 0 L 10 10"/>"#)).unwrap();
+        let es = import_svg(&svg(r#"<path d="M 0 0 L 10 10"/>"#))
+            .unwrap()
+            .entities;
         assert!(es.is_empty());
     }
 
     #[test]
     fn unknown_elements_silently_skipped() {
-        let es = import_svg(MIXED_SVG).unwrap();
+        let es = import_svg(MIXED_SVG).unwrap().entities;
         assert_eq!(es.len(), 2);
         assert!(matches!(es[0], Entity::Line(_)) && matches!(es[1], Entity::Circle(_)));
     }
 
     #[test]
     fn entities_inside_g_groups_collected() {
-        let es = import_svg(G_GROUPS_SVG).unwrap();
+        let es = import_svg(G_GROUPS_SVG).unwrap().entities;
         assert_eq!(es.len(), 1);
         assert!(matches!(es[0], Entity::Line(_)));
     }
@@ -367,7 +427,7 @@ mod tests {
         doc.entities.push(Entity::Circle(cir));
         let arc = Arc::new(Vec2::default(), 10.0, 0.0, FRAC_PI_2, true);
         doc.entities.push(Entity::Arc(arc));
-        let imp = import_svg(&export_svg(&doc)).unwrap();
+        let imp = import_svg(&export_svg(&doc)).unwrap().entities;
         assert_eq!(imp.len(), 3);
         if let (Entity::Line(l), Entity::Circle(c), Entity::Arc(a)) = (imp[0], imp[1], imp[2]) {
             assert!((l.p1.x - 1.0).abs() < EPSILON && (l.p1.y - 2.0).abs() < EPSILON);
@@ -382,8 +442,94 @@ mod tests {
         }
     }
 
+    /// LCV-114 AC 7/AC 8a — the declared bed comes back with the geometry,
+    /// and it is the axis the Y was un-mirrored around: `y_svg = 130` on a
+    /// 180 mm bed is `y_world = 50`, not the 270 a 400 mm mirror would give.
+    #[test]
+    fn import_reads_bed_from_width_height() {
+        let src = r#"<svg xmlns="http://www.w3.org/2000/svg" width="300mm" height="180mm" viewBox="0 0 300 180"><line x1="10" y1="130" x2="250" y2="130"/></svg>"#;
+        let imported = import_svg(src).unwrap();
+        assert_eq!(imported.bed_mm, [300.0, 180.0]);
+        let Entity::Line(l) = imported.entities[0] else {
+            panic!("not a line")
+        };
+        assert!((l.p1.y - 50.0).abs() < EPSILON, "p1.y = {}", l.p1.y);
+        assert!((l.p2.y - 50.0).abs() < EPSILON, "p2.y = {}", l.p2.y);
+        assert!((l.p1.x - 10.0).abs() < EPSILON);
+    }
+
+    /// LCV-114 AC 8b — with no `width`/`height`, the `viewBox` is the bed and
+    /// the mirror axis.
+    #[test]
+    fn import_reads_bed_from_viewbox_when_dimensions_absent() {
+        let src = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 180"><circle cx="5" cy="130" r="3"/></svg>"#;
+        let imported = import_svg(src).unwrap();
+        assert_eq!(imported.bed_mm, [300.0, 180.0]);
+        let Entity::Circle(c) = imported.entities[0] else {
+            panic!("not a circle")
+        };
+        assert!((c.center.y - 50.0).abs() < EPSILON, "cy = {}", c.center.y);
+    }
+
+    /// LCV-114 AC 8c — the back-compat guard: `LINE_SVG` carries neither a
+    /// dimension pair nor a `viewBox`, so it keeps importing exactly as it did
+    /// before this demand, at the default bed.
+    #[test]
+    fn import_falls_back_to_default_when_both_absent() {
+        let imported = import_svg(LINE_SVG).unwrap();
+        assert_eq!(
+            imported.bed_mm,
+            [
+                crate::util::DEFAULT_BED_WIDTH_MM,
+                crate::util::DEFAULT_BED_HEIGHT_MM
+            ]
+        );
+        let Entity::Line(l) = imported.entities[0] else {
+            panic!("not a line")
+        };
+        assert!((l.p1.y - 398.0).abs() < EPSILON);
+    }
+
+    /// LCV-114 AC 8 — the accepted numeric forms reach the importer, not just
+    /// the header parser.
+    #[test]
+    fn import_accepts_mm_suffix_and_whitespace() {
+        let src = r#"<svg xmlns="http://www.w3.org/2000/svg" width=" 300.5 mm " height="180MM"/>"#;
+        assert_eq!(import_svg(src).unwrap().bed_mm, [300.5, 180.0]);
+        let bare = r#"<svg xmlns="http://www.w3.org/2000/svg" width="300" height="180"/>"#;
+        assert_eq!(import_svg(bare).unwrap().bed_mm, [300.0, 180.0]);
+    }
+
+    /// LCV-114 AC 9 — one assertion per rejection case; each names the
+    /// offending attribute and keeps its raw value in the message, and the
+    /// import as a whole fails rather than importing at a guessed bed.
+    #[test]
+    fn import_rejects_zero_negative_oversized_and_garbage_dimensions() {
+        for (attrs, attr, raw) in [
+            (r#"width="0" height="180""#, "width", "0"),
+            (r#"width="-300" height="180""#, "width", "-300"),
+            (r#"width="5000" height="180""#, "width", "5000"),
+            (r#"width="banana" height="180""#, "width", "banana"),
+            (r#"width="300" height="0""#, "height", "0"),
+            (r#"width="300" height="inf""#, "height", "inf"),
+            (r#"viewBox="0 0 5000 180""#, "viewBox", "0 0 5000 180"),
+            (r#"viewBox="10 0 300 180""#, "viewBox", "10 0 300 180"),
+        ] {
+            let src = format!(
+                r#"<svg xmlns="http://www.w3.org/2000/svg" {attrs}><line x1="0" y1="0" x2="1" y2="1"/></svg>"#
+            );
+            let err = import_svg(&src).unwrap_err();
+            let SvgImportError::MalformedBedDimension { attr: got, value } = &err else {
+                panic!("expected MalformedBedDimension for {attrs}, got {err:?}");
+            };
+            assert_eq!(*got, attr, "{attrs}");
+            assert_eq!(value, raw, "{attrs}");
+            assert!(err.to_string().contains(raw), "{err}");
+        }
+    }
+
     #[test]
     fn import_svg_reachable_via_module_path() {
-        let _f: fn(&str) -> Result<Vec<Entity>, SvgImportError> = import_svg;
+        let _f: fn(&str) -> Result<ImportedSvg, SvgImportError> = import_svg;
     }
 }

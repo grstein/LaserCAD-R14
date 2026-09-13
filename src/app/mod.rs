@@ -11,7 +11,8 @@
 //! text routing), `panels` (chrome, agent panel, dialogs), `viewport` (canvas,
 //! pointer, camera), `autosave` (the dirty signal, the debounce and the
 //! flush), `file_ops` (the guarded New / Open / Exit entry points and the
-//! discard-confirmation dialog, LCV-113). `ortho`, `snap` and `agent_poll`
+//! discard-confirmation dialog, LCV-113), `bed_dialog` (the Bed size… modal,
+//! LCV-114). `ortho`, `snap` and `agent_poll`
 //! hold pure helpers those phases call, and `cmdline` resolves one submitted
 //! command line into a [`ToolInput`](crate::cmdline::ToolInput) (LCV-111).
 //!
@@ -19,6 +20,7 @@
 //! `app` use `lasercad::app::…` paths and never a deep one.
 
 mod autosave;
+mod bed_dialog;
 mod cmdline;
 mod file_ops;
 mod input;
@@ -30,6 +32,7 @@ mod viewport;
 mod agent_poll;
 pub use agent_poll::poll_agent_rx;
 pub use autosave::autosave_due;
+pub use bed_dialog::{apply_bed_dialog_result, draw_bed_dialog};
 pub use cmdline::submit;
 pub use file_ops::{apply_dialog_result, draw_discard_dialog, poll_close_request, PendingAction};
 pub use input::process_input;
@@ -43,7 +46,7 @@ use crate::cmdline::CommandHistory;
 use crate::document::{Command, Document, Entity, History};
 use crate::geometry::{SnapResult, Vec2};
 use crate::io::settings::Settings;
-use crate::render::{Bed, Camera};
+use crate::render::Camera;
 use crate::tools::ToolManager;
 
 /// Live application state. Owned by the eframe runtime via
@@ -55,8 +58,6 @@ pub struct App {
     pub history: History,
     /// World↔screen transform plus zoom and pan state.
     pub camera: Camera,
-    /// Laser bed configuration: size and origin in world space.
-    pub bed: Bed,
     /// Last known cursor position in world space, updated while hovering
     /// the viewport. `None` before the cursor first enters the panel.
     pub last_cursor_world: Option<Vec2>,
@@ -88,6 +89,10 @@ pub struct App {
     pub about_open: bool,
     /// Controls visibility of the Agent Settings dialog.
     pub agent_settings_open: bool,
+    /// Draft `[width, height]` of the Bed size… modal, or `None` when it is
+    /// closed (LCV-114). The document's bed is only touched when OK is
+    /// pressed, through a `SetBedSize` command; see `src/app/bed_dialog.rs`.
+    pub bed_dialog: Option<[f64; 2]>,
     /// Text buffer for the command-line widget (LCV-068).
     pub command_line_input: String,
     /// The 50-entry command recall ring walked by ArrowUp / ArrowDown while
@@ -160,7 +165,6 @@ impl Default for App {
             document: Document::default(),
             history: History::default(),
             camera: Camera::default(),
-            bed: Bed::default(),
             last_cursor_world: None,
             preview_entities: Vec::new(),
             active_snap: None,
@@ -170,6 +174,7 @@ impl Default for App {
             last_synced_revision: 0,
             about_open: false,
             agent_settings_open: false,
+            bed_dialog: None,
             command_line_input: String::new(),
             command_history: CommandHistory::default(),
             command_feedback: String::new(),
@@ -202,7 +207,9 @@ impl App {
     /// - loads persisted settings — recent files, agent endpoint, agent API
     ///   key — overwriting the default `settings`;
     /// - overwrites `document` with the autosaved one, if present and
-    ///   schema-compatible (LCV-059 AC#1).
+    ///   schema-compatible (LCV-059 AC#1) — the envelope's own `bed_mm` wins;
+    /// - otherwise seeds the blank document's bed from
+    ///   `settings.default_bed_mm` (LCV-114 AC 11).
     ///
     /// Performs no write of its own: no `settings.save()`, no autosave
     /// write, no file created on the startup path.
@@ -213,6 +220,8 @@ impl App {
         };
         if let Some(recovered) = crate::io::load_autosave() {
             app.document = recovered;
+        } else {
+            app.document.bed_mm = app.settings.clamped_default_bed_mm();
         }
         app
     }
@@ -315,13 +324,84 @@ mod tests {
         assert_eq!(app.last_cursor_world, None);
     }
 
-    /// LCV-034 AC#7 — `App` carries a `Bed` field that defaults to
-    /// [`crate::render::Bed::default()`].
+    /// LCV-034 AC#7, re-homed by LCV-114 AC 3/AC 4 — the bed is the
+    /// document's, and a blank document starts at the 400 mm default that the
+    /// old `App::bed` field used to hold.
     #[test]
-    fn app_default_bed_matches_bed_default() {
+    fn app_default_bed_comes_from_the_document() {
         let app = App::default();
-        assert_eq!(app.bed, crate::render::Bed::default());
-        assert_eq!(app.bed.size_mm, [400.0, 400.0]);
+        assert_eq!(app.document.bed_mm, [400.0, 400.0]);
+        assert_eq!(
+            crate::render::Bed::from_size_mm(app.document.bed_mm),
+            crate::render::Bed::default()
+        );
+    }
+
+    /// LCV-114 AC 4 — `App` holds **no** `bed` field: a second copy of the bed
+    /// is a second source of truth.
+    ///
+    /// The haystack is bounded to the implementation section, so this test's
+    /// own body cannot satisfy it, and the two positive controls below prove
+    /// the scan is looking at real field declarations of exactly the shape it
+    /// claims is missing — an absence assertion over a haystack that never
+    /// could have matched proves nothing.
+    #[test]
+    fn app_has_no_bed_field() {
+        let src = include_str!("mod.rs");
+        let cfg_test_at = src
+            .find("\n#[cfg(test)]")
+            .expect("mod.rs must have a test module to bound the scan");
+        let implementation = &src[..cfg_test_at];
+        assert!(
+            implementation.contains("pub camera: Camera,"),
+            "positive control: the struct's fields must be in the haystack"
+        );
+        assert!(
+            implementation.contains("pub bed_dialog: Option<[f64; 2]>,"),
+            "positive control: a field whose name starts with `bed` is present"
+        );
+        assert!(
+            !implementation.contains("pub bed:"),
+            "App must not own a bed; the document does (LCV-114 AC 4)"
+        );
+    }
+
+    /// LCV-114 AC 14 — the Bed size… modal starts closed.
+    #[test]
+    fn app_default_has_no_bed_dialog() {
+        assert_eq!(App::default().bed_dialog, None);
+    }
+
+    /// LCV-114 AC 11, boot half — a cold start with no autosave seeds the
+    /// blank document from the settings default; a recovered autosave keeps
+    /// its own bed.
+    ///
+    /// A bounded source scan, because `App::new` is the one constructor tests
+    /// may not call (ADR 0002 §A2): it reads the platform config and data
+    /// directories. The seed logic itself is covered behaviourally by
+    /// `io::file_actions::tests::new_document_seeds_bed_from_settings` and the
+    /// recovery half by `io::autosave::tests::envelope_round_trips_bed_mm`.
+    #[test]
+    fn boot_seeds_the_bed_only_when_no_autosave_is_recovered() {
+        let src = include_str!("mod.rs");
+        let start = src
+            .find("pub fn new() -> Self {")
+            .expect("App::new must exist");
+        let end = src[start..]
+            .find("\n    /// Commit a command")
+            .expect("end")
+            + start;
+        let body = &src[start..end];
+        let recovered = body
+            .find("app.document = recovered;")
+            .expect("the autosave branch must install the recovered document");
+        let seed = body
+            .find("app.document.bed_mm = app.settings.clamped_default_bed_mm();")
+            .expect("the cold-start branch must seed the bed from settings");
+        assert!(
+            recovered < seed && body[recovered..seed].contains("} else {"),
+            "the seed must be the else-branch: a recovered envelope keeps its own bed"
+        );
     }
 
     /// LCV-037 AC#7 — `App` carries `preview_entities` defaulting to empty.

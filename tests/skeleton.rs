@@ -25,7 +25,7 @@ fn module_tree_is_wired() {
         &text::CAP_HEIGHT_HERSHEY,
         std::any::TypeId::of::<tools::ToolManager>(),
         ui::CANVAS_BG,
-        &util::BED_WIDTH_MM,
+        &util::DEFAULT_BED_WIDTH_MM,
     );
 }
 

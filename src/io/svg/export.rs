@@ -8,18 +8,24 @@
 //!
 //! **Y is mirrored on the way out.** The world is Y-up, SVG is Y-down, so
 //! every emitted Y goes through [`crate::util::flip_y`]
-//! (`y_svg = BED_HEIGHT_MM - y_world`) and the canvas is the bed itself. The
+//! (`y_svg = doc.bed_mm[1] - y_world`) and the canvas is the bed itself. The
 //! mirror also reverses handedness, so the arc sweep flag is inverted with
 //! respect to [`Arc::ccw`](crate::geometry::Arc::ccw). `src/io/svg/import.rs`
 //! applies the same involution in reverse.
 //!
+//! The mirror axis is the **document's** bed height (LCV-114), never a
+//! constant: a drawing made on a 180 mm-tall machine mirrored around 400 mm
+//! produces a file that looks perfectly plausible in a text editor and cuts
+//! 220 mm away from where the screen showed it.
+//!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 //!
-//! Introduced by demand LCV-056; Y mirror added by LCV-100.
+//! Introduced by demand LCV-056; Y mirror added by LCV-100, parameterised on
+//! the document's bed by LCV-114.
 
 use crate::document::entity::Entity;
 use crate::document::state::Document;
-use crate::util::{flip_y, BED_HEIGHT_MM, BED_WIDTH_MM};
+use crate::util::flip_y;
 use core::f64::consts::PI;
 
 // ─── Preset group colours ────────────────────────────────────────────────────
@@ -37,11 +43,12 @@ const STROKE_WIDTH: &str = "0.1";
 /// `<svg>` with:
 ///
 /// - `xmlns="http://www.w3.org/2000/svg"` on the root element.
-/// - `width` and `height` in millimetres: always the bed size
-///   ([`BED_WIDTH_MM`] × [`BED_HEIGHT_MM`]), for every document, empty or not.
-/// - `viewBox="0 0 <BED_WIDTH_MM> <BED_HEIGHT_MM>"` — SVG coordinates, no unit
-///   suffix. The canvas is the machine bed, so a file opened in LaserGRBL or
-///   Inkscape frames the geometry exactly as the viewport showed it.
+/// - `width` and `height` in millimetres: always the document's bed size
+///   (`doc.bed_mm`), for every document, empty or not.
+/// - `viewBox="0 0 <width> <height>"` — the same two numbers in SVG
+///   coordinates, no unit suffix. The canvas is the machine bed, so a file
+///   opened in LaserGRBL or Inkscape frames the geometry exactly as the
+///   viewport showed it, and a re-import recovers the same bed (LCV-114).
 /// - `fill="none"` on the root element.
 /// - Three `<g>` children in fixed order:
 ///   1. `cut` — stroke `#ff0000`, all current entities.
@@ -50,32 +57,35 @@ const STROKE_WIDTH: &str = "0.1";
 /// - Each group carries `stroke-width="0.1"` (mm).
 /// - All entities written into the `cut` group in insertion order.
 ///
-/// Every Y coordinate is mirrored through [`crate::util::flip_y`]; X values,
-/// radii and the `large-arc-flag` are untouched. Geometry outside the bed is
-/// emitted verbatim (with a Y outside `[0, BED_HEIGHT_MM]`), never clipped or
-/// dropped.
+/// Every Y coordinate is mirrored through [`crate::util::flip_y`] **around
+/// `doc.bed_mm[1]`**; X values, radii and the `large-arc-flag` are untouched.
+/// Geometry outside the bed is emitted verbatim (with a Y outside
+/// `[0, doc.bed_mm[1]]`), never clipped or dropped.
+///
+/// The two bed numbers are formatted with `{}` (`f64`'s `Display`), which is
+/// what this header has always used: a 400 mm bed emits `400mm`, not
+/// `400.0000mm`, so the default-bed output stays byte-identical to the
+/// pre-LCV-114 exporter (AC 5 / AC 6). Coordinates keep their own `{:.4}`.
 ///
 /// Pure function: no file I/O, no global state, no panics on any valid
 /// [`Document`].
 pub fn export_svg(doc: &Document) -> String {
     let mut out = String::with_capacity(1024);
 
-    // Root element — the canvas is always the bed (LCV-100).
+    // Root element — the canvas is always the document's bed (LCV-100,
+    // parameterised by LCV-114).
+    let [bed_w, bed_h] = doc.bed_mm;
     out.push_str("<svg xmlns=\"http://www.w3.org/2000/svg\"");
-    push_attr(&mut out, "width", &format!("{BED_WIDTH_MM}mm"));
-    push_attr(&mut out, "height", &format!("{BED_HEIGHT_MM}mm"));
-    push_attr(
-        &mut out,
-        "viewBox",
-        &format!("0 0 {BED_WIDTH_MM} {BED_HEIGHT_MM}"),
-    );
+    push_attr(&mut out, "width", &format!("{bed_w}mm"));
+    push_attr(&mut out, "height", &format!("{bed_h}mm"));
+    push_attr(&mut out, "viewBox", &format!("0 0 {bed_w} {bed_h}"));
     push_attr(&mut out, "fill", "none");
     out.push_str(">\n");
 
     // Cut group — all entities.
     open_group(&mut out, "cut", CUT_COLOR);
     for entity in &doc.entities {
-        out.push_str(&encode_entity(entity));
+        out.push_str(&encode_entity(entity, bed_h));
         out.push('\n');
     }
     out.push_str("</g>\n");
@@ -116,23 +126,24 @@ fn open_group(out: &mut String, id: &str, stroke: &str) {
 /// Encode a single [`Entity`] as an SVG element string (no trailing newline).
 ///
 /// The world → SVG mirror is applied here, per entity: Y values through
-/// [`flip_y`], and — because a mirror reverses handedness — the arc
+/// [`flip_y`] around `bed_height_mm` — the bed height of the document being
+/// exported — and, because a mirror reverses handedness, the arc
 /// `sweep-flag` inverted relative to `ccw`. Start and end points keep their
 /// roles (they are not swapped) and `large-arc-flag` is unaffected, since
 /// `Arc::sweep_angle()` is a magnitude.
-fn encode_entity(entity: &Entity) -> String {
+fn encode_entity(entity: &Entity, bed_height_mm: f64) -> String {
     match entity {
         Entity::Line(line) => format!(
             "<line x1=\"{:.4}\" y1=\"{:.4}\" x2=\"{:.4}\" y2=\"{:.4}\"/>",
             line.p1.x,
-            flip_y(line.p1.y),
+            flip_y(line.p1.y, bed_height_mm),
             line.p2.x,
-            flip_y(line.p2.y)
+            flip_y(line.p2.y, bed_height_mm)
         ),
         Entity::Circle(circle) => format!(
             "<circle cx=\"{:.4}\" cy=\"{:.4}\" r=\"{:.4}\"/>",
             circle.center.x,
-            flip_y(circle.center.y),
+            flip_y(circle.center.y, bed_height_mm),
             circle.r
         ),
         Entity::Arc(arc) => {
@@ -144,13 +155,13 @@ fn encode_entity(entity: &Entity) -> String {
             format!(
                 "<path d=\"M {:.4} {:.4} A {:.4} {:.4} 0 {} {} {:.4} {:.4}\"/>",
                 sp.x,
-                flip_y(sp.y),
+                flip_y(sp.y, bed_height_mm),
                 arc.r,
                 arc.r,
                 large,
                 sweep,
                 ep.x,
-                flip_y(ep.y)
+                flip_y(ep.y, bed_height_mm)
             )
         }
     }
@@ -402,5 +413,77 @@ mod tests {
     fn export_svg_reachable_via_module_path() {
         use crate::io::svg::export_svg as reexported;
         let _ = reexported(&Document::default());
+    }
+
+    // ── LCV-114 — the canvas is the document's bed ────────────────────────
+
+    /// LCV-114 AC 5 — the header is written from `doc.bed_mm`, in `mm`, with
+    /// a matching `viewBox`, and with no trailing `.0` on a whole number.
+    #[test]
+    fn export_header_uses_document_bed() {
+        let doc = Document {
+            bed_mm: [300.0, 200.0],
+            ..Document::default()
+        };
+        let svg = export_svg(&doc);
+        assert!(svg.contains("width=\"300mm\""), "{svg}");
+        assert!(svg.contains("height=\"200mm\""), "{svg}");
+        assert!(svg.contains("viewBox=\"0 0 300 200\""), "{svg}");
+        assert!(!svg.contains("400"), "no default bed may leak: {svg}");
+    }
+
+    /// LCV-114 AC 5 — a fractional bed keeps its decimals and still carries
+    /// no `{:.4}` padding.
+    #[test]
+    fn export_header_keeps_fractional_bed_dimensions() {
+        let doc = Document {
+            bed_mm: [300.5, 180.25],
+            ..Document::default()
+        };
+        let svg = export_svg(&doc);
+        assert!(svg.contains("width=\"300.5mm\""), "{svg}");
+        assert!(svg.contains("height=\"180.25mm\""), "{svg}");
+        assert!(svg.contains("viewBox=\"0 0 300.5 180.25\""), "{svg}");
+    }
+
+    /// LCV-114 AC 6 — the mirror axis is the document's bed height: a line at
+    /// world `y = 50` on a 200 mm-tall bed emits `150`, not `350`. This is the
+    /// defect the demand exists to prevent — with a constant axis the file
+    /// still parses and still looks plausible.
+    #[test]
+    fn export_mirrors_around_document_bed_height() {
+        let mut doc = doc_with(Entity::Line(Line::new(
+            Vec2::new(10.0, 50.0),
+            Vec2::new(20.0, 50.0),
+        )));
+        doc.bed_mm = [300.0, 200.0];
+        let svg = export_svg(&doc);
+        assert!(
+            svg.contains("<line x1=\"10.0000\" y1=\"150.0000\" x2=\"20.0000\" y2=\"150.0000\"/>"),
+            "{svg}"
+        );
+    }
+
+    /// LCV-114 AC 6 — circles and arcs mirror around the same axis as lines.
+    #[test]
+    fn export_mirrors_circles_and_arcs_around_document_bed_height() {
+        let mut doc = doc_with(Entity::Circle(Circle::new(Vec2::new(40.0, 30.0), 5.0)));
+        doc.entities.push(Entity::Arc(Arc::new(
+            Vec2::new(0.0, 0.0),
+            10.0,
+            0.0,
+            FRAC_PI_2,
+            true,
+        )));
+        doc.bed_mm = [300.0, 180.0];
+        let svg = export_svg(&doc);
+        assert!(
+            svg.contains("<circle cx=\"40.0000\" cy=\"150.0000\" r=\"5.0000\"/>"),
+            "{svg}"
+        );
+        assert_eq!(
+            path_d(&svg),
+            "M 10.0000 180.0000 A 10.0000 10.0000 0 0 0 0.0000 170.0000"
+        );
     }
 }

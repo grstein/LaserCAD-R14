@@ -7,16 +7,17 @@
 //!   before the `CentralPanel` so egui shrinks the canvas to what is left.
 //! - [`draw_agent_side_panel`] — the AI assistant panel (LCV-080), only when
 //!   `agent_panel_open`.
-//! - [`draw_dialogs`] — About, Agent Settings, the error modal, and the
-//!   discard-confirmation dialog (LCV-113), rendered after the
-//!   `CentralPanel` so they float above the canvas.
+//! - [`draw_dialogs`] — About, Agent Settings, the error modal, the
+//!   discard-confirmation dialog (LCV-113) and the Bed size… dialog
+//!   (LCV-114), rendered after the `CentralPanel` so they float above the
+//!   canvas.
 //!
 //! No key is read here: `src/app/input.rs` is the single keyboard gate
 //! (LCV-103 / ADR 0002 §A6).
 //!
 //! MUST NOT import `eframe` or `rfd`.
 
-use super::{draw_discard_dialog, App};
+use super::{draw_bed_dialog, draw_discard_dialog, App};
 
 /// Render the four fixed panels that frame the viewport.
 pub fn draw_chrome(ctx: &egui::Context, app: &mut App) {
@@ -50,7 +51,7 @@ pub fn draw_agent_side_panel(ctx: &egui::Context, app: &mut App) {
         });
 }
 
-/// Render the modal dialogs (LCV-069, LCV-076, LCV-062, LCV-113).
+/// Render the modal dialogs (LCV-069, LCV-076, LCV-062, LCV-113, LCV-114).
 ///
 /// Called after the `CentralPanel` so the windows float above the canvas.
 pub fn draw_dialogs(ctx: &egui::Context, app: &mut App) {
@@ -58,6 +59,7 @@ pub fn draw_dialogs(ctx: &egui::Context, app: &mut App) {
     agent_settings_dialog(ctx, app);
     error_modal(ctx, app);
     draw_discard_dialog(ctx, app);
+    draw_bed_dialog(ctx, app);
 }
 
 /// The Agent Settings window (LCV-076). Persists the settings when the window

@@ -45,15 +45,19 @@
 //!
 //! Introduced by demand LCV-022. Primitive-creation commands
 //! ([`CreateLine`], [`CreateCircle`], [`CreateArc`]) live in [`create`] and
-//! ship with demand LCV-023.
+//! ship with demand LCV-023. [`SetBedSize`] (in [`bed`]) is the one command
+//! that mutates document state other than entities and selection — the bed
+//! size — and ships with LCV-114.
 
 use crate::document::Document;
 
+pub mod bed;
 pub mod create;
 pub mod edit;
 pub mod select;
 pub mod trim;
 
+pub use bed::SetBedSize;
 pub use create::{CreateArc, CreateCircle, CreateEntities, CreateLine};
 pub use edit::{DeleteEntities, MoveEntities};
 pub use select::SelectionCommand;

@@ -35,8 +35,14 @@ use crate::io::{clear_autosave, open_file_dialog, save_file_dialog};
 /// unsaved work lives one layer up, in `App::request_new`
 /// (`src/app/file_ops.rs`, LCV-113) — by the time this function runs, the
 /// discard has already been confirmed (or the document was already clean).
+///
+/// The blank document is seeded with the operator's configured default bed
+/// (LCV-114 AC 11) so `File > New` lands on their machine, not on 400 × 400.
 pub fn action_new(app: &mut App) {
-    app.document = Document::default();
+    app.document = Document {
+        bed_mm: app.settings.clamped_default_bed_mm(),
+        ..Document::default()
+    };
     app.history = History::default();
     app.current_file = None;
     app.mark_saved();
@@ -64,7 +70,7 @@ pub fn action_open(app: &mut App) {
         }
     };
 
-    let entities = match import_svg(&content) {
+    let imported = match import_svg(&content) {
         Ok(v) => v,
         Err(e) => {
             app.error_message = Some(format!("SVG import failed: {e}"));
@@ -72,9 +78,13 @@ pub fn action_open(app: &mut App) {
         }
     };
 
-    // All steps below are only reached on full success.
+    // All steps below are only reached on full success. The document adopts
+    // the *file's* bed (LCV-114 AC 10): re-saving it must not re-mirror every
+    // Y around a different height. The settings seed is deliberately left
+    // alone — opening a file does not re-home the operator's machine.
     app.document = Document {
-        entities,
+        entities: imported.entities,
+        bed_mm: imported.bed_mm,
         ..Document::default()
     };
     app.history = History::default();
@@ -128,7 +138,7 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
         }
     };
 
-    let entities = match import_svg(&content) {
+    let imported = match import_svg(&content) {
         Ok(v) => v,
         Err(e) => {
             app.error_message = Some(format!("SVG import failed: {e}"));
@@ -136,8 +146,10 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
         }
     };
 
+    // Adopts the file's bed, same as `action_open` (LCV-114 AC 10).
     app.document = Document {
-        entities,
+        entities: imported.entities,
+        bed_mm: imported.bed_mm,
         ..Document::default()
     };
     app.history = History::default();
@@ -231,6 +243,76 @@ mod tests {
 
         assert_eq!(app.document.entity_count(), 0);
         assert!(!app.history.can_undo());
+    }
+
+    /// LCV-114 AC 11 — `File > New` starts on the operator's configured
+    /// machine, not on the 400 mm constant, and each axis goes through the
+    /// clamp because the settings file is hand-editable.
+    #[test]
+    fn new_document_seeds_bed_from_settings() {
+        let mut app = App::default();
+        app.settings.default_bed_mm = [300.0, 180.0];
+        app.document.bed_mm = [128.0, 128.0];
+        action_new(&mut app);
+        assert_eq!(app.document.bed_mm, [300.0, 180.0]);
+
+        app.settings.default_bed_mm = [0.0, 5000.0];
+        action_new(&mut app);
+        assert_eq!(app.document.bed_mm, [1.0, 2000.0]);
+    }
+
+    /// LCV-114 AC 10 — both open paths install the *file's* bed and neither
+    /// writes the settings seed.
+    ///
+    /// A source scan rather than a behavioural test: `action_open` opens a
+    /// native dialog (ADR 0005 — it panics outside `crate::run`) and
+    /// `action_open_path` calls `settings.save()`, which would overwrite the
+    /// developer's real `settings.json` — including their API key — with the
+    /// `Settings::default()` a test `App` carries. The behaviour these two
+    /// lines produce is covered end-to-end, without the filesystem, by
+    /// `tests/lcv114_bed_roundtrip.rs`.
+    ///
+    /// The haystack is bounded to each function's body, so this test's own
+    /// source cannot satisfy it, and every claim has a positive control: the
+    /// absence assertion sits next to presence assertions over the same slice.
+    #[test]
+    fn both_open_paths_adopt_the_file_bed_and_leave_the_seed_alone() {
+        let src = include_str!("file_actions.rs");
+        for (start_marker, end_marker) in [
+            (
+                "pub fn action_open(app: &mut App)",
+                "\n/// Save the document",
+            ),
+            (
+                "pub fn action_open_path(app: &mut App, path: PathBuf)",
+                "\n/// Present a save dialog",
+            ),
+        ] {
+            let start = src
+                .find(start_marker)
+                .unwrap_or_else(|| panic!("{start_marker} must exist"));
+            let end = src[start..]
+                .find(end_marker)
+                .unwrap_or_else(|| panic!("{start_marker} must be followed by {end_marker}"))
+                + start;
+            let body = &src[start..end];
+            assert!(
+                body.contains("import_svg(&content)"),
+                "positive control: {start_marker} must import the file"
+            );
+            assert!(
+                body.contains("entities: imported.entities,"),
+                "positive control: the entities come from the import"
+            );
+            assert!(
+                body.contains("bed_mm: imported.bed_mm,"),
+                "{start_marker} must adopt the file's bed (AC 10)"
+            );
+            assert!(
+                !body.contains("default_bed_mm"),
+                "opening a file must not re-home the operator's default (AC 10)"
+            );
+        }
     }
 
     /// AC 3 — action_new clears current_file.
