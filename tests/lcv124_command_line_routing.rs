@@ -5,9 +5,10 @@
 //! a turn is already in flight — is answered synchronously by `submit`, so the
 //! assertions are exact and there is no race to lose.
 //!
-//! The two tests that do start a turn **never reach a real endpoint**. The
-//! endpoint is [`DEAD_ENDPOINT`], a closed port on the loopback interface, so
-//! the worker thread the app spawns fails its connection locally and exits; and
+//! The tests that do start a turn **open no socket at all**. The endpoint is
+//! [`UNPARSEABLE_ENDPOINT`], which the transport rejects in `Url::parse`
+//! before it builds a connection or consults a proxy, so the worker thread the
+//! app spawns dies with a request error and exits; and
 //! `a_turn_started_from_the_command_line_draws_on_the_real_bed` then takes the
 //! turn over through LCV-123's `arm_turn` seam — it replaces the receiver with
 //! one it owns and pushes the events by hand, so the geometry assertion depends
@@ -34,11 +35,25 @@ use std::sync::mpsc::channel;
 /// `agent_available` true.
 const DUMMY_KEY: &str = concat!("sk-test-", "DO-NOT-LEAK");
 
-/// Port 1 on the loopback interface: nothing listens there, ever. A turn these
-/// tests start gets `ECONNREFUSED` from the local network stack before a byte
-/// leaves the machine, which is how "no CI test may reach a real endpoint" is
-/// honoured without standing up a mockito server for a reply nobody asserts on.
-const DEAD_ENDPOINT: &str = "http://127.0.0.1:1";
+/// An endpoint that is **unparseable**, not merely unreachable: a turn these
+/// tests start dies in `Url::parse` inside the transport, before a socket
+/// exists and before any proxy is consulted.
+///
+/// It used to be `http://127.0.0.1:1` — "port 1 on loopback, nothing listens
+/// there, ever" — and that was wrong. `reqwest::blocking::Client::new()` sets
+/// `auto_sys_proxy: true`, and reqwest 0.12 has **no loopback bypass**: with
+/// `HTTP_PROXY` set (normal on corporate networks and on self-hosted runners)
+/// the closed port is never dialled locally at all. The request is handed to
+/// the proxy, and `POST http://127.0.0.1:1/chat/completions` leaves the machine
+/// carrying `authorization: Bearer …`, the whole system prompt and the
+/// operator's prompt text — while the suite still reports `11 passed; 0
+/// failed`. Reproduced against a capturing listener, so this is not a theory.
+///
+/// **Do not restore a URL-shaped value here**, on loopback or anywhere else,
+/// and do not answer the hazard with `.no_proxy()` on the transport — that
+/// would break real operators behind a corporate proxy to buy a test
+/// convenience. [`the_test_endpoint_cannot_reach_a_proxy`] pins the invariant.
+const UNPARSEABLE_ENDPOINT: &str = "not-a-url";
 
 /// An `App` with no injected paths and an agent that is configured but
 /// unreachable.
@@ -49,7 +64,7 @@ fn app_with_a_key() -> App {
         "ADR 0006: no real per-user path may be injected next to a key"
     );
     app.settings.agent_api_key = DUMMY_KEY.to_owned();
-    app.settings.agent_endpoint = DEAD_ENDPOINT.to_owned();
+    app.settings.agent_endpoint = UNPARSEABLE_ENDPOINT.to_owned();
     app
 }
 
@@ -101,6 +116,39 @@ fn lines_of(entities: &[Entity]) -> Vec<(Vec2, Vec2)> {
             _ => None,
         })
         .collect()
+}
+
+// ── The endpoint invariant these tests depend on ────────────────────────────
+
+/// The endpoint configured above must be impossible to **send**, not merely
+/// impossible to **reach** — the distinction is the whole finding.
+///
+/// A closed loopback port is only refused locally when nothing intercepts the
+/// request. `reqwest::blocking::Client::new()` enables system-proxy discovery
+/// and reqwest 0.12 does not bypass loopback, so under `HTTP_PROXY` a
+/// URL-shaped endpoint is dialled *through the proxy* and the bearer token,
+/// the system prompt and the operator's prompt leave the machine — with the
+/// suite still green. An unparseable endpoint cannot do that: the transport
+/// fails in `Url::parse` and no socket is ever created, proxy or no proxy.
+///
+/// The control is the value this replaced: it parses, which is precisely why
+/// it could be sent.
+#[test]
+fn the_test_endpoint_cannot_reach_a_proxy() {
+    assert!(
+        reqwest::Url::parse(UNPARSEABLE_ENDPOINT).is_err(),
+        "the endpoint these tests configure must fail URL parsing"
+    );
+    // The transport appends the path before parsing; that must not rescue it.
+    assert!(
+        reqwest::Url::parse(&format!("{UNPARSEABLE_ENDPOINT}/chat/completions")).is_err(),
+        "and must still fail once the transport has appended its path"
+    );
+    // Control: the loopback spelling this replaced is a perfectly valid URL.
+    assert!(
+        reqwest::Url::parse(concat!("http://127.0.0.", "1:1")).is_ok(),
+        "control: a closed port is still a sendable URL — that was the leak"
+    );
 }
 
 // ── AC 2 rule 1: raw means raw ──────────────────────────────────────────────
@@ -325,9 +373,9 @@ fn a_long_prompt_is_echoed_truncated() {
 /// the operator's own bed.
 ///
 /// Replacing `agent_rx` drops the worker's receiver, so the thread that
-/// `start_turn` spawned (against [`DEAD_ENDPOINT`], where nothing listens)
-/// exits `Cancelled` without a word. Everything below is this test's own
-/// channel.
+/// `start_turn` spawned — against [`UNPARSEABLE_ENDPOINT`], which never
+/// becomes a socket — exits `Cancelled` without a word. Everything below is
+/// this test's own channel.
 #[test]
 fn a_turn_started_from_the_command_line_draws_on_the_real_bed() {
     let (ctx, mut app, _) = boot(app_with_a_key());
