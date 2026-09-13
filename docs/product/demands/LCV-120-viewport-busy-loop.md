@@ -59,8 +59,12 @@ to hover changes the status bar's readout in no way whatsoever.
 - One named private predicate in `src/app/viewport.rs` and one conditional
   around the existing `ctx.request_repaint()` call.
 - A replacement doc comment that does not repeat the camera-animation claim.
-- Three integration tests that observe `repaint_delay` through the real
-  `App::update_ui`, including the negative controls that make them able to fail.
+- **Five** integration tests that observe `repaint_delay` through the real
+  `App::update_ui`, including the negative controls that make them able to fail
+  — one per term of the predicate plus the idle case and the autosave witness.
+  *(Corrected after implementation: this line read "Three integration tests"
+  while AC 4-7 and Expected tests already required four, and a fifth was needed
+  to make mutation (b) able to fail. See the Expected-tests list.)*
 - Correcting the two documents whose text becomes false the moment this lands.
 
 ## Out of scope
@@ -165,12 +169,24 @@ to hover changes the status bar's readout in no way whatsoever.
    comment in `tests/lcv120_idle_repaint.rs`'s module header, next to the
    frame-0 rule, so the next person to extend the file does not re-derive it.
 
-8. **The three surviving repaint sites are each conditional.**
-   `grep -rn "request_repaint" src/` returns exactly three implementation call
-   sites — `src/app/mod.rs` (agent turn in flight), `src/app/autosave.rs`
-   (pending write), `src/app/viewport.rs` (live canvas) — and each is inside an
-   `if`. A static check asserts the count and that none is at statement level
-   without a guard.
+8. **The three surviving repaint sites are each conditional.** `src/` contains
+   exactly three **implementation** `request_repaint*` call sites, excluding
+   comments and test sections — `src/app/mod.rs` (agent turn in flight),
+   `src/app/autosave.rs` (pending write), `src/app/viewport.rs` (live canvas) —
+   and each is inside an `if`. A static check asserts the count and that none is
+   at statement level without a guard.
+
+   **A bare `grep -rn "request_repaint" src/` does not return three and never
+   did** — it returns **8** on the shipped tree and returned **7** before this
+   demand landed. The extra matches are doc-comment prose (`src/app/autosave.rs`
+   module header) and needles inside `#[cfg(test)]` sections
+   (`src/app/viewport.rs`, `src/app/autosave.rs`). *(Corrected after
+   implementation: the criterion as originally written named that grep and its
+   literal output, which was never true. What the shipped test asserts — a walk
+   over `src/` that slices each file at the bare `#[cfg(test)]` and skips
+   comment lines — is what this criterion has always meant, and is the wording
+   above.)* The count is over implementation lines only; a `grep` figure is not
+   the criterion and must not be re-introduced as one.
 
 9. **`tests/lcv116_autosave_repaint.rs`'s module header is rewritten.** Its
    section **"Why this drives `schedule_flush_repaint` and not `App::update_ui`"**
@@ -228,11 +244,21 @@ something different, stop and report rather than adjusting the assertion.
   }
   ```
 
-  Four tests: `an_idle_app_asks_for_no_repaint` (AC 4);
+  **Five** tests: `an_idle_app_asks_for_no_repaint` (AC 4);
   `a_hovered_canvas_keeps_asking_for_frames` (AC 5, with the
   `last_cursor_world` positive control);
   `a_pointer_outside_the_canvas_lets_the_app_idle` (AC 5's negative control);
-  `a_pending_autosave_still_wakes_an_idle_app` (AC 6).
+  `a_pending_autosave_still_wakes_an_idle_app` (AC 6); and
+  `a_live_preview_keeps_asking_for_frames_with_the_pointer_away` (AC 1's third
+  predicate term, and the only test that can fail mutation (b) below).
+
+  *(Corrected after implementation: this list named four tests while mutation
+  (b) requires a live-preview case that none of the four exercises. The fifth
+  test was added by the implementer and confirmed by the reviewer as required
+  rather than scope creep, so it is named here. It puts a preview on screen with
+  the pointer **away** from the canvas, so `hovered()` and `dragged()` are both
+  false and the assertion can only be carried by
+  `!app.preview_entities.is_empty()`.)*
 - **Unit (AC 1, 2, 3, 8)** in `src/app/viewport.rs`'s test module: the bounded
   source scan over `viewport_is_live` (three terms present, `anchor` absent,
   positive control); a scan asserting the `request_repaint` call sits inside the
@@ -243,15 +269,16 @@ something different, stop and report rather than adjusting the assertion.
 - **Mutation checks the reviewer will run, so run them first and record the
   results**: (a) delete `response.hovered()` from the predicate → AC 5's hover
   test must fail by name (if it still passes, the asserting frame is carrying an
-  event — re-read AC 7); (b) delete `!app.preview_entities.is_empty()` → a
-  preview-in-progress case must fail; (c) delete `schedule_flush_repaint`'s call
-  from `update_ui` → AC 6 must fail by name; (d) revert the `if` to an
-  unconditional call → AC 4 must fail by name.
+  event — re-read AC 7); (b) delete `!app.preview_entities.is_empty()` →
+  `a_live_preview_keeps_asking_for_frames_with_the_pointer_away` must fail by
+  name; (c) delete `schedule_flush_repaint`'s call from `update_ui` → AC 6 must
+  fail by name; (d) revert the `if` to an unconditional call → AC 4 must fail by
+  name.
 - **[manual] smoke**: `cargo run`. Move the pointer over the canvas — the
   status-bar coordinates track it exactly as before. Middle-drag to pan — the
   pan is smooth and does not stutter or stop mid-drag (this is the
-  `response.dragged()` term; it has no automated test, because a headless drag
-  needs the press/threshold/move sequence and would be a fragile assertion).
+  `response.dragged()` term; it has no automated test **in this demand** — the
+  test is writable and was deferred, not ruled out; see §Risks and LCV-127).
   Start the LINE tool, click once, move the mouse — the rubber-band preview
   follows. Move the pointer off the window entirely and leave it for ten
   seconds — the app is quiet; on a platform with a per-process CPU readout it
@@ -270,10 +297,16 @@ something different, stop and report rather than adjusting the assertion.
 - **Frame 0 always reads 0 ns.** An assertion placed on the first frame of a
   fresh `Context` is vacuous. Start at frame 1.
 - **`response.dragged()` has no automated coverage** and is the one term carried
-  by the source scan and the manual smoke alone. That is a deliberate accepted
-  cost: the alternative is a multi-frame synthetic drag whose failure modes are
-  harder to read than the thing it guards. If the pan stutters in the smoke
-  test, the term is wrong — report it, do not add a fourth term.
+  by the source scan and the manual smoke alone. **That coverage is deferred,
+  not infeasible.** *(Corrected after implementation. This bullet previously
+  claimed a headless drag "would be a fragile assertion". The reviewer measured
+  otherwise: a middle-button press followed by six `PointerMoved` frames does
+  pan the camera under the existing harness, and an **empty** frame mid-drag
+  still reports `0ns` even with `hovered()` deleted — so a non-fragile ~10-line
+  test, paired against the existing pointer-over-the-menubar control, is
+  available. It was simply not written here.)* The gap is carried forward as
+  **LCV-127**. If the pan stutters in the smoke test, the term is wrong — report
+  it, do not add a fourth term.
 - **`preview_entities` must be read after `paint()`.** `paint` is what assigns
   it from `tool_manager.preview()`; reading a stale value would make a live
   preview drop a frame behind.
