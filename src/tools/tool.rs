@@ -22,6 +22,7 @@
 //! MUST NOT import `eframe` or `rfd`. Introduced by demand LCV-040.
 
 use crate::app::App;
+use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History};
 use crate::geometry::Vec2;
 
@@ -76,7 +77,10 @@ pub trait Tool {
     /// Context-sensitive status bar text for the current tool state.
     ///
     /// Defaults to `self.name()`. Override to return richer prompts that
-    /// reflect the tool's internal state (e.g. `"LINE: Click to set end point"`).
+    /// reflect the tool's internal state (e.g.
+    /// `"LINE Specify next point (Enter to finish):"`). The literals are the
+    /// R14 prompt table in the LCV-111 demand, AC 17; `src/ui/command_line.rs`
+    /// is the only consumer.
     fn status_text(&self) -> &'static str {
         self.name()
     }
@@ -103,16 +107,32 @@ pub trait Tool {
     /// Clears any in-progress state and preview geometry.
     fn cancel(&mut self);
 
-    /// Handle text input submitted from the command-line widget (LCV-068).
+    /// Handle one resolved command-line input (LCV-111, ADR 0003 §B1).
     ///
-    /// Called when the user presses Enter in the command-line strip while this
-    /// tool is active. `input` contains the trimmed text that was in the field.
-    /// The default implementation is a no-op; tools that accept numeric or
-    /// coordinate input override this method.
+    /// Called from `crate::app::submit` after the raw text has been parsed
+    /// **and resolved**: `@dx,dy` is already added to [`Self::anchor`] and a
+    /// bare distance is already projected along the cursor direction. A tool
+    /// therefore never parses a string and never reads `App`.
+    ///
+    /// Returns `true` when the input was consumed and a phase advanced
+    /// (possibly committing); `false` means "not for me" — on `false` the app
+    /// mutates nothing, sets a feedback message and leaves this tool's phase
+    /// untouched.
+    ///
+    /// The default is `false`, so `SelectTool`, `TrimTool`, `ExtendTool` and
+    /// `DeleteTool` are untouched and a typed coordinate can never silently
+    /// select or delete something.
     ///
     /// The method must remain object-safe — no generic parameters, no `Self`
     /// bounds.
-    fn on_command_input(&mut self, _input: &str, _doc: &mut Document, _history: &mut History) {}
+    fn on_command_input(
+        &mut self,
+        _input: ToolInput,
+        _doc: &mut Document,
+        _history: &mut History,
+    ) -> bool {
+        false
+    }
 
     /// Optionally hand control to a successor tool after a pointer event.
     ///
@@ -146,15 +166,53 @@ mod tests {
         let _: Box<dyn Tool> = Box::new(SelectTool::default());
     }
 
-    /// LCV-068 AC#4 — `SelectTool::on_command_input` is a no-op (default impl).
+    /// LCV-068 AC#4 / LCV-111 AC 2 — `SelectTool::on_command_input` keeps the
+    /// `false` default: it consumes nothing and mutates nothing.
     #[test]
     fn select_tool_on_command_input_is_noop() {
         let mut tool = SelectTool::default();
         let mut doc = Document::default();
         let mut hist = History::default();
         // Must not panic and must not mutate the document.
-        tool.on_command_input("50", &mut doc, &mut hist);
+        let consumed =
+            tool.on_command_input(ToolInput::Point(Vec2::new(50.0, 0.0)), &mut doc, &mut hist);
+        assert!(!consumed, "the default impl must refuse every input");
         assert_eq!(doc.entity_count(), 0);
+    }
+
+    /// LCV-111 AC 3 — the tools that keep the default (`SelectTool`,
+    /// `TrimTool`, `ExtendTool`, `DeleteTool`) all refuse both input shapes
+    /// and leave the document alone.
+    #[test]
+    fn select_trim_extend_delete_reject_command_input() {
+        use crate::tools::{DeleteTool, ExtendTool, TrimTool};
+
+        let inputs = [
+            ToolInput::Point(Vec2::new(50.0, 25.0)),
+            ToolInput::Distance {
+                value_mm: 50.0,
+                along: Some(Vec2::new(50.0, 0.0)),
+            },
+        ];
+        let mut tools: Vec<Box<dyn Tool>> = vec![
+            Box::new(SelectTool::default()),
+            Box::new(TrimTool),
+            Box::new(ExtendTool::default()),
+            Box::new(DeleteTool),
+        ];
+        for tool in &mut tools {
+            for input in inputs {
+                let mut doc = Document::default();
+                let mut hist = History::default();
+                assert!(
+                    !tool.on_command_input(input, &mut doc, &mut hist),
+                    "{} must refuse {input:?}",
+                    tool.name()
+                );
+                assert_eq!(doc.entity_count(), 0);
+                assert_eq!(hist.len(), 0);
+            }
+        }
     }
 
     /// LCV-053 AC#11 — `Tool::anchor()` default returns `None`; `SelectTool`

@@ -19,6 +19,7 @@
 //! MUST NOT import `eframe` or `rfd`. Introduced by demand LCV-049.
 
 use crate::app::App;
+use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History, MoveEntities};
 use crate::geometry::{Vec2, EPSILON};
 use crate::tools::{SelectTool, Tool};
@@ -77,10 +78,23 @@ impl Tool for MoveTool {
         "MOVE"
     }
 
+    /// The R14 prompt table (LCV-111 AC 17).
     fn status_text(&self) -> &'static str {
         match &self.state {
-            MoveState::Idle => "MOVE: Click to set base point",
-            MoveState::WaitingDest { .. } => "MOVE: Click destination  |  Esc to cancel",
+            MoveState::Idle => "MOVE Specify base point:",
+            MoveState::WaitingDest { .. } => "MOVE Specify destination point:",
+        }
+    }
+
+    /// The base point, once it is fixed (LCV-111 AC 5). This is what makes
+    /// the classic `m` ⏎ `0,0` ⏎ `@10,0` ⏎ "move it 10 mm right" work.
+    ///
+    /// Adding it also turns F8 ortho on for the destination pick, which is
+    /// R14-correct — an axis-constrained move still commits.
+    fn anchor(&self) -> Option<Vec2> {
+        match &self.state {
+            MoveState::WaitingDest { base, .. } => Some(*base),
+            MoveState::Idle => None,
         }
     }
 
@@ -177,6 +191,22 @@ impl Tool for MoveTool {
         self.pending_successor = false;
     }
 
+    /// The canonical body (ADR 0003 §B3) — a typed point is exactly a click.
+    fn on_command_input(
+        &mut self,
+        input: ToolInput,
+        doc: &mut Document,
+        history: &mut History,
+    ) -> bool {
+        match input.as_point() {
+            Some(p) => {
+                self.on_pointer_down(p, false, doc, history);
+                true
+            }
+            None => false,
+        }
+    }
+
     /// Single-shot: returns `Some(SelectTool)` exactly once after a successful
     /// commit; subsequent calls return `None` until the next commit.
     fn take_successor(&mut self) -> Option<Box<dyn Tool>> {
@@ -244,20 +274,20 @@ mod tests {
         assert_eq!(MoveTool::default().name(), "MOVE");
     }
 
-    /// AC#2 — `status_text()` in `Idle` contains "base point".
+    /// AC#2 / LCV-111 AC 17, AC 18 — the R14 idle prompt.
     #[test]
     fn idle_status_text() {
         let tool = MoveTool::default();
-        assert!(tool.status_text().contains("base point"));
+        assert_eq!(tool.status_text(), "MOVE Specify base point:");
     }
 
-    /// AC#2 — `status_text()` in `WaitingDest` contains "destination".
+    /// AC#2 / LCV-111 AC 17, AC 18 — the R14 destination prompt.
     #[test]
     fn waiting_dest_status_text() {
         let mut tool = MoveTool::default();
         let (mut doc, mut hist) = doc_with_line_selected();
         first_click(&mut tool, Vec2::new(0.0, 0.0), &mut doc, &mut hist);
-        assert!(tool.status_text().contains("destination"));
+        assert_eq!(tool.status_text(), "MOVE Specify destination point:");
     }
 
     /// AC#3 — empty selection: no-op, stays `Idle`, no command pushed.
@@ -415,5 +445,53 @@ mod tests {
     fn tool_trait_default_take_successor() {
         let mut tool = crate::tools::SelectTool::default();
         assert!(tool.take_successor().is_none());
+    }
+
+    /// LCV-111 AC 3 — typed base and destination points are exactly clicks:
+    /// the same entity moves and the same successor is queued.
+    #[test]
+    fn command_point_acts_exactly_like_a_click() {
+        let mut typed = MoveTool::default();
+        let (mut typed_doc, mut typed_h) = doc_with_line_selected();
+        assert!(typed.on_command_input(
+            ToolInput::Point(Vec2::new(0.0, 0.0)),
+            &mut typed_doc,
+            &mut typed_h
+        ));
+        assert!(typed.on_command_input(
+            ToolInput::Point(Vec2::new(10.0, 0.0)),
+            &mut typed_doc,
+            &mut typed_h
+        ));
+
+        let mut clicked = MoveTool::default();
+        let (mut clicked_doc, mut clicked_h) = doc_with_line_selected();
+        clicked.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut clicked_doc, &mut clicked_h);
+        clicked.on_pointer_down(
+            Vec2::new(10.0, 0.0),
+            false,
+            &mut clicked_doc,
+            &mut clicked_h,
+        );
+
+        assert_eq!(typed_doc.entities, clicked_doc.entities);
+        assert_eq!(typed_h.len(), 1);
+        assert!(is_idle(&typed));
+        assert!(
+            typed.take_successor().is_some(),
+            "MOVE hands back to SELECT"
+        );
+    }
+
+    /// LCV-111 AC 5 — `anchor()` follows the last fixed point: the base.
+    #[test]
+    fn anchor_follows_the_last_fixed_point() {
+        let mut tool = MoveTool::default();
+        let (mut doc, mut hist) = doc_with_line_selected();
+        assert_eq!(tool.anchor(), None, "idle MOVE has no anchor");
+        first_click(&mut tool, Vec2::new(2.0, 3.0), &mut doc, &mut hist);
+        assert_eq!(tool.anchor(), Some(Vec2::new(2.0, 3.0)));
+        tool.cancel();
+        assert_eq!(tool.anchor(), None);
     }
 }

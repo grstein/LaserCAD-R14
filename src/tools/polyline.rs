@@ -6,6 +6,7 @@
 //! Introduced by demand LCV-044.
 
 use crate::app::App;
+use crate::cmdline::ToolInput;
 use crate::document::{commands::CreateLine, Document, Entity, History};
 use crate::geometry::{Line, Vec2, EPSILON};
 use crate::tools::Tool;
@@ -44,12 +45,11 @@ impl Tool for PolylineTool {
         "PLINE"
     }
 
+    /// The R14 prompt table (LCV-111 AC 17).
     fn status_text(&self) -> &'static str {
         match self.state {
-            State::Idle => "PLINE: Click to set start point",
-            State::WaitingSecondPoint { .. } => {
-                "PLINE: Click to set next point  |  Enter/Esc to finish"
-            }
+            State::Idle => "PLINE Specify start point:",
+            State::WaitingSecondPoint { .. } => "PLINE Specify next point (Enter to finish):",
         }
     }
 
@@ -125,6 +125,22 @@ impl Tool for PolylineTool {
     fn cancel(&mut self) {
         self.state = State::Idle;
     }
+
+    /// The canonical body (ADR 0003 §B3) — a typed point is exactly a click.
+    fn on_command_input(
+        &mut self,
+        input: ToolInput,
+        doc: &mut Document,
+        history: &mut History,
+    ) -> bool {
+        match input.as_point() {
+            Some(p) => {
+                self.on_pointer_down(p, false, doc, history);
+                true
+            }
+            None => false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -157,8 +173,7 @@ mod tests {
     #[test]
     fn idle_status_contains_start() {
         let t = PolylineTool::new();
-        assert!(t.status_text().starts_with("PLINE:"));
-        assert!(t.status_text().contains("start"));
+        assert_eq!(t.status_text(), "PLINE Specify start point:");
     }
 
     // ── AC: first click ─────────────────────────────────────────────────
@@ -167,7 +182,10 @@ mod tests {
     fn first_click_transitions_to_waiting() {
         let (mut t, mut doc, mut h) = make();
         t.on_pointer_down(Vec2::new(1.0, 2.0), false, &mut doc, &mut h);
-        assert!(t.status_text().contains("next"));
+        assert_eq!(
+            t.status_text(),
+            "PLINE Specify next point (Enter to finish):"
+        );
         assert!(t.preview().is_empty()); // cursor == p1 still
     }
 
@@ -228,7 +246,10 @@ mod tests {
         assert_eq!(doc.entity_count(), 1);
         assert!(h.can_undo());
         // Still waiting — chained to p2 as new p1.
-        assert!(t.status_text().contains("next"));
+        assert_eq!(
+            t.status_text(),
+            "PLINE Specify next point (Enter to finish):"
+        );
     }
 
     #[test]
@@ -260,7 +281,7 @@ mod tests {
         let mut app = crate::app::App::default();
         t.on_key(egui::Key::Escape, &mut app);
         assert!(t.preview().is_empty());
-        assert!(t.status_text().contains("start"));
+        assert_eq!(t.status_text(), "PLINE Specify start point:");
     }
 
     #[test]
@@ -270,7 +291,7 @@ mod tests {
         let mut app = crate::app::App::default();
         t.on_key(egui::Key::Enter, &mut app);
         assert!(t.preview().is_empty());
-        assert!(t.status_text().contains("start"));
+        assert_eq!(t.status_text(), "PLINE Specify start point:");
     }
 
     #[test]
@@ -278,7 +299,7 @@ mod tests {
         let mut t = PolylineTool::new();
         t.cancel();
         assert!(t.preview().is_empty());
-        assert!(t.status_text().contains("start"));
+        assert_eq!(t.status_text(), "PLINE Specify start point:");
     }
 
     // ── AC: object-safety ───────────────────────────────────────────────
@@ -303,5 +324,31 @@ mod tests {
         let (mut t, mut doc, mut h) = make();
         t.on_pointer_down(Vec2::new(3.0, 8.0), false, &mut doc, &mut h);
         assert_eq!(t.anchor(), Some(Vec2::new(3.0, 8.0)));
+    }
+
+    /// LCV-111 AC 3 — a typed point is exactly a click at that point.
+    #[test]
+    fn command_point_acts_exactly_like_a_click() {
+        let (mut typed, mut typed_doc, mut typed_h) = make();
+        for p in [
+            Vec2::new(0.0, 0.0),
+            Vec2::new(10.0, 0.0),
+            Vec2::new(10.0, 5.0),
+        ] {
+            assert!(typed.on_command_input(ToolInput::Point(p), &mut typed_doc, &mut typed_h));
+        }
+
+        let (mut clicked, mut clicked_doc, mut clicked_h) = make();
+        for p in [
+            Vec2::new(0.0, 0.0),
+            Vec2::new(10.0, 0.0),
+            Vec2::new(10.0, 5.0),
+        ] {
+            clicked.on_pointer_down(p, false, &mut clicked_doc, &mut clicked_h);
+        }
+
+        assert_eq!(typed_doc.entities, clicked_doc.entities);
+        assert_eq!(typed.anchor(), clicked.anchor());
+        assert_eq!(typed_h.len(), 2, "two chained segments");
     }
 }

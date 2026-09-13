@@ -112,3 +112,83 @@ pub enum ZoomKind {
     /// Zoom to fit all entities (or the bed, if the document is empty).
     Extents,
 }
+
+/// What the app hands a tool after it has resolved one line of command-line
+/// input (ADR 0003 §B1, LCV-111 AC 1).
+///
+/// A tool **never sees a string**. Everything app-shaped that resolution
+/// needs — the active tool's [`anchor`](crate::tools::Tool::anchor),
+/// `App::last_cursor_world`, `App::ortho_enabled` — is consumed by
+/// `crate::app::submit` *before* the call, so no tool duplicates the `X,Y` /
+/// `@dx,dy` grammar and no tool can disagree about what `@` means.
+///
+/// Coordinates are world-space **millimetres, Y-up**.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ToolInput {
+    /// An absolute world point in mm, already resolved: `X,Y` verbatim,
+    /// `@dx,dy` added to the anchor, direct-distance entry projected.
+    Point(Vec2),
+    /// A bare magnitude in mm. `along` is the direct-distance point when a
+    /// direction existed (anchor known, cursor known, the two distinct,
+    /// ortho applied), else `None`.
+    ///
+    /// Both fields are carried because a keyboard-only session has no cursor
+    /// at all: `c` ⏎ `50,50` ⏎ `25` ⏎ must still commit a circle, and
+    /// [`CircleTool`](crate::tools::CircleTool) reads `value_mm` as the
+    /// radius with no direction required.
+    Distance {
+        /// The magnitude the operator typed, in mm. May be negative — that
+        /// places the point on the opposite ray, which is R14 behaviour.
+        value_mm: f64,
+        /// The projected world point, or `None` when no direction existed.
+        along: Option<Vec2>,
+    },
+}
+
+impl ToolInput {
+    /// The world point this input designates, if any.
+    ///
+    /// `Point(p)` yields `Some(p)`; `Distance { along, .. }` yields `along`.
+    /// The five point-driven tools need nothing else — their whole
+    /// `on_command_input` body is "if this is a point, click it".
+    pub fn as_point(self) -> Option<Vec2> {
+        match self {
+            Self::Point(p) => Some(p),
+            Self::Distance { along, .. } => along,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// LCV-111 AC 1 — `as_point` returns the point of a `Point`.
+    #[test]
+    fn as_point_returns_the_point() {
+        let p = Vec2::new(12.5, -3.0);
+        assert_eq!(ToolInput::Point(p).as_point(), Some(p));
+    }
+
+    /// LCV-111 AC 1 — `as_point` returns `along` for a resolved `Distance`.
+    #[test]
+    fn as_point_returns_along_for_distance() {
+        let along = Vec2::new(150.0, 0.0);
+        let input = ToolInput::Distance {
+            value_mm: 50.0,
+            along: Some(along),
+        };
+        assert_eq!(input.as_point(), Some(along));
+    }
+
+    /// LCV-111 AC 1 — a `Distance` with no direction designates no point, so
+    /// the canonical tool body refuses it instead of inventing geometry.
+    #[test]
+    fn as_point_is_none_without_a_direction() {
+        let input = ToolInput::Distance {
+            value_mm: 50.0,
+            along: None,
+        };
+        assert_eq!(input.as_point(), None);
+    }
+}

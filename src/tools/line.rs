@@ -6,6 +6,7 @@
 //! Introduced by demand LCV-043.
 
 use crate::app::App;
+use crate::cmdline::ToolInput;
 use crate::document::{commands::CreateLine, Document, Entity, History};
 use crate::geometry::{Line, Vec2, EPSILON};
 use crate::tools::Tool;
@@ -43,12 +44,11 @@ impl Tool for LineTool {
         "LINE"
     }
 
+    /// The R14 prompt table (LCV-111 AC 17).
     fn status_text(&self) -> &'static str {
         match self.state {
-            State::Idle => "LINE: Click to set start point",
-            State::WaitingSecondPoint { .. } => {
-                "LINE: Click to set end point  |  Enter/Esc to cancel"
-            }
+            State::Idle => "LINE Specify first point:",
+            State::WaitingSecondPoint { .. } => "LINE Specify next point (Enter to finish):",
         }
     }
 
@@ -123,6 +123,25 @@ impl Tool for LineTool {
     fn cancel(&mut self) {
         self.state = State::Idle;
     }
+
+    /// The canonical body (ADR 0003 §B3): a typed point is exactly a click at
+    /// that point, so the whole typed path inherits every fix to the click
+    /// path. A `Distance` with no resolved direction designates no point and
+    /// is refused.
+    fn on_command_input(
+        &mut self,
+        input: ToolInput,
+        doc: &mut Document,
+        history: &mut History,
+    ) -> bool {
+        match input.as_point() {
+            Some(p) => {
+                self.on_pointer_down(p, false, doc, history);
+                true
+            }
+            None => false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -143,14 +162,17 @@ mod tests {
         let t = LineTool::new();
         assert_eq!(t.name(), "LINE");
         assert!(t.preview().is_empty());
-        assert!(t.status_text().contains("start"));
+        assert_eq!(t.status_text(), "LINE Specify first point:");
     }
 
     #[test]
     fn first_click_transitions_to_waiting() {
         let (mut t, mut doc, mut h) = make();
         t.on_pointer_down(Vec2::new(1.0, 2.0), false, &mut doc, &mut h);
-        assert!(t.status_text().contains("end"));
+        assert_eq!(
+            t.status_text(),
+            "LINE Specify next point (Enter to finish):"
+        );
         assert!(t.preview().is_empty()); // cursor == p1 still
     }
 
@@ -189,7 +211,11 @@ mod tests {
         t.on_pointer_down(Vec2::new(10.0, 0.0), false, &mut doc, &mut h);
         assert_eq!(doc.entity_count(), 1);
         assert!(h.can_undo());
-        assert!(t.status_text().contains("end")); // still chaining
+        // still chaining
+        assert_eq!(
+            t.status_text(),
+            "LINE Specify next point (Enter to finish):"
+        );
     }
 
     #[test]
@@ -210,7 +236,7 @@ mod tests {
         let mut app = crate::app::App::default();
         t.on_key(egui::Key::Escape, &mut app);
         assert!(t.preview().is_empty());
-        assert!(t.status_text().contains("start"));
+        assert_eq!(t.status_text(), "LINE Specify first point:");
         t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
         t.on_key(egui::Key::Enter, &mut app);
         assert!(t.preview().is_empty());
@@ -247,5 +273,63 @@ mod tests {
         t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
         t.on_pointer_down(Vec2::new(10.0, 0.0), false, &mut doc, &mut h);
         assert_eq!(t.anchor(), Some(Vec2::new(10.0, 0.0)));
+    }
+
+    /// LCV-111 AC 3 — a typed point is exactly a click at that point: same
+    /// committed geometry, same resulting state as a literal
+    /// `on_pointer_down` pair.
+    #[test]
+    fn command_point_acts_exactly_like_a_click() {
+        let (mut typed, mut typed_doc, mut typed_h) = make();
+        assert!(typed.on_command_input(
+            ToolInput::Point(Vec2::new(0.0, 0.0)),
+            &mut typed_doc,
+            &mut typed_h
+        ));
+        assert!(typed.on_command_input(
+            ToolInput::Point(Vec2::new(100.0, 0.0)),
+            &mut typed_doc,
+            &mut typed_h
+        ));
+
+        let (mut clicked, mut clicked_doc, mut clicked_h) = make();
+        clicked.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut clicked_doc, &mut clicked_h);
+        clicked.on_pointer_down(
+            Vec2::new(100.0, 0.0),
+            false,
+            &mut clicked_doc,
+            &mut clicked_h,
+        );
+
+        assert_eq!(typed_doc.entities, clicked_doc.entities);
+        assert_eq!(typed.anchor(), clicked.anchor());
+        assert_eq!(typed.status_text(), clicked.status_text());
+        assert_eq!(typed_h.len(), 1);
+        match typed_doc.entities[0] {
+            Entity::Line(l) => {
+                assert_eq!(l.p1, Vec2::new(0.0, 0.0));
+                assert_eq!(l.p2, Vec2::new(100.0, 0.0));
+            }
+            _ => panic!("expected Entity::Line"),
+        }
+    }
+
+    /// LCV-111 AC 3 — a `Distance` the app could not resolve carries no
+    /// point, so the canonical body refuses it and commits nothing.
+    #[test]
+    fn command_distance_without_a_direction_is_refused() {
+        let (mut t, mut doc, mut h) = make();
+        t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
+        let consumed = t.on_command_input(
+            ToolInput::Distance {
+                value_mm: 50.0,
+                along: None,
+            },
+            &mut doc,
+            &mut h,
+        );
+        assert!(!consumed);
+        assert_eq!(doc.entity_count(), 0);
+        assert_eq!(t.anchor(), Some(Vec2::new(0.0, 0.0)));
     }
 }

@@ -10,6 +10,7 @@
 //! MUST NOT import `eframe` or `rfd`. Introduced by demand LCV-040.
 
 use crate::app::App;
+use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History};
 use crate::geometry::Vec2;
 use crate::tools::pointer_event::{PointerButton, PointerEvent};
@@ -151,17 +152,25 @@ impl ToolManager {
     /// Context-sensitive prompt text for the command-line widget (LCV-068).
     ///
     /// Delegates to `active.status_text()`. When `SelectTool` is active this
-    /// returns `"Select"`; other tools may return richer prompts.
+    /// returns R14's idle prompt `"Command:"`; the drawing tools return a
+    /// per-phase prompt (LCV-111 AC 17).
     pub fn active_status_text(&self) -> &'static str {
         self.active.status_text()
     }
 
-    /// Forward a command-line text submission to the active tool (LCV-068).
+    /// Forward one resolved command-line input to the active tool (LCV-111).
     ///
-    /// Called after the user presses Enter in the command-line widget.
-    /// `input` is the text that was in the field at submission time.
-    pub fn on_command_input(&mut self, input: &str, doc: &mut Document, history: &mut History) {
-        self.active.on_command_input(input, doc, history);
+    /// Called from `crate::app::submit` once the raw text has been parsed and
+    /// resolved into a [`ToolInput`]. Returns the tool's verdict verbatim:
+    /// `true` = consumed, `false` = refused (the caller then sets the
+    /// feedback message and mutates nothing).
+    pub fn on_command_input(
+        &mut self,
+        input: ToolInput,
+        doc: &mut Document,
+        history: &mut History,
+    ) -> bool {
+        self.active.on_command_input(input, doc, history)
     }
 
     /// Forward `take_successor` to the active tool.
@@ -371,12 +380,12 @@ mod tests {
         assert_eq!(*ups.borrow(), 1, "middle release must be no-op");
     }
 
-    /// LCV-068 AC#5 — `active_status_text` returns `"Select"` when `SelectTool`
-    /// is active (delegates to `status_text()` which defaults to `name()`).
+    /// LCV-068 AC#5 / LCV-111 AC 17, AC 18 — `active_status_text` returns
+    /// R14's idle prompt `"Command:"` when `SelectTool` is active.
     #[test]
     fn tool_manager_active_status_text_defaults_to_name() {
         let manager = ToolManager::default();
-        assert_eq!(manager.active_status_text(), "Select");
+        assert_eq!(manager.active_status_text(), "Command:");
     }
 
     /// LCV-068 AC#5 — `active_status_text` reflects an overridden `status_text`.
@@ -404,11 +413,12 @@ mod tests {
         assert_eq!(manager.active_status_text(), "LINE: Click start point");
     }
 
-    /// LCV-068 AC#6 — `on_command_input` delegates to the active tool.
+    /// LCV-068 AC#6 / LCV-111 AC 2 — `on_command_input` delegates the
+    /// resolved [`ToolInput`] to the active tool and forwards its verdict.
     #[test]
     fn tool_manager_on_command_input_delegates() {
         struct RecordTool {
-            calls: Rc<RefCell<Vec<String>>>,
+            calls: Rc<RefCell<Vec<ToolInput>>>,
         }
         impl Tool for RecordTool {
             fn name(&self) -> &'static str {
@@ -424,26 +434,28 @@ mod tests {
             fn cancel(&mut self) {}
             fn on_command_input(
                 &mut self,
-                input: &str,
+                input: ToolInput,
                 _doc: &mut Document,
                 _history: &mut History,
-            ) {
-                self.calls.borrow_mut().push(input.to_owned());
+            ) -> bool {
+                self.calls.borrow_mut().push(input);
+                true
             }
         }
 
-        let calls = Rc::new(RefCell::new(Vec::<String>::new()));
+        let calls = Rc::new(RefCell::new(Vec::<ToolInput>::new()));
         let mut manager = ToolManager::new(Box::new(RecordTool {
             calls: calls.clone(),
         }));
         let mut doc = Document::default();
         let mut hist = History::default();
 
-        manager.on_command_input("42", &mut doc, &mut hist);
+        let input = ToolInput::Point(Vec2::new(42.0, -7.0));
+        assert!(manager.on_command_input(input, &mut doc, &mut hist));
 
         let recorded = calls.borrow();
         assert_eq!(recorded.len(), 1);
-        assert_eq!(recorded[0], "42");
+        assert_eq!(recorded[0], input);
     }
 
     /// LCV-048 AC#7 — `SelectTool::on_text_input` is a no-op (default impl).

@@ -11,6 +11,7 @@
 use crate::app::App;
 use crate::document::SelectionCommand;
 use crate::geometry::Vec2;
+use crate::render::Camera;
 use crate::tools;
 use crate::ui::toolbar::TOOLS;
 
@@ -169,8 +170,8 @@ pub(crate) fn do_select_all(app: &mut App) {
         .commit(Box::new(SelectionCommand::new(0..n)), &mut app.document);
 }
 
-#[rustfmt::skip] pub(crate) fn do_zoom_in(app: &mut App) { app.camera.zoom_in(1.25); }
-#[rustfmt::skip] pub(crate) fn do_zoom_out(app: &mut App) { app.camera.zoom_out(1.25); }
+#[rustfmt::skip] pub(crate) fn do_zoom_in(app: &mut App) { app.camera.zoom_in(Camera::ZOOM_STEP); }
+#[rustfmt::skip] pub(crate) fn do_zoom_out(app: &mut App) { app.camera.zoom_out(Camera::ZOOM_STEP); }
 #[rustfmt::skip] pub(crate) fn do_about(app: &mut App) { app.about_open = true; }
 #[rustfmt::skip] pub(crate) fn do_agent_settings(app: &mut App) { app.agent_settings_open = true; }
 
@@ -216,6 +217,23 @@ mod tests {
         let mut app = App::default();
         run_menubar(&mut app);
         assert!(!app.about_open);
+    }
+
+    /// LCV-111 AC 16 — the View menu zooms by `Camera::ZOOM_STEP`, the same
+    /// constant the typed `zoom in` / `zoom out` use (`src/app/cmdline.rs`),
+    /// so the two can never drift apart. No numeric zoom literal lives here.
+    #[test]
+    fn menu_zoom_uses_the_shared_step() {
+        let mut reference = Camera::default();
+        reference.zoom_in(Camera::ZOOM_STEP);
+
+        let mut app = App::default();
+        do_zoom_in(&mut app);
+        assert_eq!(app.camera.mm_per_px, reference.mm_per_px);
+
+        reference.zoom_out(Camera::ZOOM_STEP);
+        do_zoom_out(&mut app);
+        assert_eq!(app.camera.mm_per_px, reference.mm_per_px);
     }
 
     #[test] // AC#9

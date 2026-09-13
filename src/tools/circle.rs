@@ -7,6 +7,7 @@
 //! MUST NOT import `eframe` or `rfd`.
 
 use crate::app::App;
+use crate::cmdline::ToolInput;
 use crate::document::{commands::CreateCircle, Document, Entity, History};
 use crate::geometry::{Circle, Vec2, EPSILON};
 use crate::tools::Tool;
@@ -40,6 +41,15 @@ pub struct CircleTool {
 impl Tool for CircleTool {
     fn name(&self) -> &'static str {
         "CIRCLE"
+    }
+
+    /// The R14 prompt table (LCV-111 AC 17). CIRCLE had no override before
+    /// this demand and inherited [`Tool::name`], so it showed no phase.
+    fn status_text(&self) -> &'static str {
+        match self.state {
+            CircleState::Idle => "CIRCLE Specify center point:",
+            CircleState::WaitingRadius { .. } => "CIRCLE Specify radius:",
+        }
     }
 
     fn on_pointer_down(
@@ -100,6 +110,49 @@ impl Tool for CircleTool {
 
     fn cancel(&mut self) {
         self.state = CircleState::Idle;
+    }
+
+    /// The base point relative and direct-distance input resolve against
+    /// (LCV-111 AC 5): the centre, once it is fixed.
+    ///
+    /// Adding this also turns F8 ortho on for the radius pick, which is
+    /// R14-correct — an axis-aligned radius still commits a circle.
+    fn anchor(&self) -> Option<Vec2> {
+        match self.state {
+            CircleState::WaitingRadius { center } => Some(center),
+            CircleState::Idle => None,
+        }
+    }
+
+    /// CIRCLE is the one tool that overrides the `Distance` arm (ADR 0003
+    /// §B3): while awaiting a radius, a bare number **is** the radius and no
+    /// direction is required. That is what makes a mouse-free session work —
+    /// `c` ⏎ `50,50` ⏎ `25` ⏎ commits with `last_cursor_world == None`.
+    ///
+    /// A non-positive radius is refused: nothing is committed and the tool
+    /// stays in `WaitingRadius` so the operator can retype.
+    fn on_command_input(
+        &mut self,
+        input: ToolInput,
+        doc: &mut Document,
+        history: &mut History,
+    ) -> bool {
+        match input {
+            ToolInput::Distance { value_mm, .. } => match self.state {
+                CircleState::WaitingRadius { center } => {
+                    if value_mm <= EPSILON {
+                        return false;
+                    }
+                    self.on_pointer_down(center + Vec2::new(value_mm, 0.0), false, doc, history);
+                    true
+                }
+                CircleState::Idle => false,
+            },
+            ToolInput::Point(p) => {
+                self.on_pointer_down(p, false, doc, history);
+                true
+            }
+        }
     }
 }
 
@@ -207,5 +260,129 @@ mod tests {
     #[test]
     fn is_object_safe() {
         let _: Box<dyn Tool> = Box::new(CircleTool::default());
+    }
+
+    /// LCV-111 AC 3 — a typed centre + a typed radius point is exactly a
+    /// pair of clicks.
+    #[test]
+    fn command_point_acts_exactly_like_a_click() {
+        let (mut typed, mut typed_doc, mut typed_h) = make();
+        assert!(typed.on_command_input(
+            ToolInput::Point(Vec2::new(50.0, 50.0)),
+            &mut typed_doc,
+            &mut typed_h
+        ));
+        assert!(typed.on_command_input(
+            ToolInput::Point(Vec2::new(75.0, 50.0)),
+            &mut typed_doc,
+            &mut typed_h
+        ));
+
+        let (mut clicked, mut clicked_doc, mut clicked_h) = make();
+        clicked.on_pointer_down(
+            Vec2::new(50.0, 50.0),
+            false,
+            &mut clicked_doc,
+            &mut clicked_h,
+        );
+        clicked.on_pointer_down(
+            Vec2::new(75.0, 50.0),
+            false,
+            &mut clicked_doc,
+            &mut clicked_h,
+        );
+
+        assert_eq!(typed_doc.entities, clicked_doc.entities);
+        assert_eq!(typed.status_text(), clicked.status_text());
+    }
+
+    /// LCV-111 AC 4 — a bare distance while awaiting a radius **is** the
+    /// radius, with no direction and no cursor.
+    #[test]
+    fn circle_distance_is_the_radius() {
+        let (mut t, mut doc, mut h) = make();
+        t.on_pointer_down(Vec2::new(50.0, 50.0), false, &mut doc, &mut h);
+        let consumed = t.on_command_input(
+            ToolInput::Distance {
+                value_mm: 25.0,
+                along: None,
+            },
+            &mut doc,
+            &mut h,
+        );
+        assert!(consumed);
+        assert_eq!(doc.entity_count(), 1);
+        match doc.entities[0] {
+            Entity::Circle(c) => {
+                assert_eq!(c.center, Vec2::new(50.0, 50.0));
+                assert!((c.r - 25.0).abs() < 1e-9, "radius must be exactly 25 mm");
+            }
+            _ => panic!("expected Entity::Circle"),
+        }
+        assert_eq!(t.state, CircleState::Idle);
+    }
+
+    /// LCV-111 AC 4 — a non-positive radius is refused: nothing commits and
+    /// the tool stays in `WaitingRadius`.
+    #[test]
+    fn circle_rejects_a_non_positive_radius() {
+        for value_mm in [0.0, -5.0, EPSILON] {
+            let (mut t, mut doc, mut h) = make();
+            t.on_pointer_down(Vec2::new(50.0, 50.0), false, &mut doc, &mut h);
+            let consumed = t.on_command_input(
+                ToolInput::Distance {
+                    value_mm,
+                    along: None,
+                },
+                &mut doc,
+                &mut h,
+            );
+            assert!(!consumed, "{value_mm} must be refused");
+            assert_eq!(doc.entity_count(), 0);
+            assert_eq!(
+                t.state,
+                CircleState::WaitingRadius {
+                    center: Vec2::new(50.0, 50.0)
+                }
+            );
+        }
+    }
+
+    /// LCV-111 AC 4 — in `Idle` a `Distance` means nothing: CIRCLE needs a
+    /// centre before a radius.
+    #[test]
+    fn circle_distance_is_ignored_while_idle() {
+        let (mut t, mut doc, mut h) = make();
+        let consumed = t.on_command_input(
+            ToolInput::Distance {
+                value_mm: 25.0,
+                along: Some(Vec2::new(25.0, 0.0)),
+            },
+            &mut doc,
+            &mut h,
+        );
+        assert!(!consumed);
+        assert_eq!(doc.entity_count(), 0);
+        assert_eq!(t.state, CircleState::Idle);
+    }
+
+    /// LCV-111 AC 5 — `anchor()` follows the last fixed point: the centre.
+    #[test]
+    fn anchor_follows_the_last_fixed_point() {
+        let (mut t, mut doc, mut h) = make();
+        assert_eq!(t.anchor(), None);
+        t.on_pointer_down(Vec2::new(3.0, 4.0), false, &mut doc, &mut h);
+        assert_eq!(t.anchor(), Some(Vec2::new(3.0, 4.0)));
+        t.cancel();
+        assert_eq!(t.anchor(), None);
+    }
+
+    /// LCV-111 AC 17 — the R14 prompt in both phases.
+    #[test]
+    fn status_text_follows_the_phase() {
+        let (mut t, mut doc, mut h) = make();
+        assert_eq!(t.status_text(), "CIRCLE Specify center point:");
+        t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
+        assert_eq!(t.status_text(), "CIRCLE Specify radius:");
     }
 }

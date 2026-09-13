@@ -158,8 +158,10 @@ fn send_pointer(app: &mut App, event: PointerEvent) {
 
 /// Honour a tool succession request (LCV-049): a tool that finished may name
 /// the tool that replaces it. Polled after press and release, never after a
-/// move.
-fn poll_successor(app: &mut App) {
+/// move — and, since LCV-111, after a consumed command-line input, so the
+/// typed path hands over exactly like the pointer path (`pub(super)` for
+/// `super::cmdline`; there is deliberately only one copy of this body).
+pub(super) fn poll_successor(app: &mut App) {
     if let Some(t) = app.tool_manager.take_successor() {
         app.tool_manager.set_tool(t);
     }

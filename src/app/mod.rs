@@ -9,13 +9,16 @@
 //! The frame body is [`App::update_ui`] (ADR 0002 §A1), an orchestrator that
 //! calls one function per phase, each in its own file: `input` (keyboard and
 //! text routing), `panels` (chrome, agent panel, dialogs), `viewport` (canvas,
-//! pointer, camera), `autosave` (debounce and flush). `ortho`, `snap` and
-//! `agent_poll` hold pure helpers those phases call.
+//! pointer, camera), `autosave` (the dirty signal, the debounce and the
+//! flush). `ortho`, `snap` and `agent_poll` hold pure helpers those phases
+//! call, and `cmdline` resolves one submitted command line into a
+//! [`ToolInput`](crate::cmdline::ToolInput) (LCV-111).
 //!
 //! `mod.rs` re-exports the module's whole public surface, so callers outside
 //! `app` use `lasercad::app::…` paths and never a deep one.
 
 mod autosave;
+mod cmdline;
 mod input;
 mod ortho;
 mod panels;
@@ -25,6 +28,7 @@ mod viewport;
 mod agent_poll;
 pub use agent_poll::poll_agent_rx;
 pub use autosave::autosave_due;
+pub use cmdline::submit;
 pub use input::process_input;
 pub use ortho::apply_ortho;
 pub use snap::{resolve_snap, suppress_snap_if_disabled};
@@ -33,6 +37,7 @@ pub use viewport::{handle_pan, handle_wheel_zoom, handle_zoom_extents};
 use std::path::PathBuf;
 use std::time::Instant;
 
+use crate::cmdline::CommandHistory;
 use crate::document::{Command, Document, Entity, History};
 use crate::geometry::{SnapResult, Vec2};
 use crate::io::settings::Settings;
@@ -83,6 +88,27 @@ pub struct App {
     pub agent_settings_open: bool,
     /// Text buffer for the command-line widget (LCV-068).
     pub command_line_input: String,
+    /// The 50-entry command recall ring walked by ArrowUp / ArrowDown while
+    /// the command line has focus (LCV-111 AC 20). Every non-empty submitted
+    /// line is pushed, rejected input included — recall exists so a typo can
+    /// be fixed.
+    pub command_history: CommandHistory,
+    /// The command line's one-line result message (LCV-111 AC 20). Empty
+    /// means "nothing to say". A **display string only**: no control flow
+    /// reads it. Cleared at the top of every [`submit`] and by the widget's
+    /// Escape branch, so a stale error is always dismissible.
+    pub command_feedback: String,
+    /// One-shot focus request for the command-line widget (LCV-111 AC 20).
+    /// Set by the keyboard gate when an unbound character is typed while the
+    /// field is unfocused; consumed with `std::mem::take` by the widget,
+    /// which then calls `response.request_focus()`.
+    pub focus_command_line: bool,
+    /// A plain mirror of the command-line widget's `response.has_focus()`,
+    /// rewritten every frame by the widget (LCV-111 AC 20). Read by the
+    /// keyboard gate so ArrowUp / ArrowDown recall fires only while the
+    /// operator is actually in the field. Writing state from a widget is
+    /// allowed; reading a key from one is not (ADR 0003 §E3).
+    pub command_line_focused: bool,
     /// Whether snap is active. Toggled by F3 (LCV-070). Defaults to true.
     pub snap_enabled: bool,
     /// Whether the grid is rendered. Toggled by F7 (LCV-070). Defaults to true.
@@ -132,6 +158,10 @@ impl Default for App {
             about_open: false,
             agent_settings_open: false,
             command_line_input: String::new(),
+            command_history: CommandHistory::default(),
+            command_feedback: String::new(),
+            focus_command_line: false,
+            command_line_focused: false,
             snap_enabled: true,
             grid_enabled: true,
             ortho_enabled: false,
@@ -174,49 +204,16 @@ impl App {
 
     /// Commit a command to the document and history stack.
     ///
-    /// `TextTool` is the only caller of this method; every other tool calls
-    /// `history.commit` directly with no `&mut App` (LCV-041). Both paths are
-    /// covered by the same dirty signal: [`App::sync_dirty`] reads
-    /// `history.revision()`, not this method (LCV-102 / ADR 0002 §B).
+    /// A convenience wrapper over `history.commit(cmd, &mut document)` for
+    /// callers that already hold `&mut App`: `TextTool` (LCV-048) and the
+    /// four file actions in `src/io/file_actions.rs`. Every *other* tool
+    /// calls `history.commit` directly with no `&mut App` (LCV-041), and
+    /// both paths are covered by the same dirty signal — `App::sync_dirty`
+    /// reads `history.revision()`, not this method (LCV-102 / ADR 0002 §B).
     ///
     /// LCV-040 AC#7, AC#8.
     pub fn commit(&mut self, cmd: Box<dyn Command>) {
         self.history.commit(cmd, &mut self.document);
-    }
-
-    /// The **only** writer of `dirty_since = Some(_)` (ADR 0002 §B). Called
-    /// exactly once per frame, from [`App::update_ui`], immediately before the
-    /// autosave-flush check.
-    ///
-    /// Compares `history.revision()` against `last_synced_revision`: if they
-    /// differ, something committed, undid, or redid since the last sync, so
-    /// `dirty_since` is armed via `get_or_insert_with(Instant::now)` — which
-    /// preserves an already-set instant, so the debounce is measured from the
-    /// *first* unsaved change, not the latest one — and `last_synced_revision`
-    /// is advanced to the current revision. Calling it twice with no
-    /// intervening mutation is a no-op the second time.
-    fn sync_dirty(&mut self) {
-        let revision = self.history.revision();
-        if revision != self.last_synced_revision {
-            self.dirty_since.get_or_insert_with(Instant::now);
-            self.last_synced_revision = revision;
-        }
-    }
-
-    /// The **only** writer that resets `dirty_since` to `None`. Clears the
-    /// debounce timer and resyncs `last_synced_revision` to the current
-    /// `history.revision()` in one step (ADR 0002 §B).
-    ///
-    /// Resyncing the revision here — not just clearing `dirty_since` — is
-    /// mandatory wherever `history` is replaced with a fresh one (`action_new`
-    /// / `action_open` / `action_open_path`): a fresh `History` reports
-    /// revision `0`, and without resyncing, the very next frame's
-    /// `sync_dirty` would see `0 != last_synced_revision` and re-dirty a
-    /// document that was just loaded or reset. Call this **after** any
-    /// `history` replacement, never before.
-    pub fn mark_clean(&mut self) {
-        self.dirty_since = None;
-        self.last_synced_revision = self.history.revision();
     }
 
     /// Create a new, empty document (LCV-062).
@@ -255,8 +252,8 @@ impl App {
         // The two — and only two — keyboard readers (ADR 0002 §A6): the
         // shortcut table, then the focus gate. Both run before any panel so
         // Escape cancels the tool in the same frame the command line clears.
-        crate::ui::process_shortcuts(ctx, self);
-        process_input(ctx, self);
+        let shortcut_fired = crate::ui::process_shortcuts(ctx, self);
+        process_input(ctx, self, shortcut_fired);
         // Clear snap each frame when snap is disabled (LCV-070 AC#16).
         suppress_snap_if_disabled(self.snap_enabled, &mut self.active_snap);
 

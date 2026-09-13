@@ -10,6 +10,7 @@
 //! MUST NOT import `eframe` or `rfd`.
 
 use crate::app::App;
+use crate::cmdline::ToolInput;
 use crate::document::{commands::CreateEntities, Document, Entity, History};
 use crate::geometry::{Line, Vec2, EPSILON};
 use crate::tools::Tool;
@@ -71,12 +72,11 @@ impl Tool for RectTool {
         "RECT"
     }
 
+    /// The R14 prompt table (LCV-111 AC 17).
     fn status_text(&self) -> &'static str {
         match self.state {
-            RectState::Idle => "RECT: Click to set first corner",
-            RectState::WaitingSecondCorner { .. } => {
-                "RECT: Click to set opposite corner  |  Esc to cancel"
-            }
+            RectState::Idle => "RECT Specify first corner:",
+            RectState::WaitingSecondCorner { .. } => "RECT Specify opposite corner:",
         }
     }
 
@@ -147,6 +147,27 @@ impl Tool for RectTool {
     fn cancel(&mut self) {
         self.state = RectState::Idle;
     }
+
+    /// The canonical body (ADR 0003 §B3) — a typed point is exactly a click.
+    ///
+    /// RECT deliberately has **no** [`Tool::anchor`] override (LCV-111
+    /// product decision 4), so `@dx,dy` and direct-distance entry are never
+    /// resolved for it and only the absolute form `100,50` reaches here.
+    /// That is the whole exact-rectangle workflow.
+    fn on_command_input(
+        &mut self,
+        input: ToolInput,
+        doc: &mut Document,
+        history: &mut History,
+    ) -> bool {
+        match input.as_point() {
+            Some(p) => {
+                self.on_pointer_down(p, false, doc, history);
+                true
+            }
+            None => false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -178,7 +199,7 @@ mod tests {
     #[test]
     fn idle_status_contains_first_corner() {
         let t = RectTool::new();
-        assert!(t.status_text().contains("first corner"));
+        assert_eq!(t.status_text(), "RECT Specify first corner:");
     }
 
     // ── AC: first click ─────────────────────────────────────────────────
@@ -187,7 +208,7 @@ mod tests {
     fn first_click_transitions_to_waiting() {
         let (mut t, mut doc, mut h) = make();
         t.on_pointer_down(Vec2::new(1.0, 2.0), false, &mut doc, &mut h);
-        assert!(t.status_text().contains("opposite corner"));
+        assert_eq!(t.status_text(), "RECT Specify opposite corner:");
         assert_eq!(doc.entity_count(), 0);
         assert!(!h.can_undo());
     }
@@ -293,7 +314,7 @@ mod tests {
         assert!(h.can_undo());
         // Tool returns to idle
         assert!(t.preview().is_empty());
-        assert!(t.status_text().contains("first corner"));
+        assert_eq!(t.status_text(), "RECT Specify first corner:");
     }
 
     #[test]
@@ -335,7 +356,7 @@ mod tests {
         let mut app = crate::app::App::default();
         t.on_key(egui::Key::Escape, &mut app);
         assert!(t.preview().is_empty());
-        assert!(t.status_text().contains("first corner"));
+        assert_eq!(t.status_text(), "RECT Specify first corner:");
     }
 
     #[test]
@@ -343,7 +364,7 @@ mod tests {
         let mut t = RectTool::new();
         t.cancel();
         assert!(t.preview().is_empty());
-        assert!(t.status_text().contains("first corner"));
+        assert_eq!(t.status_text(), "RECT Specify first corner:");
     }
 
     // ── AC: object safety ───────────────────────────────────────────────
@@ -351,5 +372,54 @@ mod tests {
     #[test]
     fn is_object_safe() {
         let _: Box<dyn Tool> = Box::new(RectTool::new());
+    }
+
+    /// LCV-111 AC 3 — a typed pair of absolute corners draws the same
+    /// rectangle a pair of clicks does.
+    #[test]
+    fn command_point_acts_exactly_like_a_click() {
+        let (mut typed, mut typed_doc, mut typed_h) = make();
+        assert!(typed.on_command_input(
+            ToolInput::Point(Vec2::new(0.0, 0.0)),
+            &mut typed_doc,
+            &mut typed_h
+        ));
+        assert!(typed.on_command_input(
+            ToolInput::Point(Vec2::new(100.0, 50.0)),
+            &mut typed_doc,
+            &mut typed_h
+        ));
+
+        let (mut clicked, mut clicked_doc, mut clicked_h) = make();
+        clicked.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut clicked_doc, &mut clicked_h);
+        clicked.on_pointer_down(
+            Vec2::new(100.0, 50.0),
+            false,
+            &mut clicked_doc,
+            &mut clicked_h,
+        );
+
+        assert_eq!(typed_doc.entities, clicked_doc.entities);
+        assert_eq!(typed_doc.entity_count(), 4, "four sides");
+        assert_eq!(typed_h.len(), 1, "one undo entry for the whole box");
+        assert_eq!(typed.status_text(), "RECT Specify first corner:");
+    }
+
+    /// LCV-111 AC 5 / product decision 4 — RECT must **not** override
+    /// `anchor()`. Its only consumer other than the command line is the F8
+    /// ortho clamp, which would pin the opposite corner to a cardinal axis
+    /// from corner 1, zeroing the width or the height; `on_pointer_down`
+    /// then discards the degenerate rectangle and RECT becomes undrawable by
+    /// mouse while ortho is on. Deleting this test must be a deliberate act.
+    #[test]
+    fn rect_has_no_anchor_so_ortho_cannot_flatten_it() {
+        let (mut t, mut doc, mut h) = make();
+        assert_eq!(t.anchor(), None, "idle RECT has no anchor");
+        t.on_pointer_down(Vec2::new(10.0, 10.0), false, &mut doc, &mut h);
+        assert_eq!(
+            t.anchor(),
+            None,
+            "RECT in WaitingSecondCorner must still report no anchor"
+        );
     }
 }

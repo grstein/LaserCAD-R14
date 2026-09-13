@@ -59,6 +59,17 @@ impl Default for Camera {
 }
 
 impl Camera {
+    /// One zoom notch, shared by every discrete zoom action in the product
+    /// (LCV-111 AC 16).
+    ///
+    /// View → Zoom In / Zoom Out (`src/ui/menubar.rs`) and the typed
+    /// `zoom in` / `zoom out` commands (`src/app/cmdline.rs`) must never
+    /// drift apart, so the factor lives here — in `render`, which both `ui`
+    /// and `app` may import — rather than as a literal in either call site.
+    /// The mouse wheel is deliberately *not* this constant: it has its own,
+    /// finer `WHEEL_ZOOM_FACTOR` in `src/app/viewport.rs`.
+    pub const ZOOM_STEP: f64 = 1.25;
+
     /// Project a world-space point (mm, Y-up) to a screen-space point
     /// (px, Y-down).
     ///

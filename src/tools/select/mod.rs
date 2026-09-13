@@ -73,6 +73,13 @@ impl Tool for SelectTool {
         "Select"
     }
 
+    /// R14's idle prompt, verbatim (LCV-111 AC 17). SELECT is the tool that
+    /// is active when the operator is not in the middle of anything, so its
+    /// prompt is the command line's resting state.
+    fn status_text(&self) -> &'static str {
+        "Command:"
+    }
+
     fn on_pointer_down(
         &mut self,
         pos: Vec2,
@@ -193,6 +200,12 @@ mod tests {
     #[test]
     fn name_is_select() {
         assert_eq!(SelectTool::default().name(), "Select");
+    }
+
+    /// LCV-111 AC 17 — SELECT shows R14's idle prompt, not its name.
+    #[test]
+    fn status_text_is_the_r14_idle_prompt() {
+        assert_eq!(SelectTool::default().status_text(), "Command:");
     }
 
     /// AC#15 — `preview()` is empty in Idle.

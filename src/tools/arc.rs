@@ -7,6 +7,7 @@
 //! MUST NOT import `eframe` or `rfd`. Introduced by demand LCV-047.
 
 use crate::app::App;
+use crate::cmdline::ToolInput;
 use crate::document::{commands::CreateArc, Document, Entity, History};
 use crate::geometry::{Arc, Line, Vec2, EPSILON};
 use crate::tools::Tool;
@@ -83,6 +84,16 @@ impl Tool for ArcTool {
         "ARC"
     }
 
+    /// The R14 prompt table (LCV-111 AC 17). ARC had no override before this
+    /// demand and inherited [`Tool::name`], so it showed no phase.
+    fn status_text(&self) -> &'static str {
+        match self.state {
+            ArcState::Idle => "ARC Specify start point:",
+            ArcState::WaitingEnd { .. } => "ARC Specify end point:",
+            ArcState::WaitingMid { .. } => "ARC Specify point on arc:",
+        }
+    }
+
     fn on_pointer_down(
         &mut self,
         pos: Vec2,
@@ -149,6 +160,35 @@ impl Tool for ArcTool {
 
     fn cancel(&mut self) {
         self.state = ArcState::Idle;
+    }
+
+    /// The most recently fixed point (LCV-111 AC 5): the start while waiting
+    /// for the end, the end while waiting for the point on the arc.
+    ///
+    /// Adding this also turns F8 ortho on for ARC, which is R14-correct — an
+    /// axis-aligned chord still commits an arc.
+    fn anchor(&self) -> Option<Vec2> {
+        match self.state {
+            ArcState::WaitingEnd { start } => Some(start),
+            ArcState::WaitingMid { end, .. } => Some(end),
+            ArcState::Idle => None,
+        }
+    }
+
+    /// The canonical body (ADR 0003 §B3) — a typed point is exactly a click.
+    fn on_command_input(
+        &mut self,
+        input: ToolInput,
+        doc: &mut Document,
+        history: &mut History,
+    ) -> bool {
+        match input.as_point() {
+            Some(p) => {
+                self.on_pointer_down(p, false, doc, history);
+                true
+            }
+            None => false,
+        }
     }
 }
 
@@ -308,5 +348,63 @@ mod tests {
     #[test]
     fn object_safe() {
         let _: Box<dyn Tool> = Box::new(ArcTool::default());
+    }
+
+    /// LCV-111 AC 3 — three typed points draw exactly the arc three clicks
+    /// draw.
+    #[test]
+    fn command_point_acts_exactly_like_a_click() {
+        let pts = [
+            Vec2::new(1.0, 0.0),
+            Vec2::new(-1.0, 0.0),
+            Vec2::new(0.0, 1.0),
+        ];
+
+        let mut typed = ArcTool::default();
+        let (mut typed_doc, mut typed_h) = doc_and_hist();
+        for p in pts {
+            assert!(typed.on_command_input(ToolInput::Point(p), &mut typed_doc, &mut typed_h));
+        }
+
+        let mut clicked = ArcTool::default();
+        let (mut clicked_doc, mut clicked_h) = doc_and_hist();
+        for p in pts {
+            clicked.on_pointer_down(p, false, &mut clicked_doc, &mut clicked_h);
+        }
+
+        assert_eq!(typed_doc.entities, clicked_doc.entities);
+        assert_eq!(typed_doc.entity_count(), 1);
+        assert_eq!(typed_h.len(), 1);
+        assert_eq!(typed.state, ArcState::Idle);
+    }
+
+    /// LCV-111 AC 5 — `anchor()` follows the last fixed point through both
+    /// in-progress phases.
+    #[test]
+    fn anchor_follows_the_last_fixed_point() {
+        let mut t = ArcTool::default();
+        let (mut doc, mut h) = doc_and_hist();
+        assert_eq!(t.anchor(), None, "idle ARC has no anchor");
+
+        t.on_pointer_down(Vec2::new(1.0, 0.0), false, &mut doc, &mut h);
+        assert_eq!(t.anchor(), Some(Vec2::new(1.0, 0.0)), "WaitingEnd → start");
+
+        t.on_pointer_down(Vec2::new(-1.0, 0.0), false, &mut doc, &mut h);
+        assert_eq!(t.anchor(), Some(Vec2::new(-1.0, 0.0)), "WaitingMid → end");
+
+        t.cancel();
+        assert_eq!(t.anchor(), None);
+    }
+
+    /// LCV-111 AC 17 — the R14 prompt in all three phases.
+    #[test]
+    fn status_text_follows_the_phase() {
+        let mut t = ArcTool::default();
+        let (mut doc, mut h) = doc_and_hist();
+        assert_eq!(t.status_text(), "ARC Specify start point:");
+        t.on_pointer_down(Vec2::new(1.0, 0.0), false, &mut doc, &mut h);
+        assert_eq!(t.status_text(), "ARC Specify end point:");
+        t.on_pointer_down(Vec2::new(-1.0, 0.0), false, &mut doc, &mut h);
+        assert_eq!(t.status_text(), "ARC Specify point on arc:");
     }
 }

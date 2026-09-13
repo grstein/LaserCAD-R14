@@ -1,9 +1,10 @@
-//! Autosave debounce and flush (LCV-059 / LCV-102, ADR 0002 §B).
+//! The autosave dirty signal, debounce and flush (LCV-059 / LCV-102,
+//! ADR 0002 §B).
 //!
-//! The dirty signal itself lives on [`App`](super::App):
-//! [`sync_dirty`](super::App::sync_dirty) is the only writer of
-//! `dirty_since = Some(_)` and [`mark_clean`](super::App::mark_clean) the only
-//! writer of `dirty_since = None`. This module owns the *timing*: how long a
+//! Two halves, both here since LCV-111 moved the signal out of `mod.rs`:
+//! the *signal* — [`App::sync_dirty`](super::App::sync_dirty), the only writer
+//! of `dirty_since = Some(_)`, and [`App::mark_clean`](super::App::mark_clean),
+//! the only writer of `dirty_since = None` — and the *timing*: how long a
 //! change waits before it is written, and the once-per-frame flush check.
 //!
 //! MUST NOT import `eframe` or `rfd`.
@@ -39,6 +40,43 @@ pub fn flush_if_due(app: &mut App) {
         // Cleared unconditionally: a failed write is dropped, not retried
         // every frame. The next document change re-arms the debounce.
         app.mark_clean();
+    }
+}
+
+impl App {
+    /// The **only** writer of `dirty_since = Some(_)` (ADR 0002 §B). Called
+    /// exactly once per frame, from [`App::update_ui`](super::App::update_ui), immediately before the
+    /// autosave-flush check.
+    ///
+    /// Compares `history.revision()` against `last_synced_revision`: if they
+    /// differ, something committed, undid, or redid since the last sync, so
+    /// `dirty_since` is armed via `get_or_insert_with(Instant::now)` — which
+    /// preserves an already-set instant, so the debounce is measured from the
+    /// *first* unsaved change, not the latest one — and `last_synced_revision`
+    /// is advanced to the current revision. Calling it twice with no
+    /// intervening mutation is a no-op the second time.
+    pub(super) fn sync_dirty(&mut self) {
+        let revision = self.history.revision();
+        if revision != self.last_synced_revision {
+            self.dirty_since.get_or_insert_with(Instant::now);
+            self.last_synced_revision = revision;
+        }
+    }
+
+    /// The **only** writer that resets `dirty_since` to `None`. Clears the
+    /// debounce timer and resyncs `last_synced_revision` to the current
+    /// `history.revision()` in one step (ADR 0002 §B).
+    ///
+    /// Resyncing the revision here — not just clearing `dirty_since` — is
+    /// mandatory wherever `history` is replaced with a fresh one (`action_new`
+    /// / `action_open` / `action_open_path`): a fresh `History` reports
+    /// revision `0`, and without resyncing, the very next frame's
+    /// `sync_dirty` would see `0 != last_synced_revision` and re-dirty a
+    /// document that was just loaded or reset. Call this **after** any
+    /// `history` replacement, never before.
+    pub fn mark_clean(&mut self) {
+        self.dirty_since = None;
+        self.last_synced_revision = self.history.revision();
     }
 }
 

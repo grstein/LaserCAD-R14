@@ -92,21 +92,24 @@ fn focus_command_line(ctx: &egui::Context, app: &mut App, viewport: egui::Rect) 
     );
 }
 
-/// Activate `TextTool`, click an anchor in the viewport, and type `HI`.
+/// Activate `TextTool`, click an anchor in the viewport, and give it the
+/// pending string `HI`.
+///
+/// The characters are handed to the tool **directly**, not through
+/// `Event::Text`: LCV-111 repurposed the gate's typed-character row to seed
+/// and focus the command line, so per-character TEXT entry is non-functional
+/// between LCV-111 and LCV-112 (which restores it through raw-input mode).
+/// The tests below are about *key routing*, not about typing, so seeding the
+/// buffer directly keeps them honest about what they actually prove.
+///
 /// Leaves the pointer over the viewport and nothing focused.
 fn text_tool_with_pending_text(ctx: &egui::Context, app: &mut App, viewport: egui::Rect) {
     app.tool_manager.set_tool(Box::new(TextTool::default()));
     let p = viewport.center();
     frame(ctx, app, vec![egui::Event::PointerMoved(p)]); // warm-up
     frame(ctx, app, click_events(p)); // anchor
-    frame(
-        ctx,
-        app,
-        vec![
-            egui::Event::Text("H".to_owned()),
-            egui::Event::Text("I".to_owned()),
-        ],
-    );
+    app.tool_manager.on_text_input('H');
+    app.tool_manager.on_text_input('I');
     assert!(
         !app.tool_manager.preview().is_empty(),
         "TextTool must have buffered the typed characters"
@@ -233,27 +236,31 @@ fn enter_commits_text_tool() {
     assert!(app.tool_manager.preview().is_empty(), "tool back to idle");
 }
 
-/// AC#8 — with the command line focused, the same Enter press submits the
-/// command line and must **not** also commit the tool.
+/// AC#8, amended by LCV-111 AC 14 — with the command line focused, one Enter
+/// press reaches the tool **exactly once**, through the submit path.
+///
+/// The original LCV-103 assertion was "Enter must not commit the tool while a
+/// text widget has focus". LCV-111 changed that deliberately: an Enter on an
+/// empty command line is R14's "accept" keystroke and `crate::app::submit`
+/// routes it to the active tool, which is what keeps "Enter finishes the
+/// polyline" alive now that the field usually holds focus. The regression
+/// this test still guards is the one that matters — the gate's `wants_kbd`
+/// early-out must keep `TOOL_ROUTED_KEYS` from firing a *second* Enter.
 #[test]
-fn enter_is_suppressed_while_text_widget_focused() {
+fn enter_reaches_the_tool_exactly_once_while_focused() {
     let (ctx, mut app, viewport) = boot();
     text_tool_with_pending_text(&ctx, &mut app, viewport);
-    let preview_before = app.tool_manager.preview().len();
     focus_command_line(&ctx, &mut app, viewport);
 
     tap(&ctx, &mut app, egui::Key::Enter, none());
 
-    assert!(
-        !app.history.can_undo(),
-        "Enter must not commit the tool while a text widget has focus"
-    );
-    assert_eq!(app.document.entity_count(), 0);
     assert_eq!(
-        app.tool_manager.preview().len(),
-        preview_before,
-        "the tool's pending text must be untouched"
+        app.history.len(),
+        1,
+        "Enter must commit exactly once — not twice (double dispatch), not zero"
     );
+    assert!(app.document.entity_count() > 0, "Hershey strokes committed");
+    assert!(app.tool_manager.preview().is_empty(), "tool back to idle");
 }
 
 // ---------------------------------------------------------------------------
@@ -343,29 +350,39 @@ fn delete_removes_selection_when_unfocused() {
 // AC#11 — D8: typed characters are gated
 // ---------------------------------------------------------------------------
 
-/// AC#11 — `Event::Text` reaches the active tool only when no text widget has
-/// focus.
+/// AC#11, amended by LCV-111 AC 21 — the gate reads `Event::Text` only when
+/// no text widget has focus, and what it does with it is now "seed and focus
+/// the command line" instead of "forward to the active tool".
+///
+/// The focused half is the double-insert guard: while the field has focus the
+/// `TextEdit` itself consumes the character, so the gate must add nothing —
+/// one keystroke, one character in the buffer.
 #[test]
 fn text_event_gated_by_focus() {
-    let (ctx, mut app, viewport) = boot();
-    text_tool_with_pending_text(&ctx, &mut app, viewport);
-    let unfocused_before = app.tool_manager.preview().len();
+    let (ctx, mut app, _viewport) = boot();
+    assert!(app.command_line_input.is_empty());
 
-    // Unfocused: the character reaches the tool.
+    // Unfocused: the gate seeds the field with exactly one copy.
     frame(&ctx, &mut app, vec![egui::Event::Text("A".to_owned())]);
-    let after_unfocused = app.tool_manager.preview().len();
-    assert!(
-        after_unfocused > unfocused_before,
-        "an unfocused typed character must reach the tool"
+    assert_eq!(
+        app.command_line_input, "A",
+        "an unfocused typed character must seed the command line exactly once"
     );
 
-    // Focused: it does not.
-    focus_command_line(&ctx, &mut app, viewport);
-    frame(&ctx, &mut app, vec![egui::Event::Text("a".to_owned())]);
+    // The seed also asked for focus, granted at the end of that frame.
+    assert!(
+        ctx.wants_keyboard_input(),
+        "typing must focus the command line (LCV-111 AC 21)"
+    );
+
+    // Focused: the widget consumes the character and the gate adds nothing.
+    frame(&ctx, &mut app, vec![egui::Event::Text("b".to_owned())]);
     assert_eq!(
-        app.tool_manager.preview().len(),
-        after_unfocused,
-        "a typed character must not reach the tool while a text widget has focus"
+        app.command_line_input.len(),
+        2,
+        "a typed character must land exactly once while the field has focus, \
+         got {:?}",
+        app.command_line_input
     );
 }
 

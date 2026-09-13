@@ -15,7 +15,12 @@ use crate::tools;
 /// Called once per frame — the first statement of `App::update` — before any
 /// panel is rendered. Reads key-press events (excluding repeats) from `ctx`
 /// and calls [`dispatch_shortcuts`] for each one.
-pub fn process_shortcuts(ctx: &egui::Context, app: &mut App) {
+///
+/// Returns the frame's shortcut flag: `true` when **any** key this frame was
+/// consumed by a shortcut. `src/app/input.rs` uses it to drop the matching
+/// `Event::Text`, so pressing `l` starts LINE instead of also typing an `l`
+/// into the command line (LCV-111 AC 22).
+pub fn process_shortcuts(ctx: &egui::Context, app: &mut App) -> bool {
     let wants_kbd = ctx.wants_keyboard_input();
     let key_events: Vec<(Key, Modifiers)> = ctx.input(|i| {
         i.events
@@ -36,9 +41,11 @@ pub fn process_shortcuts(ctx: &egui::Context, app: &mut App) {
             })
             .collect()
     });
+    let mut fired = false;
     for (key, mods) in key_events {
-        dispatch_shortcuts(key, mods, wants_kbd, app);
+        fired |= dispatch_shortcuts(key, mods, wants_kbd, app);
     }
+    fired
 }
 
 /// Tool-activation dispatch table: `(key, kind)` pairs iterated in a loop
@@ -69,7 +76,11 @@ const TOOL_KEYS: &[(Key, ToolKind)] = &[
 /// - Single-letter tool keys are suppressed when `wants_kbd` is `true` or any
 ///   modifier is held.
 /// - `Ctrl+Z/Y/N/O/S` and F3 / F7 / F8 fire unconditionally.
-pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: &mut App) {
+///
+/// Returns `true` when this key was consumed by a shortcut (LCV-111 AC 22).
+/// Deliberately **not** `#[must_use]`: the LCV-070 and LCV-104 suites call it
+/// as a bare statement and must keep compiling unchanged.
+pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: &mut App) -> bool {
     let bare = modifiers.is_none();
     let ctrl_only = modifiers.command_only();
 
@@ -79,23 +90,23 @@ pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: 
         match key {
             Key::Z => {
                 app.history.undo(&mut app.document);
-                return;
+                return true;
             }
             Key::Y => {
                 app.history.redo(&mut app.document);
-                return;
+                return true;
             }
             Key::N => {
                 app.action_new();
-                return;
+                return true;
             }
             Key::O => {
                 app.action_open();
-                return;
+                return true;
             }
             Key::S => {
                 app.action_save();
-                return;
+                return true;
             }
             _ => {}
         }
@@ -104,7 +115,7 @@ pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: 
     // Ctrl+Shift+S — Save As (LCV-062).
     if modifiers.command && modifiers.shift && !modifiers.alt && key == Key::S {
         crate::io::action_save_as(app);
-        return;
+        return true;
     }
 
     // Toggle keys — bare, unconditional (fire even with kbd focus).
@@ -112,15 +123,15 @@ pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: 
         match key {
             Key::F8 => {
                 app.ortho_enabled = !app.ortho_enabled;
-                return;
+                return true;
             }
             Key::F3 => {
                 app.snap_enabled = !app.snap_enabled;
-                return;
+                return true;
             }
             Key::F7 => {
                 app.grid_enabled = !app.grid_enabled;
-                return;
+                return true;
             }
             _ => {}
         }
@@ -131,10 +142,12 @@ pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: 
         for &(tool_key, kind) in TOOL_KEYS {
             if key == tool_key {
                 app.tool_manager.set_tool(tools::make(kind));
-                return;
+                return true;
             }
         }
     }
+
+    false
 }
 
 #[cfg(test)]
