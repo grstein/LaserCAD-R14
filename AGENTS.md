@@ -92,7 +92,7 @@ This is the "kernel". It must remain testable as a pure Rust library and runnabl
 
 `src/agent/` is not kernel, but it carries three containment rules of its own ([ADR 0007](docs/adr/0007-agent-turn-mutates-the-live-document.md) §D8):
 
-- **Only `src/agent/panel.rs` and `src/agent/settings_ui.rs` may import `egui`.** No file under `src/agent/` may import `eframe` or `rfd`. Everything else there — `classifier.rs`, `wire.rs`, `transport.rs`, `tools.rs`, `bridge.rs`, `loop_.rs` — is kernel-pure and unit-testable with no UI context.
+- **Only `src/agent/panel.rs` and `src/agent/settings_ui.rs` may import `egui`.** No file under `src/agent/` may import `eframe` or `rfd`. Everything else there — `classifier.rs`, `wire.rs`, `transport.rs`, `tools.rs`, `bridge.rs`, `loop_.rs`, `mod.rs` — is kernel-pure and unit-testable with no UI context. `mod.rs` only declares the submodules and re-exports their public symbols; it imports nothing itself, and the same no-`egui`/`eframe`/`rfd` rule binds it.
 - **Only `src/agent/transport.rs` may import `reqwest`.** It is the single HTTP boundary of the crate.
 - **`panel.rs` renders and reports. It never spawns a thread and never constructs a `Document` or a `History`.** Spawning a turn is app-side wiring and lives in `src/app/agent_turn.rs`.
 
