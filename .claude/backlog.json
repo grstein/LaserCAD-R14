@@ -1316,7 +1316,7 @@
       "id": "LCV-126",
       "title": "The F1 shortcuts dialog does not mention the command line",
       "phase": 11,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [
         "LCV-116",
         "LCV-111"
@@ -1325,7 +1325,8 @@
       "milestone": "Phase 11 follow-up (outside the Marco 2 drive)",
       "demand_file": "docs/product/demands/LCV-126-shortcuts-dialog-documents-the-command-line.md",
       "drive_order": 18,
-      "note": "Draft \u2014 NEXT AGENT IS product-owner, not implementer-rust: the Status line still reads Draft even though the file already carries a full Problem / Scope / Out of scope / Acceptance criteria / Expected tests body. Someone must decide whether refinement is actually finished before this is driven. The gap itself: the F1 shortcuts dialog LCV-116 shipped does not mention the command line that LCV-110/111/112 shipped. Phase 11, not part of the Marco 2 drive."
+      "shipped_commit": "f4c2113, 768ee9e",
+      "note": "Done, shipped 2026-09-13. First commit f4c2113 added the Command line group to SHORTCUT_GROUPS with three rows (typed-character seed, ArrowUp/Down recall). Rework 768ee9e fixed a bounds-checking hazard in the paint test; reviewer-rust re-ran all six mutations in isolated worktrees. The split validates that the paint assertion (AC 4) catches render mutations that leave SHORTCUT_GROUPS untouched, while unit tests still discriminate. Related: LCV-133 (F1 dialog clipping, pre-existing and out-of-scope). CI: not run (billing hold)."
     },
     {
       "id": "LCV-128",
