@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-126 | The F1 shortcuts dialog does not mention the command line | 11 | LCV-116, LCV-111 |
 | LCV-128 | `AGENTS.md`'s normative per-file and per-symbol enumerations have no scan | 12 | none |
 | LCV-129 | A hung endpoint wedges the app: the agent turn has no timeout and no cancel | 12 | LCV-123, LCV-125 |
 
@@ -153,6 +152,7 @@ _None._
 | LCV-123 | The agent turn draws on the operator's real drawing | 12 | 2026-09-13 | 6102c68, e7ba0a6, af5ef82 |
 | LCV-124 | The command line can reach the agent | 12 | 2026-09-13 | 96a8fb4, a1b37aa |
 | LCV-125 | The panel shows what the agent did to the drawing | 12 | 2026-09-13 | 8b5fa2c, c6e9d9d |
+| LCV-126 | The F1 shortcuts dialog does not mention the command line | 11 | 2026-09-13 | f4c2113, 768ee9e |
 | LCV-127 | The drag term of `viewport_is_live` has no behavioural test | 11 | 2026-09-13 | 97d1867 |
 
 ## Blocked
