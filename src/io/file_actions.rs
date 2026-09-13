@@ -30,14 +30,16 @@ use crate::io::{clear_autosave, open_file_dialog, save_file_dialog};
 /// Reset the session to a blank document.
 ///
 /// Clears all entities, resets the undo/redo history, clears the current-file
-/// path, clears the dirty-since timer, and removes any pending autosave file.
-/// Unsaved changes are discarded without confirmation (a confirm-discard dialog
-/// is deferred to a later demand).
+/// path, marks the fresh document safe to discard, and removes any pending
+/// autosave file. The confirm-discard dialog that guards this action against
+/// unsaved work lives one layer up, in `App::request_new`
+/// (`src/app/file_ops.rs`, LCV-113) — by the time this function runs, the
+/// discard has already been confirmed (or the document was already clean).
 pub fn action_new(app: &mut App) {
     app.document = Document::default();
     app.history = History::default();
     app.current_file = None;
-    app.mark_clean();
+    app.mark_saved();
     clear_autosave();
 }
 
@@ -77,7 +79,7 @@ pub fn action_open(app: &mut App) {
     };
     app.history = History::default();
     app.current_file = Some(path.clone());
-    app.mark_clean();
+    app.mark_saved();
     app.settings
         .push_recent_file(path.to_string_lossy().into_owned());
     let _ = app.settings.save();
@@ -87,10 +89,10 @@ pub fn action_open(app: &mut App) {
 /// Save the document to the current file path.
 ///
 /// If no file path is known (`app.current_file` is `None`) this function
-/// delegates to [`action_save_as`].  On success `app.mark_clean()` clears the
-/// dirty timer and the autosave file is removed.  On I/O failure
-/// `app.error_message` is set; `app.current_file` is never modified by this
-/// function.
+/// delegates to [`action_save_as`].  On success `app.mark_saved()` marks the
+/// document safe to discard and clears the autosave debounce; the autosave
+/// file is removed.  On I/O failure `app.error_message` is set;
+/// `app.current_file` is never modified by this function.
 pub fn action_save(app: &mut App) {
     let path = match app.current_file.clone() {
         Some(p) => p,
@@ -106,7 +108,7 @@ pub fn action_save(app: &mut App) {
         return;
     }
 
-    app.mark_clean();
+    app.mark_saved();
     clear_autosave();
 }
 
@@ -140,7 +142,7 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
     };
     app.history = History::default();
     app.current_file = Some(path.clone());
-    app.mark_clean();
+    app.mark_saved();
     app.settings
         .push_recent_file(path.to_string_lossy().into_owned());
     let _ = app.settings.save();
@@ -180,7 +182,7 @@ pub fn action_save_as(app: &mut App) {
     }
 
     app.current_file = Some(path.clone());
-    app.mark_clean();
+    app.mark_saved();
     app.settings
         .push_recent_file(path.to_string_lossy().into_owned());
     let _ = app.settings.save();
@@ -253,6 +255,27 @@ mod tests {
         assert!(app.dirty_since.is_none());
     }
 
+    /// LCV-113 AC 4 — action_new marks the fresh document safe to discard
+    /// via `App::mark_saved`, which supersedes the bare autosave-clean call
+    /// this action used to make.
+    #[test]
+    fn action_new_marks_the_fresh_document_saved() {
+        let mut app = App::default();
+        app.history.commit(
+            Box::new(CreateLine::new(Line::new(
+                Vec2::new(0.0, 0.0),
+                Vec2::new(1.0, 1.0),
+            ))),
+            &mut app.document,
+        );
+        assert!(app.has_unsaved_changes());
+
+        action_new(&mut app);
+
+        assert!(!app.has_unsaved_changes());
+        assert_eq!(app.saved_revision, Some(app.history.revision()));
+    }
+
     // --- AC 9 — action_save with current_file set ---------------------------
 
     /// AC 9 — action_save writes SVG to current_file path.
@@ -293,6 +316,31 @@ mod tests {
         action_save(&mut app);
 
         assert!(app.dirty_since.is_none());
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    /// LCV-113 AC 4 — action_save marks the document safe to discard.
+    #[test]
+    fn action_save_marks_the_document_saved() {
+        let tmp = std::env::temp_dir().join("lcv113_save_marks_saved.svg");
+        let _ = std::fs::remove_file(&tmp);
+
+        let mut app = App {
+            current_file: Some(tmp.clone()),
+            ..App::default()
+        };
+        app.history.commit(
+            Box::new(CreateLine::new(Line::new(
+                Vec2::new(0.0, 0.0),
+                Vec2::new(1.0, 1.0),
+            ))),
+            &mut app.document,
+        );
+        assert!(app.has_unsaved_changes());
+
+        action_save(&mut app);
+
+        assert!(!app.has_unsaved_changes());
         let _ = std::fs::remove_file(&tmp);
     }
 

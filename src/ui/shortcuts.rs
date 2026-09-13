@@ -85,7 +85,8 @@ pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: 
     let ctrl_only = modifiers.command_only();
 
     // Ctrl+Z / Ctrl+Y — undo / redo (unconditional; fires even with kbd focus).
-    // Ctrl+N / Ctrl+O / Ctrl+S — file operations (LCV-062).
+    // Ctrl+N / Ctrl+O — guarded file operations (LCV-062, discard-confirmed
+    // by LCV-113); Ctrl+S — file operation, not destructive, unguarded.
     if ctrl_only {
         match key {
             Key::Z => {
@@ -97,11 +98,11 @@ pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: 
                 return true;
             }
             Key::N => {
-                app.action_new();
+                app.request_new();
                 return true;
             }
             Key::O => {
-                app.action_open();
+                app.request_open();
                 return true;
             }
             Key::S => {

@@ -28,13 +28,17 @@ pub fn draw_menubar(ui: &mut egui::Ui, app: &mut App) {
 
 fn file_menu(ui: &mut egui::Ui, app: &mut App) {
     ui.menu_button("File", |ui| {
+        // New / Open / Open Recent are guarded by a discard-confirmation
+        // dialog on an unsaved document (LCV-113); `request_*` decides
+        // whether to act immediately or park the action. Save is not
+        // destructive and keeps calling `action_save` directly.
         if ui.button("New\tCtrl+N").clicked() {
             ui.close_menu();
-            app.action_new();
+            app.request_new();
         }
         if ui.button("Open…\tCtrl+O").clicked() {
             ui.close_menu();
-            app.action_open();
+            app.request_open();
         }
         ui.menu_button("Open Recent ▶", |ui| recent_submenu(ui, app));
         if ui.button("Save\tCtrl+S").clicked() {
@@ -47,13 +51,16 @@ fn file_menu(ui: &mut egui::Ui, app: &mut App) {
         }
         ui.separator();
         if ui.button("Exit").clicked() {
-            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+            ui.close_menu();
+            if app.request_exit() {
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+            }
         }
     });
 }
 
 fn recent_submenu(ui: &mut egui::Ui, app: &mut App) {
-    // Clone to release the borrow before calling action_open_path.
+    // Clone to release the borrow before calling request_open_path.
     let recent: Vec<String> = crate::io::recent_files(&app.settings).to_owned();
     if recent.is_empty() {
         ui.add_enabled(false, egui::Button::new("No recent files"));
@@ -67,7 +74,7 @@ fn recent_submenu(ui: &mut egui::Ui, app: &mut App) {
         if ui.button(label).clicked() {
             ui.close_menu();
             if let Ok(path) = crate::io::open_recent(i, &mut app.settings) {
-                app.action_open_path(path);
+                app.request_open_path(path);
             }
         }
     }

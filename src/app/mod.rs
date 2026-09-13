@@ -10,11 +10,10 @@
 //! calls one function per phase, each in its own file: `input` (keyboard and
 //! text routing), `panels` (chrome, agent panel, dialogs), `viewport` (canvas,
 //! pointer, camera), `autosave` (the dirty signal, the debounce and the
-//! flush). `file_ops` holds the `App` file-action wrappers, moved out of this
-//! file to stay under the 300-LOC implementation cap. `ortho`, `snap` and
-//! `agent_poll` hold pure helpers those phases call, and `cmdline` resolves
-//! one submitted command line into a [`ToolInput`](crate::cmdline::ToolInput)
-//! (LCV-111).
+//! flush), `file_ops` (the guarded New / Open / Exit entry points and the
+//! discard-confirmation dialog, LCV-113). `ortho`, `snap` and `agent_poll`
+//! hold pure helpers those phases call, and `cmdline` resolves one submitted
+//! command line into a [`ToolInput`](crate::cmdline::ToolInput) (LCV-111).
 //!
 //! `mod.rs` re-exports the module's whole public surface, so callers outside
 //! `app` use `lasercad::app::…` paths and never a deep one.
@@ -32,6 +31,7 @@ mod agent_poll;
 pub use agent_poll::poll_agent_rx;
 pub use autosave::autosave_due;
 pub use cmdline::submit;
+pub use file_ops::{apply_dialog_result, draw_discard_dialog, poll_close_request, PendingAction};
 pub use input::process_input;
 pub use ortho::apply_ortho;
 pub use snap::{resolve_snap, suppress_snap_if_disabled};
@@ -136,6 +136,17 @@ pub struct App {
     /// When `Some`, a modal error window is rendered on the next frame; cleared
     /// when the user dismisses it (LCV-062).
     pub error_message: Option<String>,
+    /// The `history.revision()` at which the document was last known safe to
+    /// discard: just written to a file, just loaded from one, or just reset
+    /// to blank (LCV-113). `None` means "never was" — a fresh unsaved
+    /// document or one recovered from autosave at boot, both unsaved per
+    /// [`App::has_unsaved_changes`]. **Not** the autosave signal: unlike
+    /// `dirty_since`, autosave (`mark_clean`) never touches this field. The
+    /// only writer is [`App::mark_saved`].
+    pub saved_revision: Option<u64>,
+    /// A destructive action parked while the discard-confirmation dialog is
+    /// up (LCV-113). `None` means no dialog is pending; see `src/app/file_ops.rs`.
+    pub pending_action: Option<PendingAction>,
 }
 
 /// The test constructor (ADR 0002 §A2). Touches no filesystem: `settings`
@@ -174,6 +185,8 @@ impl Default for App {
             agent_rx: None,
             current_file: None,
             error_message: None,
+            saved_revision: None,
+            pending_action: None,
         }
     }
 }
@@ -255,6 +268,9 @@ impl App {
         self.sync_dirty();
         autosave::flush_if_due(self);
 
+        // Window close button (LCV-113): cancel the close and park
+        // `PendingAction::Exit` when the document is dirty.
+        poll_close_request(ctx, self);
         panels::draw_dialogs(ctx, self);
     }
 }
