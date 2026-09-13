@@ -1,10 +1,11 @@
 # LCV-112 — TEXT complete: raw-input mode for the string, then the height, in exactly one undo step
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 11
 - **Depends on**: LCV-111 (`ToolInput`, `src/app/cmdline.rs::submit`, the focus plumbing)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: 2ef12af, 307cfad — feat(LCV-112): TEXT tool raw-input mode — string, then height, one undo step; test(LCV-112): cover the final-commit focus release; fix a weakened vehicle. Reviewed twice: first pass returned REWORK REQUIRED over a missing focus-release test; the rework added it; second pass returned APPROVED after re-running both mutations in a scratch worktree.
 
 ## Problem
 

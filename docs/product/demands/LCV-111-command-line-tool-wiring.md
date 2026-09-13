@@ -1,11 +1,11 @@
 # LCV-111 — Wire the parser into the tools: `on_command_input`, R14 prompts, focus-on-typing
 
-- **Status**: In Progress
+- **Status**: Done
 - **Phase**: 11
 - **Depends on**: LCV-110 (the parser, `ToolKind`, `tools::make`, the recall ring)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (in progress; review returned one blocking finding)
+- **Implementation**: 533e24a, 2f39e9d, d6a23b7 — feat(LCV-111): wire the command line into the tools; test(LCV-111): end-to-end command-line acceptance suite; fix(LCV-111): a blank Enter resets the recall cursor. Reviewed and approved.
 
 ## Problem
 

@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-112 | TEXT complete: raw-input mode for the string, then the height, in exactly one undo step | 11 | LCV-111 |
 | LCV-113 | Confirm discard on New / Open / Exit when the document has unsaved changes | 11 | — |
 | LCV-114 | Configurable bed size (1..2000 mm), stored in the document and read back on import | 11 | — |
 | LCV-115 | Export preset selector (cut / mark / engrave) | 11 | LCV-114 |
@@ -16,7 +15,7 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Owner | Started |
 |---|---|---|---|---|
-| LCV-111 | Wire the parser into the tools: `on_command_input`, R14 prompts, focus-on-typing | 11 | implementer-rust | 2026-09-12 |
+| LCV-117 | Hershey glyph table: 22 alphanumeric glyphs (plus `?`) render below the baseline | 11 | implementer-rust | 2026-09-13 |
 
 ## Done
 
@@ -106,6 +105,8 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 | LCV-107 | CI: Windows package job invokes `build-msi.ps1` via PowerShell | 10 | 2026-09-12 | c5b5be4 |
 | LCV-108 | Docs sync: CHANGELOG, README status, AGENTS.md reality, backlog consistency | 10 | 2026-09-12 | b24da80 |
 | LCV-110 | Command-line parser: a pure kernel module for `X,Y`, `@X,Y`, distance, aliases, toggles and zoom | 11 | 2026-09-12 | 66af950 |
+| LCV-111 | Wire the parser into the tools: `on_command_input`, R14 prompts, focus-on-typing | 11 | 2026-09-12 | 533e24a |
+| LCV-112 | TEXT complete: raw-input mode for the string, then the height, in exactly one undo step | 11 | 2026-09-12 | 2ef12af |
 
 ## Blocked
 

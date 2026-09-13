@@ -1,10 +1,11 @@
 # LCV-117 — Hershey glyph table: 22 alphanumeric glyphs (plus `?`) render below the baseline
 
-- **Status**: Draft
+- **Status**: In Progress
 - **Phase**: 11
 - **Depends on**: none (the data shipped with LCV-055, Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: implementer-rust (in progress; commits d696f7c, c8cebad shipped; review returned REWORK REQUIRED on one finding)
 
 ## Problem
 
