@@ -10,15 +10,18 @@
 //! calls one function per phase, each in its own file: `input` (keyboard and
 //! text routing), `panels` (chrome, agent panel, dialogs), `viewport` (canvas,
 //! pointer, camera), `autosave` (the dirty signal, the debounce and the
-//! flush). `ortho`, `snap` and `agent_poll` hold pure helpers those phases
-//! call, and `cmdline` resolves one submitted command line into a
-//! [`ToolInput`](crate::cmdline::ToolInput) (LCV-111).
+//! flush). `file_ops` holds the `App` file-action wrappers, moved out of this
+//! file to stay under the 300-LOC implementation cap. `ortho`, `snap` and
+//! `agent_poll` hold pure helpers those phases call, and `cmdline` resolves
+//! one submitted command line into a [`ToolInput`](crate::cmdline::ToolInput)
+//! (LCV-111).
 //!
 //! `mod.rs` re-exports the module's whole public surface, so callers outside
 //! `app` use `lasercad::app::…` paths and never a deep one.
 
 mod autosave;
 mod cmdline;
+mod file_ops;
 mod input;
 mod ortho;
 mod panels;
@@ -34,7 +37,6 @@ pub use ortho::apply_ortho;
 pub use snap::{resolve_snap, suppress_snap_if_disabled};
 pub use viewport::{handle_pan, handle_wheel_zoom, handle_zoom_extents};
 
-use std::path::PathBuf;
 use std::time::Instant;
 
 use crate::cmdline::CommandHistory;
@@ -218,31 +220,6 @@ impl App {
     /// LCV-040 AC#7, AC#8.
     pub fn commit(&mut self, cmd: Box<dyn Command>) {
         self.history.commit(cmd, &mut self.document);
-    }
-
-    /// Create a new, empty document (LCV-062).
-    pub fn action_new(&mut self) {
-        crate::io::action_new(self);
-    }
-
-    /// Open a document from disk via a file dialog (LCV-062).
-    pub fn action_open(&mut self) {
-        crate::io::action_open(self);
-    }
-
-    /// Load a document from a known path (LCV-065, used by Open Recent).
-    pub fn action_open_path(&mut self, path: PathBuf) {
-        crate::io::action_open_path(self, path);
-    }
-
-    /// Save the current document to disk (LCV-062).
-    pub fn action_save(&mut self) {
-        crate::io::action_save(self);
-    }
-
-    /// Save the current document to a new path via a save dialog (LCV-065).
-    pub fn action_save_as(&mut self) {
-        crate::io::action_save_as(self);
     }
 
     /// The whole frame body (ADR 0002 §A1).
