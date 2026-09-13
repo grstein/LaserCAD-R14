@@ -48,14 +48,22 @@ pub fn submit(app: &mut App, raw: &str) {
     app.command_feedback.clear();
     let parsed = parse(raw);
 
-    // AC 9.4 — `Empty` is not pushed: a blank Enter is R14's "accept"
-    // keystroke, not a command. (`CommandHistory::push` would ignore a blank
-    // entry for the ring's *contents* anyway, but it also resets the recall
-    // cursor; keeping the push behind this check is the demand's order of
-    // business, so a blank Enter leaves an in-progress recall walk alone.)
-    if !matches!(parsed, CommandInput::Empty) {
-        app.command_history.push(raw);
-    }
+    // Every submit is offered to the ring, blank ones included — including
+    // `Unknown`, because recall exists so a typo can be fixed (AC 9.4).
+    //
+    // AC 9.4's "`Empty` is not pushed" is satisfied by `push` itself, which
+    // returns before touching `entries` when the entry trims to nothing; the
+    // ring's *contents* are identical either way. What the unconditional call
+    // preserves is the other half of `push`'s contract (`fix(LCV-110)`,
+    // 29ac39a): it resets the recall cursor first, so a blank Enter in the
+    // middle of a recall walk drops the operator back at the newest entry.
+    //
+    // That split is v1's, verbatim: `../LaserCAD-R14/src/ui/command-line.ts`
+    // resets `historyIndex = -1` in the keydown handler (line 193, before it
+    // calls `execute`), while `execute` guards `if (!raw) return;` (line 84)
+    // ahead of its own `pushCommandHistory`. Cursor always resets, blank never
+    // appends. Guarding the call here would silently drop the reset.
+    app.command_history.push(raw);
 
     match parsed {
         // The new tool's prompt is the feedback; no message is set.
@@ -394,6 +402,33 @@ mod tests {
         submit(&mut app, "   ");
         assert_eq!(app.command_history.len(), 1);
         assert_eq!(app.command_history.older(), Some("l".to_owned()));
+    }
+
+    /// The other half of AC 9.4: a blank Enter leaves the ring's *contents*
+    /// alone but still resets the recall cursor, so the next Up starts over
+    /// at the newest entry.
+    ///
+    /// v1 parity — `../LaserCAD-R14/src/ui/command-line.ts:193` resets
+    /// `historyIndex` on every Enter, `:84` refuses to append a blank one.
+    /// Ported to Rust by `fix(LCV-110)` 29ac39a, which moved the reset inside
+    /// `CommandHistory::push`; this test pins the call site that reaches it.
+    #[test]
+    fn a_blank_enter_mid_recall_resets_the_cursor() {
+        let mut app = App::default();
+        submit(&mut app, "a");
+        submit(&mut app, "b");
+        submit(&mut app, "c");
+        assert_eq!(app.command_history.older(), Some("c".to_owned()));
+        assert_eq!(app.command_history.older(), Some("b".to_owned()));
+
+        submit(&mut app, "");
+
+        assert_eq!(
+            app.command_history.older(),
+            Some("c".to_owned()),
+            "a blank Enter must reset the recall cursor to the newest entry"
+        );
+        assert_eq!(app.command_history.len(), 3, "and must not grow the ring");
     }
 
     /// AC 14 — a blank line routes Enter to the active tool, which is what
