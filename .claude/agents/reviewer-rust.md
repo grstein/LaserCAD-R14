@@ -37,9 +37,13 @@ Authoritative rules: [`AGENTS.md`](../../AGENTS.md). Roadmap: [`PLAN.md`](../../
    ```bash
    cargo fmt --check
    cargo clippy --all-targets -- -D warnings
-   cargo test --all
+   cargo test --all --no-fail-fast
    ```
    All three must be green. If any is red, that alone is `Needs rework`.
+   `--no-fail-fast` is mandatory (ADR 0008): without it cargo stops at the
+   first failing target and never runs the integration binaries under
+   `tests/`, where most architectural invariants are enforced. A hand-off
+   whose evidence is a bare `cargo test --all` has not proved them.
 6. Walk the **acceptance criteria** list. For each, confirm:
    - Implementation evidence exists in the diff.
    - At least one test exercises it.

@@ -20,15 +20,15 @@ All versioned artifacts (source, comments, documentation, commit messages, file 
 ## Commands
 
 ```bash
-cargo run                     # debug build, opens the app
-cargo run --release           # release build, opens the app
-cargo build                   # debug compile only
-cargo build --release         # release artifact in target/release/lasercad
-cargo test --all              # all unit + integration tests
-cargo fmt --all               # apply formatting
-cargo fmt --all -- --check    # CI-style check
+cargo run                          # debug build, opens the app
+cargo run --release                # release build, opens the app
+cargo build                        # debug compile only
+cargo build --release              # release artifact in target/release/lasercad
+cargo test --all --no-fail-fast    # all unit + integration tests (see ADR 0008)
+cargo fmt --all                    # apply formatting
+cargo fmt --all -- --check         # CI-style check
 cargo clippy --all-targets -- -D warnings
-cargo doc --open              # render and open API docs
+cargo doc --open                   # render and open API docs
 ```
 
 Run a single test: `cargo test -p lasercad --lib geometry::vec2` (or pass a substring after `cargo test`).
@@ -52,7 +52,7 @@ src/
 ├── io/                     # settings, autosave, recent, file dialogs (rfd wrapper)
 ├── io/svg/                 # export, import (roxmltree)
 ├── ui/                     # menubar, toolbar, statusbar, command_line, dialogs, shortcuts, theme
-├── agent/                  # transport (reqwest::blocking), tool registry, multi-turn loop, settings_ui, panel (chat UI)
+├── agent/                  # wire types (JSON DTOs), transport (reqwest::blocking), tool registry, multi-turn loop, settings_ui, panel (chat UI)
 ├── text/                   # Hershey font, layout
 └── util/                   # units (mm bed constants, world↔SVG Y flip)
 ```
@@ -120,7 +120,7 @@ egui's `update(&mut self, ctx, frame)` is the single tick. Inside it:
 3. Repaint the viewport (grid, bed, entities, preview, snap markers).
 4. Render UI chrome (menubar, toolbar, command line, statusbar, dialogs).
 
-Async work (HTTP for the agent) runs on a plain `std::thread` (`src/agent/panel.rs:141`) that calls a blocking `reqwest::blocking::Client` (`src/agent/transport.rs:94`); this crate does not depend on `tokio`. The result comes back through a `std::sync::mpsc::Receiver` polled once per frame (`src/app/agent_poll.rs`), and `ctx.request_repaint()` is called each frame to keep the UI live while a turn is in flight. The autosave timer is not async at all: it is a debounce check against `History::revision()` run inline in `App::update` (`src/app/autosave.rs`).
+Async work (HTTP for the agent) runs on a plain `std::thread` (spawned in `src/agent/panel.rs::submit`) that calls a blocking `reqwest::blocking::Client` (built in `src/agent/transport.rs::chat_completion`); this crate does not depend on `tokio`. The result comes back through a `std::sync::mpsc::Receiver` polled once per frame (`src/app/agent_poll.rs`), and `ctx.request_repaint()` is called each frame to keep the UI live while a turn is in flight. The autosave timer is not async at all: it is a debounce check against `History::revision()` run inline in `App::update` (`src/app/autosave.rs`).
 
 **Repaint policy.** Every `ctx.request_repaint*` call is conditional on something actually being live: an in-flight agent turn (`src/app/mod.rs`), a pending autosave write (`autosave::schedule_flush_repaint`), or a hovered / dragged / previewing canvas. An unconditional per-frame repaint is a review blocker — it stops the app ever idling by its own choice (what that costs is platform-dependent, and no code here decides it), and it masks the conditional wake-ups underneath it so they read as dead code. Since LCV-120 there is no unconditional repaint left. The three surviving call sites are `src/app/mod.rs` (`if self.agent_busy`), `src/app/autosave.rs` (`schedule_flush_repaint`, guarded on `dirty_since`) and `src/app/viewport.rs` (`if viewport_is_live(&response, app)` — hovered, dragged, or a live preview, exactly three terms and no fourth). `src/app/viewport.rs`'s `every_repaint_request_in_src_is_conditional` pins that count and those guards. **`schedule_flush_repaint` is now load-bearing**: it is the only thing that keeps a debounced autosave alive once the canvas idles, and deleting it turns `tests/lcv120_idle_repaint.rs::a_pending_autosave_still_wakes_an_idle_app` from a scheduled wake-up into `Duration::MAX`. Adding a fourth site, or dropping the guard on any of the three, is a review blocker.
 
@@ -177,7 +177,7 @@ If you are the main Claude Code agent and the user asks for project work, defaul
 - **Doc comments** on `pub` items; module headers on `mod.rs`.
 - **Tests**: `#[cfg(test)] mod tests` next to implementation for unit, `tests/` for integration. Add a test per acceptance criterion.
 - **A source scan that compares a path against a literal must rebuild the path from `components()` joined with `/`** — never `Path::display()` or `to_string_lossy()` on the whole path, which emit `\` on Windows and make the scan pass on Linux and macOS while failing only in CI. Rendering a path into a *failure message* is fine; comparing one is not. This has now broken CI twice: `f1_has_exactly_one_reader` (fixed at `900f0c7`) and `every_repaint_request_in_src_is_conditional` (LCV-120, windows-2022 run 34755208521). Sort on the rendered string too, so the order cannot depend on where the separator sorts.
-- **Before declaring a demand done**: run `cargo fmt --all && cargo clippy --all-targets -- -D warnings && cargo test --all`. All three must be green.
+- **Before declaring a demand done**: run `cargo fmt --all && cargo clippy --all-targets -- -D warnings && cargo test --all --no-fail-fast`. All three must be green. **`--no-fail-fast` is not optional and is not a local convenience** — without it `cargo` stops at the first failing target, so one broken unit test silently skips all 23 integration binaries under `tests/`, several of which are the only enforcement any architectural invariant has. It costs nothing on a green run. Same flag in CI (`.github/workflows/ci.yml`, Gate 3). See [ADR 0008](docs/adr/0008-test-gates-run-with-no-fail-fast.md).
 
 ## Product Philosophy
 
@@ -197,6 +197,7 @@ Default answers:
 - **Status markers, not stale content.**
   - **Demands** (`docs/product/demands/`): use the state machine in `docs/product/product-owner-agent.md`. When a demand ships, flip its header to `Done` and record the shipping commit in `Implementation:`; move it in `docs/product/backlog.md`.
   - **ADRs** (`docs/adr/`): when an ADR is reversed, add a `**Superseded**` status header pointing at the new ADR or commit. Keep the original text.
+- **Cite symbols, never line numbers, in `AGENTS.md`.** Write `src/agent/panel.rs::submit`, never a line number like `panel.rs` plus `:146` — not even one that is correct today. A line number is a hash of the file's state on the day it was written: it rots on the next commit that touches the file, points confidently at the wrong code, and nobody notices until a reviewer trips over it (that has now happened twice). A symbol name is a key — `grep` finds it wherever it moved, and when it is renamed the `grep` returns nothing, which fails loudly instead of lying quietly. Same for a file that moves. This binds `AGENTS.md` only; **ADRs keep their line numbers**, because an ADR is a dated snapshot of a decision, not a live map, and its citations are evidence of what the code looked like when the call was made.
 - **Living docs sit next to code.** Module headers (`//!`) and doc comments (`///`) carry component-level notes. `docs/` describes intent and contracts, not implementation.
 - **No generation cruft.** Strip artifacts (`citeturn…` tokens, `sandbox:/mnt/data/…` links, malformed tables) when they appear.
 - **English-only filenames.**
@@ -212,6 +213,7 @@ Default answers:
 - [`docs/adr/0005-native-dialogs-disarmed-by-default.md`](docs/adr/0005-native-dialogs-disarmed-by-default.md) — native `rfd` dialogs are disarmed outside the app binary, so a test that reaches one panics instead of hanging CI.
 - [`docs/adr/0006-real-user-paths-are-injected.md`](docs/adr/0006-real-user-paths-are-injected.md) — the settings and autosave paths are resolved once at boot and carried on `App`; a process that was not given a path writes nothing, and tests point theirs at a tempdir.
 - [`docs/adr/0007-agent-turn-mutates-the-live-document.md`](docs/adr/0007-agent-turn-mutates-the-live-document.md) — the agent thread owns no document state; it rendezvouses one action at a time against the live `Document` through `Command` + `History`, fenced on `History::revision()`, and one turn coalesces into one undo entry.
+- [`docs/adr/0008-test-gates-run-with-no-fail-fast.md`](docs/adr/0008-test-gates-run-with-no-fail-fast.md) — every `cargo test` gate, local and CI, runs `--no-fail-fast`, so a failing unit test can never mask the integration targets that carry the architectural invariants.
 - [`docs/product/README.md`](docs/product/README.md) — product principles.
 - [`docs/product/product-owner-agent.md`](docs/product/product-owner-agent.md) — demand format and lifecycle.
 - [`docs/product/backlog.md`](docs/product/backlog.md) — prioritized backlog by state.

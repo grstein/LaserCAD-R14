@@ -61,8 +61,12 @@ jobs:
       - name: Gate 2 — cargo clippy --all-targets -- -D warnings
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: Gate 3 — cargo test --all
-        run: cargo test --all
+      # --no-fail-fast is load-bearing, not noise-tolerance: without it cargo
+      # stops at the first failing target, so one broken unit test skips every
+      # integration binary under tests/ — where most architectural invariants
+      # are actually enforced. Free on a green run. See ADR 0008.
+      - name: Gate 3 — cargo test --all --no-fail-fast
+        run: cargo test --all --no-fail-fast
 
   # ──────────────────────────────────────────────────────────────────────────
   # build: release binary, uploaded as a named artifact per platform.

@@ -64,8 +64,12 @@ Authoritative architecture and rules: [`AGENTS.md`](../../AGENTS.md). Demand cat
   ```bash
   cargo fmt --all
   cargo clippy --all-targets -- -D warnings
-  cargo test --all
+  cargo test --all --no-fail-fast
   ```
+
+- `--no-fail-fast` is mandatory on that last gate (ADR 0008). Without it one
+  broken unit test makes cargo skip every integration binary under `tests/`,
+  and those are where most architectural invariants are actually checked.
 
 - If the demand touches the UI (egui), describe how you exercised it manually. **Never claim UI success without running `cargo run` and clicking through the feature.** If you can't (headless env), say so explicitly.
 

@@ -1,12 +1,17 @@
 # ADR 0007 — The agent turn mutates the live document through a fenced rendezvous, never a snapshot
 
 - **Status**: Accepted
-- **Amended**: 2026-09-13 — refinement into LCV-121..125 found one internal
+- **Amended (1)**: 2026-09-13 — refinement into LCV-121..125 found one internal
   contradiction and three silences. §D2a is new and resolves the contradiction
   (§D4 claimed `get_index` still range-checks, which §D1 forbids it from being
   able to do). §D4 gains the fence's home and its stickiness. §D11 is new and
   covers channel disconnection. §"The 121→123 window" is new and records a
   sequencing hazard. Nothing already decided is reversed.
+- **Amended (2)**: 2026-09-13 — LCV-121 shipped (`d584f4d`) and put tool calls on
+  the *live* send path, which §"The 121→123 window" had required it not to do.
+  That section is rewritten to describe `main` as it is: the window is open now,
+  not merely reachable, and the no-release-before-LCV-123 rule is the whole of
+  what is left of the mitigation. No decision in §D1..§D11 changes.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
@@ -461,21 +466,38 @@ This decision is delivered by LCV-121 (transport speaks tool calls), LCV-122
 must land as one sequence, and no release may be cut between them.**
 
 The reason is that `panel.rs::submit` keeps dispatching against a throwaway
-`Document::default()` until LCV-123 deletes it. Today that is harmless, because
-the transport cannot return a tool call at all and so nothing is ever dispatched
-into the throwaway. The moment tool calls can come back over the wire and reach
-`run_agent_turn`, the agent starts confidently reporting geometry that never
-appears on the canvas — a *worse* product than the one that shipped, and a
-silent one.
+`Document::default()` until LCV-123 deletes it, and **since LCV-121 (`d584f4d`)
+that throwaway is live**. `run_agent_turn` now builds `tools::tool_definitions()`
+once per turn, puts a `tools` key on every request, and dispatches the
+`tool_calls` array that comes back. So the agent creates, moves and deletes real
+geometry in a `Document` nobody can see, and then reports the work as done — a
+*worse* product than the one that shipped, and a silent one. This is no longer a
+hazard that *could* be created; it is the state of `main`.
 
-The mitigation is cheap and is a requirement, not advice: **LCV-121 and LCV-122
-deliver the capability without enabling it.** `run_agent_turn`'s live send path
-is unchanged by both — it does not put a `tools` key on the wire and does not
-dispatch a returned `tool_calls` array. LCV-121 proves the new code against
-`mockito`; LCV-123 is what replaces the send path, deletes the throwaway
-document and turns the feature on, in one commit. An implementer who wires tool
-calls into the live path early has re-created the hazard even though every test
-is green.
+The original mitigation was that **LCV-121 and LCV-122 would deliver the
+capability without enabling it** — leave the live send path alone, prove the new
+code against `mockito` only, and let LCV-123 flip the switch in one commit.
+**LCV-121's demand overrode that deliberately and on the record**: its acceptance
+criteria 9 and 11 require `run_agent_turn` to forward the model and the step
+budget through the live path, its §Risks names dispatch into the throwaway
+document as the expected consequence, and its §Notes marks the `_tool_defs`
+placeholder as the thing being upgraded. The trade is defensible — a
+`tools`-less send path would have meant building and testing a second send path
+only to delete it two demands later — but it spends the mitigation, and what is
+left is the deadline.
+
+LCV-121 did not make the window any wider than this paragraph describes.
+`panel.rs::submit` still constructs the throwaway `Document::default()` /
+`History::default()` pair it always did; nothing else about the panel's dispatch
+changed.
+
+So one requirement survives, and it is now the only one: **no tag and no release
+may be cut until LCV-123 lands.** LCV-123 is what replaces that pair with the
+fenced rendezvous of §D1..§D4 and deletes the throwaway, in one commit. Until
+that commit exists, `main` compiles, lints and tests green while the agent lies
+about the canvas — and the tests cannot catch it, because every one of them
+hands `run_agent_turn` the very document it mutates. Anyone reaching for
+`git tag` before LCV-123 should read this paragraph as a stop sign.
 
 ## Alternatives considered
 
