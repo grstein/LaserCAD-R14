@@ -1056,6 +1056,18 @@
       "note": "ADR 0003 §D raw-input mode. Height range 0.1..2000 mm, empty means 5.0; out of range keeps the operator's string and re-prompts, never clamps. Exactly one undo entry. Deletes Tool::on_text_input, which LCV-111 is explicitly forbidden from removing. Refined 36b0056."
     },
     {
+      "id": "LCV-117",
+      "title": "Hershey glyph table: 22 glyphs render below the baseline",
+      "phase": 11,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "product-owner",
+      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "demand_file": "docs/product/demands/LCV-117-hershey-baseline.md",
+      "drive_order": 4,
+      "note": "Defect found during the LCV-112 review, predates it (shipped by LCV-055). src/text/layout.rs places the text origin ON the baseline and maps py = origin.y - hy*scale, so any glyph datum with hy>0 renders BELOW the baseline. 22 of 62 alphanumeric glyphs violate the file's own documented convention (baseline y=0, caps top y=-9, x-height y=-6, descenders y~+4): 0 5 6 8 9 O Q S a b c d e o s t u overshoot with no descender at all, and g j p q y descend to +10/+6/+9/+9/+6 instead of +4. 'O' literally spans y=[-9..9], i.e. a 10mm O is 20mm tall with half below the line. Not a uniform offset -- checked, no affine map repairs 'O' -- so the data is corrupt per-glyph and must be re-authored, not shifted. Survived since LCV-055 because the only cap-height test (layout.rs h_cap_height_matches_height_mm) uses 'H', one of the 40 CORRECT glyphs. Acceptance must be a mechanical whole-table invariant test, not per-glyph eyeballing. Severity comparable to the mirrored-SVG defect D1 closed in Marco 0: it is visible in every exported SVG and in LaserGRBL."
+    },
+    {
       "id": "LCV-113",
       "title": "Confirm discard on New / Open / Exit when the document is dirty",
       "phase": 11,
@@ -1064,7 +1076,7 @@
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-113-confirm-discard.md",
-      "drive_order": 4,
+      "drive_order": 5,
       "note": "Refined 27f2a85. product-owner found that History::revision()/dirty_since is NOT usable as a discard guard: autosave's flush_if_due calls mark_clean() every ~800 ms, so the prompt window would be sub-second. Introduces an independent App::saved_revision written only by mark_saved(). Requires a new src/app/file_ops.rs because src/app/mod.rs is at 293 of the 300 cap."
     },
     {
@@ -1076,7 +1088,7 @@
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-114-configurable-bed-size.md",
-      "drive_order": 5,
+      "drive_order": 6,
       "note": "Refined 27f2a85. Bed size owned by Document::bed_mm (undoable, round-trips); Settings::default_bed_mm seeds File>New and cold boot only; App::bed removed. Default STAYS 400x400 (renamed DEFAULT_BED_*_MM) because re-baselining to v1's 128 would rewrite every LCV-100/LCV-057 golden fixture for zero user gain. flip_y becomes flip_y(y, bed_height_mm). Import precedence width+height > viewBox > 400x400; out-of-range is REJECTED not clamped; opening a file adopts its bed. Implementer updates the AGENTS.md LaserGRBL/SVG checklist."
     },
     {
@@ -1090,7 +1102,7 @@
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-115-export-preset-selector.md",
-      "drive_order": 6,
+      "drive_order": 7,
       "note": "Refined 27f2a85. Whole-document export-time preset only; per-entity preset is an explicit Non-goal with a forward pointer. State on App::export_preset, SESSION-ONLY (a sticky preset means yesterday's mark job cuts today's part), always shown as a status-bar label. Depends on LCV-114 for the shared ImportedSvg return type."
     },
     {
@@ -1102,7 +1114,7 @@
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-116-ui-chrome-completion.md",
-      "drive_order": 7,
+      "drive_order": 8,
       "note": "Refined 27f2a85. product-owner found View>Zoom in/out ALREADY SHIPPED, so (d) shrank to a regression test plus the one real gap: Ortho/F8 has no checkbox where Grid/F7 and Snap/F3 do. Autosave indicator is three permanent states from a pure format_autosave(), no 'Ns ago' counter and no fade. Also found a latent defect: flush_if_due only runs inside a frame and nothing schedules one, so an idle dirty app may never autosave -> AC 9/10 require request_repaint_after()."
     }
   ]
