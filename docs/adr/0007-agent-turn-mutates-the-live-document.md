@@ -12,6 +12,13 @@
   That section is rewritten to describe `main` as it is: the window is open now,
   not merely reachable, and the no-release-before-LCV-123 rule is the whole of
   what is left of the mitigation. No decision in §D1..§D11 changes.
+- **Amended (3)**: 2026-09-13 — LCV-122's review found §D11 enumerating *three*
+  terminal exits where the implementation has four. The fourth — `reply.send`
+  failing while the UI thread is holding an `Act` — is now named and as
+  normative as the other three, and the property all four share ("exactly one
+  function ends a turn") is stated once instead of being re-derived per arm.
+  §D8's one-line gloss for `agent_poll.rs` follows. No decision in §D1..§D10
+  changes.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
@@ -324,8 +331,8 @@ src/app/
   agent_turn.rs    spawn the thread; TurnFence (D4); coalesce gate (D6).
   agent_apply.rs   AgentAction -> Box<dyn Command> -> App::commit; range check
                    (D2a); outcomes.
-  agent_poll.rs    drain AgentEvent until Empty or Disconnected (D11);
-                   dispatch; answer.
+  agent_poll.rs    drain AgentEvent; dispatch; answer; end the turn through
+                   end_turn on any of D11's four exits.
 ```
 
 Three rules follow, and they are the ones reviewers check:
@@ -388,9 +395,11 @@ no-op without an injected `settings_path`. One rule is added on top: **a test
 that injects a `settings_path` must not also set a real API key.** `mockito`
 tests use a dummy.
 
-### D11 — A disconnected channel is a terminal event; `agent_busy` must always come back down
+### D11 — A turn has four exits; every one of them goes through one function, and that function clears `agent_busy`
 
-*(Added by amendment; the ADR was silent and the silence has teeth.)*
+*(Added by amendment (1); the ADR was silent and the silence has teeth.
+Amendment (3) corrected the count from three exits to four and replaced the
+enumeration with the invariant underneath it.)*
 
 `agent_busy` is not merely the spinner's flag. `App::update_ui` reads it to
 decide whether to `ctx.request_repaint()`, and under §D2 it is also what keeps
@@ -404,18 +413,69 @@ that panics, or returns after cancellation, or is killed at shutdown, leaves
 the rest of the session — silently reopening LCV-120, the demand that shipped to
 stop exactly that, with a symptom that surfaces nowhere near the agent.
 
-Therefore:
+Therefore, stated once rather than re-derived per arm:
 
-- `poll_agent_rx` treats `TryRecvError::Disconnected` as a **terminal event**,
-  equivalent to `Failed`: clear `agent_busy`, clear `agent_rx`, and push a line
-  into the chat so the operator sees an ended turn rather than an immortal
-  spinner.
-- the `Sender` is **moved into the thread closure** and held nowhere else, so a
-  panicking or returning thread closes the channel as a matter of course. There
-  is no path by which the thread stops and the channel stays open.
-- `agent_busy` is cleared on **every** exit: `Done`, `Failed`, `Disconnected`.
-  A reviewer checking this design checks that list, and a test mutating any one
-  of the three must fail.
+> **Exactly one function ends a turn.** `agent_poll::end_turn` is the only place
+> in the program that writes `agent_busy = false` or clears `agent_rx` after
+> startup, and every path that leaves `poll_agent_rx` without putting the
+> receiver back is a tail call to it. Liveness is checked by reading that one
+> function and the arms that reach it — not by proving the same property once
+> per arm and trusting the list to be complete.
+
+The list was not complete. There are **four** such paths:
+
+1. **`Done`** — the turn succeeded. Chat row: the assistant's text, role
+   `assistant`.
+2. **`Failed`** — the worker reported an error. Chat row: the error, role
+   `error`.
+3. **`TryRecvError::Disconnected`** — the worker's `Sender` dropped without a
+   verdict: it panicked, it returned after cancellation, or the app is closing.
+   Chat row: `agent_poll::AGENT_LOST_MESSAGE`, role `error`.
+4. **`reply.send(outcome)` returning `Err`** — the UI thread applied an `Act`
+   and found nobody left waiting for the answer. Chat row: the same message and
+   the same role as (3), for the reason two paragraphs down.
+
+The event channel's `Sender` is **moved into the thread closure** and held
+nowhere else, so a panicking or returning thread closes it as a matter of
+course. There is no path by which the thread stops and the channel stays open.
+
+**(4) is (3) observed one instant earlier.** The reply `Sender` is built per
+request and carried inside the `Act` (§D3), and a live worker is blocked on its
+other half until the answer arrives (§D2) — so it cannot drop the receiving end
+while an `Act` is outstanding. `Err` from `reply.send` therefore means the
+worker is gone, which means the event channel is closed too; had arm (4) fallen
+through instead of returning, arm (3) would have fired on the next iteration
+and written that row. Silence at (4) does not report a different fact. It
+withholds the one (3) would have printed a microsecond later.
+
+**An already-applied action is not a reason for silence.** In (4) the `Act` was
+applied before the send failed; it stays applied and stays undoable, exactly as
+§D4 leaves the already-applied actions of a turn whose fence trips. The
+objection that a row would then misdescribe the drawing proves too much: (3)
+also fires after a run of `Act`s that were applied and answered, and this
+section has required a row there since amendment (1). `AGENT_LOST_MESSAGE`
+describes the **turn**, not the last action — it says the turn ended with no
+reply, which is exactly what happened. What the operator otherwise cannot tell
+apart is a turn that *stopped* from a turn that *finished*, and after (4) the
+drawing has just changed, which is the worst moment to leave that ambiguous. If
+the `error` role ever reads as too alarming, change the role or the wording for
+**both** exits together; two spellings of "the worker is gone" must never show
+the operator different things.
+
+**Arm (4) returns; it does not fall through.** Deleting it and letting the next
+`try_recv` report `Disconnected` is the tempting simplification, and it is
+unsound: it assumes a dead reply channel implies a closed event channel *in the
+same instant*. Where it does not — a future worker that drops the reply end
+while still alive, a send racing the closure's drop — `try_recv` answers
+`Empty`, the receiver goes back, and `agent_busy` latches `true` for the rest of
+the session. The explicit arm is what makes a dead reply channel sufficient on
+its own.
+
+A fifth exit may yet exist; the rule it must obey is the invariant above, not
+this list. End the turn through `end_turn`, where whatever turn-end work §D6's
+coalesce gate needs also happens, once, for all of them. A reviewer checks that
+every terminal arm is a tail call to `end_turn`, and a test mutating any one of
+them into leaving `agent_busy` set must fail.
 
 ## Consequences
 

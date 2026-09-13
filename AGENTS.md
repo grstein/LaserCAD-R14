@@ -42,20 +42,26 @@ Native prerequisites are documented in `docs/build-local.md` once Phase 0 lands.
 ```
 src/
 ├── main.rs                 # thin: parse argv, init tracing, run app
-├── app/                    # eframe::App impl, top-level state, wiring (mod.rs, input.rs, viewport.rs, panels.rs, autosave.rs, ortho.rs, snap.rs, agent_poll.rs)
+├── app/                    # eframe::App impl, top-level state, per-frame wiring; one file per concern (input, viewport, panels, autosave, snap, file_ops, agent_turn / agent_apply / agent_poll, …)
 ├── lib.rs                  # re-exports for tests
 ├── geometry/               # pure kernel: vec2, line, circle, arc, intersect, snap, rect, epsilon
 ├── cmdline/                # pure kernel: command-line grammar (parse, parse_number), ToolKind/ToggleKind/ZoomKind, recall ring
 ├── document/               # entity model, schema, commands, history, selection
-├── render/                 # camera, viewport, grid, bed, entities, preview, snaps
+├── render/                 # camera, grid, bed, entities, selection, preview, snaps
 ├── tools/                  # Tool trait, ToolManager, one file per tool
 ├── io/                     # settings, autosave, recent, file dialogs (rfd wrapper)
 ├── io/svg/                 # export, import (roxmltree)
 ├── ui/                     # menubar, toolbar, statusbar, command_line, dialogs, shortcuts, theme
-├── agent/                  # wire types (JSON DTOs), transport (reqwest::blocking), tool registry, multi-turn loop, settings_ui, panel (chat UI)
+├── agent/                  # wire types (JSON DTOs), transport (reqwest::blocking), tool registry, bridge protocol, multi-turn loop, settings_ui, panel (chat UI)
 ├── text/                   # Hershey font, layout
 └── util/                   # units (mm bed constants, world↔SVG Y flip)
 ```
+
+The gloss after each `#` is **orientation, not an inventory**: it says what a
+directory is for, not which files are in it. `ls src/<dir>` is the file list and
+it never rots. Enumerations that carry a rule *per file* are load-bearing and
+live in the rules below — the `src/agent/` purity buckets, the three repaint
+sites — never in this tree.
 
 Hard rules on the tree:
 
@@ -122,7 +128,7 @@ egui's `update(&mut self, ctx, frame)` is the single tick. Inside it:
 
 Async work (HTTP for the agent) runs on a plain `std::thread` (spawned in `src/agent/panel.rs::submit`) that calls a blocking `reqwest::blocking::Client` (built in `src/agent/transport.rs::chat_completion`); this crate does not depend on `tokio`. The result comes back through a `std::sync::mpsc::Receiver` polled once per frame (`src/app/agent_poll.rs`), and `ctx.request_repaint()` is called each frame to keep the UI live while a turn is in flight. The autosave timer is not async at all: it is a debounce check against `History::revision()` run inline in `App::update` (`src/app/autosave.rs`).
 
-**Repaint policy.** Every `ctx.request_repaint*` call is conditional on something actually being live: an in-flight agent turn (`src/app/mod.rs`), a pending autosave write (`autosave::schedule_flush_repaint`), or a hovered / dragged / previewing canvas. An unconditional per-frame repaint is a review blocker — it stops the app ever idling by its own choice (what that costs is platform-dependent, and no code here decides it), and it masks the conditional wake-ups underneath it so they read as dead code. Since LCV-120 there is no unconditional repaint left. The three surviving call sites are `src/app/mod.rs` (`if self.agent_busy`), `src/app/autosave.rs` (`schedule_flush_repaint`, guarded on `dirty_since`) and `src/app/viewport.rs` (`if viewport_is_live(&response, app)` — hovered, dragged, or a live preview, exactly three terms and no fourth). `src/app/viewport.rs`'s `every_repaint_request_in_src_is_conditional` pins that count and those guards. **`schedule_flush_repaint` is now load-bearing**: it is the only thing that keeps a debounced autosave alive once the canvas idles, and deleting it turns `tests/lcv120_idle_repaint.rs::a_pending_autosave_still_wakes_an_idle_app` from a scheduled wake-up into `Duration::MAX`. Adding a fourth site, or dropping the guard on any of the three, is a review blocker.
+**Repaint policy.** Every `ctx.request_repaint*` call is conditional on something actually being live: an in-flight agent turn (`src/app/mod.rs`), a pending autosave write (`autosave::schedule_flush_repaint`), or a hovered / dragged / previewing canvas. An unconditional per-frame repaint is a review blocker — it stops the app ever idling by its own choice (what that costs is platform-dependent, and no code here decides it), and it masks the conditional wake-ups underneath it so they read as dead code. Since LCV-120 there is no unconditional repaint left. The three surviving call sites are `src/app/mod.rs` (`if self.agent_busy`), `src/app/autosave.rs` (`schedule_flush_repaint`, guarded on `dirty_since`) and `src/app/viewport.rs` (`if viewport_is_live(&response, app)` — hovered, dragged, or a live preview, exactly three terms and no fourth). `src/app/viewport.rs`'s `every_repaint_request_in_src_is_conditional` pins that count and those guards. **A guard is only a guard if its condition is guaranteed to fall.** `agent_busy` is set in one place (`src/agent/panel.rs::submit`) and cleared in exactly one (`src/app/agent_poll.rs::end_turn`), which every terminal path of an agent turn tail-calls; a repaint condition that can latch `true` is an unconditional repaint wearing a guard, which is the same review blocker by a slower route. [ADR 0007](docs/adr/0007-agent-turn-mutates-the-live-document.md) §D11 owns that invariant and enumerates the four exits. **`schedule_flush_repaint` is now load-bearing**: it is the only thing that keeps a debounced autosave alive once the canvas idles, and deleting it turns `tests/lcv120_idle_repaint.rs::a_pending_autosave_still_wakes_an_idle_app` from a scheduled wake-up into `Duration::MAX`. Adding a fourth site, or dropping the guard on any of the three, is a review blocker.
 
 ### SVG export (LaserGRBL compatibility)
 
