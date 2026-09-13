@@ -42,8 +42,9 @@ is exactly how a wrong `delete_entity 3` happens.
 
 - `run_agent_turn` becomes control-flow-only: no `Document`, no `History`, one
   injected ask-callback.
-- New `src/app/agent_turn.rs` — arms the turn, spawns the thread, holds the
-  fence, applies each action, coalesces at turn end.
+- `src/app/agent_turn.rs` (created by LCV-122, which is where `run_agent_turn`
+  already lives) — arms the turn, spawns the thread, holds the fence and the
+  coalesce gate (ADR 0007 §D8).
 - `src/app/agent_poll.rs` rewritten to drain until `Empty` and to clear
   `agent_rx` only on a terminal event.
 - `src/agent/panel.rs::submit` deleted; the panel calls into
@@ -99,7 +100,15 @@ is exactly how a wrong `delete_entity 3` happens.
    ) -> Result<String, AgentError>
    where A: FnMut(AgentAction) -> Result<AgentOutcome, AgentError>
    ```
-   `agent_loop`'s `dispatch_fn` is replaced by the same ask seam. `Document`,
+   The **thread's** dispatch is the ask seam: the closure `run_agent_turn`
+   hands to `agent_loop` parses the tool call and then calls `ask`, so the only
+   seam that carries a real outcome is `ask` and the worker holds no document.
+   `agent_loop`'s own `dispatch_fn: FnMut(&str, &str) -> Result<String,
+   AgentError>` signature is **unchanged**, and that is deliberate: ADR 0007
+   §D8 gives `loop_.rs` control flow only — send, cap, feed tool results back —
+   and puts `parse_tool_call` in `tools.rs`, so `loop_.rs` must never name
+   `AgentAction`. Pushing `AgentAction` down into `agent_loop` would satisfy a
+   literal reading of "the same seam" by breaking §D8; do not. `Document`,
    `History`, `crate::document`, `Arc<Mutex`, `Vec<Entity>` and
    `Document::default()` appear **nowhere** under `src/agent/` — the LCV-122
    AC 3 exception list is now empty, and the scan asserts the list is empty
@@ -113,7 +122,7 @@ is exactly how a wrong `delete_entity 3` happens.
    `History`"* — is now enforced by a test.
 
 3. **`src/app/agent_turn.rs` arms and spawns, and the arming is the test seam.**
-   - `pub(crate) fn arm_turn(app: &mut App, prompt: &str) ->
+   - `pub fn arm_turn(app: &mut App, prompt: &str) ->
      std::sync::mpsc::Sender<AgentEvent>` records the user row in
      `agent_chat`, sets `busy`, creates the channel and stores the `Receiver` on
      `App`, constructs `TurnFence::new(app.history.revision())`, zeroes the
@@ -123,6 +132,15 @@ is exactly how a wrong `delete_entity 3` happens.
      nothing else.
    - A turn is refused while one is in flight: `start_turn` on a busy `App` is a
      no-op and leaves `agent_chat`, `agent_rx` and the fence untouched.
+
+   `arm_turn` is `pub`, not `pub(crate)`, and the visibility is driven by AC 8's
+   test rather than by a design preference: that test lives in `tests/`, which
+   is a **separate crate**, so `pub(crate)` would make it impossible to write.
+   Moving it into `src/` is the worse trade — it drives `App::update_ui` frames
+   and needs `tests/harness`, which would have to be duplicated or made public.
+   The exposure is nil because the library has no external consumer. A later
+   cleanup that "tightens" this to `pub(crate)` breaks the integration suite;
+   the doc comment on `arm_turn` says so in place, and this clause is why.
 
 4. **The rendezvous.** The thread's ask-callback creates a fresh one-shot
    `mpsc::channel::<AgentOutcome>()` per action, sends
@@ -277,10 +295,16 @@ is exactly how a wrong `delete_entity 3` happens.
     rendezvous only advances while frames are running, so an app that stops
     painting stalls the turn forever. `src/app/viewport.rs`'s
     `every_repaint_request_in_src_is_conditional` still passes and still counts
-    **three** conditional implementation call sites. **If — and only if — the
-    AgentState seam in AC 20 is executed**, that scan's needle and
-    `AGENTS.md` §Event flow → Repaint policy are updated to the new field path
-    in the same commit, and the count stays three.
+    **three** conditional implementation call sites. That scan pins the count
+    and that each site sits inside an `if`; it does **not** pin *which*
+    condition, so `if true {` would satisfy it. A second scan therefore pins
+    that this site's condition is `agent_busy`. A scan and not a runtime test:
+    every test here drives `App::update_ui` on its own schedule and never
+    consults egui's repaint request, so no headless test can observe this at
+    all — see mutation (g). **If — and only if — the AgentState seam in AC 20
+    is executed**, both scans' needles and `AGENTS.md` §Event flow → Repaint
+    policy are updated to the new field path in the same commit, and the count
+    stays three.
 
 20. **The LOC seam is executed only if it is crossed.** Measure
     `src/app/mod.rs` with ADR 0004's `awk` recipe (it is 265 before this work)
@@ -366,7 +390,16 @@ is exactly how a wrong `delete_entity 3` happens.
   back as the `tool` message content (assert on the message list handed to the
   send stub). A second test with a callback returning
   `Err(AgentError::Cancelled)` asserts an immediate return and that the send
-  stub was called exactly once.
+  stub was called exactly once. **Both of these substitute their own callback
+  for the real `ask_ui`, so neither covers the seam**, and neither does AC 8's
+  test, which drives `arm_turn` and pushes an `Act` by hand. A third test drives
+  `ask_ui` directly, in two deterministic halves and with no timeout: against a
+  `Sender` whose `Receiver` is already dropped it returns
+  `AgentError::Cancelled` rather than a success; and against a live rendezvous —
+  the test thread playing the UI — it puts an `Act` on the channel carrying the
+  action intact, blocks, and returns the outcome the UI answered with. Without
+  it, a seam that fabricates an answer and never sends an `Act` is caught only
+  by the mockito end-to-end test.
 - **Integration / AC 6, AC 7** — `tests/lcv123_agent_turn.rs`, `mod harness;`.
   Push `Act`, `Act`, `Done` into the channel **before** running a single frame;
   assert both actions applied in that one frame and the turn terminated in that
@@ -425,8 +458,15 @@ is exactly how a wrong `delete_entity 3` happens.
   site; bounded scan proving `io/settings.rs` has no `crate::agent`.
 - **Unit / AC 19** — the existing
   `every_repaint_request_in_src_is_conditional` still passes unchanged (or, if
-  AC 20's seam ran, with its needle updated and the count still three); a scan
-  asserting the `agent_busy` repaint guard is still present.
+  AC 20's seam ran, with its needle updated and the count still three), plus a
+  **new** scan on the guard's *condition*: the nearest statement opening the
+  block that holds `src/app/mod.rs`'s `request_repaint` must mention
+  `agent_busy`. Presence alone is not enough — LCV-120's scan already has that,
+  and `if true {` passes it. Run the same scan over a witness
+  (`if self.agent_busy {`) and over an `if true {` control before running it
+  over the real file, so a needle that could not find a real guard fails here
+  instead of passing over the real file for free. This scan, not any runtime
+  test, is what answers mutation (g).
 - **Integration / AC 21** — the dummy-key absence test.
 - **mockito end-to-end / the whole demand** — one test, and it earns its place
   because it is the only thing that proves the CHANGELOG gap is closed. A
@@ -451,11 +491,23 @@ is exactly how a wrong `delete_entity 3` happens.
   (d) make the fence check always `Ok` → AC 9 fails by name;
   (e) drop the `may_coalesce` gate and coalesce unconditionally → AC 11's
   fence-aborted test fails by name;
-  (f) make the ask-callback return a fabricated success without sending
-  `Act` → AC 8 fails by name;
-  (g) delete `if self.agent_busy { ctx.request_repaint(); }` → the mockito
-  end-to-end test times out and fails by name. **This mutation is the proof
-  that the repaint is load-bearing for progress**; run it and report it;
+  (f) make `ask_ui` return a fabricated success without sending `Act` → **not**
+  AC 8, which never reaches the seam: it arms the turn and pushes the `Act`
+  itself. The mutant is killed by AC 4's dedicated ask-seam test — its live
+  half sees the `Sender` dropped without an `Act` and fails on `recv` — and
+  end to end by the mockito test, which then finds nothing on the bed;
+  (g) delete `if self.agent_busy { ctx.request_repaint(); }` → **the suite
+  stays green, and no runtime test can change that.** An earlier revision of
+  this demand claimed the mockito end-to-end test times out; it does not. That
+  test pumps `App::update_ui` frames on its own schedule and never consults
+  egui's repaint request, so it finishes either way. The property at stake is
+  about the shipped binary, whose frames egui schedules — which is precisely
+  what a headless test replaces. So the mutant is killed by the **source scan**
+  in AC 19 on the guard's condition, and only by that. LCV-120's
+  `every_repaint_request_in_src_is_conditional` is not sufficient on its own:
+  it pins that the call sits inside *an* `if`, which `if true {` satisfies
+  while repainting every frame forever. Report the scan's discrimination
+  demonstration in place of a mutation result;
   (h) delete the `reply.send` failure arm and let it fall through to the next
   `try_recv` → AC 7's exit-(4) test, which deliberately keeps the event
   `Sender` alive, leaves `agent_busy` set and fails by name;
@@ -544,7 +596,10 @@ is exactly how a wrong `delete_entity 3` happens.
 - **`src/app/mod.rs`'s `if self.agent_busy { ctx.request_repaint(); }` is the
   one repaint site this demand must leave alive.** LCV-120 was explicitly told
   not to remove it, and ADR 0007 §Consequences explains why: the rendezvous only
-  advances while frames run. Mutation (g) is how the implementer proves it.
+  advances while frames run. It is pinned by AC 19's source scan on the guard's
+  condition, **not** by a runtime test and not by mutation (g): every test here
+  drives `App::update_ui` itself, so none of them ever asks egui for a frame,
+  and deleting the guard leaves the whole suite green.
 - `src/agent/panel.rs` importing `crate::app::App` inverts the `app → agent`
   direction. It is left alone deliberately; moving `submit` into
   `src/app/agent_turn.rs` is what resolves the part that mattered.
