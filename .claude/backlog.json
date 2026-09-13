@@ -1030,7 +1030,7 @@
       "id": "LCV-111",
       "title": "Wire the parser into the tools: on_command_input, per-phase prompts, focus-on-typing",
       "phase": 11,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [
         "LCV-110"
       ],
@@ -1038,7 +1038,8 @@
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-111-command-line-tool-wiring.md",
       "drive_order": 2,
-      "note": "Biggest demand of Marco 1. ADR 0003 §B fixes on_command_input(ToolInput, &mut Document, &mut History) -> bool; tools never see a string. Prompts use the EXISTING Tool::status_text() pull model (§C); the real gap is CircleTool/ArcTool inheriting name(). Focus: the tool shortcut WINS over command-line focus, so the AC reads 'any alphanumeric that is NOT a bound tool shortcut'. product-owner added anchor() to Move/Circle/Arc but REFUSED it for Rect (ortho would collapse a rect to zero width/height), with a follow-up for architect to split the two meanings of anchor(). RISK: this demand leaves TEXT non-functional until LCV-112 lands, so LCV-112 is not optional."
+      "note": "Biggest demand of Marco 1. ADR 0003 §B fixes on_command_input(ToolInput, &mut Document, &mut History) -> bool; tools never see a string. Prompts use the EXISTING Tool::status_text() pull model (§C); the real gap is CircleTool/ArcTool inheriting name(). Focus: the tool shortcut WINS over command-line focus, so the AC reads 'any alphanumeric that is NOT a bound tool shortcut'. product-owner added anchor() to Move/Circle/Arc but REFUSED it for Rect (ortho would collapse a rect to zero width/height), with a follow-up for architect to split the two meanings of anchor(). RISK: this demand leaves TEXT non-functional until LCV-112 lands, so LCV-112 is not optional. SHIPPED 533e24a + 2f39e9d; review returned REWORK REQUIRED on one blocking finding, fixed in d6a23b7. The finding was spec drift, not a design error: AC 9.4's 'Empty is never pushed' was written in dbf6a7a BEFORE the LCV-110 rework 29ac39a changed CommandHistory::push to reset the recall cursor on a blank entry, so guarding the call site made that already-approved behaviour unreachable in production. Reviewer checked v1 directly and found it does two things on one Enter: command-line.ts:192-196 resets historyIndex unconditionally, while execute() at 76-86 has its own separate blank guard before appending. Reviewer also confirmed the tests/lcv103.rs rename is a legitimate supersession and strictly more discriminating, and that the RECT no-anchor decision rests on a true premise (RectTool::on_pointer_down does discard at or below EPSILON). 661 -> 704 lib tests, 68 -> 86 integration. APPROVED after rework.",
+      "shipped_commit": "533e24a,2f39e9d,d6a23b7"
     },
     {
       "id": "LCV-112",
