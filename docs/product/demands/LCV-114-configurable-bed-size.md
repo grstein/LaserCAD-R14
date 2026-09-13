@@ -1,10 +1,11 @@
 # LCV-114 — Configurable bed size (1..2000 mm), stored in the document and read back on import
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 11
 - **Depends on**: LCV-100 (Done), LCV-057 (Done), LCV-102 (Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: implementer-rust (commit bd49c11; reviewed, APPROVED on first pass)
 
 ## Problem
 

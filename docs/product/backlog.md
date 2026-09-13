@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-114 | Configurable bed size (1..2000 mm), stored in the document and read back on import | 11 | — |
 | LCV-115 | Export preset selector (cut / mark / engrave) | 11 | LCV-114 |
 | LCV-116 | Chrome completion: clickable mode toggles, autosave indicator, F1 shortcuts dialog, Ortho in the View menu | 11 | — |
 
@@ -14,7 +13,8 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Owner | Started |
 |---|---|---|---|---|
-| LCV-118 | Disarm native file dialogs outside the app binary | 11 | implementer-rust | 2026-09-13 |
+
+_None._
 
 ## Done
 
@@ -107,7 +107,9 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 | LCV-111 | Wire the parser into the tools: `on_command_input`, R14 prompts, focus-on-typing | 11 | 2026-09-12 | 533e24a |
 | LCV-112 | TEXT complete: raw-input mode for the string, then the height, in exactly one undo step | 11 | 2026-09-12 | 2ef12af |
 | LCV-113 | Confirm discard on New / Open / Exit when the document has unsaved changes | 11 | 2026-09-13 | a7df030 |
+| LCV-114 | Configurable bed size (1..2000 mm), stored in the document and read back on import | 11 | 2026-09-13 | bd49c11 |
 | LCV-117 | Hershey glyph table: 22 alphanumeric glyphs (plus `?`) render below the baseline | 11 | 2026-09-13 | d696f7c |
+| LCV-118 | Disarm native file dialogs outside the app binary | 11 | 2026-09-13 | fa158c0, 5e74557 |
 
 ## Blocked
 

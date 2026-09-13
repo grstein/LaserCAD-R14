@@ -1,11 +1,11 @@
 # LCV-118 — Disarm native file dialogs outside the app binary
 
-- **Status**: In Progress
+- **Status**: Done
 - **Phase**: 11
 - **Depends on**: none
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: implementer-rust (commits fa158c0, 5e74557; in re-review)
+- **Implementation**: implementer-rust (commits fa158c0, 5e74557; reviewed, APPROVED)
 
 ## Problem
 

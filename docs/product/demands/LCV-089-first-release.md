@@ -215,6 +215,21 @@ AppImage and `.deb` as downloadable assets.
   succeed; then **File > Open** the saved file and confirm the line
   round-trips.
 
+- **Manual smoke / configurable bed size (LCV-114)**: the LCV-114 reviewer
+  confirmed these four paths are reachable by no automated test in the suite.
+  Before tagging:
+  - Open a file exported at 300 x 180 in real LaserGRBL and confirm the job
+    lands in the same corner it appears in on screen. This is the criterion no
+    unit test can cover.
+  - Click `File > Bed size…` and drag both `DragValue` widgets. Real pointer
+    hit-testing on a nested menu button and a drag on a `DragValue` are
+    simulated nowhere in the suite.
+  - Restart the app cold and confirm a blank document starts at the bed size
+    last set. `App::new()` cannot be called from any test under ADR 0002
+    §A2, so this is covered only by a source scan.
+  - Confirm the bed rectangle on the canvas visibly redraws at the new size
+    after OK, and that `View > Fit to Bed` frames it.
+
 ## Open questions
 
 *(none)*

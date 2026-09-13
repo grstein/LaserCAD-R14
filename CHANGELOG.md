@@ -54,6 +54,7 @@ No version of LaserCAD v2 has been tagged or released yet. Everything below is u
 - Command line now drives the drawing tools: typed absolute and relative coordinates and direct distances reach LINE, PLINE, RECT, CIRCLE, ARC and MOVE; each drawing phase shows an AutoCAD-R14-style prompt; pressing an unbound alphanumeric key focuses the command line; arrow keys recall previous commands. See LCV-111.
 - TEXT now completes from the keyboard: after placing the insertion point, the command line switches to a raw-input mode that prompts first for the string, then for the height (defaulting to 5 mm if left blank, and accepting a comma as the decimal separator); heights outside 0.1–2000 mm are rejected with a re-prompt; the whole string commits in exactly one undo step. The old `on_text_input` path is removed. See LCV-112.
 - File > New, File > Open (including Open Recent) and File > Exit — plus the window close button — now ask for confirmation before discarding unsaved changes, instead of silently throwing the work away. See LCV-113.
+- Bed size is now a document property, configurable 1–2000 mm via `File > Bed size…`, written into the SVG header and read back on import; `File > New` and a cold boot seed it from settings. See LCV-114.
 
 ### Changed
 
@@ -74,6 +75,7 @@ No version of LaserCAD v2 has been tagged or released yet. Everything below is u
 - macOS packaging now works on Apple Silicon: the DMG output name no longer hardcodes `x86_64`; it is now determined at build time by the host triplet, so `scripts/build-dmg.sh` on arm64 produces `dist/lasercad-aarch64.dmg` as expected. See LCV-107.
 - CI matrix now passes `test` and `build` stages end-to-end for the first time: ubuntu-24.04, windows-2022, and macos-15. See LCV-107.
 - Text drawn with the TEXT tool no longer sags below its baseline: 22 alphanumeric glyphs and `?` in the Hershey font table were authored with the wrong vertical coordinates, so words containing them sat partly below the line on canvas and in the exported SVG. Already-drawn text is not migrated — re-type it to pick up the repair. See LCV-117.
+- Exported jobs no longer land vertically offset on any machine whose bed is not 400 mm tall: the SVG export mirror axis was hardcoded to 400 regardless of the real bed, so a 300 × 180 K40 (or any other size) cut in the wrong place even though the drawing looked correct on screen. The mirror now uses the document's actual bed height. See LCV-114.
 
 ### Removed
 
