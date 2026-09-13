@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Persistent LCV-XXX backlog. Live source of truth across sessions. The project-manager rehydrates Claude Tasks from this file at session start, and writes back after every status change. PLAN.md, backlog.md, and demand files reflect content but are no longer the live status board. Marco 0 (LCV-100..108) shipped; user tags v0.1.0. Milestone Marco 1 (LCV-110..116) targets tag v0.2.0; CI is live and green on 3 platforms since run 34727477158 — functional parity with v1.0.0.",
+  "description": "Persistent LCV-XXX backlog. Live source of truth across sessions. The project-manager rehydrates Claude Tasks from this file at session start, and writes back after every status change. PLAN.md, backlog.md, and demand files reflect content but are no longer the live status board. Titles, phases and statuses here are reconciled against the demand-file headers, which are authoritative. Marco 0 (LCV-100..108) shipped; user tags v0.1.0. Marco 1 (LCV-110..119) shipped — functional parity with v1.0.0, targets tag v0.2.0. Marco 2 (LCV-121..125) is in flight: LCV-121 Done (d584f4d), drive order 121 -> 122 -> 123 unbroken, then 124 and 125 in parallel. RELEASE HAZARD, LIVE: between LCV-121 and LCV-123 the agent can call tools but they hit a throwaway Document, so it reports geometry that never reaches the canvas — do not tag or cut a release until LCV-123 is Done. LCV-126 (Draft) and LCV-127 (Ready) are phase 11 follow-ups outside that drive. CI green on 3 platforms, latest run 34758445630.",
   "status_legend": [
     "Draft",
     "Refining",
@@ -74,7 +74,7 @@
     },
     {
       "id": "LCV-007",
-      "title": "Bootstrap egui window — title 'LaserCAD v2 — bootstrap'",
+      "title": "Bootstrap egui window — title \"LaserCAD v2\"",
       "phase": 0,
       "status": "Done",
       "depends_on": [
@@ -87,51 +87,55 @@
     },
     {
       "id": "LCV-010",
-      "title": "Vec2 + epsilon",
+      "title": "Vec2 type and kernel EPSILON constant",
       "phase": 1,
       "status": "Done",
       "depends_on": [
         "LCV-007"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-010-vec2-and-epsilon.md",
       "shipped_commit": "2f2a8bf"
     },
     {
       "id": "LCV-011",
-      "title": "Line type + bbox + helpers",
+      "title": "Line value type with bbox and geometric helpers",
       "phase": 1,
       "status": "Done",
       "depends_on": [
         "LCV-010"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-011-line-type-and-helpers.md",
       "shipped_commit": "c6f09f9"
     },
     {
       "id": "LCV-012",
-      "title": "Circle type + bbox + helpers",
+      "title": "Circle value type with bbox and geometric helpers",
       "phase": 1,
       "status": "Done",
       "depends_on": [
         "LCV-010"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-012-circle-type-and-helpers.md",
       "shipped_commit": "4ff9ee4"
     },
     {
       "id": "LCV-013",
-      "title": "Arc type + bbox + containsAngle + endpoints",
+      "title": "Arc value type with bbox, endpoints, and contains_angle",
       "phase": 1,
       "status": "Done",
       "depends_on": [
         "LCV-010"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-013-arc-type-and-helpers.md",
       "shipped_commit": "caad4e4"
     },
     {
       "id": "LCV-014",
-      "title": "Line-line / line-circle / circle-circle intersections",
+      "title": "Line-line, line-circle, and circle-circle intersection routines",
       "phase": 1,
       "status": "Done",
       "depends_on": [
@@ -139,11 +143,12 @@
         "LCV-012"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-014-line-circle-intersections.md",
       "shipped_commit": "fdade9b"
     },
     {
       "id": "LCV-015",
-      "title": "Rect predicates (contains/crosses line/circle/arc)",
+      "title": "Axis-aligned Rect with contains/crosses predicates",
       "phase": 1,
       "status": "Done",
       "depends_on": [
@@ -152,28 +157,31 @@
         "LCV-013"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-015-rect-predicates.md",
       "shipped_commit": "b7a9882"
     },
     {
       "id": "LCV-016",
-      "title": "Snap engine (endpoint/midpoint/center/intersection)",
+      "title": "Snap engine (endpoint / midpoint / center / intersection)",
       "phase": 1,
       "status": "Done",
       "depends_on": [
         "LCV-014"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-016-snap-engine.md",
       "shipped_commit": "ccadb5e"
     },
     {
       "id": "LCV-017",
-      "title": "Geometry test suite consolidation",
+      "title": "Geometry test suite consolidation (cross-module integration)",
       "phase": 1,
       "status": "Done",
       "depends_on": [
         "LCV-016"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-017-geometry-test-suite-consolidation.md",
       "shipped_commit": "bdb4830"
     },
     {
@@ -185,6 +193,7 @@
         "LCV-013"
       ],
       "suggested_agent": "architect",
+      "demand_file": "docs/product/demands/LCV-020-entity-enum-and-schema-version.md",
       "shipped_commit": "b6cdd46"
     },
     {
@@ -196,6 +205,7 @@
         "LCV-020"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-021-document-struct-bounds-default.md",
       "shipped_commit": "0bf5943"
     },
     {
@@ -207,6 +217,7 @@
         "LCV-021"
       ],
       "suggested_agent": "architect",
+      "demand_file": "docs/product/demands/LCV-022-command-trait-do-undo.md",
       "shipped_commit": "af28f9b"
     },
     {
@@ -218,6 +229,7 @@
         "LCV-022"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-023-create-line-circle-arc-commands.md",
       "shipped_commit": "e9f3f82"
     },
     {
@@ -229,6 +241,7 @@
         "LCV-022"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-024-delete-and-move-entities-commands.md",
       "shipped_commit": "c8f4e1e"
     },
     {
@@ -241,6 +254,7 @@
         "LCV-024"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-025-trim-and-extend-commands.md",
       "shipped_commit": "59be8e7"
     },
     {
@@ -252,6 +266,7 @@
         "LCV-022"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-026-history-stack.md",
       "shipped_commit": "2fd3960"
     },
     {
@@ -263,6 +278,7 @@
         "LCV-022"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-027-selection-model-and-command.md",
       "shipped_commit": "d7429cf"
     },
     {
@@ -288,8 +304,8 @@
       ],
       "suggested_agent": "implementer-rust",
       "demand_file": "docs/product/demands/LCV-031-camera-world-screen-zoom-pan.md",
-      "note": "Camera shipped inside the LCV-032 commit; no standalone feat(LCV-031) commit exists.",
-      "shipped_commit": "33bae5a"
+      "shipped_commit": "33bae5a",
+      "note": "Camera shipped inside the LCV-032 commit; no standalone feat(LCV-031) commit exists."
     },
     {
       "id": "LCV-032",
@@ -388,6 +404,7 @@
         "LCV-032"
       ],
       "suggested_agent": "architect",
+      "demand_file": "docs/product/demands/LCV-040-tool-trait-and-tool-manager.md",
       "shipped_commit": "ca7c234"
     },
     {
@@ -399,6 +416,7 @@
         "LCV-040"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-041-pointer-input-plumbing.md",
       "shipped_commit": "a628859"
     },
     {
@@ -412,6 +430,7 @@
         "LCV-027"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-042-select-tool.md",
       "shipped_commit": "ee2a16d"
     },
     {
@@ -425,6 +444,7 @@
         "LCV-037"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-043-line-tool.md",
       "shipped_commit": "e36b840"
     },
     {
@@ -436,6 +456,7 @@
         "LCV-043"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-044-polyline-tool.md",
       "shipped_commit": "1af93b9"
     },
     {
@@ -447,6 +468,7 @@
         "LCV-043"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-045-rect-tool.md",
       "shipped_commit": "db24e9c"
     },
     {
@@ -460,6 +482,7 @@
         "LCV-037"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-046-circle-tool.md",
       "shipped_commit": "fe57b7c"
     },
     {
@@ -473,6 +496,7 @@
         "LCV-037"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-047-arc-tool.md",
       "shipped_commit": "d0656a3"
     },
     {
@@ -485,11 +509,12 @@
         "LCV-043"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-048-text-tool.md",
       "shipped_commit": "b59aa63"
     },
     {
       "id": "LCV-049",
-      "title": "MoveTool",
+      "title": "MoveTool — move selected entities",
       "phase": 4,
       "status": "Done",
       "depends_on": [
@@ -498,6 +523,7 @@
         "LCV-042"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-049-move-tool.md",
       "shipped_commit": "498eb0d"
     },
     {
@@ -510,6 +536,7 @@
         "LCV-025"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-050-trim-tool.md",
       "shipped_commit": "a88fe1f"
     },
     {
@@ -522,6 +549,7 @@
         "LCV-025"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-051-extend-tool.md",
       "shipped_commit": "f0c6fb1"
     },
     {
@@ -534,22 +562,24 @@
         "LCV-024"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-052-delete-tool.md",
       "shipped_commit": "c976c36"
     },
     {
       "id": "LCV-053",
-      "title": "Ortho lock toggle",
+      "title": "Ortho lock toggle (F8)",
       "phase": 4,
       "status": "Done",
       "depends_on": [
         "LCV-041"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-053-ortho-toggle.md",
       "shipped_commit": "90ea0b4"
     },
     {
       "id": "LCV-054",
-      "title": "Snap integration into all drawing tools",
+      "title": "OffsetTool — Offset a Line or Arc by Distance",
       "phase": 4,
       "status": "Rejected",
       "depends_on": [
@@ -559,8 +589,9 @@
         "LCV-047"
       ],
       "suggested_agent": "implementer-rust",
-      "note": "RETITLED then REJECTED. The id was planned as \"snap integration into all drawing tools\", already delivered by LCV-041, and shipped instead as OffsetTool in 3c99f68. Offset is an explicit non-goal in docs/product/README.md, so LCV-106 deleted the tool in adbc878. The shipping commit is kept for traceability.",
-      "shipped_commit": "3c99f68"
+      "demand_file": "docs/product/demands/LCV-054-offset-tool.md",
+      "shipped_commit": "3c99f68",
+      "note": "RETITLED then REJECTED. The id was planned as \"snap integration into all drawing tools\", already delivered by LCV-041, and shipped instead as OffsetTool in 3c99f68. Offset is an explicit non-goal in docs/product/README.md, so LCV-106 deleted the tool in adbc878. The shipping commit is kept for traceability."
     },
     {
       "id": "LCV-055",
@@ -571,6 +602,7 @@
         "LCV-011"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-055-hershey-font-text-layout.md",
       "shipped_commit": "60138bf"
     },
     {
@@ -583,6 +615,7 @@
         "LCV-013"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-056-svg-export.md",
       "shipped_commit": "f6a402e"
     },
     {
@@ -594,6 +627,7 @@
         "LCV-056"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-057-svg-import.md",
       "shipped_commit": "d5b2edb"
     },
     {
@@ -605,6 +639,7 @@
         "LCV-007"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-058-settings-store.md",
       "shipped_commit": "30f9ca0"
     },
     {
@@ -617,6 +652,7 @@
         "LCV-021"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-059-autosave.md",
       "shipped_commit": "011d7ee"
     },
     {
@@ -628,6 +664,7 @@
         "LCV-058"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-060-recent-files.md",
       "shipped_commit": "76f0af4"
     },
     {
@@ -639,11 +676,12 @@
         "LCV-007"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-061-file-dialogs.md",
       "shipped_commit": "4e664ea"
     },
     {
       "id": "LCV-062",
-      "title": "New / Open / Save / Save As / Exit actions",
+      "title": "File actions — New / Open / Save / Save As wired to dialogs and SVG I/O",
       "phase": 5,
       "status": "Done",
       "depends_on": [
@@ -652,28 +690,31 @@
         "LCV-061"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-062-file-actions.md",
       "shipped_commit": "e7566c4"
     },
     {
       "id": "LCV-065",
-      "title": "Menubar (File / Edit / View / Tools / Help)",
+      "title": "Menubar (File / Edit / View / Help)",
       "phase": 6,
       "status": "Done",
       "depends_on": [
         "LCV-062"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-065-menubar.md",
       "shipped_commit": "e47d974"
     },
     {
       "id": "LCV-066",
-      "title": "Toolbar with tool buttons",
+      "title": "Toolbar — left-side tool palette",
       "phase": 6,
       "status": "Done",
       "depends_on": [
         "LCV-040"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-066-toolbar.md",
       "shipped_commit": "e5e94e5"
     },
     {
@@ -685,6 +726,7 @@
         "LCV-030"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-067-status-bar.md",
       "shipped_commit": "9584a71"
     },
     {
@@ -696,6 +738,7 @@
         "LCV-040"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-068-command-line-widget.md",
       "shipped_commit": "4c36e58"
     },
     {
@@ -707,17 +750,19 @@
         "LCV-030"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-069-modal-dialogs.md",
       "shipped_commit": "7960ec9"
     },
     {
       "id": "LCV-070",
-      "title": "Keyboard shortcuts (L/P/R/C/A, F3/F7/F8, Ctrl+Z/Y/N/O/S)",
+      "title": "Keyboard shortcuts (tool activation hotkeys)",
       "phase": 6,
       "status": "Done",
       "depends_on": [
         "LCV-065"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-070-keyboard-shortcuts.md",
       "shipped_commit": "35a804a"
     },
     {
@@ -729,23 +774,25 @@
         "LCV-030"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-071-theme.md",
       "shipped_commit": "31c492d"
     },
     {
       "id": "LCV-075",
-      "title": "Agent classifier (regex routing)",
-      "phase": 7,
+      "title": "Undo/Redo keyboard shortcuts (Ctrl+Z / Ctrl+Y) + status bar flash",
+      "phase": 6,
       "status": "Done",
       "depends_on": [
         "LCV-068"
       ],
       "suggested_agent": "implementer-rust",
-      "note": "RETITLED: shipped as Ctrl+Z/Ctrl+Y undo/redo shortcuts, not the agent regex classifier. src/agent/classifier.rs does not exist.",
-      "shipped_commit": "1ac0219"
+      "demand_file": "docs/product/demands/LCV-075-undo-redo-ui.md",
+      "shipped_commit": "1ac0219",
+      "note": "RETITLED: shipped as Ctrl+Z/Ctrl+Y undo/redo shortcuts, not the agent regex classifier. src/agent/classifier.rs does not exist."
     },
     {
       "id": "LCV-076",
-      "title": "Agent settings dialog (API key / model / endpoint)",
+      "title": "Agent settings UI (API key + endpoint)",
       "phase": 7,
       "status": "Done",
       "depends_on": [
@@ -753,17 +800,19 @@
         "LCV-069"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-076-agent-settings-ui.md",
       "shipped_commit": "8b545c6"
     },
     {
       "id": "LCV-077",
-      "title": "HTTP transport (reqwest + tokio)",
+      "title": "Agent transport — blocking reqwest client for OpenAI-compatible API",
       "phase": 7,
       "status": "Done",
       "depends_on": [
         "LCV-076"
       ],
       "suggested_agent": "architect",
+      "demand_file": "docs/product/demands/LCV-077-agent-transport.md",
       "shipped_commit": "16a7683"
     },
     {
@@ -776,11 +825,12 @@
         "LCV-024"
       ],
       "suggested_agent": "architect",
+      "demand_file": "docs/product/demands/LCV-078-agent-tool-registry.md",
       "shipped_commit": "86c473e"
     },
     {
       "id": "LCV-079",
-      "title": "Multi-turn loop with iteration cap",
+      "title": "Multi-turn agent loop (run AI agent conversation with tool calls)",
       "phase": 7,
       "status": "Done",
       "depends_on": [
@@ -788,11 +838,12 @@
         "LCV-078"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-079-multi-turn-agent-loop.md",
       "shipped_commit": "cbd63ec"
     },
     {
       "id": "LCV-080",
-      "title": "Command-line wires ':' / '/ai' prefixes to agent",
+      "title": "Agent panel — chat UI for AI assistant",
       "phase": 7,
       "status": "Done",
       "depends_on": [
@@ -800,8 +851,9 @@
         "LCV-079"
       ],
       "suggested_agent": "implementer-rust",
-      "note": "RETITLED: shipped as an agent chat side panel, not the command-line \":\" / \"/ai\" prefix wiring. Prefix routing is deferred to Marco 2 (LCV-122).",
-      "shipped_commit": "ee10f2a"
+      "demand_file": "docs/product/demands/LCV-080-agent-panel.md",
+      "shipped_commit": "ee10f2a",
+      "note": "RETITLED: shipped as an agent chat side panel, not the command-line \":\" / \"/ai\" prefix wiring. Prefix routing is deferred to Marco 2 (LCV-122)."
     },
     {
       "id": "LCV-085",
@@ -812,6 +864,7 @@
         "LCV-080"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-085-linux-appimage.md",
       "shipped_commit": "2a8883c"
     },
     {
@@ -823,6 +876,7 @@
         "LCV-085"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-086-linux-deb.md",
       "shipped_commit": "5de9175"
     },
     {
@@ -834,6 +888,7 @@
         "LCV-007"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-087-release-profile.md",
       "shipped_commit": "5cc4909"
     },
     {
@@ -845,6 +900,7 @@
         "LCV-085"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-088-icons-desktop-entry.md",
       "shipped_commit": "c5b9028"
     },
     {
@@ -858,34 +914,37 @@
         "LCV-088"
       ],
       "suggested_agent": "project-manager",
-      "note": "PARTIAL: b936570 bumped Cargo.toml to 0.1.0, finalized CHANGELOG and added scripts/release.sh, but no git tag and no GitHub release exist (no git remote configured). Blocked on the user choosing a remote — see LCV-107.",
-      "shipped_commit": "b936570"
+      "demand_file": "docs/product/demands/LCV-089-first-release.md",
+      "shipped_commit": "b936570",
+      "note": "PARTIAL: b936570 bumped Cargo.toml to 0.1.0, finalized CHANGELOG and added scripts/release.sh, but no git tag and no GitHub release exist (no git remote configured). Blocked on the user choosing a remote — see LCV-107."
     },
     {
       "id": "LCV-090",
-      "title": "Windows MSI/NSIS build",
-      "phase": 9,
+      "title": "Windows MSI installer build",
+      "phase": 8,
       "status": "Done",
       "depends_on": [
         "LCV-089"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-090-windows-msi.md",
       "shipped_commit": "318909a"
     },
     {
       "id": "LCV-091",
-      "title": "macOS dmg + notarization",
+      "title": "macOS .dmg / app bundle",
       "phase": 9,
       "status": "Done",
       "depends_on": [
         "LCV-089"
       ],
       "suggested_agent": "implementer-rust",
+      "demand_file": "docs/product/demands/LCV-091-macos-dmg.md",
       "shipped_commit": "3ca6879"
     },
     {
       "id": "LCV-092",
-      "title": "CI multi-platform pipeline",
+      "title": "CI matrix: build + test + release on all platforms",
       "phase": 9,
       "status": "Done",
       "depends_on": [
@@ -893,112 +952,113 @@
         "LCV-091"
       ],
       "suggested_agent": "implementer-rust",
-      "note": "CI workflow file committed but never executed: the repository has no git remote, so the matrix has never run. Windows package job is broken (see LCV-107 / defect D9).",
-      "shipped_commit": "263e7cc"
+      "demand_file": "docs/product/demands/LCV-092-ci-matrix.md",
+      "shipped_commit": "263e7cc",
+      "note": "CI workflow file committed but never executed: the repository has no git remote, so the matrix has never run. Windows package job is broken (see LCV-107 / defect D9)."
     },
     {
       "id": "LCV-100",
-      "title": "SVG export/import Y-axis inversion (world Y-up -> SVG Y-down)",
+      "title": "SVG export/import Y-axis inversion (world Y-up ↔ SVG Y-down)",
       "phase": 10,
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Reviewed and APPROVED by reviewer-rust: gate re-run, app launch confirmed on Wayland, arc goldens and the import inverse re-derived independently, emitted bytes checked. Optional follow-up: tighten EXPORT_QUANTISATION_TOL in tests/lcv100_svg_orientation.rs from 1e-3 toward the observed 5e-5 bound.",
       "demand_file": "docs/product/demands/LCV-100-svg-y-axis-inversion.md",
       "drive_order": 1,
-      "shipped_commit": "3d8aec4"
+      "shipped_commit": "3d8aec4",
+      "note": "Reviewed and APPROVED by reviewer-rust: gate re-run, app launch confirmed on Wayland, arc goldens and the import inverse re-derived independently, emitted bytes checked. Optional follow-up: tighten EXPORT_QUANTISATION_TOL in tests/lcv100_svg_orientation.rs from 1e-3 toward the observed 5e-5 bound."
     },
     {
       "id": "LCV-101",
-      "title": "Load persisted settings in App::new + OpenRouter default endpoint",
+      "title": "Load persisted settings at startup (+ OpenRouter default endpoint)",
       "phase": 10,
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "Reviewed and APPROVED. Reviewer proved the wiring end to end in an isolated tree copy with XDG_CONFIG_HOME pointed at scratch dirs, and confirmed the real user settings file was byte-identical after an 8 s app run.",
       "demand_file": "docs/product/demands/LCV-101-settings-load-on-startup.md",
       "drive_order": 2,
-      "shipped_commit": "e3258d2"
+      "shipped_commit": "e3258d2",
+      "note": "Reviewed and APPROVED. Reviewer proved the wiring end to end in an isolated tree copy with XDG_CONFIG_HOME pointed at scratch dirs, and confirmed the real user settings file was byte-identical after an 8 s app run."
     },
     {
       "id": "LCV-102",
-      "title": "Autosave actually fires (dirty tracking at the pipeline level, 800 ms debounce)",
+      "title": "Autosave actually fires (History revision as the dirty signal)",
       "phase": 10,
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "APPROVED. Reviewer proved the end-to-end path in a scratch clone with HOME redirected: a tool-driven edit produced an autosave file on disk after 0.83 s of real wall-clock time, and reverting sync_dirty to a no-op made 8 tests fail. The real user data directory was never touched.",
       "demand_file": "docs/product/demands/LCV-102-autosave-dirty-tracking.md",
       "drive_order": 4,
-      "shipped_commit": "a958d29"
+      "shipped_commit": "a958d29",
+      "note": "APPROVED. Reviewer proved the end-to-end path in a scratch clone with HOME redirected: a tool-driven edit produced an autosave file on disk after 0.83 s of real wall-clock time, and reverting sync_dirty to a no-op made 8 tests fail. The real user data directory was never touched."
     },
     {
       "id": "LCV-103",
-      "title": "Keyboard routing: kill double dispatch, guard wants_keyboard_input, route Enter to tools",
+      "title": "Keyboard routing: single gate, no double dispatch, Enter reaches the tool",
       "phase": 10,
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "APPROVED WITH FOLLOW-UPS. Reviewer independently re-introduced the F8 duplicate and the ungated F block in a scratch worktree and confirmed only the matching tests fail, and verified in the vendored egui 0.29.1 source that the old has_focus() Escape branch was dead. Non-blocking follow-ups: tests/app/input.rs tool_routed_keys_are_enter_delete_backspace is tautological; AC 9 uses the command line TextEdit as a stand-in for the agent chat box.",
       "demand_file": "docs/product/demands/LCV-103-keyboard-routing.md",
       "drive_order": 3,
-      "shipped_commit": "88bc4c9"
+      "shipped_commit": "88bc4c9",
+      "note": "APPROVED WITH FOLLOW-UPS. Reviewer independently re-introduced the F8 duplicate and the ungated F block in a scratch worktree and confirmed only the matching tests fail, and verified in the vendored egui 0.29.1 source that the old has_focus() Escape branch was dead. Non-blocking follow-ups: tests/app/input.rs tool_routed_keys_are_enter_delete_backspace is tautological; AC 9 uses the command line TextEdit as a stand-in for the agent chat box."
     },
     {
       "id": "LCV-104",
-      "title": "Reachability: TextTool + full toolbar + Tools menu + Agent settings menu item",
+      "title": "Reachability: TEXT tool, full toolbar, Tools menu, Agent settings item",
       "phase": 10,
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "APPROVED. Reviewer traced the draw path rather than the table, confirmed the Tools menu iterates the same single TOOLS list, and mutation-checked the D binding and its focus gate. Manual click-through remains for the user checklist.",
       "demand_file": "docs/product/demands/LCV-104-tool-reachability.md",
       "drive_order": 5,
-      "shipped_commit": "4b8c243"
+      "shipped_commit": "4b8c243",
+      "note": "APPROVED. Reviewer traced the draw path rather than the table, confirmed the Tools menu iterates the same single TOOLS list, and mutation-checked the D binding and its focus gate. Manual click-through remains for the user checklist."
     },
     {
       "id": "LCV-105",
-      "title": "Cleanup: orphan files, Select-All via SelectionCommand, split app.rs, retire MODULE placeholders",
+      "title": "Cleanup: orphan files, Select-All through a Command, `app.rs` split, MODULE retirement, window title",
       "phase": 10,
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "app.rs split into src/app/{mod,input,viewport,panels,autosave,ortho,snap,agent_poll}.rs, all under 300 implementation lines. src/util/ stays: LCV-100 gave it real content in units.rs, so the AGENTS.md tree needs no edit for it. Lib test count rose 624 -> 632. APPROVED: reviewer line-diffed every extracted function against the pre-split frame body, confirmed the single keyboard reader and single sync_dirty call site survived, and mutation-checked the SelectTool Escape fix.",
       "demand_file": "docs/product/demands/LCV-105-cleanup-and-app-split.md",
       "drive_order": 8,
-      "shipped_commit": "0d1d52b"
+      "shipped_commit": "0d1d52b",
+      "note": "app.rs split into src/app/{mod,input,viewport,panels,autosave,ortho,snap,agent_poll}.rs, all under 300 implementation lines. src/util/ stays: LCV-100 gave it real content in units.rs, so the AGENTS.md tree needs no edit for it. Lib test count rose 624 -> 632. APPROVED: reviewer line-diffed every extracted function against the pre-split frame body, confirmed the single keyboard reader and single sync_dirty call site survived, and mutation-checked the SelectTool Escape fix."
     },
     {
       "id": "LCV-106",
-      "title": "Product decision: keep or delete OffsetTool (shipped under the LCV-054 id)",
+      "title": "OffsetTool: product decision and removal",
       "phase": 10,
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "product-owner",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "OffsetTool deleted. The product-owner two-reference claim held exactly. Paperwork note for LCV-108: the demand text says the file held 24 inline tests; it actually held 23, verified by a stash bisection (647 -> 624 lib tests).",
       "demand_file": "docs/product/demands/LCV-106-offset-tool-decision.md",
       "drive_order": 6,
-      "shipped_commit": "adbc878"
+      "shipped_commit": "adbc878",
+      "note": "OffsetTool deleted. The product-owner two-reference claim held exactly. Paperwork note for LCV-108: the demand text says the file held 24 inline tests; it actually held 23, verified by a stash bisection (647 -> 624 lib tests)."
     },
     {
       "id": "LCV-107",
-      "title": "CI fix: Windows package job invokes build-msi.ps1 via PowerShell",
+      "title": "CI: Windows package job invokes `build-msi.ps1` via PowerShell",
       "phase": 10,
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "CI Windows leg fixed statically: PowerShell invocation of build-msi.ps1 plus rustup show and cargo install cargo-wix. No remote created, nothing pushed, no tag. The workflow has still never executed. CONTINUATION 2026-09-12: remote origin created by the user (private). First matrix run exposed two real breaks. (1) Windows cargo fmt failed on every file: rustfmt.toml sets newline_style=Unix but there was no .gitattributes, so the Windows checkout wrote CRLF. Fixed with '* text=auto eol=lf'. (2) macos-13 is a DEAD runner label (fully unsupported since 2025-12-04), so that job queued forever; moved to macos-15, which is arm64, which in turn exposed that the workflow hardcoded dist/lasercad-x86_64.dmg while build-dmg.sh emits lasercad-aarch64.dmg on arm64 -- a latent break that would have hit on the v0.1.0 tag push. Also bumped checkout v4->v5 and the artifact actions off the Node 20 runtime, and added repository= to Cargo.toml plus the README CI badge. Commits 958fb12, 4244d40, 0a1d680. CI now GREEN on ubuntu-24.04 + windows-2022 + macos-15 for both test and build: run 34727477158.",
       "demand_file": "docs/product/demands/LCV-107-ci-windows-msi-invocation.md",
       "drive_order": 7,
-      "shipped_commit": "c5b5be4,958fb12,4244d40,0a1d680"
+      "shipped_commit": "c5b5be4, 958fb12, 4244d40, 0a1d680",
+      "note": "CI Windows leg fixed statically: PowerShell invocation of build-msi.ps1 plus rustup show and cargo install cargo-wix. No remote created, nothing pushed, no tag. The workflow has still never executed. CONTINUATION 2026-09-12: remote origin created by the user (private). First matrix run exposed two real breaks. (1) Windows cargo fmt failed on every file: rustfmt.toml sets newline_style=Unix but there was no .gitattributes, so the Windows checkout wrote CRLF. Fixed with '* text=auto eol=lf'. (2) macos-13 is a DEAD runner label (fully unsupported since 2025-12-04), so that job queued forever; moved to macos-15, which is arm64, which in turn exposed that the workflow hardcoded dist/lasercad-x86_64.dmg while build-dmg.sh emits lasercad-aarch64.dmg on arm64 -- a latent break that would have hit on the v0.1.0 tag push. Also bumped checkout v4->v5 and the artifact actions off the Node 20 runtime, and added repository= to Cargo.toml plus the README CI badge. Commits 958fb12, 4244d40, 0a1d680. CI now GREEN on ubuntu-24.04 + windows-2022 + macos-15 for both test and build: run 34727477158."
     },
     {
       "id": "LCV-108",
@@ -1008,14 +1068,14 @@
       "depends_on": [],
       "suggested_agent": "demand-manager",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "CHANGELOG folded the fictional \"[0.1.0] - 2025-06-15\" section back into a single [Unreleased]; README status is Alpha (0.1.0 pending); AGENTS.md corrected for the std::thread + reqwest::blocking reality, the non-existent agent/classifier.rs and the post-split module tree. Follow-up commit eae206d marked the demand itself Done.",
       "demand_file": "docs/product/demands/LCV-108-docs-sync.md",
       "drive_order": 9,
-      "shipped_commit": "b24da80"
+      "shipped_commit": "b24da80",
+      "note": "CHANGELOG folded the fictional \"[0.1.0] - 2025-06-15\" section back into a single [Unreleased]; README status is Alpha (0.1.0 pending); AGENTS.md corrected for the std::thread + reqwest::blocking reality, the non-existent agent/classifier.rs and the post-split module tree. Follow-up commit eae206d marked the demand itself Done."
     },
     {
       "id": "LCV-110",
-      "title": "Command-line parser (pure kernel module): X,Y / @X,Y / distance / aliases / toggles / zoom",
+      "title": "Command-line parser: a pure kernel module for `X,Y`, `@X,Y`, distance, aliases, toggles and zoom",
       "phase": 11,
       "status": "Done",
       "depends_on": [],
@@ -1023,12 +1083,12 @@
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-110-command-line-parser.md",
       "drive_order": 1,
-      "note": "ADR 0003 (ac9e796) binds this: module at src/cmdline/, joins the AGENTS.md purity list; ToolKind enum + tools::make() retires BOTH ui/shortcuts.rs::TOOL_KEYS string mapping AND ui/toolbar.rs::make_tool. Refined 36b0056. Product calls: '.' is always the decimal separator and ',' always the coordinate separator, no locale detection; the recall ring is a transcript (duplicates kept, Unknown pushed, Empty not); 'e' maps to Delete and EXTEND gets no alias (v2 binds Key::E to DeleteTool). SHIPPED 66af950; review returned REWORK REQUIRED on one blocking finding and the fix landed as 29ac39a. Reviewer ran six mutation probes and all bit correctly: comma-as-decimal, ring de-dup, e->Extend, a removed ToolKind arm (compile error, no wildcard), and a broken TOOL_KEYS loop (the headless tests/lcv110.rs test caught it, so it is not tautological). The blocking finding was that a blank push left the recall cursor untouched; v1's command-line.ts:192-196 resets historyIndex unconditionally on every Enter, so push() now resets the cursor before the blank-entry early return. 632 -> 661 lib tests. CI green all three platforms (run 34729102013). APPROVED after rework.",
-      "shipped_commit": "66af950,29ac39a"
+      "shipped_commit": "66af950, 29ac39a",
+      "note": "ADR 0003 (ac9e796) binds this: module at src/cmdline/, joins the AGENTS.md purity list; ToolKind enum + tools::make() retires BOTH ui/shortcuts.rs::TOOL_KEYS string mapping AND ui/toolbar.rs::make_tool. Refined 36b0056. Product calls: '.' is always the decimal separator and ',' always the coordinate separator, no locale detection; the recall ring is a transcript (duplicates kept, Unknown pushed, Empty not); 'e' maps to Delete and EXTEND gets no alias (v2 binds Key::E to DeleteTool). SHIPPED 66af950; review returned REWORK REQUIRED on one blocking finding and the fix landed as 29ac39a. Reviewer ran six mutation probes and all bit correctly: comma-as-decimal, ring de-dup, e->Extend, a removed ToolKind arm (compile error, no wildcard), and a broken TOOL_KEYS loop (the headless tests/lcv110.rs test caught it, so it is not tautological). The blocking finding was that a blank push left the recall cursor untouched; v1's command-line.ts:192-196 resets historyIndex unconditionally on every Enter, so push() now resets the cursor before the blank-entry early return. 632 -> 661 lib tests. CI green all three platforms (run 34729102013). APPROVED after rework."
     },
     {
       "id": "LCV-111",
-      "title": "Wire the parser into the tools: on_command_input, per-phase prompts, focus-on-typing",
+      "title": "Wire the parser into the tools: `on_command_input`, R14 prompts, focus-on-typing",
       "phase": 11,
       "status": "Done",
       "depends_on": [
@@ -1038,12 +1098,12 @@
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-111-command-line-tool-wiring.md",
       "drive_order": 2,
-      "note": "Biggest demand of Marco 1. ADR 0003 §B fixes on_command_input(ToolInput, &mut Document, &mut History) -> bool; tools never see a string. Prompts use the EXISTING Tool::status_text() pull model (§C); the real gap is CircleTool/ArcTool inheriting name(). Focus: the tool shortcut WINS over command-line focus, so the AC reads 'any alphanumeric that is NOT a bound tool shortcut'. product-owner added anchor() to Move/Circle/Arc but REFUSED it for Rect (ortho would collapse a rect to zero width/height), with a follow-up for architect to split the two meanings of anchor(). RISK: this demand leaves TEXT non-functional until LCV-112 lands, so LCV-112 is not optional. SHIPPED 533e24a + 2f39e9d; review returned REWORK REQUIRED on one blocking finding, fixed in d6a23b7. The finding was spec drift, not a design error: AC 9.4's 'Empty is never pushed' was written in dbf6a7a BEFORE the LCV-110 rework 29ac39a changed CommandHistory::push to reset the recall cursor on a blank entry, so guarding the call site made that already-approved behaviour unreachable in production. Reviewer checked v1 directly and found it does two things on one Enter: command-line.ts:192-196 resets historyIndex unconditionally, while execute() at 76-86 has its own separate blank guard before appending. Reviewer also confirmed the tests/lcv103.rs rename is a legitimate supersession and strictly more discriminating, and that the RECT no-anchor decision rests on a true premise (RectTool::on_pointer_down does discard at or below EPSILON). 661 -> 704 lib tests, 68 -> 86 integration. APPROVED after rework.",
-      "shipped_commit": "533e24a,2f39e9d,d6a23b7"
+      "shipped_commit": "533e24a, 2f39e9d, d6a23b7",
+      "note": "Biggest demand of Marco 1. ADR 0003 §B fixes on_command_input(ToolInput, &mut Document, &mut History) -> bool; tools never see a string. Prompts use the EXISTING Tool::status_text() pull model (§C); the real gap is CircleTool/ArcTool inheriting name(). Focus: the tool shortcut WINS over command-line focus, so the AC reads 'any alphanumeric that is NOT a bound tool shortcut'. product-owner added anchor() to Move/Circle/Arc but REFUSED it for Rect (ortho would collapse a rect to zero width/height), with a follow-up for architect to split the two meanings of anchor(). RISK: this demand leaves TEXT non-functional until LCV-112 lands, so LCV-112 is not optional. SHIPPED 533e24a + 2f39e9d; review returned REWORK REQUIRED on one blocking finding, fixed in d6a23b7. The finding was spec drift, not a design error: AC 9.4's 'Empty is never pushed' was written in dbf6a7a BEFORE the LCV-110 rework 29ac39a changed CommandHistory::push to reset the recall cursor on a blank entry, so guarding the call site made that already-approved behaviour unreachable in production. Reviewer checked v1 directly and found it does two things on one Enter: command-line.ts:192-196 resets historyIndex unconditionally, while execute() at 76-86 has its own separate blank guard before appending. Reviewer also confirmed the tests/lcv103.rs rename is a legitimate supersession and strictly more discriminating, and that the RECT no-anchor decision rests on a true premise (RectTool::on_pointer_down does discard at or below EPSILON). 661 -> 704 lib tests, 68 -> 86 integration. APPROVED after rework."
     },
     {
       "id": "LCV-112",
-      "title": "TEXT complete: raw-input mode for string then height, single undo",
+      "title": "TEXT complete: raw-input mode for the string, then the height, in exactly one undo step",
       "phase": 11,
       "status": "Done",
       "depends_on": [
@@ -1053,12 +1113,12 @@
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-112-text-tool-raw-input.md",
       "drive_order": 3,
-      "note": "ADR 0003 §D raw-input mode. Height range 0.1..2000 mm, empty means 5.0; out of range keeps the operator's string and re-prompts, never clamps. Exactly one undo entry. Deletes Tool::on_text_input, which LCV-111 is explicitly forbidden from removing. Refined 36b0056. SHIPPED 2ef12af (TextTool rebuilt as Idle -> WaitingText -> WaitingHeight; wants_raw_input()/on_raw_input() added to Tool; on_text_input deleted). Review returned REWORK REQUIRED on one blocking finding, fixed in 307cfad. The finding was a COVERAGE gap, not a wrong behaviour: the re-check of wants_raw_input() AFTER the Enter branch in src/ui/command_line.rs, which releases focus on the same frame a commit returns TEXT to Idle, was correct but untested -- the reviewer reverted the ordering and all 39 lcv103/lcv111/lcv112 tests still passed. Rework added a behavioural test (a bare L the very next frame must activate LINE) and swapped tests/lcv103.rs's enter-double-dispatch vehicle from TextTool to LineTool, since TextTool::on_key lost its Enter arm. Re-review APPROVED: both mutations re-run in a scratch worktree, plus a SURGICAL mutation unguarding only the TOOL_ROUTED_KEYS loop, proving the lcv103 test catches the real defect and not buffer-corruption side effects. LineTool and PolylineTool are the only two tools whose on_key reacts to Enter and each now has an independent witness. 704 -> 718 lib tests, 86 -> 95 integration. CI green all three platforms (run 34733893629). This review also SURFACED LCV-117: the Hershey glyph table renders 22 glyphs below the baseline.",
-      "shipped_commit": "2ef12af,307cfad"
+      "shipped_commit": "2ef12af, 307cfad",
+      "note": "ADR 0003 §D raw-input mode. Height range 0.1..2000 mm, empty means 5.0; out of range keeps the operator's string and re-prompts, never clamps. Exactly one undo entry. Deletes Tool::on_text_input, which LCV-111 is explicitly forbidden from removing. Refined 36b0056. SHIPPED 2ef12af (TextTool rebuilt as Idle -> WaitingText -> WaitingHeight; wants_raw_input()/on_raw_input() added to Tool; on_text_input deleted). Review returned REWORK REQUIRED on one blocking finding, fixed in 307cfad. The finding was a COVERAGE gap, not a wrong behaviour: the re-check of wants_raw_input() AFTER the Enter branch in src/ui/command_line.rs, which releases focus on the same frame a commit returns TEXT to Idle, was correct but untested -- the reviewer reverted the ordering and all 39 lcv103/lcv111/lcv112 tests still passed. Rework added a behavioural test (a bare L the very next frame must activate LINE) and swapped tests/lcv103.rs's enter-double-dispatch vehicle from TextTool to LineTool, since TextTool::on_key lost its Enter arm. Re-review APPROVED: both mutations re-run in a scratch worktree, plus a SURGICAL mutation unguarding only the TOOL_ROUTED_KEYS loop, proving the lcv103 test catches the real defect and not buffer-corruption side effects. LineTool and PolylineTool are the only two tools whose on_key reacts to Enter and each now has an independent witness. 704 -> 718 lib tests, 86 -> 95 integration. CI green all three platforms (run 34733893629). This review also SURFACED LCV-117: the Hershey glyph table renders 22 glyphs below the baseline."
     },
     {
       "id": "LCV-117",
-      "title": "Hershey glyph table: 22 glyphs render below the baseline",
+      "title": "Hershey glyph table: 22 alphanumeric glyphs (plus `?`) render below the baseline",
       "phase": 11,
       "status": "Done",
       "depends_on": [],
@@ -1066,12 +1126,12 @@
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-117-hershey-baseline.md",
       "drive_order": 4,
-      "note": "Defect found during the LCV-112 review, predates it (shipped by LCV-055). src/text/layout.rs places the text origin ON the baseline and maps py = origin.y - hy*scale, so any glyph datum with hy>0 renders BELOW the baseline. 22 of 62 alphanumeric glyphs violate the file's own documented convention (baseline y=0, caps top y=-9, x-height y=-6, descenders y~+4): 0 5 6 8 9 O Q S a b c d e o s t u overshoot with no descender at all, and g j p q y descend to +10/+6/+9/+9/+6 instead of +4. 'O' literally spans y=[-9..9], i.e. a 10mm O is 20mm tall with half below the line. Not a uniform offset -- checked, no affine map repairs 'O' -- so the data is corrupt per-glyph and must be re-authored, not shifted. Survived since LCV-055 because the only cap-height test (layout.rs h_cap_height_matches_height_mm) uses 'H', one of the 40 CORRECT glyphs. Acceptance must be a mechanical whole-table invariant test, not per-glyph eyeballing. Severity comparable to the mirrored-SVG defect D1 closed in Marco 0: it is visible in every exported SVG and in LaserGRBL. Refined bb37da6; product-owner corrected me in four places, notably that my 'no affine transform repairs O' claim was wrong (I missed a third data point) and that my proposed x-height invariant would have failed on seven CORRECT glyphs, since m n r v w x z top at -5 not -6. They also found the real root cause: the bad glyphs, or the bad STROKE inside a good glyph, were authored with the origin at the vertical centre of the body, so a b d p q t y need one stroke moved rather than a redraw and only 0 6 8 O c e o s are true redraws. Scope settled at 23 glyphs (the 22 plus '?'), descenders normalised to exactly +4, 17 punctuation marks exempted by an anti-widening test. SHIPPED d696f7c + c8cebad, 718 -> 729 lib tests, CI green (run 34736564259). Review returned REWORK REQUIRED on one real finding: the AC 14 test scanned EVERY stroke of Q for a lower-right point, but Q's bowl is byte-identical to O's and always supplies one, so the reviewer truncated Q's tail to (1,-3),(4,-3) and the entire suite still passed. The reviewer's second finding, that hershey.rs at 476 lines and layout.rs at 380 breach the 300-line cap, is VOID: ADR 0002 lines 371-375 count implementation lines only and exclude inline #[cfg(test)] blocks, making them 53 and 87. AC 9 was found self-contradictory by implementer and reviewer independently and is being reworded by product-owner; the code already matches the intended reading. Rework 5d48027 scoped the Q assertion to the tail stroke; reviewer re-ran three mutations (truncated tail, deleted tail stroke, Q made byte-identical to O) and all three now fail loudly. Reviewer audited the '.any()' pattern across both test files and confirmed it does not recur. Reviewer RETRACTED the 300-LOC finding. APPROVED. CI green run 34737781075.",
-      "shipped_commit": "d696f7c,c8cebad,5d48027"
+      "shipped_commit": "d696f7c, c8cebad, 5d48027",
+      "note": "Defect found during the LCV-112 review, predates it (shipped by LCV-055). src/text/layout.rs places the text origin ON the baseline and maps py = origin.y - hy*scale, so any glyph datum with hy>0 renders BELOW the baseline. 22 of 62 alphanumeric glyphs violate the file's own documented convention (baseline y=0, caps top y=-9, x-height y=-6, descenders y~+4): 0 5 6 8 9 O Q S a b c d e o s t u overshoot with no descender at all, and g j p q y descend to +10/+6/+9/+9/+6 instead of +4. 'O' literally spans y=[-9..9], i.e. a 10mm O is 20mm tall with half below the line. Not a uniform offset -- checked, no affine map repairs 'O' -- so the data is corrupt per-glyph and must be re-authored, not shifted. Survived since LCV-055 because the only cap-height test (layout.rs h_cap_height_matches_height_mm) uses 'H', one of the 40 CORRECT glyphs. Acceptance must be a mechanical whole-table invariant test, not per-glyph eyeballing. Severity comparable to the mirrored-SVG defect D1 closed in Marco 0: it is visible in every exported SVG and in LaserGRBL. Refined bb37da6; product-owner corrected me in four places, notably that my 'no affine transform repairs O' claim was wrong (I missed a third data point) and that my proposed x-height invariant would have failed on seven CORRECT glyphs, since m n r v w x z top at -5 not -6. They also found the real root cause: the bad glyphs, or the bad STROKE inside a good glyph, were authored with the origin at the vertical centre of the body, so a b d p q t y need one stroke moved rather than a redraw and only 0 6 8 O c e o s are true redraws. Scope settled at 23 glyphs (the 22 plus '?'), descenders normalised to exactly +4, 17 punctuation marks exempted by an anti-widening test. SHIPPED d696f7c + c8cebad, 718 -> 729 lib tests, CI green (run 34736564259). Review returned REWORK REQUIRED on one real finding: the AC 14 test scanned EVERY stroke of Q for a lower-right point, but Q's bowl is byte-identical to O's and always supplies one, so the reviewer truncated Q's tail to (1,-3),(4,-3) and the entire suite still passed. The reviewer's second finding, that hershey.rs at 476 lines and layout.rs at 380 breach the 300-line cap, is VOID: ADR 0002 lines 371-375 count implementation lines only and exclude inline #[cfg(test)] blocks, making them 53 and 87. AC 9 was found self-contradictory by implementer and reviewer independently and is being reworded by product-owner; the code already matches the intended reading. Rework 5d48027 scoped the Q assertion to the tail stroke; reviewer re-ran three mutations (truncated tail, deleted tail stroke, Q made byte-identical to O) and all three now fail loudly. Reviewer audited the '.any()' pattern across both test files and confirmed it does not recur. Reviewer RETRACTED the 300-LOC finding. APPROVED. CI green run 34737781075."
     },
     {
       "id": "LCV-113",
-      "title": "Confirm discard on New / Open / Exit when the document is dirty",
+      "title": "Confirm discard on New / Open / Exit when the document has unsaved changes",
       "phase": 11,
       "status": "Done",
       "depends_on": [],
@@ -1079,12 +1139,12 @@
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-113-confirm-discard.md",
       "drive_order": 5,
-      "note": "Refined 27f2a85. product-owner found that History::revision()/dirty_since is NOT usable as a discard guard: autosave's flush_if_due calls mark_clean() every ~800 ms, so the prompt window would be sub-second. Introduces an independent App::saved_revision written only by mark_saved(). Requires a new src/app/file_ops.rs because src/app/mod.rs is at 293 of the 300 cap. SHIPPED 475d666 (behaviour-neutral relocation of the five action_* wrappers out of src/app/mod.rs, which was at 293/300) + a7df030 (saved_revision / has_unsaved_changes / mark_saved, PendingAction, four request_* guards, poll_close_request with ViewportCommand::CancelClose). 729 -> 746 lib, 95 -> 100 integration. CI green run 34738711513. Review returned REWORK REQUIRED on one finding: AC 3's saved_revision/autosave separation has NO automated guard. The reviewer added 'app.saved_revision = Some(app.history.revision())' inside flush_if_due's due branch -- the exact regression the demand calls existential -- and all 746 tests stayed green. flush_if_due has only one test and it exercises the clean early-return, while the demand's own regression test calls mark_clean() directly rather than flush_if_due. Fix is a source-scan test mirroring file_ops_does_not_import_eframe_or_rfd. Six other mutations all bit. Reviewer also found that inverting has_unsaved_changes fails as a HANG on rfd, not an assertion -> routed to architect, became ADR 0005 and LCV-118. Rework 1cb4ae8 promoted the AC 3 and AC 4 hand-run greps into include_str! source-scan tests (autosave_never_mentions_saved_revision, file_actions_never_calls_mark_clean in src/app/file_ops.rs). Reviewer re-added the saved_revision write inside flush_if_due and exactly one test now fails by name; confirmed the scan reads a sibling file and is not vacuous; git diff a7df030..1cb4ae8 touches only file_ops.rs +38/-0 and ui/dialogs.rs +6/-2. APPROVED. Docs closed 4f96f95.",
-      "shipped_commit": "475d666,a7df030,1cb4ae8"
+      "shipped_commit": "475d666, a7df030, 1cb4ae8",
+      "note": "Refined 27f2a85. product-owner found that History::revision()/dirty_since is NOT usable as a discard guard: autosave's flush_if_due calls mark_clean() every ~800 ms, so the prompt window would be sub-second. Introduces an independent App::saved_revision written only by mark_saved(). Requires a new src/app/file_ops.rs because src/app/mod.rs is at 293 of the 300 cap. SHIPPED 475d666 (behaviour-neutral relocation of the five action_* wrappers out of src/app/mod.rs, which was at 293/300) + a7df030 (saved_revision / has_unsaved_changes / mark_saved, PendingAction, four request_* guards, poll_close_request with ViewportCommand::CancelClose). 729 -> 746 lib, 95 -> 100 integration. CI green run 34738711513. Review returned REWORK REQUIRED on one finding: AC 3's saved_revision/autosave separation has NO automated guard. The reviewer added 'app.saved_revision = Some(app.history.revision())' inside flush_if_due's due branch -- the exact regression the demand calls existential -- and all 746 tests stayed green. flush_if_due has only one test and it exercises the clean early-return, while the demand's own regression test calls mark_clean() directly rather than flush_if_due. Fix is a source-scan test mirroring file_ops_does_not_import_eframe_or_rfd. Six other mutations all bit. Reviewer also found that inverting has_unsaved_changes fails as a HANG on rfd, not an assertion -> routed to architect, became ADR 0005 and LCV-118. Rework 1cb4ae8 promoted the AC 3 and AC 4 hand-run greps into include_str! source-scan tests (autosave_never_mentions_saved_revision, file_actions_never_calls_mark_clean in src/app/file_ops.rs). Reviewer re-added the saved_revision write inside flush_if_due and exactly one test now fails by name; confirmed the scan reads a sibling file and is not vacuous; git diff a7df030..1cb4ae8 touches only file_ops.rs +38/-0 and ui/dialogs.rs +6/-2. APPROVED. Docs closed 4f96f95."
     },
     {
       "id": "LCV-118",
-      "title": "Disarm native file dialogs outside the app binary (ADR 0005)",
+      "title": "Disarm native file dialogs outside the app binary",
       "phase": 11,
       "status": "Done",
       "depends_on": [],
@@ -1092,12 +1152,12 @@
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-118-disarm-native-dialogs.md",
       "drive_order": 6,
-      "note": "Opened from the LCV-113 review. ADR 0005 (f44eeb3) decides it. ADR 0002 A4 rule 1 and ADR 0003 F3 trap 1 ban SENDING Ctrl+O/Ctrl+S headless, which is a property of every test SITE; the hazard is a property of product LOGIC. The reviewer inverted has_unsaved_changes and a correctly-written test fell through to the real action_open(), reached rfd and HUNG the test binary -- a CI timeout with no output on all three platforms rather than a named assertion failure. Architect's shape: a private AtomicBool NATIVE_DIALOGS_ARMED in src/io/dialogs.rs with Relaxed ordering, arm_native_dialogs() called as the first statement of crate::run() in src/lib.rs, no disarm, all three wrappers PANIC when disarmed. Panic not None, because None means 'user cancelled' and is a valid return from all three, so an inverted guard would go green down a wrong path. Guard sits at the rfd boundary, NOT on App, so it also covers a test calling crate::io::action_open directly. CRITICAL: a #[cfg(test)] guard CANNOT work -- integration tests link the library as an ordinary dependency with cfg(test) OFF, so the arm would be absent from exactly the binary that hung. The decisive test is a #[should_panic] in tests/ calling the dialog directly. ~40 lines including tests. Does NOT block Marco 1 (no user-visible behaviour, unblocks nothing) but scheduled BEFORE LCV-114, because LCV-114/115 add state that guards upstream of file actions read. SHIPPED fa158c0: static NATIVE_DIALOGS_ARMED AtomicBool in src/io/dialogs.rs, require_armed() first statement of all three wrappers, arm_native_dialogs() re-exported flat from src/io/mod.rs and called first in crate::run(). 748 -> 756 lib, 100 -> 103 integration, CI green 34740729168. Implementer self-caught two self-matching source scans (a !contains(\"fn disarm\") that matched its own sibling test name disarmed_panic_cites_adr_0005, and the literal arm_native_dialogs in tests/lcv118.rs's own module doc comment) and rebuilt both needles with concat!. Review returned REWORK REQUIRED on a THIRD instance of the same bug that neither caught: run_arms_native_dialogs_as_its_first_statement did an unbounded include_str!(\"lib.rs\") whose haystack included the test's own body, so both .find() needles resolved against the test's own source. The reviewer proved all three mandated mutations PASSED, including deleting the arming call outright. Rework 5e74557 bounds the haystack to &src[..cfg_test_at] mirroring guard_is_runtime_not_cfg, and adds a commented-out-line check because pure byte ordering is insensitive to comments; all three mutations now fail by name. CI green 34741796553. Reviewer's remaining finding is structural and NOT actionable: making arm_native_dialogs() a no-op survives the whole gate, because any test that armed the flag would poison the shared AtomicBool for the rest of the binary (ADR 0005 deliberately has no disarm) or fall into a real rfd dialog and hang. Routed to LCV-089's manual smoke checklist instead (4f96f95). APPROVED. Docs closed 4f96f95 and c228edc.",
-      "shipped_commit": "fa158c0,5e74557"
+      "shipped_commit": "fa158c0, 5e74557",
+      "note": "Opened from the LCV-113 review. ADR 0005 (f44eeb3) decides it. ADR 0002 A4 rule 1 and ADR 0003 F3 trap 1 ban SENDING Ctrl+O/Ctrl+S headless, which is a property of every test SITE; the hazard is a property of product LOGIC. The reviewer inverted has_unsaved_changes and a correctly-written test fell through to the real action_open(), reached rfd and HUNG the test binary -- a CI timeout with no output on all three platforms rather than a named assertion failure. Architect's shape: a private AtomicBool NATIVE_DIALOGS_ARMED in src/io/dialogs.rs with Relaxed ordering, arm_native_dialogs() called as the first statement of crate::run() in src/lib.rs, no disarm, all three wrappers PANIC when disarmed. Panic not None, because None means 'user cancelled' and is a valid return from all three, so an inverted guard would go green down a wrong path. Guard sits at the rfd boundary, NOT on App, so it also covers a test calling crate::io::action_open directly. CRITICAL: a #[cfg(test)] guard CANNOT work -- integration tests link the library as an ordinary dependency with cfg(test) OFF, so the arm would be absent from exactly the binary that hung. The decisive test is a #[should_panic] in tests/ calling the dialog directly. ~40 lines including tests. Does NOT block Marco 1 (no user-visible behaviour, unblocks nothing) but scheduled BEFORE LCV-114, because LCV-114/115 add state that guards upstream of file actions read. SHIPPED fa158c0: static NATIVE_DIALOGS_ARMED AtomicBool in src/io/dialogs.rs, require_armed() first statement of all three wrappers, arm_native_dialogs() re-exported flat from src/io/mod.rs and called first in crate::run(). 748 -> 756 lib, 100 -> 103 integration, CI green 34740729168. Implementer self-caught two self-matching source scans (a !contains(\"fn disarm\") that matched its own sibling test name disarmed_panic_cites_adr_0005, and the literal arm_native_dialogs in tests/lcv118.rs's own module doc comment) and rebuilt both needles with concat!. Review returned REWORK REQUIRED on a THIRD instance of the same bug that neither caught: run_arms_native_dialogs_as_its_first_statement did an unbounded include_str!(\"lib.rs\") whose haystack included the test's own body, so both .find() needles resolved against the test's own source. The reviewer proved all three mandated mutations PASSED, including deleting the arming call outright. Rework 5e74557 bounds the haystack to &src[..cfg_test_at] mirroring guard_is_runtime_not_cfg, and adds a commented-out-line check because pure byte ordering is insensitive to comments; all three mutations now fail by name. CI green 34741796553. Reviewer's remaining finding is structural and NOT actionable: making arm_native_dialogs() a no-op survives the whole gate, because any test that armed the flag would poison the shared AtomicBool for the rest of the binary (ADR 0005 deliberately has no disarm) or fall into a real rfd dialog and hang. Routed to LCV-089's manual smoke checklist instead (4f96f95). APPROVED. Docs closed 4f96f95 and c228edc."
     },
     {
       "id": "LCV-114",
-      "title": "Configurable bed size (1..2000 mm), persisted in the SVG width/height and read on import",
+      "title": "Configurable bed size (1..2000 mm), stored in the document and read back on import",
       "phase": 11,
       "status": "Done",
       "depends_on": [],
@@ -1105,12 +1165,12 @@
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-114-configurable-bed-size.md",
       "drive_order": 7,
-      "note": "Refined 27f2a85. Bed size owned by Document::bed_mm (undoable, round-trips); Settings::default_bed_mm seeds File>New and cold boot only; App::bed removed. Default STAYS 400x400 (renamed DEFAULT_BED_*_MM) because re-baselining to v1's 128 would rewrite every LCV-100/LCV-057 golden fixture for zero user gain. flip_y becomes flip_y(y, bed_height_mm). Import precedence width+height > viewBox > 400x400; out-of-range is REJECTED not clamped; opening a file adopts its bed. Implementer updates the AGENTS.md LaserGRBL/SVG checklist. SHIPPED bd49c11 (25 files, +1879/-161). Document::bed_mm owns the bed; flip_y(y, bed_height) takes the axis as a parameter; new src/io/svg/header.rs parses width/height then viewBox then falls back to 400x400; SetBedSize command in src/document/commands/bed.rs; File > Bed size... dialog in src/app/bed_dialog.rs. 756 -> 806 lib, 103 -> 112 integration across 16 binaries, 5 -> 6 doc. CI green 34743397971. APPROVED ON THE FIRST PASS, a milestone first. Reviewer mutated all TEN flip_y call sites to a hardcoded 400 one at a time and every one was caught; stubbing parse_bed to the default failed 13 tests; five further mutations (clamp_bed_mm no-op, SetBedSize::undo no-op, dropped serde(default) on the envelope, Bed::from_size_mm ignoring its argument, OK committing without the unchanged-bed check) all bit. All six bounded source scans were individually shown to discriminate. Implementer disclosed four interpretations, all judged sound: Display rather than {:.4} for the header (AC 5's own wording is self-contradictory and byte-identity forces Display); SetBedSize in commands/bed.rs because commands.rs is a directory; the Settings::save() call kept in the egui half so headless tests cannot write the developer's real config; and validating a present-but-unused width/height/viewBox, which AC 9 already required literally. src/app/mod.rs now measures 296 of the 300 cap: the next App field forces the split ADR 0004 pre-decided.",
-      "shipped_commit": "bd49c11"
+      "shipped_commit": "bd49c11",
+      "note": "Refined 27f2a85. Bed size owned by Document::bed_mm (undoable, round-trips); Settings::default_bed_mm seeds File>New and cold boot only; App::bed removed. Default STAYS 400x400 (renamed DEFAULT_BED_*_MM) because re-baselining to v1's 128 would rewrite every LCV-100/LCV-057 golden fixture for zero user gain. flip_y becomes flip_y(y, bed_height_mm). Import precedence width+height > viewBox > 400x400; out-of-range is REJECTED not clamped; opening a file adopts its bed. Implementer updates the AGENTS.md LaserGRBL/SVG checklist. SHIPPED bd49c11 (25 files, +1879/-161). Document::bed_mm owns the bed; flip_y(y, bed_height) takes the axis as a parameter; new src/io/svg/header.rs parses width/height then viewBox then falls back to 400x400; SetBedSize command in src/document/commands/bed.rs; File > Bed size... dialog in src/app/bed_dialog.rs. 756 -> 806 lib, 103 -> 112 integration across 16 binaries, 5 -> 6 doc. CI green 34743397971. APPROVED ON THE FIRST PASS, a milestone first. Reviewer mutated all TEN flip_y call sites to a hardcoded 400 one at a time and every one was caught; stubbing parse_bed to the default failed 13 tests; five further mutations (clamp_bed_mm no-op, SetBedSize::undo no-op, dropped serde(default) on the envelope, Bed::from_size_mm ignoring its argument, OK committing without the unchanged-bed check) all bit. All six bounded source scans were individually shown to discriminate. Implementer disclosed four interpretations, all judged sound: Display rather than {:.4} for the header (AC 5's own wording is self-contradictory and byte-identity forces Display); SetBedSize in commands/bed.rs because commands.rs is a directory; the Settings::save() call kept in the egui half so headless tests cannot write the developer's real config; and validating a present-but-unused width/height/viewBox, which AC 9 already required literally. src/app/mod.rs now measures 296 of the 300 cap: the next App field forces the split ADR 0004 pre-decided."
     },
     {
       "id": "LCV-115",
-      "title": "Export preset selector (cut / mark / engrave) for the whole document",
+      "title": "Export preset selector (cut / mark / engrave)",
       "phase": 11,
       "status": "Done",
       "depends_on": [
@@ -1120,32 +1180,34 @@
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-115-export-preset-selector.md",
       "drive_order": 8,
-      "note": "Refined 27f2a85. Whole-document export-time preset only; per-entity preset is an explicit Non-goal with a forward pointer. State on App::export_preset, SESSION-ONLY (a sticky preset means yesterday's mark job cuts today's part), always shown as a status-bar label. Depends on LCV-114 for the shared ImportedSvg return type. SHIPPED 2f20fdd (behaviour-neutral: moved impl Default for App + App::new into src/app/init.rs, because mod.rs was at 296/300 and AC 5 adds a field; suite identical across the split) + 24e36aa. 806 -> 825 lib, 112 -> 119 integration across 18 binaries. CI green 34745657869. Byte identity for Preset::Cut verified not just by assertion but by diffing against a real git worktree at c228edc, for a line on the default bed and for line+circle+CCW arc+large CW arc on a 300x180 bed. Every source scan was mutation-verified in both directions, and one positive control ('struct DocumentEnvelope') was found too weak to catch a rename and tightened. Five interpretations disclosed: AC 7's expected-test asserts a pub(crate) fn across the crate boundary, which is unreachable, so the text assertion went to statusbar.rs and the deviation is documented in the test header and the commit message; the demand's U+25B8 glyph differs from the sibling Open Recent U+25B6; bare geometry does NOT lock in Cut, since AC 8 says first group WITH GEOMETRY; the action_new test lives only in the integration file; CHANGELOG left to demand-manager. APPROVED ON THE FIRST PASS. Reviewer reproduced the byte-identity check in real worktrees at c228edc and 422c7e7 rather than trusting the assertion, mutation-tested all six source scans plus five behavioural probes, and none survived. They judged the App-level source-scan substitute for AC 5 and AC 9 honest rather than a false green, since the kernel behaviour is exhaustively tested and only the thin wiring is scanned. Two demand-text defects confirmed for product-owner, both non-blocking: AC 7's expected test asserts a pub(crate) fn across the crate boundary, and AC 8's two sentences genuinely conflict on bare geometry followed by a populated group. Reviewer disclosed that they ran their mutations in the main checkout rather than a worktree, restoring after each and confirming a clean tree; flagged rather than hidden. Docs closed c8370fb.",
-      "shipped_commit": "2f20fdd,24e36aa"
+      "shipped_commit": "2f20fdd, 24e36aa",
+      "note": "Refined 27f2a85. Whole-document export-time preset only; per-entity preset is an explicit Non-goal with a forward pointer. State on App::export_preset, SESSION-ONLY (a sticky preset means yesterday's mark job cuts today's part), always shown as a status-bar label. Depends on LCV-114 for the shared ImportedSvg return type. SHIPPED 2f20fdd (behaviour-neutral: moved impl Default for App + App::new into src/app/init.rs, because mod.rs was at 296/300 and AC 5 adds a field; suite identical across the split) + 24e36aa. 806 -> 825 lib, 112 -> 119 integration across 18 binaries. CI green 34745657869. Byte identity for Preset::Cut verified not just by assertion but by diffing against a real git worktree at c228edc, for a line on the default bed and for line+circle+CCW arc+large CW arc on a 300x180 bed. Every source scan was mutation-verified in both directions, and one positive control ('struct DocumentEnvelope') was found too weak to catch a rename and tightened. Five interpretations disclosed: AC 7's expected-test asserts a pub(crate) fn across the crate boundary, which is unreachable, so the text assertion went to statusbar.rs and the deviation is documented in the test header and the commit message; the demand's U+25B8 glyph differs from the sibling Open Recent U+25B6; bare geometry does NOT lock in Cut, since AC 8 says first group WITH GEOMETRY; the action_new test lives only in the integration file; CHANGELOG left to demand-manager. APPROVED ON THE FIRST PASS. Reviewer reproduced the byte-identity check in real worktrees at c228edc and 422c7e7 rather than trusting the assertion, mutation-tested all six source scans plus five behavioural probes, and none survived. They judged the App-level source-scan substitute for AC 5 and AC 9 honest rather than a false green, since the kernel behaviour is exhaustively tested and only the thin wiring is scanned. Two demand-text defects confirmed for product-owner, both non-blocking: AC 7's expected test asserts a pub(crate) fn across the crate boundary, and AC 8's two sentences genuinely conflict on bare geometry followed by a populated group. Reviewer disclosed that they ran their mutations in the main checkout rather than a worktree, restoring after each and confirming a clean tree; flagged rather than hidden. Docs closed c8370fb."
     },
     {
       "id": "LCV-116",
-      "title": "Chrome: clickable SNAP/GRID/ORTHO statusbar toggles, autosave indicator, F1 shortcuts dialog, View zoom in/out",
+      "title": "Chrome completion: clickable mode toggles, autosave indicator, F1 shortcuts dialog, Ortho in the View menu",
       "phase": 11,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-116-ui-chrome-completion.md",
       "drive_order": 9,
-      "note": "Refined 27f2a85. product-owner found View>Zoom in/out ALREADY SHIPPED, so (d) shrank to a regression test plus the one real gap: Ortho/F8 has no checkbox where Grid/F7 and Snap/F3 do. Autosave indicator is three permanent states from a pure format_autosave(), no 'Ns ago' counter and no fade. Also found a latent defect: flush_if_due only runs inside a frame and nothing schedules one, so an idle dirty app may never autosave -> AC 9/10 require request_repaint_after()."
+      "shipped_commit": "fd9b4e4, 900f0c7",
+      "note": "Refined 27f2a85. product-owner found View>Zoom in/out ALREADY SHIPPED, so (d) shrank to a regression test plus the one real gap: Ortho/F8 has no checkbox where Grid/F7 and Snap/F3 do. Autosave indicator is three permanent states from a pure format_autosave(), no 'Ns ago' counter and no fade. Also found a latent defect: flush_if_due only runs inside a frame and nothing schedules one, so an idle dirty app may never autosave -> AC 9/10 require request_repaint_after(). CLOSED 2026-09-13 (Done): shipped fd9b4e4 plus 900f0c7, a Windows-only CI fix comparing a path against a forward-slash literal (no production code wrong). CI run 34747953068 green; reviewed APPROVED — the reviewer reproduced both disclosed deviations and found no surviving mutation across 20+ probes. The latent autosave defect this demand predicted was real and was fixed here (schedule_flush_repaint), and LCV-120 later made it load-bearing."
     },
     {
       "id": "LCV-119",
-      "title": "Disarm Settings persistence outside the app binary (ADR 0005 shape, second resource)",
+      "title": "Real user paths are injected: `cargo test` stops writing the developer's config and data directories",
       "phase": 11,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [],
-      "suggested_agent": "product-owner",
+      "suggested_agent": "implementer-rust",
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-119-disarm-settings-save.md",
       "drive_order": 10,
-      "note": "Opened from the LCV-114 review. action_open and action_open_path both end with an unconditional 'let _ = app.settings.save();' (src/io/file_actions.rs:59-91 and :132-156), and Settings::save() (src/io/settings.rs:162) resolves directories::ProjectDirs config_dir()/settings.json with NO test-mode guard. A test calling either would overwrite the DEVELOPER'S OWN ~/.config/lasercad/settings.json, agent_api_key included, with a test Settings::default(). Reviewer confirmed by source reading and deliberately did not execute the path. The hazard PREDATES LCV-114: git show 25e42cc shows both calls already there, dating to LCV-062. LCV-114 inherited it, correctly declined to write the AC 10 test that would have tripped it, and designed its own bed-dialog OK/Cancel split (apply_bed_dialog_result returns bool, draw_bed_dialog does the save) specifically to stay on the safe side of it. Exactly the ADR 0005 problem shape on a different resource, but WORSE to detect: rfd hangs loudly, this writes silently and is only noticed on the next real run. Reviewer's answer to 'does this warrant a follow-up demand' was an explicit yes. Not blocking for LCV-114. Demand file written c8370fb, Draft. architect must be consulted before refinement on whether this extends ADR 0005 or needs its own ADR."
+      "shipped_commit": "2d81a14, e90c3e0, 0e9c9c4",
+      "note": "Opened from the LCV-114 review. action_open and action_open_path both end with an unconditional 'let _ = app.settings.save();' (src/io/file_actions.rs:59-91 and :132-156), and Settings::save() (src/io/settings.rs:162) resolves directories::ProjectDirs config_dir()/settings.json with NO test-mode guard. A test calling either would overwrite the DEVELOPER'S OWN ~/.config/lasercad/settings.json, agent_api_key included, with a test Settings::default(). Reviewer confirmed by source reading and deliberately did not execute the path. The hazard PREDATES LCV-114: git show 25e42cc shows both calls already there, dating to LCV-062. LCV-114 inherited it, correctly declined to write the AC 10 test that would have tripped it, and designed its own bed-dialog OK/Cancel split (apply_bed_dialog_result returns bool, draw_bed_dialog does the save) specifically to stay on the safe side of it. Exactly the ADR 0005 problem shape on a different resource, but WORSE to detect: rfd hangs loudly, this writes silently and is only noticed on the next real run. Reviewer's answer to 'does this warrant a follow-up demand' was an explicit yes. Not blocking for LCV-114. Demand file written c8370fb, Draft. architect must be consulted before refinement on whether this extends ADR 0005 or needs its own ADR. CLOSED 2026-09-13 (Done): refined well past the original title — the answer was not a third one-off guard but ADR 0006, real user paths resolved once at boot and injected. Shipped 2d81a14 (implementation), e90c3e0 (rework, reviewer-approved), 0e9c9c4 (doc follow-up). Reviewed APPROVED."
     },
     {
       "id": "LCV-120",
@@ -1157,7 +1219,7 @@
       "milestone": "Marco 2",
       "demand_file": "docs/product/demands/LCV-120-viewport-busy-loop.md",
       "drive_order": 11,
-      "shipped_commit": "0e11473,f118b7c,c61f2b5",
+      "shipped_commit": "0e11473, f118b7c, c61f2b5",
       "note": "Opened from the LCV-116 review. src/app/viewport.rs:46 calls ctx.request_repaint() unconditionally under the comment 'Always repaint so cursor-coords and smooth camera motion stay live'. git blame attributes it to 0d1d52b (LCV-105). The reviewer drove the real App::update_ui through egui::Context::run on a clean idle app and measured repaint_delay at 0ns on consecutive frames. Consequence: one CPU core at 100% for the life of every session, a battery defect on a laptop. Second consequence and the reason it surfaced: it silently masks the mechanism LCV-116 AC 9 added. schedule_flush_repaint is correct and tested at its own granularity but is NOT currently what keeps autosave alive; it becomes load-bearing the moment this is fixed, so nobody may delete it as dead code. The design question is what actually needs a live repaint: cursor coordinates and smooth camera motion are both real requirements. architect and product-owner own it. Demand file written c8370fb. CLOSED 2026-09-13 (Done). The one-CPU-core-at-100% claim in this note did NOT reproduce and must not be repeated downstream: the team lead measured 0.0% of a core over 6s idle on Wayland, where the compositor throttles a surface that is not visibly changing. The real defect is that the app ASKS for frames it does not need, which is a genuine cost on any platform that does not throttle, and on battery. Shipped as a private viewport_is_live(response, app) = hovered() || dragged() || !preview_entities.is_empty() guarding the single ctx.request_repaint() in src/app/viewport.rs. The other two repaint sites were already conditional and were not touched: autosave::schedule_flush_repaint (LCV-116, now load-bearing and pinned by tests/lcv120_idle_repaint.rs) and the agent_busy-gated site in src/app/mod.rs. Commits 0e11473 (impl), f118b7c (rework from the blocking review finding), c61f2b5 (Windows-only CI fix in the AC 8 source scan, production code untouched). Reviewed APPROVED, CI green on all three platforms. Follow-up LCV-127 (Ready, phase 11) carries the untested response.dragged() term."
     },
     {
@@ -1172,6 +1234,93 @@
       "drive_order": 12,
       "shipped_commit": "d584f4d",
       "note": "First demand of Marco 2. Shipped 2026-09-13 as a single commit, d584f4d, no rework. New src/agent/wire.rs is the single declaration site for the OpenAI-compatible serde types (ChatMessage / AssistantMessage / ToolCall / ToolCallFunction / Choice / ChatResponse); src/agent/transport.rs now puts a tools array on the wire and parses tool_calls back out, returns wire::AssistantMessage instead of String, and maps HTTP 401 / 429 / 5xx onto distinct human-readable errors with no path that can leak the API key. The hardcoded \"gpt-4o\" model id and MAX_TOOL_CALLS_PER_TURN are gone: agent_model and agent_step_budget are real Settings fields (serde defaults per field, so pre-LCV-121 settings.json files still load), the budget defaults to 12 and is clamped to 1..32 at the read site (clamp_step_budget in loop_.rs, per ADR 0007 §D7 — io/settings.rs must not import crate::agent). Reviewed APPROVED with no blocking findings; the reviewer re-ran the gates independently (fmt clean, clippy clean, cargo test --all 893 lib tests / 0 failed / 1 ignored across 26 targets + 6 doc-tests) and ran a 47-mutation pass: 42 killed, 5 survivors, all five judged non-blocking (two equivalent mutants). CI run 34758445630 green on ubuntu-24.04, windows-2022 and macos-15. NO CHANGELOG ENTRY WAS WRITTEN, deliberately: nothing user-visible improved. The new settings have no UI (src/agent/settings_ui.rs still renders only Endpoint URL and API Key — the model and step-budget fields are file-only until LCV-125), and src/agent/panel.rs::submit still dispatches tool calls against a throwaway Document::default(), so between LCV-121 and LCV-123 the agent will confidently report geometry that never reaches the canvas. That is the known, accepted intermediate state recorded in ADR 0007 §'The 121→123 window' and in the release hazard in backlog.md: DO NOT TAG OR CUT A RELEASE until LCV-123 is Done. THREE CARRIED ITEMS, all routed to LCV-123 (where a human first points the transport at a real endpoint) and none of them acted on here: (1) no test anywhere asserts the Authorization header exists — deleting .bearer_auth(api_key) from src/agent/transport.rs:128 leaves the whole suite green; pre-existing since LCV-077, but LCV-121 rewrote all twelve of those tests without closing it. (2) ChatMessage::assistant_with_tool_calls is never called with Some(content) anywhere in src/, so prose a model emits alongside its tool calls is silently dropped from the conversation it reads back. (3) tests/lcv121_source_scans.rs skips comment lines for every scan, so a hardcoded model id reintroduced inside a // comment would survive; behaviourally inert, the real property is pinned elsewhere."
+    },
+    {
+      "id": "LCV-122",
+      "title": "The bridge: one action, one command, one undo entry",
+      "phase": 12,
+      "status": "Ready",
+      "depends_on": [
+        "LCV-121"
+      ],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 2",
+      "demand_file": "docs/product/demands/LCV-122-agent-bridge-and-composite-undo.md",
+      "drive_order": 13,
+      "note": "Second of the five Marco 2 demands; blocked behind LCV-121 (Done, d584f4d). Splits tools.rs::dispatch_tool_call in two: validation is pure and stays agent-side, committing needs &mut App and moves UI-side, because ADR 0007 §D1 forbids the background thread from owning a Document. Introduces the missing AgentAction value type (the model's intent as something that can cross a channel) and a CompositeCommand so one request is one undo entry — four CreateLine commits for a 20 mm square must take one Ctrl+Z, not four. Also moves the channel payload out of panel.rs, which imports egui and crate::app."
+    },
+    {
+      "id": "LCV-123",
+      "title": "The agent turn draws on the operator's real drawing",
+      "phase": 12,
+      "status": "Ready",
+      "depends_on": [
+        "LCV-121",
+        "LCV-122"
+      ],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 2",
+      "demand_file": "docs/product/demands/LCV-123-agent-turn-mutates-the-live-drawing.md",
+      "drive_order": 14,
+      "note": "The demand that closes the CHANGELOG's 'reads and narrates but does not modify' sentence, and the one that shuts the release hazard. panel.rs::submit today runs the whole turn against a throwaway Document::default() and drops it when the thread ends; only the final assistant string survives. Worse since LCV-121, because the model can now actually call the tools. DO NOT TAG UNTIL THIS IS DONE. This is also where a human first points the transport at a real endpoint, so it carries the three non-blocking items from the LCV-121 review: (1) no test asserts the Authorization header exists — deleting .bearer_auth(api_key) from transport.rs:128 leaves the suite green (pre-existing since LCV-077); (2) ChatMessage::assistant_with_tool_calls is never called with Some(content), so prose emitted alongside tool calls is dropped from the conversation the model reads back; (3) tests/lcv121_source_scans.rs skips comment lines, so a hardcoded model id inside a // comment would survive (behaviourally inert, the real property is pinned elsewhere)."
+    },
+    {
+      "id": "LCV-124",
+      "title": "The command line can reach the agent",
+      "phase": 12,
+      "status": "Ready",
+      "depends_on": [
+        "LCV-123"
+      ],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 2",
+      "demand_file": "docs/product/demands/LCV-124-command-line-routes-to-the-agent.md",
+      "drive_order": 15,
+      "note": "Parallelizable with LCV-125 once LCV-123 is Done. Keyboard-first routing: ':' and '/ai' from the command line reach the agent, so the operator never has to leave the keyboard for the mouse-only side panel. src/agent/classifier.rs is named in PLAN.md's module tree and in ADR 0007 §D8's file table and does not exist yet; the routing decision belongs where app/cmdline.rs::submit currently produces CommandInput::Unknown. PLAN.md's LCV-080 row has always claimed this behaviour."
+    },
+    {
+      "id": "LCV-125",
+      "title": "The panel shows what the agent did to the drawing",
+      "phase": 12,
+      "status": "Ready",
+      "depends_on": [
+        "LCV-121",
+        "LCV-123"
+      ],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Marco 2",
+      "demand_file": "docs/product/demands/LCV-125-agent-panel-and-settings-earn-their-keep.md",
+      "drive_order": 15,
+      "note": "Parallelizable with LCV-124 once LCV-123 is Done. Two gaps: (a) the transcript is unreadable — panel.rs renders four role values and drops everything else into a grey ui.label, which is where ADR 0007 §D5's index-shift disclosure and the end-of-turn undo-shape note currently land; if the operator cannot pick those out of the column the disclosure does not exist. (b) The two settings LCV-121 added are unreachable: Settings::agent_model and Settings::agent_step_budget are honoured, but settings_ui.rs still draws only Endpoint URL and API Key. This demand is the ONLY reason it is honest to describe those settings as user-facing, which is why LCV-121 shipped with no CHANGELOG entry."
+    },
+    {
+      "id": "LCV-127",
+      "title": "The drag term of `viewport_is_live` has no behavioural test",
+      "phase": 11,
+      "status": "Ready",
+      "depends_on": [
+        "LCV-120"
+      ],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Phase 11 follow-up (outside the Marco 2 drive)",
+      "demand_file": "docs/product/demands/LCV-127-drag-term-has-no-behavioural-test.md",
+      "drive_order": 16,
+      "note": "Opened from the LCV-120 review and unblocked by it (LCV-120 Done: 0e11473, f118b7c, c61f2b5). viewport_is_live = hovered() || dragged() || !preview_entities.is_empty(); the hovered and preview terms each have a behavioural witness with a negative control in tests/lcv120_idle_repaint.rs, but dragged() has none — only a source scan proving the text is present, which says nothing about what happens when the operator pans. Not academic: dragged() is what keeps the camera moving while the middle button is held, so if it regresses a pan stutters or freezes mid-stroke. Phase 11, not part of the Marco 2 drive."
+    },
+    {
+      "id": "LCV-126",
+      "title": "The F1 shortcuts dialog does not mention the command line",
+      "phase": 11,
+      "status": "Draft",
+      "depends_on": [
+        "LCV-116",
+        "LCV-111"
+      ],
+      "suggested_agent": "implementer-rust",
+      "milestone": "Phase 11 follow-up (outside the Marco 2 drive)",
+      "demand_file": "docs/product/demands/LCV-126-shortcuts-dialog-documents-the-command-line.md",
+      "drive_order": 17,
+      "note": "Draft — NEXT AGENT IS product-owner, not implementer-rust: the Status line still reads Draft even though the file already carries a full Problem / Scope / Out of scope / Acceptance criteria / Expected tests body. Someone must decide whether refinement is actually finished before this is driven. The gap itself: the F1 shortcuts dialog LCV-116 shipped does not mention the command line that LCV-110/111/112 shipped. Phase 11, not part of the Marco 2 drive."
     }
   ]
 }
