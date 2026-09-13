@@ -59,7 +59,17 @@ src/
 
 Hard rules on the tree:
 
-- **One responsibility per file.** Hard cap: **300 LOC per `.rs`**. If you'd cross it, split (or route to `architect`).
+- **One responsibility per file.** Hard cap: **300 _implementation_ LOC per `.rs`**. Implementation LOC = total lines **minus** the top-level `#[cfg(test)] mod tests` block and everything after it. Inline tests are free; do not ration them. Measure it, never `wc -l` it:
+
+  ```bash
+  awk '/^#\[cfg\(test\)\]/{print NR-1; f=1; exit} END{if(!f) print NR}' <file>
+  ```
+
+  The anchor is a **bare `#[cfg(test)]` at column 0**. A pattern that matches `#[cfg(test)]` anywhere on a line also matches doc-comment prose and gives a wrong count (it scores `src/app/mod.rs` at 153; the real number is 287). Witnesses: `src/text/hershey.rs` → 53, `src/text/layout.rs` → 87, `src/app/file_ops.rs` → 281.
+
+  Exempt: a file that is **only** a `const`/`static` data table with no `fn` (`src/text/hershey_data.rs`), and a file that is **only** test code, declared from its parent as `#[cfg(test)] mod tests;` (`src/geometry/snap/tests.rs`). No other exemption exists.
+
+  If you'd cross the cap, split (or route to `architect`). Between 270 and 300, do **not** split on sight — flag it to `architect`, who records the seam for the demand that eventually crosses. Full rule: [ADR 0004](docs/adr/0004-measuring-the-300-loc-cap.md), extending [ADR 0002](docs/adr/0002-headless-input-tests-and-dirty-tracking.md) §"The 300-LOC cap and `src/app.rs`".
 - **Each `mod.rs` re-exports its module's public surface.** No deep-path imports from outside the module.
 
 ### Purity rule
@@ -152,7 +162,7 @@ If you are the main Claude Code agent and the user asks for project work, defaul
 - **All entity mutation through `Command` trait + history stack.** No direct `Document.entities` mutation outside `document::commands` and `document::history`.
 - **No `unsafe`** without an inline justification and an ADR.
 - **No `unwrap()` / `expect()`** in library code except where an invariant is documented; tests can unwrap.
-- **One responsibility per file**, ≤300 LOC.
+- **One responsibility per file**, ≤300 **implementation** LOC — total lines minus the inline `#[cfg(test)] mod tests` block. Measure it with the `awk` recipe in §Module tree; `wc -l` is not the rule and has already produced a false blocking review finding. See [ADR 0004](docs/adr/0004-measuring-the-300-loc-cap.md).
 - **Doc comments** on `pub` items; module headers on `mod.rs`.
 - **Tests**: `#[cfg(test)] mod tests` next to implementation for unit, `tests/` for integration. Add a test per acceptance criterion.
 - **Before declaring a demand done**: run `cargo fmt --all && cargo clippy --all-targets -- -D warnings && cargo test --all`. All three must be green.
@@ -186,6 +196,7 @@ Default answers:
 - [`docs/adr/0001-pure-rust-egui.md`](docs/adr/0001-pure-rust-egui.md) — framework decision.
 - [`docs/adr/0002-headless-input-tests-and-dirty-tracking.md`](docs/adr/0002-headless-input-tests-and-dirty-tracking.md) — headless `App::update_ui` regression-test pattern, the single keyboard gate, and `History::revision()` as the autosave dirty signal.
 - [`docs/adr/0003-command-line-input-contract.md`](docs/adr/0003-command-line-input-contract.md) — the command-line input contract: the `cmdline` kernel module, `ToolKind`/`ToggleKind`/`ZoomKind`, the recall ring, and the `Tool::on_command_input` wiring.
+- [`docs/adr/0004-measuring-the-300-loc-cap.md`](docs/adr/0004-measuring-the-300-loc-cap.md) — how the 300-LOC cap is counted and measured, its two exemptions, and the "name the seam at 270, split at 300" rule.
 - [`docs/product/README.md`](docs/product/README.md) — product principles.
 - [`docs/product/product-owner-agent.md`](docs/product/product-owner-agent.md) — demand format and lifecycle.
 - [`docs/product/backlog.md`](docs/product/backlog.md) — prioritized backlog by state.
