@@ -367,7 +367,6 @@ mod tests {
         );
         for claim in [
             concat!("smooth ", "camera"),
-            concat!("anim", "ation"),
             concat!("anim", "at"),
             concat!("Always ", "repaint"),
         ] {
@@ -396,16 +395,26 @@ mod tests {
             files.len()
         );
 
-        let needle = concat!("ctx.request_", "repaint");
+        // AC 8's needle, deliberately un-prefixed: `ui.ctx().request_repaint()`
+        // is the natural spelling inside a panel closure — which is exactly
+        // where future frame work lands — and a `ctx.`-prefixed needle walks
+        // straight past it. Comment lines are skipped so the broadened needle
+        // does not match doc prose such as `src/app/autosave.rs`'s header.
+        let needle = concat!("request_", "repaint");
         let mut sites = Vec::new();
         for path in &files {
             let src = std::fs::read_to_string(path).expect("a readable source file");
             let lines: Vec<&str> = implementation_or_all(&src).lines().collect();
             for (i, line) in lines.iter().enumerate() {
-                if !line.contains(needle) {
+                if !line.contains(needle) || line.trim().starts_with("//") {
                     continue;
                 }
                 // The nearest preceding statement, comments and blanks skipped.
+                // The accepted shape is deliberately narrow: the guard must be
+                // the `if` that opens the block the call sits in. A correctly
+                // guarded call that is not the first statement of its block
+                // fails this — on purpose, because the bias here is to fail and
+                // be looked at rather than to wave a fourth site through.
                 let guard = lines[..i]
                     .iter()
                     .rev()

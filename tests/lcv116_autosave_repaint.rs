@@ -34,8 +34,9 @@
 //! `schedule_flush_repaint` itself, driven through a genuine
 //! `egui::Context::run`: a failure here names the scheduler rather than the
 //! whole frame, and the shrinking-deadline and going-clean cases below are not
-//! visible from `update_ui`. `src/app/mod.rs` carries a bounded source scan
-//! pinning that `update_ui` still calls it, immediately after the flush.
+//! visible from `update_ui`. `the_agent_repaint_is_untouched_by_the_autosave_schedule`
+//! below is a bounded source scan over `src/app/mod.rs` pinning that
+//! `update_ui` still calls it, immediately after the flush.
 //!
 //! No test here lets the debounce actually elapse: every `dirty_since` is
 //! freshly stamped and `flush_if_due` is never called, because what is under

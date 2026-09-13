@@ -180,8 +180,10 @@ fn a_pointer_outside_the_canvas_lets_the_app_idle() {
 /// call from `update_ui` and this reads `Duration::MAX`: an app that sleeps
 /// forever and never writes the operator's work (LCV-116 AC 10).
 ///
-/// ADR 0002 §A4 rule 2 is respected: the stamp is fresh, nothing sleeps, the
-/// debounce never elapses, and `autosave_path` is `None` anyway.
+/// The `dirty_since` stamp is fresh and nothing here sleeps, so the debounce
+/// never elapses — a matter of focus, not of safety: since LCV-119 / ADR 0006
+/// this `App` carries `autosave_path: None`, so even a fired flush would write
+/// nothing anywhere (ADR 0002 §A4 rule 2 as amended).
 #[test]
 fn a_pending_autosave_still_wakes_an_idle_app() {
     let (ctx, mut app, _canvas) = boot(App {
