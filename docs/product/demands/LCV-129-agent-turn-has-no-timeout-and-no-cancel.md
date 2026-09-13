@@ -1,11 +1,11 @@
 # LCV-129 — A hung endpoint wedges the app: the agent turn has no timeout and no cancel
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 12
 - **Depends on**: LCV-123 (the live turn a cancel must end through), LCV-125 (file-level: both edit `src/agent/panel.rs`, and LCV-125 closes the transcript role vocabulary this demand must not widen — LCV-125 lands first)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: d7b72c5 (timeout), 9d9d04e (cancel)
 
 ## Problem
 
