@@ -421,14 +421,24 @@ mod tests {
                     .map(|l| l.trim())
                     .find(|l| !l.is_empty() && !l.starts_with("//"))
                     .unwrap_or("");
+                // Forward slashes on every platform: rendering the whole path
+                // with `to_string_lossy` or `Path::display` emits `\` on
+                // Windows and turns the comparison below into a CI-only
+                // failure (AGENTS.md §Implementation Rules; LCV-116 fixed the
+                // same trap at `900f0c7`).
                 let relative = path
                     .strip_prefix(&root)
                     .expect("every walked file is under src/")
-                    .to_string_lossy()
-                    .into_owned();
+                    .components()
+                    .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                    .collect::<Vec<_>>()
+                    .join("/");
                 sites.push((relative, guard.to_string()));
             }
         }
+        // Sorted on the rendered path, so the order cannot depend on where the
+        // platform separator sorts relative to the file names either.
+        sites.sort();
 
         let files: Vec<&str> = sites.iter().map(|(f, _)| f.as_str()).collect();
         assert_eq!(

@@ -176,6 +176,7 @@ If you are the main Claude Code agent and the user asks for project work, defaul
 - **One responsibility per file**, ≤300 **implementation** LOC — total lines minus the inline `#[cfg(test)] mod tests` block. Measure it with the `awk` recipe in §Module tree; `wc -l` is not the rule and has already produced a false blocking review finding. See [ADR 0004](docs/adr/0004-measuring-the-300-loc-cap.md).
 - **Doc comments** on `pub` items; module headers on `mod.rs`.
 - **Tests**: `#[cfg(test)] mod tests` next to implementation for unit, `tests/` for integration. Add a test per acceptance criterion.
+- **A source scan that compares a path against a literal must rebuild the path from `components()` joined with `/`** — never `Path::display()` or `to_string_lossy()` on the whole path, which emit `\` on Windows and make the scan pass on Linux and macOS while failing only in CI. Rendering a path into a *failure message* is fine; comparing one is not. This has now broken CI twice: `f1_has_exactly_one_reader` (fixed at `900f0c7`) and `every_repaint_request_in_src_is_conditional` (LCV-120, windows-2022 run 34755208521). Sort on the rendered string too, so the order cannot depend on where the separator sorts.
 - **Before declaring a demand done**: run `cargo fmt --all && cargo clippy --all-targets -- -D warnings && cargo test --all`. All three must be green.
 
 ## Product Philosophy
