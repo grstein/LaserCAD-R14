@@ -7,15 +7,14 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
 | LCV-127 | The drag term of `viewport_is_live` has no behavioural test | 11 | LCV-120 |
-| LCV-122 | The bridge: one action, one command, one undo entry | 12 | LCV-121 |
 | LCV-123 | The agent turn draws on the operator's real drawing | 12 | LCV-121, LCV-122 |
 | LCV-124 | The command line can reach the agent | 12 | LCV-123 |
 | LCV-125 | The panel shows what the agent did to the drawing | 12 | LCV-121, LCV-123 |
 
 **Marco 2 drive order**: LCV-121 → LCV-122 → LCV-123 run as one unbroken
 sequence — do not start the next until the previous one is `Done`. LCV-121 is
-`Done` (d584f4d); LCV-122 is next. Once LCV-123 ships, LCV-124 and LCV-125 may
-run in parallel.
+`Done` (d584f4d) and LCV-122 is `Done` (61d609b…ff267ec); LCV-123 is next. Once
+LCV-123 ships, LCV-124 and LCV-125 may run in parallel.
 
 > **Release hazard, LCV-121 → LCV-123 — LIVE SINCE 2026-09-13 (do not tag or
 > cut a release in this window).** LCV-121 has shipped, so the transport can
@@ -23,7 +22,9 @@ run in parallel.
 > a throwaway `Document::default()` until LCV-123 ships — the agent will
 > confidently report geometry that never appears on the operator's canvas.
 > The application is strictly worse in this window than it was before
-> LCV-121. This hazard closes the moment LCV-123 reaches `Done`.
+> LCV-121. **LCV-122 shipping does not close it**: LCV-122 built the bridge
+> and left the throwaway document in place by design (its own §Out of scope).
+> This hazard closes the moment LCV-123 reaches `Done`.
 
 ## In Progress
 
@@ -131,6 +132,7 @@ _None._
 | LCV-119 | Real user paths are injected: `cargo test` stops writing the developer's config and data directories | 11 | 2026-09-13 | 2d81a14, e90c3e0, 0e9c9c4 |
 | LCV-120 | The viewport never lets the app idle | 11 | 2026-09-13 | 0e11473, f118b7c, c61f2b5 |
 | LCV-121 | The transport speaks tool calls | 12 | 2026-09-13 | d584f4d |
+| LCV-122 | The bridge: one action, one command, one undo entry | 12 | 2026-09-13 | 61d609b, 2a7a9b4, ccaaf6e, ff267ec |
 
 ## Blocked
 

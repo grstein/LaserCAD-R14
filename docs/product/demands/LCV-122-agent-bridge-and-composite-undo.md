@@ -1,11 +1,52 @@
 # LCV-122 — The bridge: one action, one command, one undo entry
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 12
 - **Depends on**: LCV-121
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: implementer-rust — `61d609b` (the bridge, `CompositeCommand`,
+  `History::coalesce_last`, `TurnFence`, `src/app/agent_apply.rs`), `2a7a9b4`
+  (rework, the one blocking review finding: pin the coalescing gate's anchor and
+  the fourth turn exit), `ccaaf6e` (behaviour change, recorded below), `ff267ec`
+  (state `agent_poll`'s turn-exit rule as a property, not a count). Read together
+  with `83eb2ff`, which amended
+  [ADR 0007](../../adr/0007-agent-turn-mutates-the-live-document.md) §D11
+  mid-flight from three turn exits to four — this demand cannot be understood
+  without it. Reviewed, **APPROVED** at `ff267ec` after one rework round. The
+  reviewer re-ran the gates independently: `cargo fmt --all -- --check` clean,
+  `cargo clippy --all-targets -- -D warnings` clean,
+  `cargo test --all --no-fail-fast` **1105 passed / 0 failed / 2 ignored** across
+  27 binaries, and `cargo doc --no-deps` back to the 47-warning baseline —
+  verified by diffing warning *locations* against `4f6db6d`, not by trusting the
+  count. The blocking mutant is now caught by one test, by name, and by no other
+  in the suite; six mutations of the new behaviour were all caught. CI green on
+  ubuntu-24.04, windows-2022 and macos-15.
+
+  **Behaviour change at `ccaaf6e`, which was not in this demand.**
+  Mid-implementation the architect amended ADR 0007 §D11 to enumerate four turn
+  exits rather than three. The fourth is the reply channel's receiver being gone
+  while the UI thread holds an action — the worker has vanished mid-action. It
+  used to end the turn silently; it now writes the same `AGENT_LOST_MESSAGE`
+  error row as a disconnected channel (`src/app/agent_poll.rs`). The reviewer
+  raised this as optional and recommended it become a separate demand;
+  `project-manager` promoted it to blocking over that recommendation, because a
+  turn that never ends leaves `agent_busy` latched, and `src/app/mod.rs` requests
+  a repaint every frame while it is set. That is LCV-120 reopening one day after
+  it closed.
+
+  **No `CHANGELOG.md` entry, deliberately** — the same call as LCV-121 and for
+  the same reason. Nothing is operator-visible yet: `src/agent/panel.rs::submit`
+  still dispatches against a throwaway `Document::default()`, so the agent's
+  edits stay invisible on canvas until LCV-123, and the CHANGELOG's "can read and
+  narrate the drawing but does not yet modify it end-to-end from chat" is still
+  accurate. The replacement line is drafted and filed for LCV-123.
+
+  **One correction for the record, so it is not repeated downstream:** the
+  implementer's first report claimed every line added to `src/app/mod.rs` was
+  test code. Under ADR 0004's `awk` recipe, which counts implementation LOC only,
+  that file went **265 → 274**. Harmless and well under the cap, but the claim
+  was wrong.
 
 ## Problem
 
