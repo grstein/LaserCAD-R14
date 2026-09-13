@@ -360,23 +360,44 @@ mod tests {
 
     /// AC 14: `Q` keeps a real tail that leaves the bowl at the lower right
     /// and stops on the baseline — it did not quietly become an `O`.
+    ///
+    /// Every claim about the tail is scoped to the tail stroke. `Q`'s bowl is
+    /// byte-identical to `O`'s, and on its own it already offers a lower-right
+    /// point and a point on the baseline, so an "any stroke" predicate is
+    /// satisfied by the bowl alone and sleeps through a truncated tail.
     #[test]
     fn q_keeps_a_baseline_tail_and_differs_from_o() {
         let q = glyph_strokes('Q');
-        assert!(q.len() >= 2, "'Q' must keep its tail as a second stroke");
-        for &(x, y) in q.iter().flat_map(|stroke| stroke.iter()) {
-            assert!(y <= 0, "'Q' point ({x},{y}) dips below the baseline");
-        }
+        let o = glyph_strokes('O');
+        assert_eq!(o.len(), 1, "'O' must stay a single closed outline");
+        assert_eq!(
+            q.len(),
+            2,
+            "'Q' must be a bowl plus exactly one tail stroke"
+        );
+        let (bowl, tail) = (q[0], q[1]);
+        assert_eq!(
+            bowl, o[0],
+            "'Q' bowl must stay identical to 'O' — the tail is the only difference",
+        );
         assert!(
-            q.iter()
-                .any(|stroke| stroke.iter().any(|&(x, y)| x >= 4 && y >= -3)),
-            "'Q' must keep a tail point at the lower right (x >= 4, y >= -3)",
+            tail.len() >= 2,
+            "'Q' tail {tail:?} is not a drawable stroke"
         );
-        assert_ne!(
-            format!("{:?}", glyph_strokes('Q')),
-            format!("{:?}", glyph_strokes('O')),
-            "'Q' must stay distinguishable from 'O'",
+        assert!(
+            tail.iter().any(|&(x, y)| x >= 4 && y == 0),
+            "'Q' tail {tail:?} must reach the baseline at the lower right \
+             (a point with x >= 4 and y == 0); a tail that stops short leaves \
+             'Q' looking like an 'O' with a nick in it",
         );
+        assert!(
+            tail.iter().any(|&(_, y)| y <= -2),
+            "'Q' tail {tail:?} must leave the bowl from inside it, not sit \
+             flat on the baseline",
+        );
+        for &(x, y) in tail {
+            assert!(y <= 0, "'Q' tail point ({x},{y}) dips below the baseline");
+        }
     }
 
     /// AC 15: the repair introduced no stroke that `layout_text` would drop.
