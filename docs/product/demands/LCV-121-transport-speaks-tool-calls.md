@@ -1,11 +1,11 @@
 # LCV-121 — The transport speaks tool calls
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 12
 - **Depends on**: none (first demand of Marco 2; blocks LCV-122, LCV-123, LCV-125)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: implementer-rust — d584f4d (single commit, no rework). Reviewed, APPROVED with no blocking findings: the reviewer independently re-ran the gates (`cargo fmt --all -- --check` clean, `cargo clippy --all-targets -- -D warnings` clean, `cargo test --all` 893 lib tests / 0 failed / 1 ignored across 26 targets plus 6 doc-tests) and a 47-mutation pass (42 killed, 5 survivors — two equivalent mutants, three non-blocking carried items routed to LCV-123 and recorded in `.claude/backlog.json`). CI run 34758445630 green on ubuntu-24.04, windows-2022 and macos-15. The LCV-121 → LCV-123 release hazard in §Risks is now live: do not tag until LCV-123 is `Done`.
 
 ## Problem
 
