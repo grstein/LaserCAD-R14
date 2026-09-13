@@ -298,7 +298,10 @@ mod tests {
             concat!("AGENT_STEP_BUDGET_", "MIN"),
             concat!("AGENT_STEP_BUDGET_", "MAX"),
             concat!("\"Steps per ", "turn\""),
-            concat!("STEP_BUDGET_", "HELP"),
+            // Anchored at the call site, not on the name: `STEP_BUDGET_HELP`
+            // alone is satisfied by the `const` declaration, so deleting the
+            // label that renders it would leave this scan green.
+            concat!("RichText::new(STEP_BUDGET_", "HELP)"),
         ] {
             assert!(
                 implementation.contains(needle),

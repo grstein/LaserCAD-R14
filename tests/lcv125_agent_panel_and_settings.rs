@@ -3,17 +3,25 @@
 //!
 //! ## What these tests can and cannot prove
 //!
-//! `egui` 0.29.1 has no way to assert a rendered pixel (`egui_kittest` needs
-//! ≥ 0.30 and is out of scope, ADR 0002). So every criterion about *appearance*
-//! is covered in three parts, and the test names say which part they are:
+//! `egui` 0.29.1 has no way to assert a rendered *pixel* (`egui_kittest` needs
+//! ≥ 0.30 and is out of scope, ADR 0002). It does have a way to assert a
+//! rendered *string*: `Context::run` returns the paint list, and every
+//! `Shape::Text` in it carries the exact text and the position it was laid out
+//! at. So every criterion about appearance is covered in four parts, and the
+//! test names say which part they are:
 //!
 //! - a **bounded source scan** in the module under test, pinning the call that
 //!   produces the appearance — `src/agent/panel.rs`, `src/agent/settings_ui.rs`
 //!   and `src/app/panels.rs` carry theirs inline;
 //! - a **headless frame** here, proving the path runs on a real `App` without
 //!   panicking and leaves the state it is supposed to leave;
+//! - a **paint-list assertion** here ([`painted_lines`]), proving the call it
+//!   pinned actually ran and put those strings on the screen in that order.
+//!   A scan cannot do this: the loop between `agent_chat` and `draw_chat_row`
+//!   is a call no scan observes, and wrapping it, reversing it or skipping a
+//!   role leaves every scan in this demand green;
 //! - the reviewer's eye and the manual smoke, which are the actual acceptance
-//!   for "is it legible".
+//!   for "is it legible" — colour and font size are still not asserted here.
 //!
 //! No test here reaches the network: a turn is driven through LCV-123's
 //! `arm_turn` seam, which hands back the `Sender` the worker thread would have
@@ -32,6 +40,10 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 /// A recognisable key that must never appear anywhere the operator can read.
 /// Built with `concat!` so a grep for the whole string finds no copy of it.
 const DUMMY_KEY: &str = concat!("sk-test-", "DO-NOT-LEAK");
+
+/// A marker no other string in the application carries, so a painted run
+/// carrying it can only have come from a transcript row this test pushed.
+const ROW_MARK: &str = "LCV125ROW";
 
 /// The six roles LCV-123 writes, plus one this build does not know.
 const EVERY_ROLE: [&str; 7] = [
@@ -88,6 +100,129 @@ fn tempdir(name: &str) -> PathBuf {
     dir
 }
 
+// ── Painted text: what actually reached the screen ──────────────────────────
+
+/// One painted text run: the surface it was clipped to, the y it was laid out
+/// at, the x it starts at, and the string inside it. Positions are rounded to
+/// whole points; every test that reads them runs at `pixels_per_point = 1.0`.
+struct Run {
+    clip: egui::Rect,
+    y: i32,
+    x: i32,
+    text: String,
+}
+
+/// Vertical slack, in points, within which two runs on one surface count as
+/// sitting on the same visual line.
+///
+/// A `Grid` row's label and its widget's text are laid out on baselines that
+/// differ by a point, so an exact match would split `API Key` from its value;
+/// the panel heading and its × differ by four. The closest two genuinely
+/// different lines on either surface under test are 13 points apart, so 6
+/// separates them with room on both sides.
+const SAME_LINE: i32 = 6;
+
+/// Every `Shape::Text` under `shape`, including those nested inside a
+/// `Shape::Vec`, which is how egui groups a widget's own painting.
+fn collect_text(clip: egui::Rect, shape: &egui::Shape, out: &mut Vec<Run>) {
+    match shape {
+        egui::Shape::Text(text) => out.push(Run {
+            clip,
+            y: text.pos.y.round() as i32,
+            x: text.pos.x.round() as i32,
+            text: text.galley.text().to_owned(),
+        }),
+        egui::Shape::Vec(shapes) => shapes.iter().for_each(|s| collect_text(clip, s, out)),
+        _ => {}
+    }
+}
+
+/// Drive one frame and hand back every non-empty text run egui painted.
+///
+/// This is the part no source scan can reach. A scan proves a call is
+/// *written*; this proves it *ran*, that its output reached the paint list, and
+/// where it landed relative to everything else on its surface.
+///
+/// Empty runs are dropped: egui emits a `Shape::Text` with an empty galley for
+/// an empty `TextEdit`, and it carries nothing an operator can read. Dropping
+/// them is also what makes the line `["API Key"]` below mean *the key field
+/// shows nothing at all*.
+fn painted_runs(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
+    let out = ctx.run(harness::raw_input(Vec::new()), |ctx| app.update_ui(ctx));
+    let mut runs = Vec::new();
+    for clipped in &out.shapes {
+        collect_text(clipped.clip_rect, &clipped.shape, &mut runs);
+    }
+    runs.retain(|run| !run.text.is_empty());
+    assert!(
+        runs.len() > 10,
+        "positive control: a frame of this app paints text, saw {} runs",
+        runs.len()
+    );
+    runs
+}
+
+/// Every visual line painted on the same surface as the run reading `marker`,
+/// top to bottom, each line read left to right, carrying the y it starts at.
+///
+/// The scope matters: one frame paints five surfaces and their rows interleave
+/// vertically — the toolbar's `Polyline` lands six points from the transcript's
+/// second row — so grouping the whole frame by y would braid them together.
+/// "Same surface" is `ClippedShape::clip_rect` containment. egui clips a
+/// panel's contents to the panel and a scroll area's contents to a rect inside
+/// it, so every run belonging to a surface is clipped to a rect inside that
+/// surface's, and no run from another one is.
+///
+/// `marker` must therefore be a run inside the surface, not its window title:
+/// a `Window`'s title is clipped to the whole screen, which contains
+/// everything.
+fn lines_on_surface_of(runs: &[Run], marker: &str) -> Vec<(i32, Vec<String>)> {
+    let matches: Vec<&Run> = runs.iter().filter(|run| run.text == marker).collect();
+    assert_eq!(
+        matches.len(),
+        1,
+        "`{marker}` must be painted exactly once, saw {} times",
+        matches.len()
+    );
+    let surface = matches[0].clip;
+
+    let mut scoped: Vec<&Run> = runs
+        .iter()
+        .filter(|run| surface.contains_rect(run.clip))
+        .collect();
+    assert!(
+        scoped.len() < runs.len(),
+        "positive control: the surface must be narrower than the frame"
+    );
+    scoped.sort_by_key(|run| (run.y, run.x));
+
+    let mut lines: Vec<(i32, Vec<&Run>)> = Vec::new();
+    for run in scoped {
+        match lines.last_mut() {
+            Some((top, members)) if run.y - *top <= SAME_LINE => members.push(run),
+            _ => lines.push((run.y, vec![run])),
+        }
+    }
+    // Read each line left to right. Grouping walked the runs in y order, and
+    // within one line that is not x order: a `Grid`'s widget text sits a point
+    // *above* its own label, so the value would otherwise be read first.
+    lines
+        .into_iter()
+        .map(|(top, mut members)| {
+            members.sort_by_key(|run| run.x);
+            (
+                top,
+                members.into_iter().map(|run| run.text.clone()).collect(),
+            )
+        })
+        .collect()
+}
+
+/// The texts of `lines`, dropping the y each was laid out at.
+fn texts(lines: &[(i32, Vec<String>)]) -> Vec<Vec<String>> {
+    lines.iter().map(|(_, t)| t.clone()).collect()
+}
+
 // ── AC 1: every role renders, including one nobody wrote ────────────────────
 
 /// AC 1 — **headless frame**: one row of each of the six roles plus one role
@@ -116,6 +251,81 @@ fn ac1_every_role_including_an_unknown_one_renders_headless_frame() {
     );
     assert!(app.agent_panel_open, "the panel stayed open");
     assert!(app.error_message.is_none(), "no modal was raised");
+}
+
+/// AC 2 / AC 4 / AC 5 — **painted output**: the seven rows really reach the
+/// screen, one line each, in `agent_chat` order, directly under the panel
+/// heading, carrying the markers the tool and refused rows are supposed to
+/// carry.
+///
+/// This is the assertion the source scans cannot make. Every scan in this
+/// demand pins a call that is *written*; the loop at `src/agent/panel.rs` that
+/// feeds `draw_chat_row` is a call nothing observed, and wrapping it in a
+/// `horizontal_wrapped`, iterating it with `.rev()`, or skipping a role inside
+/// it leaves the whole suite green. Each of those turns this vector into a
+/// different vector.
+///
+/// Anchored on the heading rather than on the row text, so a line appearing
+/// *between* two rows fails too.
+#[test]
+fn ac2_ac4_ac5_the_seven_rows_are_painted_one_line_each_in_order() {
+    let (ctx, mut app) = ctx_and_app();
+    app.agent_panel_open = true;
+    for role in EVERY_ROLE {
+        app.agent_chat
+            .push((role.to_owned(), format!("{ROW_MARK}-{role}")));
+    }
+
+    // Two frames: egui sizes a layout on the first and paints it settled on the
+    // second.
+    let _ = painted_runs(&ctx, &mut app);
+    let runs = painted_runs(&ctx, &mut app);
+    let marked = runs.iter().filter(|r| r.text.contains(ROW_MARK)).count();
+    assert_eq!(
+        marked, 7,
+        "seven rows went in, so exactly seven marked runs must be painted"
+    );
+
+    let lines = lines_on_surface_of(&runs, "AI Assistant");
+    assert_eq!(
+        lines.len(),
+        9,
+        "the panel paints its heading, seven rows and the prompt row, and \
+         nothing else: {:?}",
+        texts(&lines)
+    );
+    assert_eq!(
+        lines[0].1.first().map(String::as_str),
+        Some("AI Assistant"),
+        "the heading is the top line"
+    );
+
+    let rows = &lines[1..8];
+    assert_eq!(
+        texts(rows),
+        [
+            vec![format!("{ROW_MARK}-user")],
+            vec![format!("▸ {ROW_MARK}-tool")],
+            vec![format!("⚠ {ROW_MARK}-refused")],
+            vec![format!("{ROW_MARK}-assistant")],
+            vec![format!("{ROW_MARK}-error")],
+            vec![format!("{ROW_MARK}-note")],
+            vec![format!("{ROW_MARK}-a-role-from-the-future")],
+        ],
+        "each row on its own line, directly under the heading, in transcript \
+         order, carrying its own marker"
+    );
+
+    // AC 4 — the note is set off by a separator, so the gap above it is wider
+    // than the gap between two ordinary rows. Compared, never hard-coded: the
+    // absolute numbers are a function of the theme's font size.
+    let gap = |a: usize, b: usize| rows[b].0 - rows[a].0;
+    assert!(
+        gap(4, 5) > gap(3, 4),
+        "the note must sit below a separator: gaps were {} then {}",
+        gap(3, 4),
+        gap(4, 5)
+    );
 }
 
 /// AC 5 — **headless frame**: a 300-character outcome goes through the real
@@ -213,6 +423,80 @@ fn ac8_ac9_ac10_the_settings_dialog_draws_headless_frame() {
     assert_eq!(
         app.settings, before,
         "an idle frame must not edit the operator's settings"
+    );
+}
+
+/// AC 8 / AC 9 / AC 10 — **painted output**: the form's four controls, both
+/// long sentences and every default value really reach the screen, in order,
+/// verbatim, directly under the window title.
+///
+/// Two of these are invisible to every source scan. `warn_label(…)` and the
+/// step-budget label are unconditional calls, so a guard in front of either —
+/// `if !settings.agent_api_key.is_empty()` is the obvious one — keeps the call
+/// written, keeps the scan green, and takes the sentence off the screen on
+/// exactly the frame the operator is about to paste a key into an empty field.
+/// AC 10 says *always visible*, and this is what says it.
+///
+/// The second phase is AC 8's masking: a key that is set paints as bullets, and
+/// the key itself is painted nowhere at all.
+#[test]
+fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
+    let (ctx, mut app) = ctx_and_app();
+    app.agent_settings_open = true;
+
+    let _ = painted_runs(&ctx, &mut app);
+    let runs = painted_runs(&ctx, &mut app);
+    // Anchored on a field label, not on the window title: a `Window`'s title is
+    // clipped to the whole screen, so it names no surface.
+    let form = lines_on_surface_of(&runs, "Endpoint URL");
+
+    assert_eq!(
+        texts(&form),
+        [
+            vec!["Endpoint URL", "https://openrouter.ai/api/v1"],
+            vec!["Model", "anthropic/claude-sonnet-4.6"],
+            // The key field is empty, so nothing readable is painted beside it.
+            vec!["API Key"],
+            vec![concat!(
+                "The API key is stored in plain text in settings.json. ",
+                "Anyone who can read that file can read your key."
+            )],
+            vec!["Steps per turn", "12"],
+            vec![concat!(
+                "How many tool calls one prompt may make. More steps means a ",
+                "bigger drawing per prompt, and more API calls."
+            )],
+        ],
+        "the form paints its labels, its values and both sentences, in order, \
+         and paints nothing else"
+    );
+
+    // AC 8 — a key that is set is masked, and is painted nowhere at all.
+    let (ctx, mut app) = ctx_and_app();
+    app.agent_settings_open = true;
+    app.settings.agent_api_key = DUMMY_KEY.to_owned();
+
+    let _ = painted_runs(&ctx, &mut app);
+    let runs = painted_runs(&ctx, &mut app);
+    for run in &runs {
+        assert!(
+            !run.text.contains(DUMMY_KEY),
+            "the key must never be painted: {:?}",
+            run.text
+        );
+    }
+    let form = lines_on_surface_of(&runs, "API Key");
+    let key_row = &form[2].1;
+    assert_eq!(
+        key_row.len(),
+        2,
+        "the key field paints a masked value: {key_row:?}"
+    );
+    assert!(
+        key_row[1].chars().count() == DUMMY_KEY.chars().count()
+            && !key_row[1].chars().any(|c| DUMMY_KEY.contains(c)),
+        "and what it paints is a mask, one glyph per character: {:?}",
+        key_row[1]
     );
 }
 
