@@ -8,8 +8,7 @@
 - **Implementation**: implementer-rust (commits fa158c0, 5e74557). The rework at
   5e74557 was verified by the implementer's own mutation testing — all three
   mandated mutations now fail with named assertion messages — with CI run
-  34741796553 green. The re-review was requested twice and did not report
-  back; this is not a review sign-off.
+  34741796553 green. The re-review APPROVED (verdict relayed via task output).
 
 ## Problem
 
