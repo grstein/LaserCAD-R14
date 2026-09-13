@@ -1,6 +1,6 @@
 # LCV-126 — The F1 shortcuts dialog does not mention the command line
 
-- **Status**: _(to be set by `demand-manager`)_
+- **Status**: Draft
 - **Phase**: 11
 - **Depends on**: LCV-116 (Done), LCV-111 (Done)
 - **Suggested agent**: implementer-rust

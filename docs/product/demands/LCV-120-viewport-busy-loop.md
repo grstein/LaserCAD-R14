@@ -1,6 +1,6 @@
 # LCV-120 — The viewport never lets the app idle
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 11
 - **Depends on**: none (interacts with LCV-105, LCV-116; invariant lives in `AGENTS.md` §Event flow → Repaint policy)
 - **Suggested agent**: implementer-rust

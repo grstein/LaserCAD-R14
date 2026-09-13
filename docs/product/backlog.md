@@ -6,8 +6,8 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-
-_None._
+| LCV-119 | Real user paths are injected: `cargo test` stops writing the developer's config and data directories | 11 | — |
+| LCV-120 | The viewport never lets the app idle | 11 | — |
 
 ## In Progress
 
@@ -123,8 +123,7 @@ _None._
 
 | ID | Title | Phase |
 |---|---|---|
-| LCV-119 | Disarm Settings persistence outside the app binary | 11 |
-| LCV-120 | The viewport repaints unconditionally every frame | 11 |
+| LCV-126 | The F1 shortcuts dialog does not mention the command line | 11 |
 
 ## Rejected
 
