@@ -43,7 +43,7 @@ mod agent_apply;
 mod agent_poll;
 mod agent_turn;
 pub use agent_apply::apply;
-pub use agent_poll::{poll_agent_rx, AGENT_LOST_MESSAGE};
+pub use agent_poll::{cancel_turn, poll_agent_rx, AGENT_CANCELLED_MESSAGE, AGENT_LOST_MESSAGE};
 pub use agent_turn::{arm_turn, run_agent_turn, start_turn, TurnFence, AGENT_FENCE_REFUSAL};
 pub use autosave::{autosave_due, schedule_flush_repaint};
 pub use bed_dialog::{apply_bed_dialog_result, draw_bed_dialog};

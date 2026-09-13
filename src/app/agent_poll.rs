@@ -31,6 +31,15 @@
 //! returns closes that channel as a matter of course. §D11 requires they show
 //! the operator the same row: two spellings of one fact must never look like
 //! two different facts.
+//!
+//! [`cancel_turn`] is the fifth exit §D11 allowed for (LCV-129), and it obeys
+//! the property rather than widening it: it is a new *caller* of [`end_turn`],
+//! not a second writer of `agent_busy`. It is the only exit the operator
+//! chooses, and the only one that does not come off the channel — which is
+//! exactly why it has to end the turn the same way. Dropping the receiver is
+//! also what tells the worker to stop: both halves of its rendezvous fail the
+//! moment the channel dies (ADR 0007 §D2), so no thread is killed and none is
+//! asked to check a flag.
 
 use crate::agent::{AgentAction, AgentEvent, AgentOutcome};
 use crate::app::{agent_apply, App};
@@ -38,6 +47,14 @@ use std::sync::mpsc::TryRecvError;
 
 /// Text shown in the chat when the worker thread ended without a verdict.
 pub const AGENT_LOST_MESSAGE: &str = "Agent turn ended without a reply.";
+
+/// Text shown in the chat when the operator cancelled the turn (LCV-129 AC 7).
+///
+/// It says the one thing a cancel leaves ambiguous: a turn stopped halfway
+/// still *drew* half of something, and that half is real, on the bed, and
+/// undoable. The row that follows it says in how many steps.
+pub const AGENT_CANCELLED_MESSAGE: &str =
+    "Turn cancelled. The agent stopped; anything it already applied stays applied and stays undoable.";
 
 /// Drain `app.agent_rx` and update `agent_chat`, `agent_busy` and `agent_rx`.
 ///
@@ -122,7 +139,7 @@ fn apply_fenced(app: &mut App, action: &AgentAction) -> AgentOutcome {
     outcome
 }
 
-/// The work every turn end does, whichever of the four exits got here (AC 22).
+/// The work every turn end does, whichever exit got here (LCV-123 AC 22).
 ///
 /// Folds this turn's commits into one undo entry when the fence says they are
 /// still contiguous at the top of the stack, then tells the operator which of
@@ -175,6 +192,34 @@ fn end_turn(app: &mut App, row: Option<(&str, String)>) {
     finish_turn(app);
     app.agent_busy = false;
     app.agent_rx = None;
+}
+
+/// End the in-flight turn because the operator asked to (LCV-129 AC 6).
+///
+/// The fifth exit of ADR 0007 §D11, and the only one that is not an event off
+/// the channel. It obeys the closure property by construction: it writes
+/// neither `agent_busy` nor `agent_rx`, pushes no row itself, and its whole
+/// body is a tail call to [`end_turn`] — so a cancelled turn coalesces into one
+/// undo entry, says what it left behind and clears the repaint gate exactly as
+/// a `Done` or a `Failed` does. A cancel that assigned the flag here would
+/// "work" in every manual test and leave three separate undo entries behind a
+/// note claiming one.
+///
+/// A no-op when no turn is in flight: without the guard, the panel's button
+/// would write a cancellation row for a turn that is not running.
+///
+/// The worker is not killed — Rust has no safe way to — and is not asked to
+/// check anything. [`end_turn`] drops the receiver, which fails both halves of
+/// its next rendezvous (ADR 0007 §D2, §D3): a `tx.send` has nobody to send to,
+/// and an `Act` still queued unread is dropped along with the reply `Sender`
+/// riding inside it, so a worker already blocked on the answer wakes with an
+/// `Err`. Either way it returns `AgentError::Cancelled` and says nothing,
+/// because its channel is dead and a later turn owns a different one.
+pub fn cancel_turn(app: &mut App) {
+    if !app.agent_busy {
+        return;
+    }
+    end_turn(app, Some(("note", AGENT_CANCELLED_MESSAGE.to_owned())))
 }
 
 #[cfg(test)]
@@ -258,6 +303,52 @@ mod tests {
             "the channel is dropped on the way out"
         );
         assert!(!app.agent_busy, "and the flag goes with it");
+    }
+
+    /// LCV-129 AC 6 — a cancel with no turn to cancel changes nothing.
+    ///
+    /// Without the guard the panel could not be at fault — the button is inside
+    /// the busy block — but `cancel_turn` is `pub`, and a public entry point
+    /// that writes a cancellation row for a turn that never ran would put a
+    /// note in the transcript describing work nobody did.
+    #[test]
+    fn ac6_cancelling_an_idle_app_does_nothing_at_all() {
+        let mut app = App::default();
+        app.agent_chat.push(("user".to_owned(), "hello".to_owned()));
+        let before = app.agent_chat.clone();
+
+        cancel_turn(&mut app);
+
+        assert_eq!(app.agent_chat, before, "no row is written for no turn");
+        assert!(!app.agent_busy);
+        assert!(app.agent_rx.is_none());
+    }
+
+    /// LCV-129 AC 7 — the cancel row, pinned character for character, in the
+    /// role LCV-125 AC 1 already closed the vocabulary around.
+    ///
+    /// The sentence is compared against a literal assembled with `concat!`, so
+    /// no scan of this file can ever match it, and the `note` role is asserted
+    /// by name: a seventh role would be silently dropped by `panel.rs`'s six
+    /// match arms and the operator would be told nothing.
+    #[test]
+    fn ac7_cancelling_a_live_turn_writes_the_note_row() {
+        let mut app = App::default();
+        let _tx = arm_turn(&mut app, "draw something slow");
+        assert!(app.agent_busy, "arm_turn must leave a turn in flight");
+
+        cancel_turn(&mut app);
+
+        let (role, text) = app.agent_chat.last().expect("a row must have been written");
+        assert_eq!(role, "note");
+        assert_eq!(
+            text,
+            concat!(
+                "Turn cancelled. The agent stopped; anything it already ",
+                "applied stays applied and stays undoable."
+            )
+        );
+        assert_eq!(text, AGENT_CANCELLED_MESSAGE);
     }
 
     /// The applied-action counter must not survive its turn: a second turn

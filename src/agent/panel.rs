@@ -20,6 +20,11 @@
 //! **LCV-125 renders what LCV-123 records.** The seam is one-way: LCV-123 owns
 //! the role vocabulary, every sentence and their order; this file owns only how
 //! each role looks. It appends no row of its own and invents no seventh role.
+//!
+//! **LCV-129 adds the one control that ends a turn.** `Cancel` sits in the
+//! thinking row, exists only while `agent_busy`, and calls
+//! [`crate::app::cancel_turn`]. The row it leaves behind is `note` — written
+//! by `agent_poll`, in the six-role vocabulary, like every other row here.
 
 use crate::app::App;
 
@@ -65,11 +70,19 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
             }
         });
 
-    // ── Thinking indicator ────────────────────────────────────────────────────
+    // ── Thinking indicator, and the way out of it ─────────────────────────────
+    // The button lives inside the `agent_busy` block and nowhere else: it can
+    // only offer to end a turn that is running, and when none is the row does
+    // not exist at all (LCV-129 AC 8). Its body is one call into the app, the
+    // same shape as the Send button's — this file renders and reports, and
+    // ending a turn is `agent_poll`'s alone (ADR 0007 §D8, §D11).
     if app.agent_busy {
         ui.horizontal(|ui| {
             ui.spinner();
             ui.label("Thinking…");
+            if ui.button("Cancel").clicked() {
+                crate::app::cancel_turn(app);
+            }
         });
     }
 
@@ -433,6 +446,73 @@ mod tests {
             (prose, error),
         ] {
             assert_ne!(a, b, "these two rows would look the same");
+        }
+    }
+
+    /// The body of the `if app.agent_busy { .. }` block, brace-matched.
+    ///
+    /// Slicing to the closing brace is what makes the two LCV-129 scans
+    /// discriminate: a `Cancel` button moved one line down, out of the block
+    /// and into the unconditional part of the panel, is still in the file and
+    /// still spelled the same — but it is no longer in *this* string.
+    fn busy_block(implementation: &str) -> String {
+        let head = concat!("if app.agent_", "busy {");
+        let start = implementation
+            .find(head)
+            .unwrap_or_else(|| panic!("panel.rs must guard its thinking row on `{head}`"))
+            + head.len();
+        let mut depth = 1usize;
+        for (offset, ch) in implementation[start..].char_indices() {
+            match ch {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return implementation[start..start + offset].to_owned();
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!("the busy block is never closed — panel.rs does not parse");
+    }
+
+    /// LCV-129 AC 8 — **source scan**: the Cancel button is inside the busy
+    /// block, and its body is one call into the app.
+    ///
+    /// What it is painted like, and that it is painted at all, is asserted at
+    /// runtime in `tests/lcv129_agent_timeout_and_cancel.rs`. What only a scan
+    /// can say is the second half: that the click handler does *nothing else* —
+    /// no `agent_busy` assignment here, no `agent_rx` cleared here, because
+    /// ending a turn is `agent_poll`'s alone (ADR 0007 §D11).
+    #[test]
+    fn ac8_the_cancel_button_lives_inside_the_busy_block_source_scan() {
+        let implementation = implementation_code();
+        let block = busy_block(&implementation);
+
+        for needle in [
+            concat!("\"Can", "cel\""),
+            concat!("crate::app::cancel", "_turn(app)"),
+        ] {
+            assert!(
+                block.contains(needle),
+                "AC 8: `{needle}` must sit inside the busy block: {block}"
+            );
+        }
+
+        let witness = "app.agent_busy = false; app.agent_rx = None;";
+        for forbidden in [
+            concat!("agent_busy =", " false"),
+            concat!("agent_rx =", " "),
+        ] {
+            assert!(
+                witness.contains(forbidden),
+                "control: `{forbidden}` must be a needle that can match something"
+            );
+            assert!(
+                !implementation.contains(forbidden),
+                "AC 8 / §D11: panel.rs must not end a turn itself (`{forbidden}`)"
+            );
         }
     }
 

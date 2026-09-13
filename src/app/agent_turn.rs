@@ -1141,6 +1141,70 @@ mod tests {
         }
     }
 
+    // ── LCV-129 AC 10: the worker can always notice and unwind ─────────────
+
+    /// LCV-129 AC 10, first case — the receiver is already gone when the
+    /// worker tries to send.
+    ///
+    /// This is the easy half, and it exercises the real [`ask_ui`]: a `send`
+    /// on a channel whose `Receiver` has been dropped returns `Err`, which the
+    /// mapper turns into `Cancelled`. No thread and no sleep — dropping `rx`
+    /// here is exactly what `end_turn` does one frame after a cancel.
+    #[test]
+    fn ac10_a_send_with_nobody_listening_is_a_cancel() {
+        let (tx, rx) = channel::<AgentEvent>();
+        drop(rx);
+
+        let outcome = ask_ui(&tx, AgentAction::QuerySelection);
+
+        assert!(
+            matches!(outcome, Err(AgentError::Cancelled)),
+            "a dead channel must unwind the turn, got {outcome:?}"
+        );
+    }
+
+    /// LCV-129 AC 10, second case — the receiver is dropped while an `Act` is
+    /// queued and nobody ever read it.
+    ///
+    /// The genuinely hard half, and the property the whole cancel design rests
+    /// on: the worker has already *succeeded* at sending and is parked in
+    /// `answer.recv()`, so nothing about the event channel can wake it. What
+    /// wakes it is that dropping a `std::sync::mpsc::Receiver` drops the
+    /// messages still queued in it, and the reply `Sender` rides *inside* the
+    /// `Act` (ADR 0007 §D3) — so the one-shot channel closes as a side effect
+    /// and `recv()` returns `Err`. Park this design on a channel that stored
+    /// its reply handle on `App` instead and a cancelled worker would block
+    /// forever.
+    ///
+    /// [`ask_ui`] cannot be called here: it would park this very test thread
+    /// on `recv()`. So its second half is replicated line for line — same
+    /// one-shot channel, same `Act`, same `map_err` — and the drop that a real
+    /// cancel performs happens in between, with the `Act` still unread. No
+    /// thread, no sleep; if the property ever stopped holding this test would
+    /// hang rather than pass, and `send` succeeding is asserted first so a
+    /// failure says which half broke.
+    #[test]
+    fn ac10_dropping_the_receiver_with_an_act_queued_is_a_cancel() {
+        let (tx, rx) = channel::<AgentEvent>();
+        let (reply, answer) = channel::<AgentOutcome>();
+        tx.send(AgentEvent::Act {
+            action: AgentAction::QuerySelection,
+            reply,
+        })
+        .expect("the UI is still there when the worker sends");
+
+        // The cancel: `end_turn` drops the receiver, and the unread `Act`
+        // — carrying the only `Sender` to `answer` — goes with it.
+        drop(rx);
+
+        let outcome: Result<AgentOutcome, AgentError> =
+            answer.recv().map_err(|_| AgentError::Cancelled);
+        assert!(
+            matches!(outcome, Err(AgentError::Cancelled)),
+            "a worker parked on an answer nobody will give must unwind, got {outcome:?}"
+        );
+    }
+
     /// AC 15 / ADR 0007 §D4 — the fence stays where the thread cannot reach
     /// it, and this file stays out of the UI toolkit.
     ///
