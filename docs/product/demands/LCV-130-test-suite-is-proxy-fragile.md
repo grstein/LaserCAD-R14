@@ -2,7 +2,7 @@
 
 - **Status**: Draft
 - **Phase**: 12
-- **Depends on**: none (LCV-124's own fix for the leak is separate and lands first)
+- **Depends on**: none (LCV-124's own fix for the leak landed separately at `a1b37aa`; what it did not reach is AC 3)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
 - **Implementation**: —
@@ -84,8 +84,9 @@ is what needs recording, because it generalises past reqwest and past the agent.
   earn their place: `a_whole_turn_lands_on_the_bed` is the only test that runs a
   real worker thread against a real socket, and the transport tests are the only
   ones that exercise the wire format end to end.
-- **Fixing LCV-124's `127.0.0.1:1` fixture.** That lands inside LCV-124. This
-  demand only stops it coming back.
+- **Re-fixing what `a1b37aa` already fixed.** `tests/lcv124_command_line_routing.rs`
+  is done and its `UNPARSEABLE_ENDPOINT` doc comment is the record — leave both
+  alone. AC 3 is about the one site that commit did not reach.
 - **Making the suite pass with no network stack at all**, or in a sandbox that
   forbids `bind()`. Loopback binding is a requirement of the suite and stays one.
 - **Anything about real endpoints in CI.** No CI test may reach one; that rule
