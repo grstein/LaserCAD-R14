@@ -141,11 +141,15 @@ fn f1_has_exactly_one_reader() {
         let src = std::fs::read_to_string(&path).expect("source file");
         scanned += 1;
         if implementation(&src).contains(needle) {
+            // Forward slashes on every platform: `Path::display` emits `\` on
+            // Windows, which would make this comparison a CI-only failure.
             readers.push(
                 path.strip_prefix(root)
                     .unwrap_or(&path)
-                    .display()
-                    .to_string(),
+                    .components()
+                    .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                    .collect::<Vec<_>>()
+                    .join("/"),
             );
         }
     }
