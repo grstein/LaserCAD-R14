@@ -276,6 +276,21 @@ AppImage and `.deb` as downloadable assets.
     `! Agent unavailable: set the API key in Help > Agent settings` and draws
     nothing.
 
+- **Manual smoke / the suite behind a proxy (LCV-124, LCV-130)**: run
+  `cargo test --all --no-fail-fast` once with `HTTP_PROXY`, `HTTPS_PROXY` and
+  `ALL_PROXY` all set to `http://127.0.0.1:9`, and confirm the same pass set as
+  an unproxied run and **zero outbound connections**. This is a manual step
+  because no CI job here sets a proxy, and the failure mode is silent: the
+  LCV-124 reviewer captured real POSTs leaving the machine carrying the bearer
+  token, the system prompt and the operator's prompt text while the suite
+  reported 11 passed / 0 failed. `reqwest::blocking::Client::new()` enables
+  system-proxy discovery and reqwest 0.12 has no loopback bypass, so a test
+  endpoint on a closed loopback port is dialled through the proxy instead of
+  failing locally. LCV-124 fixed its own fixture at `a1b37aa`; the rest of the
+  suite is **LCV-130** and is still open, so until that ships expect this step
+  to find failures — a green run here is the thing being tested, not a
+  formality.
+
 ## Open questions
 
 *(none)*
