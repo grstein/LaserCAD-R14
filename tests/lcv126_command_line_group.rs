@@ -225,6 +225,11 @@ fn the_command_line_group_is_painted_between_drawing_and_help() {
         .iter()
         .position(|line| line.as_slice() == ["Command line"])
         .expect("the Command line heading must be painted on the scrolled, settled frame");
+    assert!(
+        start + 5 <= lines.len(),
+        "not enough lines painted after Command line: only {} available, need 5",
+        lines.len() - start
+    );
     let window = &lines[start..start + 5];
 
     assert_eq!(
