@@ -7,23 +7,37 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
 | LCV-127 | The drag term of `viewport_is_live` has no behavioural test | 11 | LCV-120 |
-| LCV-125 | The panel shows what the agent did to the drawing | 12 | LCV-121, LCV-123 |
 | LCV-129 | A hung endpoint wedges the app: the agent turn has no timeout and no cancel | 12 | LCV-123, LCV-125 |
 
-**Marco 2**: four of the five demands are `Done` — LCV-121 (d584f4d), LCV-122
-(61d609b…ff267ec), LCV-123 (6102c68, e7ba0a6, af5ef82) and LCV-124 (96a8fb4,
-a1b37aa). The first three ran as one unbroken sequence; LCV-124 and LCV-125 then
-went in parallel as planned. **LCV-125 is the last demand of Marco 2.** It has
-shipped code (8b5fa2c) and is in review; it stays `Ready` in this table until
-the verdict lands, and `demand-manager` flips it on the `project-manager`'s
-word. When it goes `Done`, Marco 2 closes.
+**Marco 2 — complete, 2026-09-13.** All five demands are `Done` and reviewed: **LCV-121** (`d584f4d`), **LCV-122**
+(`61d609b`…`ff267ec`), **LCV-123** (`6102c68`, `e7ba0a6`, `af5ef82`),
+**LCV-124** (`96a8fb4`, `a1b37aa`) and **LCV-125** (`8b5fa2c`, `c6e9d9d`).
+LCV-121 → LCV-122 → LCV-123 ran as one unbroken sequence; LCV-124 and LCV-125
+then went in parallel, as planned.
 
-The release hazard that was live between LCV-121 and LCV-123 **closed when
-LCV-123 shipped**: `panel.rs::submit` and its throwaway `Document::default()`
-were deleted outright, the AC 3 exception list in `tests/lcv122_source_scans.rs`
+What the milestone bought: the agent went from narrating a drawing it could not
+touch to **editing the operator's live document** — a whole turn folds into a
+single Ctrl+Z, a fence stops it dead if the operator draws underneath it, the
+command line is a keyboard path in, and the panel makes what it did legible.
+
+The release hazard that was live between LCV-121 and LCV-123 **closed with
+LCV-123**: `panel.rs::submit` and its throwaway `Document::default()` were
+deleted outright, and the AC 3 exception list in `tests/lcv122_source_scans.rs`
 is now empty (`[&str; 0]`, proven non-vacuous by the reviewer from both
-directions), and the agent's edits land on the operator's real canvas. Tagging
-is no longer blocked by it.
+directions).
+
+**Verification of Marco 2 was local, not CI.** GitHub Actions has been down for
+this repository since roughly 17:28 UTC on 2026-09-13 — every job dies in 2–5
+seconds with zero steps recorded, Markdown-only commits included. **LCV-122 is
+the last CI-verified demand in this project.** LCV-123, LCV-124 and LCV-125 were
+gated locally and re-run independently by the reviewer each time: fmt clean,
+clippy `-D warnings` clean, and `cargo test --all --no-fail-fast` at 1153, 1184
+and 1208 passed, 0 failed, 2 ignored. Anyone reading a red check on those
+commits is reading the outage, not the code.
+
+**Nobody tags anything.** The user tags `v0.1.0` after their own manual smoke
+run, and **LCV-089 stays `Blocked`** until they do. Its checklist is at nine
+steps; six more from the LCV-125 review are expected.
 
 ## In Progress
 
@@ -134,6 +148,7 @@ _None._
 | LCV-122 | The bridge: one action, one command, one undo entry | 12 | 2026-09-13 | 61d609b, 2a7a9b4, ccaaf6e, ff267ec |
 | LCV-123 | The agent turn draws on the operator's real drawing | 12 | 2026-09-13 | 6102c68, e7ba0a6, af5ef82 |
 | LCV-124 | The command line can reach the agent | 12 | 2026-09-13 | 96a8fb4, a1b37aa |
+| LCV-125 | The panel shows what the agent did to the drawing | 12 | 2026-09-13 | 8b5fa2c, c6e9d9d |
 
 ## Blocked
 
@@ -149,6 +164,7 @@ _None._
 | LCV-128 | `AGENTS.md`'s normative per-file and per-symbol enumerations have no scan | 12 |
 | LCV-130 | The test suite's isolation from the network depends on the absence of a proxy | 12 |
 | LCV-131 | Typing `LINE` sends the word "line" to a language model | 12 |
+| LCV-132 | A rendering criterion is paid for in painted text, not in a source scan | 12 |
 
 **Drive order after Marco 2**: LCV-129 → LCV-127 → LCV-126 → LCV-128, with
 LCV-130 and LCV-131 newly opened and not yet placed — the `project-manager`
@@ -172,6 +188,15 @@ The two new ones, opened 2026-09-13 from the LCV-124 review:
   such as `line` or `circle` is unrecognised by the CAD grammar and is sent to
   the model, at cost. Suggested agent is **`architect`**, not an implementer:
   part of it amends ADR 0003 §A2's frozen alias set.
+- **LCV-132** (`1f3cb27`) — a rendering criterion is paid for in painted text,
+  not in a source scan. It promotes the paint-list seam LCV-125's rework built
+  into `tests/harness/`: `Context::run` returns `FullOutput { shapes, .. }`, and
+  `Shape::Text(TextShape { pos, galley, .. })` yields the exact painted string
+  and where it landed. No new dependency and **no `egui` upgrade** — it works at
+  the pinned 0.29.1. This repo has shipped six un-failable source scans; this is
+  strictly stronger and no more expensive. It has a customer before refinement:
+  `39a6d6b` amended LCV-129 to name the harness as the conditional test for its
+  Cancel button. Depends on LCV-125, which is `Done`.
 
 ## Rejected
 

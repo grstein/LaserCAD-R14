@@ -1,11 +1,55 @@
 # LCV-125 — The panel shows what the agent did to the drawing
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 12
 - **Depends on**: LCV-121, LCV-123
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: implementer-rust — `8b5fa2c` (the six transcript roles
+  plus the fallback arm in `src/agent/panel.rs`, the index-shift disclosure and
+  the end-of-turn undo-shape note made findable, and `src/agent/settings_ui.rs`
+  grown to reach the model name and the per-turn step budget with an
+  always-visible plaintext-key warning), `c6e9d9d` (the rework). Read with
+  `269ff1f`, a body amendment by `product-owner` that absorbed the `settings_ui`
+  deep-path fix and corrected the LOC numbers — not an implementation commit.
+  Reviewed, **APPROVED** at `c6e9d9d` after one rework round. **The last demand
+  of Marco 2; it closes the milestone.**
+
+  **The implementation was right on every acceptance criterion from `8b5fa2c`.
+  The blocking finding was that the tests could not see it.** No implementation
+  line changed in the rework: the only `src/` hunk in `c6e9d9d` is inside
+  `settings_ui.rs`'s own `#[cfg(test)] mod tests`, re-anchoring the AC 9 scan on
+  `RichText::new(STEP_BUDGET_HELP)` instead of on the constant's name, which the
+  `const` declaration alone already satisfied. Everything else is
+  `tests/lcv125_agent_panel_and_settings.rs`.
+
+  **Why that finding outlives this demand.** Every scan in it asserted that a
+  call was *written*; nothing asserted that the paint *happened*. Five mutants
+  survived `fmt`, `clippy -D warnings` and all 1208 tests: wrapping the render
+  loop so every transcript row collapsed into one paragraph; iterating `.rev()`
+  so the transcript read newest-first; skipping the `note` arm so the
+  undo-shape note never reached the screen; and hiding the plaintext-key warning
+  and the step-budget explanation on exactly the frame an operator is about to
+  paste a key into. Each one breaks a stated AC, and each one was invisible.
+  `egui` 0.29.1 cannot be asked for a pixel, but `Context::run` returns the
+  paint list and every `Shape::Text` in it carries the exact string and the
+  position it was laid out at. The reviewer's verdict is that the rework is
+  **stronger than the fix they specified**: it recurses into `Shape::Vec`, which
+  their own version missed; it adds an assertion nobody asked for, proving that
+  with a key set the key is painted nowhere and the masked row shares no
+  character with it; and it scopes by clip-rect containment rather than by `y`,
+  because one frame paints five interleaving surfaces. They re-planted all six
+  original mutants plus five fresh ones and killed all eleven, confirmed the 26
+  existing scans survived with exactly two added and none removed, and ran the
+  paint tests 50 consecutive times with zero failures. That seam is now
+  **LCV-132**, which promotes it into `tests/harness/`.
+
+  **Verification was local, not CI.** GitHub Actions remains down for this
+  repository, so the red checks carry no information about the code. At
+  `c6e9d9d`: `cargo fmt --all -- --check` clean, `cargo clippy --all-targets
+  -- -D warnings` clean, `cargo test --all --no-fail-fast` **1208 passed /
+  0 failed / 2 ignored across 30 binaries**. **LCV-122 remains the last
+  CI-verified demand in this project** and the record should keep saying so.
 
 ## Problem
 
