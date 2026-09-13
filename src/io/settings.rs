@@ -81,6 +81,27 @@ pub struct Settings {
     #[serde(default)]
     pub agent_api_key: String,
 
+    /// Model id sent as the request body's `model` field.
+    /// Default: `"anthropic/claude-sonnet-4.6"`, which matches the OpenRouter
+    /// endpoint that is already the default.
+    ///
+    /// Needs its own serde default because the field's `Default` (an empty
+    /// string) is not a model any endpoint will accept.
+    #[serde(default = "default_agent_model")]
+    pub agent_model: String,
+
+    /// Tool-call dispatches one agent turn may make.
+    ///
+    /// Stored **verbatim**: a hand-edited file can hold anything, and the
+    /// clamp lives with the loop that enforces the budget
+    /// (`clamp_step_budget`), not here — `io` must not import the agent
+    /// module, an edge that would invert the layering (ADR 0007 §D7).
+    ///
+    /// Needs its own serde default because the field's `Default` (`0`) would
+    /// be a turn that cannot call a single tool.
+    #[serde(default = "default_agent_step_budget")]
+    pub agent_step_budget: u8,
+
     /// The bed size, in millimetres `[width, height]`, that a **new** document
     /// starts at (LCV-114 AC 11).
     ///
@@ -100,6 +121,17 @@ fn default_agent_endpoint() -> String {
     "https://openrouter.ai/api/v1".to_string()
 }
 
+fn default_agent_model() -> String {
+    "anthropic/claude-sonnet-4.6".to_string()
+}
+
+/// The literal `12` rather than `AGENT_STEP_BUDGET_DEFAULT`: importing the
+/// agent module from `io` would invert the module layering (ADR 0007 §D7). A
+/// test in this file pins the two numbers to each other instead.
+fn default_agent_step_budget() -> u8 {
+    12
+}
+
 fn default_bed_mm() -> [f64; 2] {
     [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM]
 }
@@ -110,6 +142,8 @@ impl Default for Settings {
             recent_files: Vec::new(),
             agent_endpoint: default_agent_endpoint(),
             agent_api_key: String::new(),
+            agent_model: default_agent_model(),
+            agent_step_budget: default_agent_step_budget(),
             default_bed_mm: default_bed_mm(),
         }
     }
@@ -566,5 +600,96 @@ mod tests {
         assert_eq!(s.clamped_default_bed_mm(), [300.0, 180.0]);
         s.default_bed_mm = [f64::NAN, 180.0];
         assert_eq!(s.clamped_default_bed_mm(), [DEFAULT_BED_WIDTH_MM, 180.0]);
+    }
+
+    // ------------------------------------------------------------------
+    // LCV-121 — agent model and step budget
+    // ------------------------------------------------------------------
+
+    /// AC 12 — the two new fields default to the OpenRouter-compatible model
+    /// id and to a budget of 12.
+    #[test]
+    fn agent_model_and_step_budget_defaults() {
+        let s = Settings::default();
+        assert_eq!(s.agent_model, "anthropic/claude-sonnet-4.6");
+        assert_eq!(s.agent_step_budget, 12);
+    }
+
+    /// AC 12 — a settings file written before this demand loads with both new
+    /// fields defaulted and every older field intact. Field-by-field defaults,
+    /// not a whole-struct fallback: the endpoint and the recent list below are
+    /// what prove the file was really read.
+    #[test]
+    fn settings_json_predating_this_demand_loads_with_both_defaults() {
+        let json = r#"{"recent_files":["foo.lcad","bar.lcad"],
+                       "agent_endpoint":"https://api.openai.com/v1",
+                       "agent_api_key":"",
+                       "default_bed_mm":[300.0,180.0]}"#;
+        let s: Settings = serde_json::from_str(json).expect("legacy JSON must still parse");
+
+        assert_eq!(s.agent_model, "anthropic/claude-sonnet-4.6");
+        assert_eq!(s.agent_step_budget, 12);
+        assert_eq!(s.recent_files, vec!["foo.lcad", "bar.lcad"]);
+        assert_eq!(s.agent_endpoint, "https://api.openai.com/v1");
+        assert_eq!(s.default_bed_mm, [300.0, 180.0]);
+    }
+
+    /// AC 13 — the stored budget is kept exactly as written, however silly.
+    /// Clamping belongs to the reader (`agent::clamp_step_budget`); doing it
+    /// here would hide what the file actually says.
+    #[test]
+    fn stored_step_budget_is_kept_verbatim() {
+        for (json, expected) in [
+            (r#"{"agent_step_budget":200}"#, 200u8),
+            (r#"{"agent_step_budget":0}"#, 0),
+            (r#"{"agent_step_budget":7}"#, 7),
+        ] {
+            let s: Settings = serde_json::from_str(json).expect("must parse");
+            assert_eq!(s.agent_step_budget, expected, "{json}");
+        }
+    }
+
+    /// AC 12 — both fields survive a serialise/parse cycle with non-default
+    /// values, so persistence is proved rather than the default being matched
+    /// tautologically.
+    #[test]
+    fn agent_model_and_step_budget_round_trip() {
+        let original = Settings {
+            agent_model: "some/other-model".into(),
+            agent_step_budget: 3,
+            ..Settings::default()
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let loaded: Settings = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(loaded, original);
+        assert_ne!(loaded.agent_model, Settings::default().agent_model);
+        assert_ne!(
+            loaded.agent_step_budget,
+            Settings::default().agent_step_budget
+        );
+    }
+
+    /// AC 13 — this module must not reach into the agent module: that edge
+    /// would invert the layering, and it is the reason the default is written
+    /// as a literal here. Bounded to the implementation section, needle built
+    /// with `concat!` so the scan cannot match its own source, and carrying a
+    /// positive control so the absence cannot pass vacuously.
+    #[test]
+    fn settings_does_not_import_the_agent() {
+        let src = include_str!("settings.rs");
+        let at = src
+            .find("\n#[cfg(test)]")
+            .expect("settings.rs must have a bare #[cfg(test)] marker");
+        let implementation = &src[..at];
+
+        assert!(
+            implementation.contains(concat!("agent_step", "_budget")),
+            "positive control: the scanned slice must contain the new field"
+        );
+        assert!(
+            !implementation.contains(concat!("crate::", "agent")),
+            "io::settings must not import the agent module (ADR 0007 §D7)"
+        );
     }
 }

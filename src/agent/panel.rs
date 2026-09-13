@@ -128,9 +128,14 @@ fn submit(app: &mut App) {
     // 2. Clear the draft.
     app.agent_input_draft = String::new();
 
-    // 3. Clone settings so the spawned thread owns its own copy.
+    // 3. Clone settings so the spawned thread owns its own copy. The budget
+    //    is clamped here, at the read site: the stored value comes from a
+    //    hand-editable JSON file (ADR 0007 §D7). This is the temporary home of
+    //    both reads — LCV-123 moves them into `src/app/agent_turn.rs`.
     let endpoint = app.settings.agent_endpoint.clone();
     let api_key = app.settings.agent_api_key.clone();
+    let model = app.settings.agent_model.clone();
+    let step_budget = crate::agent::loop_::clamp_step_budget(app.settings.agent_step_budget);
 
     // 4. Arm the channel.
     let (tx, rx) = std::sync::mpsc::channel::<AgentPanelMsg>();
@@ -141,8 +146,15 @@ fn submit(app: &mut App) {
     std::thread::spawn(move || {
         let mut doc = Document::default();
         let mut history = History::default();
-        let result =
-            crate::agent::run_agent_turn(&text, &endpoint, &api_key, &mut doc, &mut history);
+        let result = crate::agent::run_agent_turn(
+            &text,
+            &endpoint,
+            &api_key,
+            &model,
+            step_budget,
+            &mut doc,
+            &mut history,
+        );
         let msg = match result {
             Ok(reply) => AgentPanelMsg::Reply(reply),
             Err(e) => AgentPanelMsg::Error(e.to_string()),
@@ -167,6 +179,37 @@ mod tests {
             std::mem::discriminant(&reply),
             std::mem::discriminant(&error),
             "Reply and Error must be distinct variants",
+        );
+    }
+
+    /// LCV-121 AC 14 — `submit` is the one place that reads the two new agent
+    /// settings until LCV-123 moves the spawn into `src/app/agent_turn.rs`, and
+    /// it must clamp the budget rather than trust the stored value.
+    ///
+    /// A bounded source scan: spawning a real turn needs a socket and a live
+    /// `egui::Ui`, and the property at stake is *what submit reads*. The
+    /// haystack stops at the bare `#[cfg(test)]` at column 0 and the needles
+    /// are built with `concat!`, so this test cannot match its own source.
+    #[test]
+    fn submit_reads_the_model_and_clamps_the_budget() {
+        let src = include_str!("panel.rs");
+        let at = src
+            .find("\n#[cfg(test)]")
+            .expect("panel.rs must have a bare #[cfg(test)] marker");
+        let implementation = &src[..at];
+
+        for needle in [
+            concat!("settings.agent_", "model"),
+            concat!("clamp_step", "_budget(app.settings.agent_step_budget)"),
+        ] {
+            assert!(
+                implementation.contains(needle),
+                "submit must pass `{needle}` into run_agent_turn"
+            );
+        }
+        assert!(
+            !implementation.contains(concat!("app.settings.agent_step_budget,")),
+            "the stored budget must reach run_agent_turn only through the clamp"
         );
     }
 }
