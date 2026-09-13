@@ -1,11 +1,56 @@
 # LCV-124 — The command line can reach the agent
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 12
 - **Depends on**: LCV-123
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: implementer-rust — `96a8fb4` (the pure
+  `src/agent/classifier.rs`, `Route::{Cad, Agent, Unavailable}`, and the ADR 0007
+  §D9 precedence wired into `src/app/cmdline.rs::submit` behind the existing
+  raw-input early return), `a1b37aa` (rework — the one blocking review finding,
+  below). Read with `a0131ef`, which `product-owner` used to correct AC 2's `z`
+  row and to record the CAD-word hazard; it is **not** an implementation commit.
+  Reviewed, **APPROVED** at `a1b37aa`.
+
+  **The blocking finding is the most valuable thing this milestone found, and it
+  is not about the command line at all.** These tests pointed at
+  `http://127.0.0.1:1` on the assumption that a closed loopback port cannot be
+  reached. It can. `reqwest::blocking::Client::new()` sets `auto_sys_proxy:
+  true` and reqwest 0.12 has no loopback bypass, so with `HTTP_PROXY` set —
+  normal on a corporate network or a self-hosted runner — the closed port is
+  never dialled and the request is handed to the proxy instead. The reviewer
+  stood up a capturing listener and recorded real POSTs leaving the machine
+  carrying `authorization: Bearer sk-test-DO-NOT-LEAK`, the entire system prompt
+  and the operator's prompt text, **while the suite reported 11 passed / 0
+  failed throughout**. A green suite that exfiltrates a credential is the worst
+  shape a test can take. The fix makes the endpoint **unparseable rather than
+  unreachable**, so `send()` fails in `Url::parse` before a socket exists and
+  before any proxy is consulted; `the_test_endpoint_cannot_reach_a_proxy` pins
+  it, with the old loopback spelling as its control. Re-run afterwards with four
+  proxy variables set: 12 passed, zero captured requests, zero `connect()`
+  syscalls. The transport was deliberately **not** given `.no_proxy()` — that
+  would break real operators behind a corporate proxy to buy a test
+  convenience. What the fix did not reach is the rest of the suite, which is
+  **LCV-130**.
+
+  **Verification was local, not CI.** GitHub Actions remains down for this
+  repository (jobs die in 2–5 seconds with zero steps recorded, Markdown-only
+  commits included), so the red checks carry no information about the code. At
+  `a1b37aa` the reviewer independently ran `cargo fmt --all -- --check` clean,
+  `cargo clippy --all-targets -- -D warnings` clean, and `cargo test --all
+  --no-fail-fast` **1184 passed / 0 failed / 2 ignored across 29 binaries**,
+  after `cargo clean -p lasercad` rather than trusting the implementer's
+  numbers. (1184 is the corrected figure; earlier briefs said 1183.) LCV-122 is
+  still the last CI-verified demand.
+
+  **Known hazard shipped with it, by design and not a defect of this demand.**
+  With a key configured, a line the CAD grammar does not recognise is sent to
+  the model — a paid round trip. The demand accepts that for typos like `lien`,
+  but `product-owner` then found the grammar accepts only the single-letter
+  aliases plus `text`, so `line`, `circle` and every other full AutoCAD command
+  name is unrecognised and reaches the model. That is **LCV-131**. LCV-124
+  shipped exactly the precedence its own AC 2 and ADR 0007 §D9 specify.
 
 ## Problem
 

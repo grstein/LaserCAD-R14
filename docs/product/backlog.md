@@ -7,14 +7,15 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
 | LCV-127 | The drag term of `viewport_is_live` has no behavioural test | 11 | LCV-120 |
-| LCV-124 | The command line can reach the agent | 12 | LCV-123 |
 | LCV-125 | The panel shows what the agent did to the drawing | 12 | LCV-121, LCV-123 |
 
-**Marco 2 drive order**: LCV-121 → LCV-122 → LCV-123 ran as one unbroken
-sequence and all three are `Done` — LCV-121 (d584f4d), LCV-122
-(61d609b…ff267ec) and LCV-123 (6102c68, e7ba0a6, af5ef82). What remains of
-Marco 2 is **LCV-124 and LCV-125**, which touch disjoint files and may run in
-parallel.
+**Marco 2**: four of the five demands are `Done` — LCV-121 (d584f4d), LCV-122
+(61d609b…ff267ec), LCV-123 (6102c68, e7ba0a6, af5ef82) and LCV-124 (96a8fb4,
+a1b37aa). The first three ran as one unbroken sequence; LCV-124 and LCV-125 then
+went in parallel as planned. **LCV-125 is the last demand of Marco 2.** It has
+shipped code (8b5fa2c) and is in review; it stays `Ready` in this table until
+the verdict lands, and `demand-manager` flips it on the `project-manager`'s
+word. When it goes `Done`, Marco 2 closes.
 
 The release hazard that was live between LCV-121 and LCV-123 **closed when
 LCV-123 shipped**: `panel.rs::submit` and its throwaway `Document::default()`
@@ -131,6 +132,7 @@ _None._
 | LCV-121 | The transport speaks tool calls | 12 | 2026-09-13 | d584f4d |
 | LCV-122 | The bridge: one action, one command, one undo entry | 12 | 2026-09-13 | 61d609b, 2a7a9b4, ccaaf6e, ff267ec |
 | LCV-123 | The agent turn draws on the operator's real drawing | 12 | 2026-09-13 | 6102c68, e7ba0a6, af5ef82 |
+| LCV-124 | The command line can reach the agent | 12 | 2026-09-13 | 96a8fb4, a1b37aa |
 
 ## Blocked
 
