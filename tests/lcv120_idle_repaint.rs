@@ -30,6 +30,13 @@
 //!    bites is: one frame that makes the pointer resident, one settle frame,
 //!    then assertions on empty frames only. Keep it.
 //!
+//! As of LCV-127 all three terms of `viewport_is_live` carry a behavioural
+//! witness, not just a source scan: [`a_hovered_canvas_keeps_asking_for_frames`]
+//! for `response.hovered()`, [`a_middle_drag_keeps_asking_for_frames`] for
+//! `response.dragged()`, and
+//! [`a_live_preview_keeps_asking_for_frames_with_the_pointer_away`] for the
+//! preview term.
+//!
 //! ADR 0002 §A4 is respected throughout: `App::default()`, never `App::new()`;
 //! no `Ctrl+O` / `Ctrl+S`; both injected paths stay `None`, so nothing here can
 //! write to the filesystem even if a debounce did elapse (it does not — every
@@ -251,4 +258,75 @@ fn a_live_preview_keeps_asking_for_frames_with_the_pointer_away() {
         "controls: the preview is still up, and the first click committed nothing, \
          so the delay above cannot be an autosave wake-up"
     );
+}
+
+/// AC 1/2/3/4/5 — the drag term of `viewport_is_live`, isolated: once the
+/// middle-button pan is captured, `egui::Event::PointerGone` is the only
+/// headless route to `dragged() && !hovered()` (harness rule 5). It clears
+/// `latest_pos` — which drops `potential_drag_id`, which flips `hovered()` to
+/// `false` — while deliberately leaving `pointer.down` set, so `dragged()`
+/// survives. A `PointerMoved` to an off-canvas position does **not** do this
+/// (AC 3): `latest_pos` stays populated and `hovered()` stays `true`.
+///
+/// The assertion is taken on **empty** frames (trap 2), behind an unasserted
+/// settle frame (AC 2): the frame right after any event-carrying frame always
+/// reads `Duration::ZERO`, even under the AC 3 mutation, so asserting on it
+/// would half-pass. Its paired negative control is
+/// [`a_pointer_outside_the_canvas_lets_the_app_idle`]: same empty-frame shape,
+/// no drag in flight, `Duration::MAX`.
+#[test]
+fn a_middle_drag_keeps_asking_for_frames() {
+    let (ctx, mut app, canvas) = boot(App::default());
+    let anchor = canvas.center();
+    let camera_before = app.camera.clone();
+
+    // Warm-up (harness rule 3) before the frame carrying `PointerButton`.
+    let _ = frame_delay(&ctx, &mut app, vec![egui::Event::PointerMoved(anchor)]);
+
+    // Press the middle button and drag across the canvas so egui crosses its
+    // drag threshold and `dragged_by(Middle)` fires — the pan handler above
+    // the repaint guard runs, moving the camera.
+    let _ = frame_delay(
+        &ctx,
+        &mut app,
+        vec![egui::Event::PointerButton {
+            pos: anchor,
+            button: egui::PointerButton::Middle,
+            pressed: true,
+            modifiers: egui::Modifiers::NONE,
+        }],
+    );
+    for step in 1..=6 {
+        let p = anchor + egui::vec2(step as f32 * 6.0, 0.0);
+        let _ = frame_delay(&ctx, &mut app, vec![egui::Event::PointerMoved(p)]);
+    }
+    assert_ne!(
+        app.camera, camera_before,
+        "positive control: the middle-drag must actually pan the camera, \
+         proving egui crossed its drag threshold"
+    );
+
+    // The button is never released. `PointerGone` (a real `CursorLeft` path,
+    // harness rule 5) flips `hovered()` false while `dragged()` survives.
+    let _ = frame_delay(&ctx, &mut app, vec![egui::Event::PointerGone]);
+
+    // AC 2's unasserted settle frame — the frame after any event-carrying
+    // frame always reads ZERO, even under the mutation.
+    let _ = frame_delay(&ctx, &mut app, vec![]);
+
+    assert!(
+        app.preview_entities.is_empty() && app.dirty_since.is_none(),
+        "controls: no tool preview and nothing dirty, so neither of the \
+         other two terms can be the one answering"
+    );
+
+    for frame in ["C", "D"] {
+        let delay = frame_delay(&ctx, &mut app, vec![]);
+        assert_eq!(
+            delay,
+            Duration::ZERO,
+            "frame {frame}: a captured middle-drag must keep the canvas awake \
+             even with the pointer gone, got {delay:?}"
+        );
+    }
 }

@@ -2,7 +2,7 @@
 //!
 //! Each integration-test binary compiles its own copy, hence `allow(dead_code)`.
 //!
-//! Three rules for every test built on this harness (ADR 0002 §A4):
+//! Five rules for every test built on this harness (ADR 0002 §A4):
 //!
 //! 1. **Never send `Ctrl+O`, `Ctrl+S` or `Ctrl+Shift+S`.** They reach
 //!    `src/io/file_actions.rs`, which opens a blocking native `rfd` dialog and
@@ -24,6 +24,13 @@
 //!    against an unfocused field does nothing — a silent false negative that
 //!    looks exactly like a broken parser. Every command-line test is
 //!    therefore at least two frames; [`submit_command`] handles this.
+//! 5. **`egui::Event::PointerGone` is the only headless route to `dragged() &&
+//!    !hovered()`.** It clears `latest_pos` while deliberately leaving
+//!    `pointer.down` set — a slider drag is meant to survive the pointer
+//!    leaving the viewport — which drops `potential_drag_id` and flips
+//!    `hovered()` to `false` while `dragged()` survives. A `PointerMoved` to a
+//!    position outside the widget does **not** do this: `latest_pos` stays
+//!    populated, so `hovered()` stays `true` and a mutant term goes uncaught.
 #![allow(dead_code)]
 
 use lasercad::app::App;
