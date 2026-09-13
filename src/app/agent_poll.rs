@@ -3,7 +3,7 @@
 //! Extracted from `App::update` so the polling logic is unit-testable
 //! headlessly, with no egui context.
 //!
-//! ## Why a disconnected channel is a real event (ADR 0007 §D11)
+//! ## Why a turn must always announce its end (ADR 0007 §D11)
 //!
 //! `agent_busy` is not just the spinner's flag. `App::update_ui` reads it to
 //! decide whether to `ctx.request_repaint()`, so while it is `true` the app
@@ -11,22 +11,22 @@
 //! an in-flight rendezvous can advance. A turn that ends without saying so
 //! therefore leaves the app repainting every frame for the rest of the session,
 //! silently reopening LCV-120 with a symptom that surfaces nowhere near the
-//! agent. So `agent_busy` is cleared on **every** exit — `Done`, `Failed` and a
-//! dropped sender alike — and a worker thread that panics or returns closes the
-//! channel as a matter of course, because the `Sender` is moved into it.
+//! agent.
 //!
-//! The **fourth** exit is a worker that vanishes between sending an `Act` and
-//! reading its answer. The reply channel is then dead while the event channel
-//! may still look alive, so nothing else would ever bring `agent_busy` down.
-//! It reports the same thing as a dropped sender does — the worker is gone —
-//! so it writes the same row, and ADR 0007 §D11 requires that: two spellings
-//! of one fact must never show the operator different things.
+//! What guarantees that cannot happen is a closure property, not a list of
+//! arms — a count rots the moment someone adds one. [`end_turn`] is the only
+//! place in the program that writes `agent_busy = false` or clears `agent_rx`
+//! after startup, and every path out of [`poll_agent_rx`] that does not put
+//! the receiver back is a tail call to it. Any exit added later must obey
+//! that, not this paragraph.
 //!
-//! What holds all four together is not the list but the invariant under it:
-//! [`end_turn`] is the only place in the program that writes
-//! `agent_busy = false` or clears `agent_rx` after startup, and every path out
-//! of [`poll_agent_rx`] that does not put the receiver back is a tail call to
-//! it. A fifth exit must obey that, not this paragraph.
+//! Two of those arms report the same fact by different routes: a
+//! `TryRecvError::Disconnected`, and a `reply.send` that finds nobody waiting
+//! for an answer. Both mean the worker is gone — its event `Sender` is moved
+//! into the thread closure and held nowhere else, so a thread that panics or
+//! returns closes that channel as a matter of course. §D11 requires they show
+//! the operator the same row: two spellings of one fact must never look like
+//! two different facts.
 
 use crate::agent::AgentEvent;
 use crate::app::{agent_apply, App};
