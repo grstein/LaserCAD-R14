@@ -11,7 +11,7 @@ Build a pure-Rust, single-binary, egui-based reimplementation of LaserCAD R14 v1
 - **Language**: Rust 2021 edition, stable toolchain pinned to 1.88 (via `rust-toolchain.toml`).
 - **UI**: `egui` via `eframe`. No WebView, no JS, no Tauri.
 - **Dialogs**: `rfd`.
-- **HTTP** (for the agent): `reqwest` + `tokio`.
+- **HTTP** (for the agent): `reqwest::blocking` on a plain `std::thread`. **This crate does not depend on `tokio`** and must not gain one — see `AGENTS.md` and ADR 0007. The LCV-077 row below still reads "reqwest + tokio"; that row is inside the frozen status table and is left verbatim on purpose.
 - **SVG**: handwritten emitter for export, `roxmltree` for import.
 - **Persistence**: `serde_json` + `directories`.
 - **Bundle**: single binary; Linux via AppImage / `.deb`.
