@@ -193,7 +193,11 @@ redesign it.
    harness copy and the private originals are deleted — **one collector in the
    tree, not two**. The converted tests assert exactly what they asserted before
    the move, and the diff removes more lines than it adds. No other test file is
-   touched. If LCV-125's rework has not landed when this demand starts, **stop
+   touched — with one named exception: **if LCV-126 landed first**, its AC 4
+   allows an inline collector in `tests/lcv126_command_line_group.rs` and
+   requires the implementer to flag it in the handover. That file is absorbed by
+   the same move, on the same terms. Check for it before starting; the rule is
+   one collector in the tree, whatever the count was when you arrived. If LCV-125's rework has not landed when this demand starts, **stop
    and report**: there is nothing to extract, and writing a helper against a
    hypothetical caller is how speculative APIs get in.
 
