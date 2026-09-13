@@ -48,9 +48,12 @@ loud what it actually does with the key.
 
 ## Out of scope
 
-- **Changing what LCV-123 records.** The role vocabulary and the sentence text
-  are LCV-123's; this demand renders them. If a sentence is wrong, that is a
-  LCV-123 defect, not a new string here.
+- **Changing what LCV-123 records.** The seam is: **LCV-123 produces the rows,
+  this demand renders them.** The role vocabulary and every sentence are
+  LCV-123's — `user` (its AC 3), `tool` and `refused` (its AC 23), `assistant`
+  and `error` (its AC 7), `note` (its AC 11) — and their order in `agent_chat`
+  is fixed there too (its AC 23). If a sentence is wrong, or a row is missing,
+  that is an LCV-123 defect, not a new string here.
 - **A new `App` field or a new transcript type.** `agent_chat:
   Vec<(String, String)>` is the carrier. Do not introduce a parallel store.
 - **Markdown rendering, syntax highlighting, streaming/typewriter output,
@@ -75,7 +78,9 @@ loud what it actually does with the key.
    exactly the six roles LCV-123 and LCV-124 write — `user`, `assistant`,
    `error`, `tool`, `refused`, `note` — each with its own arm, plus the existing
    `_ =>` plain-label fallback which stays as the safety net. A doc comment on
-   the render function lists the six and names the writer of each.
+   the render function lists the six and names the writer of each: every one is
+   produced by LCV-123 (AC 3, AC 7, AC 11, AC 23), and `user` is additionally
+   produced by LCV-124 when the prompt arrives from the command line.
 
 2. **Action and outcome rows are distinguishable at a glance.** A `tool` row
    renders in `egui::TextStyle::Monospace` and is prefixed with `▸ `. It is not
@@ -248,9 +253,12 @@ is a rendering assertion.
   which happened), §D7 (the budget range lives with the loop), §D8 (`panel.rs`
   and `settings_ui.rs` are the only `egui` importers under `src/agent/`), §D10
   (plaintext key, and the UI must say so in words).
-- The role values and every sentence rendered here are written by LCV-123
-  (`tool`, `refused`, `note`) and LCV-124 (`user`, via the command line). This
-  demand adds no new strings to `agent_chat`.
+- The role values and every sentence rendered here are written by LCV-123 —
+  `tool` and `refused` per action at the apply site (LCV-123 AC 23),
+  `assistant` / `error` at turn end (its AC 7), `note` after that (its AC 11),
+  `user` when the turn is armed (its AC 3) — and `user` again by LCV-124 when
+  the prompt comes from the command line. This demand adds **no** new strings to
+  `agent_chat` and appends no row of its own.
 - Existing wiring that stays: `src/app/panels.rs::agent_settings_dialog`
   persists on close and scopes its borrows (LCV-119);
   `draw_agent_settings` already returns a `changed` bool with two fields —

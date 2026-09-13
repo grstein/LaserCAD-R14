@@ -54,13 +54,20 @@ is exactly how a wrong `delete_entity 3` happens.
 - The step budget is read from `Settings` and clamped at this read site.
 - The end-of-turn note that tells the operator whether the turn is one undo step
   or several.
+- The tool-call transcript: one `agent_chat` row per action, written at the
+  apply site.
 
 ## Out of scope
 
-- **Any UI polish.** The transcript rows this demand *writes* render through the
-  panel's existing fallback label. Making them legible — colours, a distinct
-  tool row, the settings fields for model and budget, the plaintext-key warning
-  — is **LCV-125**.
+- **Rendering the transcript.** The seam is: **this demand produces the rows,
+  LCV-125 renders them.** Producing a row is data and it happens where the
+  outcome is already known (AC 23); how a row *looks* — per-role render arms,
+  colours, a distinct tool row, prefixes, layout, scrolling — is **LCV-125**,
+  along with the settings fields for model and budget and the plaintext-key
+  warning. Until LCV-125 lands these rows render through the panel's existing
+  fallback label, which is legible enough to assert against. This demand writes
+  all six roles LCV-125 closes over: `user` (AC 3), `tool` and `refused`
+  (AC 23), `assistant` and `error` (AC 7), `note` (AC 11).
 - **Command-line routing** (`:` / `/ai`, the classifier, the
   `! Agent unavailable: …` path). **LCV-124.** After this demand lands, LCV-124
   and LCV-125 are independent of each other and may run in parallel.
@@ -310,9 +317,39 @@ is exactly how a wrong `delete_entity 3` happens.
     strand it as a separate undo step. Exit (4) therefore always produces a note
     row; an exit that applied zero actions produces none (AC 11). Row order at
     turn end is fixed and asserted: the terminal row first (`assistant` or
-    `error`), then the `note` row.
+    `error`), then the `note` row — the tail of the total ordering AC 23 fixes
+    for the whole turn.
 
-23. **Gates.** `cargo fmt --all -- --check`,
+23. **Every action the agent takes leaves a row in the transcript.** The panel
+    shows the final assistant message **and a tool-call transcript**; v1 showed
+    only the answer, and an operator who cannot see what the agent did cannot
+    catch a wrong `delete_entity` before it costs a part. The rows are produced
+    in `agent_apply::apply`, the one place that already knows both the action
+    and its narration:
+    - an applied action appends one row, role `tool`, content the
+      `AgentOutcome::Ok` string **verbatim** — the same sentence handed back to
+      the model (LCV-122 AC 9, AC 10), so the operator and the model read the
+      same fact and a disagreement between them is impossible by construction;
+    - a refused action appends one row, role `refused`, content the
+      `AgentOutcome::Refused` string verbatim — the fence text (AC 9) or the
+      out-of-range text (LCV-122 AC 6);
+    - a **query** appends a `tool` row like any other action. One row per
+      action, no variant is special-cased: a rule with an exception is a rule
+      someone has to ask about. The listing can be long; that is accepted and
+      bounded by the ≤ 32 step budget, and AC 5 of LCV-125 makes long rows wrap.
+
+    A transcript row is **not** an applied action: a query appends its row and
+    still advances neither the applied-action counter, nor the fence, nor the
+    coalesce (AC 16). Exit (4) appends its `tool` row too — the action was
+    applied before the answer was lost, so the drawing really did change and
+    the row is the only place the operator can see it.
+
+    **Ordering within a turn is total, and asserted:** the `user` row (AC 3),
+    then one row per action in apply order, then the terminal row (AC 7), then
+    the `note` row (AC 11, AC 22). No row is ever inserted earlier in
+    `agent_chat` than a row already there.
+
+24. **Gates.** `cargo fmt --all -- --check`,
     `cargo clippy --all-targets -- -D warnings`, `cargo test --all` exit 0.
 
 ## Expected tests
@@ -362,6 +399,16 @@ is exactly how a wrong `delete_entity 3` happens.
   action), and the `note` row is present and sits **after** the `error` row. A
   fence-aborted counterpart ended by `Disconnected` asserts three separate undo
   entries and the other sentence.
+- **Integration / AC 23** — three tests on `agent_chat`'s contents, not its
+  appearance. (a) A turn of two `CreateLine`s and one `query_entities`: the
+  roles, in order, are `user`, `tool`, `tool`, `tool`, `assistant`, `note`; each
+  `tool` row's content equals the `AgentOutcome::Ok` string the test read back
+  off its own reply receiver; and the `note` row still reads *Applied 2
+  actions…* because the query is not an applied action. (b) A fence-aborted
+  turn: the refused action's row has role `refused` and content equal to the
+  `AgentOutcome::Refused` string, and the applied action's `tool` row precedes
+  it. (c) Exit (4): the `tool` row for the applied action, then the `error` row,
+  then the `note` row, in that order.
 - **Integration / AC 12** — a user commit succeeds while an `Act` is
   outstanding; plus a scan that no `*_open` flag is written by the three turn
   functions.
@@ -414,7 +461,11 @@ is exactly how a wrong `delete_entity 3` happens.
   `Sender` alive, leaves `agent_busy` set and fails by name;
   (i) make exit (4) end the turn **silently** (`end_turn(app, None)`, the
   pre-amendment behaviour) → AC 7's same-row assertion fails by name;
-  (j) skip the coalesce on the two lost exits → AC 22 fails by name.
+  (j) skip the coalesce on the two lost exits → AC 22 fails by name;
+  (k) write a refusal with role `tool` instead of `refused` → AC 23 (b) fails
+  by name;
+  (l) append a row for mutating actions only, skipping queries → AC 23 (a)'s
+  role sequence fails by name.
 - **[manual] smoke, recorded on LCV-089's checklist** — first real prompt
   against OpenRouter with the user's own API key. No CI test may reach a real
   endpoint.
@@ -503,6 +554,13 @@ is exactly how a wrong `delete_entity 3` happens.
 - When this lands, `CHANGELOG.md`'s *"The agent can read and narrate the drawing
   but does not yet modify it end-to-end from chat"* stops being true.
   `demand-manager` owns that edit.
+- **The transcript is a requirement, not a nicety.** The direction for the
+  agent panel was *show the final assistant message **and** a tool-call
+  transcript — v1 never did, do not repeat that gap.* AC 23 is where that lands.
+  It was previously implied by LCV-125 (whose AC 1 closes the role vocabulary at
+  six) and written down in neither demand, which left two render arms with no
+  producer. The seam is now explicit in both: **LCV-123 produces rows, LCV-125
+  renders them.**
 - **LCV-124 and LCV-125 are parallelizable once this demand lands.** They touch
   disjoint files: LCV-124 is `src/agent/classifier.rs` + `src/app/cmdline.rs`;
   LCV-125 is `src/agent/panel.rs` + `src/agent/settings_ui.rs`.
