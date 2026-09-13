@@ -78,26 +78,51 @@ mod tests {
     /// *first statement*, before `eframe::run_native`. "First statement" is
     /// the load-bearing part of the design, so a mere `contains()` check is
     /// not enough — that would pass if the arming call sat in a doc comment,
-    /// after `eframe::run_native`, or outside `run()` entirely. Searching
-    /// for each marker starting from the previous one's byte offset (rather
-    /// than from the top of the file) is what keeps the doc-comment mentions
-    /// of both symbols above `pub fn run()` from passing this test. Style
-    /// reference: `file_ops_does_not_import_eframe_or_rfd`
-    /// (`src/app/file_ops.rs`).
+    /// after `eframe::run_native`, or outside `run()` entirely.
+    ///
+    /// The haystack is bounded to `&src[..cfg_test_at]` — everything before
+    /// the bare `#[cfg(test)]` at column 0 that opens this very module —
+    /// exactly as `guard_is_runtime_not_cfg` does in `src/io/dialogs.rs`.
+    /// Without that bound, this test's own body (which necessarily contains
+    /// the literals `arm_native_dialogs()` and `eframe::run_native` as
+    /// `.find()` arguments) sits later in the same `include_str!` output and
+    /// gives every mutation that removes the real arming call a fake,
+    /// trivially-ordered match to fall through to — a review found this
+    /// exact self-match kept the test green when the real call was deleted
+    /// from `run()` outright.
+    ///
+    /// Byte-offset ordering alone is still not enough: commenting the real
+    /// call out (`// crate::io::arm_native_dialogs();`) leaves the literal
+    /// substring sitting at the same relative position, so an ordering-only
+    /// check keeps passing. The trailing assertion below rejects a match
+    /// whose own line is a `//` comment.
     #[test]
     fn run_arms_native_dialogs_as_its_first_statement() {
         let src = include_str!("lib.rs");
-        let run_at = src
+        let cfg_test_marker = "\n#[cfg(test)]";
+        let cfg_test_at = src
+            .find(cfg_test_marker)
+            .expect("lib.rs must contain a bare #[cfg(test)] mod tests marker");
+        let implementation = &src[..cfg_test_at];
+
+        let run_at = implementation
             .find("pub fn run()")
-            .expect("lib.rs must declare pub fn run()");
+            .expect("lib.rs must declare pub fn run() before the #[cfg(test)] module");
         let arm_at = run_at
-            + src[run_at..]
+            + implementation[run_at..]
                 .find("arm_native_dialogs()")
-                .expect("run() must call arm_native_dialogs()");
+                .expect(
+                    "run() must call arm_native_dialogs() before the #[cfg(test)] \
+                     module — needle `arm_native_dialogs()` not found after `pub fn \
+                     run()` in the implementation section",
+                );
         let run_native_at = arm_at
-            + src[arm_at..]
-                .find("eframe::run_native")
-                .expect("run() must call eframe::run_native");
+            + implementation[arm_at..].find("eframe::run_native").expect(
+                "run() must call eframe::run_native after arm_native_dialogs(), \
+                     before the #[cfg(test)] module — needle `eframe::run_native` not \
+                     found after the arming call in the implementation section",
+            );
+
         assert!(
             run_at < arm_at,
             "arm_native_dialogs() must appear after pub fn run() (AC 6)"
@@ -105,6 +130,20 @@ mod tests {
         assert!(
             arm_at < run_native_at,
             "arm_native_dialogs() must be called before eframe::run_native (AC 6)"
+        );
+
+        let arm_line_start = implementation[..arm_at]
+            .rfind('\n')
+            .map(|newline_at| newline_at + 1)
+            .unwrap_or(0);
+        let arm_line = implementation[arm_line_start..]
+            .lines()
+            .next()
+            .unwrap_or("");
+        assert!(
+            !arm_line.trim_start().starts_with("//"),
+            "arm_native_dialogs() must be live code, not commented out (AC 6) — \
+             found line `{arm_line}`"
         );
     }
 }
