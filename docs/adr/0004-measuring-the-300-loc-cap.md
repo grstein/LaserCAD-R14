@@ -1,6 +1,11 @@
 # ADR 0004 — Measuring the 300-LOC cap
 
 - **Status**: Accepted
+- **Amended (1)**: 2026-09-13 — `src/app/mod.rs` reached 292 and Consequences
+  said it had no seam to pre-decide. It has one now, because the thing that grew
+  is known: the agent harness. Consequences gains §"The `src/app/mod.rs` seam",
+  which also corrects LCV-123 AC 20's destination for `AgentState`. Rule 4 is
+  applied, not changed; nothing in rules 1..4 is reversed.
 - **Date**: 2026-09-13
 - **Deciders**: architect
 
@@ -129,6 +134,70 @@ the `struct App` field list and its doc comments, which cannot move without
 moving `App`. If it crosses, the thing that grew is what moves out, by the
 existing phase-per-file rule.
 
+*(Amended (1), 2026-09-13. The paragraph above is kept as written and its
+reasoning still holds — but its conclusion no longer does. The thing that grew
+is now known, so the seam **is** pre-decided; see below.)*
+
+**The `src/app/mod.rs` seam, pre-decided per rule 4.**
+
+`src/app/mod.rs` is at **292** implementation lines at `5452fd6`, measured with
+the rule 2 recipe. It went 265 → 274 → 289 → 292 across Marco 2, and every one
+of those increments was the agent harness. Eight lines of headroom is still not
+a reason to split — rule 4 forbids that, and neither demand in flight touches
+the file (LCV-124 is `src/agent/classifier.rs` and `src/app/cmdline.rs`; LCV-125
+is `src/agent/panel.rs` and `src/agent/settings_ui.rs`). It *is* a reason to
+write the seam down now, which is the entire purpose of rule 4: whoever crosses
+the cap will cross it mid-implementation, and that is the worst moment to be
+inventing a seam.
+
+**The seam is `AgentState`: the eight agent fields leave `App` as one field.**
+
+| stays in `src/app/mod.rs` | moves to `src/app/agent_state.rs` |
+|---|---|
+| every other `App` field, `impl App`, the module doc, and one `pub agent: AgentState` | `agent_panel_open`, `agent_chat`, `agent_input_draft`, `agent_busy`, `agent_rx`, `agent_fence`, `agent_applied`, `agent_turn_label`, wrapped in `pub struct AgentState` |
+
+Four notes make it executable without a second decision:
+
+- **The destination is a new `src/app/agent_state.rs`, not `src/app/agent_turn.rs`.**
+  LCV-123 AC 20 named `agent_turn.rs`, and that is now wrong: `agent_turn.rs` is
+  itself at 272, and the struct with its doc comments is ~26 lines, landing it
+  at ~298 with no headroom. That seam would trade one capped file for another
+  and buy a single demand's worth of time. A fourth file joins ADR 0007 §D8's
+  three; state with no behaviour is its own responsibility, which is what
+  AGENTS.md §Implementation Rules asks a file to have.
+- **`TurnFence` gains `Default` in its derive.** Its three fields are `u64`,
+  `u64` and `bool`, and `TurnFence::default()` is `TurnFence::new(0)`, so
+  `AgentState` can `#[derive(Default)]` and `src/app/init.rs` collapses nine
+  agent initialiser lines into one.
+- **The arithmetic.** `src/app/mod.rs` loses the 22-line field block and gains
+  three lines for `pub agent: AgentState` plus a `mod` / `pub use` pair, landing
+  near **275** — back inside the band with real headroom, rather than one line
+  under the cap.
+- **`agent_settings_open` does not move.** It sits with `about_open` and
+  `shortcuts_open` in the dialog-visibility cluster and belongs to the settings
+  dialog, not to a turn. The seam follows the turn.
+
+The cost is call sites, and it is mechanical. The eight fields are read or
+written across `src/agent/bridge.rs`, `src/agent/panel.rs`,
+`src/app/agent_apply.rs`, `src/app/agent_poll.rs`, `src/app/agent_turn.rs`,
+`src/app/init.rs`, `src/app/panels.rs`, `src/ui/toolbar.rs` and three
+integration tests. Fields drop their prefix inside the struct
+(`app.agent_busy` → `app.agent.busy`) and the compiler finds every site. Two
+source scans carry field paths in their needles —
+`every_repaint_request_in_src_is_conditional` and LCV-123 AC 19's `agent_busy`
+guard scan — so those needles and `AGENTS.md` §Event flow → Repaint policy are
+updated in the same commit, with the conditional-repaint count staying at three.
+
+**The rest of the band, for the record.** `src/app/agent_apply.rs` is at 284,
+`src/app/file_ops.rs` at 281, `src/app/agent_turn.rs` at 272 and
+`src/io/settings.rs` at 265. Only `agent_apply.rs` needs a seam named, and it is
+obvious: `apply`, `transcribe`, `plan` and `in_range` are the command half,
+while `with_count` through `list_selection` are ten pure `String`-returning
+formatters with no `App` and no `Command` between them. Those ten move to
+`src/app/agent_prose.rs` when a demand crosses the cap. `agent_turn.rs` has no
+pre-decided seam; what it must **not** absorb is `AgentState`, per the note
+above.
+
 ## Alternatives considered
 
 - **Leave `AGENTS.md` alone and expect reviewers to read ADR 0002** — already
@@ -153,3 +222,5 @@ existing phase-per-file rule.
   recipe, keep the definition.
 - `src/app/file_ops.rs` crosses 300 → execute the seam above; no new decision
   is required.
+- `src/app/mod.rs` or `src/app/agent_apply.rs` crosses 300 → execute the seam
+  named for it in Consequences; no new decision is required.

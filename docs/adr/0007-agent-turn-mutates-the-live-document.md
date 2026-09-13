@@ -19,6 +19,12 @@
   function ends a turn") is stated once instead of being re-derived per arm.
   §D8's one-line gloss for `agent_poll.rs` follows. No decision in §D1..§D10
   changes.
+- **Amended (4)**: 2026-09-13 — LCV-123 shipped (`af5ef82`) and closed the
+  hazard §"The 121→123 window" was tracking. That section is rewritten into the
+  past tense and kept as a dated historical record: it is no longer a live
+  warning and it no longer bars a release. `panel.rs::submit` is deleted,
+  `src/agent/` names no document type, and two independent scans — both proved
+  non-vacuous by mutation — hold that. No decision in §D1..§D11 changes.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
@@ -517,47 +523,84 @@ them into leaving `agent_busy` set must fail.
   every code path, and **"first real prompt against OpenRouter with the user's
   own key"** joins LCV-089's existing manual smoke checklist.
 
-## The 121→123 window — a recorded sequencing hazard
+## The 121→123 window — a sequencing hazard, now closed
 
-*(Added by amendment, surfaced during refinement.)*
+*(Added by amendment (1), rewritten by amendment (2), closed by amendment (4)
+on 2026-09-13. Kept as a dated record rather than deleted: the hazard was real,
+it was tracked, and it is over. **Nothing in this section is a live warning, and
+nothing in it bars a release.**)*
 
-This decision is delivered by LCV-121 (transport speaks tool calls), LCV-122
-(the bridge) and LCV-123 (the turn runs against the real document). **The three
-must land as one sequence, and no release may be cut between them.**
+This decision was delivered by LCV-121 (transport speaks tool calls), LCV-122
+(the bridge) and LCV-123 (the turn runs against the real document). While those
+three were in flight, `main` carried a silent defect. This section existed to
+make sure no release was cut on top of it, and it is preserved so that the next
+person tempted to ship a capability one demand ahead of the thing that makes it
+honest can see what it cost.
 
-The reason is that `panel.rs::submit` keeps dispatching against a throwaway
-`Document::default()` until LCV-123 deletes it, and **since LCV-121 (`d584f4d`)
-that throwaway is live**. `run_agent_turn` now builds `tools::tool_definitions()`
-once per turn, puts a `tools` key on every request, and dispatches the
-`tool_calls` array that comes back. So the agent creates, moves and deletes real
-geometry in a `Document` nobody can see, and then reports the work as done — a
-*worse* product than the one that shipped, and a silent one. This is no longer a
-hazard that *could* be created; it is the state of `main`.
+### What the window was
+
+`panel.rs::submit` dispatched tool calls against a throwaway
+`Document::default()` / `History::default()` pair. From LCV-121 (`d584f4d`)
+that throwaway was **live**: `run_agent_turn` built `tools::tool_definitions()`
+once per turn, put a `tools` key on every request, and dispatched the
+`tool_calls` array that came back. So the agent created, moved and deleted real
+geometry in a `Document` nobody could see, and then reported the work as done —
+a *worse* product than the one that shipped, and a silent one. `main` compiled,
+linted and tested green throughout, because every test handed `run_agent_turn`
+the very document it mutated.
+
+### Why it was allowed to open
 
 The original mitigation was that **LCV-121 and LCV-122 would deliver the
 capability without enabling it** — leave the live send path alone, prove the new
 code against `mockito` only, and let LCV-123 flip the switch in one commit.
-**LCV-121's demand overrode that deliberately and on the record**: its acceptance
-criteria 9 and 11 require `run_agent_turn` to forward the model and the step
-budget through the live path, its §Risks names dispatch into the throwaway
-document as the expected consequence, and its §Notes marks the `_tool_defs`
-placeholder as the thing being upgraded. The trade is defensible — a
-`tools`-less send path would have meant building and testing a second send path
-only to delete it two demands later — but it spends the mitigation, and what is
-left is the deadline.
+**LCV-121's demand overrode that deliberately and on the record**: its
+acceptance criteria 9 and 11 required `run_agent_turn` to forward the model and
+the step budget through the live path, its §Risks named dispatch into the
+throwaway document as the expected consequence, and its §Notes marked the
+`_tool_defs` placeholder as the thing being upgraded. The trade was defensible
+— a `tools`-less send path would have meant building and testing a second send
+path only to delete it two demands later — but it spent the mitigation, and what
+was left was a deadline: **no tag and no release until LCV-123 landed.**
 
-LCV-121 did not make the window any wider than this paragraph describes.
-`panel.rs::submit` still constructs the throwaway `Document::default()` /
-`History::default()` pair it always did; nothing else about the panel's dispatch
+LCV-121 did not widen the window beyond that. `panel.rs::submit` still built the
+same throwaway pair it always had; nothing else about the panel's dispatch
 changed.
 
-So one requirement survives, and it is now the only one: **no tag and no release
-may be cut until LCV-123 lands.** LCV-123 is what replaces that pair with the
-fenced rendezvous of §D1..§D4 and deletes the throwaway, in one commit. Until
-that commit exists, `main` compiles, lints and tests green while the agent lies
-about the canvas — and the tests cannot catch it, because every one of them
-hands `run_agent_turn` the very document it mutates. Anyone reaching for
-`git tag` before LCV-123 should read this paragraph as a stop sign.
+### What closed it
+
+**LCV-123 landed and was approved at `af5ef82`.** The deadline is discharged and
+releases are unblocked as far as this ADR is concerned.
+
+The throwaway is not merely unused — it is gone, and three independent checks
+hold it gone:
+
+1. **`panel.rs::submit` was deleted outright.** `src/agent/panel.rs` renders and
+   reports: it constructs no document, spawns no thread and owns no channel. The
+   turn runs on the UI thread through `src/app/agent_turn.rs::start_turn`,
+   exactly as §D1..§D4 require.
+
+2. **`src/agent/` names no document type at all.**
+   `AGENT_DOCUMENT_EXCEPTIONS` in `tests/lcv122_source_scans.rs` is
+   `const AGENT_DOCUMENT_EXCEPTIONS: [&str; 0] = [];`, and the test asserts it
+   empty **at runtime**, bound through a `&[&str]` slice so the assertion is a
+   real check rather than a compile-time tautology the optimiser folds away.
+   Re-opening that list needs an ADR; `src/agent/mod.rs`'s module doc says so.
+
+3. **Both layers were shown to be non-vacuous by mutation.** The LCV-123
+   reviewer put `use crate::document::{Document, History};` back into
+   `src/agent/panel.rs`, and the scan failed by name. They then re-opened the
+   exception list to `["panel.rs"]` to smuggle the import past it, and the scan
+   failed again — on a second, independent assertion. `panel.rs` additionally
+   carries its own in-file scan, `the_panel_renders_and_reports`, which first
+   checks each of its five needles against a witness string spelling out what
+   the old `submit` did, so a misspelt needle fails loudly instead of passing
+   vacuously.
+
+The release-hazard banners this section spawned are cleared: `PLAN.md` keeps its
+append-only log entry as written, and `docs/product/backlog.md`'s banner was
+removed at `73effdb`. This section was the last one standing, and it is now
+history.
 
 ## Alternatives considered
 
