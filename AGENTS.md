@@ -45,6 +45,7 @@ src/
 ├── app/                    # eframe::App impl, top-level state, wiring (mod.rs, input.rs, viewport.rs, panels.rs, autosave.rs, ortho.rs, snap.rs, agent_poll.rs)
 ├── lib.rs                  # re-exports for tests
 ├── geometry/               # pure kernel: vec2, line, circle, arc, intersect, snap, rect, epsilon
+├── cmdline/                # pure kernel: command-line grammar (parse, parse_number), ToolKind/ToggleKind/ZoomKind, recall ring
 ├── document/               # entity model, schema, commands, history, selection
 ├── render/                 # camera, viewport, grid, bed, entities, preview, snaps
 ├── tools/                  # Tool trait, ToolManager, one file per tool
@@ -69,6 +70,7 @@ The following modules MUST NOT import `egui`, `eframe`, or `rfd`:
 - `src/document/*`
 - `src/io/svg/*`
 - `src/text/*`
+- `src/cmdline/*`
 
 This is the "kernel". It must remain testable as a pure Rust library and runnable in a future headless / CLI / WASM context. Reviewers (`reviewer-rust`) check this on every demand.
 
@@ -146,7 +148,7 @@ If you are the main Claude Code agent and the user asks for project work, defaul
 ## Implementation Rules
 
 - Keep **millimeters canonical** in document, geometry, command line, and SVG export. Radians in the kernel.
-- Keep the **kernel pure**: no `egui`/`eframe`/`rfd` imports in `geometry/`, `document/`, `io/svg/`, `text/`.
+- Keep the **kernel pure**: no `egui`/`eframe`/`rfd` imports in `geometry/`, `document/`, `io/svg/`, `text/`, `cmdline/`.
 - **All entity mutation through `Command` trait + history stack.** No direct `Document.entities` mutation outside `document::commands` and `document::history`.
 - **No `unsafe`** without an inline justification and an ADR.
 - **No `unwrap()` / `expect()`** in library code except where an invariant is documented; tests can unwrap.
@@ -183,6 +185,7 @@ Default answers:
 - [`PLAN.md`](PLAN.md) — live roadmap (demand table, phases, PM execution log).
 - [`docs/adr/0001-pure-rust-egui.md`](docs/adr/0001-pure-rust-egui.md) — framework decision.
 - [`docs/adr/0002-headless-input-tests-and-dirty-tracking.md`](docs/adr/0002-headless-input-tests-and-dirty-tracking.md) — headless `App::update_ui` regression-test pattern, the single keyboard gate, and `History::revision()` as the autosave dirty signal.
+- [`docs/adr/0003-command-line-input-contract.md`](docs/adr/0003-command-line-input-contract.md) — the command-line input contract: the `cmdline` kernel module, `ToolKind`/`ToggleKind`/`ZoomKind`, the recall ring, and the `Tool::on_command_input` wiring.
 - [`docs/product/README.md`](docs/product/README.md) — product principles.
 - [`docs/product/product-owner-agent.md`](docs/product/product-owner-agent.md) — demand format and lifecycle.
 - [`docs/product/backlog.md`](docs/product/backlog.md) — prioritized backlog by state.

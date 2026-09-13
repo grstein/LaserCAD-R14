@@ -11,7 +11,8 @@
 use crate::app::App;
 use crate::document::SelectionCommand;
 use crate::geometry::Vec2;
-use crate::ui::toolbar::{make_tool, TOOLS};
+use crate::tools;
+use crate::ui::toolbar::TOOLS;
 
 /// Render the menubar strip.  Must be the first panel in `App::update`.
 pub fn draw_menubar(ui: &mut egui::Ui, app: &mut App) {
@@ -130,9 +131,7 @@ fn tools_menu(ui: &mut egui::Ui, app: &mut App) {
             };
             if ui.button(text).clicked() {
                 ui.close_menu();
-                if let Some(tool) = make_tool(entry.label) {
-                    app.tool_manager.set_tool(tool);
-                }
+                app.tool_manager.set_tool(tools::make(entry.kind));
             }
         }
     });
@@ -370,15 +369,13 @@ mod tests {
     }
 
     /// LCV-104 AC#7 — activating each Tools-menu entry sets the active tool:
-    /// `make_tool(entry.label)` followed by `set_tool` leaves
+    /// `tools::make(entry.kind)` followed by `set_tool` leaves
     /// `active_tool_name() == entry.tool_name`, for every table entry.
     #[test]
     fn tools_menu_entries_activate_their_tool() {
         let mut app = App::default();
         for entry in TOOLS {
-            let tool =
-                make_tool(entry.label).unwrap_or_else(|| panic!("no tool for {}", entry.label));
-            app.tool_manager.set_tool(tool);
+            app.tool_manager.set_tool(tools::make(entry.kind));
             assert_eq!(app.tool_manager.active_tool_name(), entry.tool_name);
         }
     }

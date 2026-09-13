@@ -1,11 +1,12 @@
 //! LaserCAD v2 library crate.
 //!
 //! Module boundaries and rules are documented in `AGENTS.md` at the repository
-//! root. Kernel modules ([`geometry`], [`document`], [`io::svg`], [`text`])
-//! MUST NOT import `egui`, `eframe`, or `rfd`.
+//! root. Kernel modules ([`geometry`], [`document`], [`io::svg`], [`text`],
+//! [`cmdline`]) MUST NOT import `egui`, `eframe`, or `rfd`.
 
 pub mod agent;
 pub mod app;
+pub mod cmdline;
 pub mod document;
 pub mod geometry;
 pub mod io;

@@ -9,10 +9,8 @@
 use egui::{Key, Modifiers};
 
 use crate::app::App;
-use crate::tools::{
-    ArcTool, CircleTool, DeleteTool, ExtendTool, LineTool, MoveTool, PolylineTool, RectTool,
-    TextTool, Tool, TrimTool,
-};
+use crate::cmdline::ToolKind;
+use crate::tools;
 
 /// Called once per frame — the first statement of `App::update` — before any
 /// panel is rendered. Reads key-press events (excluding repeats) from `ctx`
@@ -43,25 +41,25 @@ pub fn process_shortcuts(ctx: &egui::Context, app: &mut App) {
     }
 }
 
-/// Tool-activation dispatch table: `(key, constructor)` pairs iterated in a
-/// loop inside [`dispatch_shortcuts`].
+/// Tool-activation dispatch table: `(key, kind)` pairs iterated in a loop
+/// inside [`dispatch_shortcuts`]. `kind` is resolved to an instance through
+/// [`tools::make`] — the single tool-identity map (ADR 0003 §A3).
 ///
 /// `D` (LCV-104) activates `TextTool` — the AutoCAD R14 `DTEXT` mnemonic.
 /// `T`, `X`, `E`, `M`, `R` were already taken (TRIM, EXTEND, ERASE, MOVE,
 /// RECT), so `D` is the only free letter; see the demand Notes for the full
 /// rejection rationale. This is a settled product decision, not an option.
-type ToolCtor = fn() -> Box<dyn Tool>;
-const TOOL_KEYS: &[(Key, ToolCtor)] = &[
-    (Key::L, || Box::new(LineTool::default())),
-    (Key::P, || Box::new(PolylineTool::default())),
-    (Key::R, || Box::new(RectTool::default())),
-    (Key::C, || Box::new(CircleTool::default())),
-    (Key::A, || Box::new(ArcTool::default())),
-    (Key::M, || Box::new(MoveTool::default())),
-    (Key::E, || Box::new(DeleteTool)),
-    (Key::T, || Box::new(TrimTool)),
-    (Key::X, || Box::new(ExtendTool::default())),
-    (Key::D, || Box::new(TextTool::default())),
+const TOOL_KEYS: &[(Key, ToolKind)] = &[
+    (Key::L, ToolKind::Line),
+    (Key::P, ToolKind::Polyline),
+    (Key::R, ToolKind::Rect),
+    (Key::C, ToolKind::Circle),
+    (Key::A, ToolKind::Arc),
+    (Key::M, ToolKind::Move),
+    (Key::E, ToolKind::Delete),
+    (Key::T, ToolKind::Trim),
+    (Key::X, ToolKind::Extend),
+    (Key::D, ToolKind::Text),
 ];
 
 /// Inner, testable dispatch. Called from [`process_shortcuts`]; also called
@@ -130,9 +128,9 @@ pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: 
 
     // Tool activation — bare key only, suppressed when a text widget has focus.
     if bare && !wants_kbd {
-        for &(tool_key, ctor) in TOOL_KEYS {
+        for &(tool_key, kind) in TOOL_KEYS {
             if key == tool_key {
-                app.tool_manager.set_tool(ctor());
+                app.tool_manager.set_tool(tools::make(kind));
                 return;
             }
         }
@@ -142,6 +140,7 @@ pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cmdline::{parse, CommandInput};
     use crate::ui::toolbar::TOOLS;
     use std::collections::HashSet;
 
@@ -151,7 +150,7 @@ mod tests {
     #[test]
     fn tool_keys_are_unique_and_match_toolbar_shortcuts() {
         let mut seen_keys = HashSet::new();
-        for &(key, ctor) in TOOL_KEYS {
+        for &(key, kind) in TOOL_KEYS {
             let letter = format!("{key:?}");
             assert!(
                 seen_keys.insert(letter.clone()),
@@ -163,7 +162,7 @@ mod tests {
                 .find(|e| e.shortcut == Some(letter.as_str()))
                 .unwrap_or_else(|| panic!("no toolbar entry advertises shortcut {letter}"));
             assert_eq!(
-                ctor().name(),
+                tools::make(kind).name(),
                 entry.tool_name,
                 "TOOL_KEYS[{letter}] constructs the wrong tool"
             );
@@ -174,5 +173,28 @@ mod tests {
             .map(str::to_owned)
             .collect();
         assert_eq!(seen_keys, expected);
+    }
+
+    /// LCV-110 AC 13 — every `TOOL_KEYS` letter that also has a command-line
+    /// alias resolves through `cmdline::parse` to the **same** `ToolKind` as
+    /// the keyboard table. `X` and `D` have no command-line alias in this
+    /// demand (§Out of scope) and are skipped. This is the test that pins
+    /// product decision 2: making `e` mean `Extend` again fails the build.
+    #[test]
+    fn alias_table_agrees_with_tool_keys() {
+        for &(key, kind) in TOOL_KEYS {
+            let letter = format!("{key:?}");
+            if letter == "X" || letter == "D" {
+                continue;
+            }
+            let lower = letter.to_lowercase();
+            match parse(&lower) {
+                CommandInput::Tool(parsed) => assert_eq!(
+                    parsed, kind,
+                    "alias \"{lower}\" must resolve to the same ToolKind as TOOL_KEYS[{letter}]"
+                ),
+                other => panic!("expected \"{lower}\" to parse as Tool(_), got {other:?}"),
+            }
+        }
     }
 }

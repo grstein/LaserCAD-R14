@@ -11,11 +11,13 @@ fn module_tree_is_wired() {
     // `pub const MODULE` placeholders retired with LCV-105 — the demands that
     // own `agent`, `io`, `tools` and `util` have all landed, so each of them
     // now has genuine public surface to point at.
-    use lasercad::{agent, app, document, geometry, io, render, text, tools, ui, util};
+    use lasercad::{agent, app, cmdline, document, geometry, io, render, text, tools, ui, util};
 
     let _ = (
         std::any::TypeId::of::<agent::AgentPanelMsg>(),
         std::any::TypeId::of::<app::App>(),
+        // `cmdline` added by LCV-110 — the command-line parser kernel.
+        std::any::TypeId::of::<cmdline::CommandHistory>(),
         &document::SCHEMA_VERSION,
         &geometry::EPSILON,
         io::load_autosave as fn() -> Option<document::Document>,

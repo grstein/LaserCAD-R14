@@ -1,0 +1,335 @@
+//! The grammar: `parse`, `parse_number`, and the tool/toggle/zoom alias
+//! tables. See the LCV-110 demand body for the full grammar table (every row
+//! of it is asserted by a test in this file) and ADR 0003 §A2 for the alias
+//! set.
+//!
+//! **Every number in this crate's command grammar goes through
+//! [`parse_number`].** A second bare `str::parse::<f64>` anywhere in
+//! `src/cmdline/` is a review blocker (LCV-110 demand, AC 5).
+
+use crate::cmdline::{CommandInput, ToggleKind, ToolKind, ZoomKind};
+use crate::geometry::Vec2;
+
+/// Parse a single number in the product's one number grammar: millimetres,
+/// `.` as the only decimal separator, optional leading `+`/`-`, ASCII
+/// whitespace trimmed, non-finite results rejected.
+///
+/// Returns `None` for anything that does not parse as an `f64`, and for any
+/// value that is not [`f64::is_finite`] — so `"nan"`, `"inf"`, `"-inf"`,
+/// `"infinity"` and an overflowing literal like `"1e400"` (which parses to
+/// `f64::INFINITY` rather than erroring) are all rejected.
+///
+/// This is the **only** place in `src/cmdline/` that calls
+/// `str::parse::<f64>`; every coordinate, offset and distance in the grammar
+/// goes through this function (LCV-110 demand, AC 5).
+pub fn parse_number(raw: &str) -> Option<f64> {
+    let value: f64 = raw.trim().parse().ok()?;
+    if value.is_finite() {
+        Some(value)
+    } else {
+        None
+    }
+}
+
+/// Parse one line of command-line input. Total: never panics, never
+/// returns an error. See the LCV-110 demand body's grammar table — every
+/// row there is a test in this module.
+///
+/// Case-insensitive and whitespace-tolerant (including around the comma and
+/// between `zoom` and its argument). The `Unknown` payload is always the
+/// **trimmed original text**, in its **original case** — never the
+/// lowercased matching key used internally for keyword comparison.
+pub fn parse(raw: &str) -> CommandInput {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return CommandInput::Empty;
+    }
+    let lower = trimmed.to_lowercase();
+
+    if let Some(kind) = tool_alias(&lower) {
+        return CommandInput::Tool(kind);
+    }
+    if let Some(kind) = toggle_alias(&lower) {
+        return CommandInput::Toggle(kind);
+    }
+    if let Some(kind) = zoom_form(&lower) {
+        return CommandInput::Zoom(kind);
+    }
+    if let Some(rest) = trimmed.strip_prefix('@') {
+        return match parse_pair(rest.trim()) {
+            Some(v) => CommandInput::Relative(v),
+            None => CommandInput::Unknown(trimmed.to_owned()),
+        };
+    }
+    if trimmed.contains(',') {
+        return match parse_pair(trimmed) {
+            Some(v) => CommandInput::Point(v),
+            None => CommandInput::Unknown(trimmed.to_owned()),
+        };
+    }
+    match parse_number(trimmed) {
+        Some(value) => CommandInput::Distance(value),
+        None => CommandInput::Unknown(trimmed.to_owned()),
+    }
+}
+
+/// The ten single-token tool aliases (ADR 0003 §A2 — exactly the v1 set
+/// this demand ships). `lower` is already lowercased and trimmed.
+///
+/// `"e"` maps to [`ToolKind::Delete`], **not** `Extend` — product decision 2.
+/// `EXTEND` has no alias; do not add one back (see the AC 13 cross-check
+/// test in `src/ui/shortcuts.rs`).
+fn tool_alias(lower: &str) -> Option<ToolKind> {
+    match lower {
+        "l" => Some(ToolKind::Line),
+        "p" => Some(ToolKind::Polyline),
+        "r" => Some(ToolKind::Rect),
+        "c" => Some(ToolKind::Circle),
+        "a" => Some(ToolKind::Arc),
+        "s" => Some(ToolKind::Select),
+        "t" => Some(ToolKind::Trim),
+        "e" => Some(ToolKind::Delete),
+        "m" => Some(ToolKind::Move),
+        "text" => Some(ToolKind::Text),
+        _ => None,
+    }
+}
+
+/// The three toggle aliases. `lower` is already lowercased and trimmed.
+fn toggle_alias(lower: &str) -> Option<ToggleKind> {
+    match lower {
+        "snap" => Some(ToggleKind::Snap),
+        "grid" => Some(ToggleKind::Grid),
+        "ortho" => Some(ToggleKind::Ortho),
+        _ => None,
+    }
+}
+
+/// The zoom forms: `"ze"` (extents alias) and `"zoom <in|out|extents>"`,
+/// tolerant of extra ASCII whitespace between the keyword and its argument.
+/// `lower` is already lowercased and trimmed.
+fn zoom_form(lower: &str) -> Option<ZoomKind> {
+    if lower == "ze" {
+        return Some(ZoomKind::Extents);
+    }
+    let mut tokens = lower.split_whitespace();
+    if tokens.next()? != "zoom" {
+        return None;
+    }
+    let arg = tokens.next()?;
+    if tokens.next().is_some() {
+        return None; // more than one argument, e.g. "zoom in extra"
+    }
+    match arg {
+        "in" => Some(ZoomKind::In),
+        "out" => Some(ZoomKind::Out),
+        "extents" => Some(ZoomKind::Extents),
+        _ => None,
+    }
+}
+
+/// Split `s` on exactly one `,` into two numbers via [`parse_number`].
+///
+/// `None` if there is not exactly one comma, or either side fails to parse —
+/// so `"1,2,3"` (three fields) and `"10,"` / `",10"` (an empty side) are
+/// rejected rather than silently truncated.
+fn parse_pair(s: &str) -> Option<Vec2> {
+    let mut parts = s.split(',');
+    let x_str = parts.next()?;
+    let y_str = parts.next()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    let x = parse_number(x_str.trim())?;
+    let y = parse_number(y_str.trim())?;
+    Some(Vec2::new(x, y))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -----------------------------------------------------------------
+    // parse_number (AC 5)
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn parse_number_accepts_plain_decimal_and_signed() {
+        assert_eq!(parse_number("37.5"), Some(37.5));
+        assert_eq!(parse_number("-37.5"), Some(-37.5));
+        assert_eq!(parse_number("0"), Some(0.0));
+        assert_eq!(parse_number("+5"), Some(5.0));
+        assert_eq!(parse_number("5."), Some(5.0));
+    }
+
+    #[test]
+    fn parse_number_rejects_non_finite() {
+        for raw in ["nan", "NaN", "inf", "-inf", "infinity", "1e400"] {
+            assert_eq!(parse_number(raw), None, "expected None for {raw:?}");
+        }
+    }
+
+    #[test]
+    fn parse_number_trims_whitespace() {
+        assert_eq!(parse_number(" -3.5 "), Some(-3.5));
+        assert_eq!(parse_number("\t5\t"), Some(5.0));
+    }
+
+    #[test]
+    fn parse_number_rejects_empty_and_garbage() {
+        assert_eq!(parse_number(""), None);
+        assert_eq!(parse_number("   "), None);
+        assert_eq!(parse_number("abc"), None);
+        assert_eq!(parse_number("12abc"), None);
+    }
+
+    // -----------------------------------------------------------------
+    // The grammar (AC 6, 7, 8) — every row of the demand's table.
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn parses_absolute_points() {
+        assert_eq!(parse("50,25"), CommandInput::Point(Vec2::new(50.0, 25.0)));
+        assert_eq!(
+            parse("  50 , 25  "),
+            CommandInput::Point(Vec2::new(50.0, 25.0))
+        );
+        assert_eq!(parse("-3.5,0"), CommandInput::Point(Vec2::new(-3.5, 0.0)));
+        assert_eq!(parse("0,0"), CommandInput::Point(Vec2::new(0.0, 0.0)));
+        assert_eq!(
+            parse("10,5"),
+            CommandInput::Point(Vec2::new(10.0, 5.0)),
+            "10,5 is the point (10, 5), never the number 10.5"
+        );
+    }
+
+    #[test]
+    fn parses_relative_offsets() {
+        assert_eq!(
+            parse("@10,-5"),
+            CommandInput::Relative(Vec2::new(10.0, -5.0))
+        );
+        assert_eq!(
+            parse("@ 10 , -5"),
+            CommandInput::Relative(Vec2::new(10.0, -5.0))
+        );
+    }
+
+    #[test]
+    fn parses_bare_distances() {
+        assert_eq!(parse("37.5"), CommandInput::Distance(37.5));
+        assert_eq!(parse("-37.5"), CommandInput::Distance(-37.5));
+        assert_eq!(parse("0"), CommandInput::Distance(0.0));
+    }
+
+    #[test]
+    fn parses_tool_aliases() {
+        assert_eq!(parse("l"), CommandInput::Tool(ToolKind::Line));
+        assert_eq!(parse("L"), CommandInput::Tool(ToolKind::Line));
+        assert_eq!(parse("  L  "), CommandInput::Tool(ToolKind::Line));
+        assert_eq!(parse("p"), CommandInput::Tool(ToolKind::Polyline));
+        assert_eq!(parse("r"), CommandInput::Tool(ToolKind::Rect));
+        assert_eq!(parse("c"), CommandInput::Tool(ToolKind::Circle));
+        assert_eq!(parse("a"), CommandInput::Tool(ToolKind::Arc));
+        assert_eq!(parse("s"), CommandInput::Tool(ToolKind::Select));
+        assert_eq!(parse("t"), CommandInput::Tool(ToolKind::Trim));
+        assert_eq!(
+            parse("e"),
+            CommandInput::Tool(ToolKind::Delete),
+            "product decision 2: e is ERASE, not EXTEND"
+        );
+        assert_eq!(parse("E"), CommandInput::Tool(ToolKind::Delete));
+        assert_eq!(parse("m"), CommandInput::Tool(ToolKind::Move));
+        assert_eq!(parse("text"), CommandInput::Tool(ToolKind::Text));
+        assert_eq!(parse("TEXT"), CommandInput::Tool(ToolKind::Text));
+        assert_eq!(parse(" Text "), CommandInput::Tool(ToolKind::Text));
+    }
+
+    #[test]
+    fn parses_toggles() {
+        assert_eq!(parse("snap"), CommandInput::Toggle(ToggleKind::Snap));
+        assert_eq!(parse("SNAP"), CommandInput::Toggle(ToggleKind::Snap));
+        assert_eq!(parse("grid"), CommandInput::Toggle(ToggleKind::Grid));
+        assert_eq!(parse("ortho"), CommandInput::Toggle(ToggleKind::Ortho));
+    }
+
+    #[test]
+    fn parses_zoom_forms() {
+        assert_eq!(parse("zoom in"), CommandInput::Zoom(ZoomKind::In));
+        assert_eq!(parse("ZOOM   In"), CommandInput::Zoom(ZoomKind::In));
+        assert_eq!(parse("zoom out"), CommandInput::Zoom(ZoomKind::Out));
+        assert_eq!(parse("zoom extents"), CommandInput::Zoom(ZoomKind::Extents));
+        assert_eq!(parse("ze"), CommandInput::Zoom(ZoomKind::Extents));
+        assert_eq!(parse("ZE"), CommandInput::Zoom(ZoomKind::Extents));
+    }
+
+    #[test]
+    fn blank_input_is_empty() {
+        assert_eq!(parse(""), CommandInput::Empty);
+        assert_eq!(parse("   "), CommandInput::Empty);
+        assert_eq!(parse("\t"), CommandInput::Empty);
+    }
+
+    #[test]
+    fn rejects_malformed_input_as_unknown() {
+        assert_eq!(
+            parse("1,2,3"),
+            CommandInput::Unknown("1,2,3".to_owned()),
+            "never take the first two fields"
+        );
+        assert_eq!(parse("@"), CommandInput::Unknown("@".to_owned()));
+        assert_eq!(parse("-"), CommandInput::Unknown("-".to_owned()));
+        assert_eq!(parse("10,"), CommandInput::Unknown("10,".to_owned()));
+        assert_eq!(parse(",10"), CommandInput::Unknown(",10".to_owned()));
+        assert_eq!(parse("@,"), CommandInput::Unknown("@,".to_owned()));
+        assert_eq!(parse("1,abc"), CommandInput::Unknown("1,abc".to_owned()));
+        assert_eq!(parse("nan"), CommandInput::Unknown("nan".to_owned()));
+        assert_eq!(parse("inf,0"), CommandInput::Unknown("inf,0".to_owned()));
+        assert_eq!(parse("1e400"), CommandInput::Unknown("1e400".to_owned()));
+        assert_eq!(parse("zoom"), CommandInput::Unknown("zoom".to_owned()));
+        assert_eq!(
+            parse("zoom sideways"),
+            CommandInput::Unknown("zoom sideways".to_owned())
+        );
+        assert_eq!(parse("x"), CommandInput::Unknown("x".to_owned()));
+        assert_eq!(parse("d"), CommandInput::Unknown("d".to_owned()));
+        assert_eq!(parse("line"), CommandInput::Unknown("line".to_owned()));
+        assert_eq!(parse("del"), CommandInput::Unknown("del".to_owned()));
+        assert_eq!(
+            parse(":draw a square"),
+            CommandInput::Unknown(":draw a square".to_owned())
+        );
+    }
+
+    #[test]
+    fn unknown_payload_is_trimmed_and_keeps_original_case() {
+        assert_eq!(parse("  Foo  "), CommandInput::Unknown("Foo".to_owned()));
+    }
+
+    /// Decision 1: `.` is always the decimal separator, `,` is always the
+    /// coordinate separator — no locale detection, no `LANG` sniffing.
+    /// `"10,5"` is the point (10, 5), never the number 10.5.
+    #[test]
+    fn comma_is_always_the_separator_never_a_decimal_point() {
+        assert_eq!(parse("10,5"), CommandInput::Point(Vec2::new(10.0, 5.0)));
+        assert_eq!(
+            parse("10.5,20.25"),
+            CommandInput::Point(Vec2::new(10.5, 20.25))
+        );
+        assert_eq!(parse("10.5"), CommandInput::Distance(10.5));
+    }
+
+    #[test]
+    fn three_field_coordinates_are_rejected_not_truncated() {
+        assert_eq!(parse("1,2,3"), CommandInput::Unknown("1,2,3".to_owned()));
+    }
+
+    #[test]
+    fn aliases_are_case_insensitive() {
+        assert_eq!(parse("l"), parse("L"));
+        assert_eq!(parse("text"), parse("TEXT"));
+        assert_eq!(parse("snap"), parse("SNAP"));
+        assert_eq!(parse("ze"), parse("ZE"));
+        assert_eq!(parse("zoom in"), parse("ZOOM IN"));
+    }
+}

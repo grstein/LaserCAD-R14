@@ -11,13 +11,13 @@
 //! not in this table; LCV-106 decides its fate.
 //!
 //! Introduced by demand LCV-066; extended to the full eleven-tool set and
-//! made the Tools-menu data source by LCV-104.
+//! made the Tools-menu data source by LCV-104. LCV-110 replaced the old
+//! string-keyed label lookup with `entry.kind` + [`tools::make`] — the
+//! single tool-identity map (ADR 0003 §A3).
 
 use crate::app::App;
-use crate::tools::{
-    ArcTool, CircleTool, DeleteTool, ExtendTool, LineTool, MoveTool, PolylineTool, RectTool,
-    SelectTool, TextTool, Tool, TrimTool,
-};
+use crate::cmdline::ToolKind;
+use crate::tools;
 
 /// One toolbar / Tools-menu entry.
 ///
@@ -33,6 +33,10 @@ pub(crate) struct ToolEntry {
     pub(crate) tool_name: &'static str,
     /// Keyboard shortcut hint (`src/ui/shortcuts.rs::TOOL_KEYS`), if any.
     pub(crate) shortcut: Option<&'static str>,
+    /// The tool identity resolved via [`tools::make`] — the single
+    /// identity-to-instance map (ADR 0003 §A3). Replaces the old
+    /// string-keyed label lookup.
+    pub(crate) kind: ToolKind,
 }
 
 /// Index of the first "modify group" entry (`Move`). The toolbar draws a
@@ -47,84 +51,73 @@ pub(crate) const TOOLS: &[ToolEntry] = &[
         label: "Select",
         tool_name: "Select",
         shortcut: None,
+        kind: ToolKind::Select,
     },
     ToolEntry {
         label: "Line",
         tool_name: "LINE",
         shortcut: Some("L"),
+        kind: ToolKind::Line,
     },
     ToolEntry {
         label: "Polyline",
         tool_name: "PLINE",
         shortcut: Some("P"),
+        kind: ToolKind::Polyline,
     },
     ToolEntry {
         label: "Rect",
         tool_name: "RECT",
         shortcut: Some("R"),
+        kind: ToolKind::Rect,
     },
     ToolEntry {
         label: "Circle",
         tool_name: "CIRCLE",
         shortcut: Some("C"),
+        kind: ToolKind::Circle,
     },
     ToolEntry {
         label: "Arc",
         tool_name: "ARC",
         shortcut: Some("A"),
+        kind: ToolKind::Arc,
     },
     ToolEntry {
         label: "Text",
         tool_name: "TEXT",
         shortcut: Some("D"),
+        kind: ToolKind::Text,
     },
     ToolEntry {
         label: "Move",
         tool_name: "MOVE",
         shortcut: Some("M"),
+        kind: ToolKind::Move,
     },
     ToolEntry {
         label: "Trim",
         tool_name: "TRIM",
         shortcut: Some("T"),
+        kind: ToolKind::Trim,
     },
     ToolEntry {
         label: "Extend",
         tool_name: "EXTEND",
         shortcut: Some("X"),
+        kind: ToolKind::Extend,
     },
     ToolEntry {
         label: "Delete",
         tool_name: "ERASE",
         shortcut: Some("E"),
+        kind: ToolKind::Delete,
     },
 ];
 
 /// Compile-time guarantee that the toolbar has at least one entry.
 #[allow(clippy::len_zero)]
 const _: () = assert!(TOOLS.len() >= 1);
-
-/// Construct a fresh tool instance keyed on the button / menu-item **label**.
-///
-/// Returns `None` for unknown labels (forward-compatible guard). `TrimTool`
-/// and `DeleteTool` are unit structs, constructed directly rather than via
-/// `::default()`.
-pub(crate) fn make_tool(label: &str) -> Option<Box<dyn Tool>> {
-    match label {
-        "Select" => Some(Box::new(SelectTool::default())),
-        "Line" => Some(Box::new(LineTool::default())),
-        "Polyline" => Some(Box::new(PolylineTool::default())),
-        "Rect" => Some(Box::new(RectTool::default())),
-        "Circle" => Some(Box::new(CircleTool::default())),
-        "Arc" => Some(Box::new(ArcTool::default())),
-        "Text" => Some(Box::new(TextTool::default())),
-        "Move" => Some(Box::new(MoveTool::default())),
-        "Trim" => Some(Box::new(TrimTool)),
-        "Extend" => Some(Box::new(ExtendTool::default())),
-        "Delete" => Some(Box::new(DeleteTool)),
-        _ => None,
-    }
-}
 
 /// Render the left-side toolbar into `ui`.
 ///
@@ -143,8 +136,8 @@ pub fn draw_toolbar(ui: &mut egui::Ui, app: &mut App) {
     // immediately so the later mutable call to `set_tool` is safe.
     let active = app.tool_manager.active_tool_name();
 
-    // Collect the label of the clicked button (at most one per frame).
-    let mut clicked: Option<&'static str> = None;
+    // Collect the kind of the clicked button (at most one per frame).
+    let mut clicked: Option<ToolKind> = None;
 
     for (i, entry) in TOOLS.iter().enumerate() {
         if i == MODIFY_GROUP_START {
@@ -152,14 +145,12 @@ pub fn draw_toolbar(ui: &mut egui::Ui, app: &mut App) {
         }
         let is_active = active == entry.tool_name;
         if ui.selectable_label(is_active, entry.label).clicked() {
-            clicked = Some(entry.label);
+            clicked = Some(entry.kind);
         }
     }
 
-    if let Some(label) = clicked {
-        if let Some(tool) = make_tool(label) {
-            app.tool_manager.set_tool(tool);
-        }
+    if let Some(kind) = clicked {
+        app.tool_manager.set_tool(tools::make(kind));
     }
 
     // ── AI assistant toggle (LCV-080) ─────────────────────────────────────────
@@ -181,19 +172,14 @@ pub fn draw_toolbar(ui: &mut egui::Ui, app: &mut App) {
 mod tests {
     use super::*;
 
-    /// LCV-066 AC — `make_tool` returns `Some` for every label in `TOOLS`,
-    /// and the resulting tool's `name()` matches the entry's `tool_name`.
+    /// LCV-110 AC 12 — every `TOOLS` entry's `kind` resolves through
+    /// `tools::make` to the tool that entry's `tool_name` names. Replaces
+    /// the old string-keyed label lookup test.
     #[test]
-    fn make_tool_covers_all_toolbar_entries() {
+    fn tools_make_covers_all_toolbar_entries() {
         for entry in TOOLS {
-            let tool = make_tool(entry.label);
-            assert!(
-                tool.is_some(),
-                "make_tool(\"{}\") should return Some, got None",
-                entry.label
-            );
             assert_eq!(
-                tool.unwrap().name(),
+                tools::make(entry.kind).name(),
                 entry.tool_name,
                 "tool name mismatch for label \"{}\"",
                 entry.label
@@ -201,18 +187,15 @@ mod tests {
         }
     }
 
-    /// LCV-066 AC — `make_tool` returns `None` for an unknown label.
-    #[test]
-    fn make_tool_unknown_label_returns_none() {
-        assert!(make_tool("NonExistentTool").is_none());
-    }
-
     /// LCV-104 AC#3 — TextTool is reachable from the toolbar/menu table for
     /// the first time.
     #[test]
     fn text_tool_is_reachable_from_toolbar() {
-        let tool = make_tool("Text").expect("\"Text\" must be a known toolbar label");
-        assert_eq!(tool.name(), "TEXT");
+        let entry = TOOLS
+            .iter()
+            .find(|e| e.label == "Text")
+            .expect("\"Text\" must be a known toolbar entry");
+        assert_eq!(tools::make(entry.kind).name(), "TEXT");
     }
 
     /// LCV-066 AC — default `App` active tool is "Select", which corresponds
