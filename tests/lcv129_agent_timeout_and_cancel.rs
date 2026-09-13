@@ -322,36 +322,47 @@ fn occurrences(sections: &[(String, String)], needle: &str) -> Vec<(String, usiz
 /// The positive control is not decorative: an absence assertion over a
 /// mis-sliced or empty haystack passes for the wrong reason, so the same
 /// counter is first run over a synthetic tree carrying the needle twice.
+///
+/// **LCV-128 AC 3 extends this test in place** rather than adding a second
+/// scan of the same tree with the same hygiene (the demand's own sequencing
+/// note: this file landed first, so it owns the invariant). The other two
+/// single-writer claims in the same AGENTS.md §Event flow paragraph —
+/// `agent_rx = None` cleared only by `end_turn`, and `agent_busy = true` set
+/// only by `arm_turn` — are asserted by the same loop, over the same
+/// `implementation_sections()`, with the same witness technique.
 #[test]
 fn ac5_only_agent_poll_clears_the_busy_flag() {
-    let needle = concat!("agent_busy", " = false");
+    let sections = implementation_sections();
 
-    let witness = vec![
-        (
-            "agent/panel.rs".to_owned(),
-            "if ui.button(\"Cancel\").clicked() { app.agent_busy = false; }".to_owned(),
-        ),
-        (
-            "app/agent_poll.rs".to_owned(),
-            "// app.agent_busy = false\n    app.agent_busy = false;\n".to_owned(),
-        ),
-    ];
-    assert_eq!(
-        occurrences(&witness, needle),
-        [
-            ("agent/panel.rs".to_owned(), 1),
-            ("app/agent_poll.rs".to_owned(), 1)
-        ],
-        "control: the counter must find a second writer, and must not count a \
-         commented one"
-    );
+    for (needle, owner) in [
+        (concat!("agent_busy", " = false"), "app/agent_poll.rs"),
+        (concat!("agent_rx", " = None"), "app/agent_poll.rs"),
+        (concat!("agent_busy", " = true"), "app/agent_turn.rs"),
+    ] {
+        let witness = vec![
+            (
+                "agent/panel.rs".to_owned(),
+                format!("if ui.button(\"X\").clicked() {{ app.{needle}; }}"),
+            ),
+            (
+                owner.to_owned(),
+                format!("// app.{needle}\n    app.{needle};\n"),
+            ),
+        ];
+        assert_eq!(
+            occurrences(&witness, needle),
+            [("agent/panel.rs".to_owned(), 1), (owner.to_owned(), 1)],
+            "control: the counter must find a second writer of `{needle}`, and must not \
+             count a commented one"
+        );
 
-    let hits = occurrences(&implementation_sections(), needle);
-    assert_eq!(
-        hits,
-        [("app/agent_poll.rs".to_owned(), 1)],
-        "ADR 0007 §D11: `{needle}` belongs to end_turn and to nothing else"
-    );
+        let hits = occurrences(&sections, needle);
+        assert_eq!(
+            hits,
+            [(owner.to_owned(), 1)],
+            "AGENTS.md §Event flow: `{needle}` belongs to {owner} and to nothing else"
+        );
+    }
 }
 
 // ── Part B — the cancel ─────────────────────────────────────────────────────
