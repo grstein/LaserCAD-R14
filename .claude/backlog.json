@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Persistent LCV-XXX backlog. Live source of truth across sessions. The project-manager rehydrates Claude Tasks from this file at session start, and writes back after every status change. PLAN.md, backlog.md, and demand files reflect content but are no longer the live status board. Titles, phases and statuses here are reconciled against the demand-file headers, which are authoritative. Marco 0 (LCV-100..108) shipped; user tags v0.1.0. Marco 1 (LCV-110..119) shipped — functional parity with v1.0.0, targets tag v0.2.0. Marco 2 (LCV-121..125) is in flight: LCV-121 Done (d584f4d), drive order 121 -> 122 -> 123 unbroken, then 124 and 125 in parallel. RELEASE HAZARD, LIVE: between LCV-121 and LCV-123 the agent can call tools but they hit a throwaway Document, so it reports geometry that never reaches the canvas — do not tag or cut a release until LCV-123 is Done. LCV-126 (Draft) and LCV-127 (Ready) are phase 11 follow-ups outside that drive. CI green on 3 platforms, latest run 34758445630.",
+  "description": "Persistent LCV-XXX backlog. Live source of truth across sessions. The project-manager rehydrates Claude Tasks from this file at session start, and writes back after every status change. PLAN.md, backlog.md, and demand files reflect content but are no longer the live status board. Titles, phases and statuses here are reconciled against the demand-file headers, which are authoritative. Marco 0 (LCV-100..108) shipped; user tags v0.1.0. Marco 1 (LCV-110..119) shipped — functional parity with v1.0.0, targets tag v0.2.0. Marco 2 (LCV-121..125) is in flight: LCV-121 Done (d584f4d), drive order 121 -> 122 -> 123 unbroken, then 124 and 125 in parallel. RELEASE HAZARD, LIVE: between LCV-121 and LCV-123 the agent can call tools but they hit a throwaway Document, so it reports geometry that never reaches the canvas — do not tag or cut a release until LCV-123 is Done. LCV-126 (Draft, phase 11), LCV-127 (Ready, phase 11) and LCV-128 (Draft, phase 12) are follow-ups outside that drive, in drive order 16 -> 17 -> 18 after it. CI green on 3 platforms, latest run 34758445630.",
   "status_legend": [
     "Draft",
     "Refining",
@@ -1321,6 +1321,18 @@
       "demand_file": "docs/product/demands/LCV-126-shortcuts-dialog-documents-the-command-line.md",
       "drive_order": 17,
       "note": "Draft — NEXT AGENT IS product-owner, not implementer-rust: the Status line still reads Draft even though the file already carries a full Problem / Scope / Out of scope / Acceptance criteria / Expected tests body. Someone must decide whether refinement is actually finished before this is driven. The gap itself: the F1 shortcuts dialog LCV-116 shipped does not mention the command line that LCV-110/111/112 shipped. Phase 11, not part of the Marco 2 drive."
+    },
+    {
+      "id": "LCV-128",
+      "title": "Every file in `src/agent/` needs a stated purity status",
+      "phase": 12,
+      "status": "Draft",
+      "depends_on": [],
+      "suggested_agent": "product-owner",
+      "milestone": "Phase 12 follow-up (outside the Marco 2 drive)",
+      "demand_file": "docs/product/demands/LCV-128-agent-purity-list-has-no-scan.md",
+      "drive_order": 18,
+      "note": "Draft, opened by demand-manager 2026-09-13 from an architect observation; NEXT AGENT IS product-owner, who writes Scope / Acceptance criteria / Expected tests. The gap: AGENTS.md section Purity rule (lines 81-97) classifies src/agent/ file by file into egui-allowed (panel.rs, settings_ui.rs) and kernel-pure (classifier.rs, wire.rs, transport.rs, tools.rs, bridge.rs, loop_.rs), and nothing fails when a new file appears in neither bucket. Already happened once: bridge.rs landed with LCV-122 this morning and sat unclassified until a human noticed. That list is normative PER ENTRY, so a missing name means a file with no stated purity rule, unlike the module tree next door, which the architect deliberately declared non-exhaustive the same day and which this demand does not reopen. Proposed: a dozen-line scan alongside tests/lcv121_source_scans.rs and tests/lcv122_source_scans.rs. Two constraints that must survive refinement: (1) ONE-DIRECTIONAL ONLY - fail when a file exists and is unlisted, never when the list names a file that does not exist yet, because the list already names classifier.rs which LCV-124 has not created and that forward commitment is a feature; (2) the two known traps - the self-matching include_str! scan (wrong six times in this repo; bound the haystack at the bare #[cfg(test)] at column 0 and build needles with concat!, canonical example guard_is_runtime_not_cfg at src/io/dialogs.rs:179) and the path separator (rebuild paths from components() joined with /, never display() or to_string_lossy(), which broke CI in LCV-116 and LCV-120). Open question recorded in the body: src/agent/mod.rs exists and is named in NEITHER bucket today, so the scan as described fails on main on first run - refinement must decide exempt-by-name vs add-to-kernel-pure. No dependencies, but NOT part of Marco 2: do not drive ahead of LCV-123, LCV-124 or LCV-125."
     }
   ]
 }

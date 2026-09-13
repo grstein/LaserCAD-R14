@@ -143,6 +143,7 @@ _None._
 | ID | Title | Phase |
 |---|---|---|
 | LCV-126 | The F1 shortcuts dialog does not mention the command line | 11 |
+| LCV-128 | Every file in `src/agent/` needs a stated purity status | 12 |
 
 ## Rejected
 
