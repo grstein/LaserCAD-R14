@@ -80,7 +80,7 @@ fn agent_settings_dialog(ctx: &egui::Context, app: &mut App) {
             .collapsible(false)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
             .show(ctx, |ui| {
-                crate::agent::settings_ui::draw_agent_settings(ui, settings);
+                crate::agent::draw_agent_settings(ui, settings);
             });
     }
     // Save on dialog close (× button or programmatic close).
@@ -113,6 +113,59 @@ mod tests {
             draw_agent_side_panel(ctx, &mut app);
         });
         assert!(!app.agent_panel_open);
+    }
+
+    /// The implementation section — everything before the bare `#[cfg(test)]`
+    /// at column 0 — with comment lines dropped, so neither scan below can
+    /// match its own literal or the prose next to it.
+    fn implementation_code() -> String {
+        let src = include_str!("panels.rs");
+        let at = src
+            .find("\n#[cfg(test)]")
+            .expect("panels.rs must have a bare #[cfg(test)] marker");
+        let code: Vec<&str> = src[..at]
+            .lines()
+            .filter(|l| !l.trim_start().starts_with("//"))
+            .collect();
+        assert!(
+            code.len() > 40,
+            "positive control: the haystack must be the whole implementation, got {} lines",
+            code.len()
+        );
+        code.join("\n")
+    }
+
+    /// LCV-125 AC 13 — **source scan**: the settings dialog reaches
+    /// `draw_agent_settings` through `src/agent/mod.rs`'s re-export, not
+    /// through a deep path into the module's private file layout (AGENTS.md
+    /// §Module tree). The compile is half the test — the deep path stops
+    /// resolving only once `pub use settings_ui::draw_agent_settings;` exists —
+    /// and this is the half that notices it coming back.
+    ///
+    /// Scoped to this one call by decision: the tree carries twelve more
+    /// cross-module deep paths, several of them legitimate, and a scan shipped
+    /// with a twelve-entry grandfather list is the weakest shape this
+    /// repository has. That is `architect`'s call, in its own demand.
+    #[test]
+    fn ac13_the_settings_dialog_uses_the_module_re_export_source_scan() {
+        let implementation = implementation_code();
+        let deep = concat!("crate::agent::settings", "_ui::");
+        let witness = "crate::agent::settings_ui::draw_agent_settings(ui, settings);";
+        assert!(
+            witness.contains(deep),
+            "control: `{deep}` must be a needle that can match something"
+        );
+        assert!(
+            !implementation.contains(deep),
+            "the dialog must not reach into `agent`'s file layout"
+        );
+        assert!(
+            implementation.contains(concat!(
+                "crate::agent::draw_agent",
+                "_settings(ui, settings)"
+            )),
+            "positive control: the dialog must still draw the form"
+        );
     }
 
     /// LCV-105 — the dialog phase on a default `App` renders nothing modal and
