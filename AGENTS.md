@@ -84,6 +84,12 @@ The following modules MUST NOT import `egui`, `eframe`, or `rfd`:
 
 This is the "kernel". It must remain testable as a pure Rust library and runnable in a future headless / CLI / WASM context. Reviewers (`reviewer-rust`) check this on every demand.
 
+`src/agent/` is not kernel, but it carries three containment rules of its own ([ADR 0007](docs/adr/0007-agent-turn-mutates-the-live-document.md) §D8):
+
+- **Only `src/agent/panel.rs` and `src/agent/settings_ui.rs` may import `egui`.** No file under `src/agent/` may import `eframe` or `rfd`. Everything else there — `classifier.rs`, `wire.rs`, `transport.rs`, `tools.rs`, `bridge.rs`, `loop_.rs` — is kernel-pure and unit-testable with no UI context.
+- **Only `src/agent/transport.rs` may import `reqwest`.** It is the single HTTP boundary of the crate.
+- **`panel.rs` renders and reports. It never spawns a thread and never constructs a `Document` or a `History`.** Spawning a turn is app-side wiring and lives in `src/app/agent_turn.rs`.
+
 ### Units and types
 
 - **Millimeters are canonical** across document, kernel, command line, and SVG export. Pixels only inside `render/camera`.
@@ -162,6 +168,7 @@ If you are the main Claude Code agent and the user asks for project work, defaul
 - Keep **millimeters canonical** in document, geometry, command line, and SVG export. Radians in the kernel.
 - Keep the **kernel pure**: no `egui`/`eframe`/`rfd` imports in `geometry/`, `document/`, `io/svg/`, `text/`, `cmdline/`.
 - **All entity mutation through `Command` trait + history stack.** No direct `Document.entities` mutation outside `document::commands` and `document::history`.
+- **The agent mutates like everything else.** The background agent thread holds no `Document`, no `History`, no entity snapshot and no `Arc<Mutex<_>>`; it asks the UI thread to apply one `AgentAction` at a time and waits for the real outcome. `Document` stays `!Clone` — adding `Clone` for the agent's benefit is a review blocker. See [ADR 0007](docs/adr/0007-agent-turn-mutates-the-live-document.md).
 - **No `unsafe`** without an inline justification and an ADR.
 - **`rfd` lives only in `src/io/dialogs.rs`.** Never add an `rfd` call anywhere else — it would sit outside the dialog guard. Per [ADR 0005](docs/adr/0005-native-dialogs-disarmed-by-default.md) the three wrappers are **disarmed until `crate::run()` arms them**, so a dialog reached from a test panics instead of hanging CI; that guard is implemented (LCV-118). ADR 0002 §A4 rule 1 remains the first line of protection: no test may send `Ctrl+O` / `Ctrl+S` / `Ctrl+Shift+S`. No test ever arms the dialogs.
 - **Real user paths are resolved at boot and injected.** `directories::ProjectDirs` belongs in `src/io/settings.rs` and `src/io/autosave.rs` only, called only from `App::new()`, which stores the resolved paths on `App`; `App::default()` — the test constructor — leaves them `None` and persistence is a no-op. See [ADR 0006](docs/adr/0006-real-user-paths-are-injected.md), which also records when to reach for ADR 0005's arm-by-main flag instead (native OS surfaces) and when to inject a path (the filesystem). Since LCV-119 a test drives `action_new` / `action_open_path` / `action_save` with `settings_path` / `autosave_path` pointing at a temporary directory it owns, or leaves them `None` and nothing is written.
@@ -203,6 +210,7 @@ Default answers:
 - [`docs/adr/0004-measuring-the-300-loc-cap.md`](docs/adr/0004-measuring-the-300-loc-cap.md) — how the 300-LOC cap is counted and measured, its two exemptions, and the "name the seam at 270, split at 300" rule.
 - [`docs/adr/0005-native-dialogs-disarmed-by-default.md`](docs/adr/0005-native-dialogs-disarmed-by-default.md) — native `rfd` dialogs are disarmed outside the app binary, so a test that reaches one panics instead of hanging CI.
 - [`docs/adr/0006-real-user-paths-are-injected.md`](docs/adr/0006-real-user-paths-are-injected.md) — the settings and autosave paths are resolved once at boot and carried on `App`; a process that was not given a path writes nothing, and tests point theirs at a tempdir.
+- [`docs/adr/0007-agent-turn-mutates-the-live-document.md`](docs/adr/0007-agent-turn-mutates-the-live-document.md) — the agent thread owns no document state; it rendezvouses one action at a time against the live `Document` through `Command` + `History`, fenced on `History::revision()`, and one turn coalesces into one undo entry.
 - [`docs/product/README.md`](docs/product/README.md) — product principles.
 - [`docs/product/product-owner-agent.md`](docs/product/product-owner-agent.md) — demand format and lifecycle.
 - [`docs/product/backlog.md`](docs/product/backlog.md) — prioritized backlog by state.

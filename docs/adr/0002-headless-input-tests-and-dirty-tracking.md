@@ -1,6 +1,12 @@
 # ADR 0002 — Headless input regression tests and autosave dirty tracking
 
 - **Status**: Accepted
+- **Amended**: 2026-09-13 — §A4 rule 2 rewritten. Its original text read
+  *"Never let the autosave debounce elapse. A fired autosave writes to the real
+  `~/.local/share/lasercad/autosave.json`."* That premise died at `2d81a14`
+  (LCV-119): under [ADR 0006](0006-real-user-paths-are-injected.md) a test
+  `App` carries no path and a fired autosave writes nothing. The rule now
+  guards the hazard that survived injection. Nothing else in this ADR changes.
 - **Date**: 2026-09-12
 - **Deciders**: architect (Marco 0 / LCV-103)
 
@@ -132,15 +138,47 @@ pub fn tap(ctx: &egui::Context, app: &mut App, key: egui::Key, modifiers: egui::
 cosmetic: see the repeat-rewrite finding above. There is no single-event
 `key_event` helper, so the trap cannot be stepped into by accident.
 
-**A4. Three hard rules for headless tests.**
+**A4. Four hard rules for headless tests.**
 
 1. **Never send `Ctrl+O`, `Ctrl+S`, or `Ctrl+Shift+S`.** Those reach
    `src/io/file_actions.rs`, which opens a blocking native `rfd` dialog and will
    hang CI. (`Ctrl+S` with `current_file: None` falls through to
    `action_save_as` — also a dialog.) `Ctrl+N` is safe.
-2. **Never let the autosave debounce elapse.** A fired autosave writes to the
-   real `~/.local/share/lasercad/autosave.json`. Assert on `app.dirty_since` /
-   `autosave_due(...)`, never on disk.
+2. **Build `App::default()`, never `App::new()`, and point an injected path
+   only at a directory the test owns.** *(Rewritten 2026-09-13 — see the
+   **Amended** note in the header for the text this replaces.)*
+
+   Since LCV-119 ([ADR 0006](0006-real-user-paths-are-injected.md)) the
+   settings and autosave locations are resolved once in `App::new()` and
+   carried as data on `App`. `App::default()` — the test constructor — leaves
+   both `None`, and `App::write_autosave` returns `false` without touching the
+   filesystem. **Letting the autosave debounce elapse is therefore harmless**,
+   and `src/app/autosave.rs`'s
+   `a_due_flush_with_no_injected_path_writes_nothing_and_still_settles` does
+   exactly that on purpose, to prove it.
+
+   Two hazards survived injection, and this rule is now about them:
+
+   - **`App::new()` resolves the real per-user paths.** It loads the
+     developer's `~/.config/lasercad/settings.json`, adopts their
+     `~/.local/share/lasercad/autosave.json` as the document if one exists, and
+     leaves both paths armed for every subsequent write and every
+     `clear_autosave` in that test. It makes the test non-hermetic on the way
+     in and destructive on the way out. **No test calls `App::new()`.** Build
+     `App::default()` and override the fields you need — the
+     `App { settings_path: Some(…), ..App::default() }` form used throughout
+     `src/app/persist.rs`'s tests.
+   - **An injected path is a loaded gun pointed wherever you aim it.** A test
+     that sets `settings_path` or `autosave_path` aims it inside a temporary
+     directory it created and owns. Never `directories::ProjectDirs`, never a
+     literal under `~`, never a path derived from the environment of the
+     machine running the test.
+
+   So: a test that wants to assert on bytes injects a tempdir path and reads
+   them back; a test that wants no write at all leaves the fields `None` and
+   asserts on `app.dirty_since` / `autosave_due(...)`. Asserting against the
+   real per-user location is not correct in either case — the one thing that
+   has not changed.
 3. **Pointer tests run a warm-up frame** with `PointerMoved` alone before the
    frame carrying `PointerButton`. Keyboard tests do not.
 4. **Always emit a key release with the press** — use `key_events` / `tap`,

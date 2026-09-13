@@ -1,6 +1,11 @@
 # ADR 0003 — The command-line input contract
 
 - **Status**: Accepted
+- **Amended**: 2026-09-13 — §F3 trap 2 rewritten to follow
+  [ADR 0002](0002-headless-input-tests-and-dirty-tracking.md) §A4 rule 2, whose
+  premise died at `2d81a14` (LCV-119). It used to read *"Never let the 800 ms
+  autosave debounce elapse — a fired autosave writes to the user's real data
+  directory."* Nothing else in this ADR changes.
 - **Date**: 2026-09-12
 - **Deciders**: architect (Marco 1 / LCV-110, LCV-111, LCV-112)
 
@@ -487,10 +492,15 @@ three and states the fourth on `key_events`); this ADR adds a fifth.**
 1. **Never send `Ctrl+O`, `Ctrl+S` or `Ctrl+Shift+S`** — they reach
    `src/io/file_actions.rs`, open a blocking native `rfd` dialog and hang CI.
    `Ctrl+N`, `Ctrl+Z`, `Ctrl+Y` are safe.
-2. **Never let the 800 ms autosave debounce elapse** — a fired autosave writes
-   to the user's real data directory. Assert on `dirty_since` / `autosave_due`,
-   never on disk. A per-character `submit_command` run is still one frame per
-   character with no wall-clock sleep, so this stays satisfied.
+2. **Build `App::default()`, never `App::new()`** — the full rule is
+   [ADR 0002](0002-headless-input-tests-and-dirty-tracking.md) §A4 rule 2, as
+   rewritten for LCV-119 / [ADR 0006](0006-real-user-paths-are-injected.md).
+   Letting the 800 ms debounce elapse is harmless now: a test `App` carries no
+   autosave path and writes nothing. What is not harmless is `App::new()`,
+   which resolves the real per-user paths, or an injected path aimed anywhere
+   but a tempdir the test owns. A per-character `submit_command` run is still
+   one frame per character with no wall-clock sleep, so it never reaches the
+   debounce either way.
 3. **Pointer tests need a warm-up frame** carrying `PointerMoved` alone before
    the frame carrying `PointerButton`; otherwise the widget rect is not
    registered, `response.hovered()` is `false`, and the viewport handler never
