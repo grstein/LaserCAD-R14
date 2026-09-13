@@ -1,11 +1,11 @@
 # LCV-119 — Real user paths are injected: `cargo test` stops writing the developer's config and data directories
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 11
 - **Depends on**: none (normative design: [ADR 0006](../../adr/0006-real-user-paths-are-injected.md); precedent: LCV-118, ADR 0005)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: implementer-rust — 2d81a14 (implementation), e90c3e0 (rework, reviewer-approved), 0e9c9c4 (doc follow-up)
 
 ## Problem
 

@@ -78,6 +78,7 @@ No version of LaserCAD v2 has been tagged or released yet. Everything below is u
 - CI matrix now passes `test` and `build` stages end-to-end for the first time: ubuntu-24.04, windows-2022, and macos-15. See LCV-107.
 - Text drawn with the TEXT tool no longer sags below its baseline: 22 alphanumeric glyphs and `?` in the Hershey font table were authored with the wrong vertical coordinates, so words containing them sat partly below the line on canvas and in the exported SVG. Already-drawn text is not migrated — re-type it to pick up the repair. See LCV-117.
 - Exported jobs no longer land vertically offset on any machine whose bed is not 400 mm tall: the SVG export mirror axis was hardcoded to 400 regardless of the real bed, so a 300 × 180 K40 (or any other size) cut in the wrong place even though the drawing looked correct on screen. The mirror now uses the document's actual bed height. See LCV-114.
+- `cargo test` no longer destroys developer state: real user paths are now resolved once at boot and injected, so the test suite can never reach the crash-recovery autosave file or the settings file. Previously an ordinary green library test deleted `~/.local/share/lasercad/autosave.json` on every run. See LCV-119.
 
 ### Removed
 

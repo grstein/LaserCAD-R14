@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-119 | Real user paths are injected: `cargo test` stops writing the developer's config and data directories | 11 | — |
 | LCV-120 | The viewport never lets the app idle | 11 | — |
 
 ## In Progress
@@ -112,6 +111,7 @@ _None._
 | LCV-118 | Disarm native file dialogs outside the app binary | 11 | 2026-09-13 | fa158c0, 5e74557 |
 | LCV-115 | Export preset selector (cut / mark / engrave) | 11 | 2026-09-13 | 2f20fdd, 24e36aa |
 | LCV-116 | Chrome completion: clickable mode toggles, autosave indicator, F1 shortcuts dialog, Ortho in the View menu | 11 | 2026-09-13 | fd9b4e4, 900f0c7 |
+| LCV-119 | Real user paths are injected: `cargo test` stops writing the developer's config and data directories | 11 | 2026-09-13 | 2d81a14, e90c3e0, 0e9c9c4 |
 
 ## Blocked
 
