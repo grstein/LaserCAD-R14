@@ -254,4 +254,127 @@ mod tests {
             }
         }
     }
+
+    // ---------------------------------------------------------------------
+    // LCV-117 — millimetre-space regression for the repaired glyph table.
+    // ---------------------------------------------------------------------
+
+    /// The five glyphs allowed below the baseline.
+    const DESCENDERS: [char; 5] = ['g', 'j', 'p', 'q', 'y'];
+
+    /// Descender depth as a fraction of the requested cap height: 4 of the 9
+    /// Hershey units that make up the cap height.
+    const DESCENDER_FRACTION: f64 = 4.0 / 9.0;
+
+    /// Every endpoint y of `text` laid out alone at `height_mm` from the
+    /// world origin.
+    fn endpoint_ys(text: &str, height_mm: f64) -> Vec<f64> {
+        layout_text(text, Vec2::new(0.0, 0.0), height_mm, 1.0)
+            .iter()
+            .filter_map(|e| match e {
+                Entity::Line(l) => Some([l.p1.y, l.p2.y]),
+                _ => None,
+            })
+            .flatten()
+            .collect()
+    }
+
+    fn min_max(values: &[f64]) -> (f64, f64) {
+        (
+            values.iter().copied().fold(f64::INFINITY, f64::min),
+            values.iter().copied().fold(f64::NEG_INFINITY, f64::max),
+        )
+    }
+
+    /// Every printable alphanumeric, in ASCII order.
+    fn alphanumerics() -> impl Iterator<Item = char> {
+        (32_u8..=126)
+            .map(char::from)
+            .filter(char::is_ascii_alphanumeric)
+    }
+
+    /// AC 18: no alphanumeric other than `g j p q y` — and not `?` either —
+    /// puts any geometry below the baseline or above the cap height.
+    #[test]
+    fn every_non_descender_sits_on_or_above_the_baseline() {
+        let height_mm = 10.0;
+        for ch in alphanumerics().chain(['?']) {
+            if DESCENDERS.contains(&ch) {
+                continue;
+            }
+            let ys = endpoint_ys(&ch.to_string(), height_mm);
+            assert!(!ys.is_empty(), "'{ch}' must emit lines");
+            let (min_y, max_y) = min_max(&ys);
+            assert!(
+                min_y >= -EPSILON,
+                "'{ch}' dips {d} mm below the baseline",
+                d = -min_y,
+            );
+            assert!(
+                max_y <= height_mm + EPSILON,
+                "'{ch}' rises to {max_y} mm, above the cap height {height_mm} mm",
+            );
+        }
+    }
+
+    /// AC 19: `g j p q y` all bottom out at `height_mm * 4 / 9` below the
+    /// baseline — the same depth for all five, scaling with the requested
+    /// height and with nothing else.
+    #[test]
+    fn descenders_reach_exactly_four_ninths_below_the_baseline() {
+        for height_mm in [10.0, 3.5] {
+            let expected = -height_mm * DESCENDER_FRACTION;
+            for ch in DESCENDERS {
+                let ys = endpoint_ys(&ch.to_string(), height_mm);
+                assert!(!ys.is_empty(), "'{ch}' must emit lines");
+                let (min_y, max_y) = min_max(&ys);
+                assert!(
+                    (min_y - expected).abs() < EPSILON,
+                    "'{ch}' at {height_mm} mm descends to {min_y} mm, expected {expected} mm",
+                );
+                assert!(
+                    max_y <= height_mm + EPSILON,
+                    "'{ch}' at {height_mm} mm rises to {max_y} mm, above the cap height",
+                );
+            }
+        }
+    }
+
+    /// AC 20: every capital and digit is exactly cap-height tall and flush on
+    /// the baseline — the "no letter is taller, shorter or lower than its
+    /// neighbours" guarantee, in millimetres.
+    #[test]
+    fn caps_and_digits_are_exactly_cap_height_and_flush() {
+        let height_mm = 10.0;
+        for ch in alphanumerics().filter(|c| c.is_ascii_uppercase() || c.is_ascii_digit()) {
+            let ys = endpoint_ys(&ch.to_string(), height_mm);
+            assert!(!ys.is_empty(), "'{ch}' must emit lines");
+            let (min_y, max_y) = min_max(&ys);
+            assert!(
+                (max_y - height_mm).abs() < EPSILON,
+                "top of '{ch}' is {max_y} mm, expected {height_mm} mm",
+            );
+            assert!(
+                min_y.abs() < EPSILON,
+                "bottom of '{ch}' is {min_y} mm, expected 0 mm",
+            );
+        }
+    }
+
+    /// AC 21: the reported symptom — an `O` next to an `H` used to be twice
+    /// as tall and hang half its body under the line.
+    #[test]
+    fn h_and_o_share_both_extremes() {
+        let height_mm = 10.0;
+        let ys = endpoint_ys("HO", height_mm);
+        let (min_y, max_y) = min_max(&ys);
+        assert!(
+            (max_y - height_mm).abs() < EPSILON,
+            "top of \"HO\" is {max_y} mm, expected {height_mm} mm",
+        );
+        assert!(
+            min_y.abs() < EPSILON,
+            "bottom of \"HO\" is {min_y} mm, expected 0 mm (the 'O' used to sag)",
+        );
+    }
 }
