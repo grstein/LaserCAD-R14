@@ -205,11 +205,15 @@ impl App {
     /// Commit a command to the document and history stack.
     ///
     /// A convenience wrapper over `history.commit(cmd, &mut document)` for
-    /// callers that already hold `&mut App`: `TextTool` (LCV-048) and the
-    /// four file actions in `src/io/file_actions.rs`. Every *other* tool
-    /// calls `history.commit` directly with no `&mut App` (LCV-041), and
-    /// both paths are covered by the same dirty signal — `App::sync_dirty`
-    /// reads `history.revision()`, not this method (LCV-102 / ADR 0002 §B).
+    /// callers that already hold `&mut App`. `TextTool` was its last *tool*
+    /// caller (LCV-048); LCV-112 moved TEXT's commit to `history.commit`
+    /// directly (dropping its `&mut App` requirement, LCV-041 alignment), so
+    /// as of that demand **no tool calls this method** — its remaining
+    /// callers are the four file actions in `src/io/file_actions.rs` and
+    /// test / fixture code across the test suite. Every tool calls
+    /// `history.commit` directly with no `&mut App` (LCV-041), and both
+    /// paths are covered by the same dirty signal — `App::sync_dirty` reads
+    /// `history.revision()`, not this method (LCV-102 / ADR 0002 §B).
     ///
     /// LCV-040 AC#7, AC#8.
     pub fn commit(&mut self, cmd: Box<dyn Command>) {

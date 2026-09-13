@@ -69,10 +69,32 @@ pub trait Tool {
     /// typically calls `self.cancel()` internally.
     fn on_key(&mut self, key: egui::Key, app: &mut App);
 
-    /// Character input from the keyboard (e.g. letter/digit typed by the
-    /// operator while a text tool is active). The default implementation is a
-    /// no-op; override in tools that accept typed input (LCV-048).
-    fn on_text_input(&mut self, _ch: char) {}
+    /// True while this tool wants the command line as a free-text field
+    /// rather than the parser (ADR 0003 §D, LCV-112).
+    ///
+    /// While `true`, `src/app/cmdline.rs::submit` skips [`crate::cmdline::parse`]
+    /// entirely and forwards the submitted text verbatim to
+    /// [`Self::on_raw_input`], and `src/ui/command_line.rs` keeps the field
+    /// focused every frame — which is also why no keyboard-gate exception is
+    /// needed for raw mode: a focused field already makes
+    /// `ctx.wants_keyboard_input()` suppress the bare tool-activation keys.
+    ///
+    /// The default is `false`. [`TextTool`](super::TextTool) is the only
+    /// implementor.
+    fn wants_raw_input(&self) -> bool {
+        false
+    }
+
+    /// The command line's submitted text, unparsed (ADR 0003 §D, LCV-112).
+    ///
+    /// Called only while [`Self::wants_raw_input`] is `true`. Returns `true`
+    /// when the input was consumed and a phase advanced (possibly
+    /// committing); the default `false` means "not for me", which no tool
+    /// reaches in practice since the app never calls this while
+    /// `wants_raw_input()` is `false`.
+    fn on_raw_input(&mut self, _raw: &str, _doc: &mut Document, _history: &mut History) -> bool {
+        false
+    }
 
     /// Context-sensitive status bar text for the current tool state.
     ///

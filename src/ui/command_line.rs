@@ -1,5 +1,5 @@
 //! Command-line widget: the persistent bottom strip — prompt, feedback,
-//! field (LCV-068, rewired by LCV-111).
+//! field (LCV-068, rewired by LCV-111, holds focus in raw mode by LCV-112).
 //!
 //! The strip mirrors the AutoCAD R14 command bar and renders three things
 //! left to right: the active tool's `status_text()` as a read-only **prompt**
@@ -10,6 +10,13 @@
 //! **Enter** hands the field's text to [`crate::app::submit`] and clears it.
 //! This widget does not parse, dispatch or resolve anything: the whole
 //! contract lives in `src/app/cmdline.rs` (ADR 0003 §B5).
+//!
+//! **Raw-input mode** (ADR 0003 §D): while the active tool wants the command
+//! line as a free-text field (`TextTool` mid-flow — LCV-112), this widget
+//! requests focus every frame instead of only on the one-shot seed. That is
+//! the whole reason raw mode needs no keyboard-gate exception: with the
+//! field focused, `ctx.wants_keyboard_input()` already suppresses the bare
+//! tool-activation keys.
 //!
 //! **Escape** clears the field and the feedback — and nothing else.
 //! Cancelling the active tool belongs to the keyboard gate in
@@ -56,9 +63,7 @@ pub fn draw_command_line(ui: &mut egui::Ui, app: &mut App) {
 
         // The one-shot focus request set by the gate when the operator typed
         // a character while the field was unfocused (LCV-111 AC 21).
-        if std::mem::take(&mut app.focus_command_line) {
-            response.request_focus();
-        }
+        let seeded = std::mem::take(&mut app.focus_command_line);
 
         // Escape: clear this widget's own buffer and the feedback, nothing
         // else — a stale error must always be dismissible.
@@ -70,16 +75,24 @@ pub fn draw_command_line(ui: &mut egui::Ui, app: &mut App) {
         if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
             app.command_line_input.clear();
             app.command_feedback.clear();
-            return;
-        }
-
-        // Enter: submit the text, then clear. A single-line TextEdit loses
-        // focus when the user presses Enter. `crate::app::submit` and nothing
-        // else (LCV-111 AC 8).
-        if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+        } else if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+            // Enter: submit the text, then clear. A single-line TextEdit
+            // loses focus when the user presses Enter. `crate::app::submit`
+            // and nothing else (LCV-111 AC 8).
             let text = std::mem::take(&mut app.command_line_input);
             crate::app::submit(app, &text);
             // command_line_input is already "" after mem::take above.
+        }
+
+        // Raw-input mode holds the field (ADR 0003 §D, LCV-112 AC 3): while
+        // the active tool wants the command line as a free-text field, the
+        // widget must keep requesting focus every frame, or the operator
+        // would have to re-click the field for every character. Read
+        // *after* the Enter branch above, so a submit that returns the tool
+        // to `Idle` (e.g. the final accepted height) releases focus in the
+        // same frame it completes, exactly like any other submit.
+        if seeded || app.tool_manager.wants_raw_input() {
+            response.request_focus();
         }
     });
 }
@@ -94,4 +107,5 @@ mod tests {
     //      src/app/cmdline.rs — the submit contract                 (LCV-111)
     //      tests/lcv111.rs    — focus, recall, Enter and Escape driven
     //                           through the real frame body
+    //      tests/lcv112.rs    — raw-input focus-holding and the TEXT flow
 }

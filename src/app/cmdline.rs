@@ -34,18 +34,31 @@ const NO_DIRECTION: &str = "No direction for distance input — move the cursor 
 ///
 /// Called from `src/ui/command_line.rs`'s Enter branch, which does nothing
 /// else: the parse, the ring push, the dispatch and the feedback all live
-/// here. Order of business, fixed by ADR 0003 §B5:
+/// here. Order of business, fixed by ADR 0003 §B5 and, for raw mode, §D:
 ///
 /// 1. clear the previous result message;
-/// 2. parse;
-/// 3. push the line to the recall ring (rejected input included — recall
+/// 2. if the active tool wants raw input (LCV-112) — forward the text
+///    unparsed, poll succession, and return **before** the parser runs;
+/// 3. parse;
+/// 4. push the line to the recall ring (rejected input included — recall
 ///    exists so a typo can be fixed);
-/// 4. dispatch per the AC 10 table.
+/// 5. dispatch per the AC 10 table.
 ///
 /// Never panics and never returns a value: everything it has to say, it says
 /// through `app.command_feedback` or through the tool's own prompt.
 pub fn submit(app: &mut App, raw: &str) {
     app.command_feedback.clear();
+
+    // Raw means raw (LCV-112 decision 1): while the active tool wants the
+    // command line as a free-text field, nothing here parses the string and
+    // nothing pushes it to the recall ring — `HELLO` is not a command.
+    if app.tool_manager.wants_raw_input() {
+        app.tool_manager
+            .on_raw_input(raw, &mut app.document, &mut app.history);
+        super::viewport::poll_successor(app);
+        return;
+    }
+
     let parsed = parse(raw);
 
     // Every submit is offered to the ring, blank ones included — including

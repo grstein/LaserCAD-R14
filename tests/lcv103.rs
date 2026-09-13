@@ -18,7 +18,7 @@
 
 mod harness;
 
-use harness::{frame, key_events, raw_input, tap};
+use harness::{frame, key_events, raw_input, submit_command, tap, type_command};
 use lasercad::app::App;
 use lasercad::document::CreateLine;
 use lasercad::geometry::{Line, Vec2};
@@ -92,31 +92,29 @@ fn focus_command_line(ctx: &egui::Context, app: &mut App, viewport: egui::Rect) 
     );
 }
 
-/// Activate `TextTool`, click an anchor in the viewport, and give it the
-/// pending string `HI`.
+/// Activate `TextTool`, click an anchor in the viewport, and drive the real
+/// raw-input flow (LCV-112) up to the height prompt with `"HI"` pending.
 ///
-/// The characters are handed to the tool **directly**, not through
-/// `Event::Text`: LCV-111 repurposed the gate's typed-character row to seed
-/// and focus the command line, so per-character TEXT entry is non-functional
-/// between LCV-111 and LCV-112 (which restores it through raw-input mode).
-/// The tests below are about *key routing*, not about typing, so seeding the
-/// buffer directly keeps them honest about what they actually prove.
-///
-/// Leaves the pointer over the viewport and nothing focused.
-fn text_tool_with_pending_text(ctx: &egui::Context, app: &mut App, viewport: egui::Rect) {
+/// LCV-111 repurposed the gate's typed-character row to seed and focus the
+/// command line, which is exactly what makes this reachable: the anchor
+/// click puts the tool in `WaitingText`, `submit_command` types `HI` and
+/// taps Enter, and the tool advances to `WaitingHeight` with nothing
+/// committed yet. This is the real path — the old per-character trait method
+/// no longer exists (LCV-112 deleted it along with `TextTool`'s own
+/// per-character handling).
+fn text_tool_at_height_prompt(ctx: &egui::Context, app: &mut App, viewport: egui::Rect) {
     app.tool_manager.set_tool(Box::new(TextTool::default()));
     let p = viewport.center();
     frame(ctx, app, vec![egui::Event::PointerMoved(p)]); // warm-up
-    frame(ctx, app, click_events(p)); // anchor
-    app.tool_manager.on_text_input('H');
-    app.tool_manager.on_text_input('I');
-    assert!(
-        !app.tool_manager.preview().is_empty(),
-        "TextTool must have buffered the typed characters"
+    frame(ctx, app, click_events(p)); // anchor -> WaitingText
+    submit_command(ctx, app, "HI"); // WaitingText -> WaitingHeight
+    assert_eq!(
+        app.tool_manager.active_status_text(),
+        "TEXT Specify height <5>:"
     );
     assert!(
-        !ctx.wants_keyboard_input(),
-        "clicking the canvas must not give keyboard focus to a widget"
+        !app.tool_manager.preview().is_empty(),
+        "WaitingHeight must preview the pending string at the default height"
     );
 }
 
@@ -219,39 +217,55 @@ fn ctrl_y_redoes_exactly_one_command() {
 // AC#7, AC#8 — D5: Enter reaches the tool, but not through a focused widget
 // ---------------------------------------------------------------------------
 
-/// AC#7 — Enter reaches the active tool and commits the TEXT geometry.
+/// AC#7, rebuilt on LCV-112's raw-input path — the accepted height commits
+/// the TEXT geometry through `crate::app::submit`, the only route a tool can
+/// commit from now that the old per-character trait method and `TextTool`'s
+/// own Enter handling are gone. `submit_command`'s Enter tap only fires when
+/// the field held focus in the previous frame (ADR 0003 §F3 trap 5), so this
+/// still proves Enter is reaching the application at all (D5's original
+/// concern).
 #[test]
 fn enter_commits_text_tool() {
     let (ctx, mut app, viewport) = boot();
-    text_tool_with_pending_text(&ctx, &mut app, viewport);
-    assert!(!app.history.can_undo(), "nothing committed before Enter");
+    text_tool_at_height_prompt(&ctx, &mut app, viewport);
+    assert!(
+        !app.history.can_undo(),
+        "nothing committed before the height is accepted"
+    );
 
-    tap(&ctx, &mut app, egui::Key::Enter, none());
+    submit_command(&ctx, &mut app, "10");
 
     assert!(
         app.history.can_undo(),
-        "Enter must reach TextTool::on_key and commit (D5: Enter was unrouted)"
+        "the accepted height must commit the TEXT geometry"
     );
     assert!(app.document.entity_count() > 0, "Hershey strokes committed");
     assert!(app.tool_manager.preview().is_empty(), "tool back to idle");
 }
 
-/// AC#8, amended by LCV-111 AC 14 — with the command line focused, one Enter
-/// press reaches the tool **exactly once**, through the submit path.
-///
-/// The original LCV-103 assertion was "Enter must not commit the tool while a
-/// text widget has focus". LCV-111 changed that deliberately: an Enter on an
-/// empty command line is R14's "accept" keystroke and `crate::app::submit`
-/// routes it to the active tool, which is what keeps "Enter finishes the
-/// polyline" alive now that the field usually holds focus. The regression
-/// this test still guards is the one that matters — the gate's `wants_kbd`
-/// early-out must keep `TOOL_ROUTED_KEYS` from firing a *second* Enter.
+/// AC#8, amended by LCV-111 AC 14 and rebuilt by LCV-112 — the operator can
+/// also reach the command line by **clicking** it directly (not only by
+/// typing, LCV-111's seed path), and one Enter press still reaches the tool
+/// **exactly once**. The regression this guards: the gate's `wants_kbd`
+/// early-out must keep `TOOL_ROUTED_KEYS` from firing a *second* Enter on top
+/// of the widget's own `lost_focus() && key_pressed(Enter)` submit.
 #[test]
 fn enter_reaches_the_tool_exactly_once_while_focused() {
     let (ctx, mut app, viewport) = boot();
-    text_tool_with_pending_text(&ctx, &mut app, viewport);
-    focus_command_line(&ctx, &mut app, viewport);
+    app.tool_manager.set_tool(Box::new(TextTool::default()));
+    let p = viewport.center();
+    frame(&ctx, &mut app, vec![egui::Event::PointerMoved(p)]); // warm-up
+    frame(&ctx, &mut app, click_events(p)); // anchor -> WaitingText
 
+    focus_command_line(&ctx, &mut app, viewport);
+    type_command(&ctx, &mut app, "HI");
+    tap(&ctx, &mut app, egui::Key::Enter, none());
+    assert_eq!(
+        app.tool_manager.active_status_text(),
+        "TEXT Specify height <5>:"
+    );
+
+    type_command(&ctx, &mut app, "10");
     tap(&ctx, &mut app, egui::Key::Enter, none());
 
     assert_eq!(
@@ -391,13 +405,14 @@ fn text_event_gated_by_focus() {
 // ---------------------------------------------------------------------------
 
 /// AC#12 — one Escape tap clears the command-line buffer *and* cancels the
-/// tool, in a single frame, with the tool cancelled exactly once.
+/// tool, in a single frame, with the tool cancelled exactly once. Reaches
+/// `WaitingHeight` through the real raw-input path, then types a partial
+/// height (`"40"`, never submitted) before cancelling.
 #[test]
 fn escape_cancels_tool_and_clears_command_line_once() {
     let (ctx, mut app, viewport) = boot();
-    text_tool_with_pending_text(&ctx, &mut app, viewport);
-    focus_command_line(&ctx, &mut app, viewport);
-    app.command_line_input = "40".to_owned();
+    text_tool_at_height_prompt(&ctx, &mut app, viewport);
+    type_command(&ctx, &mut app, "40");
 
     tap(&ctx, &mut app, egui::Key::Escape, none());
 
