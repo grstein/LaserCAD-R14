@@ -192,6 +192,19 @@ one real gap in that menu — the missing `Ortho\tF8` checkbox.
     demand listed only the ten tool letters, the three F-keys and the Ctrl
     combinations; `Esc`, `Enter`, `Delete`, `Backspace`, `F` and `Ctrl+0` are
     real bindings that were missing from it.)
+
+    > **Incomplete, recorded 2026-09-13 after shipping.** This list is itself
+    > missing two real, shipped bindings: `ArrowUp` / `ArrowDown` command recall
+    > (`src/app/input.rs::recall`, LCV-111 AC 23, documented in the gate table at
+    > `src/app/input.rs:24`) and the typed-character seed that focuses the
+    > command line (LCV-111 AC 21). The implementer built exactly the table this
+    > criterion specified and the AC 15 tests pin it row for row, so the shipped
+    > dialog omits them too: an operator reading F1 concludes the command line
+    > cannot be reached from the keyboard and that the recall ring does not
+    > exist. **This criterion is not reopened and LCV-116 stays `Done`** — it
+    > shipped what it asked for. The gap in the UI is closed by **LCV-126**,
+    > which adds a `Command line` group between `Drawing` and `Help`.
+
 16. The dialog is read-only: no button in it changes app state, and
     `grep -nE "key_pressed|events|input\(" ` over the dialog's source returns
     nothing (the × is egui's own `open` flag).
