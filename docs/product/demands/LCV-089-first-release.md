@@ -256,6 +256,26 @@ AppImage and `.deb` as downloadable assets.
   - With the Text tool active and characters typed, F1 still opens, and
     pressing the letter L types the character rather than switching tools.
 
+- **Manual smoke / first real prompt against OpenRouter (LCV-123)**: the whole
+  agent stack is validated in CI against `mockito` only — ADR 0007 commits
+  Marco 2 to that deliberately, because no CI run may spend the user's tokens
+  or depend on a third party being up. Nothing therefore proves the real
+  endpoint answers until a human asks it to. **This item becomes relevant once
+  LCV-123 lands** (before that, an agent turn mutates a throwaway document and
+  there is nothing to smoke-test); if the release is cut before LCV-123, record
+  it as not applicable rather than as passed.
+  - Enter a real OpenRouter API key in `Help > Agent settings`, close the
+    dialog, and confirm it survives a restart.
+  - Type a free-text request into the command line — for example
+    `draw a 50 mm square at the origin` — and confirm the transcript shows the
+    prompt was sent, the tool rows that came back, and a final answer.
+  - The geometry appears **in the open drawing**, at the coordinates asked for,
+    in millimetres, and the status bar agrees.
+  - A single `Ctrl+Z` undoes the entire turn, and `Ctrl+Y` puts it back.
+  - Clear the key, restart, and confirm the same free text now answers
+    `! Agent unavailable: set the API key in Help > Agent settings` and draws
+    nothing.
+
 ## Open questions
 
 *(none)*
