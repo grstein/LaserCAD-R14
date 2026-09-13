@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Persistent LCV-XXX backlog. Live source of truth across sessions. The project-manager rehydrates Claude Tasks from this file at session start, and writes back after every status change. PLAN.md, backlog.md, and demand files reflect content but are no longer the live status board. Marco 0 (LCV-100..108) shipped; user tags v0.1.0. Milestone Marco 1 (LCV-110..116) targets tag v0.2.0 — functional parity with v1.0.0.",
+  "description": "Persistent LCV-XXX backlog. Live source of truth across sessions. The project-manager rehydrates Claude Tasks from this file at session start, and writes back after every status change. PLAN.md, backlog.md, and demand files reflect content but are no longer the live status board. Marco 0 (LCV-100..108) shipped; user tags v0.1.0. Milestone Marco 1 (LCV-110..116) targets tag v0.2.0; CI is live and green on 3 platforms since run 34727477158 — functional parity with v1.0.0.",
   "status_legend": [
     "Draft",
     "Refining",
@@ -995,10 +995,10 @@
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
-      "note": "CI Windows leg fixed statically: PowerShell invocation of build-msi.ps1 plus rustup show and cargo install cargo-wix. No remote created, nothing pushed, no tag. The workflow has still never executed.",
+      "note": "CI Windows leg fixed statically: PowerShell invocation of build-msi.ps1 plus rustup show and cargo install cargo-wix. No remote created, nothing pushed, no tag. The workflow has still never executed. CONTINUATION 2026-09-12: remote origin created by the user (private). First matrix run exposed two real breaks. (1) Windows cargo fmt failed on every file: rustfmt.toml sets newline_style=Unix but there was no .gitattributes, so the Windows checkout wrote CRLF. Fixed with '* text=auto eol=lf'. (2) macos-13 is a DEAD runner label (fully unsupported since 2025-12-04), so that job queued forever; moved to macos-15, which is arm64, which in turn exposed that the workflow hardcoded dist/lasercad-x86_64.dmg while build-dmg.sh emits lasercad-aarch64.dmg on arm64 -- a latent break that would have hit on the v0.1.0 tag push. Also bumped checkout v4->v5 and the artifact actions off the Node 20 runtime, and added repository= to Cargo.toml plus the README CI badge. Commits 958fb12, 4244d40, 0a1d680. CI now GREEN on ubuntu-24.04 + windows-2022 + macos-15 for both test and build: run 34727477158.",
       "demand_file": "docs/product/demands/LCV-107-ci-windows-msi-invocation.md",
       "drive_order": 7,
-      "shipped_commit": "c5b5be4"
+      "shipped_commit": "c5b5be4,958fb12,4244d40,0a1d680"
     },
     {
       "id": "LCV-108",
@@ -1017,82 +1017,91 @@
       "id": "LCV-110",
       "title": "Command-line parser (pure kernel module): X,Y / @X,Y / distance / aliases / toggles / zoom",
       "phase": 11,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-110-command-line-parser.md",
-      "drive_order": 1
+      "drive_order": 1,
+      "note": "ADR 0003 (ac9e796) binds this: module at src/cmdline/, joins the AGENTS.md purity list; ToolKind enum + tools::make() retires BOTH ui/shortcuts.rs::TOOL_KEYS string mapping AND ui/toolbar.rs::make_tool. Refined 36b0056. Product calls: '.' is always the decimal separator and ',' always the coordinate separator, no locale detection; the recall ring is a transcript (duplicates kept, Unknown pushed, Empty not); 'e' maps to Delete and EXTEND gets no alias (v2 binds Key::E to DeleteTool)."
     },
     {
       "id": "LCV-111",
       "title": "Wire the parser into the tools: on_command_input, per-phase prompts, focus-on-typing",
       "phase": 11,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [
         "LCV-110"
       ],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-111-command-line-tool-wiring.md",
-      "drive_order": 2
+      "drive_order": 2,
+      "note": "Biggest demand of Marco 1. ADR 0003 §B fixes on_command_input(ToolInput, &mut Document, &mut History) -> bool; tools never see a string. Prompts use the EXISTING Tool::status_text() pull model (§C); the real gap is CircleTool/ArcTool inheriting name(). Focus: the tool shortcut WINS over command-line focus, so the AC reads 'any alphanumeric that is NOT a bound tool shortcut'. product-owner added anchor() to Move/Circle/Arc but REFUSED it for Rect (ortho would collapse a rect to zero width/height), with a follow-up for architect to split the two meanings of anchor(). RISK: this demand leaves TEXT non-functional until LCV-112 lands, so LCV-112 is not optional."
     },
     {
       "id": "LCV-112",
       "title": "TEXT complete: raw-input mode for string then height, single undo",
       "phase": 11,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [
         "LCV-111"
       ],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-112-text-tool-raw-input.md",
-      "drive_order": 3
+      "drive_order": 3,
+      "note": "ADR 0003 §D raw-input mode. Height range 0.1..2000 mm, empty means 5.0; out of range keeps the operator's string and re-prompts, never clamps. Exactly one undo entry. Deletes Tool::on_text_input, which LCV-111 is explicitly forbidden from removing. Refined 36b0056."
     },
     {
       "id": "LCV-113",
       "title": "Confirm discard on New / Open / Exit when the document is dirty",
       "phase": 11,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-113-confirm-discard.md",
-      "drive_order": 4
+      "drive_order": 4,
+      "note": "Refined 27f2a85. product-owner found that History::revision()/dirty_since is NOT usable as a discard guard: autosave's flush_if_due calls mark_clean() every ~800 ms, so the prompt window would be sub-second. Introduces an independent App::saved_revision written only by mark_saved(). Requires a new src/app/file_ops.rs because src/app/mod.rs is at 293 of the 300 cap."
     },
     {
       "id": "LCV-114",
       "title": "Configurable bed size (1..2000 mm), persisted in the SVG width/height and read on import",
       "phase": 11,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-114-configurable-bed-size.md",
-      "drive_order": 5
+      "drive_order": 5,
+      "note": "Refined 27f2a85. Bed size owned by Document::bed_mm (undoable, round-trips); Settings::default_bed_mm seeds File>New and cold boot only; App::bed removed. Default STAYS 400x400 (renamed DEFAULT_BED_*_MM) because re-baselining to v1's 128 would rewrite every LCV-100/LCV-057 golden fixture for zero user gain. flip_y becomes flip_y(y, bed_height_mm). Import precedence width+height > viewBox > 400x400; out-of-range is REJECTED not clamped; opening a file adopts its bed. Implementer updates the AGENTS.md LaserGRBL/SVG checklist."
     },
     {
       "id": "LCV-115",
       "title": "Export preset selector (cut / mark / engrave) for the whole document",
       "phase": 11,
-      "status": "Draft",
-      "depends_on": [],
+      "status": "Ready",
+      "depends_on": [
+        "LCV-114"
+      ],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-115-export-preset-selector.md",
-      "drive_order": 6
+      "drive_order": 6,
+      "note": "Refined 27f2a85. Whole-document export-time preset only; per-entity preset is an explicit Non-goal with a forward pointer. State on App::export_preset, SESSION-ONLY (a sticky preset means yesterday's mark job cuts today's part), always shown as a status-bar label. Depends on LCV-114 for the shared ImportedSvg return type."
     },
     {
       "id": "LCV-116",
       "title": "Chrome: clickable SNAP/GRID/ORTHO statusbar toggles, autosave indicator, F1 shortcuts dialog, View zoom in/out",
       "phase": 11,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-116-ui-chrome-completion.md",
-      "drive_order": 7
+      "drive_order": 7,
+      "note": "Refined 27f2a85. product-owner found View>Zoom in/out ALREADY SHIPPED, so (d) shrank to a regression test plus the one real gap: Ortho/F8 has no checkbox where Grid/F7 and Snap/F3 do. Autosave indicator is three permanent states from a pure format_autosave(), no 'Ns ago' counter and no fade. Also found a latent defect: flush_if_due only runs inside a frame and nothing schedules one, so an idle dirty app may never autosave -> AC 9/10 require request_repaint_after()."
     }
   ]
 }
