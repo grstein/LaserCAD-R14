@@ -1045,7 +1045,7 @@
       "id": "LCV-112",
       "title": "TEXT complete: raw-input mode for string then height, single undo",
       "phase": 11,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [
         "LCV-111"
       ],
@@ -1053,19 +1053,21 @@
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-112-text-tool-raw-input.md",
       "drive_order": 3,
-      "note": "ADR 0003 §D raw-input mode. Height range 0.1..2000 mm, empty means 5.0; out of range keeps the operator's string and re-prompts, never clamps. Exactly one undo entry. Deletes Tool::on_text_input, which LCV-111 is explicitly forbidden from removing. Refined 36b0056."
+      "note": "ADR 0003 §D raw-input mode. Height range 0.1..2000 mm, empty means 5.0; out of range keeps the operator's string and re-prompts, never clamps. Exactly one undo entry. Deletes Tool::on_text_input, which LCV-111 is explicitly forbidden from removing. Refined 36b0056. SHIPPED 2ef12af (TextTool rebuilt as Idle -> WaitingText -> WaitingHeight; wants_raw_input()/on_raw_input() added to Tool; on_text_input deleted). Review returned REWORK REQUIRED on one blocking finding, fixed in 307cfad. The finding was a COVERAGE gap, not a wrong behaviour: the re-check of wants_raw_input() AFTER the Enter branch in src/ui/command_line.rs, which releases focus on the same frame a commit returns TEXT to Idle, was correct but untested -- the reviewer reverted the ordering and all 39 lcv103/lcv111/lcv112 tests still passed. Rework added a behavioural test (a bare L the very next frame must activate LINE) and swapped tests/lcv103.rs's enter-double-dispatch vehicle from TextTool to LineTool, since TextTool::on_key lost its Enter arm. Re-review APPROVED: both mutations re-run in a scratch worktree, plus a SURGICAL mutation unguarding only the TOOL_ROUTED_KEYS loop, proving the lcv103 test catches the real defect and not buffer-corruption side effects. LineTool and PolylineTool are the only two tools whose on_key reacts to Enter and each now has an independent witness. 704 -> 718 lib tests, 86 -> 95 integration. CI green all three platforms (run 34733893629). This review also SURFACED LCV-117: the Hershey glyph table renders 22 glyphs below the baseline.",
+      "shipped_commit": "2ef12af,307cfad"
     },
     {
       "id": "LCV-117",
       "title": "Hershey glyph table: 22 glyphs render below the baseline",
       "phase": 11,
-      "status": "Draft",
+      "status": "In Progress",
       "depends_on": [],
       "suggested_agent": "product-owner",
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-117-hershey-baseline.md",
       "drive_order": 4,
-      "note": "Defect found during the LCV-112 review, predates it (shipped by LCV-055). src/text/layout.rs places the text origin ON the baseline and maps py = origin.y - hy*scale, so any glyph datum with hy>0 renders BELOW the baseline. 22 of 62 alphanumeric glyphs violate the file's own documented convention (baseline y=0, caps top y=-9, x-height y=-6, descenders y~+4): 0 5 6 8 9 O Q S a b c d e o s t u overshoot with no descender at all, and g j p q y descend to +10/+6/+9/+9/+6 instead of +4. 'O' literally spans y=[-9..9], i.e. a 10mm O is 20mm tall with half below the line. Not a uniform offset -- checked, no affine map repairs 'O' -- so the data is corrupt per-glyph and must be re-authored, not shifted. Survived since LCV-055 because the only cap-height test (layout.rs h_cap_height_matches_height_mm) uses 'H', one of the 40 CORRECT glyphs. Acceptance must be a mechanical whole-table invariant test, not per-glyph eyeballing. Severity comparable to the mirrored-SVG defect D1 closed in Marco 0: it is visible in every exported SVG and in LaserGRBL."
+      "note": "Defect found during the LCV-112 review, predates it (shipped by LCV-055). src/text/layout.rs places the text origin ON the baseline and maps py = origin.y - hy*scale, so any glyph datum with hy>0 renders BELOW the baseline. 22 of 62 alphanumeric glyphs violate the file's own documented convention (baseline y=0, caps top y=-9, x-height y=-6, descenders y~+4): 0 5 6 8 9 O Q S a b c d e o s t u overshoot with no descender at all, and g j p q y descend to +10/+6/+9/+9/+6 instead of +4. 'O' literally spans y=[-9..9], i.e. a 10mm O is 20mm tall with half below the line. Not a uniform offset -- checked, no affine map repairs 'O' -- so the data is corrupt per-glyph and must be re-authored, not shifted. Survived since LCV-055 because the only cap-height test (layout.rs h_cap_height_matches_height_mm) uses 'H', one of the 40 CORRECT glyphs. Acceptance must be a mechanical whole-table invariant test, not per-glyph eyeballing. Severity comparable to the mirrored-SVG defect D1 closed in Marco 0: it is visible in every exported SVG and in LaserGRBL. Refined bb37da6; product-owner corrected me in four places, notably that my 'no affine transform repairs O' claim was wrong (I missed a third data point) and that my proposed x-height invariant would have failed on seven CORRECT glyphs, since m n r v w x z top at -5 not -6. They also found the real root cause: the bad glyphs, or the bad STROKE inside a good glyph, were authored with the origin at the vertical centre of the body, so a b d p q t y need one stroke moved rather than a redraw and only 0 6 8 O c e o s are true redraws. Scope settled at 23 glyphs (the 22 plus '?'), descenders normalised to exactly +4, 17 punctuation marks exempted by an anti-widening test. SHIPPED d696f7c + c8cebad, 718 -> 729 lib tests, CI green (run 34736564259). Review returned REWORK REQUIRED on one real finding: the AC 14 test scanned EVERY stroke of Q for a lower-right point, but Q's bowl is byte-identical to O's and always supplies one, so the reviewer truncated Q's tail to (1,-3),(4,-3) and the entire suite still passed. The reviewer's second finding, that hershey.rs at 476 lines and layout.rs at 380 breach the 300-line cap, is VOID: ADR 0002 lines 371-375 count implementation lines only and exclude inline #[cfg(test)] blocks, making them 53 and 87. AC 9 was found self-contradictory by implementer and reviewer independently and is being reworded by product-owner; the code already matches the intended reading.",
+      "shipped_commit": "d696f7c,c8cebad"
     },
     {
       "id": "LCV-113",
