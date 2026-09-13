@@ -1331,7 +1331,7 @@
       "id": "LCV-128",
       "title": "`AGENTS.md`'s normative per-file and per-symbol enumerations have no scan",
       "phase": 12,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [],
       "suggested_agent": "product-owner",
       "milestone": "Phase 12 follow-up (outside the Marco 2 drive)",
