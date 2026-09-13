@@ -1,6 +1,6 @@
 # LCV-126 — The F1 shortcuts dialog does not mention the command line
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 11
 - **Depends on**: LCV-116 (Done), LCV-111 (Done); LCV-132 **soft** — AC 4 uses its harness if it has landed and an inline collector if it has not
 - **Suggested agent**: implementer-rust
