@@ -146,6 +146,16 @@ _None._
 |---|---|---|
 | LCV-126 | The F1 shortcuts dialog does not mention the command line | 11 |
 | LCV-128 | `AGENTS.md`'s normative per-file and per-symbol enumerations have no scan | 12 |
+| LCV-129 | A hung endpoint wedges the app: the agent turn has no timeout and no cancel | 12 |
+
+**Drive order after Marco 2**: LCV-129 → LCV-127 → LCV-126 → LCV-128. LCV-129
+jumps the other three because it is the only known defect that can wedge the
+application in a real user's hands — an unresponsive endpoint hangs the turn
+forever, latches `agent_busy`, and repaints every frame for the rest of the
+session (LCV-120 reopening through a different door), with no recovery but
+quitting. The user is about to run their first live prompt against OpenRouter.
+It is still **not** part of Marco 2 and must not be driven ahead of LCV-124 or
+LCV-125.
 
 ## Rejected
 

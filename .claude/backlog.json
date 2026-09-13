@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Persistent LCV-XXX backlog. Live source of truth across sessions. The project-manager rehydrates Claude Tasks from this file at session start, and writes back after every status change. PLAN.md, backlog.md, and demand files reflect content but are no longer the live status board. Titles, phases and statuses here are reconciled against the demand-file headers, which are authoritative. Marco 0 (LCV-100..108) shipped; user tags v0.1.0. Marco 1 (LCV-110..119) shipped — functional parity with v1.0.0, targets tag v0.2.0. Marco 2 (LCV-121..125) is in flight: LCV-121 Done (d584f4d) and LCV-122 Done (61d609b, 2a7a9b4, ccaaf6e, ff267ec), drive order 121 -> 122 -> 123 unbroken, so LCV-123 is next, then 124 and 125 in parallel. RELEASE HAZARD, LIVE: between LCV-121 and LCV-123 the agent can call tools but they hit a throwaway Document, so it reports geometry that never reaches the canvas — do not tag or cut a release until LCV-123 is Done. LCV-126 (Draft, phase 11), LCV-127 (Ready, phase 11) and LCV-128 (Draft, phase 12) are follow-ups outside that drive, in drive order 16 -> 17 -> 18 after it. CI green on 3 platforms, latest run 34758445630.",
+  "description": "Persistent LCV-XXX backlog. Live source of truth across sessions. The project-manager rehydrates Claude Tasks from this file at session start, and writes back after every status change. PLAN.md, backlog.md, and demand files reflect content but are no longer the live status board. Titles, phases and statuses here are reconciled against the demand-file headers, which are authoritative. Marco 0 (LCV-100..108) shipped; user tags v0.1.0. Marco 1 (LCV-110..119) shipped \u2014 functional parity with v1.0.0, targets tag v0.2.0. Marco 2 (LCV-121..125) is in flight: LCV-121 Done (d584f4d) and LCV-122 Done (61d609b, 2a7a9b4, ccaaf6e, ff267ec), drive order 121 -> 122 -> 123 unbroken, so LCV-123 is next, then 124 and 125 in parallel. RELEASE HAZARD, LIVE: between LCV-121 and LCV-123 the agent can call tools but they hit a throwaway Document, so it reports geometry that never reaches the canvas \u2014 do not tag or cut a release until LCV-123 is Done. LCV-129 (Draft, phase 12), LCV-127 (Ready, phase 11), LCV-126 (Draft, phase 11) and LCV-128 (Draft, phase 12) are follow-ups outside that drive, in drive order 16 -> 17 -> 18 -> 19 after it. LCV-129 was opened 2026-09-13 and leads them: a hung endpoint has no timeout and no cancel, so it latches agent_busy and repaints forever (LCV-120 through a different door) with no recovery but quitting - the only known defect that can wedge the app in a real user's hands, and the user is about to run their first live prompt against OpenRouter. It is still not part of Marco 2. CI green on 3 platforms, latest run 34758445630.",
   "status_legend": [
     "Draft",
     "Refining",
@@ -35,7 +35,7 @@
     },
     {
       "id": "LCV-003",
-      "title": "ADR 0001 — pure Rust + egui decision",
+      "title": "ADR 0001 \u2014 pure Rust + egui decision",
       "phase": 0,
       "status": "Done",
       "depends_on": [],
@@ -65,7 +65,7 @@
     },
     {
       "id": "LCV-006",
-      "title": "Agent harness alive — confirm .claude/agents/*.md round-trip",
+      "title": "Agent harness alive \u2014 confirm .claude/agents/*.md round-trip",
       "phase": 0,
       "status": "Done",
       "depends_on": [],
@@ -74,7 +74,7 @@
     },
     {
       "id": "LCV-007",
-      "title": "Bootstrap egui window — title \"LaserCAD v2\"",
+      "title": "Bootstrap egui window \u2014 title \"LaserCAD v2\"",
       "phase": 0,
       "status": "Done",
       "depends_on": [
@@ -295,7 +295,7 @@
     },
     {
       "id": "LCV-031",
-      "title": "Camera (world↔screen, zoom, pan, zoom-extents)",
+      "title": "Camera (world\u2194screen, zoom, pan, zoom-extents)",
       "phase": 3,
       "status": "Done",
       "depends_on": [
@@ -309,7 +309,7 @@
     },
     {
       "id": "LCV-032",
-      "title": "Viewport wiring (pointer input → tools)",
+      "title": "Viewport wiring (pointer input \u2192 tools)",
       "phase": 3,
       "status": "Done",
       "depends_on": [
@@ -514,7 +514,7 @@
     },
     {
       "id": "LCV-049",
-      "title": "MoveTool — move selected entities",
+      "title": "MoveTool \u2014 move selected entities",
       "phase": 4,
       "status": "Done",
       "depends_on": [
@@ -579,7 +579,7 @@
     },
     {
       "id": "LCV-054",
-      "title": "OffsetTool — Offset a Line or Arc by Distance",
+      "title": "OffsetTool \u2014 Offset a Line or Arc by Distance",
       "phase": 4,
       "status": "Rejected",
       "depends_on": [
@@ -681,7 +681,7 @@
     },
     {
       "id": "LCV-062",
-      "title": "File actions — New / Open / Save / Save As wired to dialogs and SVG I/O",
+      "title": "File actions \u2014 New / Open / Save / Save As wired to dialogs and SVG I/O",
       "phase": 5,
       "status": "Done",
       "depends_on": [
@@ -707,7 +707,7 @@
     },
     {
       "id": "LCV-066",
-      "title": "Toolbar — left-side tool palette",
+      "title": "Toolbar \u2014 left-side tool palette",
       "phase": 6,
       "status": "Done",
       "depends_on": [
@@ -805,7 +805,7 @@
     },
     {
       "id": "LCV-077",
-      "title": "Agent transport — blocking reqwest client for OpenAI-compatible API",
+      "title": "Agent transport \u2014 blocking reqwest client for OpenAI-compatible API",
       "phase": 7,
       "status": "Done",
       "depends_on": [
@@ -843,7 +843,7 @@
     },
     {
       "id": "LCV-080",
-      "title": "Agent panel — chat UI for AI assistant",
+      "title": "Agent panel \u2014 chat UI for AI assistant",
       "phase": 7,
       "status": "Done",
       "depends_on": [
@@ -916,7 +916,7 @@
       "suggested_agent": "project-manager",
       "demand_file": "docs/product/demands/LCV-089-first-release.md",
       "shipped_commit": "b936570",
-      "note": "PARTIAL: b936570 bumped Cargo.toml to 0.1.0, finalized CHANGELOG and added scripts/release.sh, but no git tag and no GitHub release exist (no git remote configured). Blocked on the user choosing a remote — see LCV-107."
+      "note": "PARTIAL: b936570 bumped Cargo.toml to 0.1.0, finalized CHANGELOG and added scripts/release.sh, but no git tag and no GitHub release exist (no git remote configured). Blocked on the user choosing a remote \u2014 see LCV-107."
     },
     {
       "id": "LCV-090",
@@ -958,12 +958,12 @@
     },
     {
       "id": "LCV-100",
-      "title": "SVG export/import Y-axis inversion (world Y-up ↔ SVG Y-down)",
+      "title": "SVG export/import Y-axis inversion (world Y-up \u2194 SVG Y-down)",
       "phase": 10,
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "milestone": "Marco 0 \u2014 make \"Done\" true (v0.1.0)",
       "demand_file": "docs/product/demands/LCV-100-svg-y-axis-inversion.md",
       "drive_order": 1,
       "shipped_commit": "3d8aec4",
@@ -976,7 +976,7 @@
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "milestone": "Marco 0 \u2014 make \"Done\" true (v0.1.0)",
       "demand_file": "docs/product/demands/LCV-101-settings-load-on-startup.md",
       "drive_order": 2,
       "shipped_commit": "e3258d2",
@@ -989,7 +989,7 @@
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "milestone": "Marco 0 \u2014 make \"Done\" true (v0.1.0)",
       "demand_file": "docs/product/demands/LCV-102-autosave-dirty-tracking.md",
       "drive_order": 4,
       "shipped_commit": "a958d29",
@@ -1002,7 +1002,7 @@
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "milestone": "Marco 0 \u2014 make \"Done\" true (v0.1.0)",
       "demand_file": "docs/product/demands/LCV-103-keyboard-routing.md",
       "drive_order": 3,
       "shipped_commit": "88bc4c9",
@@ -1015,7 +1015,7 @@
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "milestone": "Marco 0 \u2014 make \"Done\" true (v0.1.0)",
       "demand_file": "docs/product/demands/LCV-104-tool-reachability.md",
       "drive_order": 5,
       "shipped_commit": "4b8c243",
@@ -1028,7 +1028,7 @@
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "milestone": "Marco 0 \u2014 make \"Done\" true (v0.1.0)",
       "demand_file": "docs/product/demands/LCV-105-cleanup-and-app-split.md",
       "drive_order": 8,
       "shipped_commit": "0d1d52b",
@@ -1041,7 +1041,7 @@
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "product-owner",
-      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "milestone": "Marco 0 \u2014 make \"Done\" true (v0.1.0)",
       "demand_file": "docs/product/demands/LCV-106-offset-tool-decision.md",
       "drive_order": 6,
       "shipped_commit": "adbc878",
@@ -1054,7 +1054,7 @@
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "milestone": "Marco 0 \u2014 make \"Done\" true (v0.1.0)",
       "demand_file": "docs/product/demands/LCV-107-ci-windows-msi-invocation.md",
       "drive_order": 7,
       "shipped_commit": "c5b5be4, 958fb12, 4244d40, 0a1d680",
@@ -1067,7 +1067,7 @@
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "demand-manager",
-      "milestone": "Marco 0 — make \"Done\" true (v0.1.0)",
+      "milestone": "Marco 0 \u2014 make \"Done\" true (v0.1.0)",
       "demand_file": "docs/product/demands/LCV-108-docs-sync.md",
       "drive_order": 9,
       "shipped_commit": "b24da80",
@@ -1080,7 +1080,7 @@
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "milestone": "Marco 1 \u2014 functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-110-command-line-parser.md",
       "drive_order": 1,
       "shipped_commit": "66af950, 29ac39a",
@@ -1095,11 +1095,11 @@
         "LCV-110"
       ],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "milestone": "Marco 1 \u2014 functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-111-command-line-tool-wiring.md",
       "drive_order": 2,
       "shipped_commit": "533e24a, 2f39e9d, d6a23b7",
-      "note": "Biggest demand of Marco 1. ADR 0003 §B fixes on_command_input(ToolInput, &mut Document, &mut History) -> bool; tools never see a string. Prompts use the EXISTING Tool::status_text() pull model (§C); the real gap is CircleTool/ArcTool inheriting name(). Focus: the tool shortcut WINS over command-line focus, so the AC reads 'any alphanumeric that is NOT a bound tool shortcut'. product-owner added anchor() to Move/Circle/Arc but REFUSED it for Rect (ortho would collapse a rect to zero width/height), with a follow-up for architect to split the two meanings of anchor(). RISK: this demand leaves TEXT non-functional until LCV-112 lands, so LCV-112 is not optional. SHIPPED 533e24a + 2f39e9d; review returned REWORK REQUIRED on one blocking finding, fixed in d6a23b7. The finding was spec drift, not a design error: AC 9.4's 'Empty is never pushed' was written in dbf6a7a BEFORE the LCV-110 rework 29ac39a changed CommandHistory::push to reset the recall cursor on a blank entry, so guarding the call site made that already-approved behaviour unreachable in production. Reviewer checked v1 directly and found it does two things on one Enter: command-line.ts:192-196 resets historyIndex unconditionally, while execute() at 76-86 has its own separate blank guard before appending. Reviewer also confirmed the tests/lcv103.rs rename is a legitimate supersession and strictly more discriminating, and that the RECT no-anchor decision rests on a true premise (RectTool::on_pointer_down does discard at or below EPSILON). 661 -> 704 lib tests, 68 -> 86 integration. APPROVED after rework."
+      "note": "Biggest demand of Marco 1. ADR 0003 \u00a7B fixes on_command_input(ToolInput, &mut Document, &mut History) -> bool; tools never see a string. Prompts use the EXISTING Tool::status_text() pull model (\u00a7C); the real gap is CircleTool/ArcTool inheriting name(). Focus: the tool shortcut WINS over command-line focus, so the AC reads 'any alphanumeric that is NOT a bound tool shortcut'. product-owner added anchor() to Move/Circle/Arc but REFUSED it for Rect (ortho would collapse a rect to zero width/height), with a follow-up for architect to split the two meanings of anchor(). RISK: this demand leaves TEXT non-functional until LCV-112 lands, so LCV-112 is not optional. SHIPPED 533e24a + 2f39e9d; review returned REWORK REQUIRED on one blocking finding, fixed in d6a23b7. The finding was spec drift, not a design error: AC 9.4's 'Empty is never pushed' was written in dbf6a7a BEFORE the LCV-110 rework 29ac39a changed CommandHistory::push to reset the recall cursor on a blank entry, so guarding the call site made that already-approved behaviour unreachable in production. Reviewer checked v1 directly and found it does two things on one Enter: command-line.ts:192-196 resets historyIndex unconditionally, while execute() at 76-86 has its own separate blank guard before appending. Reviewer also confirmed the tests/lcv103.rs rename is a legitimate supersession and strictly more discriminating, and that the RECT no-anchor decision rests on a true premise (RectTool::on_pointer_down does discard at or below EPSILON). 661 -> 704 lib tests, 68 -> 86 integration. APPROVED after rework."
     },
     {
       "id": "LCV-112",
@@ -1110,11 +1110,11 @@
         "LCV-111"
       ],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "milestone": "Marco 1 \u2014 functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-112-text-tool-raw-input.md",
       "drive_order": 3,
       "shipped_commit": "2ef12af, 307cfad",
-      "note": "ADR 0003 §D raw-input mode. Height range 0.1..2000 mm, empty means 5.0; out of range keeps the operator's string and re-prompts, never clamps. Exactly one undo entry. Deletes Tool::on_text_input, which LCV-111 is explicitly forbidden from removing. Refined 36b0056. SHIPPED 2ef12af (TextTool rebuilt as Idle -> WaitingText -> WaitingHeight; wants_raw_input()/on_raw_input() added to Tool; on_text_input deleted). Review returned REWORK REQUIRED on one blocking finding, fixed in 307cfad. The finding was a COVERAGE gap, not a wrong behaviour: the re-check of wants_raw_input() AFTER the Enter branch in src/ui/command_line.rs, which releases focus on the same frame a commit returns TEXT to Idle, was correct but untested -- the reviewer reverted the ordering and all 39 lcv103/lcv111/lcv112 tests still passed. Rework added a behavioural test (a bare L the very next frame must activate LINE) and swapped tests/lcv103.rs's enter-double-dispatch vehicle from TextTool to LineTool, since TextTool::on_key lost its Enter arm. Re-review APPROVED: both mutations re-run in a scratch worktree, plus a SURGICAL mutation unguarding only the TOOL_ROUTED_KEYS loop, proving the lcv103 test catches the real defect and not buffer-corruption side effects. LineTool and PolylineTool are the only two tools whose on_key reacts to Enter and each now has an independent witness. 704 -> 718 lib tests, 86 -> 95 integration. CI green all three platforms (run 34733893629). This review also SURFACED LCV-117: the Hershey glyph table renders 22 glyphs below the baseline."
+      "note": "ADR 0003 \u00a7D raw-input mode. Height range 0.1..2000 mm, empty means 5.0; out of range keeps the operator's string and re-prompts, never clamps. Exactly one undo entry. Deletes Tool::on_text_input, which LCV-111 is explicitly forbidden from removing. Refined 36b0056. SHIPPED 2ef12af (TextTool rebuilt as Idle -> WaitingText -> WaitingHeight; wants_raw_input()/on_raw_input() added to Tool; on_text_input deleted). Review returned REWORK REQUIRED on one blocking finding, fixed in 307cfad. The finding was a COVERAGE gap, not a wrong behaviour: the re-check of wants_raw_input() AFTER the Enter branch in src/ui/command_line.rs, which releases focus on the same frame a commit returns TEXT to Idle, was correct but untested -- the reviewer reverted the ordering and all 39 lcv103/lcv111/lcv112 tests still passed. Rework added a behavioural test (a bare L the very next frame must activate LINE) and swapped tests/lcv103.rs's enter-double-dispatch vehicle from TextTool to LineTool, since TextTool::on_key lost its Enter arm. Re-review APPROVED: both mutations re-run in a scratch worktree, plus a SURGICAL mutation unguarding only the TOOL_ROUTED_KEYS loop, proving the lcv103 test catches the real defect and not buffer-corruption side effects. LineTool and PolylineTool are the only two tools whose on_key reacts to Enter and each now has an independent witness. 704 -> 718 lib tests, 86 -> 95 integration. CI green all three platforms (run 34733893629). This review also SURFACED LCV-117: the Hershey glyph table renders 22 glyphs below the baseline."
     },
     {
       "id": "LCV-117",
@@ -1123,7 +1123,7 @@
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "product-owner",
-      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "milestone": "Marco 1 \u2014 functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-117-hershey-baseline.md",
       "drive_order": 4,
       "shipped_commit": "d696f7c, c8cebad, 5d48027",
@@ -1136,7 +1136,7 @@
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "milestone": "Marco 1 \u2014 functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-113-confirm-discard.md",
       "drive_order": 5,
       "shipped_commit": "475d666, a7df030, 1cb4ae8",
@@ -1149,7 +1149,7 @@
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "milestone": "Marco 1 \u2014 functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-118-disarm-native-dialogs.md",
       "drive_order": 6,
       "shipped_commit": "fa158c0, 5e74557",
@@ -1162,7 +1162,7 @@
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "milestone": "Marco 1 \u2014 functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-114-configurable-bed-size.md",
       "drive_order": 7,
       "shipped_commit": "bd49c11",
@@ -1177,7 +1177,7 @@
         "LCV-114"
       ],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "milestone": "Marco 1 \u2014 functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-115-export-preset-selector.md",
       "drive_order": 8,
       "shipped_commit": "2f20fdd, 24e36aa",
@@ -1190,11 +1190,11 @@
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "milestone": "Marco 1 \u2014 functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-116-ui-chrome-completion.md",
       "drive_order": 9,
       "shipped_commit": "fd9b4e4, 900f0c7",
-      "note": "Refined 27f2a85. product-owner found View>Zoom in/out ALREADY SHIPPED, so (d) shrank to a regression test plus the one real gap: Ortho/F8 has no checkbox where Grid/F7 and Snap/F3 do. Autosave indicator is three permanent states from a pure format_autosave(), no 'Ns ago' counter and no fade. Also found a latent defect: flush_if_due only runs inside a frame and nothing schedules one, so an idle dirty app may never autosave -> AC 9/10 require request_repaint_after(). CLOSED 2026-09-13 (Done): shipped fd9b4e4 plus 900f0c7, a Windows-only CI fix comparing a path against a forward-slash literal (no production code wrong). CI run 34747953068 green; reviewed APPROVED — the reviewer reproduced both disclosed deviations and found no surviving mutation across 20+ probes. The latent autosave defect this demand predicted was real and was fixed here (schedule_flush_repaint), and LCV-120 later made it load-bearing."
+      "note": "Refined 27f2a85. product-owner found View>Zoom in/out ALREADY SHIPPED, so (d) shrank to a regression test plus the one real gap: Ortho/F8 has no checkbox where Grid/F7 and Snap/F3 do. Autosave indicator is three permanent states from a pure format_autosave(), no 'Ns ago' counter and no fade. Also found a latent defect: flush_if_due only runs inside a frame and nothing schedules one, so an idle dirty app may never autosave -> AC 9/10 require request_repaint_after(). CLOSED 2026-09-13 (Done): shipped fd9b4e4 plus 900f0c7, a Windows-only CI fix comparing a path against a forward-slash literal (no production code wrong). CI run 34747953068 green; reviewed APPROVED \u2014 the reviewer reproduced both disclosed deviations and found no surviving mutation across 20+ probes. The latent autosave defect this demand predicted was real and was fixed here (schedule_flush_repaint), and LCV-120 later made it load-bearing."
     },
     {
       "id": "LCV-119",
@@ -1203,11 +1203,11 @@
       "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
-      "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
+      "milestone": "Marco 1 \u2014 functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-119-disarm-settings-save.md",
       "drive_order": 10,
       "shipped_commit": "2d81a14, e90c3e0, 0e9c9c4",
-      "note": "Opened from the LCV-114 review. action_open and action_open_path both end with an unconditional 'let _ = app.settings.save();' (src/io/file_actions.rs:59-91 and :132-156), and Settings::save() (src/io/settings.rs:162) resolves directories::ProjectDirs config_dir()/settings.json with NO test-mode guard. A test calling either would overwrite the DEVELOPER'S OWN ~/.config/lasercad/settings.json, agent_api_key included, with a test Settings::default(). Reviewer confirmed by source reading and deliberately did not execute the path. The hazard PREDATES LCV-114: git show 25e42cc shows both calls already there, dating to LCV-062. LCV-114 inherited it, correctly declined to write the AC 10 test that would have tripped it, and designed its own bed-dialog OK/Cancel split (apply_bed_dialog_result returns bool, draw_bed_dialog does the save) specifically to stay on the safe side of it. Exactly the ADR 0005 problem shape on a different resource, but WORSE to detect: rfd hangs loudly, this writes silently and is only noticed on the next real run. Reviewer's answer to 'does this warrant a follow-up demand' was an explicit yes. Not blocking for LCV-114. Demand file written c8370fb, Draft. architect must be consulted before refinement on whether this extends ADR 0005 or needs its own ADR. CLOSED 2026-09-13 (Done): refined well past the original title — the answer was not a third one-off guard but ADR 0006, real user paths resolved once at boot and injected. Shipped 2d81a14 (implementation), e90c3e0 (rework, reviewer-approved), 0e9c9c4 (doc follow-up). Reviewed APPROVED."
+      "note": "Opened from the LCV-114 review. action_open and action_open_path both end with an unconditional 'let _ = app.settings.save();' (src/io/file_actions.rs:59-91 and :132-156), and Settings::save() (src/io/settings.rs:162) resolves directories::ProjectDirs config_dir()/settings.json with NO test-mode guard. A test calling either would overwrite the DEVELOPER'S OWN ~/.config/lasercad/settings.json, agent_api_key included, with a test Settings::default(). Reviewer confirmed by source reading and deliberately did not execute the path. The hazard PREDATES LCV-114: git show 25e42cc shows both calls already there, dating to LCV-062. LCV-114 inherited it, correctly declined to write the AC 10 test that would have tripped it, and designed its own bed-dialog OK/Cancel split (apply_bed_dialog_result returns bool, draw_bed_dialog does the save) specifically to stay on the safe side of it. Exactly the ADR 0005 problem shape on a different resource, but WORSE to detect: rfd hangs loudly, this writes silently and is only noticed on the next real run. Reviewer's answer to 'does this warrant a follow-up demand' was an explicit yes. Not blocking for LCV-114. Demand file written c8370fb, Draft. architect must be consulted before refinement on whether this extends ADR 0005 or needs its own ADR. CLOSED 2026-09-13 (Done): refined well past the original title \u2014 the answer was not a third one-off guard but ADR 0006, real user paths resolved once at boot and injected. Shipped 2d81a14 (implementation), e90c3e0 (rework, reviewer-approved), 0e9c9c4 (doc follow-up). Reviewed APPROVED."
     },
     {
       "id": "LCV-120",
@@ -1233,7 +1233,7 @@
       "demand_file": "docs/product/demands/LCV-121-transport-speaks-tool-calls.md",
       "drive_order": 12,
       "shipped_commit": "d584f4d",
-      "note": "First demand of Marco 2. Shipped 2026-09-13 as a single commit, d584f4d, no rework. New src/agent/wire.rs is the single declaration site for the OpenAI-compatible serde types (ChatMessage / AssistantMessage / ToolCall / ToolCallFunction / Choice / ChatResponse); src/agent/transport.rs now puts a tools array on the wire and parses tool_calls back out, returns wire::AssistantMessage instead of String, and maps HTTP 401 / 429 / 5xx onto distinct human-readable errors with no path that can leak the API key. The hardcoded \"gpt-4o\" model id and MAX_TOOL_CALLS_PER_TURN are gone: agent_model and agent_step_budget are real Settings fields (serde defaults per field, so pre-LCV-121 settings.json files still load), the budget defaults to 12 and is clamped to 1..32 at the read site (clamp_step_budget in loop_.rs, per ADR 0007 §D7 — io/settings.rs must not import crate::agent). Reviewed APPROVED with no blocking findings; the reviewer re-ran the gates independently (fmt clean, clippy clean, cargo test --all 893 lib tests / 0 failed / 1 ignored across 26 targets + 6 doc-tests) and ran a 47-mutation pass: 42 killed, 5 survivors, all five judged non-blocking (two equivalent mutants). CI run 34758445630 green on ubuntu-24.04, windows-2022 and macos-15. NO CHANGELOG ENTRY WAS WRITTEN, deliberately: nothing user-visible improved. The new settings have no UI (src/agent/settings_ui.rs still renders only Endpoint URL and API Key — the model and step-budget fields are file-only until LCV-125), and src/agent/panel.rs::submit still dispatches tool calls against a throwaway Document::default(), so between LCV-121 and LCV-123 the agent will confidently report geometry that never reaches the canvas. That is the known, accepted intermediate state recorded in ADR 0007 §'The 121→123 window' and in the release hazard in backlog.md: DO NOT TAG OR CUT A RELEASE until LCV-123 is Done. THREE CARRIED ITEMS, all routed to LCV-123 (where a human first points the transport at a real endpoint) and none of them acted on here: (1) no test anywhere asserts the Authorization header exists — deleting .bearer_auth(api_key) from src/agent/transport.rs:128 leaves the whole suite green; pre-existing since LCV-077, but LCV-121 rewrote all twelve of those tests without closing it. (2) ChatMessage::assistant_with_tool_calls is never called with Some(content) anywhere in src/, so prose a model emits alongside its tool calls is silently dropped from the conversation it reads back. (3) tests/lcv121_source_scans.rs skips comment lines for every scan, so a hardcoded model id reintroduced inside a // comment would survive; behaviourally inert, the real property is pinned elsewhere."
+      "note": "First demand of Marco 2. Shipped 2026-09-13 as a single commit, d584f4d, no rework. New src/agent/wire.rs is the single declaration site for the OpenAI-compatible serde types (ChatMessage / AssistantMessage / ToolCall / ToolCallFunction / Choice / ChatResponse); src/agent/transport.rs now puts a tools array on the wire and parses tool_calls back out, returns wire::AssistantMessage instead of String, and maps HTTP 401 / 429 / 5xx onto distinct human-readable errors with no path that can leak the API key. The hardcoded \"gpt-4o\" model id and MAX_TOOL_CALLS_PER_TURN are gone: agent_model and agent_step_budget are real Settings fields (serde defaults per field, so pre-LCV-121 settings.json files still load), the budget defaults to 12 and is clamped to 1..32 at the read site (clamp_step_budget in loop_.rs, per ADR 0007 \u00a7D7 \u2014 io/settings.rs must not import crate::agent). Reviewed APPROVED with no blocking findings; the reviewer re-ran the gates independently (fmt clean, clippy clean, cargo test --all 893 lib tests / 0 failed / 1 ignored across 26 targets + 6 doc-tests) and ran a 47-mutation pass: 42 killed, 5 survivors, all five judged non-blocking (two equivalent mutants). CI run 34758445630 green on ubuntu-24.04, windows-2022 and macos-15. NO CHANGELOG ENTRY WAS WRITTEN, deliberately: nothing user-visible improved. The new settings have no UI (src/agent/settings_ui.rs still renders only Endpoint URL and API Key \u2014 the model and step-budget fields are file-only until LCV-125), and src/agent/panel.rs::submit still dispatches tool calls against a throwaway Document::default(), so between LCV-121 and LCV-123 the agent will confidently report geometry that never reaches the canvas. That is the known, accepted intermediate state recorded in ADR 0007 \u00a7'The 121\u2192123 window' and in the release hazard in backlog.md: DO NOT TAG OR CUT A RELEASE until LCV-123 is Done. THREE CARRIED ITEMS, all routed to LCV-123 (where a human first points the transport at a real endpoint) and none of them acted on here: (1) no test anywhere asserts the Authorization header exists \u2014 deleting .bearer_auth(api_key) from src/agent/transport.rs:128 leaves the whole suite green; pre-existing since LCV-077, but LCV-121 rewrote all twelve of those tests without closing it. (2) ChatMessage::assistant_with_tool_calls is never called with Some(content) anywhere in src/, so prose a model emits alongside its tool calls is silently dropped from the conversation it reads back. (3) tests/lcv121_source_scans.rs skips comment lines for every scan, so a hardcoded model id reintroduced inside a // comment would survive; behaviourally inert, the real property is pinned elsewhere."
     },
     {
       "id": "LCV-122",
@@ -1248,7 +1248,7 @@
       "demand_file": "docs/product/demands/LCV-122-agent-bridge-and-composite-undo.md",
       "drive_order": 13,
       "shipped_commit": "61d609b, 2a7a9b4, ccaaf6e, ff267ec",
-      "note": "Second of the five Marco 2 demands. DONE 2026-09-13. Shipped as four commits: 61d609b (feat: the document-free bridge, CompositeCommand, History::coalesce_last, TurnFence, src/app/agent_apply.rs), 2a7a9b4 (test, rework from the one blocking review finding: pin the coalescing gate's anchor and the fourth turn exit), ccaaf6e (fix: the lost-answer exit reports the same row as a lost sender - a behaviour change, see below), ff267ec (docs: state agent_poll's turn-exit rule as a property, not a count). Read with 83eb2ff, which amended ADR 0007 §D11 mid-flight from three turn exits to four; the demand cannot be understood without it. WHAT SHIPPED: src/agent/bridge.rs carries the protocol between the worker thread and the UI thread. The worker sends one action at a time with its own one-shot reply sender and blocks; it never holds a Document, a clone, a snapshot or a mutex. The UI thread applies each action through Command + History, so undo, autosave and the dirty flag work with no special case for the agent. A whole agent turn collapses into one undo entry by coalescing after the fact, gated so it can only ever fold the agent's own contiguous entries. History::revision() is a fence: if the user commits something mid-turn the action is refused and the turn ends. BEHAVIOUR CHANGE NOT IN THE DEMAND (ccaaf6e): the fourth turn exit is the reply channel's receiver being gone while the UI thread holds an action - the worker vanished mid-action. It used to end the turn silently; it now writes the same AGENT_LOST_MESSAGE error row as a disconnected channel (src/app/agent_poll.rs). The reviewer raised it as optional and recommended a separate demand; project-manager promoted it to blocking over that recommendation, because a turn that never ends leaves agent_busy latched and src/app/mod.rs requests a repaint every frame while it is set - that is LCV-120 reopening one day after it closed. REVIEW: APPROVED at ff267ec after one rework round. Gates re-run independently by the reviewer - fmt clean, clippy clean, cargo test --all --no-fail-fast 1105 passed / 0 failed / 2 ignored across 27 binaries, cargo doc --no-deps back to the 47-warning baseline verified by diffing warning LOCATIONS against 4f6db6d rather than trusting the count. The blocking mutant is now caught by one test, by name, and by no other in the suite; six mutations of the new behaviour all caught. CI green on all three platforms. NO CHANGELOG ENTRY WAS WRITTEN, deliberately - same call as LCV-121 and for the same reason: nothing is operator-visible yet. src/agent/panel.rs::submit still dispatches against a throwaway Document::default(), so the agent's edits stay invisible on canvas until LCV-123, and the CHANGELOG's 'can read and narrate the drawing but does not yet modify it end-to-end from chat' is still accurate. The replacement line is drafted and filed for LCV-123; demand-manager carries it. THE RELEASE HAZARD REMAINS LIVE - LCV-122 did not close it and was never going to (throwaway document is in its own Out of scope). Do not tag until LCV-123 is Done. ONE CORRECTION, do not repeat downstream: the implementer's first report claimed every line added to src/app/mod.rs was test code. Under ADR 0004's awk recipe, which counts implementation LOC only, that file went 265 -> 274. Harmless and well under the cap, but the claim was wrong."
+      "note": "Second of the five Marco 2 demands. DONE 2026-09-13. Shipped as four commits: 61d609b (feat: the document-free bridge, CompositeCommand, History::coalesce_last, TurnFence, src/app/agent_apply.rs), 2a7a9b4 (test, rework from the one blocking review finding: pin the coalescing gate's anchor and the fourth turn exit), ccaaf6e (fix: the lost-answer exit reports the same row as a lost sender - a behaviour change, see below), ff267ec (docs: state agent_poll's turn-exit rule as a property, not a count). Read with 83eb2ff, which amended ADR 0007 \u00a7D11 mid-flight from three turn exits to four; the demand cannot be understood without it. WHAT SHIPPED: src/agent/bridge.rs carries the protocol between the worker thread and the UI thread. The worker sends one action at a time with its own one-shot reply sender and blocks; it never holds a Document, a clone, a snapshot or a mutex. The UI thread applies each action through Command + History, so undo, autosave and the dirty flag work with no special case for the agent. A whole agent turn collapses into one undo entry by coalescing after the fact, gated so it can only ever fold the agent's own contiguous entries. History::revision() is a fence: if the user commits something mid-turn the action is refused and the turn ends. BEHAVIOUR CHANGE NOT IN THE DEMAND (ccaaf6e): the fourth turn exit is the reply channel's receiver being gone while the UI thread holds an action - the worker vanished mid-action. It used to end the turn silently; it now writes the same AGENT_LOST_MESSAGE error row as a disconnected channel (src/app/agent_poll.rs). The reviewer raised it as optional and recommended a separate demand; project-manager promoted it to blocking over that recommendation, because a turn that never ends leaves agent_busy latched and src/app/mod.rs requests a repaint every frame while it is set - that is LCV-120 reopening one day after it closed. REVIEW: APPROVED at ff267ec after one rework round. Gates re-run independently by the reviewer - fmt clean, clippy clean, cargo test --all --no-fail-fast 1105 passed / 0 failed / 2 ignored across 27 binaries, cargo doc --no-deps back to the 47-warning baseline verified by diffing warning LOCATIONS against 4f6db6d rather than trusting the count. The blocking mutant is now caught by one test, by name, and by no other in the suite; six mutations of the new behaviour all caught. CI green on all three platforms. NO CHANGELOG ENTRY WAS WRITTEN, deliberately - same call as LCV-121 and for the same reason: nothing is operator-visible yet. src/agent/panel.rs::submit still dispatches against a throwaway Document::default(), so the agent's edits stay invisible on canvas until LCV-123, and the CHANGELOG's 'can read and narrate the drawing but does not yet modify it end-to-end from chat' is still accurate. The replacement line is drafted and filed for LCV-123; demand-manager carries it. THE RELEASE HAZARD REMAINS LIVE - LCV-122 did not close it and was never going to (throwaway document is in its own Out of scope). Do not tag until LCV-123 is Done. ONE CORRECTION, do not repeat downstream: the implementer's first report claimed every line added to src/app/mod.rs was test code. Under ADR 0004's awk recipe, which counts implementation LOC only, that file went 265 -> 274. Harmless and well under the cap, but the claim was wrong."
     },
     {
       "id": "LCV-123",
@@ -1263,7 +1263,7 @@
       "milestone": "Marco 2",
       "demand_file": "docs/product/demands/LCV-123-agent-turn-mutates-the-live-drawing.md",
       "drive_order": 14,
-      "note": "The demand that closes the CHANGELOG's 'reads and narrates but does not modify' sentence, and the one that shuts the release hazard. panel.rs::submit today runs the whole turn against a throwaway Document::default() and drops it when the thread ends; only the final assistant string survives. Worse since LCV-121, because the model can now actually call the tools. DO NOT TAG UNTIL THIS IS DONE. This is also where a human first points the transport at a real endpoint, so it carries the three non-blocking items from the LCV-121 review: (1) no test asserts the Authorization header exists — deleting .bearer_auth(api_key) from transport.rs:128 leaves the suite green (pre-existing since LCV-077); (2) ChatMessage::assistant_with_tool_calls is never called with Some(content), so prose emitted alongside tool calls is dropped from the conversation the model reads back; (3) tests/lcv121_source_scans.rs skips comment lines, so a hardcoded model id inside a // comment would survive (behaviourally inert, the real property is pinned elsewhere)."
+      "note": "The demand that closes the CHANGELOG's 'reads and narrates but does not modify' sentence, and the one that shuts the release hazard. panel.rs::submit today runs the whole turn against a throwaway Document::default() and drops it when the thread ends; only the final assistant string survives. Worse since LCV-121, because the model can now actually call the tools. DO NOT TAG UNTIL THIS IS DONE. This is also where a human first points the transport at a real endpoint, so it carries the three non-blocking items from the LCV-121 review: (1) no test asserts the Authorization header exists \u2014 deleting .bearer_auth(api_key) from transport.rs:128 leaves the suite green (pre-existing since LCV-077); (2) ChatMessage::assistant_with_tool_calls is never called with Some(content), so prose emitted alongside tool calls is dropped from the conversation the model reads back; (3) tests/lcv121_source_scans.rs skips comment lines, so a hardcoded model id inside a // comment would survive (behaviourally inert, the real property is pinned elsewhere)."
     },
     {
       "id": "LCV-124",
@@ -1277,7 +1277,7 @@
       "milestone": "Marco 2",
       "demand_file": "docs/product/demands/LCV-124-command-line-routes-to-the-agent.md",
       "drive_order": 15,
-      "note": "Parallelizable with LCV-125 once LCV-123 is Done. Keyboard-first routing: ':' and '/ai' from the command line reach the agent, so the operator never has to leave the keyboard for the mouse-only side panel. src/agent/classifier.rs is named in PLAN.md's module tree and in ADR 0007 §D8's file table and does not exist yet; the routing decision belongs where app/cmdline.rs::submit currently produces CommandInput::Unknown. PLAN.md's LCV-080 row has always claimed this behaviour."
+      "note": "Parallelizable with LCV-125 once LCV-123 is Done. Keyboard-first routing: ':' and '/ai' from the command line reach the agent, so the operator never has to leave the keyboard for the mouse-only side panel. src/agent/classifier.rs is named in PLAN.md's module tree and in ADR 0007 \u00a7D8's file table and does not exist yet; the routing decision belongs where app/cmdline.rs::submit currently produces CommandInput::Unknown. PLAN.md's LCV-080 row has always claimed this behaviour."
     },
     {
       "id": "LCV-125",
@@ -1292,7 +1292,7 @@
       "milestone": "Marco 2",
       "demand_file": "docs/product/demands/LCV-125-agent-panel-and-settings-earn-their-keep.md",
       "drive_order": 15,
-      "note": "Parallelizable with LCV-124 once LCV-123 is Done. Two gaps: (a) the transcript is unreadable — panel.rs renders four role values and drops everything else into a grey ui.label, which is where ADR 0007 §D5's index-shift disclosure and the end-of-turn undo-shape note currently land; if the operator cannot pick those out of the column the disclosure does not exist. (b) The two settings LCV-121 added are unreachable: Settings::agent_model and Settings::agent_step_budget are honoured, but settings_ui.rs still draws only Endpoint URL and API Key. This demand is the ONLY reason it is honest to describe those settings as user-facing, which is why LCV-121 shipped with no CHANGELOG entry."
+      "note": "Parallelizable with LCV-124 once LCV-123 is Done. Two gaps: (a) the transcript is unreadable \u2014 panel.rs renders four role values and drops everything else into a grey ui.label, which is where ADR 0007 \u00a7D5's index-shift disclosure and the end-of-turn undo-shape note currently land; if the operator cannot pick those out of the column the disclosure does not exist. (b) The two settings LCV-121 added are unreachable: Settings::agent_model and Settings::agent_step_budget are honoured, but settings_ui.rs still draws only Endpoint URL and API Key. This demand is the ONLY reason it is honest to describe those settings as user-facing, which is why LCV-121 shipped with no CHANGELOG entry."
     },
     {
       "id": "LCV-127",
@@ -1305,8 +1305,8 @@
       "suggested_agent": "implementer-rust",
       "milestone": "Phase 11 follow-up (outside the Marco 2 drive)",
       "demand_file": "docs/product/demands/LCV-127-drag-term-has-no-behavioural-test.md",
-      "drive_order": 16,
-      "note": "Opened from the LCV-120 review and unblocked by it (LCV-120 Done: 0e11473, f118b7c, c61f2b5). viewport_is_live = hovered() || dragged() || !preview_entities.is_empty(); the hovered and preview terms each have a behavioural witness with a negative control in tests/lcv120_idle_repaint.rs, but dragged() has none — only a source scan proving the text is present, which says nothing about what happens when the operator pans. Not academic: dragged() is what keeps the camera moving while the middle button is held, so if it regresses a pan stutters or freezes mid-stroke. Phase 11, not part of the Marco 2 drive."
+      "drive_order": 17,
+      "note": "Opened from the LCV-120 review and unblocked by it (LCV-120 Done: 0e11473, f118b7c, c61f2b5). viewport_is_live = hovered() || dragged() || !preview_entities.is_empty(); the hovered and preview terms each have a behavioural witness with a negative control in tests/lcv120_idle_repaint.rs, but dragged() has none \u2014 only a source scan proving the text is present, which says nothing about what happens when the operator pans. Not academic: dragged() is what keeps the camera moving while the middle button is held, so if it regresses a pan stutters or freezes mid-stroke. Phase 11, not part of the Marco 2 drive."
     },
     {
       "id": "LCV-126",
@@ -1320,8 +1320,8 @@
       "suggested_agent": "implementer-rust",
       "milestone": "Phase 11 follow-up (outside the Marco 2 drive)",
       "demand_file": "docs/product/demands/LCV-126-shortcuts-dialog-documents-the-command-line.md",
-      "drive_order": 17,
-      "note": "Draft — NEXT AGENT IS product-owner, not implementer-rust: the Status line still reads Draft even though the file already carries a full Problem / Scope / Out of scope / Acceptance criteria / Expected tests body. Someone must decide whether refinement is actually finished before this is driven. The gap itself: the F1 shortcuts dialog LCV-116 shipped does not mention the command line that LCV-110/111/112 shipped. Phase 11, not part of the Marco 2 drive."
+      "drive_order": 18,
+      "note": "Draft \u2014 NEXT AGENT IS product-owner, not implementer-rust: the Status line still reads Draft even though the file already carries a full Problem / Scope / Out of scope / Acceptance criteria / Expected tests body. Someone must decide whether refinement is actually finished before this is driven. The gap itself: the F1 shortcuts dialog LCV-116 shipped does not mention the command line that LCV-110/111/112 shipped. Phase 11, not part of the Marco 2 drive."
     },
     {
       "id": "LCV-128",
@@ -1332,8 +1332,22 @@
       "suggested_agent": "product-owner",
       "milestone": "Phase 12 follow-up (outside the Marco 2 drive)",
       "demand_file": "docs/product/demands/LCV-128-agent-purity-list-has-no-scan.md",
-      "drive_order": 18,
-      "note": "Draft, opened by demand-manager 2026-09-13 and WIDENED the same day on the reviewer's recommendation; NEXT AGENT IS product-owner, who writes Scope / Out of scope / Acceptance criteria / Expected tests. Status stays Draft and it is NOT scheduled ahead of Marco 2. THE CLASS OF BUG: AGENTS.md carries enumerations that are normative PER ENTRY - each name in the list carries a rule for that name, and in several cases the list is the only statement of the invariant. Nothing enforces any of them, and a name missing from a list is a name with no stated rule. TWO KNOWN INSTANCES, one demand. (1) The src/agent/ purity buckets in AGENTS.md section Purity rule: egui-allowed (panel.rs, settings_ui.rs) vs kernel-pure (classifier.rs, wire.rs, transport.rs, tools.rs, bridge.rs, loop_.rs). A new file under src/agent/ can appear in neither and nothing fails; bridge.rs landed with LCV-122 and sat unclassified until a human noticed. (2) The agent_busy / agent_rx single-writer claim in AGENTS.md section Event flow -> Repaint policy: agent_busy set in exactly one place (src/agent/panel.rs::submit), cleared in exactly one (src/app/agent_poll.rs::end_turn). That sentence is what makes the 'if self.agent_busy' repaint guard a guard rather than a latch, i.e. the argument that LCV-120 stays closed. The LCV-122 reviewer planted app.agent_busy = false; and app.agent_rx = None; in src/agent/panel.rs and BOTH SURVIVED THE WHOLE SUITE. The neighbouring repaint claim in the same paragraph IS scanned (every_repaint_request_in_src_is_conditional in src/app/viewport.rs); the busy-flag half is the only unscanned sentence left in it. ONE DEMAND, NOT TWO: both scans share one file and most of one mechanism - opening LCV-129 was considered and rejected on that ground. REVIEWER'S SKETCH FOR SCAN B, kept in the body: assert concat!(\"agent_busy\", \" = false\") appears in exactly one file under src/ and that file is agent_poll.rs; same for concat!(\"agent_rx\", \" = None\") allowing init.rs as the one startup exception; positive control that agent_busy = true appears in exactly one file and that file is panel.rs. The needle must be the CLEAR, not any assignment: agent_rx = Some(..) legally has two writers today (panel.rs::submit arms it, agent_poll.rs puts the receiver back on TryRecvError::Empty). tests/lcv122_source_scans.rs already has every piece of machinery for both scans - rs_files, implementation_or_all, files_containing, the comment-line skip and the concat! discipline. CONSTRAINTS THAT MUST SURVIVE REFINEMENT: (a) scan A is ONE-DIRECTIONAL ONLY - fail when a file exists and is unlisted, never when the list names a file that does not exist yet, because the list already names classifier.rs which LCV-124 has not created and that forward commitment is a feature; (b) the two known traps, now applying to both scans - the self-matching include_str! scan (wrong six times in this repo; bound the haystack at the bare #[cfg(test)] at column 0 and build needles with concat!, canonical example guard_is_runtime_not_cfg at src/io/dialogs.rs:179) and the path separator (rebuild paths from components() joined with /, never display() or to_string_lossy(), which broke CI in LCV-116 and LCV-120). OPEN QUESTION STILL OPEN FOR product-owner: src/agent/mod.rs is named in NEITHER bucket today, so scan A as described fails on main on first run - refinement must decide exempt-by-name vs add-to-kernel-pure, and say so in AGENTS.md either way. OUT OF SCOPE AND NOT REOPENED: the AGENTS.md module tree, which the architect declared explicitly non-exhaustive on 2026-09-13 - it is orientation, so a gap there is cosmetic. The demand FILE NAME still reads agent-purity-list-has-no-scan and was left alone deliberately so links keep resolving; the title is the scope. No dependencies, but NOT part of Marco 2: do not drive ahead of LCV-123, LCV-124 or LCV-125. Phase 12, drive order 18."
+      "drive_order": 19,
+      "note": "Draft, opened by demand-manager 2026-09-13 and WIDENED the same day on the reviewer's recommendation; NEXT AGENT IS product-owner, who writes Scope / Out of scope / Acceptance criteria / Expected tests. Status stays Draft and it is NOT scheduled ahead of Marco 2. THE CLASS OF BUG: AGENTS.md carries enumerations that are normative PER ENTRY - each name in the list carries a rule for that name, and in several cases the list is the only statement of the invariant. Nothing enforces any of them, and a name missing from a list is a name with no stated rule. TWO KNOWN INSTANCES, one demand. (1) The src/agent/ purity buckets in AGENTS.md section Purity rule: egui-allowed (panel.rs, settings_ui.rs) vs kernel-pure (classifier.rs, wire.rs, transport.rs, tools.rs, bridge.rs, loop_.rs). A new file under src/agent/ can appear in neither and nothing fails; bridge.rs landed with LCV-122 and sat unclassified until a human noticed. (2) The agent_busy / agent_rx single-writer claim in AGENTS.md section Event flow -> Repaint policy: agent_busy set in exactly one place (src/agent/panel.rs::submit), cleared in exactly one (src/app/agent_poll.rs::end_turn). That sentence is what makes the 'if self.agent_busy' repaint guard a guard rather than a latch, i.e. the argument that LCV-120 stays closed. The LCV-122 reviewer planted app.agent_busy = false; and app.agent_rx = None; in src/agent/panel.rs and BOTH SURVIVED THE WHOLE SUITE. The neighbouring repaint claim in the same paragraph IS scanned (every_repaint_request_in_src_is_conditional in src/app/viewport.rs); the busy-flag half is the only unscanned sentence left in it. ONE DEMAND, NOT TWO: both scans share one file and most of one mechanism - opening LCV-129 was considered and rejected on that ground. REVIEWER'S SKETCH FOR SCAN B, kept in the body: assert concat!(\"agent_busy\", \" = false\") appears in exactly one file under src/ and that file is agent_poll.rs; same for concat!(\"agent_rx\", \" = None\") allowing init.rs as the one startup exception; positive control that agent_busy = true appears in exactly one file and that file is panel.rs. The needle must be the CLEAR, not any assignment: agent_rx = Some(..) legally has two writers today (panel.rs::submit arms it, agent_poll.rs puts the receiver back on TryRecvError::Empty). tests/lcv122_source_scans.rs already has every piece of machinery for both scans - rs_files, implementation_or_all, files_containing, the comment-line skip and the concat! discipline. CONSTRAINTS THAT MUST SURVIVE REFINEMENT: (a) scan A is ONE-DIRECTIONAL ONLY - fail when a file exists and is unlisted, never when the list names a file that does not exist yet, because the list already names classifier.rs which LCV-124 has not created and that forward commitment is a feature; (b) the two known traps, now applying to both scans - the self-matching include_str! scan (wrong six times in this repo; bound the haystack at the bare #[cfg(test)] at column 0 and build needles with concat!, canonical example guard_is_runtime_not_cfg at src/io/dialogs.rs:179) and the path separator (rebuild paths from components() joined with /, never display() or to_string_lossy(), which broke CI in LCV-116 and LCV-120). OPEN QUESTION STILL OPEN FOR product-owner: src/agent/mod.rs is named in NEITHER bucket today, so scan A as described fails on main on first run - refinement must decide exempt-by-name vs add-to-kernel-pure, and say so in AGENTS.md either way. OUT OF SCOPE AND NOT REOPENED: the AGENTS.md module tree, which the architect declared explicitly non-exhaustive on 2026-09-13 - it is orientation, so a gap there is cosmetic. The demand FILE NAME still reads agent-purity-list-has-no-scan and was left alone deliberately so links keep resolving; the title is the scope. No dependencies, but NOT part of Marco 2: do not drive ahead of LCV-123, LCV-124 or LCV-125. Phase 12, drive order 19 (was 18; LCV-129 was opened 2026-09-13 and takes the lead of the post-Marco-2 follow-up drive)."
+    },
+    {
+      "id": "LCV-129",
+      "title": "A hung endpoint wedges the app: the agent turn has no timeout and no cancel",
+      "phase": 12,
+      "status": "Draft",
+      "depends_on": [
+        "LCV-123"
+      ],
+      "suggested_agent": "product-owner",
+      "milestone": "Phase 12 follow-up (outside the Marco 2 drive)",
+      "demand_file": "docs/product/demands/LCV-129-agent-turn-has-no-timeout-and-no-cancel.md",
+      "drive_order": 16,
+      "note": "Draft, opened by demand-manager 2026-09-13 from the LCV-123 review; NEXT AGENT IS product-owner, who writes Scope / Out of scope / Acceptance criteria / Expected tests and decides the timeout duration. THE DEFECT: src/agent/transport.rs:127 builds reqwest::blocking::Client::new() with NO .timeout(..), and reqwest's default is unbounded. CONSEQUENCE CHAIN, which is why this is a demand and not a footnote: a hung endpoint blocks the worker thread forever -> the worker never sends a terminal event -> agent_poll::end_turn is never reached -> agent_busy never clears -> src/app/mod.rs requests a repaint every frame while agent_busy is set, for the rest of the session. That is LCV-120 REOPENING THROUGH A DIFFERENT DOOR, two days after LCV-120 closed, and it is exactly the latch ADR 0007 section D11 warns about. There is also no cancel affordance anywhere in the agent panel, so the operator's only recovery is to quit the app, losing unsaved work unless autosave happened to fire. PRE-EXISTING: true since the transport was written in LCV-077, NOT a regression from LCV-123 - but LCV-123 is the commit that puts a real operator in front of a real endpoint for the first time, which turns a latent defect into a reachable one. TWO PARTS AND BOTH ARE NEEDED. (1) A client timeout, so the worker eventually gives up and sends a terminal event and the turn ends through the normal path. DO NOT LET REFINEMENT INVENT A NEW EXIT: ADR 0007 section D11 enumerates exactly four turn exits and every one of them goes through agent_poll::end_turn, the only place in the program that writes agent_busy = false or clears agent_rx; a timeout must surface as an EXISTING terminal event, not a fifth exit. Duration is refinement's call - long enough for a slow model to think, short enough that a human does not assume a crash. (2) A Cancel affordance in the agent panel that ends the turn through end_turn; the reviewer's sketch is to drop agent_rx. THE SHARP EDGE, which refinement must not gloss: the worker thread blocks on a rendezvous reply channel (ADR 0007 D2/D3), so cancelling from the UI side has to leave the worker able to notice and unwind rather than blocking forever on a send nobody will answer - D11 arm (4) is the mirror case and the two halves should be reasoned about together. That interaction is the genuinely hard part of this demand. WHY NOT JUST A TIMEOUT: the timeout alone leaves the operator staring at a spinner for the whole timeout window with no way out; the cancel alone leaves a truly wedged connection hanging. Both, or the defect is only half closed. ROOM FOR THE BUTTON: src/agent/panel.rs is 116 implementation LOC after LCV-123 stripped submit out of it, src/agent/transport.rs is 156 - neither is near the 300 cap. TWO TRAPS RECORDED IN THE BODY, both of which have bitten this repo: (a) any test that scans source text with include_str! matches its own source unless the haystack is bounded at the offset of a bare #[cfg(test)] at column 0 and needles are built with concat! - wrong six times here, canonical correct example guard_is_runtime_not_cfg at src/io/dialogs.rs:179; (b) a test that passes because of a sleep is not a test, and a timeout demand is the single most likely place in this codebase for someone to write one - the model to copy is LCV-122's fourth-exit test, which reproduces a channel race deterministically with no thread and no sleep. SCHEDULING: NOT part of Marco 2, must not be driven ahead of LCV-124 or LCV-125. But it is THE STRONGEST CANDIDATE TO BE DRIVEN IMMEDIATELY AFTER MARCO 2 CLOSES, ahead of LCV-126, LCV-127 and LCV-128, because it is the only known defect that can wedge the app in the hands of a real user and the user is about to run their first live prompt against OpenRouter. Phase 12, drive order 16 - it takes the lead of the post-Marco-2 follow-up drive, pushing LCV-127 to 17, LCV-126 to 18 and LCV-128 to 19."
     }
   ]
 }
