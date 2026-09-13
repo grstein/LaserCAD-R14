@@ -1,27 +1,24 @@
 //! LCV-080 — Agent panel: chat history widget and AI input row.
 //!
-//! Exports [`draw_agent_panel`] (renders into an existing [`egui::Ui`] that
-//! lives inside a right-side panel) and [`AgentPanelMsg`] (the channel payload
-//! exchanged between the background agent thread and the UI frame loop).
+//! Exports [`draw_agent_panel`], which renders into an existing [`egui::Ui`]
+//! that lives inside a right-side panel. The channel payload it sends moved to
+//! [`crate::agent::AgentEvent`] with LCV-122 — a protocol shared with a
+//! kernel-pure worker thread does not belong in an egui file.
 //!
 //! **Purity rule**: this file may import `egui` but MUST NOT import `eframe`
 //! or `rfd`. The panel function receives `ui: &mut egui::Ui` directly.
+//!
+//! **The single documented exception to ADR 0007 §D1** (LCV-122 AC 3): this is
+//! the only file under `src/agent/` that names `Document` or `History`. It
+//! constructs the throwaway pair that [`submit`] hands to the turn, which is a
+//! defect ADR 0007 exists to close and which LCV-123 closes in one commit, by
+//! replacing the spawn below with the fenced rendezvous. Nothing new may be
+//! added to this exception, and `tests/lcv122_source_scans.rs` asserts the
+//! exception list is exactly one file long.
 
+use crate::agent::AgentEvent;
 use crate::app::App;
 use crate::document::{Document, History};
-
-// ── Channel message ───────────────────────────────────────────────────────────
-
-/// Message sent from the background agent thread to the UI frame loop.
-///
-/// Produced by the OS thread spawned in [`submit`] and consumed by
-/// [`crate::app::poll_agent_rx`] on each frame.
-pub enum AgentPanelMsg {
-    /// The agent turn completed successfully; carries the assistant's reply.
-    Reply(String),
-    /// The agent turn failed; carries a human-readable error string.
-    Error(String),
-}
 
 // ── Public render entry ───────────────────────────────────────────────────────
 
@@ -138,7 +135,7 @@ fn submit(app: &mut App) {
     let step_budget = crate::agent::loop_::clamp_step_budget(app.settings.agent_step_budget);
 
     // 4. Arm the channel.
-    let (tx, rx) = std::sync::mpsc::channel::<AgentPanelMsg>();
+    let (tx, rx) = std::sync::mpsc::channel::<AgentEvent>();
     app.agent_rx = Some(rx);
     app.agent_busy = true;
 
@@ -146,7 +143,7 @@ fn submit(app: &mut App) {
     std::thread::spawn(move || {
         let mut doc = Document::default();
         let mut history = History::default();
-        let result = crate::agent::run_agent_turn(
+        let result = crate::app::run_agent_turn(
             &text,
             &endpoint,
             &api_key,
@@ -156,8 +153,8 @@ fn submit(app: &mut App) {
             &mut history,
         );
         let msg = match result {
-            Ok(reply) => AgentPanelMsg::Reply(reply),
-            Err(e) => AgentPanelMsg::Error(e.to_string()),
+            Ok(reply) => AgentEvent::Done(reply),
+            Err(e) => AgentEvent::Failed(e.to_string()),
         };
         tx.send(msg).ok();
     });
@@ -169,16 +166,18 @@ fn submit(app: &mut App) {
 mod tests {
     use super::*;
 
-    /// AC#3 — `AgentPanelMsg` has `Reply` and `Error` variants; compile proof
-    /// plus runtime discriminant inequality.
+    /// LCV-080 AC#3, retargeted by LCV-122 — the terminal events the spawned
+    /// thread sends are distinct, and they are now the bridge's, not the
+    /// panel's. `panel.rs` declaring its own payload type again is what this
+    /// test's sibling scan in `tests/lcv122_source_scans.rs` catches.
     #[test]
-    fn agent_panel_msg_variants_compile() {
-        let reply = AgentPanelMsg::Reply("x".into());
-        let error = AgentPanelMsg::Error("e".into());
+    fn the_two_terminal_events_are_distinct() {
+        let done = AgentEvent::Done("x".into());
+        let failed = AgentEvent::Failed("e".into());
         assert_ne!(
-            std::mem::discriminant(&reply),
-            std::mem::discriminant(&error),
-            "Reply and Error must be distinct variants",
+            std::mem::discriminant(&done),
+            std::mem::discriminant(&failed),
+            "Done and Failed must be distinct variants",
         );
     }
 

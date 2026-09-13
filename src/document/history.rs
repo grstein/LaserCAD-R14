@@ -7,6 +7,11 @@
 //! calls [`History::redo`]. A new commit after one or more undos clears the
 //! redo stack (classic CAD single-branch semantics).
 //!
+//! [`History::coalesce_last`] folds the last *n* entries into one
+//! [`CompositeCommand`] without running anything: it is how one agent turn
+//! becomes one `Ctrl+Z` (ADR 0007 §D6). The document does not change, so the
+//! revision counter does not move.
+//!
 //! `undo_stack` is a [`VecDeque`] (overflow drops the front, commit/undo work
 //! at the back); `redo_stack` is a plain [`Vec`] (pure LIFO). The depth cap
 //! is re-enforced inside [`History::redo`] so a long commit/undo/redo chain
@@ -17,7 +22,7 @@
 use std::collections::VecDeque;
 use std::fmt;
 
-use crate::document::{Command, Document};
+use crate::document::{Command, CompositeCommand, Document};
 
 /// Maximum number of commands retained for undo. Matches LaserCAD v1 and
 /// AGENTS.md §"State and mutation".
@@ -110,6 +115,40 @@ impl History {
             }
             None => false,
         }
+    }
+
+    /// Fold the last `n` undo entries into a single [`CompositeCommand`]
+    /// labelled `label`, in their original order.
+    ///
+    /// This is a **pure stack rewrite** (ADR 0007 §D6 step 2). Nothing is run:
+    /// no `do_`, no `undo`, the document is not touched, [`History::revision`]
+    /// does not move, and the redo stack is left exactly as it was. The
+    /// entries were already applied one at a time as they were committed; all
+    /// that changes is how many `Ctrl+Z` presses it takes to reverse them.
+    ///
+    /// Edges, all deliberate:
+    ///
+    /// - `n < 2` is a no-op. Wrapping one command in a composite would only
+    ///   relabel it and [`History::len`] would not change.
+    /// - `n` greater than [`History::len`] folds what is there. `HISTORY_DEPTH`
+    ///   is 200 and the agent step budget caps at 32, so this is a tolerance
+    ///   rather than a path.
+    ///
+    /// The caller is responsible for proving the top `n` entries are really
+    /// the ones it means to fold — `crate::app::TurnFence::may_coalesce` is
+    /// that proof for an agent turn.
+    pub fn coalesce_last(&mut self, n: usize, label: &str) {
+        let n = n.min(self.undo_stack.len());
+        if n < 2 {
+            return;
+        }
+        // `split_off` keeps stack order: the tail comes back oldest-first,
+        // which is exactly the order `CompositeCommand` must replay. Popping
+        // `n` times from the back would hand them over reversed.
+        let at = self.undo_stack.len().saturating_sub(n);
+        let folded: Vec<Box<dyn Command>> = self.undo_stack.split_off(at).into();
+        self.undo_stack
+            .push_back(Box::new(CompositeCommand::new(folded, label)));
     }
 
     /// At least one command available for undo?
@@ -400,5 +439,180 @@ mod tests {
         );
         assert!(after_first_commit < after_undo);
         assert!(after_undo < after_second_commit);
+    }
+
+    // --- LCV-122 — coalesce_last (ADR 0007 §D6) ----------------------------
+
+    fn line_at(y: f64) -> Line {
+        Line::new(Vec2::new(0.0, y), Vec2::new(10.0, y))
+    }
+
+    /// Four agent-ish commits, the third of which is a delete, so a composite
+    /// that undid its children forward would not restore the document.
+    fn four_agent_commits(doc: &mut Document, h: &mut History) {
+        h.commit(Box::new(CreateLine::new(line_at(0.0))), doc);
+        h.commit(Box::new(CreateLine::new(line_at(1.0))), doc);
+        h.commit(Box::new(DeleteEntities::new(vec![0])), doc);
+        h.commit(Box::new(CreateLine::new(line_at(2.0))), doc);
+    }
+
+    /// AC 12 — `coalesce_last(4, …)` on a four-deep stack: `len()` drops to 1,
+    /// `revision()` is identical before and after, the document is untouched
+    /// by the call, one `undo` reverses all four and one `redo` reapplies all
+    /// four in the original order.
+    #[test]
+    fn coalesce_last_folds_four_commits_into_one_undo_entry() {
+        let mut doc = Document::default();
+        let mut h = History::new();
+        four_agent_commits(&mut doc, &mut h);
+
+        let applied = doc.entities.clone();
+        assert_eq!(
+            applied.len(),
+            2,
+            "line(1.0) and line(2.0) survive the delete"
+        );
+        let (len_before, revision_before) = (h.len(), h.revision());
+        assert_eq!((len_before, revision_before), (4, 4));
+
+        h.coalesce_last(4, "Agent: draw a square");
+
+        assert_eq!(h.len(), 1, "four entries became one");
+        assert_eq!(
+            h.revision(),
+            revision_before,
+            "coalescing runs nothing, so the revision must not move"
+        );
+        assert_eq!(
+            doc.entities, applied,
+            "coalescing must not re-run do_ on anything"
+        );
+
+        assert!(h.undo(&mut doc));
+        assert!(
+            doc.entities.is_empty(),
+            "one undo reverses the whole turn, got {:?}",
+            doc.entities
+        );
+        assert!(!h.can_undo(), "the turn was one entry");
+
+        assert!(h.redo(&mut doc));
+        assert_eq!(
+            doc.entities, applied,
+            "one redo reapplies all four in order"
+        );
+    }
+
+    /// AC 12 — the label reaches the folded entry, so `Edit > Undo …` can name
+    /// the turn. Two different labels, so a hardcoded string cannot pass.
+    #[test]
+    fn coalesce_last_stores_the_label_it_was_given() {
+        for label in ["Agent: draw a square", "Agent: delete that circle"] {
+            let mut doc = Document::default();
+            let mut h = History::new();
+            h.commit(Box::new(NoOpCommand), &mut doc);
+            h.commit(Box::new(NoOpCommand), &mut doc);
+            h.coalesce_last(2, label);
+            assert_eq!(h.len(), 1);
+            let folded = h.undo_stack.back().expect("the folded entry");
+            assert_eq!(folded.label(), label);
+        }
+    }
+
+    /// AC 12 — `n = 0` and `n = 1` are no-ops: `len()` is unchanged and so is
+    /// the revision. A composite of one would only relabel a command.
+    #[test]
+    fn coalesce_last_of_zero_or_one_is_a_noop() {
+        for n in [0usize, 1] {
+            let mut doc = Document::default();
+            let mut h = History::new();
+            four_agent_commits(&mut doc, &mut h);
+            let (len_before, revision_before) = (h.len(), h.revision());
+
+            h.coalesce_last(n, "nothing to fold");
+
+            assert_eq!(h.len(), len_before, "n = {n} must not change the depth");
+            assert_eq!(h.revision(), revision_before, "n = {n} must not commit");
+            assert_eq!(h.undo_stack.back().map(|c| c.label()), Some("Create Line"));
+        }
+    }
+
+    /// AC 12 — `n` larger than the stack folds what is there rather than
+    /// panicking or underflowing (`9` against a four-deep stack).
+    #[test]
+    fn coalesce_last_tolerates_more_than_the_stack_holds() {
+        let mut doc = Document::default();
+        let mut h = History::new();
+        four_agent_commits(&mut doc, &mut h);
+
+        h.coalesce_last(9, "Agent: everything");
+
+        assert_eq!(h.len(), 1);
+        assert!(h.undo(&mut doc));
+        assert!(doc.entities.is_empty(), "all four were folded");
+    }
+
+    /// AC 12 — the entries **below** the fold are untouched and stay
+    /// individually undoable: three user commits, then two agent commits,
+    /// then `coalesce_last(2)`.
+    #[test]
+    fn coalesce_last_leaves_the_entries_below_it_alone() {
+        let mut doc = Document::default();
+        let mut h = History::new();
+        for y in [0.0, 1.0, 2.0] {
+            h.commit(Box::new(CreateLine::new(line_at(y))), &mut doc);
+        }
+        let user_only = doc.entities.clone();
+        h.commit(Box::new(CreateLine::new(line_at(3.0))), &mut doc);
+        h.commit(Box::new(CreateLine::new(line_at(4.0))), &mut doc);
+        assert_eq!(h.len(), 5);
+
+        h.coalesce_last(2, "Agent: two lines");
+        assert_eq!(h.len(), 4, "only the top two folded");
+
+        assert!(h.undo(&mut doc));
+        assert_eq!(
+            doc.entities, user_only,
+            "one undo took back the agent's two"
+        );
+
+        // The three below are still three separate entries.
+        for expected in [2usize, 1, 0] {
+            assert!(h.undo(&mut doc));
+            assert_eq!(doc.entities.len(), expected);
+        }
+        assert!(!h.can_undo());
+    }
+
+    /// AC 12 — the redo stack is not touched by a fold.
+    #[test]
+    fn coalesce_last_does_not_touch_the_redo_stack() {
+        let mut doc = Document::default();
+        let mut h = History::new();
+        for y in [0.0, 1.0, 2.0] {
+            h.commit(Box::new(CreateLine::new(line_at(y))), &mut doc);
+        }
+        assert!(h.undo(&mut doc));
+        assert!(h.can_redo());
+        let revision_before = h.revision();
+
+        h.coalesce_last(2, "Agent: two lines");
+
+        assert!(h.can_redo(), "the pending redo survived the fold");
+        assert_eq!(h.revision(), revision_before);
+        assert!(h.redo(&mut doc));
+        assert_eq!(doc.entities.len(), 3);
+        assert_eq!(h.len(), 2, "the folded entry plus the redone one");
+    }
+
+    /// AC 12 — folding an empty stack is a no-op rather than a panic.
+    #[test]
+    fn coalesce_last_on_an_empty_stack_is_a_noop() {
+        let mut doc = Document::default();
+        let mut h = History::new();
+        h.coalesce_last(4, "Agent: nothing happened");
+        assert_eq!(h.len(), 0);
+        assert_eq!(h.revision(), 0);
+        assert!(!h.undo(&mut doc));
     }
 }

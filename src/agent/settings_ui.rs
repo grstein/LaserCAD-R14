@@ -1,7 +1,8 @@
 //! egui panel for editing agent connection settings.
 //!
-//! This is the ONLY file in `src/agent/` that may import `egui`.
-//! All other `agent/` submodules must remain kernel-pure.
+//! One of the **two** files in `src/agent/` that may import `egui` — the other
+//! is `panel.rs` (ADR 0007 §D8). Every other `agent/` submodule is kernel-pure,
+//! and no file here may import `eframe` or `rfd`.
 
 use egui;
 

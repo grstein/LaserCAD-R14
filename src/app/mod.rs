@@ -19,6 +19,11 @@
 //! hold pure helpers those phases call, and `cmdline` resolves one submitted
 //! command line into a [`ToolInput`](crate::cmdline::ToolInput) (LCV-111).
 //!
+//! Three files carry the agent's UI-side half (ADR 0007 §D8): `agent_poll`
+//! drains the thread→UI channel once per frame, `agent_apply` turns one
+//! `AgentAction` into one `Command` committed through [`App::commit`], and
+//! `agent_turn` holds [`TurnFence`] and drives one whole turn.
+//!
 //! `mod.rs` re-exports the module's whole public surface, so callers outside
 //! `app` use `lasercad::app::…` paths and never a deep one.
 
@@ -34,8 +39,11 @@ mod persist;
 mod snap;
 mod viewport;
 
+pub mod agent_apply;
 mod agent_poll;
+mod agent_turn;
 pub use agent_poll::poll_agent_rx;
+pub use agent_turn::{run_agent_turn, TurnFence, AGENT_FENCE_REFUSAL};
 pub use autosave::{autosave_due, schedule_flush_repaint};
 pub use bed_dialog::{apply_bed_dialog_result, draw_bed_dialog};
 pub use cmdline::submit;
@@ -170,7 +178,7 @@ pub struct App {
     /// The Send button is disabled and a spinner is shown when this is `true`.
     pub agent_busy: bool,
     /// Receiver polled every frame; `Some` while a turn is in flight (LCV-080).
-    pub agent_rx: Option<std::sync::mpsc::Receiver<crate::agent::AgentPanelMsg>>,
+    pub agent_rx: Option<std::sync::mpsc::Receiver<crate::agent::AgentEvent>>,
     /// Path of the file most recently opened or saved. `None` for an unsaved
     /// new document (LCV-062).
     pub current_file: Option<std::path::PathBuf>,
@@ -430,18 +438,18 @@ mod tests {
         assert!(a.agent_input_draft.is_empty());
     }
 
-    /// LCV-080 AC#13 — `Reply` message appends an assistant entry and clears
-    /// busy + receiver.
+    /// LCV-080 AC#13, retargeted by LCV-122 AC 4 — `Done` appends an assistant
+    /// entry and clears busy + receiver. Same behaviour, new variant name.
     #[test]
-    fn agent_rx_reply_updates_chat_and_clears_busy() {
-        use crate::agent::AgentPanelMsg;
+    fn agent_rx_done_updates_chat_and_clears_busy() {
+        use crate::agent::AgentEvent;
         let (tx, rx) = std::sync::mpsc::channel();
         let mut app = App {
             agent_rx: Some(rx),
             agent_busy: true,
             ..App::default()
         };
-        tx.send(AgentPanelMsg::Reply("done".into())).unwrap();
+        tx.send(AgentEvent::Done("done".into())).unwrap();
         poll_agent_rx(&mut app);
         assert_eq!(
             app.agent_chat.last(),
@@ -451,20 +459,164 @@ mod tests {
         assert!(app.agent_rx.is_none());
     }
 
-    /// LCV-080 AC#14 — `Error` message appends an error entry and clears
-    /// busy + receiver.
+    /// LCV-080 AC#14, retargeted by LCV-122 AC 4 — `Failed` appends an error
+    /// entry and clears busy + receiver.
     #[test]
-    fn agent_rx_error_updates_chat_and_clears_busy() {
-        use crate::agent::AgentPanelMsg;
+    fn agent_rx_failed_updates_chat_and_clears_busy() {
+        use crate::agent::AgentEvent;
         let (tx, rx) = std::sync::mpsc::channel();
         let mut app = App {
             agent_rx: Some(rx),
             agent_busy: true,
             ..App::default()
         };
-        tx.send(AgentPanelMsg::Error("err".into())).unwrap();
+        tx.send(AgentEvent::Failed("err".into())).unwrap();
         poll_agent_rx(&mut app);
         assert_eq!(app.agent_chat.last(), Some(&("error".into(), "err".into())));
+        assert!(!app.agent_busy);
+        assert!(app.agent_rx.is_none());
+    }
+
+    /// ADR 0007 §D11 — a worker that ends without a verdict must still bring
+    /// `agent_busy` back down, or `update_ui` requests a repaint every frame
+    /// for the rest of the session (the LCV-120 bug, reopened silently).
+    ///
+    /// No thread and no sleep: dropping the `Sender` is exactly what a
+    /// panicking or returning worker does, and `try_recv` reports it
+    /// deterministically on the very next call.
+    #[test]
+    fn a_dropped_sender_ends_the_turn_instead_of_hanging_busy() {
+        use crate::agent::AgentEvent;
+        let (tx, rx) = std::sync::mpsc::channel::<AgentEvent>();
+        let mut app = App {
+            agent_rx: Some(rx),
+            agent_busy: true,
+            ..App::default()
+        };
+        drop(tx);
+        poll_agent_rx(&mut app);
+        assert_eq!(
+            app.agent_chat.last(),
+            Some(&(
+                "error".into(),
+                crate::app::agent_poll::AGENT_LOST_MESSAGE.to_owned()
+            )),
+        );
+        assert!(!app.agent_busy, "a lost turn must clear agent_busy");
+        assert!(app.agent_rx.is_none());
+    }
+
+    /// An empty but live channel is a no-op: the turn is still running, so the
+    /// receiver must survive to the next frame and `agent_busy` must stay up.
+    #[test]
+    fn an_empty_channel_keeps_the_turn_alive() {
+        use crate::agent::AgentEvent;
+        let (tx, rx) = std::sync::mpsc::channel::<AgentEvent>();
+        let mut app = App {
+            agent_rx: Some(rx),
+            agent_busy: true,
+            ..App::default()
+        };
+        poll_agent_rx(&mut app);
+        assert!(app.agent_busy);
+        assert!(app.agent_rx.is_some());
+        drop(tx);
+    }
+
+    /// ADR 0007 §D2 — an `Act` is non-terminal: it mutates the live document
+    /// through `Command` + `History`, answers down its own reply channel, and
+    /// the same frame goes on to consume the `Done` behind it.
+    #[test]
+    fn an_act_is_applied_answered_and_followed_by_the_terminal_event() {
+        use crate::agent::{AgentAction, AgentEvent, AgentOutcome};
+        let (tx, rx) = std::sync::mpsc::channel::<AgentEvent>();
+        let (reply, answers) = std::sync::mpsc::channel::<AgentOutcome>();
+        let mut app = App {
+            agent_rx: Some(rx),
+            agent_busy: true,
+            ..App::default()
+        };
+        let before = app.history.revision();
+        tx.send(AgentEvent::Act {
+            action: AgentAction::CreateCircle {
+                cx: 1.0,
+                cy: 2.0,
+                r: 3.0,
+            },
+            reply,
+        })
+        .unwrap();
+        tx.send(AgentEvent::Done("drawn".into())).unwrap();
+
+        poll_agent_rx(&mut app);
+
+        let outcome = answers.try_recv().expect("the Act must be answered");
+        assert!(!outcome.is_refused(), "{outcome:?}");
+        assert!(outcome.text().contains("Circle created"), "{outcome:?}");
+        assert_eq!(app.document.entity_count(), 1);
+        assert_eq!(app.history.revision(), before + 1);
+        assert!(app.history.can_undo());
+        assert_eq!(
+            app.agent_chat.last(),
+            Some(&("assistant".into(), "drawn".into())),
+        );
+        assert!(!app.agent_busy);
+    }
+
+    /// ADR 0007 §D2, the other half — an `Act` on its own ends **nothing**.
+    ///
+    /// Its sibling above proves an `Act` is applied and answered, but that
+    /// holds just as well for an implementation that answers and then ends the
+    /// turn, because the `Done` behind it would tidy up anyway. So here the
+    /// `Act` arrives alone: the rendezvous is still open, the worker is still
+    /// blocked on the reply it just got, and the next tool call is still to
+    /// come. Killing `agent_busy` here would stop the repaints that ADR 0007
+    /// §D2 needs to turn the crank, and dropping the receiver would strand the
+    /// rest of the turn.
+    #[test]
+    fn a_lone_act_leaves_the_turn_running() {
+        use crate::agent::{AgentAction, AgentEvent, AgentOutcome};
+        let (tx, rx) = std::sync::mpsc::channel::<AgentEvent>();
+        let (reply, answers) = std::sync::mpsc::channel::<AgentOutcome>();
+        let mut app = App {
+            agent_rx: Some(rx),
+            agent_busy: true,
+            ..App::default()
+        };
+        tx.send(AgentEvent::Act {
+            action: AgentAction::CreateCircle {
+                cx: 0.0,
+                cy: 0.0,
+                r: 1.0,
+            },
+            reply,
+        })
+        .unwrap();
+
+        poll_agent_rx(&mut app);
+
+        assert!(answers.try_recv().is_ok(), "the Act must still be answered");
+        assert_eq!(app.document.entity_count(), 1);
+        assert!(
+            app.agent_busy,
+            "an Act is not a verdict: the turn is still running"
+        );
+        assert!(
+            app.agent_rx.is_some(),
+            "dropping the receiver here strands every later tool call"
+        );
+        assert!(
+            app.agent_chat.is_empty(),
+            "an Act writes no chat row of its own"
+        );
+
+        // The turn ends only when a terminal event arrives, on a later frame.
+        tx.send(AgentEvent::Done("drawn".into())).unwrap();
+        poll_agent_rx(&mut app);
+        assert_eq!(
+            app.agent_chat.last(),
+            Some(&("assistant".into(), "drawn".into())),
+        );
         assert!(!app.agent_busy);
         assert!(app.agent_rx.is_none());
     }

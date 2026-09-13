@@ -1,28 +1,65 @@
-//! Agent tool registry: JSON schemas + dispatch (LCV-078).
+//! Agent tool registry: JSON schemas + argument parsing (LCV-078 / LCV-122).
+//!
+//! This file turns one tool call from the model into one
+//! [`AgentAction`] — and stops there. It does **not** commit anything: since
+//! LCV-122 the background thread that calls into here owns no [`Document`] and
+//! no [`History`] (ADR 0007 §D1), so applying the action is the UI thread's job
+//! in `src/app/agent_apply.rs`.
+//!
+//! ## Which checks live here, and which do not (ADR 0007 §D2a)
+//!
+//! Everything that is a property of the **arguments alone** is checked here,
+//! hand-rolled, with a per-field message: missing field, wrong JSON type, a
+//! radius that is not positive and finite, an index that is not a non-negative
+//! integer. That is deliberately not a `serde` derive — the derive would buy
+//! free parsing and throw away every one of those messages (ADR 0007
+//! §Alternatives).
+//!
+//! The one check that is a property of the **document** —
+//! `index < entities.len()` — is not here, because the thread cannot know
+//! `entities.len()`. It happens at the apply site and answers
+//! `AgentOutcome::Refused`, which the model can act on.
+//!
+//! Angles cross here: the schema speaks `start_deg` / `end_deg` because that is
+//! what a human dictates, and [`AgentAction`] speaks radians because that is
+//! what the kernel speaks everywhere else.
 //!
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
+//!
+//! [`Document`]: crate::document::Document
+//! [`History`]: crate::document::History
 
 use serde_json::{json, Value};
 use thiserror::Error;
 
-use crate::document::{
-    CreateArc, CreateCircle, CreateLine, DeleteEntities, Document, History, MoveEntities,
-};
-use crate::geometry::{Arc as GeoArc, Circle, Line, Vec2};
+use crate::agent::bridge::AgentAction;
 
+/// Why a tool call could not be turned into an [`AgentAction`].
+///
+/// Every variant describes the *call*, never the drawing: a tool call that is
+/// well-formed but asks for something the document cannot satisfy is not an
+/// error here, it is an `AgentOutcome::Refused` at the apply site.
 #[derive(Debug, Error)]
 pub enum ToolCallError {
+    /// The model named a tool that is not in [`tool_definitions`].
     #[error("unknown tool: `{0}`")]
     UnknownTool(String),
+    /// A required argument was absent, or present with the wrong JSON type.
     #[error("tool `{tool}` missing required argument `{field}`")]
     MissingField {
+        /// The tool that was called.
         tool: &'static str,
+        /// The argument that was missing.
         field: &'static str,
     },
+    /// An argument was present and of the right type, but out of its domain.
     #[error("tool `{tool}` argument `{field}` is invalid: {reason}")]
     InvalidArg {
+        /// The tool that was called.
         tool: &'static str,
+        /// The argument that was rejected.
         field: &'static str,
+        /// Human-readable explanation, read by the model as the tool result.
         reason: String,
     },
 }
@@ -76,17 +113,16 @@ fn get_bool(args: &Value, tool: &'static str, field: &'static str) -> Result<boo
         .ok_or(ToolCallError::MissingField { tool, field })
 }
 
+/// Shape check only: non-negative, integral, finite. The range check
+/// (`index < entities.len()`) lives at the apply site — ADR 0007 §D2a.
 #[rustfmt::skip]
-fn get_index(args: &Value, tool: &'static str, doc_len: usize) -> Result<usize, ToolCallError> {
+fn get_index(args: &Value, tool: &'static str) -> Result<usize, ToolCallError> {
     let raw = args.get("index").and_then(|v| v.as_f64())
         .ok_or(ToolCallError::MissingField { tool, field: "index" })?;
     if raw < 0.0 || raw.fract() != 0.0 || !raw.is_finite() { return Err(
         ToolCallError::InvalidArg { tool, field: "index",
             reason: format!("{raw} is not a non-negative integer") }); }
-    let idx = raw as usize;
-    if idx >= doc_len { return Err(ToolCallError::InvalidArg { tool, field: "index",
-        reason: format!("index {idx} is out of range (document has {doc_len} entities)") }); }
-    Ok(idx)
+    Ok(raw as usize)
 }
 
 #[rustfmt::skip]
@@ -95,29 +131,30 @@ fn validate_r(tool: &'static str, r: f64) -> Result<(), ToolCallError> {
         tool, field: "r", reason: format!("{r} is not a positive finite number") }) }
 }
 
-/// Dispatch an LLM `tool_call` to the matching CAD command via `history`.
+/// Turn one LLM `tool_call` into the [`AgentAction`] it asks for.
+///
+/// Pure: no document, no history, no side effect. The caller sends the action
+/// over the bridge and the UI thread decides what really happens to it.
+///
+/// # Errors
+///
+/// [`ToolCallError`] when the tool name is unknown or an argument is missing,
+/// of the wrong type, or outside its domain.
 #[rustfmt::skip]
-pub fn dispatch_tool_call(
-    name: &str, args: &Value, doc: &mut Document, history: &mut History,
-) -> Result<String, ToolCallError> {
+pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCallError> {
     match name {
-        "create_line" => {
-            let x1 = get_f64(args, "create_line", "x1")?;
-            let y1 = get_f64(args, "create_line", "y1")?;
-            let x2 = get_f64(args, "create_line", "x2")?;
-            let y2 = get_f64(args, "create_line", "y2")?;
-            let ln = Line::new(Vec2::new(x1, y1), Vec2::new(x2, y2));
-            history.commit(Box::new(CreateLine::new(ln)), doc);
-            Ok(format!("Line created: ({x1:.3}, {y1:.3}) → ({x2:.3}, {y2:.3}) mm."))
-        }
+        "create_line" => Ok(AgentAction::CreateLine {
+            x1: get_f64(args, "create_line", "x1")?,
+            y1: get_f64(args, "create_line", "y1")?,
+            x2: get_f64(args, "create_line", "x2")?,
+            y2: get_f64(args, "create_line", "y2")?,
+        }),
         "create_circle" => {
             let cx = get_f64(args, "create_circle", "cx")?;
             let cy = get_f64(args, "create_circle", "cy")?;
             let r = get_f64(args, "create_circle", "r")?;
             validate_r("create_circle", r)?;
-            let circ = Circle::new(Vec2::new(cx, cy), r);
-            history.commit(Box::new(CreateCircle::new(circ)), doc);
-            Ok(format!("Circle created: center ({cx:.3}, {cy:.3}) mm, r = {r:.3} mm."))
+            Ok(AgentAction::CreateCircle { cx, cy, r })
         }
         "create_arc" => {
             let cx = get_f64(args, "create_arc", "cx")?;
@@ -127,23 +164,21 @@ pub fn dispatch_tool_call(
             let end_deg = get_f64(args, "create_arc", "end_deg")?;
             let ccw = get_bool(args, "create_arc", "ccw")?;
             validate_r("create_arc", r)?;
-            let (sa, ea) = (start_deg.to_radians(), end_deg.to_radians());
-            let arc = GeoArc::new(Vec2::new(cx, cy), r, sa, ea, ccw);
-            history.commit(Box::new(CreateArc::new(arc)), doc);
-            let dir = if ccw { "ccw" } else { "cw" };
-            Ok(format!("Arc created: center ({cx:.3}, {cy:.3}) mm, r = {r:.3} mm, {start_deg:.1}°→{end_deg:.1}° {dir}."))
+            // The one unit boundary in this file: degrees in, radians out.
+            Ok(AgentAction::CreateArc {
+                cx, cy, r, start: start_deg.to_radians(), end: end_deg.to_radians(), ccw,
+            })
         }
-        "delete_entity" => {
-            let idx = get_index(args, "delete_entity", doc.entities.len())?;
-            history.commit(Box::new(DeleteEntities::new(vec![idx])), doc);
-            Ok(format!("Entity {idx} deleted."))
-        }
+        "delete_entity" => Ok(AgentAction::Delete {
+            index: get_index(args, "delete_entity")?,
+        }),
         "move_entity" => {
+            // Read order preserved from LCV-078: a call missing both `dx` and
+            // `index` still reports `dx` first, as it always has.
             let dx = get_f64(args, "move_entity", "dx")?;
             let dy = get_f64(args, "move_entity", "dy")?;
-            let idx = get_index(args, "move_entity", doc.entities.len())?;
-            history.commit(Box::new(MoveEntities::new(vec![idx], Vec2::new(dx, dy))), doc);
-            Ok(format!("Entity {idx} moved by ({dx:.3}, {dy:.3}) mm."))
+            let index = get_index(args, "move_entity")?;
+            Ok(AgentAction::Move { index, dx, dy })
         }
         _ => Err(ToolCallError::UnknownTool(name.to_owned())),
     }
@@ -153,22 +188,14 @@ pub fn dispatch_tool_call(
 #[rustfmt::skip]
 mod tests {
     use super::*;
-    use crate::document::Entity;
-    use crate::geometry::{Circle, Line, Vec2, EPSILON};
     use core::f64::consts::FRAC_PI_2;
     use serde_json::json;
 
-    struct Ctx { doc: Document, h: History }
-    impl Ctx {
-        fn new() -> Self { Self { doc: Document::default(), h: History::new() } }
-        fn ok(&mut self, nm: &str, a: Value) -> String {
-            dispatch_tool_call(nm, &a, &mut self.doc, &mut self.h).unwrap()
-        }
-        fn err(&mut self, nm: &str, a: Value) -> ToolCallError {
-            dispatch_tool_call(nm, &a, &mut self.doc, &mut self.h).unwrap_err()
-        }
-    }
+    fn ok(nm: &str, a: Value) -> AgentAction { parse_tool_call(nm, &a).unwrap() }
+    fn err(nm: &str, a: Value) -> ToolCallError { parse_tool_call(nm, &a).unwrap_err() }
     fn req(d: &Value, i: usize) -> Value { d[i]["function"]["parameters"]["required"].clone() }
+
+    // ── Schema (5 tests, unchanged by LCV-122) ───────────────────────────────
 
     #[test]
     fn tool_definitions_array_length_is_five() {
@@ -198,94 +225,173 @@ mod tests {
     fn tool_definitions_arc_ccw_is_boolean() {
         assert_eq!(tool_definitions()[2]["function"]["parameters"]["properties"]["ccw"]["type"], "boolean");
     }
+
+    // ── AC 5: the five names produce the right action ────────────────────────
+
+    /// AC 5 — every field lands in its own slot. The four numbers are distinct
+    /// so a transposed pair cannot pass.
     #[test]
-    fn dispatch_create_line_happy_path() {
-        let mut c = Ctx::new();
-        let r = c.ok("create_line", json!({"x1":0.0,"y1":0.0,"x2":10.0,"y2":0.0}));
-        assert!(r.contains("Line created") && c.doc.entities.len() == 1);
-        let exp = Entity::Line(Line::new(Vec2::new(0.0,0.0), Vec2::new(10.0,0.0)));
-        assert_eq!(c.doc.entities[0], exp);
+    fn parse_create_line_happy_path() {
+        assert_eq!(ok("create_line", json!({"x1":1.0,"y1":2.0,"x2":3.0,"y2":4.0})),
+            AgentAction::CreateLine { x1: 1.0, y1: 2.0, x2: 3.0, y2: 4.0 });
     }
     #[test]
-    fn dispatch_create_circle_happy_path() {
-        let mut c = Ctx::new();
-        let r = c.ok("create_circle", json!({"cx":5.0,"cy":5.0,"r":3.0}));
-        assert!(r.contains("Circle created"));
-        assert_eq!(c.doc.entities[0], Entity::Circle(Circle::new(Vec2::new(5.0,5.0), 3.0)));
+    fn parse_create_circle_happy_path() {
+        assert_eq!(ok("create_circle", json!({"cx":5.0,"cy":6.0,"r":3.0})),
+            AgentAction::CreateCircle { cx: 5.0, cy: 6.0, r: 3.0 });
     }
     #[test]
-    fn dispatch_create_circle_negative_radius() {
-        let mut c = Ctx::new();
-        let e = c.err("create_circle", json!({"cx":0.0,"cy":0.0,"r":-1.0}));
-        assert!(matches!(e, ToolCallError::InvalidArg { field: "r", .. }) && c.doc.entities.is_empty());
+    fn parse_create_circle_negative_radius() {
+        let e = err("create_circle", json!({"cx":0.0,"cy":0.0,"r":-1.0}));
+        let ToolCallError::InvalidArg { field, reason, .. } = e else { panic!("{e:?}") };
+        assert_eq!(field, "r");
+        assert_eq!(reason, "-1 is not a positive finite number");
+    }
+    /// AC 5 — a zero radius is rejected by the same check as a negative one.
+    #[test]
+    fn parse_create_circle_zero_radius() {
+        let e = err("create_circle", json!({"cx":0.0,"cy":0.0,"r":0.0}));
+        assert!(matches!(e, ToolCallError::InvalidArg { field: "r", .. }), "{e:?}");
+    }
+    /// AC 5 — degrees in, radians out, to within 1e-12.
+    #[test]
+    fn parse_create_arc_degree_to_radian_conversion() {
+        let a = ok("create_arc", json!({"cx":0.0,"cy":0.0,"r":1.0,
+            "start_deg":0.0,"end_deg":90.0,"ccw":true}));
+        let AgentAction::CreateArc { start, end, ccw, r, .. } = a else { panic!("{a:?}") };
+        assert!(start.abs() < 1e-12, "start was {start}");
+        assert!((end - FRAC_PI_2).abs() < 1e-12, "end was {end}");
+        assert!(ccw);
+        assert_eq!(r, 1.0);
+    }
+    /// AC 5 — `ccw: false` survives the parse. The `cw` wording moved to the
+    /// apply site with the rest of the outcome strings.
+    #[test]
+    fn parse_create_arc_keeps_clockwise() {
+        let a = ok("create_arc", json!({"cx":0.0,"cy":0.0,"r":1.0,
+            "start_deg":0.0,"end_deg":90.0,"ccw":false}));
+        assert!(matches!(a, AgentAction::CreateArc { ccw: false, .. }), "{a:?}");
+    }
+    /// AC 5 — a negative arc radius is rejected before the angles matter.
+    #[test]
+    fn parse_create_arc_rejects_bad_radius() {
+        let e = err("create_arc", json!({"cx":0.0,"cy":0.0,"r":0.0,
+            "start_deg":0.0,"end_deg":90.0,"ccw":true}));
+        assert!(matches!(e, ToolCallError::InvalidArg { tool: "create_arc", field: "r", .. }), "{e:?}");
     }
     #[test]
-    fn dispatch_create_arc_degree_to_radian_conversion() {
-        let mut c = Ctx::new();
-        let r = c.ok("create_arc", json!({"cx":0.0,"cy":0.0,"r":1.0,"start_deg":0.0,"end_deg":90.0,"ccw":true}));
-        assert!(r.contains("Arc created") && r.contains("0.0°→90.0°") && r.contains("ccw"));
-        let Entity::Arc(arc) = c.doc.entities[0] else { panic!() };
-        assert!((arc.start_angle).abs() < EPSILON && (arc.end_angle - FRAC_PI_2).abs() < EPSILON);
+    fn parse_delete_entity_happy_path() {
+        assert_eq!(ok("delete_entity", json!({"index":2})), AgentAction::Delete { index: 2 });
     }
     #[test]
-    fn dispatch_create_arc_clockwise_label() {
-        let mut c = Ctx::new();
-        let r = c.ok("create_arc", json!({"cx":0.0,"cy":0.0,"r":1.0,"start_deg":0.0,"end_deg":90.0,"ccw":false}));
-        assert!(r.ends_with("cw.") && !r.contains("ccw"));
+    fn parse_move_entity_happy_path() {
+        assert_eq!(ok("move_entity", json!({"index":0,"dx":3.0,"dy":4.0})),
+            AgentAction::Move { index: 0, dx: 3.0, dy: 4.0 });
     }
     #[test]
-    fn dispatch_delete_entity_happy_path() {
-        let mut c = Ctx::new();
-        c.ok("create_line", json!({"x1":0.0,"y1":0.0,"x2":1.0,"y2":0.0}));
-        let r = c.ok("delete_entity", json!({"index":0}));
-        assert!(r.contains("Entity 0 deleted") && c.doc.entities.is_empty());
-        assert!(c.h.undo(&mut c.doc) && c.doc.entities.len() == 1);
-    }
-    #[test]
-    fn dispatch_delete_entity_out_of_range() {
-        let mut c = Ctx::new();
-        c.ok("create_line", json!({"x1":0.0,"y1":0.0,"x2":1.0,"y2":0.0}));
-        let e = c.err("delete_entity", json!({"index":5}));
-        assert!(matches!(e, ToolCallError::InvalidArg { field: "index", .. }));
-    }
-    #[test]
-    fn dispatch_move_entity_happy_path() {
-        let mut c = Ctx::new();
-        c.ok("create_line", json!({"x1":0.0,"y1":0.0,"x2":10.0,"y2":0.0}));
-        let r = c.ok("move_entity", json!({"index":0,"dx":3.0,"dy":4.0}));
-        assert!(r.contains("Entity 0 moved"));
-        let Entity::Line(l) = c.doc.entities[0] else { panic!() };
-        assert!((l.p1.x-3.0).abs() < EPSILON && (l.p1.y-4.0).abs() < EPSILON);
-        assert!((l.p2.x-13.0).abs() < EPSILON && (l.p2.y-4.0).abs() < EPSILON);
-        assert!(c.h.undo(&mut c.doc));
-        let Entity::Line(l) = c.doc.entities[0] else { panic!() };
-        assert!(l.p1.x.abs() < EPSILON && l.p1.y.abs() < EPSILON);
-    }
-    #[test]
-    fn dispatch_unknown_tool() {
-        let mut c = Ctx::new();
-        match c.err("frobnicate", json!({})) {
+    fn parse_unknown_tool() {
+        match err("frobnicate", json!({})) {
             ToolCallError::UnknownTool(s) => assert_eq!(s, "frobnicate"),
-            _ => panic!(),
+            other => panic!("{other:?}"),
         }
     }
     #[test]
-    fn dispatch_missing_field() {
-        let mut c = Ctx::new();
-        let e = c.err("create_line", json!({"x1":0.0}));
-        assert!(matches!(e, ToolCallError::MissingField { tool: "create_line", .. }));
+    fn parse_missing_field() {
+        let e = err("create_line", json!({"x1":0.0}));
+        assert!(matches!(e, ToolCallError::MissingField { tool: "create_line", field: "y1" }), "{e:?}");
     }
+    /// AC 5 — a rejected call yields no action at all. This is what
+    /// `dispatch_missing_field_no_commit` asserted before there was an action
+    /// type: nothing partial escapes.
     #[test]
-    fn dispatch_missing_field_no_commit() {
-        let mut c = Ctx::new();
-        let _ = c.err("create_line", json!({"x1":0.0}));
-        assert!(c.doc.entities.is_empty() && !c.h.undo(&mut c.doc));
+    fn parse_missing_field_produces_no_action() {
+        assert!(parse_tool_call("create_line", &json!({"x1":0.0})).is_err());
+        assert!(parse_tool_call("move_entity", &json!({"dx":1.0,"dy":2.0})).is_err());
     }
+    /// AC 5 — a non-finite coordinate cannot survive JSON: `serde_json` has no
+    /// NaN or infinity, so `json!` stores `null` and the field reads as
+    /// missing. Pinned here so the behaviour is a decision, not a surprise.
+    #[test]
+    fn parse_nan_coordinate_is_reported_as_a_missing_field() {
+        assert_eq!(json!({"x1": f64::NAN})["x1"], Value::Null);
+        let e = err("create_line", json!({"x1":f64::NAN,"y1":0.0,"x2":1.0,"y2":1.0}));
+        assert!(matches!(e, ToolCallError::MissingField { field: "x1", .. }), "{e:?}");
+        let e = err("create_circle", json!({"cx":0.0,"cy":0.0,"r":f64::INFINITY}));
+        assert!(matches!(e, ToolCallError::MissingField { field: "r", .. }), "{e:?}");
+    }
+    /// AC 5 — the finite half of `validate_r` is unreachable through JSON, so
+    /// it is pinned directly. Deleting `r.is_finite()` turns this red.
+    #[test]
+    fn validate_r_rejects_infinity_and_nan() {
+        for bad in [f64::INFINITY, f64::NEG_INFINITY, f64::NAN, 0.0, -1.0] {
+            assert!(validate_r("create_circle", bad).is_err(), "{bad} must be rejected");
+        }
+        for good in [f64::MIN_POSITIVE, 0.5, 1e9] {
+            assert!(validate_r("create_circle", good).is_ok(), "{good} must be accepted");
+        }
+    }
+    /// AC 5 — a negative index and a fractional index are both shape errors,
+    /// with the message they have always had.
+    #[test]
+    fn parse_index_must_be_a_non_negative_integer() {
+        for (raw, text) in [(json!(-1), "-1 is not a non-negative integer"),
+                            (json!(1.5), "1.5 is not a non-negative integer")] {
+            let e = err("delete_entity", json!({"index": raw}));
+            let ToolCallError::InvalidArg { field, reason, .. } = e else { panic!("{e:?}") };
+            assert_eq!(field, "index");
+            assert_eq!(reason, text);
+        }
+    }
+
+    // ── AC 6: the range check is not the agent's business ────────────────────
+
+    /// AC 6, agent side — an index far past the end of any drawing parses
+    /// happily, because there is no drawing in sight. The refusal is produced
+    /// later, in `crate::app::agent_apply`, where the document is.
+    #[test]
+    fn parse_delete_entity_out_of_range_is_not_rejected_here() {
+        assert_eq!(ok("delete_entity", json!({"index":7})), AgentAction::Delete { index: 7 });
+        assert_eq!(ok("move_entity", json!({"index":99,"dx":0.0,"dy":0.0})),
+            AgentAction::Move { index: 99, dx: 0.0, dy: 0.0 });
+    }
+
     #[test]
     fn tool_call_error_display_non_empty() {
         let e1 = ToolCallError::UnknownTool("x".into());
         let e2 = ToolCallError::MissingField { tool: "t", field: "f" };
         let e3 = ToolCallError::InvalidArg { tool: "t", field: "f", reason: "bad".into() };
         assert!(!e1.to_string().is_empty() && !e2.to_string().is_empty() && !e3.to_string().is_empty());
+    }
+
+    // ── AC 7 / AC 3: what this file must never become ────────────────────────
+
+    /// AC 7 — validation stays hand-rolled: no `serde` shortcut deserialises
+    /// an `AgentAction` here. AC 3 — and no document state reaches this file.
+    ///
+    /// Bounded at the bare `#[cfg(test)]` at column 0, needles built with
+    /// `concat!`, so the scan cannot match the literals in this very test.
+    #[test]
+    fn tools_parses_by_hand_and_holds_no_document() {
+        let src = include_str!("tools.rs");
+        let at = src.find("\n#[cfg(test)]").expect("tools.rs must have a bare #[cfg(test)] marker");
+        let implementation = &src[..at];
+
+        assert!(implementation.contains(concat!("pub fn parse_", "tool_call")),
+            "positive control: the parser must be declared in this file");
+        assert!(implementation.contains(concat!("fn validate", "_r")),
+            "positive control: the radius check must still be here");
+
+        for forbidden in [
+            concat!("from_value::<", "AgentAction>"),
+            concat!("Deser", "ialize"),
+            concat!("crate::", "document"),
+            concat!("Doc", "ument"),
+            concat!("His", "tory"),
+        ] {
+            let hit = implementation.lines()
+                .find(|l| l.contains(forbidden) && !l.trim_start().starts_with("//")
+                       && !l.trim_start().starts_with("//!"));
+            assert!(hit.is_none(), "tools.rs must not name `{forbidden}` in code: {hit:?}");
+        }
     }
 }

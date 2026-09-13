@@ -14,7 +14,7 @@ fn module_tree_is_wired() {
     use lasercad::{agent, app, cmdline, document, geometry, io, render, text, tools, ui, util};
 
     let _ = (
-        std::any::TypeId::of::<agent::AgentPanelMsg>(),
+        std::any::TypeId::of::<agent::AgentEvent>(),
         std::any::TypeId::of::<app::App>(),
         // `cmdline` added by LCV-110 — the command-line parser kernel.
         std::any::TypeId::of::<cmdline::CommandHistory>(),

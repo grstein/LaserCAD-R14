@@ -43,6 +43,10 @@
 //! MUST NOT import `egui`, `eframe`, or `rfd`. The command trait is part of
 //! the pure-Rust kernel.
 //!
+//! [`CompositeCommand`] (in [`composite`]) is the one command that holds other
+//! commands: it folds a whole agent turn into a single undo entry (LCV-122,
+//! ADR 0007 §D6) without re-running anything.
+//!
 //! Introduced by demand LCV-022. Primitive-creation commands
 //! ([`CreateLine`], [`CreateCircle`], [`CreateArc`]) live in [`create`] and
 //! ship with demand LCV-023. [`SetBedSize`] (in [`bed`]) is the one command
@@ -52,12 +56,14 @@
 use crate::document::Document;
 
 pub mod bed;
+pub mod composite;
 pub mod create;
 pub mod edit;
 pub mod select;
 pub mod trim;
 
 pub use bed::SetBedSize;
+pub use composite::CompositeCommand;
 pub use create::{CreateArc, CreateCircle, CreateEntities, CreateLine};
 pub use edit::{DeleteEntities, MoveEntities};
 pub use select::SelectionCommand;

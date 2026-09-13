@@ -4,10 +4,14 @@
 //! results back. The wire shapes come from [`crate::agent::wire`] and the HTTP
 //! call from [`crate::agent::transport`]; nothing is declared twice.
 //!
+//! Since LCV-122 the loop has no idea what a drawing is: `dispatch_fn` takes a
+//! tool name and a JSON argument string and hands back the sentence the model
+//! reads. Whoever supplies that closure — `crate::app::run_agent_turn` — is the
+//! only party that knows where the geometry goes (ADR 0007 §D1).
+//!
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use crate::agent::wire::{AssistantMessage, ChatMessage};
-use crate::document::{Document, History};
 
 // ── Step budget ──────────────────────────────────────────────────────────────
 
@@ -83,18 +87,18 @@ impl std::error::Error for AgentError {}
 /// comparison is done in `usize` — `u8` arithmetic would wrap on a large batch
 /// and wave it through.
 ///
-/// All document mutation flows through `dispatch_fn` → `History::commit`.
+/// `dispatch_fn` receives `(tool_name, raw_json_arguments)` and returns the
+/// `tool`-role result text. It is the caller's business whether that text came
+/// from a real mutation, a refusal or a stub; this loop only sequences it.
 pub(crate) fn agent_loop<F, D>(
     send_fn: &mut F,
     dispatch_fn: &mut D,
     messages: &mut Vec<ChatMessage>,
-    doc: &mut Document,
-    history: &mut History,
     step_budget: u8,
 ) -> Result<String, AgentError>
 where
     F: FnMut(&[ChatMessage]) -> Result<AssistantMessage, AgentError>,
-    D: FnMut(&str, &str, &mut Document, &mut History) -> Result<String, AgentError>,
+    D: FnMut(&str, &str) -> Result<String, AgentError>,
 {
     let budget = step_budget as usize;
     let mut dispatched: usize = 0;
@@ -110,8 +114,7 @@ where
                     calls.clone(),
                 ));
                 for call in &calls {
-                    let result =
-                        dispatch_fn(&call.function.name, &call.function.arguments, doc, history)?;
+                    let result = dispatch_fn(&call.function.name, &call.function.arguments)?;
                     messages.push(ChatMessage::tool_result(call.id.clone(), result));
                     dispatched += 1;
                 }
@@ -122,64 +125,10 @@ where
     }
 }
 
-// ── Public entry point ───────────────────────────────────────────────────────
-
-/// Drive one complete agent turn: send `prompt` to `endpoint` as `model`,
-/// dispatch tool calls through `history` (Ctrl+Z undoable), return the final
-/// assistant text.
-///
-/// `model` and `step_budget` are the caller's to choose — they come from
-/// `Settings`, and the budget must already have been through
-/// [`clamp_step_budget`]. At most `step_budget` dispatches happen per turn.
-pub fn run_agent_turn(
-    prompt: &str,
-    endpoint: &str,
-    api_key: &str,
-    model: &str,
-    step_budget: u8,
-    doc: &mut Document,
-    history: &mut History,
-) -> Result<String, AgentError> {
-    let mut messages = vec![
-        ChatMessage::system(AGENT_SYSTEM_PROMPT),
-        ChatMessage::user(prompt),
-    ];
-    // Built once; every round offers the model the same schemas.
-    let tools = crate::agent::tools::tool_definitions();
-    let mut send_fn = |msgs: &[ChatMessage]| -> Result<AssistantMessage, AgentError> {
-        // The slice goes through untouched: filtering it would drop the
-        // assistant turns that carry tool calls and the tool turns that answer
-        // them, leaving holes in the conversation the model reads back.
-        crate::agent::transport::chat_completion(endpoint, api_key, model, msgs, &tools)
-            .map_err(|e| AgentError::Transport(e.to_string()))
-    };
-    let mut dispatch_fn = |name: &str, args: &str, doc: &mut Document, hist: &mut History| {
-        let value = serde_json::from_str::<serde_json::Value>(args)
-            .map_err(|e| AgentError::ToolDispatch(e.to_string()))?;
-        crate::agent::tools::dispatch_tool_call(name, &value, doc, hist)
-            .map_err(|e| AgentError::ToolDispatch(e.to_string()))
-    };
-    agent_loop(
-        &mut send_fn,
-        &mut dispatch_fn,
-        &mut messages,
-        doc,
-        history,
-        step_budget,
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::agent::wire::ToolCall;
-    use crate::document::{Document, History};
-    use serde_json::{json, Value};
-    use std::sync::{Arc, Mutex};
-
-    fn ctx() -> (Document, History) {
-        (Document::default(), History::new())
-    }
 
     fn text_reply(text: &str) -> Result<AssistantMessage, AgentError> {
         Ok(AssistantMessage {
@@ -238,18 +187,15 @@ mod tests {
     /// dispatches.
     #[test]
     fn budget_of_one_refuses_a_two_call_batch_before_dispatching() {
-        let (mut doc, mut history) = ctx();
         let mut dispatches = 0usize;
         let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
         let result = agent_loop(
             &mut |_| call_reply(2),
-            &mut |_, _, _, _| {
+            &mut |_, _| {
                 dispatches += 1;
                 Ok("ok".into())
             },
             &mut messages,
-            &mut doc,
-            &mut history,
             1,
         );
         assert!(
@@ -263,18 +209,15 @@ mod tests {
     /// 12, the third is refused with 12 dispatches already done.
     #[test]
     fn guard_counts_dispatches_across_rounds() {
-        let (mut doc, mut history) = ctx();
         let mut dispatches = 0usize;
         let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
         let result = agent_loop(
             &mut |_| call_reply(6),
-            &mut |_, _, _, _| {
+            &mut |_, _| {
                 dispatches += 1;
                 Ok("ok".into())
             },
             &mut messages,
-            &mut doc,
-            &mut history,
             AGENT_STEP_BUDGET_DEFAULT,
         );
         assert!(
@@ -287,7 +230,6 @@ mod tests {
     /// AC 11 — a turn that uses exactly the budget still succeeds.
     #[test]
     fn exactly_the_budget_is_allowed() {
-        let (mut doc, mut history) = ctx();
         let (mut rounds, mut dispatches) = (0usize, 0usize);
         let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
         let result = agent_loop(
@@ -299,13 +241,11 @@ mod tests {
                     text_reply("done")
                 }
             },
-            &mut |_, _, _, _| {
+            &mut |_, _| {
                 dispatches += 1;
                 Ok("ok".into())
             },
             &mut messages,
-            &mut doc,
-            &mut history,
             6,
         );
         assert_eq!(result.unwrap(), "done");
@@ -330,18 +270,15 @@ mod tests {
     /// A text-only reply ends the turn without dispatching anything.
     #[test]
     fn text_only_response_returns_ok() {
-        let (mut doc, mut history) = ctx();
         let mut dispatches = 0usize;
         let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
         let result = agent_loop(
             &mut |_| text_reply("Done."),
-            &mut |_, _, _, _| {
+            &mut |_, _| {
                 dispatches += 1;
                 Ok("ok".into())
             },
             &mut messages,
-            &mut doc,
-            &mut history,
             AGENT_STEP_BUDGET_DEFAULT,
         );
         assert_eq!(result.unwrap(), "Done.");
@@ -354,7 +291,6 @@ mod tests {
     /// `tool_call_id` is the id that came down the wire.
     #[test]
     fn a_tool_round_appends_an_assistant_turn_and_a_matching_tool_turn() {
-        let (mut doc, mut history) = ctx();
         let mut rounds = 0usize;
         let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
         let result = agent_loop(
@@ -366,10 +302,8 @@ mod tests {
                     text_reply("Line created.")
                 }
             },
-            &mut |_, _, _, _| Ok("Line created: ….".into()),
+            &mut |_, _| Ok("Line created: ….".into()),
             &mut messages,
-            &mut doc,
-            &mut history,
             AGENT_STEP_BUDGET_DEFAULT,
         );
         assert_eq!(result.unwrap(), "Line created.");
@@ -382,10 +316,49 @@ mod tests {
         assert_eq!(messages[3].content.as_deref(), Some("Line created: …."));
     }
 
+    /// LCV-121 carry-over, closed by LCV-122 — a model that narrates *and*
+    /// calls a tool in the same turn ("Let me check…" followed by
+    /// `query_entities`) must have its prose preserved on the assistant turn
+    /// that goes back over the wire.
+    ///
+    /// `ChatMessage::assistant_with_tool_calls` has taken an `Option<String>`
+    /// since LCV-121, but until now every call site and every test passed
+    /// `None`, so an implementation that hardcoded `None` would have looked
+    /// perfectly green. Dropping the prose makes the model's own reasoning
+    /// vanish from its context between rounds.
+    #[test]
+    fn prose_alongside_a_tool_call_survives_the_round_trip() {
+        let mut rounds = 0usize;
+        let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
+        let result = agent_loop(
+            &mut |_| {
+                rounds += 1;
+                if rounds == 1 {
+                    Ok(AssistantMessage {
+                        content: Some("Let me look at the drawing first.".into()),
+                        tool_calls: Some(vec![ToolCall::function("call_0", "noop", "{}")]),
+                    })
+                } else {
+                    text_reply("Two lines.")
+                }
+            },
+            &mut |_, _| Ok("2 entities.".into()),
+            &mut messages,
+            AGENT_STEP_BUDGET_DEFAULT,
+        );
+        assert_eq!(result.unwrap(), "Two lines.");
+        assert_eq!(messages[2].role, "assistant");
+        assert_eq!(
+            messages[2].content.as_deref(),
+            Some("Let me look at the drawing first."),
+            "the assistant's own words must go back with its tool calls"
+        );
+        assert!(messages[2].tool_calls.is_some(), "and so must the calls");
+    }
+
     /// A reply with neither text nor tool calls ends the turn as an error.
     #[test]
     fn no_content_returns_error() {
-        let (mut doc, mut history) = ctx();
         let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
         let result = agent_loop(
             &mut |_| {
@@ -394,10 +367,8 @@ mod tests {
                     tool_calls: None,
                 })
             },
-            &mut |_, _, _, _| Ok("ok".into()),
+            &mut |_, _| Ok("ok".into()),
             &mut messages,
-            &mut doc,
-            &mut history,
             AGENT_STEP_BUDGET_DEFAULT,
         );
         assert!(matches!(result, Err(AgentError::NoContent)));
@@ -406,14 +377,11 @@ mod tests {
     /// A transport failure is surfaced, not swallowed.
     #[test]
     fn transport_error_propagated() {
-        let (mut doc, mut history) = ctx();
         let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
         let result = agent_loop(
             &mut |_| Err(AgentError::Transport("timeout".into())),
-            &mut |_, _, _, _| Ok("ok".into()),
+            &mut |_, _| Ok("ok".into()),
             &mut messages,
-            &mut doc,
-            &mut history,
             AGENT_STEP_BUDGET_DEFAULT,
         );
         assert!(matches!(result, Err(AgentError::Transport(_))));
@@ -422,12 +390,11 @@ mod tests {
     /// A failing dispatch stops the rest of its batch.
     #[test]
     fn tool_dispatch_error_stops_batch() {
-        let (mut doc, mut history) = ctx();
         let (mut applied, mut seen) = (0usize, 0usize);
         let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
         let result = agent_loop(
             &mut |_| call_reply(3),
-            &mut |_, _, _, _| {
+            &mut |_, _| {
                 seen += 1;
                 if seen == 2 {
                     Err(AgentError::ToolDispatch("fail".into()))
@@ -437,8 +404,6 @@ mod tests {
                 }
             },
             &mut messages,
-            &mut doc,
-            &mut history,
             AGENT_STEP_BUDGET_DEFAULT,
         );
         assert!(matches!(result, Err(AgentError::ToolDispatch(_))));
@@ -455,223 +420,6 @@ mod tests {
             AgentError::NoContent,
         ] {
             assert!(!format!("{e}").is_empty(), "empty Display for {e:?}");
-        }
-    }
-
-    // ── mockito: the whole turn, over a real socket ──────────────────────────
-
-    /// Captures every request body the mock server receives, in arrival order.
-    ///
-    /// mockito evaluates **every** mock's request matcher against **every**
-    /// request, so this is attached to exactly one mock of a sequence and still
-    /// sees all of them, once each. The `len()` assertions in the tests below
-    /// are what would catch it if that ever changed.
-    #[derive(Clone, Default)]
-    struct Bodies(Arc<Mutex<Vec<String>>>);
-
-    impl Bodies {
-        fn matcher(&self) -> impl Fn(&mockito::Request) -> bool + Send + Sync + 'static {
-            let sink = self.0.clone();
-            move |request| {
-                let body = request
-                    .utf8_lossy_body()
-                    .map(|b| b.into_owned())
-                    .unwrap_or_default();
-                sink.lock().expect("recorder mutex").push(body);
-                true
-            }
-        }
-
-        fn json(&self, n: usize) -> Value {
-            let captured = self.0.lock().expect("recorder mutex");
-            let raw = captured.get(n).unwrap_or_else(|| {
-                panic!(
-                    "expected at least {} request(s), saw {}",
-                    n + 1,
-                    captured.len()
-                )
-            });
-            serde_json::from_str(raw).expect("the request body must be JSON")
-        }
-
-        fn len(&self) -> usize {
-            self.0.lock().expect("recorder mutex").len()
-        }
-    }
-
-    fn tool_call_body(id: &str, arguments: &str) -> String {
-        json!({"choices": [{"message": {
-            "role": "assistant",
-            "content": Value::Null,
-            "tool_calls": [{
-                "id": id,
-                "type": "function",
-                "function": {"name": "create_line", "arguments": arguments}
-            }]
-        }}]})
-        .to_string()
-    }
-
-    const LINE_ARGS: &str = r#"{"x1":0,"y1":0,"x2":20,"y2":0}"#;
-
-    /// AC 6 — a two-round turn sends the whole conversation back on the second
-    /// request: system, user, the assistant turn **with** its `tool_calls`, and
-    /// the `tool` turn with the matching id and the real dispatch outcome, in
-    /// that order. This is the test that fails if `send_fn` ever filters the
-    /// slice on `content` again.
-    #[test]
-    fn multi_step_turn_sends_the_whole_conversation_back() {
-        let mut server = mockito::Server::new();
-        let bodies = Bodies::default();
-        let _first = server
-            .mock("POST", "/chat/completions")
-            .with_status(200)
-            .with_body(tool_call_body("call_xyz", LINE_ARGS))
-            .expect(1)
-            .create();
-        let _second = server
-            .mock("POST", "/chat/completions")
-            .match_request(bodies.matcher())
-            .with_status(200)
-            .with_body(r#"{"choices":[{"message":{"role":"assistant","content":"Done."}}]}"#)
-            .create();
-
-        let (mut doc, mut history) = ctx();
-        let reply = run_agent_turn(
-            "draw a line",
-            &server.url(),
-            "k",
-            "test/model",
-            AGENT_STEP_BUDGET_DEFAULT,
-            &mut doc,
-            &mut history,
-        )
-        .expect("the turn must finish");
-
-        assert_eq!(reply, "Done.");
-        assert_eq!(doc.entities.len(), 1, "the tool call really was dispatched");
-        assert_eq!(bodies.len(), 2, "exactly two round trips");
-
-        let second = bodies.json(1);
-        let msgs = second["messages"].as_array().expect("messages array");
-        let roles: Vec<&str> = msgs.iter().filter_map(|m| m["role"].as_str()).collect();
-        assert_eq!(
-            roles,
-            ["system", "user", "assistant", "tool"],
-            "no turn may be dropped or reordered, body was {second}"
-        );
-        assert_eq!(msgs[2]["tool_calls"][0]["id"], "call_xyz");
-        assert_eq!(msgs[2]["tool_calls"][0]["function"]["arguments"], LINE_ARGS);
-        assert_eq!(msgs[3]["tool_call_id"], "call_xyz");
-        assert_eq!(
-            msgs[3]["content"],
-            "Line created: (0.000, 0.000) → (20.000, 0.000) mm."
-        );
-        assert_eq!(
-            second["tools"].as_array().map(|t| t.len()),
-            Some(5),
-            "every round offers the tools, body was {second}"
-        );
-    }
-
-    /// AC 9 — `run_agent_turn` forwards the model id it was given, unchanged.
-    /// Two different ids, so a hardcoded default cannot satisfy both.
-    #[test]
-    fn run_agent_turn_sends_the_model_it_was_given() {
-        for model in ["anthropic/claude-sonnet-4.6", "test/some-other-model"] {
-            let mut server = mockito::Server::new();
-            let bodies = Bodies::default();
-            let _mock = server
-                .mock("POST", "/chat/completions")
-                .match_request(bodies.matcher())
-                .with_status(200)
-                .with_body(r#"{"choices":[{"message":{"role":"assistant","content":"hi"}}]}"#)
-                .create();
-
-            let (mut doc, mut history) = ctx();
-            let reply = run_agent_turn(
-                "hello",
-                &server.url(),
-                "k",
-                model,
-                AGENT_STEP_BUDGET_DEFAULT,
-                &mut doc,
-                &mut history,
-            );
-            assert_eq!(reply.unwrap(), "hi");
-            assert_eq!(bodies.len(), 1);
-            assert_eq!(bodies.json(0)["model"], model);
-        }
-    }
-
-    /// AC 11 — against an endpoint that only ever asks for another tool call,
-    /// the turn stops at the budget, says the real number, and has applied no
-    /// more than `budget` actions.
-    #[test]
-    fn a_relentless_endpoint_stops_at_the_budget() {
-        let mut server = mockito::Server::new();
-        let _mock = server
-            .mock("POST", "/chat/completions")
-            .with_status(200)
-            .with_body(tool_call_body("call_loop", LINE_ARGS))
-            .create();
-
-        let (mut doc, mut history) = ctx();
-        let result = run_agent_turn(
-            "draw forever",
-            &server.url(),
-            "k",
-            "test/model",
-            2,
-            &mut doc,
-            &mut history,
-        );
-
-        match result {
-            Err(AgentError::IterationLimitExceeded(budget)) => {
-                assert_eq!(budget, 2);
-                assert!(AgentError::IterationLimitExceeded(budget)
-                    .to_string()
-                    .contains('2'));
-            }
-            other => panic!("expected the budget to stop the turn, got {other:?}"),
-        }
-        assert_eq!(
-            doc.entities.len(),
-            2,
-            "at most the budget may be dispatched"
-        );
-    }
-
-    /// A transport-level status error reaches the caller as `Transport`, with
-    /// the readable text the transport produced.
-    #[test]
-    fn a_401_reaches_the_caller_as_a_transport_error() {
-        let mut server = mockito::Server::new();
-        let _mock = server
-            .mock("POST", "/chat/completions")
-            .with_status(401)
-            .with_body("nope")
-            .create();
-
-        let (mut doc, mut history) = ctx();
-        let result = run_agent_turn(
-            "hello",
-            &server.url(),
-            "k",
-            "test/model",
-            AGENT_STEP_BUDGET_DEFAULT,
-            &mut doc,
-            &mut history,
-        );
-        match result {
-            Err(AgentError::Transport(message)) => {
-                assert!(
-                    message.contains("Authentication failed (HTTP 401)"),
-                    "{message}"
-                );
-            }
-            other => panic!("expected a transport error, got {other:?}"),
         }
     }
 
