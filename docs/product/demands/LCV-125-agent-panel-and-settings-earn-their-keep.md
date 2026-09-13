@@ -45,6 +45,14 @@ loud what it actually does with the key.
 - `src/agent/settings_ui.rs`: a Model field, a step-budget slider bounded by
   `AGENT_STEP_BUDGET_MIN..=AGENT_STEP_BUDGET_MAX`, and a plain-language warning
   that the API key is stored in clear text.
+- **One absorbed pre-existing fix** (`architect` ruling, 2026-09-13, written in
+  here by `product-owner` before implementation starts): `src/agent/mod.rs`
+  declares `pub mod settings_ui;` with no `pub use` companion, and
+  `src/app/panels.rs` therefore calls
+  `crate::agent::settings_ui::draw_agent_settings` — a deep-path import from
+  outside the module, which AGENTS.md §Module tree forbids. It dates to
+  `0d1d52b` (LCV-105) and is not this demand's debt, but this demand already has
+  both files open and the fix is two lines. See AC 13.
 
 ## Out of scope
 
@@ -71,6 +79,34 @@ loud what it actually does with the key.
   reports. It never spawns a thread and never constructs a `Document` or a
   `History`."*
 - **Upgrading `egui`.** Pinned at 0.29.1.
+- **A tree-wide regression scan for deep-path imports.** Proposed by `architect`
+  on the premise that "the tree goes from one hit to zero", which would have
+  made this the cheapest moment it will ever be. `product-owner` measured it and
+  the premise does not hold: outside the `#[cfg(test)]` sections there are
+  **13** cross-module deep-path `use`/path expressions in 12 files, not one —
+  `src/app/init.rs` (5), `src/app/persist.rs` (2), `src/io/svg/export.rs` (2),
+  `src/io/svg/import.rs`, `src/io/autosave.rs`, `src/text/layout.rs`,
+  `src/tools/trim.rs`, `src/app/mod.rs`, `src/app/input.rs`,
+  `src/agent/bridge.rs`, `src/app/panels.rs` and **`src/agent/settings_ui.rs`
+  itself**, which does `use crate::io::settings::Settings;`. A scan shipped
+  today would carry a twelve-entry grandfather list, which is the weakest
+  possible shape for this repository's weakest test form. Reproduce with:
+
+  ```bash
+  for f in $(grep -rlE "crate::[a-z_0-9]+::[a-z_0-9]+::" src/ --include="*.rs"); do
+    end=$(awk '/^#\[cfg\(test\)\]/{print NR-1; f=1; exit} END{if(!f) print NR}' "$f")
+    own=$(echo "$f" | cut -d/ -f2)
+    head -n "$end" "$f" | grep -noE "crate::[a-z_0-9]+::[a-z_0-9]+::[A-Za-z_0-9]*" |
+      while IFS=: read -r ln hit; do
+        [ "$(echo "$hit" | cut -d: -f3)" != "$own" ] && echo "$f:$ln: $hit"
+      done
+  done
+  ```
+
+  Whether the other twelve are violations or legitimate (some target items their
+  parent `mod.rs` does not re-export) is a module-boundary call and belongs to
+  `architect`, in its own demand. Do **not** smuggle a scan with an exception
+  list into this one.
 
 ## Acceptance criteria
 
@@ -144,12 +180,28 @@ loud what it actually does with the key.
     still shows `32` on the slider after the dialog is opened and closed, and
     still runs at `32`.
 
-13. **Purity, caps, gates.** `panel.rs` and `settings_ui.rs` may import `egui`
+13. **The deep-path import is closed, and only that one.** `src/agent/mod.rs`
+    gains `pub use settings_ui::draw_agent_settings;` next to its six siblings
+    (`wire`, `transport`, `bridge`, `tools`, `loop_` and `panel` each already
+    have a `pub use` companion — `settings_ui` is the only one without, which is
+    what makes this an omission rather than a design position), and
+    `src/app/panels.rs` calls `crate::agent::draw_agent_settings(ui, settings)`.
+    Two lines changed plus one added. A bounded scan over `panels.rs`'s
+    implementation section asserts the needle
+    `crate::agent::settings_ui::` (built with `concat!`) is **absent** and
+    `crate::agent::draw_agent_settings` present. **Fix nothing else**: if the
+    implementer notices another deep path anywhere in the tree, leave it and say
+    so in the handover — see §Out of scope.
+
+14. **Purity, caps, gates.** `panel.rs` and `settings_ui.rs` may import `egui`
     and MUST NOT import `eframe` or `rfd`; they remain the only two files under
     `src/agent/` that import `egui` (bounded scan over the whole `src/agent/`
     tree). Both are at or under 300 implementation LOC by ADR 0004's `awk`
-    recipe, never `wc -l`, and the numbers are reported (`panel.rs` is 155
-    before this work, `settings_ui.rs` 55). `cargo fmt --all -- --check`,
+    recipe, never `wc -l`, and the numbers are reported (**corrected
+    2026-09-13**: `panel.rs` is **116** before this work, not the 155 this
+    demand was written with — LCV-123 deleted `submit` from it — and
+    `settings_ui.rs` is **56**, not 55; both re-measured with the ADR 0004
+    recipe at `5452fd6` and at `96a8fb4`, which agree). `cargo fmt --all -- --check`,
     `cargo clippy --all-targets -- -D warnings` and `cargo test --all` exit 0.
 
 ## Expected tests
@@ -185,7 +237,10 @@ is a rendering assertion.
   of the four fields (four cases) and `false` for an untouched frame.
 - **Unit / AC 12** — a `Settings` with `agent_step_budget: 200` drawn through
   the form and then read back through `clamp_step_budget` yields `32`.
-- **Unit / AC 13** — the `egui` / `eframe` / `rfd` scans over `src/agent/` and
+- **Unit / AC 13** — the two bounded scans over `panels.rs`, each shown to
+  discriminate, plus the compile itself: the old deep path stops resolving only
+  if it is removed, so the positive control matters more than usual here.
+- **Unit / AC 14** — the `egui` / `eframe` / `rfd` scans over `src/agent/` and
   the LOC measurements.
 - **Mutation checks the implementer runs first, in a scratch `git worktree`,
   reporting each result**:
@@ -197,7 +252,8 @@ is a rendering assertion.
   (d) move the warning sentence into `.on_hover_text(...)` → AC 10 fails by
   name;
   (e) make `draw_agent_settings` return `false` unconditionally → AC 11 fails
-  by name.
+  by name;
+  (f) restore the deep path in `panels.rs` → AC 13's absence scan fails by name.
 - **[manual] smoke** — `cargo run`. Open `Help > Agent settings`: four rows, the
   key masked, the warning readable without hovering anything, the slider moving
   between 1 and 32. Set the budget to **1**, ask the agent for two lines, and
@@ -236,11 +292,14 @@ is a rendering assertion.
   of them.** Six un-failable tests have shipped here. Every scan must be bounded
   and demonstrated; the manual smoke is not a formality for the rendering
   criteria, it is the actual acceptance.
-- **`panel.rs` grows.** It is at 155 of 300 before this work and gains six
-  render arms. If the render loop crosses the cap, split the per-role row
-  renderer into a private helper in the same file before reaching for a new
-  file; if it still crosses, flag it to `architect` rather than inventing a
-  seam.
+- **`panel.rs` grows — but much less than this demand first assumed.** It is at
+  **116** of 300 before this work, not 155: LCV-123 deleted `submit` from it.
+  Six render arms cannot get near the cap from there, so the cap is no longer a
+  live risk for this demand. The rule if it ever does bite is unchanged: split
+  the per-role row renderer into a private helper in the same file before
+  reaching for a new file, and flag `architect` rather than inventing a seam.
+  (Note for whoever schedules LCV-129, which adds a Cancel button to the same
+  thinking row: re-measure after this demand lands.)
 - **A masked field plus a warning is a mixed message, deliberately.** The mask
   stops shoulder-surfing while the warning states the storage truth. Do not
   "resolve" the tension by unmasking the field or by dropping the warning.
@@ -263,8 +322,13 @@ is a rendering assertion.
   persists on close and scopes its borrows (LCV-119);
   `draw_agent_settings` already returns a `changed` bool with two fields —
   this demand takes it to four.
-- Measured before the work (ADR 0004 `awk`): `panel.rs` 155,
-  `settings_ui.rs` 55.
+- **Measured before the work (ADR 0004 `awk`, at `96a8fb4`): `panel.rs` 116,
+  `settings_ui.rs` 56.** The 155 this demand originally recorded was stale —
+  LCV-123 removed `submit`. A third number, 103, circulated during refinement;
+  it does not reproduce with
+  `awk '/^#\[cfg\(test\)\]/{print NR-1; f=1; exit} END{if(!f) print NR}' src/agent/panel.rs`,
+  which answers 116 at `5452fd6` and at `96a8fb4` alike. 116 is the number to
+  use and to re-report after the work.
 - **Parallelizable with LCV-124** once LCV-123 has landed: the two demands touch
   disjoint files (`panel.rs` + `settings_ui.rs` here; `classifier.rs` +
   `app/cmdline.rs` there).
