@@ -611,4 +611,42 @@ mod tests {
             );
         }
     }
+
+    // -- AC 3, 4 — promoted static checks (review finding) -------------------
+    //
+    // Both were hand-run greps until a mutation review proved that "hand-run"
+    // is not a gate: adding `app.saved_revision = Some(app.history.revision())`
+    // inside `flush_if_due`'s due branch passed all 746 library tests. A
+    // source scan, unlike a grep in a PR description, runs on every
+    // `cargo test`.
+
+    /// AC 3 — `src/app/autosave.rs` must never mention `saved_revision`.
+    /// Autosave (`flush_if_due` / `sync_dirty` / `mark_clean`) is crash
+    /// recovery, not a save — the file on disk, if any, is still stale — so
+    /// it must never learn about the safe-to-discard signal. This is the
+    /// exact regression a review mutation caught with zero test failures
+    /// before this test existed: `flush_if_due` is the one call site the
+    /// whole demand exists to keep honest, and nothing else guarded it.
+    #[test]
+    fn autosave_never_mentions_saved_revision() {
+        let src = include_str!("autosave.rs");
+        assert!(
+            !src.contains("saved_revision"),
+            "src/app/autosave.rs must not reference saved_revision at all (AC 3)"
+        );
+    }
+
+    /// AC 4 — `src/io/file_actions.rs` must never call the bare
+    /// `mark_clean` the five file actions called before this demand; each
+    /// now calls `mark_saved`, which clears the autosave debounce *and*
+    /// marks the document safe to discard.
+    #[test]
+    fn file_actions_never_calls_mark_clean() {
+        let src = include_str!("../io/file_actions.rs");
+        assert!(
+            !src.contains("mark_clean"),
+            "src/io/file_actions.rs must not call mark_clean (AC 4): every \
+             file action must call mark_saved instead"
+        );
+    }
 }

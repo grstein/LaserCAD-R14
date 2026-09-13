@@ -12,9 +12,11 @@ use egui::{Align2, Context, Window};
 /// The definitive answer returned by a confirmation dialog.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum DialogResult {
-    /// The user clicked **Yes**.
+    /// The user clicked the confirm button (`confirm_label`, e.g. `"Yes"` or
+    /// `"Discard"` — the label is caller-supplied, LCV-113).
     Confirmed,
-    /// The user clicked **No**.
+    /// The user clicked the cancel button (`cancel_label`, e.g. `"No"` or
+    /// `"Cancel"` — the label is caller-supplied, LCV-113).
     Cancelled,
 }
 
