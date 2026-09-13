@@ -7,6 +7,7 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
 | LCV-127 | The drag term of `viewport_is_live` has no behavioural test | 11 | LCV-120 |
+| LCV-126 | The F1 shortcuts dialog does not mention the command line | 11 | LCV-116, LCV-111 |
 | LCV-129 | A hung endpoint wedges the app: the agent turn has no timeout and no cancel | 12 | LCV-123, LCV-125 |
 
 **Marco 2 — complete, 2026-09-13.** All five demands are `Done` and reviewed: **LCV-121** (`d584f4d`), **LCV-122**
@@ -163,7 +164,6 @@ _None._
 
 | ID | Title | Phase |
 |---|---|---|
-| LCV-126 | The F1 shortcuts dialog does not mention the command line | 11 |
 | LCV-128 | `AGENTS.md`'s normative per-file and per-symbol enumerations have no scan | 12 |
 | LCV-130 | The test suite's isolation from the network depends on the absence of a proxy | 12 |
 | LCV-131 | Typing `LINE` sends the word "line" to a language model | 12 |

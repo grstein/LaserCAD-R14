@@ -1315,7 +1315,7 @@
       "id": "LCV-126",
       "title": "The F1 shortcuts dialog does not mention the command line",
       "phase": 11,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [
         "LCV-116",
         "LCV-111"
