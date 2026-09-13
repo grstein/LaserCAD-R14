@@ -12,8 +12,8 @@
 //!   path (`App::default()`) writes nothing at all.
 //!
 //! `load_from()` is **infallible** — it returns
-//! [`Settings::default()`] on any error (missing file, parse failure, no
-//! platform dir). A file that exists but fails to parse is renamed to a
+//! [`Settings::default()`] on any error (missing file, unreadable file, parse
+//! failure). A file that exists but fails to parse is renamed to a
 //! `.bak` sibling before defaults are returned (mirroring the `.tmp` staging
 //! file used by `save_to`), so the unreadable bytes are preserved rather than
 //! silently discarded; if that rename itself fails (e.g. an unwritable
