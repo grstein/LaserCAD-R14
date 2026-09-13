@@ -161,6 +161,7 @@ If you are the main Claude Code agent and the user asks for project work, defaul
 - Keep the **kernel pure**: no `egui`/`eframe`/`rfd` imports in `geometry/`, `document/`, `io/svg/`, `text/`, `cmdline/`.
 - **All entity mutation through `Command` trait + history stack.** No direct `Document.entities` mutation outside `document::commands` and `document::history`.
 - **No `unsafe`** without an inline justification and an ADR.
+- **`rfd` lives only in `src/io/dialogs.rs`.** Never add an `rfd` call anywhere else — it would sit outside the dialog guard. Per [ADR 0005](docs/adr/0005-native-dialogs-disarmed-by-default.md) the three wrappers are to be **disarmed until `crate::run()` arms them**, so a dialog reached from a test panics instead of hanging CI; that guard is decided but not yet implemented (own demand, ahead of LCV-114). Until it lands, ADR 0002 §A4 rule 1 is the only protection: no test may send `Ctrl+O` / `Ctrl+S` / `Ctrl+Shift+S`. No test ever arms the dialogs.
 - **No `unwrap()` / `expect()`** in library code except where an invariant is documented; tests can unwrap.
 - **One responsibility per file**, ≤300 **implementation** LOC — total lines minus the inline `#[cfg(test)] mod tests` block. Measure it with the `awk` recipe in §Module tree; `wc -l` is not the rule and has already produced a false blocking review finding. See [ADR 0004](docs/adr/0004-measuring-the-300-loc-cap.md).
 - **Doc comments** on `pub` items; module headers on `mod.rs`.
@@ -197,6 +198,7 @@ Default answers:
 - [`docs/adr/0002-headless-input-tests-and-dirty-tracking.md`](docs/adr/0002-headless-input-tests-and-dirty-tracking.md) — headless `App::update_ui` regression-test pattern, the single keyboard gate, and `History::revision()` as the autosave dirty signal.
 - [`docs/adr/0003-command-line-input-contract.md`](docs/adr/0003-command-line-input-contract.md) — the command-line input contract: the `cmdline` kernel module, `ToolKind`/`ToggleKind`/`ZoomKind`, the recall ring, and the `Tool::on_command_input` wiring.
 - [`docs/adr/0004-measuring-the-300-loc-cap.md`](docs/adr/0004-measuring-the-300-loc-cap.md) — how the 300-LOC cap is counted and measured, its two exemptions, and the "name the seam at 270, split at 300" rule.
+- [`docs/adr/0005-native-dialogs-disarmed-by-default.md`](docs/adr/0005-native-dialogs-disarmed-by-default.md) — native `rfd` dialogs are disarmed outside the app binary, so a test that reaches one panics instead of hanging CI.
 - [`docs/product/README.md`](docs/product/README.md) — product principles.
 - [`docs/product/product-owner-agent.md`](docs/product/product-owner-agent.md) — demand format and lifecycle.
 - [`docs/product/backlog.md`](docs/product/backlog.md) — prioritized backlog by state.
