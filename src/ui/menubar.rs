@@ -150,8 +150,12 @@ fn view_menu(ui: &mut egui::Ui, app: &mut App) {
             do_fit_to_bed(app);
         }
         ui.separator();
+        // The three mode checkboxes flip the same three flags as F7 / F3 / F8
+        // and as the status-bar indicators (LCV-116 AC 18): one flag, three
+        // paths, no third copy of the state.
         ui.checkbox(&mut app.grid_enabled, "Grid\tF7");
         ui.checkbox(&mut app.snap_enabled, "Snap\tF3");
+        ui.checkbox(&mut app.ortho_enabled, "Ortho\tF8");
     });
 }
 
@@ -176,6 +180,10 @@ fn tools_menu(ui: &mut egui::Ui, app: &mut App) {
 
 fn help_menu(ui: &mut egui::Ui, app: &mut App) {
     ui.menu_button("Help", |ui| {
+        if ui.button("Keyboard shortcuts\u{2026}\tF1").clicked() {
+            ui.close_menu();
+            do_shortcuts(app);
+        }
         if ui.button("About").clicked() {
             ui.close_menu();
             do_about(app);
@@ -209,6 +217,7 @@ pub(crate) fn do_select_all(app: &mut App) {
 #[rustfmt::skip] pub(crate) fn do_zoom_in(app: &mut App) { app.camera.zoom_in(Camera::ZOOM_STEP); }
 #[rustfmt::skip] pub(crate) fn do_zoom_out(app: &mut App) { app.camera.zoom_out(Camera::ZOOM_STEP); }
 #[rustfmt::skip] pub(crate) fn do_about(app: &mut App) { app.about_open = true; }
+#[rustfmt::skip] pub(crate) fn do_shortcuts(app: &mut App) { app.shortcuts_open = true; }
 #[rustfmt::skip] pub(crate) fn do_agent_settings(app: &mut App) { app.agent_settings_open = true; }
 
 /// Fit the viewport to the laser bed bounding box.
@@ -517,6 +526,108 @@ mod tests {
             !body[preset..save].contains("ui.separator();"),
             "the preset submenu groups with the save entries, not apart from them"
         );
+    }
+
+    // ── LCV-116 (d) — the View menu, and Help > Keyboard shortcuts… ───────
+
+    /// LCV-116 AC 19 — the View menu's contents are pinned: the three actions
+    /// LCV-116 did **not** add (`Zoom In`, `Zoom Out`, `Fit to Bed`, already
+    /// shipped and backed by `do_zoom_in` / `do_zoom_out` / `do_fit_to_bed`),
+    /// then the three mode checkboxes, `Ortho\tF8` last. Bounded to
+    /// `fn view_menu`, so this test's own body cannot satisfy the scan.
+    #[test]
+    fn view_menu_items_are_stable() {
+        let body = view_menu_body();
+        let expected = [
+            "\"Zoom In\"",
+            "\"Zoom Out\"",
+            "\"Fit to Bed\"",
+            "\"Grid\\tF7\"",
+            "\"Snap\\tF3\"",
+            "\"Ortho\\tF8\"",
+        ];
+        let mut last = 0usize;
+        for item in expected {
+            let at = body
+                .find(item)
+                .unwrap_or_else(|| panic!("the View menu must contain {item}"));
+            assert!(at >= last, "{item} is out of order in the View menu");
+            last = at;
+        }
+        for backing in ["do_zoom_in(app)", "do_zoom_out(app)", "do_fit_to_bed(app)"] {
+            assert!(body.contains(backing), "{backing} must back its menu item");
+        }
+    }
+
+    /// LCV-116 AC 18 — the Ortho checkbox is bound to the same flag `F8` and
+    /// the status-bar `ORTHO` indicator flip; it sits immediately below
+    /// `Snap\tF3`, and nothing else in the View menu writes it.
+    #[test]
+    fn ortho_checkbox_flips_the_same_flag_as_f8() {
+        let body = view_menu_body();
+        let snap = body
+            .find("ui.checkbox(&mut app.snap_enabled, \"Snap\\tF3\");")
+            .expect("positive control: the Snap checkbox is present");
+        let ortho = body
+            .find("ui.checkbox(&mut app.ortho_enabled, \"Ortho\\tF8\");")
+            .expect("the Ortho checkbox must be bound to app.ortho_enabled");
+        assert!(snap < ortho, "Ortho sits immediately below Snap");
+        let after_snap = snap + "ui.checkbox(&mut app.snap_enabled, \"Snap\\tF3\");".len();
+        assert!(
+            !body[after_snap..ortho].contains("ui.checkbox("),
+            "nothing may sit between the Snap and Ortho checkboxes"
+        );
+
+        // The flag itself: the menu path and the key path agree.
+        let mut menu = App::default();
+        let mut keyed = App::default();
+        menu.ortho_enabled = !menu.ortho_enabled; // what the checkbox does
+        assert!(crate::ui::shortcuts::dispatch_shortcuts(
+            egui::Key::F8,
+            egui::Modifiers::NONE,
+            false,
+            &mut keyed,
+        ));
+        assert_eq!(menu.ortho_enabled, keyed.ortho_enabled);
+        assert!(menu.ortho_enabled, "both paths turn ortho on from default");
+    }
+
+    /// LCV-116 AC 12 — `Help > Keyboard shortcuts…` opens the dialog and sits
+    /// above `About`.
+    #[test]
+    fn help_keyboard_shortcuts_sits_above_about() {
+        let mut app = App::default();
+        assert!(!app.shortcuts_open);
+        do_shortcuts(&mut app);
+        assert!(app.shortcuts_open);
+
+        let src = include_str!("menubar.rs");
+        let start = src.find("fn help_menu(").expect("help_menu must exist");
+        let end = src[start..]
+            .find("\n/// Select every entity")
+            .expect("help_menu is followed by do_select_all")
+            + start;
+        let body = &src[start..end];
+        let shortcuts = body
+            .find("\"Keyboard shortcuts")
+            .expect("the Help menu must offer the shortcuts dialog");
+        let about = body.find("\"About\"").expect("positive control: About");
+        assert!(shortcuts < about, "Keyboard shortcuts… sits above About");
+        assert!(
+            body[shortcuts..about].contains("do_shortcuts(app)"),
+            "the item must call do_shortcuts"
+        );
+    }
+
+    /// The source text of `fn view_menu`, bounded at the next item.
+    fn view_menu_body() -> &'static str {
+        let src = include_str!("menubar.rs");
+        let start = src.find("fn view_menu(").expect("view_menu must exist");
+        let end = src[start..]
+            .find("\n/// The Tools menu")
+            .expect("view_menu is followed by tools_menu")
+            + start;
+        &src[start..end]
     }
 
     /// LCV-115 AC#6 — picking a preset touches `app.export_preset` and nothing

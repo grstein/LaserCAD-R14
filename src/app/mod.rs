@@ -34,7 +34,7 @@ mod viewport;
 
 mod agent_poll;
 pub use agent_poll::poll_agent_rx;
-pub use autosave::autosave_due;
+pub use autosave::{autosave_due, schedule_flush_repaint};
 pub use bed_dialog::{apply_bed_dialog_result, draw_bed_dialog};
 pub use cmdline::submit;
 pub use file_ops::{apply_dialog_result, draw_discard_dialog, poll_close_request, PendingAction};
@@ -89,8 +89,18 @@ pub struct App {
     /// `history.commit` directly, the agent's commit sites, and undo/redo
     /// (ADR 0002 §B).
     pub last_synced_revision: u64,
+    /// When the last **successful** autosave write happened this session, or
+    /// `None` when none has (LCV-116 AC 7). Written in exactly one place —
+    /// `src/app/autosave.rs` — and only on the `Ok` branch, so a failed write
+    /// cannot claim a save the operator does not have. Read only by the
+    /// status-bar indicator; no control flow depends on it.
+    pub last_autosave_at: Option<Instant>,
     /// Controls visibility of the About dialog.
     pub about_open: bool,
+    /// Controls visibility of the Keyboard shortcuts dialog (LCV-116 AC 11).
+    /// Set by `F1` and by `Help > Keyboard shortcuts…`; cleared by egui's own
+    /// × through `Window::open`.
+    pub shortcuts_open: bool,
     /// Controls visibility of the Agent Settings dialog.
     pub agent_settings_open: bool,
     /// Draft `[width, height]` of the Bed size… modal, or `None` when it is
@@ -219,8 +229,12 @@ impl App {
 
         // Dirty signal, then the autosave flush (ADR 0002 §B): exactly one
         // `sync_dirty` per frame, unconditional, immediately before the check.
+        // `schedule_flush_repaint` runs *after* the flush, so a write that just
+        // happened schedules nothing; only a still-pending one does (LCV-116
+        // AC 9 — never an unconditional per-frame repaint).
         self.sync_dirty();
         autosave::flush_if_due(self);
+        autosave::schedule_flush_repaint(ctx, self);
 
         // Window close button (LCV-113): cancel the close and park
         // `PendingAction::Exit` when the document is dirty.

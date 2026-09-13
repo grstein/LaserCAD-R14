@@ -7,10 +7,10 @@
 //!   before the `CentralPanel` so egui shrinks the canvas to what is left.
 //! - [`draw_agent_side_panel`] — the AI assistant panel (LCV-080), only when
 //!   `agent_panel_open`.
-//! - [`draw_dialogs`] — About, Agent Settings, the error modal, the
-//!   discard-confirmation dialog (LCV-113) and the Bed size… dialog
-//!   (LCV-114), rendered after the `CentralPanel` so they float above the
-//!   canvas.
+//! - [`draw_dialogs`] — About, Keyboard shortcuts (LCV-116), Agent Settings,
+//!   the error modal, the discard-confirmation dialog (LCV-113) and the Bed
+//!   size… dialog (LCV-114), rendered after the `CentralPanel` so they float
+//!   above the canvas.
 //!
 //! No key is read here: `src/app/input.rs` is the single keyboard gate
 //! (LCV-103 / ADR 0002 §A6).
@@ -51,11 +51,13 @@ pub fn draw_agent_side_panel(ctx: &egui::Context, app: &mut App) {
         });
 }
 
-/// Render the modal dialogs (LCV-069, LCV-076, LCV-062, LCV-113, LCV-114).
+/// Render the modal dialogs (LCV-069, LCV-076, LCV-062, LCV-113, LCV-114,
+/// LCV-116).
 ///
 /// Called after the `CentralPanel` so the windows float above the canvas.
 pub fn draw_dialogs(ctx: &egui::Context, app: &mut App) {
     crate::ui::about_dialog(ctx, &mut app.about_open);
+    crate::ui::shortcuts_dialog(ctx, &mut app.shortcuts_open);
     agent_settings_dialog(ctx, app);
     error_modal(ctx, app);
     draw_discard_dialog(ctx, app);

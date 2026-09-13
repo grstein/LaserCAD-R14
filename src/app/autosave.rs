@@ -7,6 +7,14 @@
 //! the only writer of `dirty_since = None` — and the *timing*: how long a
 //! change waits before it is written, and the once-per-frame flush check.
 //!
+//! LCV-116 adds the third piece the timing half was missing:
+//! [`schedule_flush_repaint`]. `flush_if_due` only runs inside a frame, and
+//! egui stops repainting an idle app, so before that demand a document could
+//! sit dirty and never be written at all. One
+//! `Context::request_repaint_after` *while a write is pending* closes it. It
+//! is deliberately conditional: a blanket per-frame repaint would also make
+//! autosave fire, and would burn a core for the life of the process.
+//!
 //! MUST NOT import `eframe` or `rfd`.
 
 use std::time::{Duration, Instant};
@@ -36,10 +44,46 @@ pub fn autosave_due(dirty_since: Option<Instant>, now: Instant) -> bool {
 /// call so the flush sees this frame's mutations.
 pub fn flush_if_due(app: &mut App) {
     if autosave_due(app.dirty_since, Instant::now()) {
-        let _ = crate::io::save_autosave(&app.document);
-        // Cleared unconditionally: a failed write is dropped, not retried
-        // every frame. The next document change re-arms the debounce.
-        app.mark_clean();
+        record_autosave_outcome(app, crate::io::save_autosave(&app.document).is_ok());
+    }
+}
+
+/// Apply the outcome of one autosave write attempt (LCV-116 AC 7).
+///
+/// Split out of [`flush_if_due`] so both branches are reachable from a unit
+/// test without writing to the operator's real data directory — ADR 0002 §A4
+/// rule 2 forbids a test that lets a real flush happen, and there is no
+/// path-injected seam on [`crate::io::save_autosave`]. `flush_if_due` is the
+/// only caller and passes `save_autosave(...).is_ok()`; a bounded source scan
+/// in this file's tests pins that, so the seam cannot be rewired to a
+/// hard-coded `true`.
+///
+/// - `wrote == true` → stamp `last_autosave_at`. This is the only writer of
+///   that field in the tree.
+/// - Either way → [`App::mark_clean`]. Unconditional on purpose (LCV-102
+///   AC 18): a failed write is dropped, not retried every frame, or the
+///   debounce would spin. The next document change re-arms it.
+fn record_autosave_outcome(app: &mut App, wrote: bool) {
+    if wrote {
+        app.last_autosave_at = Some(Instant::now());
+    }
+    app.mark_clean();
+}
+
+/// Ask egui for one more frame while an autosave write is still pending
+/// (LCV-116 AC 9).
+///
+/// Called from [`App::update_ui`](super::App::update_ui) immediately *after*
+/// [`flush_if_due`], so a write that just landed leaves `dirty_since` at
+/// `None` and schedules nothing. A clean app therefore requests no repaint
+/// here at all and egui is free to go idle — which is the whole point, and is
+/// what the LCV-116 integration test asserts alongside the dirty case.
+///
+/// The delay is the debounce's remainder, so the follow-up frame arrives just
+/// as the write becomes due rather than immediately.
+pub fn schedule_flush_repaint(ctx: &egui::Context, app: &App) {
+    if let Some(since) = app.dirty_since {
+        ctx.request_repaint_after(AUTOSAVE_DEBOUNCE.saturating_sub(since.elapsed()));
     }
 }
 
@@ -117,5 +161,151 @@ mod tests {
         assert!(app.dirty_since.is_none());
         flush_if_due(&mut app);
         assert!(app.dirty_since.is_none());
+    }
+
+    /// LCV-116 AC 7 — a successful write stamps `last_autosave_at` and clears
+    /// the debounce.
+    #[test]
+    fn last_autosave_at_is_set_only_on_success() {
+        let mut app = App {
+            dirty_since: Some(Instant::now()),
+            ..App::default()
+        };
+        assert!(app.last_autosave_at.is_none());
+
+        record_autosave_outcome(&mut app, true);
+
+        assert!(
+            app.last_autosave_at.is_some(),
+            "an Ok write must stamp the timestamp"
+        );
+        assert!(app.dirty_since.is_none(), "and clear the debounce");
+    }
+
+    /// LCV-116 AC 7 / LCV-102 AC 18 — a **failed** write stamps nothing but
+    /// still clears the debounce, so the flush cannot spin once per frame.
+    #[test]
+    fn a_failed_write_clears_the_debounce_without_claiming_a_save() {
+        let mut app = App {
+            dirty_since: Some(Instant::now()),
+            ..App::default()
+        };
+
+        record_autosave_outcome(&mut app, false);
+
+        assert!(
+            app.last_autosave_at.is_none(),
+            "a failed write must not claim a save the operator does not have"
+        );
+        assert!(
+            app.dirty_since.is_none(),
+            "but the debounce is still cleared (LCV-102 AC 18)"
+        );
+    }
+
+    /// LCV-116 AC 7 — a second successful write moves the timestamp forward,
+    /// so the indicator reflects the latest write and not the first one.
+    #[test]
+    fn a_later_success_moves_the_timestamp_forward() {
+        let mut app = App::default();
+        record_autosave_outcome(&mut app, true);
+        let first = app.last_autosave_at.expect("stamped");
+        std::thread::sleep(Duration::from_millis(2));
+        record_autosave_outcome(&mut app, true);
+        assert!(app.last_autosave_at.expect("stamped") > first);
+    }
+
+    /// LCV-116 AC 7 — `App::default()` has never autosaved.
+    #[test]
+    fn default_app_has_no_autosave_timestamp() {
+        assert!(App::default().last_autosave_at.is_none());
+    }
+
+    /// LCV-116 AC 7 — the seam `record_autosave_outcome` exists for
+    /// testability must still be fed by the **real** write result. Bounded to
+    /// `fn flush_if_due`, so this test's own body cannot satisfy the scan.
+    #[test]
+    fn flush_feeds_the_real_write_result_into_the_outcome() {
+        let body = flush_if_due_body();
+        assert!(
+            body.contains("crate::io::save_autosave(&app.document).is_ok()"),
+            "flush_if_due must pass the real write result, not a literal"
+        );
+        assert!(
+            body.contains("record_autosave_outcome(app,"),
+            "positive control: the outcome helper is called from flush_if_due"
+        );
+        for literal in ["record_autosave_outcome(app, true)", "let _ = crate::io"] {
+            assert!(!body.contains(literal), "flush_if_due must not {literal}");
+        }
+    }
+
+    /// LCV-116 AC 7 — exactly one writer of `last_autosave_at` in the whole
+    /// implementation half of this file, and it is the `Ok` branch.
+    #[test]
+    fn the_timestamp_has_a_single_writer() {
+        let implementation = implementation_source();
+        let writes: Vec<_> = implementation
+            .match_indices("last_autosave_at = ")
+            .map(|(i, _)| i)
+            .collect();
+        assert_eq!(writes.len(), 1, "exactly one writer of last_autosave_at");
+        let guard = implementation
+            .find("if wrote {")
+            .expect("positive control: the Ok branch guard");
+        assert!(guard < writes[0], "the write sits behind the Ok branch");
+        assert!(
+            implementation.contains("app.mark_clean();"),
+            "positive control: mark_clean is still called"
+        );
+    }
+
+    /// LCV-116 AC 9 — the repaint request is conditional on a pending write.
+    /// A blanket `ctx.request_repaint()` would make the autosave fire too and
+    /// would burn a core forever; this scan is what rejects it.
+    #[test]
+    fn the_repaint_request_is_conditional() {
+        let implementation = implementation_source();
+        let start = implementation
+            .find("pub fn schedule_flush_repaint(")
+            .expect("schedule_flush_repaint must exist");
+        let body = &implementation[start..];
+        assert!(
+            body.contains("if let Some(since) = app.dirty_since {"),
+            "the repaint must be guarded on a pending write"
+        );
+        assert!(
+            body.contains("ctx.request_repaint_after("),
+            "positive control: the scheduled call is present"
+        );
+        assert!(
+            !implementation.contains("ctx.request_repaint()"),
+            "no unconditional per-frame repaint may live in this module"
+        );
+    }
+
+    /// The implementation half of this file — everything before the bare
+    /// `#[cfg(test)]` anchor. Bounding every scan to it is what stops a test
+    /// body from satisfying its own assertion (a defect this project has hit
+    /// four times).
+    fn implementation_source() -> &'static str {
+        let src = include_str!("autosave.rs");
+        let cfg_test_at = src
+            .find("\n#[cfg(test)]")
+            .expect("autosave.rs must have a bare #[cfg(test)] anchor");
+        &src[..cfg_test_at]
+    }
+
+    /// The source text of `fn flush_if_due`, up to the next item.
+    fn flush_if_due_body() -> &'static str {
+        let implementation = implementation_source();
+        let start = implementation
+            .find("pub fn flush_if_due(")
+            .expect("flush_if_due must exist");
+        let end = implementation[start..]
+            .find("\n/// Apply the outcome")
+            .expect("flush_if_due is followed by record_autosave_outcome")
+            + start;
+        &implementation[start..end]
     }
 }

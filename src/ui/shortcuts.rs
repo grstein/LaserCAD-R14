@@ -75,7 +75,7 @@ const TOOL_KEYS: &[(Key, ToolKind)] = &[
 ///
 /// - Single-letter tool keys are suppressed when `wants_kbd` is `true` or any
 ///   modifier is held.
-/// - `Ctrl+Z/Y/N/O/S` and F3 / F7 / F8 fire unconditionally.
+/// - `Ctrl+Z/Y/N/O/S` and F1 / F3 / F7 / F8 fire unconditionally.
 ///
 /// Returns `true` when this key was consumed by a shortcut (LCV-111 AC 22).
 /// Deliberately **not** `#[must_use]`: the LCV-070 and LCV-104 suites call it
@@ -120,8 +120,15 @@ pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: 
     }
 
     // Toggle keys — bare, unconditional (fire even with kbd focus).
+    // `F1` joins this class on purpose (LCV-116 decision 5): it opens a
+    // read-only dialog, steals no character, and the operator who is lost
+    // mid-text is exactly the one who needs it.
     if bare {
         match key {
+            Key::F1 => {
+                app.shortcuts_open = true;
+                return true;
+            }
             Key::F8 => {
                 app.ortho_enabled = !app.ortho_enabled;
                 return true;

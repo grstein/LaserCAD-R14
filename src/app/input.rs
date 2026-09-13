@@ -16,6 +16,7 @@
 //! |---|---|---|
 //! | global commands | `Ctrl+Z/Y/N/O/S`, `Ctrl+Shift+S` | yes (`shortcuts.rs`) |
 //! | view toggles | `F3`, `F7`, `F8` | yes (`shortcuts.rs`) |
+//! | help | `F1` | yes (`shortcuts.rs`) |
 //! | cancel | `Escape` | yes (here) |
 //! | view actions | `F`, `Ctrl+0` | no (here) |
 //! | tool activation | `L P R C A M E T X D` | no (`shortcuts.rs`) |
