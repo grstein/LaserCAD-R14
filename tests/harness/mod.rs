@@ -14,6 +14,12 @@
 //!    widget rect is not yet registered for hit-testing, `response.hovered()`
 //!    is `false`, and the viewport handler never runs. Keyboard-only tests are
 //!    single-frame.
+//! 4. **Enter only submits if the command line had focus in the *previous*
+//!    frame** (ADR 0003 §F3 trap 5). The widget submits on
+//!    `lost_focus() && key_pressed(Enter)`, so a single-frame Enter tap
+//!    against an unfocused field does nothing — a silent false negative that
+//!    looks exactly like a broken parser. Every command-line test is
+//!    therefore at least two frames; [`submit_command`] handles this.
 #![allow(dead_code)]
 
 use lasercad::app::App;
@@ -77,4 +83,31 @@ pub fn frame(ctx: &egui::Context, app: &mut App, events: Vec<egui::Event>) {
 /// Drive one frame containing a single complete key tap.
 pub fn tap(ctx: &egui::Context, app: &mut App, key: egui::Key, modifiers: egui::Modifiers) {
     frame(ctx, app, key_events(key, modifiers));
+}
+
+/// One `Event::Text` carrying `s` — what a real keyboard emits **alongside**
+/// the `Event::Key` for a printable keystroke.
+pub fn text_events(s: &str) -> Vec<egui::Event> {
+    vec![egui::Event::Text(s.to_owned())]
+}
+
+/// Type `s` into the command line the honest way: one frame per character.
+///
+/// The first character reaches the keyboard gate, which seeds the field and
+/// requests focus (LCV-111 AC 21); focus is granted at the end of that frame,
+/// so every later character is consumed by the focused `TextEdit` itself.
+/// Commands are short, so the frame count is trivial.
+pub fn type_command(ctx: &egui::Context, app: &mut App, s: &str) {
+    for ch in s.chars() {
+        frame(ctx, app, text_events(&ch.to_string()));
+    }
+}
+
+/// [`type_command`] followed by one Enter tap — the full operator gesture.
+///
+/// The Enter frame is separate on purpose (trap 4 above): the field must have
+/// held focus during the previous frame for `lost_focus()` to fire.
+pub fn submit_command(ctx: &egui::Context, app: &mut App, s: &str) {
+    type_command(ctx, app, s);
+    tap(ctx, app, egui::Key::Enter, egui::Modifiers::NONE);
 }
