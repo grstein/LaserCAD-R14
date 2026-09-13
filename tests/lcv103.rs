@@ -22,7 +22,7 @@ use harness::{frame, key_events, raw_input, submit_command, tap, type_command};
 use lasercad::app::App;
 use lasercad::document::CreateLine;
 use lasercad::geometry::{Line, Vec2};
-use lasercad::tools::{SelectTool, TextTool};
+use lasercad::tools::{LineTool, SelectTool, TextTool};
 
 // ---------------------------------------------------------------------------
 // Local helpers (the harness exposes exactly five items; these are test-local)
@@ -243,29 +243,35 @@ fn enter_commits_text_tool() {
     assert!(app.tool_manager.preview().is_empty(), "tool back to idle");
 }
 
-/// AC#8, amended by LCV-111 AC 14 and rebuilt by LCV-112 — the operator can
-/// also reach the command line by **clicking** it directly (not only by
-/// typing, LCV-111's seed path), and one Enter press still reaches the tool
-/// **exactly once**. The regression this guards: the gate's `wants_kbd`
-/// early-out must keep `TOOL_ROUTED_KEYS` from firing a *second* Enter on top
-/// of the widget's own `lost_focus() && key_pressed(Enter)` submit.
+/// AC#8, amended by LCV-111 AC 14 — the operator can also reach the command
+/// line by **clicking** it directly (not only by typing, LCV-111's seed
+/// path), and one Enter press still reaches the tool **exactly once**. The
+/// regression this guards: the gate's `wants_kbd` early-out must keep
+/// `TOOL_ROUTED_KEYS` from firing a *second* Enter on top of the widget's own
+/// `lost_focus() && key_pressed(Enter)` submit.
+///
+/// `LineTool` is the vehicle, not `TextTool`: since LCV-112,
+/// `TextTool::on_key` has no `Enter` arm (only `Escape`), so a reintroduced
+/// double dispatch would land on a no-op and this test would not move.
+/// `LineTool::on_key` still resets the tool to `Idle` on `Enter`
+/// (`src/tools/line.rs`), so an extra, gate-broken call is visible: the
+/// prompt would read `"LINE Specify first point:"` a beat early instead of
+/// chaining to the next segment.
 #[test]
 fn enter_reaches_the_tool_exactly_once_while_focused() {
     let (ctx, mut app, viewport) = boot();
-    app.tool_manager.set_tool(Box::new(TextTool::default()));
-    let p = viewport.center();
-    frame(&ctx, &mut app, vec![egui::Event::PointerMoved(p)]); // warm-up
-    frame(&ctx, &mut app, click_events(p)); // anchor -> WaitingText
+    app.tool_manager.set_tool(Box::new(LineTool::default()));
 
     focus_command_line(&ctx, &mut app, viewport);
-    type_command(&ctx, &mut app, "HI");
+    type_command(&ctx, &mut app, "0,0");
     tap(&ctx, &mut app, egui::Key::Enter, none());
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "TEXT Specify height <5>:"
+        "LINE Specify next point (Enter to finish):",
+        "a double-dispatched Enter would also hit LineTool::on_key and cancel back to Idle"
     );
 
-    type_command(&ctx, &mut app, "10");
+    type_command(&ctx, &mut app, "100,0");
     tap(&ctx, &mut app, egui::Key::Enter, none());
 
     assert_eq!(
@@ -273,8 +279,11 @@ fn enter_reaches_the_tool_exactly_once_while_focused() {
         1,
         "Enter must commit exactly once — not twice (double dispatch), not zero"
     );
-    assert!(app.document.entity_count() > 0, "Hershey strokes committed");
-    assert!(app.tool_manager.preview().is_empty(), "tool back to idle");
+    assert_eq!(
+        app.tool_manager.active_status_text(),
+        "LINE Specify next point (Enter to finish):",
+        "LINE chains after a commit; a double dispatch would cancel it to Idle instead"
+    );
 }
 
 // ---------------------------------------------------------------------------

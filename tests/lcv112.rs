@@ -146,6 +146,46 @@ fn text_flow_commits_ten_millimetre_text_in_one_undo_step() {
     );
 }
 
+/// The final commit must release focus in the same frame it completes.
+///
+/// `src/ui/command_line.rs` reads `wants_raw_input()` *after* the Enter
+/// branch runs, so an accepted height that returns `TextTool` to `Idle`
+/// stops requesting focus right then — it must not take an extra frame, and
+/// it must not linger. Proved behaviourally, not by reading the focus flag:
+/// on the very next frame a bare `L` activates LINE instead of typing an `l`
+/// into a command line that is still (wrongly) holding focus. A reverted fix
+/// — checking `wants_raw_input()` *before* `submit()` runs instead of after
+/// — passes every other test in this suite and still fails this one, which
+/// is why it exists.
+#[test]
+fn the_final_commit_releases_focus_so_the_next_bare_letter_activates_a_tool() {
+    let (ctx, mut app, viewport) = boot();
+    app.tool_manager.set_tool(Box::new(TextTool::default()));
+    click_anchor(&ctx, &mut app, viewport);
+    submit_command(&ctx, &mut app, "HELLO");
+    submit_command(&ctx, &mut app, "10");
+    assert_eq!(
+        app.tool_manager.active_tool_name(),
+        "TEXT",
+        "still TEXT, just idle"
+    );
+    assert_eq!(app.history.len(), 1, "the commit already happened");
+
+    let mut events = key_events(egui::Key::L, none());
+    events.push(egui::Event::Text("l".to_owned()));
+    frame(&ctx, &mut app, events);
+
+    assert_eq!(
+        app.tool_manager.active_tool_name(),
+        "LINE",
+        "the command line must not still be holding focus after the commit"
+    );
+    assert_eq!(
+        app.command_line_input, "",
+        "the bare L must not have landed in the field as text"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // AC 17 — the default height
 // ---------------------------------------------------------------------------
