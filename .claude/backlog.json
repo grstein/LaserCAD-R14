@@ -1301,7 +1301,7 @@
       "id": "LCV-127",
       "title": "The drag term of `viewport_is_live` has no behavioural test",
       "phase": 11,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [
         "LCV-120"
       ],
@@ -1309,7 +1309,8 @@
       "milestone": "Phase 11 follow-up (outside the Marco 2 drive)",
       "demand_file": "docs/product/demands/LCV-127-drag-term-has-no-behavioural-test.md",
       "drive_order": 17,
-      "note": "Opened from the LCV-120 review and unblocked by it (LCV-120 Done: 0e11473, f118b7c, c61f2b5). viewport_is_live = hovered() || dragged() || !preview_entities.is_empty(); the hovered and preview terms each have a behavioural witness with a negative control in tests/lcv120_idle_repaint.rs, but dragged() has none \u2014 only a source scan proving the text is present, which says nothing about what happens when the operator pans. Not academic: dragged() is what keeps the camera moving while the middle button is held, so if it regresses a pan stutters or freezes mid-stroke. Phase 11, not part of the Marco 2 drive."
+      "note": "Opened from the LCV-120 review and unblocked by it (LCV-120 Done: 0e11473, f118b7c, c61f2b5). viewport_is_live = hovered() || dragged() || !preview_entities.is_empty(); the hovered and preview terms each have a behavioural witness with a negative control in tests/lcv120_idle_repaint.rs, but dragged() has none \u2014 only a source scan proving the text is present, which says nothing about what happens when the operator pans. Not academic: dragged() is what keeps the camera moving while the middle button is held, so if it regresses a pan stutters or freezes mid-stroke. Phase 11, not part of the Marco 2 drive.",
+      "shipped_commit": "97d1867"
     },
     {
       "id": "LCV-126",
