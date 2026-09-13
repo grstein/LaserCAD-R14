@@ -1017,13 +1017,14 @@
       "id": "LCV-110",
       "title": "Command-line parser (pure kernel module): X,Y / @X,Y / distance / aliases / toggles / zoom",
       "phase": 11,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Marco 1 — functional parity with v1.0.0 (v0.2.0)",
       "demand_file": "docs/product/demands/LCV-110-command-line-parser.md",
       "drive_order": 1,
-      "note": "ADR 0003 (ac9e796) binds this: module at src/cmdline/, joins the AGENTS.md purity list; ToolKind enum + tools::make() retires BOTH ui/shortcuts.rs::TOOL_KEYS string mapping AND ui/toolbar.rs::make_tool. Refined 36b0056. Product calls: '.' is always the decimal separator and ',' always the coordinate separator, no locale detection; the recall ring is a transcript (duplicates kept, Unknown pushed, Empty not); 'e' maps to Delete and EXTEND gets no alias (v2 binds Key::E to DeleteTool)."
+      "note": "ADR 0003 (ac9e796) binds this: module at src/cmdline/, joins the AGENTS.md purity list; ToolKind enum + tools::make() retires BOTH ui/shortcuts.rs::TOOL_KEYS string mapping AND ui/toolbar.rs::make_tool. Refined 36b0056. Product calls: '.' is always the decimal separator and ',' always the coordinate separator, no locale detection; the recall ring is a transcript (duplicates kept, Unknown pushed, Empty not); 'e' maps to Delete and EXTEND gets no alias (v2 binds Key::E to DeleteTool). SHIPPED 66af950; review returned REWORK REQUIRED on one blocking finding and the fix landed as 29ac39a. Reviewer ran six mutation probes and all bit correctly: comma-as-decimal, ring de-dup, e->Extend, a removed ToolKind arm (compile error, no wildcard), and a broken TOOL_KEYS loop (the headless tests/lcv110.rs test caught it, so it is not tautological). The blocking finding was that a blank push left the recall cursor untouched; v1's command-line.ts:192-196 resets historyIndex unconditionally on every Enter, so push() now resets the cursor before the blank-entry early return. 632 -> 661 lib tests. CI green all three platforms (run 34729102013). APPROVED after rework.",
+      "shipped_commit": "66af950,29ac39a"
     },
     {
       "id": "LCV-111",
