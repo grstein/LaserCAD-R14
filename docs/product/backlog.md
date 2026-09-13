@@ -8,6 +8,7 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 |---|---|---|---|
 | LCV-127 | The drag term of `viewport_is_live` has no behavioural test | 11 | LCV-120 |
 | LCV-125 | The panel shows what the agent did to the drawing | 12 | LCV-121, LCV-123 |
+| LCV-129 | A hung endpoint wedges the app: the agent turn has no timeout and no cancel | 12 | LCV-123, LCV-125 |
 
 **Marco 2**: four of the five demands are `Done` — LCV-121 (d584f4d), LCV-122
 (61d609b…ff267ec), LCV-123 (6102c68, e7ba0a6, af5ef82) and LCV-124 (96a8fb4,
@@ -146,16 +147,31 @@ _None._
 |---|---|---|
 | LCV-126 | The F1 shortcuts dialog does not mention the command line | 11 |
 | LCV-128 | `AGENTS.md`'s normative per-file and per-symbol enumerations have no scan | 12 |
-| LCV-129 | A hung endpoint wedges the app: the agent turn has no timeout and no cancel | 12 |
+| LCV-130 | The test suite's isolation from the network depends on the absence of a proxy | 12 |
+| LCV-131 | Typing `LINE` sends the word "line" to a language model | 12 |
 
-**Drive order after Marco 2**: LCV-129 → LCV-127 → LCV-126 → LCV-128. LCV-129
-jumps the other three because it is the only known defect that can wedge the
-application in a real user's hands — an unresponsive endpoint hangs the turn
-forever, latches `agent_busy`, and repaints every frame for the rest of the
-session (LCV-120 reopening through a different door), with no recovery but
-quitting. The user is about to run their first live prompt against OpenRouter.
-It is still **not** part of Marco 2 and must not be driven ahead of LCV-124 or
-LCV-125.
+**Drive order after Marco 2**: LCV-129 → LCV-127 → LCV-126 → LCV-128, with
+LCV-130 and LCV-131 newly opened and not yet placed — the `project-manager`
+owns where they land. LCV-129 is now `Ready` (refined at `4c0b46f`) and leads,
+because it is the only known defect that can wedge the application in a real
+user's hands — an unresponsive endpoint hangs the turn forever, latches
+`agent_busy`, and repaints every frame for the rest of the session (LCV-120
+reopening through a different door), with no recovery but quitting. The user is
+about to run their first live prompt against OpenRouter. It is still **not**
+part of Marco 2, and its `Depends on` now names LCV-125 as well at file level:
+both edit `src/agent/panel.rs` and LCV-125 lands first.
+
+The two new ones, opened 2026-09-13 from the LCV-124 review:
+
+- **LCV-130** (`348fd0c`, `303a3d1`, `dbad29f`) — the suite's isolation from
+  the network holds only while no proxy is configured. LCV-124 fixed its own
+  fixture at `a1b37aa`; what that did not reach is the rest of the suite. This
+  is the class of defect that leaks a credential from a green test run, so it
+  deserves a hard look at where it sits in the order.
+- **LCV-131** (`0c24170`) — with a key configured, typing a full command name
+  such as `line` or `circle` is unrecognised by the CAD grammar and is sent to
+  the model, at cost. Suggested agent is **`architect`**, not an implementer:
+  part of it amends ADR 0003 §A2's frozen alias set.
 
 ## Rejected
 
