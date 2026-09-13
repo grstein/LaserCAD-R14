@@ -130,14 +130,48 @@ into — and a way for the operator to make it without leaving the app.
    uppercase label (`CUT` / `MARK` / `ENGRAVE`) in the existing separated-segment
    style, always visible, never interactive. A pure
    `pub(crate) fn format_preset(preset: Preset) -> &'static str` supplies the
-   text and is unit-tested for all three variants.
+   text. `pub(crate)` is deliberate — the formatter is not public API — so the
+   text assertion for all three variants is a **unit** test inside
+   `src/ui/statusbar.rs`'s own `#[cfg(test)] mod tests`, and what an integration
+   test may add is only that the render path runs with each preset without
+   panicking and leaves `app.export_preset` alone.
+
+   > **Corrected 2026-09-13, after shipping.** As written for the implementer,
+   > this criterion mandated `pub(crate)` while the *Expected tests* list asked
+   > `tests/lcv115_preset_ui.rs` — an integration test, which links the crate
+   > from outside — to call `format_preset` directly. That is unreachable by
+   > construction, not a judgement call. The implementer honoured the normative
+   > criterion, put the text assertion in
+   > `src/ui/statusbar.rs::tests::format_preset_covers_all_three_variants`, and
+   > recorded the deviation in that test file's module header; the reviewer
+   > confirmed it. The wording above and the *Expected tests* bullet now say
+   > what shipped. No code changed.
 
 8. **Import detection.** `ImportedSvg` (introduced by LCV-114) gains
    `pub preset: Preset`. During `collect()`, the importer tracks the `id`
-   attribute of the enclosing `<g>`; the resulting preset is that of the **first**
-   group whose subtree produced at least one entity, matching on the exact ids
-   `"cut"` / `"mark"` / `"engrave"`. Geometry outside any recognised group, an
-   empty file, or an unrecognised group id yields `Preset::Cut`.
+   attribute of the enclosing `<g>`; the resulting preset is that of the **first
+   recognised group** whose subtree produced at least one entity, matching on the
+   exact ids `"cut"` / `"mark"` / `"engrave"`. **Geometry that is not inside a
+   recognised group does not decide anything** — it is imported, and the
+   detection walk simply carries on past it. `Preset::Cut` is the result only
+   when **no** recognised group produced an entity: an empty file, a file whose
+   geometry is all bare, a file whose only group ids are unrecognised, or any
+   mixture of those.
+
+   > **Corrected 2026-09-13, after shipping.** The original wording paired
+   > "the first group whose subtree produced at least one entity" with
+   > "geometry outside any recognised group … yields `Preset::Cut`", and the two
+   > sentences genuinely disagree on one real file shape: bare geometry followed
+   > by a populated `<g id="mark">`. Both the implementer and the reviewer
+   > flagged it. The reading above — the group wins, `Mark` — is the correct one
+   > and is what shipped. The reason is the risk this demand opens with: the
+   > exporter always emits all three groups, and hand-edited or foreign SVGs
+   > routinely carry stray top-level geometry, so letting one stray bare `<line>`
+   > outvote a populated `mark` group would silently downgrade a marking job to a
+   > cutting job on re-save — the destructive failure AC 9 exists to prevent.
+   > The fallback direction is unchanged: a file that names no preset at all
+   > still opens as `Cut`. No code changed; `src/io/svg/import.rs::collect`
+   > already implements exactly this.
 
 9. **Open adopts it.** `action_open` / `action_open_path` set
    `app.export_preset` from `ImportedSvg::preset`. A file exported with `Mark`,
@@ -175,7 +209,9 @@ ADR 0002 §A4 — follow it, do not restate it. egui is pinned at 0.29.1;
 - **Unit (AC 8)** in `src/io/svg/import.rs`:
   `import_detects_preset_from_group_id` (one case per id, using the existing
   `G_GROUPS_SVG`-style fixtures extended with mark/engrave variants);
-  `import_defaults_to_cut_for_bare_geometry`;
+  `import_defaults_to_cut_for_bare_geometry` — bare geometry *alone*, and an
+  empty file, yield `Cut`; bare geometry *followed by* a populated recognised
+  group yields that group's preset (AC 8's corrected reading);
   `import_ignores_empty_groups_and_takes_the_first_group_with_geometry` — a file
   with an empty `cut` group followed by a populated `mark` group yields `Mark`
   (this is exactly the shape this exporter writes, so it is the real-world case);
@@ -185,12 +221,17 @@ ADR 0002 §A4 — follow it, do not restate it. egui is pinned at 0.29.1;
   import, assert `preset == Mark`, re-export with the imported preset, assert the
   geometry is in the `mark` group and the coordinates match within `1e-9`
   (millimetres, at the document's bed height).
+- **Unit (AC 7)** in `src/ui/statusbar.rs`:
+  `format_preset_covers_all_three_variants` — `CUT` / `MARK` / `ENGRAVE`. It
+  lives here, not in the integration file, because `format_preset` is
+  `pub(crate)` and an integration test links the crate from outside (see AC 7's
+  correction note).
 - **Integration (AC 5, 6, 7)** in `tests/lcv115_preset_ui.rs` with `mod harness;`:
   `status_bar_shows_the_active_preset` — set `app.export_preset = Preset::Engrave`,
-  drive one `frame(&mut app, …)` through the real `App::update_ui` and assert it
-  does not panic, then assert `format_preset(Preset::Engrave) == "ENGRAVE"`
-  (egui has no text-scraping API; the frame proves the render path, the pure
-  function proves the text);
+  drive one `frame(&mut app, …)` through the real `App::update_ui`, assert it
+  does not panic and that `app.export_preset` is unchanged (egui has no
+  text-scraping API; the frame proves the render path, the unit test above
+  proves the text);
   `action_new_preserves_the_export_preset` — set `Mark`, call `action_new`,
   assert it is still `Mark` and the document is empty.
 - **Static checks (AC 10, 11)**: the persistence greps, the purity grep, `wc -l`
