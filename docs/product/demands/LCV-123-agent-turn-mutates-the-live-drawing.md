@@ -1,11 +1,51 @@
 # LCV-123 — The agent turn draws on the operator's real drawing
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 12
 - **Depends on**: LCV-121, LCV-122
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: implementer-rust — `6102c68` (the turn mutates the live
+  document: `run_agent_turn` gives up `Document` and `History` for an injected
+  ask-callback, `panel.rs::submit` deleted, `src/app/agent_turn.rs` arms the turn
+  and holds the fence and the coalesce gate, `agent_poll` drains to `Empty`,
+  `query_entities` / `query_selection`, the positional-index contract in the
+  system prompt, the clamped step budget, the end-of-turn undo-shape note and one
+  transcript row per action), `e7ba0a6` (rework — the round that closed both
+  blocking review findings: shallow agent imports through `src/agent/mod.rs`, and
+  a module header that matches the rule), `af5ef82` (docs: `src/app/mod.rs`'s
+  `agent_busy` repaint guard is pinned by a source scan, not by a timeout). Read
+  with `a99978a`, which amended this demand's own AC 1 and AC 3 mid-flight after
+  the code disproved two mutations — it is **not** an implementation commit and
+  changed no code. Reviewed, **APPROVED** at `af5ef82` after one rework round.
+
+  **Verification was local, not CI — the record should not imply otherwise.**
+  GitHub Actions has been down for this repository since roughly 17:28 UTC on
+  2026-09-13: every job dies in 2–5 seconds with zero steps recorded, including
+  on a Markdown-only commit pushed deliberately to test it, so the red checks on
+  these three commits carry no information about the code. The local gate is the
+  authoritative standard here. At `af5ef82` the reviewer independently ran
+  `cargo fmt --all -- --check` clean, `cargo clippy --all-targets -- -D warnings`
+  clean, and `cargo test --all --no-fail-fast` **1153 passed / 0 failed /
+  2 ignored** across 28 binaries. LCV-121 and LCV-122 were CI-verified on three
+  platforms; this demand was not.
+
+  **The release hazard opened by LCV-121 is closed.** `panel.rs::submit` — the
+  function that dispatched tool calls against a throwaway `Document::default()`
+  — was deleted outright rather than adapted; the panel now renders and reports.
+  The AC 3 exception list in `tests/lcv122_source_scans.rs` is now
+  `AGENT_DOCUMENT_EXCEPTIONS: [&str; 0]`, and the reviewer proved it is not
+  vacuous: reintroducing document state into `src/agent/panel.rs` failed the
+  scan, and then re-opening the exception list to smuggle it past failed again on
+  a second, independent assertion. The agent's edits land on the operator's real
+  canvas.
+
+  **`CHANGELOG.md` updated — the first Marco 2 entry to reach it.** LCV-121 and
+  LCV-122 each shipped with no entry, deliberately, because nothing was
+  operator-visible until this demand. The stale sentence *“The agent can read and
+  narrate the drawing but does not yet modify it end-to-end from chat”* was
+  replaced in place in the agent-harness bullet, which now also cites LCV-121,
+  LCV-122 and LCV-123.
 
 ## Problem
 
