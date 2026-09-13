@@ -1,11 +1,11 @@
 # LCV-120 — The viewport never lets the app idle
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 11
 - **Depends on**: none (interacts with LCV-105, LCV-116; invariant lives in `AGENTS.md` §Event flow → Repaint policy)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: implementer-rust — 0e11473 (implementation), f118b7c (rework from the blocking review finding: the AC 8 repaint scan must use AC 8's needle), c61f2b5 (Windows-only CI fix: the AC 8 scan compared source paths against forward-slash literals; production code untouched). Reviewed, APPROVED; CI green on ubuntu-24.04, windows-2022 and macos-15.
 
 ## Problem
 

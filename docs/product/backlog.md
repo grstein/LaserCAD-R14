@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-120 | The viewport never lets the app idle | 11 | — |
 | LCV-127 | The drag term of `viewport_is_live` has no behavioural test | 11 | LCV-120 |
 | LCV-121 | The transport speaks tool calls | 12 | — |
 | LCV-122 | The bridge: one action, one command, one undo entry | 12 | LCV-121 |
@@ -130,6 +129,7 @@ _None._
 | LCV-115 | Export preset selector (cut / mark / engrave) | 11 | 2026-09-13 | 2f20fdd, 24e36aa |
 | LCV-116 | Chrome completion: clickable mode toggles, autosave indicator, F1 shortcuts dialog, Ortho in the View menu | 11 | 2026-09-13 | fd9b4e4, 900f0c7 |
 | LCV-119 | Real user paths are injected: `cargo test` stops writing the developer's config and data directories | 11 | 2026-09-13 | 2d81a14, e90c3e0, 0e9c9c4 |
+| LCV-120 | The viewport never lets the app idle | 11 | 2026-09-13 | 0e11473, f118b7c, c61f2b5 |
 
 ## Blocked
 

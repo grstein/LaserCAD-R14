@@ -79,6 +79,7 @@ No version of LaserCAD v2 has been tagged or released yet. Everything below is u
 - Text drawn with the TEXT tool no longer sags below its baseline: 22 alphanumeric glyphs and `?` in the Hershey font table were authored with the wrong vertical coordinates, so words containing them sat partly below the line on canvas and in the exported SVG. Already-drawn text is not migrated — re-type it to pick up the repair. See LCV-117.
 - Exported jobs no longer land vertically offset on any machine whose bed is not 400 mm tall: the SVG export mirror axis was hardcoded to 400 regardless of the real bed, so a 300 × 180 K40 (or any other size) cut in the wrong place even though the drawing looked correct on screen. The mirror now uses the document's actual bed height. See LCV-114.
 - `cargo test` no longer destroys developer state: real user paths are now resolved once at boot and injected, so the test suite can never reach the crash-recovery autosave file or the settings file. Previously an ordinary green library test deleted `~/.local/share/lasercad/autosave.json` on every run. See LCV-119.
+- The canvas now only asks for a new frame while it is actually live — the pointer is over it, a drag is in progress, or a tool preview is on screen — instead of requesting a repaint on every frame forever. On a compositor that throttles an unchanging window the wasted requests were already being declined (measured idle cost: 0.0% of a core), but on a platform that does not throttle, or on battery, the app no longer pays for frames it does not need. See LCV-120.
 
 ### Removed
 
