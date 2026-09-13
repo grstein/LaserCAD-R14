@@ -53,6 +53,7 @@ No version of LaserCAD v2 has been tagged or released yet. Everything below is u
 - Command-line parser: a pure kernel module (`src/cmdline/`) for parsing absolute coordinates (`X,Y`), relative offsets (`@X,Y`), bare distances, tool aliases, and toggle/zoom commands; includes a 50-entry recall ring and consolidates tool lookup tables into a single `ToolKind` identity map. See LCV-110.
 - Command line now drives the drawing tools: typed absolute and relative coordinates and direct distances reach LINE, PLINE, RECT, CIRCLE, ARC and MOVE; each drawing phase shows an AutoCAD-R14-style prompt; pressing an unbound alphanumeric key focuses the command line; arrow keys recall previous commands. See LCV-111.
 - TEXT now completes from the keyboard: after placing the insertion point, the command line switches to a raw-input mode that prompts first for the string, then for the height (defaulting to 5 mm if left blank, and accepting a comma as the decimal separator); heights outside 0.1–2000 mm are rejected with a re-prompt; the whole string commits in exactly one undo step. The old `on_text_input` path is removed. See LCV-112.
+- File > New, File > Open (including Open Recent) and File > Exit — plus the window close button — now ask for confirmation before discarding unsaved changes, instead of silently throwing the work away. See LCV-113.
 
 ### Changed
 
@@ -72,6 +73,7 @@ No version of LaserCAD v2 has been tagged or released yet. Everything below is u
 - macOS CI no longer hangs on a retired runner: moved from `macos-13` (retired 2025-12-04) to `macos-15` (active, arm64). See LCV-107.
 - macOS packaging now works on Apple Silicon: the DMG output name no longer hardcodes `x86_64`; it is now determined at build time by the host triplet, so `scripts/build-dmg.sh` on arm64 produces `dist/lasercad-aarch64.dmg` as expected. See LCV-107.
 - CI matrix now passes `test` and `build` stages end-to-end for the first time: ubuntu-24.04, windows-2022, and macos-15. See LCV-107.
+- Text drawn with the TEXT tool no longer sags below its baseline: 22 alphanumeric glyphs and `?` in the Hershey font table were authored with the wrong vertical coordinates, so words containing them sat partly below the line on canvas and in the exported SVG. Already-drawn text is not migrated — re-type it to pick up the repair. See LCV-117.
 
 ### Removed
 

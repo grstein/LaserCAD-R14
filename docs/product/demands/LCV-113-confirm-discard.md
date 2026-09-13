@@ -1,10 +1,11 @@
 # LCV-113 — Confirm discard on New / Open / Exit when the document has unsaved changes
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 11
 - **Depends on**: LCV-102 (Done), LCV-103 (Done), LCV-105 (Done)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
+- **Implementation**: implementer-rust (commits 475d666, a7df030, 1cb4ae8; reviewed, APPROVED after rework)
 
 ## Problem
 

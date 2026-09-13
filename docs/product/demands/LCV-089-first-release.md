@@ -203,6 +203,18 @@ AppImage and `.deb` as downloadable assets.
   `./scripts/release.sh`; confirm tag `v0.1.0` exists locally and on the remote,
   and the GitHub release page shows both assets and the extracted changelog text.
 
+- **Manual smoke / native file dialogs (ADR 0005, LCV-118)**: no automated test
+  can observe `arm_native_dialogs()` actually flipping the flag to true — a test
+  that armed it would poison the shared `AtomicBool` for the rest of that test
+  binary, and ADR 0005 deliberately provides no disarm function, so if the
+  arming were ever wrong a real user would hit a panic the first time they
+  opened a file and nothing in CI would catch it. Before tagging: launch the
+  app and use **File > Open** — a real OS dialog must open rather than
+  panicking, and **Cancel** must leave the document untouched; draw a line and
+  press **Ctrl+S** — the save dialog must open prefilled, and the save must
+  succeed; then **File > Open** the saved file and confirm the line
+  round-trips.
+
 ## Open questions
 
 *(none)*
