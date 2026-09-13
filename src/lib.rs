@@ -37,7 +37,13 @@ pub const DEFAULT_WINDOW_SIZE: [f32; 2] = [1280.0, 800.0];
 /// Wired by [`crate::app::App`] — see `src/app/mod.rs`. Returns the
 /// [`eframe::Result`] from [`eframe::run_native`] unchanged so callers
 /// (notably `src/main.rs`) can propagate it with `?`.
+///
+/// Arms native file dialogs (`crate::io::arm_native_dialogs`) as its first
+/// statement, before `eframe::run_native`. `run()` is the single boot path,
+/// called only from `src/main.rs`; nothing else in the tree may call it or
+/// the arming function. See ADR 0005, LCV-118.
 pub fn run() -> eframe::Result<()> {
+    crate::io::arm_native_dialogs();
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title(APP_TITLE)
@@ -66,5 +72,39 @@ mod tests {
     fn bootstrap_window_contract() {
         assert_eq!(APP_TITLE, "LaserCAD v2");
         assert_eq!(DEFAULT_WINDOW_SIZE, [1280.0_f32, 800.0_f32]);
+    }
+
+    /// AC 6 (LCV-118, ADR 0005) — `run()` must arm native dialogs as its
+    /// *first statement*, before `eframe::run_native`. "First statement" is
+    /// the load-bearing part of the design, so a mere `contains()` check is
+    /// not enough — that would pass if the arming call sat in a doc comment,
+    /// after `eframe::run_native`, or outside `run()` entirely. Searching
+    /// for each marker starting from the previous one's byte offset (rather
+    /// than from the top of the file) is what keeps the doc-comment mentions
+    /// of both symbols above `pub fn run()` from passing this test. Style
+    /// reference: `file_ops_does_not_import_eframe_or_rfd`
+    /// (`src/app/file_ops.rs`).
+    #[test]
+    fn run_arms_native_dialogs_as_its_first_statement() {
+        let src = include_str!("lib.rs");
+        let run_at = src
+            .find("pub fn run()")
+            .expect("lib.rs must declare pub fn run()");
+        let arm_at = run_at
+            + src[run_at..]
+                .find("arm_native_dialogs()")
+                .expect("run() must call arm_native_dialogs()");
+        let run_native_at = arm_at
+            + src[arm_at..]
+                .find("eframe::run_native")
+                .expect("run() must call eframe::run_native");
+        assert!(
+            run_at < arm_at,
+            "arm_native_dialogs() must appear after pub fn run() (AC 6)"
+        );
+        assert!(
+            arm_at < run_native_at,
+            "arm_native_dialogs() must be called before eframe::run_native (AC 6)"
+        );
     }
 }
