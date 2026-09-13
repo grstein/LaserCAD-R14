@@ -256,40 +256,123 @@ AppImage and `.deb` as downloadable assets.
   - With the Text tool active and characters typed, F1 still opens, and
     pressing the letter L types the character rather than switching tools.
 
-- **Manual smoke / first real prompt against OpenRouter (LCV-123)**: the whole
-  agent stack is validated in CI against `mockito` only — ADR 0007 commits
-  Marco 2 to that deliberately, because no CI run may spend the user's tokens
-  or depend on a third party being up. Nothing therefore proves the real
-  endpoint answers until a human asks it to. **This item becomes relevant once
-  LCV-123 lands** (before that, an agent turn mutates a throwaway document and
-  there is nothing to smoke-test); if the release is cut before LCV-123, record
-  it as not applicable rather than as passed.
-  - Enter a real OpenRouter API key in `Help > Agent settings`, close the
-    dialog, and confirm it survives a restart.
-  - Type a free-text request into the command line — for example
-    `draw a 50 mm square at the origin` — and confirm the transcript shows the
-    prompt was sent, the tool rows that came back, and a final answer.
-  - The geometry appears **in the open drawing**, at the coordinates asked for,
-    in millimetres, and the status bar agrees.
-  - A single `Ctrl+Z` undoes the entire turn, and `Ctrl+Y` puts it back.
-  - Clear the key, restart, and confirm the same free text now answers
-    `! Agent unavailable: set the API key in Help > Agent settings` and draws
-    nothing.
+- **Manual smoke / the first live agent run (Marco 2: LCV-121…LCV-125)**: the
+  whole agent stack is validated in CI against `mockito` only — ADR 0007 commits
+  Marco 2 to that deliberately, because no CI run may spend the user's tokens or
+  depend on a third party being up. Nothing therefore proves the real endpoint
+  answers until a human asks it to, and steps 10–15 are rendering criteria only
+  a human looking at the screen can accept. **Marco 2 is complete, so this list
+  is live.** Fifteen steps, in this order: 1 gates everything downstream, 2–3 are
+  the headline behaviours only a real model can demonstrate, 4 is the prompt
+  contract, **5 decides whether the build is taggable**, 6–7 are the error paths,
+  8–9 are security sweeps, and 10–15 are what LCV-125 shipped. Report any step
+  that fails; do not silently retry.
 
-- **Manual smoke / the suite behind a proxy (LCV-124, LCV-130)**: run
-  `cargo test --all --no-fail-fast` once with `HTTP_PROXY`, `HTTPS_PROXY` and
-  `ALL_PROXY` all set to `http://127.0.0.1:9`, and confirm the same pass set as
-  an unproxied run and **zero outbound connections**. This is a manual step
-  because no CI job here sets a proxy, and the failure mode is silent: the
-  LCV-124 reviewer captured real POSTs leaving the machine carrying the bearer
-  token, the system prompt and the operator's prompt text while the suite
-  reported 11 passed / 0 failed. `reqwest::blocking::Client::new()` enables
-  system-proxy discovery and reqwest 0.12 has no loopback bypass, so a test
-  endpoint on a closed loopback port is dialled through the proxy instead of
-  failing locally. LCV-124 fixed its own fixture at `a1b37aa`; the rest of the
-  suite is **LCV-130** and is still open, so until that ships expect this step
-  to find failures — a green run here is the thing being tested, not a
-  formality.
+  **Setup.** `Help > Agent settings` exposes four fields — Endpoint URL, Model,
+  API Key, and a Steps-per-turn slider bounded 1 to 32. Defaults: endpoint
+  `https://openrouter.ai/api/v1`, model `anthropic/claude-sonnet-4.6`, budget
+  12. Requests go to `{endpoint}/chat/completions` with
+  `Authorization: Bearer <key>`. Open the chat panel with the 🤖 toolbar button.
+  Enter a real key, close the dialog, and confirm it survives a restart before
+  starting. (Model and budget are **form fields since LCV-125** — nothing here
+  requires hand-editing `settings.json`.)
+
+  1. **Auth, model slug, and one action end to end.** Prompt
+     `draw a line from 0,0 to 100,0`. The most informative first prompt: it
+     exercises auth, the model slug, tool-schema acceptance, one tool call, one
+     commit, the undo note and the terminal row in one round trip. Correct: a
+     user row, a spinner, a tool-call row, an assistant row confirming, and a
+     note row reading exactly `Applied 1 action — Ctrl+Z undoes it.` A 100 mm
+     horizontal line lands on the bed, the app goes dirty, one Ctrl+Z removes
+     it. Failure modes in likelihood order: **401** — the key is blank or was
+     never saved; **404 on the model slug** — OpenRouter renamed it, check
+     `openrouter.ai/models`; **an assistant row with no tool-call row and no
+     note row** — the schemas were accepted but not used, a prompt issue rather
+     than a defect; **a spinner that never clears** — the no-timeout hazard,
+     which is LCV-129.
+  2. **The multi-action fold.** Prompt `draw a 40 mm square centred at the
+     origin`. This is the headline behaviour and nothing in CI can prove it,
+     because no test makes a real model emit four calls. Correct: four
+     transcript rows, then `Applied 4 actions — Ctrl+Z undoes the whole turn.`,
+     and **one** Ctrl+Z removes all four. Worth reporting: a note saying the
+     actions stay four separate undo steps while nothing else touched the
+     drawing — that is a real coalesce-gate defect. Mis-placed lines are a
+     prompt issue, not one.
+  3. **A query stays out of the fold.** With the square on the bed, prompt
+     `what is on the drawing?`. Correct: one query row, an assistant row listing
+     4 lines with indices 0 to 3 in millimetres, and **no note row at all** — a
+     query is an action but not an applied one. Ctrl+Z still undoes the square.
+     Failure: a note row appears, meaning queries are being counted.
+  4. **The positional-index contract under renumbering.** Prompt
+     `delete the first line, then tell me what is left`. This is what ADR 0007
+     §D5 and the extended system prompt exist for, and it is pure prompt
+     behaviour no test can reach. Correct: a delete row with index 0, then a
+     query row showing the model re-read rather than assumed, then a report of 3
+     entities. Failure: it deletes index 0 and then reasons about a stale index
+     3, meaning the prompt's contract is not landing. Highest-value signal
+     available in one turn.
+  5. **The fence — the release-critical step.** Prompt `draw three circles of
+     radius 10 in a row 30 mm apart`, and **while the spinner is up**, click an
+     entity on the canvas or press Ctrl+Z. Correct: the next action comes back
+     refused, the transcript shows a row beginning
+     `The drawing changed outside this turn —`, the model stops and explains
+     rather than retrying, the turn ends, the spinner clears, and the window
+     stops burning CPU. Failures by severity: **the spinner never clears** —
+     LCV-120 reopened, stop and report; **the model retries in a loop** until
+     the budget is exhausted; **no refusal row and the circles all land anyway**
+     — the fence is not being consulted. Both reviewers independently called
+     this the step that decides whether the build is taggable, because it is the
+     only property no test in the suite can reach.
+  6. **Budget exhaustion is graceful.** Drag the Steps-per-turn slider to 1,
+     close the dialog, prompt `draw a square`. Correct: one action applied, an
+     error row naming the exhausted budget,
+     `Applied 1 action — Ctrl+Z undoes it.`, spinner clears. The cheapest way to
+     see the error path with a live model. **Set it back to 12 afterwards.**
+  7. **Abandonment.** Closing the agent panel does **not** cancel, because the
+     receiver lives on the app rather than the panel and there is no cancel
+     button yet (LCV-129). Start a turn, close the panel, keep drawing, reopen:
+     the turn should either have landed or been fenced off by your drawing, and
+     the spinner should be clear. Observing the cancelled path itself requires
+     quitting mid-turn and leaves nothing in-app to see — skip it unless chasing
+     a hang.
+  8. **Key hygiene sweep, once at the end.** Scroll the entire transcript and
+     check the terminal for tracing output. The API key must appear in **no**
+     chat row, no command feedback, no error text and no log line. Then grep the
+     autosave file for it. This is ADR 0007 §D10 and there is no automated
+     check, because no test may carry a real key.
+  9. **Proxy isolation.** Run `cargo test --all --no-fail-fast` once with
+     `HTTP_PROXY`, `HTTPS_PROXY` and `ALL_PROXY` all set to
+     `http://127.0.0.1:9`, and confirm the same pass set as an unproxied run and
+     **zero outbound connections**. Manual because no CI job here sets a proxy,
+     and the failure mode is silent: the LCV-124 reviewer captured real POSTs
+     leaving the machine carrying the bearer token, the system prompt and the
+     operator's prompt text while the suite reported 11 passed / 0 failed.
+     `reqwest::blocking::Client::new()` enables system-proxy discovery and
+     reqwest 0.12 has no loopback bypass, so a test endpoint on a closed
+     loopback port is dialled through the proxy instead of failing locally.
+     LCV-124 fixed its own fixture at `a1b37aa`; the rest of the suite is
+     **LCV-130** and is still open, so until that ships expect this step to find
+     failures — a green run here is the thing being tested, not a formality.
+  10. **The plaintext warning is visible before anything is typed.** With an
+      **empty** API key, open `Help > Agent settings` and confirm the warning is
+      on screen before you type. This is the exact state a surviving mutant made
+      invisible, and it is the state every first-time operator is in.
+  11. **Two consecutive tool rows stack vertically.** Ask for something taking
+      two actions — a line then a circle — and confirm the two marker rows stack
+      rather than flowing side by side.
+  12. **Transcript order is oldest at top.** Trivial to eyeball and worth one
+      glance.
+  13. **The slider stops at both ends.** Drag it to each extreme and confirm it
+      stops at 1 and at 32, rather than only testing that a hand-edited 200
+      clamps.
+  14. **A narrow panel folds rather than clips.** Resize the agent panel narrow
+      and confirm a long tool outcome wraps. Watch the **user row**: its
+      right-to-left layout defaults to extending, and the wrap call is the only
+      thing holding it.
+  15. **Read the renumbering sentence off the screen.** After a delete, find the
+      ADR 0007 §D5 sentence in the monospace row. That sentence being findable
+      is the entire justification for LCV-125 — if it is not findable, the
+      demand did not deliver.
 
 ## Open questions
 

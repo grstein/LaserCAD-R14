@@ -36,8 +36,11 @@ and 1208 passed, 0 failed, 2 ignored. Anyone reading a red check on those
 commits is reading the outage, not the code.
 
 **Nobody tags anything.** The user tags `v0.1.0` after their own manual smoke
-run, and **LCV-089 stays `Blocked`** until they do. Its checklist is at nine
-steps; six more from the LCV-125 review are expected.
+run, and **LCV-089 stays `Blocked`** until they do. Its checklist is now
+complete at **15 steps** — the first live agent run against OpenRouter, in the
+order the two reviewers ranked them. Step 5, the fence under a mid-turn user
+edit, is the one both of them called the step that decides whether the build is
+taggable, because it is the only property no test in the suite can reach.
 
 ## In Progress
 
@@ -154,7 +157,7 @@ _None._
 
 | ID | Title | Reason |
 |---|---|---|
-| LCV-089 | First 0.1.0 release tag + GitHub release | Remote + CI in place; awaiting user manual smoke test and v0.1.0 tag |
+| LCV-089 | First 0.1.0 release tag + GitHub release | Awaiting the user's own 15-step manual smoke run and the v0.1.0 tag. CI is down repo-wide since 2026-09-13; the local gate is what Marco 2 was verified against |
 
 ## Draft (awaiting refinement)
 
