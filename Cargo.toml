@@ -6,7 +6,7 @@ rust-version = "1.88"
 license = "MIT OR Apache-2.0"
 description = "LaserCAD v2 — KISS 2D CAD for laser cutting"
 authors = ["LaserCAD contributors"]
-repository = ""
+repository = "https://github.com/grstein/LaserCAD-R14-V2"
 
 [dependencies]
 directories = "5"

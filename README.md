@@ -1,5 +1,8 @@
 # LaserCAD v2
 
+[![CI](https://github.com/grstein/LaserCAD-R14-V2/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/grstein/LaserCAD-R14-V2/actions/workflows/ci.yml)
+*(This repository is private; the badge above renders "not found" if you're viewing it while logged out of an account with access.)*
+
 A KISS 2D CAD for laser cutting — pure Rust, single binary, LaserGRBL-compatible SVG output.
 
 LaserCAD v2 is a green-field rewrite of [LaserCAD R14 v1](../LaserCAD-R14/) that drops the TypeScript + Tauri stack in favor of pure Rust with [`egui`](https://docs.rs/egui/) via [`eframe`](https://docs.rs/eframe/). The product goal is the same: an AutoCAD R14-shaped CAD surface for making simple, precise 2D geometry that exports clean SVG for LaserGRBL — with no general-purpose ambitions.
