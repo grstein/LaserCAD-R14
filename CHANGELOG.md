@@ -89,3 +89,7 @@ No version of LaserCAD v2 has been tagged or released yet. Everything below is u
 ### Removed
 
 - OffsetTool was deleted: it is an explicit product non-goal (see `docs/product/README.md`) that had shipped by accident under the LCV-054 id. See LCV-106 (LCV-054 is rejected).
+
+### Internal
+
+- The test suite now enforces the architecture rules in `AGENTS.md`: the kernel purity rule, the agent module buckets, and the single-writer claims on agent state are checked by the build. If these rules drift as the code changes, the build fails. This ships no user-visible change, but it is a guard against silent architecture violations that had already gone unnoticed twice. See LCV-128.

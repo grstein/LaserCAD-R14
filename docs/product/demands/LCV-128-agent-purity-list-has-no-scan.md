@@ -1,11 +1,11 @@
 # LCV-128 — `AGENTS.md`'s normative per-file and per-symbol enumerations have no scan
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 12
 - **Depends on**: none. **Sequencing note, not a dependency**: AC 3 overlaps LCV-129 AC 5 by one needle — whichever lands first owns the file and the other extends it in place. See AC 3.
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: implementer-rust (8e2b7fe, 3b0e4a8). Reviewed and approved by reviewer-rust. CI: not run (billing hold).
 
 ## Problem
 
