@@ -178,9 +178,12 @@ checking, and the acceptance criteria below are shaped by the corrections:
 
 1. A new unit test in `src/text/hershey.rs` — name it `vertical_metrics_contract`
    or equivalent — iterates **every glyph in `GLYPHS`** (ASCII 32–126) and
-   asserts criteria 2–9. It is driven by character class and by one explicit
-   exemption list, never by per-glyph expected coordinates. Its failure message
-   names the offending character and its measured `[min y .. max y]`.
+   asserts, for each one, **those of criteria 2–9 that apply to its character
+   class**. It is driven by character class and by one explicit exemption list,
+   never by per-glyph expected coordinates. Its failure message names the
+   offending character and its measured `[min y .. max y]`. The blank glyph
+   (space, ASCII 32) has no stored points and is skipped: it is vacuously
+   conformant, not an exception.
 2. **Universal bound**: no point of any glyph has `y < −9` or `y > 9`. (Both hold
    today for the whole table except `g` at +10.)
 3. **Caps `A`–`Z`, digits `0`–`9`, and lowercase ascenders `b d f h k l t`**:
@@ -189,15 +192,33 @@ checking, and the acceptance criteria below are shaped by the corrections:
 5. **Remaining lowercase `a c e g m n o p q r s u v w x y z`**: `−6 ≤ min y ≤ −5`.
    Both values occur in the correct 40 and the split is deliberate (decision 5).
 6. **Every alphanumeric except `g j p q y`**: `max y == 0` — the glyph ends flush
-   on the baseline. This includes `Q` (decision 3).
+   on the baseline. This includes `Q` (decision 3). The criterion is scoped to
+   `A`–`Z`, `a`–`z` and `0`–`9` and to nothing else: `?` is criterion 8, and all
+   other punctuation is criterion 9.
 7. **`g j p q y`**: `max y == 4` exactly.
-8. **`?`**: `min y == −9` and `max y == 0`.
-9. **Punctuation exemption list**: exactly the 17 characters
-   `# $ ( ) , / ; < > @ [ \ ] _ { | }` are exempt from criterion 6. The list is a
-   `const` in the test with a one-line comment saying these legitimately cross
-   the baseline and are out of LCV-117's scope. They are still bound by
-   criterion 2. No other character may appear in the list; every printable ASCII
-   character not in it is checked.
+8. **`?`**: `min y == −9` and `max y == 0`. It is the one punctuation mark this
+   demand repairs, so it is held to criterion 6's equality rule rather than to
+   criterion 9's inequality.
+9. **Punctuation, in three groups.**
+   - **(a) The 17 exempt marks** — `#` `$` `(` `)` `,` `/` `;` `<` `>` `@` `[`
+     `\` `]` `_` `{` `|` `}` — carry no constraint on `max y` beyond criterion 2.
+     They legitimately cross the baseline and this demand does not touch them.
+     The list is a `const` in the test with a one-line comment saying exactly
+     that.
+   - **(b) Every other punctuation mark** — printable ASCII that is neither
+     alphanumeric, nor `?`, nor one of the 17; today `!` `"` `%` `&` `'` `*` `+`
+     `-` `.` `:` `=` `^` `~` and the backtick — must satisfy **`max y ≤ 0`**: it
+     may never dip below the baseline. It is **not** required to reach the
+     baseline. Seven of those fourteen float above it by design — `"`, `'` and
+     the backtick at `[−9..−6]`, `-` at `[−4..−4]`, `=` at `[−5..−1]`, `^` at
+     `[−9..−3]`, `~` at `[−6..−2]` — and all fourteen are among the 72 untouched
+     entries that must stay byte-identical (§Out of scope). An equality rule here
+     would be unsatisfiable without restyling correct glyphs, which this demand
+     forbids.
+   - **(c) The exemption list is closed.** A separate test asserts it is exactly
+     17 entries, sorted, unique, containing no alphanumeric and not `?`. That
+     makes widening it a deliberate, visible edit rather than a quiet way to
+     silence a failure in (b). No character may be added to it without a demand.
 
 ### B. The repair
 
