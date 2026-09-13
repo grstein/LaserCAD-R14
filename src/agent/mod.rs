@@ -1,5 +1,5 @@
 //! Optional LLM agent: HTTP transport, wire types, tool registry, multi-turn
-//! loop, chat panel and settings dialog.
+//! loop, command-line routing, chat panel and settings dialog.
 //!
 //! Containment rules (AGENTS.md §Purity rule, ADR 0007 §D8): only `panel.rs`
 //! and `settings_ui.rs` may import `egui`, no file here may import `eframe` or
@@ -23,6 +23,9 @@ pub use transport::{chat_completion, TransportError};
 
 pub mod bridge;
 pub use bridge::{AgentAction, AgentEvent, AgentOutcome};
+
+pub mod classifier;
+pub use classifier::{classify, Route};
 
 pub mod tools;
 pub use tools::{parse_tool_call, tool_definitions, ToolCallError};

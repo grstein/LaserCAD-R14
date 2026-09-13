@@ -16,9 +16,17 @@
 //! `submit` never writes `last_cursor_world` — the cursor belongs to the
 //! mouse, and faking it from a typed point would corrupt the next direction.
 //!
+//! Since LCV-124 one more thing happens here: [`crate::agent::classify`] says
+//! whether the line is CAD at all, and a line that is not becomes one agent
+//! turn (ADR 0007 §D9). The classifier is called **after** the raw-input early
+//! return — moving it above would post the string an operator is typing into a
+//! TEXT entity to a language model — and after the recall-ring push, so a
+//! mistyped prompt is still one `ArrowUp` away.
+//!
 //! MUST NOT import `eframe`, `rfd` or `crate::ui`.
 
 use super::{apply_ortho, handle_zoom_extents, App};
+use crate::agent::{classify, Route};
 use crate::cmdline::{parse, CommandInput, ToggleKind, ToolInput, ZoomKind};
 use crate::geometry::{Vec2, EPSILON};
 use crate::render::Camera;
@@ -29,6 +37,23 @@ const NO_BASE_POINT: &str = "No base point for relative input.";
 
 /// Feedback shown when a bare distance could not be given a direction.
 const NO_DIRECTION: &str = "No direction for distance input — move the cursor or type X,Y.";
+
+/// Feedback for a line addressed to an agent that has no API key (AC 6).
+///
+/// The leading `! ` is part of the message: it is the one command-line answer
+/// that reports a missing *configuration* rather than a rejected input, and it
+/// names where to fix it.
+const AGENT_UNAVAILABLE: &str = "! Agent unavailable: set the API key in Help > Agent settings";
+
+/// Feedback for a prefix with no prompt behind it (AC 4). Nothing is sent.
+const AGENT_EMPTY_PROMPT: &str = "Agent prompt is empty.";
+
+/// Feedback for a second turn while one is in flight (AC 10). One turn at a
+/// time (ADR 0007 §Revisit criteria): this refuses, it does not queue.
+const AGENT_BUSY: &str = "Agent is busy — wait for the current turn to finish.";
+
+/// How much of the prompt the command line echoes back before cutting it.
+const ECHO_CHARS: usize = 60;
 
 /// Execute one line of command-line text (LCV-111 AC 8, AC 9).
 ///
@@ -42,7 +67,10 @@ const NO_DIRECTION: &str = "No direction for distance input — move the cursor 
 /// 3. parse;
 /// 4. push the line to the recall ring (rejected input included — recall
 ///    exists so a typo can be fixed);
-/// 5. dispatch per the AC 10 table.
+/// 5. classify (LCV-124): a `:` / `/ai` line, or — with an API key configured
+///    — a line the grammar did not recognise, becomes one agent turn and
+///    returns here;
+/// 6. dispatch per the AC 10 table.
 ///
 /// Never panics and never returns a value: everything it has to say, it says
 /// through `app.command_feedback` or through the tool's own prompt.
@@ -78,6 +106,22 @@ pub fn submit(app: &mut App, raw: &str) {
     // appends. Guarding the call here would silently drop the reset.
     app.command_history.push(raw);
 
+    // LCV-124 — where does this line go? `classify` reads the same `parse`
+    // this function already called, which is safe because `parse` is pure and
+    // total: two calls on one string cannot disagree. What the grammar must
+    // never have is two *implementations*, and it does not — `classifier.rs`
+    // calls `crate::cmdline::parse` rather than reimplementing a single rule
+    // of it (AC 11).
+    match classify(raw, agent_available(app)) {
+        // The grammar owns the line; fall through to the dispatch below.
+        Route::Cad => {}
+        Route::Agent(prompt) => return to_agent(app, &prompt),
+        Route::Unavailable => {
+            app.command_feedback = AGENT_UNAVAILABLE.to_owned();
+            return;
+        }
+    }
+
     match parsed {
         // The new tool's prompt is the feedback; no message is set.
         CommandInput::Tool(kind) => app.tool_manager.set_tool(tools::make(kind)),
@@ -101,6 +145,54 @@ pub fn submit(app: &mut App, raw: &str) {
             app.command_feedback = format!("Unknown command: \"{text}\"")
         }
     }
+}
+
+/// Is an agent reachable at all? **The** definition (AC 5): a configured API
+/// key with something other than whitespace in it. Read once, at the call
+/// site, and handed to [`classify`] as data so the classifier stays pure.
+fn agent_available(app: &App) -> bool {
+    !app.settings.agent_api_key.trim().is_empty()
+}
+
+/// Hand one prompt to the agent — loudly (AC 8).
+///
+/// Bare free text now costs a network call, so a send must be impossible to
+/// miss: the command line echoes what was sent, and the panel opens itself so
+/// the prompt, the spinner and the reply are visible where they happen. The
+/// operator's `user` row is [`super::start_turn`]'s to write (ADR 0007 §D3);
+/// writing it here too would double every prompt in the transcript.
+///
+/// Two lines never reach a turn: a prefix with no prompt behind it, and a
+/// second prompt while one is in flight. The empty check comes first because a
+/// bare `:` is malformed whatever the turn state is, and answering "busy" to
+/// it would send the operator looking for a turn that has nothing to do with
+/// their typo.
+fn to_agent(app: &mut App, prompt: &str) {
+    if prompt.is_empty() {
+        app.command_feedback = AGENT_EMPTY_PROMPT.to_owned();
+        return;
+    }
+    if app.agent_busy {
+        app.command_feedback = AGENT_BUSY.to_owned();
+        return;
+    }
+    app.command_feedback = format!("→ agent: \"{}\"", echo(prompt));
+    app.agent_panel_open = true;
+    super::start_turn(app, prompt);
+}
+
+/// `prompt` cut to [`ECHO_CHARS`] characters, with an `…` when it did not fit.
+///
+/// Counted in `char`s, not bytes: the prompt is whatever the operator typed,
+/// and slicing a UTF-8 string at byte 60 panics on the first accented word.
+/// Deliberately not shared with `agent_turn::turn_label`, which cuts at a
+/// different width for a different reader (the undo stack).
+fn echo(prompt: &str) -> String {
+    let mut out: String = prompt.chars().take(ECHO_CHARS).collect();
+    if prompt.chars().nth(ECHO_CHARS).is_some() {
+        out.push('…');
+    }
+    out
 }
 
 /// Hand one resolved input to the active tool, then poll succession exactly
@@ -509,5 +601,246 @@ mod tests {
         assert!(app.command_feedback.is_empty());
         assert!(!app.focus_command_line);
         assert!(!app.command_line_focused);
+    }
+
+    // ── LCV-124: routing to the agent ───────────────────────────────────────
+
+    /// The implementation section of this file: everything before the bare
+    /// `#[cfg(test)]` at column 0. Scanning the whole file would let this test
+    /// module's own needles satisfy the scans below.
+    fn implementation() -> &'static str {
+        let src = include_str!("cmdline.rs");
+        let at = src
+            .find("\n#[cfg(test)]")
+            .expect("cmdline.rs must have a bare #[cfg(test)] marker to bound the scan");
+        &src[..at]
+    }
+
+    /// `submit`'s body, from its signature to the `}` at column 0 that closes
+    /// it, taken out of the implementation section only.
+    fn submit_body() -> &'static str {
+        let implementation = implementation();
+        let from = implementation
+            .find(concat!("pub fn ", "submit(app"))
+            .expect("cmdline.rs must declare pub fn submit before its test module");
+        let body = &implementation[from..];
+        let to = body
+            .find("\n}\n")
+            .expect("pub fn submit must be closed by a `}` at column 0");
+        &body[..to]
+    }
+
+    /// How many code lines in `haystack` contain `needle`. Comment lines are
+    /// skipped, so a scan is about what the compiler sees and prose stays free
+    /// to name the thing it is documenting.
+    fn code_hits(haystack: &str, needle: &str) -> usize {
+        haystack
+            .lines()
+            .filter(|l| l.contains(needle) && !l.trim_start().starts_with("//"))
+            .count()
+    }
+
+    /// AC 11 — the grammar is parsed in one place. `classify` calls
+    /// `crate::cmdline::parse`; `submit` has **exactly one** `parse(` call
+    /// site of its own, so no second decision point can drift away from the
+    /// first. Adding `let again = parse(raw);` to `submit` fails this.
+    ///
+    /// Shown to discriminate: the two positive controls below run the same
+    /// `code_hits` over the same slice, so a scan that were reading the wrong
+    /// bytes — or a `submit_body` that silently sliced to nothing — fails here
+    /// before the real assertion is reached.
+    #[test]
+    fn submit_parses_the_line_exactly_once() {
+        let body = submit_body();
+        assert_eq!(
+            code_hits(body, concat!("class", "ify(raw")),
+            1,
+            "positive control: submit must call the classifier exactly once"
+        );
+        assert_eq!(
+            code_hits(body, concat!("command_history", ".push")),
+            1,
+            "positive control: the slice must be submit's real body"
+        );
+        assert_eq!(
+            code_hits(body, concat!("pars", "e(")),
+            1,
+            "AC 11: submit must contain exactly one parse( call site"
+        );
+    }
+
+    /// AC 12 — this file stays under the 300 **implementation** LOC cap
+    /// (ADR 0004): total lines minus the inline test module.
+    #[test]
+    fn the_implementation_section_is_under_the_loc_cap() {
+        let lines = implementation().lines().count();
+        assert!(
+            lines <= 300,
+            "ADR 0004: cmdline.rs has {lines} implementation LOC"
+        );
+    }
+
+    /// AC 5 — one definition of availability, and whitespace is not a key.
+    #[test]
+    fn a_whitespace_only_key_is_not_a_key() {
+        let mut app = App::default();
+        assert!(!agent_available(&app), "a fresh app has no key configured");
+        for blank in [" ", "   ", "\t", "\n"] {
+            app.settings.agent_api_key = blank.to_owned();
+            assert!(!agent_available(&app), "`{blank:?}` is not a key");
+        }
+        app.settings.agent_api_key = "sk-test".to_owned();
+        assert!(agent_available(&app));
+    }
+
+    /// AC 8 — the echo is cut at 60 characters and says so with an `…`,
+    /// counted in characters so an accented prompt cannot panic the slice.
+    #[test]
+    fn the_echo_is_cut_at_sixty_characters() {
+        assert_eq!(echo("draw a square"), "draw a square");
+
+        let exactly_sixty = "x".repeat(ECHO_CHARS);
+        assert_eq!(echo(&exactly_sixty), exactly_sixty, "60 fits, uncut");
+
+        let sixty_one = "x".repeat(ECHO_CHARS + 1);
+        let cut = echo(&sixty_one);
+        assert_eq!(
+            cut.chars().count(),
+            ECHO_CHARS + 1,
+            "60 characters and the …"
+        );
+        assert!(cut.ends_with('…'));
+        assert_eq!(&cut[..ECHO_CHARS], exactly_sixty);
+
+        let accented = "é".repeat(ECHO_CHARS + 5);
+        assert_eq!(echo(&accented).chars().count(), ECHO_CHARS + 1);
+    }
+
+    /// AC 4 — a bare `:` is refused before anything is armed, and it does
+    /// **not** reach the active tool: `CommandInput::Empty` would finish a
+    /// polyline the operator never meant to finish.
+    #[test]
+    fn an_empty_prompt_refuses_without_arming_a_turn() {
+        let mut app = app_with_line_started();
+        app.settings.agent_api_key = "sk-test".to_owned();
+        for line in [":", ":   ", "/ai", "/ai   "] {
+            submit(&mut app, line);
+            assert_eq!(app.command_feedback, "Agent prompt is empty.", "{line}");
+            assert!(!app.agent_busy, "{line} must arm no turn");
+            assert!(app.agent_rx.is_none(), "{line}");
+            assert!(app.agent_chat.is_empty(), "{line}");
+            assert_eq!(
+                app.tool_manager.anchor(),
+                Some(Vec2::new(0.0, 0.0)),
+                "{line} must not reach the active tool"
+            );
+        }
+    }
+
+    /// AC 10 — a second turn is refused, not queued: nothing is armed, the
+    /// in-flight turn's state is untouched, and the ring still got the line.
+    #[test]
+    fn a_second_turn_is_refused_while_one_is_in_flight() {
+        let mut app = App::default();
+        app.settings.agent_api_key = "sk-test".to_owned();
+        let tx = super::super::arm_turn(&mut app, "the first prompt");
+        let chat_before = app.agent_chat.clone();
+
+        submit(&mut app, ":the second prompt");
+
+        assert_eq!(
+            app.command_feedback,
+            "Agent is busy — wait for the current turn to finish."
+        );
+        assert!(app.agent_busy, "the in-flight turn is left alone");
+        assert!(app.agent_rx.is_some(), "and keeps its receiver");
+        assert_eq!(app.agent_chat, chat_before, "and its transcript");
+        assert_eq!(
+            app.command_history.older(),
+            Some(":the second prompt".to_owned()),
+            "AC 9: the refused line is still recallable"
+        );
+        drop(tx);
+    }
+
+    /// AC 6 — without a key a prefixed line says so, verbatim, and does
+    /// nothing else. The needle is built with `concat!` so this assertion
+    /// cannot be satisfied by the constant it is checking.
+    #[test]
+    fn without_a_key_a_prefixed_line_reports_the_missing_key() {
+        let mut app = app_with_line_started();
+        assert!(!agent_available(&app));
+        submit(&mut app, ":draw a square");
+        assert_eq!(
+            app.command_feedback,
+            concat!(
+                "! Agent unavailable: set the API key in ",
+                "Help > Agent settings"
+            )
+        );
+        assert!(!app.agent_busy);
+        assert!(app.agent_rx.is_none());
+        assert!(app.agent_chat.is_empty());
+        assert!(!app.agent_panel_open, "and opens no panel");
+        assert_eq!(app.document.entity_count(), 0);
+        assert_eq!(app.tool_manager.anchor(), Some(Vec2::new(0.0, 0.0)));
+    }
+
+    /// AC 7 — without a key, unprefixed nonsense answers exactly as it did
+    /// before the agent existed. The literal is not copied: it is taken from
+    /// the word `tests/lcv111.rs` already pins and re-spelt for `lien`.
+    #[test]
+    fn without_a_key_unknown_text_is_unchanged() {
+        let mut app = App::default();
+        submit(&mut app, "bogus");
+        let pinned = app.command_feedback.clone();
+        assert!(
+            pinned.contains("bogus"),
+            "positive control: LCV-111's message names the word, got {pinned:?}"
+        );
+
+        submit(&mut app, "lien");
+        assert_eq!(app.command_feedback, pinned.replace("bogus", "lien"));
+    }
+
+    /// AC 2 rule 2 — the prefix is absolute at the call site too: `:l` does
+    /// not start LINE, it refuses for want of a key. The control is `l`.
+    #[test]
+    fn a_prefixed_tool_alias_does_not_reach_the_tool() {
+        let mut app = App::default();
+        submit(&mut app, "l");
+        assert_eq!(
+            app.tool_manager.active_tool_name(),
+            "LINE",
+            "control: the bare alias still switches tools"
+        );
+
+        let mut app = App::default();
+        submit(&mut app, ":l");
+        assert_eq!(app.tool_manager.active_tool_name(), "Select");
+        assert!(app.command_feedback.starts_with("! Agent unavailable"));
+    }
+
+    /// AC 2 rule 3 — with a key configured, every line the grammar recognises
+    /// still behaves exactly as it always has. This is the regression guard on
+    /// the whole table: the typo hazard is bounded by the fact that only
+    /// genuinely unrecognised text can leak.
+    #[test]
+    fn a_key_changes_nothing_about_a_line_the_grammar_recognises() {
+        let mut app = app_with_line_started();
+        app.settings.agent_api_key = "sk-test".to_owned();
+
+        submit(&mut app, "snap");
+        assert_eq!(app.command_feedback, "SNAP off");
+
+        submit(&mut app, "@10,0");
+        assert_eq!(committed_line(&app).p2, Vec2::new(10.0, 0.0));
+
+        submit(&mut app, "c");
+        assert_eq!(app.tool_manager.active_tool_name(), "CIRCLE");
+
+        assert!(!app.agent_busy, "none of that reached the agent");
+        assert!(app.agent_chat.is_empty());
+        assert!(!app.agent_panel_open);
     }
 }
