@@ -1,6 +1,6 @@
 # LCV-132 — A rendering criterion is paid for in painted text, not in a source scan
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 12
 - **Depends on**: LCV-125, LCV-126, LCV-129, LCV-133 — all `Done`. Each landed one of the copies this demand absorbs; there is nothing speculative left to extract against. **Ordering, not a dependency**: land this **after LCV-134**. See §Notes.
 - **Suggested agent**: implementer-rust
