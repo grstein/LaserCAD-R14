@@ -15,20 +15,16 @@
 //! the rendered string: `Path::display()` emits `\` on Windows and turns a
 //! comparison like this into a CI-only failure (AGENTS.md §Implementation
 //! Rules).
+//!
+//! The walker and the matcher are `tests/harness/scan.rs`'s (LCV-132), which is
+//! where those four rules are written down in full. The walk-and-slice wrapper
+//! below stays here: its root, its bound, its return shape and its positive
+//! control are this demand's decisions, not shareable ones.
 
+mod harness;
+
+use harness::scan::{files_containing, rs_files};
 use std::path::{Path, PathBuf};
-
-/// Every `.rs` file under `dir`, recursively.
-fn rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    for entry in std::fs::read_dir(dir).expect("the source tree must be readable") {
-        let path = entry.expect("a readable directory entry").path();
-        if path.is_dir() {
-            rs_files(&path, out);
-        } else if path.extension().is_some_and(|e| e == "rs") {
-            out.push(path);
-        }
-    }
-}
 
 /// The implementation half of a source file: everything before the bare
 /// `#[cfg(test)]` at column 0.
@@ -67,23 +63,6 @@ fn implementation_sections() -> (PathBuf, Vec<(String, String)>) {
         .collect();
     sections.sort();
     (root, sections)
-}
-
-/// Files whose implementation section contains `needle` on a **code** line.
-///
-/// Comment lines are skipped, so these scans are about what the compiler sees
-/// rather than about prose: `src/agent/mod.rs`'s module header names `reqwest`
-/// precisely to say which file is allowed to import it, and a scan that counted
-/// that as an import would force the rule to go undocumented to stay true.
-fn files_containing(sections: &[(String, String)], needle: &str) -> Vec<String> {
-    sections
-        .iter()
-        .filter(|(_, body)| {
-            body.lines()
-                .any(|line| line.contains(needle) && !line.trim_start().starts_with("//"))
-        })
-        .map(|(path, _)| path.clone())
-        .collect()
 }
 
 /// AC 9 — the model id is the caller's to choose, so the old hardcoded one is

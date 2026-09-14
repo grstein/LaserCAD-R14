@@ -47,34 +47,16 @@
 //! on the rendered string: `Path::display()` emits `\` on Windows and turns a
 //! comparison like this into a CI-only failure (AGENTS.md §Implementation
 //! Rules).
+//!
+//! The walker and the matcher are `tests/harness/scan.rs`'s (LCV-132). The
+//! unbounded, five-per-directory-control wrapper below stays here: scanning
+//! whole files and failing by directory name are this demand's decisions, and
+//! they are the ones that make its two scans mean what they say.
 
-use std::path::{Path, PathBuf};
+mod harness;
 
-/// Every `.rs` file under `dir`, recursively.
-fn rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    for entry in std::fs::read_dir(dir).expect("the source tree must be readable") {
-        let path = entry.expect("a readable directory entry").path();
-        if path.is_dir() {
-            rs_files(&path, out);
-        } else if path.extension().is_some_and(|e| e == "rs") {
-            out.push(path);
-        }
-    }
-}
-
-/// Files whose text contains `needle` on a **code** line. Comment lines are
-/// skipped, so this is about what the compiler sees rather than about prose
-/// (see the module header on why that trade is deliberate here).
-fn files_containing(sections: &[(String, String)], needle: &str) -> Vec<String> {
-    sections
-        .iter()
-        .filter(|(_, body)| {
-            body.lines()
-                .any(|line| line.contains(needle) && !line.trim_start().starts_with("//"))
-        })
-        .map(|(path, _)| path.clone())
-        .collect()
-}
+use harness::scan::{files_containing, rs_files};
+use std::path::Path;
 
 /// The five kernel directories AGENTS.md §Purity rule names.
 const KERNEL_DIRS: [&str; 5] = ["geometry", "document", "io/svg", "text", "cmdline"];

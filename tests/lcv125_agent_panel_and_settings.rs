@@ -32,6 +32,7 @@
 mod harness;
 
 use harness::frame;
+use harness::scan::rs_files;
 use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome};
 use lasercad::app::{arm_turn, App};
 use std::path::{Path, PathBuf};
@@ -556,18 +557,6 @@ fn ac12_a_hand_edited_budget_is_clamped_by_opening_the_dialog() {
 }
 
 // ── AC 14: the two egui files under src/agent/ are still exactly two ────────
-
-/// Every `.rs` file under `dir`, recursively.
-fn rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    for entry in std::fs::read_dir(dir).expect("the source tree must be readable") {
-        let path = entry.expect("a readable directory entry").path();
-        if path.is_dir() {
-            rs_files(&path, out);
-        } else if path.extension().is_some_and(|e| e == "rs") {
-            out.push(path);
-        }
-    }
-}
 
 /// Every file under `src/agent/` as (relative path, implementation code)
 /// pairs, sorted on the rendered path.

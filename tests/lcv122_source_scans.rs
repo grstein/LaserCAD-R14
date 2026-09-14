@@ -22,20 +22,17 @@
 //! the rendered string: `Path::display()` emits `\` on Windows and turns a
 //! comparison like this into a CI-only failure (AGENTS.md §Implementation
 //! Rules).
+//!
+//! The walker and the matcher are `tests/harness/scan.rs`'s (LCV-132), which is
+//! where those rules — and the comment-skipping trade-off LCV-123's review
+//! measured — are written down in full. The `(dir, bound, minimum)` wrapper
+//! below stays here: being parametrised over bounded-versus-whole-file is this
+//! demand's decision, not a shareable one.
 
-use std::path::{Path, PathBuf};
+mod harness;
 
-/// Every `.rs` file under `dir`, recursively.
-fn rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    for entry in std::fs::read_dir(dir).expect("the source tree must be readable") {
-        let path = entry.expect("a readable directory entry").path();
-        if path.is_dir() {
-            rs_files(&path, out);
-        } else if path.extension().is_some_and(|e| e == "rs") {
-            out.push(path);
-        }
-    }
-}
+use harness::scan::{files_containing, rs_files};
+use std::path::Path;
 
 /// The implementation half of a source file: everything before the bare
 /// `#[cfg(test)]` at column 0.
@@ -80,29 +77,6 @@ fn sections(dir: &str, bound: bool, minimum: usize) -> Vec<(String, String)> {
         .collect();
     out.sort();
     out
-}
-
-/// Files whose section contains `needle` on a **code** line.
-///
-/// Comment lines are skipped, so these scans are about what the compiler sees
-/// rather than about prose: `src/agent/mod.rs`'s module header names `Document`
-/// and `History` precisely to state that no file here may hold one, and a scan
-/// that counted those as uses would force the rule to go undocumented to stay
-/// true.
-///
-/// The cost is that prose is **unscanned**, so a header can drift out of step
-/// with the code it describes and nothing here notices — LCV-123's review
-/// caught exactly that in `src/agent/mod.rs`. Skipping comments is still the
-/// right trade; it just is not free.
-fn files_containing(sections: &[(String, String)], needle: &str) -> Vec<String> {
-    sections
-        .iter()
-        .filter(|(_, body)| {
-            body.lines()
-                .any(|line| line.contains(needle) && !line.trim_start().starts_with("//"))
-        })
-        .map(|(path, _)| path.clone())
-        .collect()
 }
 
 /// The files allowed to name document state under `src/agent/`.

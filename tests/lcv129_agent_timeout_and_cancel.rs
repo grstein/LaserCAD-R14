@@ -31,19 +31,18 @@
 //! four functions below read the frame's paint list, in the shape LCV-125
 //! established and LCV-126 reused.
 //!
-//! LCV-132 promotes that machinery into `tests/harness/` and is still `Draft`
-//! as this file is written, so **this is its third private copy and LCV-132
-//! should absorb it as a fourth caller**. The demand's own §Expected tests asks
-//! not to write one; it was overridden deliberately, because keeping AC 7 and
-//! AC 8 on scans would have shipped the two claims that matter as the two
-//! claims that cannot fail.
+//! LCV-132 has since promoted that machinery into `tests/harness/paint.rs`,
+//! which is where its traps are written down; this file is one of its callers.
+//! The scan half below calls `tests/harness/scan.rs`'s walker and its
+//! count-returning matcher for the same reason.
 
 mod harness;
 
 use harness::raw_input;
+use harness::scan::{occurrences, rs_files};
 use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome, TransportError};
 use lasercad::app::{arm_turn, cancel_turn, poll_agent_rx, App, AGENT_CANCELLED_MESSAGE};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::Duration;
 
@@ -242,18 +241,6 @@ fn ac4_a_timed_out_call_ends_the_turn_through_failed() {
 
 // ── AC 5 — the sole-writer scan ─────────────────────────────────────────────
 
-/// Every `.rs` file under `dir`, recursively.
-fn rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    for entry in std::fs::read_dir(dir).expect("the source tree must be readable") {
-        let path = entry.expect("a readable directory entry").path();
-        if path.is_dir() {
-            rs_files(&path, out);
-        } else if path.extension().is_some_and(|e| e == "rs") {
-            out.push(path);
-        }
-    }
-}
-
 /// `src/`'s `.rs` files as (relative path, implementation text) pairs, sorted
 /// on the rendered path.
 ///
@@ -290,24 +277,6 @@ fn implementation_sections() -> Vec<(String, String)> {
         .collect();
     sections.sort();
     sections
-}
-
-/// Every `(path, occurrences)` whose implementation contains `needle` on a
-/// **code** line. Comment lines are skipped: `agent_poll.rs`'s module header
-/// names the write precisely in order to say it is the only one, and a scan
-/// that counted prose would force the rule to go undocumented to stay true.
-fn occurrences(sections: &[(String, String)], needle: &str) -> Vec<(String, usize)> {
-    sections
-        .iter()
-        .filter_map(|(path, body)| {
-            let hits: usize = body
-                .lines()
-                .filter(|line| !line.trim_start().starts_with("//"))
-                .map(|line| line.matches(needle).count())
-                .sum();
-            (hits > 0).then(|| (path.clone(), hits))
-        })
-        .collect()
 }
 
 /// AC 5 / ADR 0007 §D11 — `end_turn` is the only place in the program that
