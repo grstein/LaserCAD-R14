@@ -1,6 +1,22 @@
 //! tests/harness/mod.rs — shared headless-frame plumbing for LCV-1xx tests.
 //!
+//! Three modules, divided by kind:
+//!
+//! - **this file** — input: the screen rect, a key tap, a frame, the
+//!   command-line gestures, and the five hard rules below;
+//! - [`paint`] — what actually reached the screen, and the eight traps that
+//!   decide whether a painted-text assertion means anything;
+//! - [`scan`] — the source-scan walker and matcher, and the four rules that
+//!   keep a scan able to fail.
+//!
 //! Each integration-test binary compiles its own copy, hence `allow(dead_code)`.
+//! The blanket is not laziness and is not narrowed to per-item allows: Cargo
+//! compiles this directory into **every** consumer binary, so a file that uses
+//! only [`tap`] would trip `-D warnings` on every other item here. What the
+//! blanket costs is paid for directly — an unused `mod harness;` is caught by
+//! `tests/lcv132_harness_is_shared.rs`, because the blanket hides exactly that
+//! case and nothing else was looking for it. The attribute propagates into the
+//! submodules declared below, which therefore carry no second copy of it.
 //!
 //! Five rules for every test built on this harness (ADR 0002 §A4):
 //!
@@ -33,6 +49,9 @@
 //!    populated, so `hovered()` stays `true` and a mutant term goes uncaught.
 #![allow(dead_code)]
 
+pub mod paint;
+pub mod scan;
+
 use lasercad::app::App;
 
 /// Screen size handed to egui, in points. Matches `DEFAULT_WINDOW_SIZE`.
@@ -63,9 +82,13 @@ pub fn key_events(key: egui::Key, modifiers: egui::Modifiers) -> Vec<egui::Event
     ]
 }
 
-/// One frame of raw input with a realistic screen rect. `modifiers` is taken
+/// One frame of raw input at an arbitrary screen size. `modifiers` is taken
 /// from the first key event so `ctx.input(|i| i.modifiers)` agrees with it.
-pub fn raw_input(events: Vec<egui::Event>) -> egui::RawInput {
+///
+/// The screen is a parameter because a layout claim is only true at a size:
+/// `tests/lcv133_shortcuts_dialog_fits.rs` makes the same claim at three of
+/// them, and a fixed `SCREEN` forced it to carry a second copy of this.
+pub fn raw_input_at(screen: [f32; 2], events: Vec<egui::Event>) -> egui::RawInput {
     let modifiers = events
         .iter()
         .find_map(|e| match e {
@@ -76,12 +99,17 @@ pub fn raw_input(events: Vec<egui::Event>) -> egui::RawInput {
     egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(
             egui::Pos2::ZERO,
-            egui::vec2(SCREEN[0], SCREEN[1]),
+            egui::vec2(screen[0], screen[1]),
         )),
         modifiers,
         events,
         ..Default::default()
     }
+}
+
+/// [`raw_input_at`] at the default [`SCREEN`].
+pub fn raw_input(events: Vec<egui::Event>) -> egui::RawInput {
+    raw_input_at(SCREEN, events)
 }
 
 /// Drive exactly one `App::update_ui` tick with `events`.
