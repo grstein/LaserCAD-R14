@@ -1,11 +1,11 @@
 # LCV-147 — The tree-wide loopback scan ships disabled, blocked by a control that breaks the rule it controls for
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 12
 - **Depends on**: LCV-130 (shipped; this re-enables its AC 4b), LCV-124 (owns the file being corrected)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: -
+- **Implementation**: f2aca88
 
 ## Problem
 

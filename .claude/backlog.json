@@ -1599,13 +1599,14 @@
       "id": "LCV-147",
       "title": "The tree-wide loopback scan ships disabled, blocked by a control that breaks the rule it controls for",
       "phase": 12,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [
         "LCV-130",
         "LCV-124"
       ],
       "suggested_agent": "implementer-rust",
       "suggested_model": "sonnet",
+      "shipped_commit": "f2aca88",
       "demand_file": "docs/product/demands/LCV-147-loopback-scan-is-disabled-by-its-own-control.md"
     }
   ]
