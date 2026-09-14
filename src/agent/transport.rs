@@ -713,11 +713,45 @@ mod tests {
         mock.assert();
     }
 
-    /// An unreachable endpoint is a `Request` error, not a panic.
+    // ── LCV-130: an address the test does not own is not isolation ─────────
+
+    /// LCV-130 — the endpoint this file named until now.
+    ///
+    /// It used to be `http://127.0.0.1:1` — "port 1 on loopback, nothing
+    /// listens there, ever" — and that reasoning was wrong.
+    /// `reqwest::blocking::Client::new()` sets `auto_sys_proxy: true`, and
+    /// reqwest 0.12 has **no loopback bypass**: with `HTTP_PROXY` set (normal
+    /// on a corporate network, or a runner behind one) the closed port is
+    /// never dialled locally at all — the request is handed to the proxy
+    /// instead. A reviewer stood up a listener on the proxy address and
+    /// captured a real `POST` carrying `authorization: Bearer
+    /// sk-test-DO-NOT-LEAK` while this very test reported success. This
+    /// constant answers a different question: not "is the address
+    /// reachable", which the environment decides, but "can this ever be
+    /// sent", which the test decides by making the endpoint fail
+    /// `Url::parse` — no socket considered, no proxy consulted, in any
+    /// environment. [`owned_socket_closed_before_a_reply_is_a_request_error`]
+    /// below carries the socket-level half this replaced.
+    const UNPARSEABLE_ENDPOINT: &str = "not-a-url";
+
+    /// LCV-130 AC 1a — the unsendable endpoint is a `Request` error, not a
+    /// panic, and it costs nothing to prove: `Url::parse` rejects
+    /// [`UNPARSEABLE_ENDPOINT`] before `chat_completion` ever reaches
+    /// `reqwest::blocking::Client::builder()`, so no socket is opened and no
+    /// proxy is consulted — by construction, in every environment.
+    ///
+    /// AC 4a's per-file guard rides on the same assertion: a module that
+    /// configures a transport endpoint from a constant proves, in the same
+    /// file, that the constant fails `Url::parse`.
     #[test]
-    fn unreachable_endpoint_is_a_request_error() {
+    fn unparseable_endpoint_is_a_request_error() {
+        assert!(
+            reqwest::Url::parse(UNPARSEABLE_ENDPOINT).is_err(),
+            "AC 4a: the constant these tests configure must fail URL parsing"
+        );
+
         let result = chat_completion(
-            "http://127.0.0.1:1",
+            UNPARSEABLE_ENDPOINT,
             DUMMY_KEY,
             "m",
             &[ChatMessage::user("x")],
@@ -725,6 +759,58 @@ mod tests {
         );
         assert!(matches!(result, Err(TransportError::Request(_))));
         assert_no_key(&result.unwrap_err().to_string());
+    }
+
+    /// LCV-130 AC 1b — the socket the test binds, accepts on, and drops
+    /// without a byte, which is a `Request` error and **not** `Timeout`.
+    ///
+    /// A bound-then-dropped port is explicitly rejected as a fixture: the
+    /// ephemeral port could be handed to an unrelated process between the
+    /// drop and the connect, which is a flake and, worse, a connection to
+    /// something else on the developer's machine. This binds, accepts one
+    /// connection and only then drops it — the socket is owned for the
+    /// call's entire lifetime, same shape as [`timeout_case`] below.
+    ///
+    /// This is not a duplicate of (a) above: the single mutation that proves
+    /// it — adding `if error.is_connect() { return TransportError::Timeout
+    /// { .. } }` to [`request_error`] — turns this test red while (a) stays
+    /// green, because an unparseable-URL error never answers `is_connect()`
+    /// at all. If that mutation does not turn this test red, this test is a
+    /// duplicate of (a) and must be reported as such, not kept for
+    /// appearance (demand §Expected tests).
+    #[test]
+    fn owned_socket_closed_before_a_reply_is_a_request_error() {
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").expect("loopback must be bindable");
+        let url = format!(
+            "http://{}",
+            listener
+                .local_addr()
+                .expect("the fixture must have an address")
+        );
+        let fixture = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("the client must connect");
+            // The whole fixture: accept, then drop with no byte written. The
+            // client sees the connection close before any response arrives.
+            drop(stream);
+        });
+
+        let result = chat_completion(
+            &url,
+            DUMMY_KEY,
+            "m",
+            &[ChatMessage::user("x")],
+            &Value::Null,
+        );
+
+        fixture.join().expect("the fixture thread must not panic");
+        match result {
+            Err(TransportError::Request(_)) => {}
+            other => {
+                panic!("a connection dropped before a reply must be a Request error, got {other:?}")
+            }
+        }
     }
 
     // ── LCV-129: the call is bounded ─────────────────────────────────────────
@@ -945,5 +1031,38 @@ mod tests {
             !implementation.contains(concat!("struct ", "Message")),
             "transport::Message is retired; the conversation type is wire::ChatMessage"
         );
+    }
+
+    // ── LCV-130 AC 3: the production client carries no proxy config ─────────
+
+    /// LCV-130 AC 3 — the production transport is untouched. `.no_proxy()`,
+    /// in any form, is out of scope for `chat_completion` (demand §Out of
+    /// scope): it would break every real operator behind a corporate proxy
+    /// to buy this suite a test convenience. AC 2's `.cargo/config.toml`
+    /// entry is the only mechanism this demand adds, and it never reaches
+    /// this file — bounded to the implementation section, so the test
+    /// module these two needles necessarily discuss cannot trip its own scan.
+    ///
+    /// Shown to discriminate: both needles are first looked up in a witness
+    /// built from the very words this test forbids, through the same
+    /// `contains` that scans the real implementation section.
+    #[test]
+    fn ac3_the_production_client_carries_no_proxy_configuration() {
+        let witness = concat!("client.", "no_proxy", "(); client.", "proxy", "(p)");
+        let needles = [concat!("no_", "proxy"), concat!("pro", "xy")];
+        for needle in needles {
+            assert!(
+                witness.contains(needle),
+                "control: `{needle}` must be a needle that can match something"
+            );
+        }
+
+        let implementation = implementation_section();
+        for needle in needles {
+            assert!(
+                !implementation.contains(needle),
+                "AC 3: `{needle}` must not appear in the production transport"
+            );
+        }
     }
 }
