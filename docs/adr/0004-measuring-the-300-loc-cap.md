@@ -9,6 +9,13 @@
 - **Amended (2)**: 2026-09-13 — `src/ui/dialogs.rs` reached **299** on LCV-133 and
   flagged `architect` as rule 4 asks. Consequences gains §"The `src/ui/dialogs.rs`
   seam". Rule 4 is applied, not changed; nothing in rules 1..4 is reversed.
+- **Amended (3)**: 2026-09-14 — two additions from LCV-132, both in
+  Consequences. §"What the cap binds under `tests/`" states which files under
+  `tests/` rule 3's exemption 2 already covers (an integration-test binary: yes;
+  `tests/harness/`: no) — stated, not widened. §"The `tests/harness/paint.rs`
+  seam" records a seam at **267**, three lines below the 270 band, because
+  LCV-132 AC 11 flagged it there and three queued demands will push it in. Rule
+  4 is applied, not changed; nothing in rules 1..4 is reversed.
 - **Date**: 2026-09-13
 - **Deciders**: architect
 
@@ -244,6 +251,100 @@ Five notes make it executable without a second decision:
   `the_shortcuts_dialog_reads_no_key` is exactly that enforcement, and ADR 0002
   §A6's "two key readers" invariant is unchanged by the move.
 
+**What the cap binds under `tests/`.**
+*(Amended (3), 2026-09-14. Rule 3's exemptions were written against `src/`.
+Nothing below is a third exemption; it is exemption 2 stated where it already
+applied.)*
+
+Exemption 2 — *a file that contains **only** test code* — decides both cases
+under `tests/`, in opposite directions:
+
+- **An integration-test binary directly in `tests/` is exempt.** It is entirely
+  test code; the cap has never bound it and does not now. Measured on
+  2026-09-14 with the rule 2 recipe: `tests/lcv123_agent_turn.rs` is **895**,
+  `tests/lcv129_agent_timeout_and_cancel.rs` **557**,
+  `tests/lcv125_agent_panel_and_settings.rs` **552**. None of those is a
+  finding, and none should be reported as one. What keeps such a file honest is
+  that it holds one demand's assertions; when a second demand wants its
+  helpers, they move to `tests/harness/` — and the cap picks them up there.
+- **`tests/harness/` is *not* exempt.** It carries no test body of its own (its
+  tests live in `tests/lcv132_harness_is_shared.rs`), it is shared
+  implementation compiled into every consumer binary, and it is the code a
+  reviewer reads to decide whether a painted-text assertion means anything.
+  LCV-132 AC 11 already measured every file there against the cap.
+
+**The `tests/harness/paint.rs` seam, pre-decided per rule 4.**
+
+`tests/harness/paint.rs` is at **267** implementation lines at `dbca0a3`,
+measured with the rule 2 recipe (the three harness modules are `mod.rs` **152**,
+`paint.rs` **267**, `scan.rs` **106** — 525 in total). 267 is three lines
+*below* the 270 band, so rule 4 does not formally bind yet and the file is not
+split now. The seam is recorded anyway, for three reasons: LCV-132 AC 11 set 270
+as its own ceiling and flagged `architect` at 267 as rule 4 asks; three queued
+demands (LCV-139, LCV-140, LCV-141) depend on LCV-132 and each will add
+painted-text assertions; and [ADR 0002](0002-headless-input-tests-and-dirty-tracking.md)
+§A3's `pixels_per_point` guard alone lands the file near 272.
+
+**The seam is production versus interpretation of a `Run`.**
+
+| stays in `tests/harness/paint/mod.rs` | moves to `tests/harness/paint/lines.rs` |
+|---|---|
+| the "painted text, not a scan" preamble, traps 6, 7 and 8, `Run` with `Run::y` / `Run::x`, `collect_text`, `runs_in`, `painted_runs_at`, `painted_runs` | traps 1–5, the assertion idiom, `SAME_LINE`, `scoped_runs`, `group_into_lines`, `lines_on_surface_of`, `texts` |
+
+Six notes make it executable without a second decision:
+
+- **Why a directory, not a sibling `tests/harness/lines.rs`.**
+  `tests/harness/paint/mod.rs` re-exports the moved names
+  (`pub use lines::{group_into_lines, lines_on_surface_of, scoped_runs, texts, SAME_LINE};`),
+  so every `use harness::paint::{…}` in the five consumers —
+  `tests/lcv125_agent_panel_and_settings.rs`,
+  `tests/lcv126_command_line_group.rs`,
+  `tests/lcv129_agent_timeout_and_cancel.rs`,
+  `tests/lcv132_harness_is_shared.rs` and
+  `tests/lcv133_shortcuts_dialog_fits.rs` — resolves unchanged, and the split
+  repoints no test. It is also what `AGENTS.md` §Module tree asks of a directory
+  module. A sibling module renames the concept at every `harness::paint::` call
+  site to save one directory.
+- **The seam is where `Run` changes hands, and it is where the growth is.** The
+  collector is four functions over an API pinned at 0.29.1 and is finished;
+  what every next demand adds is *interpretation* — a surface's width, a second
+  column bucketing, a new grouping. "The thing that grew is what moves out" —
+  the rule the `src/app/mod.rs` and `src/ui/dialogs.rs` seams above apply —
+  points the same way. **The placement rule for the next helper follows from
+  it: anything that reads a `Run` belongs in `lines.rs`; only something that
+  produces one belongs in `mod.rs`.** That includes
+  `tests/lcv126_command_line_group.rs`'s private column bucketing (trap 3) if a
+  second surface ever needs it.
+- **`Run::y` / `Run::x` stay with `Run`,** though only `lines.rs` calls them.
+  Splitting an inherent impl across files to move eight lines buys nothing and
+  costs a reader the type's whole surface.
+- **The arithmetic.** Roughly 77 code lines plus the five traps and the
+  assertion idiom (~55 header lines) move: `paint/mod.rs` lands near **140**,
+  `paint/lines.rs` near **135**. Real headroom on both, which is what rule 4
+  asks a seam to produce.
+- **What the split must repoint** — three things, and only one of them is found
+  by a compiler:
+  1. **The rustdoc intra-doc links that cross the new boundary** — the bracketed
+     references to `group_into_lines` (trap 1 and `Run::text`), `SAME_LINE`
+     (trap 4 and `Run`), `painted_runs_at` (trap 7) and `Run::y` (trap 8) —
+     become `super::` / `lines::` paths. `cargo doc` is not in the gate, so a
+     broken one **fails silently**. This is the part to check by hand.
+  2. `tests/harness/mod.rs`'s module header, which opens "Three modules, divided
+     by kind" and gives `paint` one line.
+  3. `AGENTS.md` §Implementation Rules' painted-text entry, which cites
+     `tests/harness/paint.rs` and becomes `tests/harness/paint/`.
+
+  Nothing in `tests/lcv132_harness_is_shared.rs` moves: it imports
+  `collect_text`, `runs_in` and `Run`, all collection-side.
+- **Trigger, and who executes it.** The first demand that would take
+  `tests/harness/paint.rs` over **300** executes this split as its first commit,
+  before its own change. A demand that adds an *interpretation* helper while the
+  file is still under 300 should execute it first too, rather than land a helper
+  in the file it is about to leave. On today's queue that is **LCV-141** (the
+  agent panel within the right third — a geometry claim over a surface rect),
+  with LCV-139 and LCV-140 the next candidates; whichever arrives first owns it,
+  and it needs no new decision.
+
 **The rest of the band, for the record.** `src/app/agent_apply.rs` is at 284,
 `src/app/file_ops.rs` at 281, `src/app/agent_turn.rs` at 272 and
 `src/io/settings.rs` at 265. Only `agent_apply.rs` needs a seam named, and it is
@@ -283,3 +384,6 @@ above.
 - Any demand adds an implementation line to `src/ui/dialogs.rs` (at 299) →
   execute the seam named for it in Consequences first; no new decision is
   required.
+- `tests/harness/paint.rs` (at 267) crosses 300, **or** a demand adds a helper
+  to it that reads a `Run` rather than producing one → execute the seam named
+  for it in Consequences first; no new decision is required.
