@@ -374,6 +374,8 @@ AppImage and `.deb` as downloadable assets.
       is the entire justification for LCV-125 — if it is not findable, the
       demand did not deliver.
 
+- **Manual smoke / proxy isolation and test suite behind HTTP_PROXY**: Run `cargo test --all --no-fail-fast` with `HTTP_PROXY`, `HTTPS_PROXY` and `ALL_PROXY` all pointed at a throwaway capturing listener, **under a timeout wrapper** (`timeout 600 cargo test …`). Report two numbers: the requests the listener saw, and the pass/fail line. Expect **0 requests, all green**. The timeout wrapper is load-bearing, not tidiness: measured 2026-09-14, without `.cargo/config.toml`'s `NO_PROXY` entry, `src/agent/transport.rs::ac3_both_halves_of_a_call_give_up_when_the_endpoint_stalls` does not fail loudly — it **hangs indefinitely**, because its fixture thread's `.accept()` never returns once the client dials the proxy instead of the fixture's own port. A smoke step that can hang forever is a step nobody runs twice.
+
 ## Open questions
 
 *(none)*
