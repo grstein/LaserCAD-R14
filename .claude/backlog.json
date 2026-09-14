@@ -1361,7 +1361,7 @@
       "id": "LCV-130",
       "title": "The test suite's isolation from the network depends on the absence of a proxy",
       "phase": 12,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "milestone": "Phase 12 follow-up (outside the Marco 2 drive)",
