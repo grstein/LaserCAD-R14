@@ -34,28 +34,25 @@
 //!    `"ArrowUp"` is `"ArrowUp             "` (20 characters). [`texts`] trims
 //!    each run before comparing, or every expected string in this file would
 //!    have to carry hand-counted trailing spaces.
-//! 3. **The dialog's `Window` is shorter than its content, on purpose.** It has
-//!    no `.default_height()`, so egui's own default — 420 points
-//!    (`Resize::default_size` in the vendored `egui-0.29.1` source) — becomes
-//!    the `ScrollArea`'s *maximum* height regardless of screen size (verified:
-//!    a 2000-point-tall screen doesn't change it). That is exactly why the
-//!    dialog carries `egui::ScrollArea::vertical()` at all ("so every row is
-//!    reachable on a short window" — the doc comment on `shortcuts_dialog`).
-//!    With eight groups plus the ten tool rows, "Command line" and "Help" sit
-//!    below the fold at the window's default scroll position, so this test
-//!    scrolls the dialog before asserting — see [`open_and_scroll_to_bottom`].
-//!    That is a **test-driving detail**, not a product change: nothing here
-//!    resizes the window, adds scroll-position memory, or touches
-//!    `shortcuts_dialog`'s body (LCV-126 §Out of scope).
-//! 4. **Two settle pairs, not one.** ADR 0002's "first frame is not settled"
-//!    rule applies to *any* state change, not only to opening a window: one
-//!    frame opens the dialog and one frame settles its first layout: as
-//!    confirmed by measurement (see `open_and_scroll_to_bottom`), that first
-//!    settle frame is also the first one whose rect is known well enough for
-//!    a `MouseWheel` event over the scroll area to register at all. Then one
-//!    frame applies the scroll and one more frame settles *that*. Asserting
-//!    on the third of the four (rather than the fourth) reads a
-//!    still-scrolling frame and silently proves nothing.
+//! 3. **Two columns share one clip rect (LCV-133).** `shortcuts_dialog` no
+//!    longer renders one column scrolled to a `.default_height()`-capped
+//!    window (that one-line fix was measured and rejected — see LCV-133
+//!    §Problem); it lays its content out in two columns wide enough that all
+//!    eight groups fit inside the window's baked ~420pt cap with no scroll
+//!    input at all. `ui.columns` clones the parent painter without narrowing
+//!    its clip, so every run in both columns carries the *same*
+//!    `ClippedShape::clip_rect` — which means grouping by `y` alone would
+//!    braid a left-column run into a right-column line whenever their `y`
+//!    values happen to fall within [`SAME_LINE`] of each other, silently
+//!    turning this test's ordered assertion into noise. [`lines_on_surface_of`]
+//!    buckets by column — the widest gap between distinct run-start `x`
+//!    values, always the column boundary because it dwarfs the gap between a
+//!    row's own binding and description — before it groups by `y`.
+//! 4. **No scroll.** With nothing left below the fold, [`open_and_settle`]
+//!    drives exactly the two frames ADR 0002 already requires for any state
+//!    change (one opens the dialog, one settles its first layout) and no
+//!    `MouseWheel` at all — a scroll event that moves nothing would be a
+//!    comment pretending to be code.
 //! 5. **Empty runs exist and are dropped**, same as LCV-125's collector: an
 //!    empty galley carries nothing an operator can read, and keeping it would
 //!    make `retain` a no-op that hides a genuinely blank run.
@@ -123,13 +120,28 @@ fn painted_runs(ctx: &egui::Context, app: &mut App, events: Vec<egui::Event>) ->
     runs
 }
 
-/// Every visual line painted on the same surface as the run reading `marker`,
-/// top to bottom, each line read left to right.
+/// The `x` at which the two columns split: the midpoint of the widest gap
+/// between the distinct, sorted `x` values in `xs`. LCV-133's two columns are
+/// separated by a wide, empty band in `x` — the left column's rightmost run
+/// ends well before the right column's leftmost begins — and that band is
+/// always wider than the gap between one row's own binding and its
+/// description, so the widest gap is always the column boundary.
+fn column_split_x(xs: &[i32]) -> i32 {
+    xs.windows(2)
+        .max_by_key(|pair| pair[1] - pair[0])
+        .map(|pair| (pair[0] + pair[1]) / 2)
+        .expect("at least two distinct x values: a heading and a row, in one column")
+}
+
+/// Every visual line painted on the same surface *and in the same column* as
+/// the run reading `marker`, top to bottom, each line read left to right.
 ///
 /// "Same surface" is `ClippedShape::clip_rect` containment (trap 1 above):
 /// `marker` must be a run genuinely inside the surface, never a `Window`
 /// title, which is clipped to the whole screen and would make every surface
-/// in the frame match.
+/// in the frame match. "Same column" is [`column_split_x`] (trap 3 above):
+/// without it, a two-column layout's shared clip rect would let a run from
+/// the *other* column join a line here just because its `y` is close enough.
 fn lines_on_surface_of(runs: &[Run], marker: &str) -> Vec<Vec<String>> {
     let matches: Vec<&Run> = runs.iter().filter(|run| run.text == marker).collect();
     assert_eq!(
@@ -139,6 +151,7 @@ fn lines_on_surface_of(runs: &[Run], marker: &str) -> Vec<Vec<String>> {
         matches.len()
     );
     let surface = matches[0].clip;
+    let marker_x = matches[0].x;
 
     let mut scoped: Vec<&Run> = runs
         .iter()
@@ -148,6 +161,18 @@ fn lines_on_surface_of(runs: &[Run], marker: &str) -> Vec<Vec<String>> {
         scoped.len() < runs.len(),
         "positive control: the surface must be narrower than the frame"
     );
+
+    let mut xs: Vec<i32> = scoped.iter().map(|run| run.x).collect();
+    xs.sort_unstable();
+    xs.dedup();
+    let split_x = column_split_x(&xs);
+    let marker_side = marker_x < split_x;
+    scoped.retain(|run| (run.x < split_x) == marker_side);
+    assert!(
+        !scoped.is_empty(),
+        "positive control: `{marker}`'s own column must contain at least itself"
+    );
+
     scoped.sort_by_key(|run| (run.y, run.x));
 
     let mut lines: Vec<(i32, Vec<&Run>)> = Vec::new();
@@ -169,37 +194,19 @@ fn lines_on_surface_of(runs: &[Run], marker: &str) -> Vec<Vec<String>> {
         .collect()
 }
 
-/// Open the shortcuts dialog and scroll its body all the way down, returning
-/// the runs of the fourth and final frame — the one whose scroll offset has
-/// settled (trap 4 above).
+/// Open the shortcuts dialog and settle it, returning the runs of the second
+/// frame (trap 4 above: no scroll — the two-column layout leaves nothing
+/// below the fold to scroll to).
 ///
 /// `app.shortcuts_open = true` is set directly (ADR 0002 §A2: `App::default()`
 /// only, never `App::new()`); no key is sent to reach it, because opening the
 /// dialog is not what this test is about.
-fn open_and_scroll_to_bottom(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
+fn open_and_settle(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
     // Frame 1 — the window is requested for the first time. It paints nothing
     // of its own body yet (ADR 0002: the first frame is not settled).
     let _ = painted_runs(ctx, app, vec![]);
-    // Frame 2 — the dialog's first real layout. Its scroll-area rect is now
-    // known well enough for a pointer-scoped `MouseWheel` to hit it.
-    let _ = painted_runs(ctx, app, vec![]);
-
-    // Frame 3 — hover the middle of the screen (inside the dialog body, which
-    // is centre-anchored) and scroll far past the content's actual height so
-    // the offset clamps to the maximum regardless of exactly how tall the
-    // content is.
-    let centre = egui::pos2(harness::SCREEN[0] / 2.0, harness::SCREEN[1] / 2.0);
-    let scroll = vec![
-        egui::Event::PointerMoved(centre),
-        egui::Event::MouseWheel {
-            unit: egui::MouseWheelUnit::Point,
-            delta: egui::vec2(0.0, -3000.0),
-            modifiers: egui::Modifiers::NONE,
-        },
-    ];
-    let _ = painted_runs(ctx, app, scroll);
-
-    // Frame 4 — settled: the scrolled content is what this test asserts on.
+    // Frame 2 — settled: the dialog's first real layout is everything this
+    // test asserts on.
     painted_runs(ctx, app, vec![])
 }
 
@@ -218,13 +225,13 @@ fn the_command_line_group_is_painted_between_drawing_and_help() {
         ..App::default()
     };
 
-    let runs = open_and_scroll_to_bottom(&ctx, &mut app);
+    let runs = open_and_settle(&ctx, &mut app);
     let lines = lines_on_surface_of(&runs, "Command line");
 
     let start = lines
         .iter()
         .position(|line| line.as_slice() == ["Command line"])
-        .expect("the Command line heading must be painted on the scrolled, settled frame");
+        .expect("the Command line heading must be painted on the settled frame");
     assert!(
         start + 5 <= lines.len(),
         "not enough lines painted after Command line: only {} available, need 5",

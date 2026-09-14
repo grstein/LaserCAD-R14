@@ -11,7 +11,10 @@ pub mod statusbar;
 pub mod theme;
 pub mod toolbar;
 pub use command_line::draw_command_line;
-pub use dialogs::{about_dialog, confirm_dialog, error_dialog, shortcuts_dialog, DialogResult};
+pub use dialogs::{
+    about_dialog, confirm_dialog, error_dialog, shortcuts_dialog, tool_rows, DialogResult,
+    ShortcutGroup, SHORTCUT_GROUPS,
+};
 pub use menubar::draw_menubar;
 pub use shortcuts::process_shortcuts;
 pub use statusbar::{draw_statusbar, format_coords};

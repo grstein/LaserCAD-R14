@@ -123,12 +123,13 @@ pub fn about_dialog(ctx: &Context, open: &mut bool) {
         });
 }
 
-/// One group of bindings in the keyboard-shortcuts dialog.
-pub(crate) struct ShortcutGroup {
+/// One group of bindings in the keyboard-shortcuts dialog. `pub` (not
+/// `pub(crate)`) so `tests/lcv133_shortcuts_dialog_fits.rs` can derive counts.
+pub struct ShortcutGroup {
     /// Heading rendered above the group.
-    pub(crate) heading: &'static str,
+    pub heading: &'static str,
     /// `(binding, description)` rows, in display order.
-    pub(crate) rows: &'static [(&'static str, &'static str)],
+    pub rows: &'static [(&'static str, &'static str)],
 }
 
 /// The bindings that are **not** tool activations (LCV-116 AC 15).
@@ -143,7 +144,7 @@ pub(crate) struct ShortcutGroup {
 /// The tool letters are deliberately absent: they are generated from
 /// [`TOOLS`] by [`tool_rows`], so adding or removing a tool changes the dialog
 /// with no edit here (AC 14).
-pub(crate) const SHORTCUT_GROUPS: &[ShortcutGroup] = &[
+pub const SHORTCUT_GROUPS: &[ShortcutGroup] = &[
     ShortcutGroup {
         heading: "File",
         rows: &[
@@ -192,23 +193,81 @@ pub(crate) const SHORTCUT_GROUPS: &[ShortcutGroup] = &[
 /// One row per entry that has a `shortcut`; `Select` has no binding and is
 /// skipped. `TOOLS` is already the single source of truth for the toolbar and
 /// the Tools menu (LCV-104) — a hand-typed third copy would drift on the first
-/// tool change.
-pub(crate) fn tool_rows() -> Vec<(&'static str, &'static str)> {
+/// tool change. `pub`: see [`SHORTCUT_GROUPS`].
+pub fn tool_rows() -> Vec<(&'static str, &'static str)> {
     TOOLS
         .iter()
         .filter_map(|entry| entry.shortcut.map(|key| (key, entry.label)))
         .collect()
 }
 
+/// A heading plus its rows: the atomic, never-reordered unit that moves.
+struct Section {
+    heading: &'static str,
+    rows: Vec<(&'static str, &'static str)>,
+}
+
+/// One item per heading, plus one per row: what the split balances on.
+fn item_count(section: &Section) -> usize {
+    1 + section.rows.len()
+}
+
+/// `Tools` plus every [`SHORTCUT_GROUPS`] entry, each as one [`Section`].
+fn sections() -> Vec<Section> {
+    let mut all = vec![Section {
+        heading: "Tools",
+        rows: tool_rows(),
+    }];
+    all.extend(SHORTCUT_GROUPS.iter().map(|group| Section {
+        heading: group.heading,
+        rows: group.rows.to_vec(),
+    }));
+    all
+}
+
+/// Fill the left column section by section until its item count reaches half
+/// the total, then put the rest right (LCV-133 AC 5, derived, not hand-typed).
+fn split_into_columns(sections: Vec<Section>) -> (Vec<Section>, Vec<Section>) {
+    let half = sections.iter().map(item_count).sum::<usize>() / 2;
+    let mut left = Vec::new();
+    let mut right = Vec::new();
+    let mut filled = 0;
+    for section in sections {
+        if right.is_empty() && filled < half {
+            filled += item_count(&section);
+            left.push(section);
+        } else {
+            right.push(section);
+        }
+    }
+    (left, right)
+}
+
+/// Render one column: a heading then its rows, with breathing room before
+/// every heading after the column's first.
+fn render_column(ui: &mut egui::Ui, sections: &[Section]) {
+    for (i, section) in sections.iter().enumerate() {
+        if i > 0 {
+            ui.add_space(6.0);
+        }
+        ui.heading(section.heading);
+        for (binding, description) in &section.rows {
+            shortcut_row(ui, binding, description);
+        }
+    }
+}
+
 /// Render the Keyboard shortcuts dialog (LCV-116 AC 11).
 ///
-/// Follows [`about_dialog`]: opened and closed through `open`, so egui's own ×
-/// sets `*open = false`; centre-anchored, not collapsible. The body sits in a
-/// vertical [`egui::ScrollArea`] so every row is reachable on a short window.
+/// Follows [`about_dialog`]: opened/closed through `open`; centre-anchored,
+/// not collapsible. Laid out in **two columns** ([`split_into_columns`])
+/// because `Window::new`'s baked 420pt `default_size` caps a `ScrollArea` at
+/// that height regardless of screen size (egui 0.29.1) and one column of
+/// this content needs ~836pt (LCV-133); the `ScrollArea` stays as the safety
+/// net for a screen shorter than the two columns' own height.
 ///
-/// Read-only: no widget in it changes application state, and it reads no key.
-/// `F1` is dispatched in `src/ui/shortcuts.rs` like `F3` / `F7` / `F8`, not
-/// here.
+/// Read-only: no widget changes application state, and it reads no key. `F1`
+/// is dispatched in `src/ui/shortcuts.rs` like `F3` / `F7` / `F8`, not here.
 pub fn shortcuts_dialog(ctx: &Context, open: &mut bool) {
     Window::new("Keyboard shortcuts")
         .open(open)
@@ -217,17 +276,11 @@ pub fn shortcuts_dialog(ctx: &Context, open: &mut bool) {
         .collapsible(false)
         .show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.heading("Tools");
-                for (binding, description) in tool_rows() {
-                    shortcut_row(ui, binding, description);
-                }
-                for group in SHORTCUT_GROUPS {
-                    ui.add_space(6.0);
-                    ui.heading(group.heading);
-                    for (binding, description) in group.rows {
-                        shortcut_row(ui, binding, description);
-                    }
-                }
+                let (left, right) = split_into_columns(sections());
+                ui.columns(2, |columns| {
+                    render_column(&mut columns[0], &left);
+                    render_column(&mut columns[1], &right);
+                });
             });
         });
 }
@@ -320,6 +373,34 @@ mod tests {
             shortcuts_dialog(ctx, &mut closed);
         });
         assert!(!closed);
+    }
+
+    /// LCV-133 AC 5 — the column split is computed from `sections()`, not
+    /// hand-typed: this pins today's derived boundary (`Tools`/`File`/`Edit`
+    /// left, the rest right) as a regression, while the function under test
+    /// takes no group name as input at all. `tests/lcv133_shortcuts_dialog_fits.rs`
+    /// carries the corresponding rendered-frame proof at three screen sizes;
+    /// this is the cheaper, non-rendering half.
+    #[test]
+    fn split_into_columns_balances_by_item_count_not_by_name() {
+        let (left, right) = split_into_columns(sections());
+
+        let headings = |s: &[Section]| -> Vec<&str> { s.iter().map(|s| s.heading).collect() };
+        assert_eq!(headings(&left), vec!["Tools", "File", "Edit"]);
+        assert_eq!(
+            headings(&right),
+            vec!["View", "Modes", "Drawing", "Command line", "Help"]
+        );
+
+        // Every section is placed exactly once, in its original order, split
+        // between whole sections only (no row crosses the boundary).
+        let mut rejoined = headings(&left);
+        rejoined.extend(headings(&right));
+        assert_eq!(
+            rejoined,
+            headings(&sections()),
+            "the split must partition sections(), never reorder or drop one"
+        );
     }
 
     /// LCV-116 AC 14 — the tool rows are **derived** from `toolbar::TOOLS`,
