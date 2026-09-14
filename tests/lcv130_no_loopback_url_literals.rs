@@ -48,25 +48,6 @@
 //! extractor's own scheme check excludes regardless of what its host
 //! resolves to. That is the only split shape verified safe against this
 //! leniency for every host below, `127.0.0.0/8` included.
-//!
-//! ### Known blocker — not fixed here, reported instead
-//!
-//! [`no_loopback_http_literal_survives_in_the_tree`] is `#[ignore]`d. Under
-//! the leniency above, `tests/lcv124_command_line_routing.rs`'s own
-//! already-shipped, do-not-touch `concat!("http://127.0.0.", "1:1")` control
-//! (line ~149, `the_test_endpoint_cannot_reach_a_proxy`) has a first piece,
-//! `"http://127.0.0."`, that **is** a complete loopback URL — contradicting
-//! this demand's own text, which asserts "neither piece parses as a loopback
-//! URL." Confirmed by hand: `reqwest::Url::parse("http://127.0.0.")` returns
-//! `Ok` with `host_str() == Some("127.0.0.0")`, and `Ipv4Addr::is_loopback()`
-//! answers `true` for `127.0.0.0`. This file cannot both scan the whole tree
-//! (required) and leave that file untouched (also required) without either
-//! failing on a criterion this demand asserts should stay green, or silently
-//! carving the one file the demand's own witness names out of the scan —
-//! and the standing rule this same demand writes down is to report a
-//! criterion that does not fire, not to quietly tune it until it does. See
-//! the LCV-130 handover for the reproduction; this is for `product-owner` to
-//! route, not for this test to route around.
 
 mod harness;
 
@@ -204,17 +185,12 @@ fn whole_tree() -> (PathBuf, Vec<(String, String)>) {
 }
 
 /// AC 4b — the real claim: nothing in `src/` or `tests/` names a sendable
-/// loopback endpoint. Blocked — see the module header's "Known blocker": this
-/// is red today on `tests/lcv124_command_line_routing.rs`'s own untouchable
-/// control, not on anything this demand added. Run with `cargo test --
-/// --ignored` to see the reproduction.
+/// loopback endpoint. Runs by default (LCV-147): the one control that used to
+/// trip this scan — `tests/lcv124_command_line_routing.rs`'s
+/// `the_test_endpoint_cannot_reach_a_proxy` — now splits inside the scheme
+/// word, same as this file's own needles above, so no piece of it parses as a
+/// loopback URL.
 #[test]
-#[ignore = "LCV-130: red on tests/lcv124_command_line_routing.rs's own \
-            already-shipped concat! control, which this extractor parses \
-            as a loopback host under reqwest's lenient IPv4 rules — see \
-            this file's module header, section Known blocker, and the \
-            LCV-130 handover; reported to product-owner, not routed \
-            around here"]
 fn no_loopback_http_literal_survives_in_the_tree() {
     let (root, sections) = whole_tree();
     assert!(

@@ -146,7 +146,7 @@ fn the_test_endpoint_cannot_reach_a_proxy() {
     );
     // Control: the loopback spelling this replaced is a perfectly valid URL.
     assert!(
-        reqwest::Url::parse(concat!("http://127.0.0.", "1:1")).is_ok(),
+        reqwest::Url::parse(concat!("ht", "tp://127.0.0.1:1")).is_ok(),
         "control: a closed port is still a sendable URL — that was the leak"
     );
 }

@@ -771,13 +771,20 @@ mod tests {
     /// connection and only then drops it — the socket is owned for the
     /// call's entire lifetime, same shape as [`timeout_case`] below.
     ///
-    /// This is not a duplicate of (a) above: the single mutation that proves
-    /// it — adding `if error.is_connect() { return TransportError::Timeout
-    /// { .. } }` to [`request_error`] — turns this test red while (a) stays
-    /// green, because an unparseable-URL error never answers `is_connect()`
-    /// at all. If that mutation does not turn this test red, this test is a
-    /// duplicate of (a) and must be reported as such, not kept for
-    /// appearance (demand §Expected tests).
+    /// This is not a duplicate of (a) above: two mutations of
+    /// [`request_error`], measured, each prove it in one direction. Adding
+    /// `if error.is_request() { return TransportError::Timeout { .. } }`
+    /// turns this test red while (a) stays green; adding `if
+    /// error.is_builder() { return TransportError::Timeout { .. } }` turns
+    /// (a) red while this test stays green. If either direction does not
+    /// discriminate, this test is a duplicate of (a) and must be reported as
+    /// such, not kept for appearance (demand §Expected tests).
+    ///
+    /// `is_connect()` cannot be that mutation: this fixture `accept()`s the
+    /// connection before dropping it (see above), so its failure is never a
+    /// connect-step failure. The only fixture shape whose failure would
+    /// answer `is_connect()` is a bound-then-dropped port with no `accept()`
+    /// at all — the flake this test's own fixture explicitly rejects.
     #[test]
     fn owned_socket_closed_before_a_reply_is_a_request_error() {
         use std::net::TcpListener;
