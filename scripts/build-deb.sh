@@ -93,6 +93,10 @@ cp assets/icon-256.png "${STAGING}/usr/share/icons/hicolor/256x256/apps/lasercad
 # ---------------------------------------------------------------------------
 echo "==> Building ${OUTPUT}"
 mkdir -p "${DIST}"
-dpkg-deb --build "${STAGING}" "${OUTPUT}"
+# --root-owner-group: without it, dpkg-deb stamps every file with the
+# builder's own uid/gid (e.g. 1000:1000) instead of root:root, which is wrong
+# for files destined for /usr/bin and /usr/share on the installing machine.
+# dpkg-deb itself warns and suggests this flag when run as a non-root user.
+dpkg-deb --root-owner-group --build "${STAGING}" "${OUTPUT}"
 
 echo "==> Done: ${OUTPUT}"

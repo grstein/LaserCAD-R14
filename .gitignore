@@ -24,6 +24,7 @@ Thumbs.db
 # Distribution artifacts (built locally)
 dist/
 build/
+/AppDir/
 *.AppImage
 *.deb
 *.rpm

@@ -13,7 +13,10 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_ROOT}"
 
-APPIMAGETOOL_URL="https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage"
+# Release "13" (the numbered release this URL originally pointed at) was
+# retired and its assets removed; upstream now publishes only the rolling
+# "continuous" tag. Verified reachable 2026-09-14.
+APPIMAGETOOL_URL="https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
 APPIMAGETOOL_CACHE="build/appimagetool-x86_64.AppImage"
 APPDIR="AppDir"
 DIST="dist"
