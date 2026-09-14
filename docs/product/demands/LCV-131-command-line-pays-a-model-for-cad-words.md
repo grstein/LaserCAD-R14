@@ -1,6 +1,6 @@
 # LCV-131 — The command line does not know the words that name its own commands
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 12
 - **Depends on**: LCV-124 (the classifier), LCV-148 (the rule-4 flip; it lands first and is what makes this demand a pure grammar change)
 - **Suggested agent**: implementer-rust

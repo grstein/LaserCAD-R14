@@ -1,11 +1,11 @@
 # LCV-148 — An unrecognised line answers locally and never reaches the model
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 12
 - **Depends on**: LCV-124 (the classifier, the precedence table and the one arm this inverts)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: 421d730, 4caac01, e5d33d7
 
 ## Problem
 

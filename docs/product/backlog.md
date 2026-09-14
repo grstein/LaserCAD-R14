@@ -6,7 +6,7 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on | Notes |
 |---|---|---|---|---|
-| LCV-148 | An unrecognised line answers locally and never reaches the model | 12 | LCV-124 | —
+| LCV-131 | The command line does not know the words that name its own commands | 12 | LCV-124, LCV-148 | —
 
 **Marco 2 — complete, 2026-09-13.** All five demands are `Done` and reviewed: **LCV-121** (`d584f4d`), **LCV-122**
 (`61d609b`…`ff267ec`), **LCV-123** (`6102c68`, `e7ba0a6`, `af5ef82`),
@@ -161,6 +161,7 @@ _None._
 | LCV-135 | CI bills Windows and macOS on every push; gate to tags and dispatch | 11 | 2026-09-13 | a3b9769 |
 | LCV-132 | A rendering criterion is paid for in painted text, not in a source scan | 12 | 2026-09-14 | 1b89f0e, 4069efc, 8495a2a, dbca0a3 |
 | LCV-147 | The tree-wide loopback scan ships disabled, blocked by a control that breaks the rule it controls for | 12 | 2026-09-14 | f2aca88 |
+| LCV-148 | An unrecognised line answers locally and never reaches the model | 12 | 2026-09-14 | 421d730, 4caac01, e5d33d7 |
 
 ## Blocked
 
@@ -172,7 +173,6 @@ _None._
 
 | ID | Title | Phase |
 |---|---|---|
-| LCV-131 | The command line does not know the words that name its own commands | 12 |
 | LCV-136 | Discard responds to real pointer clicks | 11 |
 | LCV-137 | Visible grid and consistent viewport coordinates | 11 |
 | LCV-138 | Native document title and honest file feedback | 11 |
