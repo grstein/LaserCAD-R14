@@ -1371,16 +1371,19 @@
     },
     {
       "id": "LCV-131",
-      "title": "Typing `LINE` sends the word \"line\" to a language model",
+      "title": "The command line does not know the words that name its own commands",
       "phase": 12,
-      "status": "Draft",
+      "status": "Done",
       "depends_on": [
-        "LCV-124"
+        "LCV-124",
+        "LCV-148"
       ],
-      "suggested_agent": "architect",
+      "suggested_agent": "implementer-rust",
       "milestone": "Phase 12 follow-up (outside the Marco 2 drive)",
       "demand_file": "docs/product/demands/LCV-131-command-line-pays-a-model-for-cad-words.md",
-      "note": "Draft, opened 2026-09-13 from the LCV-124 review; body written by product-owner at 0c24170. SUGGESTED AGENT IS architect, NOT an implementer, because part of it amends ADR 0003 A2's FROZEN alias set; architect then hands to implementer-rust. THE DEFECT: with an API key configured, a line the CAD grammar does not recognise is routed to the model - a PAID round trip. LCV-124 accepted that for typos like 'lien', which is the behaviour its AC 2 and ADR 0007 D9 specify and is NOT a defect of LCV-124. What product-owner then found is the size of the hole: the grammar accepts only the SINGLE-LETTER tool aliases plus 'text', so 'line', 'circle' and every other full AutoCAD command name is unrecognised and goes to the model instead of drawing. An operator typing the command names they know from R14 pays a model for them. The CHANGELOG entry for LCV-124 is worded so it cannot be read as 'typing line draws a line locally'; when this ships, that caveat comes back out."
+      "note": "Done 2026-09-14. SPLIT: this demand was rewritten (8ee401b) as the GRAMMAR half only; the routing half became LCV-148 and shipped first. The earlier note on this entry is superseded - it described the pre-split framing in which typing a full command name reached the model, which LCV-148 ended. WHAT SHIPPED: fourteen new rows on src/cmdline/parse.rs::tool_alias giving v1 parity for the full AutoCAD command names - line, polyline, pline, rect, rectangle, circle, arc, select, trim, extend, move, delete, del, erase ('text' already worked, so fifteen words, fourteen new rows). NO 'offset', and the reason is structural: there is no ToolKind::Offset because the tool was rejected at LCV-054, so the word is unspellable rather than merely unwanted. NO ADR AMENDMENT WAS NEEDED, contrary to the old suggested_agent of architect: ADR 0003 A2a (added 300c766) had already opened the WORD axis while keeping the letter axis closed, so a word row is just a row. The letter axis is untouched - parse('x') and parse('d') stay Unknown and parse('e') stays Delete. THE OPEN MECHANISM QUESTION DISSOLVED: the demand had asked architect to choose between a reserved-word predicate, a new CommandInput variant, or accepting the risk, so that 'z' and a bare 'zoom' would stay local. Once LCV-148 made Unknown -> Cad unconditional they stay local for free, with no predicate, no new variant and no classifier clause. THE SHARPEST RISK was shadowing, because tool_alias is consulted FIRST in parse and a careless row silently steals an existing line; tool_words_do_not_shadow_other_forms pins toggles, zoom forms, coordinates, relatives, distances and the empty line. Eight mutations across implementer and reviewer found no survivor, including a partial-OR-arm deletion (dropping only 'pline' from the polyline|pline arm) and shadowing the reserved word 'zoom' onto a tool. parse.rs 147 -> 187 implementation LOC. Two controls stayed green and byte-unmodified by design, and are evidence rather than adjustments: tests/lcv112.rs::raw_input_is_not_parsed (typing 'line' at TEXT's prompt still commits the word as geometry) and src/agent/classifier.rs::tests::a_prefixed_cad_command_is_a_prompt (':line' is still a prompt now that 'line' is CAD).",
+      "suggested_model": "sonnet",
+      "shipped_commit": "b3f00e3, f3cf2cc"
     },
     {
       "id": "LCV-132",
@@ -1609,6 +1612,20 @@
       "suggested_model": "sonnet",
       "shipped_commit": "f2aca88",
       "demand_file": "docs/product/demands/LCV-147-loopback-scan-is-disabled-by-its-own-control.md"
+    },
+    {
+      "id": "LCV-148",
+      "title": "An unrecognised line answers locally and never reaches the model",
+      "phase": 12,
+      "status": "Done",
+      "depends_on": [
+        "LCV-124"
+      ],
+      "suggested_agent": "implementer-rust",
+      "suggested_model": "sonnet",
+      "shipped_commit": "421d730, 4caac01, e5d33d7",
+      "demand_file": "docs/product/demands/LCV-148-unrecognised-lines-stay-local.md",
+      "note": "Done 2026-09-14. Opened and closed in one batch as the ROUTING half of the LCV-131 split. WHAT SHIPPED: an unprefixed command-line input is never sent to the language model; ':' and '/ai' are the only way out. The guarded arm CommandInput::Unknown(text) if agent_available => Route::Agent(text) was deleted from src/agent/classifier.rs::classify, collapsing the inner match to a bare Route::Cad. WHY IT EXISTED: ADR 0007 D9 amendment (5) at 300c766 had already closed D9's open product question against rule 4, and the code had not honoured it - an ADR ruling that no code obeys. PRODUCT DECISION, RECORDED: this was contested. The LCV-136..146 initiative registration carried a boundary sentence reading 'current CAD/AI routing is unchanged; LCV-131 is excluded', and docs/product/backlog.md carried 'the user chose to retain current routing' (entered at 6dc71e7 inside an unrelated CI commit). ADR 0007 amendment (5) pointed the other way. THE USER DECIDED DIRECTLY ON 2026-09-14: LCV-148 accepted, LCV-131 accepted, nothing reverted. ATTRIBUTION CORRECTION worth carrying: ADR 0007 amendment (5)'s phrase 'decided by the user' was a team-lead RELAY of the user's direction, not a direct user statement. Relayed decisions must be attributed as 'team-lead relay' in ADRs, not as 'the user', or a relay becomes indistinguishable from a ruling. ADR 0007 still carries the unqualified wording. THINGS THAT COULD HAVE GONE WRONG AND DID NOT: D9a rule 3 required the LCV-124 pin asserting 'lien' IS sent to be inverted in place and renamed, never deleted (now a_typo_never_reaches_the_agent_even_with_a_key_configured), because deleting it would erase the record that LCV-124 knowingly accepted that hazard. The orphaned 'use crate::cmdline' moved into the test module and crate::cmdline was deliberately NOT added to classifier_is_kernel_pure's forbidden list - ADR 0003 A2a now says 'This is not a ban, and no demand may turn it into one'. That scan's positive controls had to be RE-DERIVED, since the old ones would have failed from absence; a control that cannot fail is the bug class this project keeps rediscovering. classify keeps its two-argument arity under D9a rule 1, pinned by a function-pointer coercion. Six mutations, no survivor."
     }
   ]
 }
