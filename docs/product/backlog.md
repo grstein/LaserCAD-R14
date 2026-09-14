@@ -6,6 +6,7 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on | Notes |
 |---|---|---|---|---|
+| LCV-148 | An unrecognised line answers locally and never reaches the model | 12 | LCV-124 | —
 
 **Marco 2 — complete, 2026-09-13.** All five demands are `Done` and reviewed: **LCV-121** (`d584f4d`), **LCV-122**
 (`61d609b`…`ff267ec`), **LCV-123** (`6102c68`, `e7ba0a6`, `af5ef82`),
@@ -171,7 +172,7 @@ _None._
 
 | ID | Title | Phase |
 |---|---|---|
-| LCV-131 | Typing `LINE` sends the word "line" to a language model | 12 |
+| LCV-131 | The command line does not know the words that name its own commands | 12 |
 | LCV-136 | Discard responds to real pointer clicks | 11 |
 | LCV-137 | Visible grid and consistent viewport coordinates | 11 |
 | LCV-138 | Native document title and honest file feedback | 11 |
@@ -189,7 +190,7 @@ plan. Discard reproduction and the one-third panel cap are the first usability
 priorities. Preserve LCV-134 before LCV-132 for shared paint coverage. LCV-142
 must preserve whole-turn undo beyond the 200-entry history depth before raising
 the tool budget. LCV-146 is deferred and must not be selected for implementation.
-LCV-131 is outside this initiative: the user chose to retain current routing.
+LCV-131 is outside this initiative and is scheduled separately, split into LCV-148 (routing) and LCV-131 (grammar), per ADR 0007 amendment (5).
 
 **Drive order after Marco 2**: LCV-129 → LCV-127 → LCV-126 → LCV-128, with
 LCV-130 and LCV-131 newly opened and not yet placed — the `project-manager`

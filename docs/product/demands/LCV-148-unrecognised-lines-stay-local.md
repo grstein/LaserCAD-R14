@@ -1,6 +1,6 @@
 # LCV-148 — An unrecognised line answers locally and never reaches the model
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 12
 - **Depends on**: LCV-124 (the classifier, the precedence table and the one arm this inverts)
 - **Suggested agent**: implementer-rust
