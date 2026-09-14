@@ -1,12 +1,24 @@
 # ADR 0002 — Headless input regression tests and autosave dirty tracking
 
 - **Status**: Accepted
-- **Amended**: 2026-09-13 — §A4 rule 2 rewritten. Its original text read
+- **Amended (1)**: 2026-09-13 — §A4 rule 2 rewritten. Its original text read
   *"Never let the autosave debounce elapse. A fired autosave writes to the real
   `~/.local/share/lasercad/autosave.json`."* That premise died at `2d81a14`
   (LCV-119): under [ADR 0006](0006-real-user-paths-are-injected.md) a test
   `App` carries no path and a fired autosave writes nothing. The rule now
   guards the hazard that survived injection. Nothing else in this ADR changes.
+- **Amended (2)**: 2026-09-14 — §A3 rewritten. Its original text read
+  *"Shared plumbing lives in `tests/harness/mod.rs` … `tests/harness/mod.rs`
+  exposes exactly five items"*, followed by the signatures of `SCREEN`,
+  `key_events`, `raw_input`, `frame` and `tap` (all five still exist; the block
+  is deleted, not the helpers). That enumeration was stale before LCV-132 —
+  eight items shipped against it — and LCV-132 made the harness three files with
+  twenty-four exports, so §A3 now states the harness's *shape and rules* and
+  records a dated measurement instead of an inventory. The same rewrite records
+  the `cfg(test)` compilation fact that decides the harness's home, which until
+  now lived only in the `1b89f0e` commit message, and rules on two review
+  questions (uniform `pub`; an explicit `pixels_per_point`). §A4, §A5 and §B are
+  unchanged.
 - **Date**: 2026-09-12
 - **Deciders**: architect (Marco 0 / LCV-103)
 
@@ -118,25 +130,114 @@ The matching rule, which must be added as a doc comment on both functions:
 - **`App::default()` is the test constructor.** It touches no filesystem.
 
 **A3. Headless tests live in `tests/lcvNNN.rs`, one file per demand**, matching
-the existing `tests/lcv070.rs` convention. Shared plumbing lives in
-`tests/harness/mod.rs` (a subdirectory, so Cargo does not compile it as its own
-test binary), declared `mod harness;` in each consumer. It carries
-`#![allow(dead_code)]` at the top — every test binary compiles its own copy and
-unused helpers would otherwise trip `-D warnings`.
+the existing `tests/lcv070.rs` convention. Shared plumbing lives under
+**`tests/harness/`**, declared `mod harness;` in each consumer. *(Rewritten
+2026-09-14 — see **Amended (2)** in the header for the text this replaces.)*
 
-`tests/harness/mod.rs` exposes exactly five items:
+**Why `tests/harness/` and not a `#[cfg(test)]` module under `src/`.** This is a
+compilation fact, not taste, and it has been load-bearing since the first
+harness landed. `cfg(test)` is set only for the crate *being compiled in test
+mode*; an integration-test binary under `tests/` links this library as an
+ordinary dependency, with `cfg(test)` **off**. A `#[cfg(test)] mod` under `src/`
+is therefore invisible to every file in `tests/`, and an ungated one would ship
+test plumbing — a paint collector, a source-scan walker — in the library's own
+public surface, where nothing the product does would ever call it. `tests/harness/` has neither problem: Cargo
+compiles it into each consumer binary through its `mod harness;`, and it is not
+auto-discovered as a test target, because only `tests/*.rs` and
+`tests/*/main.rs` are.
 
-```rust
-pub const SCREEN: [f32; 2];                                    // [1280.0, 800.0]
-pub fn key_events(key: egui::Key, modifiers: egui::Modifiers) -> Vec<egui::Event>; // press + release
-pub fn raw_input(events: Vec<egui::Event>) -> egui::RawInput;  // sets screen_rect + modifiers
-pub fn frame(ctx: &egui::Context, app: &mut App, events: Vec<egui::Event>); // one ctx.run tick
-pub fn tap(ctx: &egui::Context, app: &mut App, key: egui::Key, modifiers: egui::Modifiers);
-```
+**The shape: three modules, divided by kind.**
 
-`key_events` returns **two** events — a press *and* a release. That is not
-cosmetic: see the repeat-rewrite finding above. There is no single-event
-`key_event` helper, so the trap cannot be stepped into by accident.
+- `tests/harness/mod.rs` — **input**: the screen rect, one frame, a key tap, the
+  command-line gestures, and §A4's rules restated in the voice of the code they
+  bind.
+- `tests/harness/paint.rs` — **what reached the screen**: the `Shape::Text`
+  collector, the frame driver and its positive control, the line grouping, and
+  the traps that decide whether a painted-text assertion means anything.
+- `tests/harness/scan.rs` — **source scans**: the `.rs` walker and the
+  comment-skipping matcher, and the rules that keep a scan able to fail.
+
+A fourth module needs a *kind*, not a line count. Size pressure is answered by
+[ADR 0004](0004-measuring-the-300-loc-cap.md) rule 4 — a seam for `paint.rs` is
+already recorded in its Consequences — never by inventing a module whose name
+is "the rest of it".
+
+**The list of exported items is deliberately not written here.** The text this
+paragraph replaces enumerated the harness as "exactly five items"; eight
+shipped, and twenty-four are exported today across three files. Nothing in the
+build could catch either drift, and nothing was going to. `ls tests/harness/`
+and `grep -n '^pub ' tests/harness/*.rs` are the live inventory and they never
+rot. `AGENTS.md` §Module tree makes the same call for the `src/` tree: a gloss
+is orientation, and an enumeration earns its place only when it carries a rule
+*per item*. This one carries none — a harness is meant to grow, and there is no
+per-helper consequence for a reviewer to check.
+
+*Rejected: keep the list and pin it with an assertion in
+`tests/lcv132_harness_is_shared.rs`.* That is the right instinct aimed at the
+wrong list. The enumerations this repository does pin — the three conditional
+repaint sites, `src/agent/`'s purity buckets, LCV-128's normative sets — each
+carry a consequence per item, so the assertion is how the rule is enforced.
+Adding a harness helper is not an architectural event; a pin there would turn
+every helper into an ADR edit plus a red test, and a rule that costs that much
+gets obeyed rather than read. What is worth pinning about the harness is
+behavioural, and LCV-132 pinned it: AC 8's orphan-include guard and AC 4's
+precision test, both in `tests/lcv132_harness_is_shared.rs`.
+
+**Measured on the date of this amendment** (`dbca0a3`, 2026-09-14, with
+ADR 0004 rule 2's `awk` recipe — never `wc -l`): `mod.rs` **152**, `paint.rs`
+**267**, `scan.rs` **106**; **525** implementation lines, **24** exported items.
+That is a snapshot for whoever reads this decision later, not a list anyone
+maintains. Measure before you depend on it.
+
+**Four rules that *are* load-bearing.**
+
+1. **`key_events` returns a press *and* a release**, and there is deliberately
+   no single-event `key_event` helper, so the trap cannot be stepped into by
+   accident. See the repeat-rewrite finding above; this is the D4 fix's
+   companion.
+2. **The blanket `#![allow(dead_code)]` in `mod.rs` is paid for, not
+   tolerated.** Every consumer binary compiles the whole directory, so a test
+   using only `tap` would otherwise trip `-D warnings` on everything else; the
+   attribute propagates into the submodules, which carry no second copy. Its
+   cost is that it also hides a declared-and-unused `mod harness;` — one sat in
+   `tests/lcv133_shortcuts_dialog_fits.rs` until a reviewer read for it — so
+   `tests/lcv132_harness_is_shared.rs` guards exactly that case.
+3. **Every item in the harness is `pub` and stays `pub`.** Reachability is not a
+   signal here: the blanket allow means an unused item is invisible either way,
+   and an item with one caller today and three tomorrow would cost a visibility
+   diff each time. `raw_input_at` currently has only an internal caller
+   (`paint::painted_runs_at`); that is not a finding and narrowing it is not an
+   improvement. What the harness offers is what its doc comments say.
+4. **Positions are only meaningful at `pixels_per_point = 1.0`, and the driver
+   checks it rather than each test remembering.** `InputState::default()` is
+   `1.0` (`egui-0.29.1/src/input_state/mod.rs:248`), so every position-reading
+   test is correct today — but `tests/lcv126_command_line_group.rs` is correct
+   by inheritance, having never set it. The dependency is real: epaint rebuilds
+   the font atlas when the value changes
+   (`epaint-0.29.1/src/text/fonts.rs::Fonts::begin_pass`), so galley metrics,
+   `SAME_LINE`'s four-point intra-row spread and LCV-133's 0.682pt straddle are
+   all measured at 1.0 and none of them is reproducible at another value. So
+   `paint::painted_runs_at` carries that check beside its `runs.len() > 10`
+   control, **after** `ctx.run` returns and never before: `set_pixels_per_point`
+   becomes active "at the start of the next pass"
+   (`egui-0.29.1/src/context.rs:1893-1901`), so a pre-run read on a fresh
+   context returns the default and would pass on exactly the frame that broke
+   the assumption. Existing `ctx.set_pixels_per_point(1.0)` calls stay — a test
+   that lays out its own galley must set the value before building one — but a
+   test driven through the harness stops having to remember. **Not shipped
+   yet**: it is roughly five implementation lines and belongs to the next demand
+   that touches `tests/harness/paint.rs`, landing the file near 272 — inside
+   ADR 0004's 270..300 band, with the seam already recorded, and not a reason to
+   split.
+
+**The demand-facing rule lives in `AGENTS.md`, not here.** "A rendering
+acceptance criterion is not satisfied by a source scan alone" is
+`AGENTS.md` §Implementation Rules' entry, added by LCV-132 AC 10, and it stays
+there: it is read at the moment a test is written, which an ADR is not.
+ADR 0004's own Alternatives record what happens when a rule is left in an ADR
+and expected to be found — it failed once already. This section owns the
+harness's *shape and home*; that entry owns the *obligation*, and neither
+restates the other.
 
 **A4. Four hard rules for headless tests.**
 
@@ -221,7 +322,9 @@ fn f8_toggles_ortho_exactly_once_per_press() {
 }
 ```
 
-with the harness:
+with the harness **as it stood on 2026-09-12** — the block below is the
+proof that the pattern compiles at egui 0.29.1, not a copy of the current file;
+§A3 (as amended) describes what `tests/harness/` is today:
 
 ```rust
 //! tests/harness/mod.rs — shared headless-frame plumbing for LCV-1xx tests.
