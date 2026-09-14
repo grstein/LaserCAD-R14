@@ -1,7 +1,7 @@
 //! The grammar: `parse`, `parse_number`, and the tool/toggle/zoom alias
 //! tables. See the LCV-110 demand body for the full grammar table (every row
-//! of it is asserted by a test in this file) and ADR 0003 §A2 for the alias
-//! set.
+//! of it is asserted by a test in this file) and ADR 0003 §A2 / §A2a for the
+//! alias set — letters closed, words open, `tool_alias` is the single copy.
 //!
 //! **Every number in this crate's command grammar goes through
 //! [`parse_number`].** A second bare `str::parse::<f64>` anywhere in
@@ -73,14 +73,43 @@ pub fn parse(raw: &str) -> CommandInput {
     }
 }
 
-/// The ten single-token tool aliases (ADR 0003 §A2 — exactly the v1 set
-/// this demand ships). `lower` is already lowercased and trimmed.
+/// The command-line tool-alias table (ADR 0003 §A2a): two axes onto
+/// [`ToolKind`], one closed and one open. `lower` is already lowercased and
+/// trimmed.
 ///
-/// `"e"` maps to [`ToolKind::Delete`], **not** `Extend` — product decision 2.
-/// `EXTEND` has no alias; do not add one back (see the AC 13 cross-check
-/// test in `src/ui/shortcuts.rs`).
+/// **The letter axis is closed.** `l p r c a s t e m` is the whole set and it
+/// does not grow — a letter is a scarce, memorised, one-keystroke resource
+/// shared with the bare tool-activation keys
+/// (`src/ui/shortcuts.rs::TOOL_KEYS`). `"e"` maps to [`ToolKind::Delete`],
+/// **not** `Extend` — product decision 2, pinned by
+/// `src/ui/shortcuts.rs::alias_table_agrees_with_tool_keys`. `Extend` has no
+/// letter; it is reachable only by word.
+///
+/// **The word axis is open** (LCV-131). A word is a row exactly when it spells
+/// a command this product ships and maps to an existing `ToolKind` variant.
+/// The approved set, the primary AutoCAD R14 spelling of every aliased tool:
+///
+/// | word | [`ToolKind`] | word | [`ToolKind`] |
+/// |---|---|---|---|
+/// | `line` | `Line` | `select` | `Select` |
+/// | `polyline` | `Polyline` | `trim` | `Trim` |
+/// | `pline` | `Polyline` | `extend` | `Extend` |
+/// | `rect` | `Rect` | `move` | `Move` |
+/// | `rectangle` | `Rect` | `text` | `Text` |
+/// | `circle` | `Circle` | `delete` | `Delete` |
+/// | `arc` | `Arc` | `del` | `Delete` |
+/// | | | `erase` | `Delete` |
+///
+/// `delete` / `del` / `erase` all reach the same tool: R14 says `ERASE`, the
+/// v2 tool and its menu entry say Delete, so both vocabularies are accepted
+/// rather than picking a side. **`offset` is deliberately absent**: there is
+/// no `ToolKind::Offset` (the tool was rejected as LCV-054), so the word is
+/// unspellable, not merely unwanted — a word may never be the way a new tool
+/// enters the product. No F1-dialog row documents these; see the rustdoc's
+/// own citation above and `CHANGELOG.md`.
 fn tool_alias(lower: &str) -> Option<ToolKind> {
     match lower {
+        // Letters — closed axis (ADR 0003 §A2a).
         "l" => Some(ToolKind::Line),
         "p" => Some(ToolKind::Polyline),
         "r" => Some(ToolKind::Rect),
@@ -90,7 +119,18 @@ fn tool_alias(lower: &str) -> Option<ToolKind> {
         "t" => Some(ToolKind::Trim),
         "e" => Some(ToolKind::Delete),
         "m" => Some(ToolKind::Move),
+        // Words — open axis (LCV-131).
+        "line" => Some(ToolKind::Line),
+        "polyline" | "pline" => Some(ToolKind::Polyline),
+        "rect" | "rectangle" => Some(ToolKind::Rect),
+        "circle" => Some(ToolKind::Circle),
+        "arc" => Some(ToolKind::Arc),
+        "select" => Some(ToolKind::Select),
+        "trim" => Some(ToolKind::Trim),
+        "extend" => Some(ToolKind::Extend),
+        "move" => Some(ToolKind::Move),
         "text" => Some(ToolKind::Text),
+        "delete" | "del" | "erase" => Some(ToolKind::Delete),
         _ => None,
     }
 }
@@ -243,6 +283,36 @@ mod tests {
         assert_eq!(parse("text"), CommandInput::Tool(ToolKind::Text));
         assert_eq!(parse("TEXT"), CommandInput::Tool(ToolKind::Text));
         assert_eq!(parse(" Text "), CommandInput::Tool(ToolKind::Text));
+
+        // LCV-131 AC 1 — the word axis (ADR 0003 §A2a): all fifteen approved
+        // rows, each naming the exact `ToolKind` a swapped mapping would
+        // otherwise survive. `text` repeats the assertion above; it is in the
+        // set (already shipped) and belongs in the one table that names it.
+        let words: &[(&str, ToolKind)] = &[
+            ("line", ToolKind::Line),
+            ("polyline", ToolKind::Polyline),
+            ("pline", ToolKind::Polyline),
+            ("rect", ToolKind::Rect),
+            ("rectangle", ToolKind::Rect),
+            ("circle", ToolKind::Circle),
+            ("arc", ToolKind::Arc),
+            ("select", ToolKind::Select),
+            ("trim", ToolKind::Trim),
+            ("extend", ToolKind::Extend),
+            ("move", ToolKind::Move),
+            ("text", ToolKind::Text),
+            ("delete", ToolKind::Delete),
+            ("del", ToolKind::Delete),
+            ("erase", ToolKind::Delete),
+        ];
+        assert_eq!(words.len(), 15, "the approved word set is exactly fifteen");
+        for &(word, kind) in words {
+            assert_eq!(
+                parse(word),
+                CommandInput::Tool(kind),
+                "word {word:?} must resolve to {kind:?}"
+            );
+        }
     }
 
     #[test]
@@ -293,8 +363,9 @@ mod tests {
         );
         assert_eq!(parse("x"), CommandInput::Unknown("x".to_owned()));
         assert_eq!(parse("d"), CommandInput::Unknown("d".to_owned()));
-        assert_eq!(parse("line"), CommandInput::Unknown("line".to_owned()));
-        assert_eq!(parse("del"), CommandInput::Unknown("del".to_owned()));
+        // "line" and "del" moved into `parses_tool_aliases` (LCV-131 AC 10):
+        // both are now Tool(_), not Unknown. Not silently dropped — see that
+        // test's word table.
         assert_eq!(
             parse(":draw a square"),
             CommandInput::Unknown(":draw a square".to_owned())
@@ -304,6 +375,38 @@ mod tests {
     #[test]
     fn unknown_payload_is_trimmed_and_keeps_original_case() {
         assert_eq!(parse("  Foo  "), CommandInput::Unknown("Foo".to_owned()));
+    }
+
+    /// LCV-131 AC 4 — the word axis must not shadow any existing form.
+    /// `tool_alias` is consulted first in `parse`, so a careless row could
+    /// silently steal an existing line: every toggle, every zoom form, a
+    /// point, a relative offset, a distance, an empty line, and the five
+    /// `Unknown` controls, all asserted against the same `parse` in one run.
+    #[test]
+    fn tool_words_do_not_shadow_other_forms() {
+        assert_eq!(parse("snap"), CommandInput::Toggle(ToggleKind::Snap));
+        assert_eq!(parse("grid"), CommandInput::Toggle(ToggleKind::Grid));
+        assert_eq!(parse("ortho"), CommandInput::Toggle(ToggleKind::Ortho));
+
+        assert_eq!(parse("ze"), CommandInput::Zoom(ZoomKind::Extents));
+        assert_eq!(parse("zoom in"), CommandInput::Zoom(ZoomKind::In));
+        assert_eq!(parse("zoom out"), CommandInput::Zoom(ZoomKind::Out));
+        assert_eq!(parse("zoom extents"), CommandInput::Zoom(ZoomKind::Extents));
+
+        assert_eq!(parse("50,25"), CommandInput::Point(Vec2::new(50.0, 25.0)));
+        assert_eq!(parse("@10,0"), CommandInput::Relative(Vec2::new(10.0, 0.0)));
+        assert_eq!(parse("37.5"), CommandInput::Distance(37.5));
+        assert_eq!(parse(""), CommandInput::Empty);
+
+        // Reserved by inaction (§The product call): none of these gets a
+        // mechanism, and none may be quietly picked up by a careless row.
+        for raw in ["zoom", "zoom sideways", "z", "1,2,3", "nan"] {
+            assert_eq!(
+                parse(raw),
+                CommandInput::Unknown(raw.to_owned()),
+                "{raw:?} must stay Unknown, payload unchanged"
+            );
+        }
     }
 
     /// Decision 1: `.` is always the decimal separator, `,` is always the
@@ -331,5 +434,20 @@ mod tests {
         assert_eq!(parse("snap"), parse("SNAP"));
         assert_eq!(parse("ze"), parse("ZE"));
         assert_eq!(parse("zoom in"), parse("ZOOM IN"));
+
+        // LCV-131 AC 2 — the word axis is case-insensitive too, exact
+        // `ToolKind` asserted (not merely equal to each other), whitespace
+        // padding included.
+        assert_eq!(parse("LINE"), CommandInput::Tool(ToolKind::Line));
+        assert_eq!(parse("Line"), CommandInput::Tool(ToolKind::Line));
+        assert_eq!(parse("line"), CommandInput::Tool(ToolKind::Line));
+        assert_eq!(parse("ERASE"), CommandInput::Tool(ToolKind::Delete));
+        assert_eq!(parse("Del"), CommandInput::Tool(ToolKind::Delete));
+        assert_eq!(parse("RECTANGLE"), CommandInput::Tool(ToolKind::Rect));
+        assert_eq!(
+            parse("  circle  "),
+            CommandInput::Tool(ToolKind::Circle),
+            "surrounding whitespace is still trimmed"
+        );
     }
 }
