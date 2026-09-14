@@ -187,9 +187,11 @@ a run here; for this one expression it is exhaustive.
      `github.ref` is the dispatched branch, normally `refs/heads/main`.
      `startsWith('refs/heads/main', 'refs/tags/')` → `false`.
      `'workflow_dispatch' == 'workflow_dispatch'` → `true`.
-     Condition → `true`. `true && <three>` → the three-element array, which is
-     non-empty and therefore truthy; `<three> || <one>` short-circuits to
-     `<three>`. **Three legs: `ubuntu-24.04`, `windows-2022`, `macos-15`.**
+     Condition → `true`. In this engine `A && B` yields `B` when `A` is truthy,
+     so `true && <three>` → `<three>`; and `X || Y` yields `X` when `X` is
+     truthy, and **an array is never falsy here, empty or not** (§Notes gives
+     the source), so `<three> || <one>` → `<three>`.
+     **Three legs: `ubuntu-24.04`, `windows-2022`, `macos-15`.**
 
   3. **Tag push `v1.0.0`.** `github.event_name` is `push`, `github.ref` is
      `refs/tags/v1.0.0`.
@@ -204,12 +206,25 @@ a run here; for this one expression it is exhaustive.
   `refs/pull/N/merge`, so both clauses are `false` and it resolves exactly as
   case 1 — one Linux leg.
 
-  The truthiness step in case 2 is the one to get right, and it is why AC#7
-  exists: the idiom `A && B || C` returns `C` whenever `B` is falsy, and an
-  **empty** array is falsy. A three-leg branch that evaluated to `[]` would
-  collapse to the one-leg branch, on a release tag, silently — the Windows and
-  macOS legs would simply never appear again and the first symptom would be a
-  release with no MSI attached.
+  The step in case 2 to get right is **which operand the `||` selects**, and it
+  is not decided by the arrays. `A && B || C` reaches `C` only when `B` is
+  falsy, and in the Actions expression engine an array is **never** falsy —
+  empty or not (§Notes, with the source). So `C` is reached exactly when the
+  **boolean condition** `A` is false: `false && <three>` → `false`, and
+  `false || <one>` → `<one>`. The selection is on `A`, which is the only
+  operand in this expression that can be falsy at all.
+
+  That is also why AC#7 does **not** rest on falsiness, and the earlier draft of
+  this paragraph — which claimed an empty array is falsy — was wrong about the
+  mechanism while the file it described was right. AC#7 stands on its own
+  reason: a matrix that expands to **zero legs** does not run the job it was
+  supposed to run. And under the corrected semantics the hypothetical is worse,
+  not better — if the three-leg operand ever did evaluate to `[]`, then
+  `[] || <one>` returns `[]` (truthy, so the fallback is never reached) and the
+  tag run would resolve to **zero** legs rather than quietly to one. What makes
+  that unreachable here is checkable by reading the file: both `fromJSON(...)`
+  operands are hardcoded non-empty literals, neither reads the event context,
+  and neither can shrink at runtime.
 
 - **AC#6** — extract the condition text from both `test` and `build` and diff
   the two strings; they must be identical. Paste the comparison.
@@ -248,6 +263,52 @@ and for `build`, where the entries are mappings, the same condition in front of
 two `fromJSON` arrays of objects — the three-entry one carrying the `os` /
 `artifact-name` / `binary-path` triples exactly as they appear today, the
 one-entry fallback carrying only the `ubuntu-24.04` triple.
+
+### The falsy kinds, and the claim this file got wrong
+
+Corrected after the fact, and written down here so the next reader does not have
+to re-derive it. An earlier draft of §Expected tests asserted that "an **empty**
+array is falsy" in the GitHub Actions expression engine. **It is not.**
+
+Source to cite: the `actions/runner` repository, `EvaluationResult.cs`, method
+`IsFalsy` — cited by file and symbol rather than by path or line, so a `grep`
+finds it after the next reshuffle. It switches on the value's kind and returns
+`true` for exactly four:
+
+| kind | falsy when |
+|---|---|
+| `Null` | always |
+| `Boolean` | `false` |
+| `Number` | `0` or `NaN` |
+| `String` | `""` |
+
+`Array` and `Object` fall through to the `default` branch, which returns
+`false`. **An array is therefore always truthy, empty or not**, and so is an
+object. Read out of the runner source by `reviewer-rust`, not inferred from
+observed behaviour.
+
+Two things follow for this gate, and one carries forward:
+
+- the `A && X || Y` idiom here selects on the truthiness of the **boolean**
+  condition `A`. Neither `fromJSON(...)` operand can be falsy under any rule, so
+  the arrays never participate in the choice;
+- the idiom *is* unsafe when the middle operand can be one of the four kinds
+  above — `A && '' || Y` and `A && 0 || Y` both collapse to `Y` even when `A` is
+  true. That is the trap worth remembering. It is a string-and-number trap, not
+  an array trap.
+
+**The shipped workflow is correct and AC#7 is still met**; only the explanation
+was wrong. One adjacent detail in AC#7's own sentence — that GitHub reports a
+zero-leg matrix as a *skipped* job rather than an error — was **not**
+re-measured here. It is not load-bearing, because neither branch of the shipped
+expression can produce `[]`; do not cite it as established without checking it.
+
+This is the third time in recent weeks that a normative claim nothing executes
+went stale — ADR 0009's table, ADR 0002 §A3's item enumeration, and this
+paragraph — and all three were caught only because someone re-measured before
+depending on the claim. A sentence in a demand is documentation, not a test; when
+a demand's prose is the only thing asserting a rule, name the source it can be
+checked against.
 
 ### `startsWith(github.ref, 'refs/tags/')`, not a `v`-prefix test
 
