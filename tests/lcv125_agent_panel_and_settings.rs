@@ -15,8 +15,9 @@
 //!   and `src/app/panels.rs` carry theirs inline;
 //! - a **headless frame** here, proving the path runs on a real `App` without
 //!   panicking and leaves the state it is supposed to leave;
-//! - a **paint-list assertion** here ([`painted_lines`]), proving the call it
-//!   pinned actually ran and put those strings on the screen in that order.
+//! - a **paint-list assertion** here, built on `tests/harness/paint.rs`,
+//!   proving the call it pinned actually ran and put those strings on the
+//!   screen in that order.
 //!   A scan cannot do this: the loop between `agent_chat` and `draw_chat_row`
 //!   is a call no scan observes, and wrapping it, reversing it or skipping a
 //!   role leaves every scan in this demand green;
@@ -32,6 +33,7 @@
 mod harness;
 
 use harness::frame;
+use harness::paint::{lines_on_surface_of, painted_runs, texts};
 use harness::scan::rs_files;
 use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome};
 use lasercad::app::{arm_turn, App};
@@ -99,129 +101,6 @@ fn tempdir(name: &str) -> PathBuf {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("the system temp dir must be writable");
     dir
-}
-
-// ── Painted text: what actually reached the screen ──────────────────────────
-
-/// One painted text run: the surface it was clipped to, the y it was laid out
-/// at, the x it starts at, and the string inside it. Positions are rounded to
-/// whole points; every test that reads them runs at `pixels_per_point = 1.0`.
-struct Run {
-    clip: egui::Rect,
-    y: i32,
-    x: i32,
-    text: String,
-}
-
-/// Vertical slack, in points, within which two runs on one surface count as
-/// sitting on the same visual line.
-///
-/// A `Grid` row's label and its widget's text are laid out on baselines that
-/// differ by a point, so an exact match would split `API Key` from its value;
-/// the panel heading and its × differ by four. The closest two genuinely
-/// different lines on either surface under test are 13 points apart, so 6
-/// separates them with room on both sides.
-const SAME_LINE: i32 = 6;
-
-/// Every `Shape::Text` under `shape`, including those nested inside a
-/// `Shape::Vec`, which is how egui groups a widget's own painting.
-fn collect_text(clip: egui::Rect, shape: &egui::Shape, out: &mut Vec<Run>) {
-    match shape {
-        egui::Shape::Text(text) => out.push(Run {
-            clip,
-            y: text.pos.y.round() as i32,
-            x: text.pos.x.round() as i32,
-            text: text.galley.text().to_owned(),
-        }),
-        egui::Shape::Vec(shapes) => shapes.iter().for_each(|s| collect_text(clip, s, out)),
-        _ => {}
-    }
-}
-
-/// Drive one frame and hand back every non-empty text run egui painted.
-///
-/// This is the part no source scan can reach. A scan proves a call is
-/// *written*; this proves it *ran*, that its output reached the paint list, and
-/// where it landed relative to everything else on its surface.
-///
-/// Empty runs are dropped: egui emits a `Shape::Text` with an empty galley for
-/// an empty `TextEdit`, and it carries nothing an operator can read. Dropping
-/// them is also what makes the line `["API Key"]` below mean *the key field
-/// shows nothing at all*.
-fn painted_runs(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
-    let out = ctx.run(harness::raw_input(Vec::new()), |ctx| app.update_ui(ctx));
-    let mut runs = Vec::new();
-    for clipped in &out.shapes {
-        collect_text(clipped.clip_rect, &clipped.shape, &mut runs);
-    }
-    runs.retain(|run| !run.text.is_empty());
-    assert!(
-        runs.len() > 10,
-        "positive control: a frame of this app paints text, saw {} runs",
-        runs.len()
-    );
-    runs
-}
-
-/// Every visual line painted on the same surface as the run reading `marker`,
-/// top to bottom, each line read left to right, carrying the y it starts at.
-///
-/// The scope matters: one frame paints five surfaces and their rows interleave
-/// vertically — the toolbar's `Polyline` lands six points from the transcript's
-/// second row — so grouping the whole frame by y would braid them together.
-/// "Same surface" is `ClippedShape::clip_rect` containment. egui clips a
-/// panel's contents to the panel and a scroll area's contents to a rect inside
-/// it, so every run belonging to a surface is clipped to a rect inside that
-/// surface's, and no run from another one is.
-///
-/// `marker` must therefore be a run inside the surface, not its window title:
-/// a `Window`'s title is clipped to the whole screen, which contains
-/// everything.
-fn lines_on_surface_of(runs: &[Run], marker: &str) -> Vec<(i32, Vec<String>)> {
-    let matches: Vec<&Run> = runs.iter().filter(|run| run.text == marker).collect();
-    assert_eq!(
-        matches.len(),
-        1,
-        "`{marker}` must be painted exactly once, saw {} times",
-        matches.len()
-    );
-    let surface = matches[0].clip;
-
-    let mut scoped: Vec<&Run> = runs
-        .iter()
-        .filter(|run| surface.contains_rect(run.clip))
-        .collect();
-    assert!(
-        scoped.len() < runs.len(),
-        "positive control: the surface must be narrower than the frame"
-    );
-    scoped.sort_by_key(|run| (run.y, run.x));
-
-    let mut lines: Vec<(i32, Vec<&Run>)> = Vec::new();
-    for run in scoped {
-        match lines.last_mut() {
-            Some((top, members)) if run.y - *top <= SAME_LINE => members.push(run),
-            _ => lines.push((run.y, vec![run])),
-        }
-    }
-    // Read each line left to right. Grouping walked the runs in y order, and
-    // within one line that is not x order: a `Grid`'s widget text sits a point
-    // *above* its own label, so the value would otherwise be read first.
-    lines
-        .into_iter()
-        .map(|(top, mut members)| {
-            members.sort_by_key(|run| run.x);
-            (
-                top,
-                members.into_iter().map(|run| run.text.clone()).collect(),
-            )
-        })
-        .collect()
-}
-
-/// The texts of `lines`, dropping the y each was laid out at.
-fn texts(lines: &[(i32, Vec<String>)]) -> Vec<Vec<String>> {
-    lines.iter().map(|(_, t)| t.clone()).collect()
 }
 
 // ── AC 1: every role renders, including one nobody wrote ────────────────────

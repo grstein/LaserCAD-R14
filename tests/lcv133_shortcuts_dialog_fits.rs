@@ -15,25 +15,17 @@
 //! derived at runtime rather than hand-typed.
 //!
 //! **LCV-134's `lcv134_*` tests live here too**, and are named for their own
-//! demand: LCV-132 had not landed when they were written, and this file's
-//! `Run` already carries the untruncated `pos`/`height` and the `Command line`
-//! body scope that AC 4, AC 5 and AC 6 need — a fifth divergent copy of this
-//! collector is precisely what LCV-132 exists to delete.
+//! demand: they assert the headroom above exactly the content this file
+//! already paints, scoped to exactly the body [`dialog_body`] already finds,
+//! and a second file would have had to rebuild both to say anything at all.
 //!
-//! ## Why this is an inline collector, not a `tests/harness/mod.rs` import
-//!
-//! Same reason as `tests/lcv126_command_line_group.rs` (read its module doc
-//! first): LCV-132, which promotes `Run`/`collect_text`/`painted_runs`/
-//! `lines_on_surface_of`/`texts` into a shared harness, is still `Draft` as
-//! this file is written. This file's `Run`/`collect_text`/`painted_runs` are
-//! the same shape as that file's, with two additions this demand's AC 2
-//! needs and that one didn't: the untruncated `pos: egui::Pos2` and
-//! `height: f32` (`galley.size().y`), because "painted" and "painted inside
-//! the clip rect" are different claims and AC 2 exists precisely so the test
-//! knows the difference. The screen size is also a parameter here instead of
-//! `tests/harness`'s fixed `SCREEN`, because AC 1 requires three of them.
-//! When LCV-132 lands, it should treat this file as a fifth caller of the
-//! same machinery, not a second permanent home for a divergent one.
+//! The collector itself is `tests/harness/paint.rs` (LCV-132). Its `Run`
+//! carries the untruncated `pos: egui::Pos2` and `height: f32`
+//! (`galley.size().y`) that AC 2 needs — "painted" and "painted inside the
+//! clip rect" are different claims, and AC 2 exists precisely so this file
+//! knows the difference — and derives rounded `y()`/`x()` for the callers that
+//! group runs into visual lines. The screen size is a parameter of
+//! `painted_runs_at` for the same reason: AC 1 requires three of them.
 //!
 //! ## Two traps this file does not fall into
 //!
@@ -50,6 +42,9 @@
 //!    own body (its `Area` is not yet placed); [`dialog_body`] always drives
 //!    one throwaway frame before the one it reads.
 
+mod harness;
+
+use harness::paint::{painted_runs_at, scoped_runs, Run};
 use lasercad::app::App;
 use lasercad::ui::{tool_rows, SHORTCUT_GROUPS};
 
@@ -67,93 +62,23 @@ const HEADINGS: [&str; 8] = [
 
 // ── Painted text: what actually reached the screen ──────────────────────────
 
-/// One painted text run. `pos` and `height` are the untruncated egui values
-/// AC 2's containment check needs; unlike `tests/lcv126_command_line_group.rs`
-/// this file never groups runs into visual lines, so it carries no rounded
-/// `y`/`x` and no `SAME_LINE` tolerance.
-struct Run {
-    clip: egui::Rect,
-    pos: egui::Pos2,
-    height: f32,
-    text: String,
-}
-
-/// Every `Shape::Text` under `shape`, including those nested inside a
-/// `Shape::Vec`, which is how egui groups a widget's own painting — the only
-/// nesting variant at 0.29.1.
-fn collect_text(clip: egui::Rect, shape: &egui::Shape, out: &mut Vec<Run>) {
-    match shape {
-        egui::Shape::Text(text) => out.push(Run {
-            clip,
-            pos: text.pos,
-            height: text.galley.size().y,
-            text: text.galley.text().to_owned(),
-        }),
-        egui::Shape::Vec(shapes) => shapes.iter().for_each(|s| collect_text(clip, s, out)),
-        _ => {}
-    }
-}
-
-/// `tests/harness::raw_input`, parameterized on screen size — AC 1 requires
-/// three of them, where the shared harness fixes one.
-fn raw_input_at(screen: [f32; 2], events: Vec<egui::Event>) -> egui::RawInput {
-    egui::RawInput {
-        screen_rect: Some(egui::Rect::from_min_size(
-            egui::Pos2::ZERO,
-            egui::vec2(screen[0], screen[1]),
-        )),
-        events,
-        ..Default::default()
-    }
-}
-
-/// Drive one frame at `screen` and hand back every non-empty text run egui
-/// painted. The positive control is load-bearing for the same reason it is
-/// in `tests/lcv126_command_line_group.rs`: without it, a dialog that
-/// rendered nothing at all would read as "the rows are absent, as expected"
-/// instead of as the broken test it actually is.
-fn painted_runs_at(ctx: &egui::Context, app: &mut App, screen: [f32; 2]) -> Vec<Run> {
-    let out = ctx.run(raw_input_at(screen, Vec::new()), |ctx| app.update_ui(ctx));
-    let mut runs = Vec::new();
-    for clipped in &out.shapes {
-        collect_text(clipped.clip_rect, &clipped.shape, &mut runs);
-    }
-    runs.retain(|run| !run.text.trim().is_empty());
-    assert!(
-        runs.len() > 10,
-        "positive control: a frame of this app paints text, saw {} runs",
-        runs.len()
-    );
-    runs
-}
-
 /// Open the shortcuts dialog at `screen`, settle it (two frames — see module
 /// doc), and hand back every run painted on the dialog's own body: the runs
 /// whose clip rect is contained in the clip of the `Command line` heading,
 /// which is unique to the dialog body (trap 1 above). Both columns share one
-/// clip rect (`ui.columns` clones the parent painter without narrowing it),
-/// so this scope already covers both without further work.
+/// clip rect (`ui.columns` clones the parent painter without narrowing it), so
+/// this scope already covers both without further work.
+///
+/// `harness::paint::scoped_runs` hands back borrows; they are cloned here
+/// because every caller outlives the frame's run list. It also carries the
+/// "the surface must be narrower than the frame" control this file's own
+/// scoping did not have — a strengthening, and one that holds at all four
+/// screen sizes used here, 1280×460 included.
 fn dialog_body(ctx: &egui::Context, app: &mut App, screen: [f32; 2]) -> (Vec<Run>, egui::Rect) {
-    let _ = painted_runs_at(ctx, app, screen);
-    let runs = painted_runs_at(ctx, app, screen);
-
-    let marker = "Command line";
-    let hits = runs.iter().filter(|r| r.text.trim() == marker).count();
-    assert_eq!(
-        hits, 1,
-        "at {screen:?}: `{marker}` must be painted exactly once, saw {hits}"
-    );
-    let surface = runs
-        .iter()
-        .find(|r| r.text.trim() == marker)
-        .expect("checked above")
-        .clip;
-
-    let scoped: Vec<Run> = runs
-        .into_iter()
-        .filter(|r| surface.contains_rect(r.clip))
-        .collect();
-    (scoped, surface)
+    let _ = painted_runs_at(ctx, app, screen, Vec::new());
+    let runs = painted_runs_at(ctx, app, screen, Vec::new());
+    let (scoped, surface) = scoped_runs(&runs, "Command line");
+    (scoped.into_iter().cloned().collect(), surface)
 }
 
 fn new_app() -> (egui::Context, App) {

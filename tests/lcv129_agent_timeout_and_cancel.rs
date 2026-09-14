@@ -22,22 +22,21 @@
 //! `settings_path` and `autosave_path` at `None`, so nothing here can write to
 //! a real per-user path (ADR 0006, ADR 0007 §D10).
 //!
-//! ## Why this file carries its own shape collector
+//! ## Why this file reads the paint list
 //!
 //! AC 8 is about a **button that exists only while a turn does**, and AC 7's
 //! second sentence is about the **order of two rows**. A source scan can prove
 //! the `Cancel` literal is written — the inline scan in `src/agent/panel.rs`
 //! does exactly that — and it can prove neither of those two things. So the
-//! four functions below read the frame's paint list, in the shape LCV-125
-//! established and LCV-126 reused.
-//!
-//! LCV-132 has since promoted that machinery into `tests/harness/paint.rs`,
-//! which is where its traps are written down; this file is one of its callers.
-//! The scan half below calls `tests/harness/scan.rs`'s walker and its
-//! count-returning matcher for the same reason.
+//! two helpers below read the frame's paint list through
+//! `tests/harness/paint.rs`, which is where the traps that decide whether such
+//! an assertion means anything are written down. The scan half calls
+//! `tests/harness/scan.rs`'s walker and its count-returning matcher, because
+//! AC 5's claim is a count and not a presence.
 
 mod harness;
 
+use harness::paint::{lines_on_surface_of, painted_runs, texts, Run};
 use harness::raw_input;
 use harness::scan::{occurrences, rs_files};
 use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome, TransportError};
@@ -103,105 +102,21 @@ fn ctrl() -> egui::Modifiers {
 
 // ── The paint list ──────────────────────────────────────────────────────────
 
-/// One text run egui painted: which surface it was clipped to, where, and what.
-struct Run {
-    clip: egui::Rect,
-    y: i32,
-    x: i32,
-    text: String,
-}
-
-/// Vertical slack within which two runs count as one visual line. 6 points is
-/// the tolerance LCV-125 measured on this same panel.
-const SAME_LINE: i32 = 6;
-
-/// Every `Shape::Text` under `shape`, including those nested in a `Shape::Vec`,
-/// which is how egui groups a widget's own painting — a `Button`'s label is
-/// inside one, so a collector that did not recurse would never see `Cancel`.
-fn collect_text(clip: egui::Rect, shape: &egui::Shape, out: &mut Vec<Run>) {
-    match shape {
-        egui::Shape::Text(text) => out.push(Run {
-            clip,
-            y: text.pos.y.round() as i32,
-            x: text.pos.x.round() as i32,
-            text: text.galley.text().to_owned(),
-        }),
-        egui::Shape::Vec(shapes) => shapes.iter().for_each(|s| collect_text(clip, s, out)),
-        _ => {}
-    }
-}
-
-/// Drive one real frame and hand back every non-empty text run it painted.
-///
-/// The positive control is load-bearing: an app that painted nothing at all —
-/// a closed panel, a swallowed panic — would otherwise read as "the button is
-/// absent, as expected" rather than as the broken test it is.
-fn painted_runs(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
-    let out = ctx.run(raw_input(Vec::new()), |ctx| app.update_ui(ctx));
-    let mut runs = Vec::new();
-    for clipped in &out.shapes {
-        collect_text(clipped.clip_rect, &clipped.shape, &mut runs);
-    }
-    runs.retain(|run| !run.text.trim().is_empty());
-    assert!(
-        runs.len() > 10,
-        "positive control: a frame of this app paints text, saw {}",
-        runs.len()
-    );
-    runs
-}
-
-/// Every visual line painted on the same surface as the run reading `marker`,
-/// top to bottom, each line read left to right.
-///
-/// "Same surface" is `ClippedShape::clip_rect` containment: `marker` must be a
-/// run genuinely inside the surface, never a window title, which is clipped to
-/// the whole screen and would select every surface in the frame.
-fn lines_on_surface_of(runs: &[Run], marker: &str) -> Vec<Vec<String>> {
-    let matches: Vec<&Run> = runs.iter().filter(|run| run.text == marker).collect();
-    assert_eq!(
-        matches.len(),
-        1,
-        "`{marker}` must be painted exactly once, saw {}",
-        matches.len()
-    );
-    let surface = matches[0].clip;
-
-    let mut scoped: Vec<&Run> = runs
-        .iter()
-        .filter(|run| surface.contains_rect(run.clip))
-        .collect();
-    assert!(
-        scoped.len() < runs.len(),
-        "positive control: the surface must be narrower than the frame"
-    );
-    scoped.sort_by_key(|run| (run.y, run.x));
-
-    let mut lines: Vec<(i32, Vec<&Run>)> = Vec::new();
-    for run in scoped {
-        match lines.last_mut() {
-            Some((top, members)) if run.y - *top <= SAME_LINE => members.push(run),
-            _ => lines.push((run.y, vec![run])),
-        }
-    }
-    lines
-        .into_iter()
-        .map(|(_, mut members)| {
-            members.sort_by_key(|run| run.x);
-            members
-                .into_iter()
-                .map(|run| run.text.trim().to_owned())
-                .collect()
-        })
-        .collect()
-}
-
 /// The agent panel, open, after two frames — egui sizes a layout on the first
 /// and paints it settled on the second (ADR 0002).
 fn settled_panel(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
     app.agent_panel_open = true;
     let _ = painted_runs(ctx, app);
     painted_runs(ctx, app)
+}
+
+/// The panel's visual lines, top to bottom, each read left to right.
+///
+/// Scoped on the `AI Assistant` heading, a run genuinely inside the panel —
+/// never on a window title, which is clipped to the whole screen and would
+/// select every surface in the frame.
+fn panel_lines(runs: &[Run]) -> Vec<Vec<String>> {
+    texts(&lines_on_surface_of(runs, "AI Assistant"))
 }
 
 // ── Part A — the timeout ────────────────────────────────────────────────────
@@ -350,7 +265,7 @@ fn ac8_the_cancel_button_is_painted_only_while_a_turn_runs() {
 
     // Idle: no turn, so no row and no button.
     let idle = settled_panel(&ctx, &mut app);
-    let idle_lines = lines_on_surface_of(&idle, "AI Assistant");
+    let idle_lines = panel_lines(&idle);
     assert!(
         !idle_lines.iter().flatten().any(|t| t == "Cancel"),
         "AC 8: nothing to cancel, so nothing offers to: {idle_lines:?}"
@@ -359,7 +274,7 @@ fn ac8_the_cancel_button_is_painted_only_while_a_turn_runs() {
     // Busy: the same panel, one field different.
     let _tx = arm_turn(&mut app, "draw a slow thing");
     let busy = settled_panel(&ctx, &mut app);
-    let busy_lines = lines_on_surface_of(&busy, "AI Assistant");
+    let busy_lines = panel_lines(&busy);
     let thinking = busy_lines
         .iter()
         .find(|line| line.iter().any(|t| t == "Thinking…"))
@@ -408,7 +323,7 @@ fn ac7_the_cancel_note_is_painted_above_the_undo_note() {
     assert_eq!(app.agent_chat[5].1, undo_note, "and the undo row after it");
 
     let runs = settled_panel(&ctx, &mut app);
-    let lines = lines_on_surface_of(&runs, "AI Assistant");
+    let lines = panel_lines(&runs);
     let index = |text: &str| {
         lines
             .iter()
