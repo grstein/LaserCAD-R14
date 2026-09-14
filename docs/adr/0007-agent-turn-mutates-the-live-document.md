@@ -25,6 +25,11 @@
   warning and it no longer bars a release. `panel.rs::submit` is deleted,
   `src/agent/` names no document type, and two independent scans — both proved
   non-vacuous by mutation — hold that. No decision in §D1..§D11 changes.
+- **Amended (5)**: 2026-09-13 — §D9's "open product question, not decided
+  here" is now decided, by the user, against rule 4: **only `:` and `/ai` reach
+  the model.** Rule 4 is rewritten and §D9a records what the flip may not
+  disturb. This reverses rule 4 and nothing else — §D11's closure property is
+  untouched, because the flip removes an arming path and adds none.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
@@ -372,19 +377,62 @@ first:
    parse as a CAD command. This is the escape hatch and it must be absolute.
 3. `cmdline::parse(raw)` returning anything other than `Unknown` → `Route::Cad`.
    CAD verbs, toggles, zoom, coordinates and a bare Enter always win.
-4. `Unknown` → `Route::Agent` when `agent_available`, else `Route::Cad` so the
-   existing `Unknown command: "…"` feedback is produced unchanged.
+4. `Unknown` → `Route::Cad`, **always**. An unrecognised bare line answers
+   `Unknown command: "…"` locally and makes no network call, whatever the
+   settings say.
 
 `agent_available` is "a non-empty API key is configured". Without one, a
 prefixed line answers `! Agent unavailable: set the API key in Help > Agent
 settings` and nothing is spawned.
 
-**Open product question, not decided here:** whether bare unprefixed free text
-(rule 4) should reach the agent at all, or only prefixed text should. Today a
-typo answers `Unknown command: "lien"`; under rule 4 with a key configured it
-would be posted to an LLM. That is a product call for `product-owner` to make in
-the LCV-124 body. The architecture supports either: it is one boolean in
-`classify`.
+*(Rule 4 as shipped in LCV-124 read: `Unknown` → `Route::Agent` when
+`agent_available`, else `Route::Cad`. This ADR recorded that as an "open product
+question, not decided here" and handed it to `product-owner`. Amendment (5)
+closes it: the user has decided that free-form-to-agent is a v1 behaviour this
+product does not carry forward. The reasoning is cost, not purity — the grammar
+knows only single-letter aliases, so the most ordinary thing an R14 operator can
+type, the command's own name, is `Unknown` and becomes a paid round trip. The
+architecture always supported either answer: it is one arm in `classify`.)*
+
+### D9a — What the rule-4 flip may not disturb
+
+*(Added by amendment (5).)*
+
+**§D11 is not in scope of the flip, and the demand must not be written as if it
+were.** §D11 constrains how a turn **ends**: `agent_poll::end_turn` is the only
+writer of `agent_busy = false` and the only clearer of `agent_rx` after startup.
+Arming is a separate, also-single site — `agent_turn::arm_turn`, reached only
+through `agent_turn::start_turn`. Rule 4 is neither of those: it decides whether
+a *caller* ever reaches `start_turn`. **Deleting a caller cannot add a writer.**
+`tests/lcv129_agent_timeout_and_cancel.rs`'s single-writer scan pins file paths,
+not call graphs, and stays green and non-vacuous across the flip. A demand that
+flips rule 4 and also touches `agent_poll.rs` or `arm_turn` has scope creep in
+it; say so in review.
+
+Three things the flip must preserve, each of which is a way to get it wrong:
+
+1. **`classify` keeps its arity and its purity.** `agent_available` stays a
+   parameter: it is still what separates `Route::Agent` from `Route::Unavailable`
+   on a **prefixed** line. Dropping it to a one-argument `classify` would move
+   the "is a key configured" question somewhere less pure and re-open
+   `src/agent/classifier.rs`'s import scan.
+2. **The escape hatches stay absolute.** Precedence rules 1–3 do not move.
+   `:line` still goes to the model even though `line` will by then parse as CAD,
+   and raw-input mode still wins over everything.
+3. **The behaviour LCV-124 pinned by name inverts, and must be re-pinned, not
+   deleted.** `tests/lcv124_command_line_routing.rs`'s "with a key configured
+   `lien` is sent" asserts the accepted hazard. Under the flip `lien` stays CAD.
+   That test is the flip's best witness once inverted — a demand that quietly
+   removes it loses the only assertion that bare text does not reach the model.
+
+**Consequence for the grammar demand that precedes this one.** Once rule 4 is
+`Route::Cad`, every line the grammar does not recognise — `z`, a bare `zoom`,
+`zoom sideways`, `lien` — is free and local by construction. So the grammar
+demand must **not** build `is_reserved_word`, a `CommandInput::Incomplete`
+variant, or any other mechanism to hold specific words back from the model: it
+would be deleted by the very next demand. The window between the two demands, in
+which `z` and `zoom` still reach the model with a key configured, is the status
+quo and is accepted.
 
 ### D10 — The API key
 

@@ -1,11 +1,17 @@
 # ADR 0003 — The command-line input contract
 
 - **Status**: Accepted
-- **Amended**: 2026-09-13 — §F3 trap 2 rewritten to follow
+- **Amended (1)**: 2026-09-13 — §F3 trap 2 rewritten to follow
   [ADR 0002](0002-headless-input-tests-and-dirty-tracking.md) §A4 rule 2, whose
   premise died at `2d81a14` (LCV-119). It used to read *"Never let the 800 ms
   autosave debounce elapse — a fired autosave writes to the user's real data
   directory."* Nothing else in this ADR changes.
+- **Amended (2)**: 2026-09-13 — LCV-131's refinement read §A2's sentence *"the
+  alias set for LCV-110 is exactly the v1 set"* as a **freeze**. It is not one,
+  and §A2's own next sentence says so. §A2a is new and states the two axes
+  explicitly — variants frozen, letters closed, words open — so the misreading
+  cannot recur, and corrects one factual error in §A2 about v1's `extend`. No
+  decision in §A1..§A4 is reversed; nothing in §B..§F changes.
 - **Date**: 2026-09-12
 - **Deciders**: architect (Marco 1 / LCV-110, LCV-111, LCV-112)
 
@@ -149,6 +155,64 @@ alias set for LCV-110 is exactly the v1 set `l p r c a s t e m text`: EXTEND and
 the `d`/`x` letters have no v1 alias and do not get one now. Following ADR 0002's
 precedent for `TOOL_KEYS`: **the variants are the contract; the alias table is
 not frozen** — adding `line`, `x` or `d` later is a table row, not an ADR.
+
+**A2a. The alias table has two axes. One is closed, one is open, and neither is
+the contract.**
+
+*(Added by amendment (2). §A2's last sentence already said the table is not
+frozen and already named `line` as the example of a later row. LCV-131's draft
+read the preceding sentence — a scope statement for LCV-110 — as a freeze and
+came here to unfreeze it. Nothing needs unfreezing. What was missing is the
+statement of which axis is which, which is written here once.)*
+
+**The contract is the variants.** `CommandInput`, `ToolKind`, `ToggleKind` and
+`ZoomKind` are the types every caller matches on; adding, removing or renaming a
+variant is an ADR-level change because `tools::make`'s exhaustive `match`
+(§A3), `src/ui/shortcuts.rs::TOOL_KEYS` and `src/agent/classifier.rs` all read
+them. **The alias table is a table.** A row is a row.
+
+Two axes map text onto those variants, and they are independent:
+
+- **The letter axis is closed.** `l p r c a s t e m` is the set, and it does not
+  grow. A letter is a scarce, memorised, one-keystroke resource shared with the
+  bare tool-activation keys (§E), so a new letter is a binding decision, not a
+  row. **`e` is Delete, not Extend** — a v2 decision that deliberately departs
+  from v1, where `e` is `extend` (verified 2026-09-13 in
+  `../LaserCAD-R14/src/ui/command-line.ts`, `TOOL_ALIASES`). §A2's claim that
+  *"EXTEND … has no v1 alias"* is wrong on the facts; the letter is free in v2
+  because v2 reassigned it, not because v1 left it empty. That reassignment
+  stands and is not revisited here. Extend, Delete and Text are reachable from
+  the command line by **word**.
+- **The word axis is open.** A word that spells a command this product already
+  ships is a row, added by a demand, needing no ADR. The bound is not taste: a
+  word may only be added if it maps to an **existing** `ToolKind` /
+  `ToggleKind` / `ZoomKind` variant. `offset` has no variant to map to — the
+  tool was rejected as LCV-054 — so it is not excluded by preference, it is
+  unspellable. The same bound is why a word may never be the way a new tool
+  enters the product.
+
+**The alias table lives in `src/cmdline/parse.rs` and nothing outside
+`src/cmdline/` may hold a second copy of it.** `src/agent/classifier.rs` already
+obeys this by calling `parse` rather than re-deciding a rule of it, and its
+module header says so. A UI file *reading* the table is the allowed direction
+(`ui → cmdline`), but **reading it is not free**, and two constraints on
+`src/ui/dialogs.rs` are load-bearing right now:
+
+- it is at **299** of 300 implementation LOC, so [ADR 0004](0004-measuring-the-300-loc-cap.md)
+  §"The `src/ui/dialogs.rs` seam" makes the next demand that adds an
+  implementation line to it execute the `src/ui/shortcuts_dialog.rs` split
+  first — and **LCV-134 already carries that split**;
+- its body clears the clip by 8.00pt and one row costs 21.00pt (LCV-134), so
+  *one* alias row overflows the dialog.
+
+Therefore: **a demand that adds alias rows does not document them in the F1
+dialog.** `SHORTCUT_GROUPS` is a table of **key bindings**; the command-line
+vocabulary is a different reference with a different shape, and putting it
+behind F1 is a scope change to that dialog, not a side effect of adding a row
+to a parser. If the vocabulary should be discoverable in the UI, that is its own
+demand, it lands **after** LCV-134 so it inherits the headroom, and it decides
+its own presentation. Until then a new alias is documented in `CHANGELOG.md` and
+in the rustdoc on `tool_alias`.
 
 **A3. `ToolKind` → instance lives in `tools/`.** `src/tools/mod.rs` gains
 
