@@ -143,7 +143,7 @@ pub struct ShortcutGroup {
 ///
 /// The tool letters are deliberately absent: they are generated from
 /// [`TOOLS`] by [`tool_rows`], so adding or removing a tool changes the dialog
-/// with no edit here (AC 14).
+/// with no edit here (AC 14). `pub` (not `pub(crate)`) so `tests/lcv133_shortcuts_dialog_fits.rs` can derive this table's counts too.
 pub const SHORTCUT_GROUPS: &[ShortcutGroup] = &[
     ShortcutGroup {
         heading: "File",
@@ -193,7 +193,7 @@ pub const SHORTCUT_GROUPS: &[ShortcutGroup] = &[
 /// One row per entry that has a `shortcut`; `Select` has no binding and is
 /// skipped. `TOOLS` is already the single source of truth for the toolbar and
 /// the Tools menu (LCV-104) — a hand-typed third copy would drift on the first
-/// tool change. `pub`: see [`SHORTCUT_GROUPS`].
+/// tool change. `pub` so `tests/lcv133_shortcuts_dialog_fits.rs` can derive these rows too.
 pub fn tool_rows() -> Vec<(&'static str, &'static str)> {
     TOOLS
         .iter()

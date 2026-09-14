@@ -44,10 +44,8 @@
 //!    own body (its `Area` is not yet placed); [`dialog_body`] always drives
 //!    one throwaway frame before the one it reads.
 
-mod harness;
-
 use lasercad::app::App;
-use lasercad::ui::dialogs::{tool_rows, SHORTCUT_GROUPS};
+use lasercad::ui::{tool_rows, SHORTCUT_GROUPS};
 
 /// The eight headings the operator must see without scrolling.
 const HEADINGS: [&str; 8] = [
