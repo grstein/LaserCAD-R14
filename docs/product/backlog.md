@@ -6,8 +6,8 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-
-_None._
+| LCV-134 | The F1 dialog has 8pt of headroom and the next tool needs 21 | 11 | LCV-133 |
+| LCV-132 | A rendering criterion is paid for in painted text, not in a source scan | 12 | LCV-125, LCV-126, LCV-129, LCV-133 |
 
 **Marco 2 — complete, 2026-09-13.** All five demands are `Done` and reviewed: **LCV-121** (`d584f4d`), **LCV-122**
 (`61d609b`…`ff267ec`), **LCV-123** (`6102c68`, `e7ba0a6`, `af5ef82`),
@@ -170,7 +170,6 @@ _None._
 |---|---|---|
 | LCV-130 | The test suite's isolation from the network depends on the absence of a proxy | 12 |
 | LCV-131 | Typing `LINE` sends the word "line" to a language model | 12 |
-| LCV-132 | A rendering criterion is paid for in painted text, not in a source scan | 12 |
 
 **Drive order after Marco 2**: LCV-129 → LCV-127 → LCV-126 → LCV-128, with
 LCV-130 and LCV-131 newly opened and not yet placed — the `project-manager`
