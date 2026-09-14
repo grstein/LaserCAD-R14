@@ -157,12 +157,22 @@ fn render_column(ui: &mut egui::Ui, sections: &[Section]) {
 
 /// Render the Keyboard shortcuts dialog (LCV-116 AC 11).
 ///
-/// Follows [`about_dialog`]: opened/closed through `open`; centre-anchored,
-/// not collapsible. Laid out in **two columns** ([`split_into_columns`])
-/// because `Window::new`'s baked 420pt `default_size` caps a `ScrollArea` at
-/// that height regardless of screen size (egui 0.29.1) and one column of
-/// this content needs ~836pt (LCV-133); the `ScrollArea` stays as the safety
-/// net for a screen shorter than the two columns' own height.
+/// Follows [`crate::ui::dialogs::about_dialog`]: opened/closed through `open`;
+/// centre-anchored, not collapsible. Laid out in **two columns**
+/// ([`split_into_columns`]) because `Window::new`'s baked 420pt `default_size`
+/// caps a `ScrollArea` at that height regardless of screen size (egui 0.29.1)
+/// and one column of this content needs ~836pt (LCV-133); the `ScrollArea`
+/// stays as the safety net for a screen shorter than the two columns' own
+/// height.
+///
+/// `.default_height(screen - 80)` is **not** decoration and must not be
+/// deleted as gratuitous: it raises that baked 420pt cap — which for a
+/// `ScrollArea` body is a *maximum*, per `Resize::default_height`'s own doc —
+/// so the two columns have headroom above today's content instead of the
+/// 8.00pt they had without it, against a 21.00pt row pitch (LCV-134, ADR 0009
+/// decision 5). What proves it is still working is
+/// `tests/lcv133_shortcuts_dialog_fits.rs`'s `MIN_SLACK_PT` floor: delete this
+/// call and that test goes red at all three screen sizes.
 ///
 /// Read-only: no widget changes application state, and it reads no key. `F1`
 /// is dispatched in `src/ui/shortcuts.rs` like `F3` / `F7` / `F8`, not here.
@@ -170,6 +180,7 @@ pub fn shortcuts_dialog(ctx: &Context, open: &mut bool) {
     Window::new("Keyboard shortcuts")
         .open(open)
         .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
+        .default_height(ctx.screen_rect().height() - 80.0)
         .resizable(false)
         .collapsible(false)
         .show(ctx, |ui| {

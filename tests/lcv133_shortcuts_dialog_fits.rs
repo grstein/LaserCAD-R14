@@ -14,6 +14,12 @@
 //! present — see AC 2 below), and the total run count matching the content,
 //! derived at runtime rather than hand-typed.
 //!
+//! **LCV-134's `lcv134_*` tests live here too**, and are named for their own
+//! demand: LCV-132 had not landed when they were written, and this file's
+//! `Run` already carries the untruncated `pos`/`height` and the `Command line`
+//! body scope that AC 4, AC 5 and AC 6 need — a fifth divergent copy of this
+//! collector is precisely what LCV-132 exists to delete.
+//!
 //! ## Why this is an inline collector, not a `tests/harness/mod.rs` import
 //!
 //! Same reason as `tests/lcv126_command_line_group.rs` (read its module doc
@@ -271,9 +277,15 @@ fn ac2_containment_check_is_not_decorative() {
         );
         assert!(
             !vertically_contained(matches[0], surface),
-            "at {screen:?}, {cell:?} (pos.y={}, height={}) was expected to straddle the \
-             clip bottom ({}) — if it is now fully contained, this screen height no \
-             longer demonstrates the case and must be shrunk further",
+            "at {screen:?}, {cell:?} (pos.y={}, height={}) is fully contained by the \
+             clip bottom ({}), where this control expects it to straddle. Two causes, \
+             in this order: **the dialog content grew** and the `ScrollArea` is now \
+             culling a different row — check \
+             `lcv134_ac5_deepest_column_keeps_a_row_of_slack_at_1280x800`, which names \
+             that cause in the units of the defect — **or**, only if that one is green, \
+             this screen height no longer demonstrates the case and must be shrunk \
+             further. Shrinking it while the content has grown weakens the control over \
+             a sliced row, and the suite goes green on the defect (ADR 0009 §Context).",
             matches[0].pos.y,
             matches[0].height,
             surface.bottom()
@@ -304,4 +316,192 @@ fn ac3_run_count_matches_the_content_derived_at_runtime() {
          (binding + description); a row or a heading went missing without the \
          heading-presence check above also failing"
     );
+}
+
+// ── LCV-134: the headroom above that content, and the window around it ──────
+
+/// One shortcut row's vertical pitch, in points: consecutive rows inside a
+/// group are exactly this far apart at the egui 0.29.1 pin (ADR 0009 records
+/// the row *widget* at 20.91pt; the pitch is what a new row actually costs).
+///
+/// [`lcv134_assert_slack_floor`] requires the deepest column to clear the body
+/// clip bottom by at least this much, so the dialog always has room for one
+/// more row than it shows. That is what makes the failure arrive on the commit
+/// that adds the row instead of on the bug report that follows it (ADR 0009
+/// decision 4). **Revisit when egui is unpinned from 0.29.1** — every number
+/// here is a snapshot of that pin, and an upgrade that changes row metrics is
+/// expected to change this one (ADR 0009 §Revisit criteria).
+const MIN_SLACK_PT: f32 = 21.00;
+
+/// How far the deepest painted run in the dialog body sits above the body clip
+/// bottom. Both columns share one clip rect (see [`dialog_body`]), so the
+/// deepest run *is* the deepest column's bottom, and one number covers both.
+fn deepest_slack(runs: &[Run], surface: egui::Rect) -> f32 {
+    let deepest = runs
+        .iter()
+        .map(|run| run.pos.y + run.height)
+        .fold(f32::NEG_INFINITY, f32::max);
+    surface.bottom() - deepest
+}
+
+/// The dialog's own window rect, read from egui's area memory under the `Id`
+/// `Window::new` derives from its title. This is the **area** id, not a paint
+/// surface, so trap 1 in the module doc does not apply: nothing here scopes a
+/// painted run by the window title.
+fn window_rect(ctx: &egui::Context) -> egui::Rect {
+    ctx.memory(|m| m.area_rect(egui::Id::new("Keyboard shortcuts")))
+        .expect("the shortcuts window has been placed by the settled frame")
+}
+
+/// AC 4 — **every** non-empty run in the dialog body, not just the eight
+/// headings and the `F1` / `This dialog` row, is fully inside the body clip
+/// rect. The first row to go when this dialog grows is `Ctrl+Y` / `Redo`,
+/// which no hand-typed expectation in this repo mentions (ADR 0009 decision
+/// 4), so an assertion over a literal list cannot see it.
+fn lcv134_assert_every_run_is_inside_the_body(screen: [f32; 2]) {
+    let (ctx, mut app) = new_app();
+    let (scoped, surface) = dialog_body(&ctx, &mut app, screen);
+
+    let outside: Vec<String> = scoped
+        .iter()
+        .filter(|run| !vertically_contained(run, surface))
+        .map(|run| {
+            format!(
+                "{:?} (pos.y={}, height={})",
+                run.text.trim(),
+                run.pos.y,
+                run.height
+            )
+        })
+        .collect();
+    assert!(
+        outside.is_empty(),
+        "at {screen:?}: {} of {} runs painted in the dialog body are not fully inside \
+         the body clip rect ({}, {}): {outside:?}",
+        outside.len(),
+        scoped.len(),
+        surface.top(),
+        surface.bottom()
+    );
+}
+
+/// AC 5 — the deepest column clears the body clip bottom by at least one row
+/// pitch. Containment (AC 4) is the backstop; this is the tripwire, and it
+/// fires one commit *before* content is lost.
+fn lcv134_assert_slack_floor(screen: [f32; 2]) {
+    let (ctx, mut app) = new_app();
+    let (scoped, surface) = dialog_body(&ctx, &mut app, screen);
+    let slack = deepest_slack(&scoped, surface);
+    assert!(
+        slack >= MIN_SLACK_PT,
+        "at {screen:?}: the deepest column clears the body clip bottom ({}) by only \
+         {slack:.2}pt, under the {MIN_SLACK_PT:.2}pt floor — one shortcut row's pitch, \
+         so the next row added to SHORTCUT_GROUPS or tool added to TOOLS lands under \
+         the fold. Either the dialog content grew (ADR 0009 §Context's growth table), \
+         or `shortcuts_dialog`'s `.default_height(screen - 80)` was removed. Do not \
+         lower this floor to make the assertion pass.",
+        surface.bottom()
+    );
+}
+
+/// AC 6 — the window is on the screen. Not redundant with AC 4: with the
+/// sizing call the body clip bottom lands **exactly on the screen edge** at
+/// 600-high screens, where a run-only assertion cannot tell "the content fits"
+/// from "the window hangs off the bottom of the display and egui clipped it at
+/// the screen edge".
+fn lcv134_assert_window_is_on_screen(screen: [f32; 2]) {
+    let (ctx, mut app) = new_app();
+    let _ = dialog_body(&ctx, &mut app, screen);
+    let window = window_rect(&ctx);
+    let visible = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(screen[0], screen[1]));
+    let escapes: Vec<String> = [
+        (
+            "top",
+            window.top() >= visible.top(),
+            window.top(),
+            visible.top(),
+        ),
+        (
+            "left",
+            window.left() >= visible.left(),
+            window.left(),
+            visible.left(),
+        ),
+        (
+            "right",
+            window.right() <= visible.right(),
+            window.right(),
+            visible.right(),
+        ),
+        (
+            "bottom",
+            window.bottom() <= visible.bottom(),
+            window.bottom(),
+            visible.bottom(),
+        ),
+    ]
+    .into_iter()
+    .filter(|(_, ok, _, _)| !ok)
+    .map(|(edge, _, got, limit)| format!("{edge} at {got:.2}, screen edge at {limit:.2}"))
+    .collect();
+    assert!(
+        escapes.is_empty(),
+        "at {screen:?}: the shortcuts window {window:?} is not fully inside the screen \
+         — {escapes:?}. The runs can still all be painted here: egui clips the body at \
+         the screen edge, so containment alone would call this fine.",
+    );
+}
+
+/// AC 4 at 1280×800.
+#[test]
+fn lcv134_ac4_every_run_is_inside_the_body_at_1280x800() {
+    lcv134_assert_every_run_is_inside_the_body([1280.0, 800.0]);
+}
+
+/// AC 4 at 1024×600.
+#[test]
+fn lcv134_ac4_every_run_is_inside_the_body_at_1024x600() {
+    lcv134_assert_every_run_is_inside_the_body([1024.0, 600.0]);
+}
+
+/// AC 4 at 800×600.
+#[test]
+fn lcv134_ac4_every_run_is_inside_the_body_at_800x600() {
+    lcv134_assert_every_run_is_inside_the_body([800.0, 600.0]);
+}
+
+/// AC 5 at 1280×800.
+#[test]
+fn lcv134_ac5_deepest_column_keeps_a_row_of_slack_at_1280x800() {
+    lcv134_assert_slack_floor([1280.0, 800.0]);
+}
+
+/// AC 5 at 1024×600.
+#[test]
+fn lcv134_ac5_deepest_column_keeps_a_row_of_slack_at_1024x600() {
+    lcv134_assert_slack_floor([1024.0, 600.0]);
+}
+
+/// AC 5 at 800×600.
+#[test]
+fn lcv134_ac5_deepest_column_keeps_a_row_of_slack_at_800x600() {
+    lcv134_assert_slack_floor([800.0, 600.0]);
+}
+
+/// AC 6 at 1280×800.
+#[test]
+fn lcv134_ac6_window_stays_on_screen_at_1280x800() {
+    lcv134_assert_window_is_on_screen([1280.0, 800.0]);
+}
+
+/// AC 6 at 1024×600.
+#[test]
+fn lcv134_ac6_window_stays_on_screen_at_1024x600() {
+    lcv134_assert_window_is_on_screen([1024.0, 600.0]);
+}
+
+/// AC 6 at 800×600.
+#[test]
+fn lcv134_ac6_window_stays_on_screen_at_800x600() {
+    lcv134_assert_window_is_on_screen([800.0, 600.0]);
 }
