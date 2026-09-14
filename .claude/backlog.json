@@ -1398,14 +1398,15 @@
       "id": "LCV-133",
       "title": "The F1 dialog hides five of its eight groups behind its own fold",
       "phase": 11,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [
         "LCV-126"
       ],
       "suggested_agent": "implementer-rust",
       "milestone": "Phase 11 follow-up (outside the Marco 2 drive)",
       "demand_file": "docs/product/demands/LCV-133-shortcuts-dialog-hides-five-of-its-eight-groups.md",
-      "note": "Draft, opened 2026-09-13 by product-owner; refined and flipped to Ready by demand-manager 2026-09-13. NEXT AGENT IS implementer-rust. THE DEFECT: egui Window's baked .default_size([340.0, 420.0]) caps the shortcuts dialog at 420pt height regardless of screen size, which is set at egui-0.29.1/src/containers/window.rs:64 and explained by the Resize::default_height doc comment at resize.rs:98-104. The operator pressing F1 to find 'Command line' sees only the first three groups (Tools, File, Edit) and has no reason to scroll a dialog that looks complete. Measurement on the shipped code at 768ee9e shows five of eight groups are invisible at 1280x800, 1024x600, and 900x2000 \u2014 identical clip on all three. The one-line fix .default_height(screen - 80) was measured and does NOT work: it leaves Help clipped on 1280x800 and four groups on 1024x600. THE FIX: a two-column layout was measured and DOES work at all three sizes. With .resizable(false) the window already sizes its width to content, so the two columns span 434pt together \u2014 they fit inside the baked 420pt cap with the existing ScrollArea as a safety net. The split must be balanced (fill left column until it reaches half the total item count, then right gets the rest) so adding a tool rebalances automatically. AC 4 requires reworking tests/lcv126_command_line_group.rs's line grouping, which must bucket runs by column before grouping by y. AC 5 verifies the split is computed, not hand-typed. AC 6 adds a doc comment to shortcuts_dialog saying why two columns, so the split is not 'simplified' back to one. Depends on LCV-126 (Done, which added the Command line group), and an ORDERING CONSTRAINT (not a dependency): must land before LCV-132, because LCV-132 moves the paint collector into tests/harness/ and LCV-133 AC 4 changes what that helper asserts \u2014 doing it beforehand keeps the change local to one file."
+      "note": "Done, shipped 2026-09-13. The F1 keyboard shortcuts dialog now displays all eight groups in two columns, visible without scrolling on screens as small as 800x600. Previously only three groups fit on screen with the other five cut off below the fold, and egui's Window::new bakes a .default_size([340.0, 420.0]) that caps content at 420pt regardless of screen size or .default_height() settings. The two-column layout (balanced to reflow automatically as tools are added) works at all measured sizes with no sizing calls needed. Commits: aa36bd8 (initial fix), 14708d3 (deep-path import + test naming). Reviewed and approved by reviewer-rust with 1237 passed, 0 failed, 2 ignored. CI: not run (billing hold).",
+      "shipped_commit": "aa36bd8, 14708d3"
     }
   ]
 }
