@@ -26,10 +26,24 @@
   `src/agent/` names no document type, and two independent scans — both proved
   non-vacuous by mutation — hold that. No decision in §D1..§D11 changes.
 - **Amended (5)**: 2026-09-13 — §D9's "open product question, not decided
-  here" is now decided, by the user, against rule 4: **only `:` and `/ai` reach
-  the model.** Rule 4 is rewritten and §D9a records what the flip may not
-  disturb. This reverses rule 4 and nothing else — §D11's closure property is
-  untouched, because the flip removes an arming path and adds none.
+  here" is now decided against rule 4: **only `:` and `/ai` reach the model.**
+  The call arrived on a `team-lead` relay of the user's direction (2026-09-13)
+  and was confirmed directly by the user on 2026-09-14; see amendment (6). Rule
+  4 is rewritten and §D9a records what the flip may not disturb. This reverses
+  rule 4 and nothing else — §D11's closure property is untouched, because the
+  flip removes an arming path and adds none.
+- **Amended (6)**: 2026-09-14 — attribution repair; no decision changes. Rule 4
+  stays `Unknown → Route::Cad, always` and §D9a stands as written. Amendment (5)
+  and §D9 both credited the flip flatly to "the user". It was decided on a
+  `team-lead` relay of the user's direction (2026-09-13) and confirmed directly
+  by the user on 2026-09-14, once LCV-148 and LCV-131 had shipped; both places
+  now carry both facts. The rule that follows binds every future amendment here:
+  **a relayed decision is attributed as a `team-lead` relay, never as "the
+  user".** An unqualified "the user decided" is a claim about provenance, and
+  when it is wrong it is wrong in the one direction that defeats verification —
+  a competing record in `docs/product/backlog.md` claimed the opposite choice,
+  and the conflict could not be settled from inside the repository because both
+  sides traced back to the same person through different couriers.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
@@ -388,11 +402,13 @@ settings` and nothing is spawned.
 *(Rule 4 as shipped in LCV-124 read: `Unknown` → `Route::Agent` when
 `agent_available`, else `Route::Cad`. This ADR recorded that as an "open product
 question, not decided here" and handed it to `product-owner`. Amendment (5)
-closes it: the user has decided that free-form-to-agent is a v1 behaviour this
-product does not carry forward. The reasoning is cost, not purity — the grammar
-knows only single-letter aliases, so the most ordinary thing an R14 operator can
-type, the command's own name, is `Unknown` and becomes a paid round trip. The
-architecture always supported either answer: it is one arm in `classify`.)*
+closes it: free-form-to-agent is a v1 behaviour this product does not carry
+forward — decided on a `team-lead` relay of the user's direction (2026-09-13)
+and confirmed directly by the user on 2026-09-14. The reasoning is cost, not
+purity — the grammar knows only single-letter aliases, so the most ordinary
+thing an R14 operator can type, the command's own name, is `Unknown` and becomes
+a paid round trip. The architecture always supported either answer: it is one
+arm in `classify`.)*
 
 ### D9a — What the rule-4 flip may not disturb
 
