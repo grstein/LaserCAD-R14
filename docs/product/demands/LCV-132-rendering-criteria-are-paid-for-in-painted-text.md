@@ -299,7 +299,7 @@ failure messages in the handover.
    | h | swap the order of the cancel note and the undo-shape note | LCV-129 AC 7 |
    | i | revert the shortcuts dialog to one column (LCV-133's own documented mutation) | LCV-133 AC 1 / AC 2, at all three sizes |
    | j | round `pos` inside the shared `collect_text` | AC 4's precision test — **and nothing else in the suite**, which is the point |
-   | k | make the shared `rs_files` non-recursive | the positive control in **every** scan wrapper |
+   | k | make the shared `rs_files` non-recursive | AC 1's `ac1_rs_files_returns_every_rs_file_in_the_tree_and_nothing_else`, **and** the whole-`src/` positive controls in `lcv121::implementation_sections`, `lcv129::implementation_sections` and `lcv122::sections` at its `("src", 30)` call site. **Not** `lcv125::agent_sections` and **not** `lcv128::kernel_sections` — measured, see §Notes "Row (k)" |
    | l | paste the old hardcoded model id back into `loop_.rs::send_fn` | LCV-121's scan, by name |
    | m | name `Document` on a code line in a file under `src/agent/` | LCV-122's scan, by name |
    | n | `use eframe::egui;` in a kernel file | LCV-128 AC 1, naming that directory |
@@ -308,7 +308,12 @@ failure messages in the handover.
    Fifteen mutations, fifteen named failures. **A mutation that survives is a
    finding to report, not a criterion to quietly relax** — and (j) and (k) are
    the two that say the consolidation itself did not weaken anything, so a
-   survivor there blocks the demand.
+   survivor there blocks the demand. For (k) the named places are the four
+   above and only those: a wrapper outside that list staying green is the
+   **measured expectation**, not a finding, and adjusting a wrapper's positive
+   control so that it fires is forbidden. §Notes "Row (k)" records why, and
+   the same rule holds generally — when a criterion does not fire, report it;
+   never tune the test until it does.
 
 8. **A `mod harness;` that nobody uses fails.** A scan over the files directly
    in `tests/`: every file declaring the module on a code line must also name
@@ -435,7 +440,11 @@ consumer that exists to prove the harness is reachable from a test binary.
   **and verbatim message**, reverted. (d) is the one that matters most — it is
   the only one of the five original mutants with a security consequence, and it
   was invisible to every test form the repo had before this seam. (j) and (k)
-  are the two that certify the consolidation itself.
+  are the two that certify the consolidation itself. (k) is expected to take
+  down **nine** tests — AC 1's unit test plus eight scan tests across `lcv121`,
+  `lcv122` and `lcv129` — and to leave `lcv125` and `lcv128` green; report the
+  count and the names, and if either of those two goes red as well, say so
+  rather than assuming the list in AC 7 was right.
 - **Integration / AC 8 — the orphan-include guard.** *Mutation:* add
   `mod harness;` to a converted test file and delete its uses, and confirm the
   guard names that file. *Second mutation:* run the guard's helper over a
@@ -491,6 +500,65 @@ None.
   LCV-134 §Expected tests already carries both shapes, one per this demand's
   state. **If this demand is picked up first anyway, stop and report** rather
   than absorbing `tests/lcv133_shortcuts_dialog_fits.rs` while LCV-134 is mid-flight.
+- **Row (k): which controls actually bind, measured — and the decision.**
+  AC 7 row (k) first read "the positive control in **every** scan wrapper".
+  That was over-broad. The implementer ran the mutation, measured that two of
+  the five wrappers survive it, and **routed the wording here instead of
+  adjusting either wrapper to make the sentence come true**. That was the right
+  call and it is the standing rule: when a criterion does not fire, report it;
+  never quietly tune the test until it does. Measured under a non-recursive
+  `rs_files` — nine tests go red, and:
+  - **binds** — `lcv121::implementation_sections` and
+    `lcv129::implementation_sections` (root `src/`, control `files.len() > 30`)
+    and `lcv122::sections` at its `("src", 30)` call site. `src/` holds **2**
+    `.rs` files at its top level and **106** in the tree, so a flat walk misses
+    the control by two orders of magnitude. Eight scan tests, plus AC 1's unit
+    test, is the nine.
+  - **cannot bind** — `lcv125::agent_sections`. Its control is
+    `files.len() >= 9` and `src/agent/` holds **9** `.rs` files and **no
+    subdirectory at all**, so a recursive and a flat walk return the *identical*
+    set. No threshold fixes that: there is nothing deeper to count. A follow-up
+    demand against this wrapper would be asking for a test that cannot exist
+    while `src/agent/` stays flat.
+  - **does not bind** — `lcv128::kernel_sections`. Its five controls are each
+    `!files.is_empty()`, and every kernel directory has top-level `.rs` files.
+    The haystack does shrink silently (`geometry` 7 of 13, `document` 6 of 15;
+    `io/svg`, `text` and `cmdline` are flat and lose nothing) while all five
+    controls pass.
+
+  **Decision: narrow the row — option (a). No follow-up demand is filed, and
+  neither weak control is strengthened.** Three reasons, in order of weight:
+
+  1. `rs_files` now has **one definition**, and AC 1's unit test asserts
+     recursion directly against a synthetic tree the test builds, with a file
+     two levels down. The mutant dies there **unconditionally and by name** —
+     it cannot depend on how the real source tree happens to be shaped today,
+     which is precisely the property a wrapper's positive control lacks.
+     `lcv125`'s control is green on this mutant only because `src/agent/` is
+     flat *this week*; that is an accident of layout, not coverage.
+  2. `lcv128`'s control was never given this job. Its doc comment says it exists
+     so "a typo'd directory name fails naming that directory", and
+     `!files.is_empty()` does exactly that. Re-aiming it at a walker defect
+     needs either a hardcoded per-directory minimum — which loosens **silently**
+     the day a nested file moves up to the top level, and is a count that goes
+     stale on every legitimate refactor — or a structural "at least one scanned
+     path contains a `/`" claim, which goes stale the day a directory
+     legitimately flattens. Both are worse artefacts than the one unit test they
+     would duplicate.
+  3. Requiring five wrappers to each re-catch one shared function's defect is
+     n-fold coverage of a property that now has exactly one owner. That is the
+     duplication this demand exists to delete; re-imposing it in the acceptance
+     criteria would undo the point.
+
+  **Residual risk, stated so it is not rediscovered as a surprise.** Neither
+  `lcv125::agent_sections` nor `lcv128::kernel_sections` can see its haystack
+  shrink from a walker change; both would scan less and still pass. What closes
+  that today is that the only walker is shared and is pinned by AC 1's test, so
+  the shrink cannot reach `main` without that test going red. Considered and
+  accepted — not missed. If `src/agent/` ever grows a subdirectory, `lcv125`'s
+  `>= 9` still will not bind until its top-level count drops below 9; that is a
+  note for whoever adds the subdirectory, not work for this demand.
+
 - **The `#![allow(dead_code)]` blanket stays, and is paid for instead.** It is
   not laziness: Cargo compiles `tests/harness/` into *every* consumer binary, so
   a file that uses only `tap` would trip `-D warnings` on every other item in it
