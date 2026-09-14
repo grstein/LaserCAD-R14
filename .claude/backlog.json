@@ -1415,13 +1415,14 @@
       "id": "LCV-134",
       "title": "The F1 dialog has 8pt of headroom and the next tool needs 21",
       "phase": 11,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [
         "LCV-133"
       ],
       "suggested_agent": "implementer-rust",
       "suggested_model": "sonnet",
-      "demand_file": "docs/product/demands/LCV-134-shortcuts-dialog-has-no-headroom.md"
+      "demand_file": "docs/product/demands/LCV-134-shortcuts-dialog-has-no-headroom.md",
+      "shipped_commit": "f40f20c, fb8c4ae"
     },
     {
       "id": "LCV-135",

@@ -1,6 +1,7 @@
 # LCV-134 — The F1 dialog has 8pt of headroom and the next tool needs 21
 
-- **Status**: Ready
+- **Status**: Done
+- **Implementation**: f40f20c, fb8c4ae
 - **Phase**: 11
 - **Depends on**: LCV-133 (Done — it landed the two-column layout this demand sizes). **Ordering, not a dependency**: this must land **before any demand that adds a tool to `TOOLS` or a row to `SHORTCUT_GROUPS`**. See §Notes.
 - **Suggested agent**: implementer-rust

@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-134 | The F1 dialog has 8pt of headroom and the next tool needs 21 | 11 | LCV-133 |
 | LCV-132 | A rendering criterion is paid for in painted text, not in a source scan | 12 | LCV-125, LCV-126, LCV-129, LCV-133 |
 
 **Marco 2 — complete, 2026-09-13.** All five demands are `Done` and reviewed: **LCV-121** (`d584f4d`), **LCV-122**
@@ -157,6 +156,7 @@ _None._
 | LCV-129 | A hung endpoint wedges the app: the agent turn has no timeout and no cancel | 12 | 2026-09-13 | d7b72c5, 9d9d04e |
 | LCV-128 | `AGENTS.md`'s normative per-file and per-symbol enumerations have no scan | 12 | 2026-09-13 | 8e2b7fe, 3b0e4a8 |
 | LCV-133 | The F1 dialog hides five of its eight groups behind its own fold | 11 | 2026-09-13 | aa36bd8, 14708d3 |
+| LCV-134 | The F1 dialog has 8pt of headroom and the next tool needs 21 | 11 | 2026-09-13 | f40f20c, fb8c4ae |
 | LCV-135 | CI bills Windows and macOS on every push; gate to tags and dispatch | 11 | 2026-09-13 | a3b9769 |
 
 ## Blocked
