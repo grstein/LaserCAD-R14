@@ -1385,9 +1385,12 @@
       "id": "LCV-132",
       "title": "A rendering criterion is paid for in painted text, not in a source scan",
       "phase": 12,
-      "status": "Draft",
+      "status": "Ready",
       "depends_on": [
-        "LCV-125"
+        "LCV-125",
+        "LCV-126",
+        "LCV-129",
+        "LCV-133"
       ],
       "suggested_agent": "implementer-rust",
       "milestone": "Phase 12 follow-up (outside the Marco 2 drive)",
@@ -1407,6 +1410,18 @@
       "demand_file": "docs/product/demands/LCV-133-shortcuts-dialog-hides-five-of-its-eight-groups.md",
       "note": "Done, shipped 2026-09-13. The F1 keyboard shortcuts dialog now displays all eight groups in two columns, visible without scrolling on screens as small as 800x600. Previously only three groups fit on screen with the other five cut off below the fold, and egui's Window::new bakes a .default_size([340.0, 420.0]) that caps content at 420pt regardless of screen size or .default_height() settings. The two-column layout (balanced to reflow automatically as tools are added) works at all measured sizes with no sizing calls needed. Commits: aa36bd8 (initial fix), 14708d3 (deep-path import + test naming). Reviewed and approved by reviewer-rust with 1237 passed, 0 failed, 2 ignored. CI: not run (billing hold).",
       "shipped_commit": "aa36bd8, 14708d3"
+    },
+    {
+      "id": "LCV-134",
+      "title": "The F1 dialog has 8pt of headroom and the next tool needs 21",
+      "phase": 11,
+      "status": "Ready",
+      "depends_on": [
+        "LCV-133"
+      ],
+      "suggested_agent": "implementer-rust",
+      "suggested_model": "sonnet",
+      "demand_file": "docs/product/demands/LCV-134-shortcuts-dialog-has-no-headroom.md"
     }
   ]
 }
