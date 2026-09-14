@@ -6,6 +6,7 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
+| LCV-135 | CI bills Windows and macOS on every push; gate to tags and dispatch | 11 | — |
 | LCV-134 | The F1 dialog has 8pt of headroom and the next tool needs 21 | 11 | LCV-133 |
 | LCV-132 | A rendering criterion is paid for in painted text, not in a source scan | 12 | LCV-125, LCV-126, LCV-129, LCV-133 |
 

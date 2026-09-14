@@ -1,6 +1,6 @@
 # LCV-135 — CI bills Windows and macOS on every push; gate them to tags and dispatch
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 11
 - **Depends on**: none. LCV-092 (Done) built the four-job workflow this narrows; LCV-107 (Done) last touched it. Both are read-for-vocabulary, not blockers.
 - **Suggested agent**: implementer-rust
