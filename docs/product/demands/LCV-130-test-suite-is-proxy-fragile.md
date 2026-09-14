@@ -44,14 +44,27 @@ make that distinction. Every `reqwest::Error` a bounded call can raise — from
 through `src/agent/transport.rs::request_error`, which asks exactly **one**
 question, `is_timeout()`, and returns `TransportError::Request(error)` for
 everything else. A refused socket and a rejected URL land on the same arm.
+(That reading has since rotted in its details — see §Notes — but the part AC 1
+rests on, the single catch-all arm, still holds at HEAD.)
 
 Two consequences, and they set the shape of AC 1. The unparseable endpoint
 **does** keep the mapping covered, so replacing the address costs no coverage
 today. And the socket-level half is still worth keeping — from a socket the test
-**binds and owns**, not from an address nobody owns — so that the arm cannot be
-split later (an `is_connect()` branch is a plausible future change) without a
-test noticing. AC 1 asks for both, and §Expected tests carries the mutation that
-proves the second is not a duplicate of the first.
+**binds and owns**, not from an address nobody owns — so that the catch-all arm
+cannot be split later without a test noticing. AC 1 asks for both, and
+§Expected tests carries the mutation that proves the second is not a duplicate
+of the first.
+
+> **Corrected after shipping, 2026-09-14 (`product-owner`).** The first draft of
+> that mutation named an `is_connect()` branch, and it does not discriminate:
+> `hyper_util`'s `is_connect()` answers `true` only for a failure *during* the
+> TCP/TLS connect step, and AC 1b's fixture is required to `accept()` the
+> connection before dropping it, so its failure is always post-connect. **No
+> fixture that satisfies AC 1b can ever raise an `is_connect()` error** — the
+> only shape that does is the bound-then-dropped port AC 1b explicitly rejects
+> as a flake. The two were in contradiction from the start. The discriminating
+> pair that replaces it is measured below and in AC 1b; the arm splits on
+> **builder vs request**, not on connect.
 
 This all belongs **here, not in a reopened LCV-124**:
 `git diff 96a8fb4~1 HEAD -- src/agent/transport.rs` comes back empty, so LCV-124
@@ -139,10 +152,10 @@ what needs recording, because it generalises past reqwest and past the agent.
   of AC 1 and is withdrawn: it puts proxy configuration into the one file the
   purity rules are trying to keep proxy-agnostic, and it fixes exactly one test
   while AC 2 fixes the whole class for less code.
-- **Changing `request_error`'s mapping**, or adding an `is_connect()` branch to
-  it. §Problem measures what it does today; this demand tests that behaviour, it
-  does not change it. The `is_connect()` branch appears in §Expected tests only
-  as a mutation, applied and reverted.
+- **Changing `request_error`'s mapping**, or adding any new branch to it.
+  §Problem measures what it does today; this demand tests that behaviour, it does
+  not change it. The branches named in AC 1b and §Expected tests appear there
+  **only as mutations, applied and reverted** — never committed.
 - **Removing mockito, or rewriting the HTTP tests to not use a socket.** They
   earn their place: `a_whole_turn_lands_on_the_bed` is the only test that runs a
   real worker thread against a real socket, and the transport tests are the only
@@ -195,6 +208,26 @@ deferrable. AC 6 and AC 7 are the tail and may land in a second commit.
      the underlying failure — connection closed before the response, or reset by
      peer — satisfies the assertion, which is on the variant and never on the
      message text.
+
+     **Why (b) is not a duplicate of (a), measured.** `request_error`'s
+     catch-all `TransportError::Request(error)` arm carries two structurally
+     different `reqwest::Error` kinds, and each test covers exactly one of them:
+     (a) can only ever produce a **builder** error — `is_builder() == true`,
+     `is_request() == false`, `error.url() == None`, no socket, nothing leaves
+     the process — while (b) produces a **request** error from a real socket —
+     `is_builder() == false`, `is_request() == true`, `url() == Some(…)`. So the
+     discriminating mutation is a **pair**, one per direction, and both are
+     required:
+
+     - `if error.is_request() { return TransportError::Timeout { secs: request.as_secs() }; }`
+       → **(b) red, (a) green.**
+     - `if error.is_builder() { return TransportError::Timeout { secs: request.as_secs() }; }`
+       → **(a) red, (b) green.**
+
+     Measured against reqwest 0.12.28 with this call's exact shape. `is_connect()`
+     is **not** available for this job and must not be re-proposed: see the
+     correction block in §Problem. Apply each mutation alone and revert it; AC 1b
+     tests `request_error`'s behaviour and never changes it (§Out of scope).
 
    Neither test may use `.no_proxy()` (§Out of scope). **A bound-then-dropped
    port is not an acceptable substitute for (b)**: the port can be handed to an
@@ -265,10 +298,32 @@ deferrable. AC 6 and AC 7 are the tail and may land in a second commit.
 
    §Test hygiene binds both: the scan lives in `tests/`, so it scans itself, and
    neither its needles nor its control fixture may leave a whole offending literal
-   in its own **source text** — which is where `concat!` earns its keep, and is
-   why `tests/lcv124_command_line_routing.rs`'s
-   `concat!("http://127.0.0.", "1:1")` control survives the scan (neither piece
-   parses as a loopback URL). Paths rebuilt from `components()` joined with `/`.
+   in its own **source text** — which is where `concat!` earns its keep. Split
+   **inside the scheme word**, `"ht"` + `"tp://…"`: the first piece fails
+   `Url::parse` outright and the second parses with scheme `tp`, which the
+   extractor's scheme check excludes whatever its host resolves to. Paths rebuilt
+   from `components()` joined with `/`.
+
+   > **Corrected after shipping, 2026-09-14 (`product-owner`).** This criterion
+   > used to claim that `tests/lcv124_command_line_routing.rs`'s
+   > `concat!("http://127.0.0.", "1:1")` control "survives the scan (neither
+   > piece parses as a loopback URL)". **That claim is false.** `reqwest`/`url`
+   > normalise short IPv4 hosts per WHATWG, so `Url::parse("http://127.0.0.")`
+   > returns `Ok` with `host_str() == Some("127.0.0.0")`, which is inside
+   > `127.0.0.0/8`. The first piece **is** a complete loopback URL on its own.
+   > The control is therefore already in breach of §Test hygiene's own rule —
+   > it leaves a whole offending literal in its source text — and the scan
+   > finding it on its first run is the guard working, not the guard misfiring.
+   >
+   > **Shipped state: `no_loopback_http_literal_survives_in_the_tree` is
+   > `#[ignore]`d, so AC 4b is NOT satisfied.** The implementer was right to
+   > report rather than carve the file out or edit a do-not-touch file.
+   > **LCV-147 owns re-enablement** — it respells that one control inside the
+   > scheme word and lifts the `#[ignore]` in the same commit. Until LCV-147
+   > ships, this demand's central invariant is disabled and the leak it exists
+   > to prevent can re-land unnoticed. Measured 2026-09-14 over 142 files:
+   > exactly one literal is flagged tree-wide, and with the respelling applied
+   > the scan is green with zero flags.
 
 5. **`cargo test --all --no-fail-fast` is green behind a proxy, and nothing
    leaves the machine.** Run with `HTTP_PROXY`, `HTTPS_PROXY` and `ALL_PROXY` all
@@ -278,6 +333,13 @@ deferrable. AC 6 and AC 7 are the tail and may land in a second commit.
    set as with the three variables unset. A run that reports failures going to
    zero without reporting requests going to zero **has not checked AC 1** — the
    silent leak is invisible in the pass/fail line, which is the entire defect.
+
+   **Measured and satisfied (2026-09-14).** At pristine HEAD the capturing
+   listener saw **25 requests** with **23 tests failing**; with
+   `.cargo/config.toml` in place, **0 requests, 0 failures**. That answers the
+   one open validation risk this demand carried: **reqwest 0.12 does honour
+   `NO_PROXY` under `auto_sys_proxy`**, so AC 2's mechanism works and the
+   alternatives named in §Notes stay unbuilt.
 
 6. **The rule is written where the next person will read it.**
    `AGENTS.md` §Implementation Rules gains one entry, in the existing voice, with
@@ -301,9 +363,25 @@ deferrable. AC 6 and AC 7 are the tail and may land in a second commit.
    per-demand gate stays `fmt` + `clippy` + `cargo test --all --no-fail-fast`;
    adding a second full test run to every demand is not worth it for a loud
    failure. The implementer **opens a task for `demand-manager`** to add one step
-   to LCV-089's manual smoke list and writes **the exact text to insert** in the
-   handover — naming the command and the two numbers to report. It does not edit
-   LCV-089 or `docs/product/backlog.md` itself.
+   to LCV-089's manual smoke list. It does not edit LCV-089 or
+   `docs/product/backlog.md` itself. **The step must be worded with a timeout
+   wrapper**, and this is the exact text to insert:
+
+   > Run `cargo test --all --no-fail-fast` with `HTTP_PROXY`, `HTTPS_PROXY` and
+   > `ALL_PROXY` pointed at a throwaway capturing listener, **under a timeout
+   > wrapper** (`timeout 600 cargo test …`). Report two numbers: the requests the
+   > listener saw, and the pass/fail line. Expect **0 requests, all green**.
+
+   **The wrapper is load-bearing, not tidiness.** Measured 2026-09-14: without
+   `.cargo/config.toml`'s bypass entry,
+   `src/agent/transport.rs::ac3_both_halves_of_a_call_give_up_when_the_endpoint_stalls`
+   does not fail loudly — it **hangs indefinitely**, because its fixture thread's
+   `.accept()` never returns once the client dials the proxy instead of the
+   fixture's own port. Confirmed by a process stuck past 60 s and killed by hand.
+   A smoke step that can hang forever is a step nobody runs twice. This is the
+   one place where §Problem's "loud failure is the safe direction" reading needs
+   a caveat: for the 23 mockito tests it holds, but an owned-socket fixture whose
+   client is redirected away hangs rather than failing.
 
 ## Expected tests
 
@@ -326,12 +404,21 @@ deferrable. AC 6 and AC 7 are the tail and may land in a second commit.
   the point — the per-file guard and the tree scan overlap here deliberately.
   Revert.
 - **Unit / AC 1b — the owned socket binds, and is not a duplicate of (a).**
-  *Mutation:* add an `is_connect()` branch to `request_error` —
-  `if error.is_connect() { return TransportError::Timeout { secs: connect.as_secs() }; }`
-  — and confirm **(b) goes red while (a) stays green**. That single mutation is
-  the entire justification for (b) existing. If (b) does **not** go red, (b) is a
-  duplicate of (a): report that, and say so, rather than keeping a test for
-  appearance. Revert.
+  *Mutations, one at a time, each reverted:*
+  `if error.is_request() { return TransportError::Timeout { secs: request.as_secs() }; }`
+  must turn **(b) red while (a) stays green**; and
+  `if error.is_builder() { return TransportError::Timeout { secs: request.as_secs() }; }`
+  must turn **(a) red while (b) stays green**. Both directions are required —
+  one alone proves only that a test exists, not that it covers something the
+  other does not. If either direction fails to discriminate, the two tests are
+  duplicates: **report that, and say so, rather than keeping a test for
+  appearance.**
+
+  The `is_connect()` branch this bullet used to name is **withdrawn and must not
+  be re-proposed**: it leaves both tests green, because AC 1b's fixture accepts
+  the connection before dropping it and its failure is therefore never a
+  connect-step failure. See the correction block in §Problem, and AC 1b for the
+  measured predicate table.
 - **Unit / AC 3 — the bounded transport scan**, shown to discriminate: each
   needle first looked up in a witness line, through the same helper that does the
   real work, so a misspelt `concat!` fails against the witness before the
@@ -419,10 +506,53 @@ entry, validated by AC 5's run rather than by assertion; the rule goes in
   than assume: judge only literals that parse, and it falls out either way. That is guidance, not a criterion; what the criterion requires is the
   claim in AC 4b and the four mutations in §Expected tests.
 - **The `request_error` reading is a measurement, and it will rot like any other.**
-  Re-read at HEAD by `product-owner` while refining this demand: one `is_timeout()`
-  question, everything else to `TransportError::Request`. AC 1b's mutation is what
-  keeps that reading honest after this demand ships — if someone splits the arm,
-  (b) goes red and says so.
+  Read while refining this demand: one `is_timeout()` question, everything else
+  to `TransportError::Request`. **It rotted before this demand even shipped.**
+  Re-read at HEAD 2026-09-14: LCV-129 added a second question *inside* the
+  timeout branch — `let window = if error.is_connect() { connect } else { request }`
+  — so the function now asks `is_timeout()` and then `is_connect()`, and an
+  `is_connect()` call already lives in the code the mutation proposed adding one
+  to. The catch-all arm is still a single arm, which is the part AC 1 rests on,
+  and AC 1b's corrected mutation pair is what keeps *that* reading honest: split
+  the arm on builder-vs-request and one of the two tests goes red and says so.
+
+- **Post-ship corrections, 2026-09-14 (`product-owner`), after the implementer
+  reported rather than tuned.** Two normative claims in this file were false and
+  are corrected in place above; both were found by measurement, which is the only
+  reason they were found at all.
+
+  1. **AC 1b's `is_connect()` mutation did not discriminate** — both tests stayed
+     green. Ruling: **keep (b), replace the mutation.** (b) is not decorative;
+     it is the only transport test in which a `reqwest::Error` raised by a real
+     socket reaches `request_error` at all, and the replacement pair proves that
+     by mutation in both directions. The withdrawn mutation was not merely
+     unlucky — it contradicted AC 1b's own fixture rule, and writing down *why*
+     is the point, so the next reader does not try it again.
+  2. **AC 4b's tree scan shipped `#[ignore]`d**, blocked on
+     `tests/lcv124_command_line_routing.rs`'s own control. Ruling: **fix the
+     control in LCV-147 and lift the ignore there.** The two alternatives are
+     rejected on measurement, not taste. *Redefining the contract* to tolerate
+     short IPv4 forms would blow a real hole in the guard: `http://127.1` and
+     `http://0x7f.1` both parse to host `127.0.0.1` and are perfectly sendable
+     loopback spellings, so a scan that ignored them would miss a re-landed leak
+     spelled either way. *A documented single-file exception* carves out the one
+     file this demand's own witness names, which is the shape §Test hygiene
+     exists to forbid. The follow-up is one line in one file and clears the whole
+     tree.
+
+  Reproduction, both findings, outside the repository (reqwest 0.12.28):
+  `Url::parse("http://127.0.0.")` → `Ok`, `host_str() == Some("127.0.0.0")`;
+  the unparseable call is `is_builder=true / is_request=false / url=None`, the
+  owned-socket call is `is_builder=false / is_request=true / url=Some(…)`, and
+  only a genuinely refused port answers `is_connect=true`.
+
+- **What is still open on this demand.** AC 4b is **not** satisfied while
+  `no_loopback_http_literal_survives_in_the_tree` is `#[ignore]`d. **LCV-147
+  owns re-enabling it**, and LCV-147 also owns correcting
+  `src/agent/transport.rs`'s doc comment on
+  `owned_socket_closed_before_a_reply_is_a_request_error`, which still tells its
+  reader that an `is_connect()` mutation discriminates. Nothing else in this file
+  is outstanding: AC 1, AC 2, AC 3, AC 5, AC 6 and AC 7 are measured and met.
 - Priority: **split, and the body is ordered to match.** The loud half (AC 5,
   23 failing tests) is low priority — it announces itself and costs one afternoon,
   once. The silent half (AC 1, one request that leaks while the suite reports
