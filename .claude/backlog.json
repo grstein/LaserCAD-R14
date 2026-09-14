@@ -1434,6 +1434,117 @@
       "demand_file": "docs/product/demands/LCV-135-ci-matrix-cost-gate.md",
       "shipped_commit": "a3b9769",
       "note": "Done, shipped commit a3b9769. Gates the CI test and build jobs' Windows and macOS legs to tags and workflow_dispatch, leaving ubuntu-24.04 on every push and PR. The first run after quota renewal (1 October 2026) will be cheap. No CI run (billing hold); proof is hand-evaluation of the conditional expression plus YAML parse, exhaustive because the gating expression reads exactly two context values fully determined by trigger shape. The demand deliberately supersedes the workflow_dispatch half of LCV-092's out-of-scope (cron remains out of scope)."
+    },
+    {
+      "id": "LCV-136",
+      "title": "Discard responds to real pointer clicks",
+      "phase": 11,
+      "status": "Draft",
+      "depends_on": ["LCV-113", "LCV-118", "LCV-119"],
+      "suggested_agent": "implementer-rust",
+      "suggested_model": "sonnet",
+      "demand_file": "docs/product/demands/LCV-136-discard-button-pointer-click-regression.md"
+    },
+    {
+      "id": "LCV-137",
+      "title": "Visible grid and consistent viewport coordinates",
+      "phase": 11,
+      "status": "Draft",
+      "depends_on": ["LCV-032", "LCV-033", "LCV-034", "LCV-120"],
+      "suggested_agent": "implementer-rust",
+      "suggested_model": "sonnet",
+      "demand_file": "docs/product/demands/LCV-137-viewport-grid-opacity-and-coordinate-consistency.md"
+    },
+    {
+      "id": "LCV-138",
+      "title": "Native document title and honest file feedback",
+      "phase": 11,
+      "status": "Draft",
+      "depends_on": ["LCV-113", "LCV-119", "LCV-136"],
+      "suggested_agent": "implementer-rust",
+      "suggested_model": "sonnet",
+      "demand_file": "docs/product/demands/LCV-138-native-document-title-and-file-feedback.md"
+    },
+    {
+      "id": "LCV-139",
+      "title": "Readable command input and destination preview",
+      "phase": 12,
+      "status": "Draft",
+      "depends_on": ["LCV-111", "LCV-112", "LCV-124", "LCV-132"],
+      "suggested_agent": "implementer-rust",
+      "suggested_model": "sonnet",
+      "demand_file": "docs/product/demands/LCV-139-two-row-command-line-and-destination-preview.md"
+    },
+    {
+      "id": "LCV-140",
+      "title": "Compact R14 chrome and useful action hints",
+      "phase": 11,
+      "status": "Draft",
+      "depends_on": ["LCV-115", "LCV-116", "LCV-132", "LCV-139"],
+      "suggested_agent": "implementer-rust",
+      "suggested_model": "sonnet",
+      "demand_file": "docs/product/demands/LCV-140-compact-r14-chrome-and-action-hints.md"
+    },
+    {
+      "id": "LCV-141",
+      "title": "Agent panel stays within the right third",
+      "phase": 12,
+      "status": "Draft",
+      "depends_on": ["LCV-125", "LCV-129", "LCV-132"],
+      "suggested_agent": "implementer-rust",
+      "suggested_model": "sonnet",
+      "demand_file": "docs/product/demands/LCV-141-agent-panel-width-composer-and-settings-completion.md"
+    },
+    {
+      "id": "LCV-142",
+      "title": "Larger tool budgets without losing turn undo",
+      "phase": 12,
+      "status": "Draft",
+      "depends_on": ["LCV-123", "LCV-125", "LCV-129"],
+      "suggested_agent": "architect",
+      "suggested_model": "opus",
+      "demand_file": "docs/product/demands/LCV-142-configurable-tool-dispatch-step-budget.md"
+    },
+    {
+      "id": "LCV-143",
+      "title": "Editable harness-aware system prompt",
+      "phase": 12,
+      "status": "Draft",
+      "depends_on": ["LCV-125", "LCV-141"],
+      "suggested_agent": "implementer-rust",
+      "suggested_model": "sonnet",
+      "demand_file": "docs/product/demands/LCV-143-persisted-harness-aware-system-prompt.md"
+    },
+    {
+      "id": "LCV-144",
+      "title": "Create a drawing from declarative JSON",
+      "phase": 12,
+      "status": "Draft",
+      "depends_on": ["LCV-122", "LCV-123", "LCV-142", "LCV-143"],
+      "suggested_agent": "architect",
+      "suggested_model": "opus",
+      "demand_file": "docs/product/demands/LCV-144-declarative-json-drawing-tool.md"
+    },
+    {
+      "id": "LCV-145",
+      "title": "Opt-in canvas observations for vision models",
+      "phase": 12,
+      "status": "Draft",
+      "depends_on": ["LCV-123", "LCV-129", "LCV-137", "LCV-141", "LCV-143"],
+      "suggested_agent": "architect",
+      "suggested_model": "opus",
+      "demand_file": "docs/product/demands/LCV-145-opt-in-canvas-only-vision-tool.md"
+    },
+    {
+      "id": "LCV-146",
+      "title": "Future Markdown and frontmatter agent skills",
+      "phase": 12,
+      "status": "Draft",
+      "depends_on": ["LCV-143"],
+      "suggested_agent": "product-owner",
+      "suggested_model": "opus",
+      "demand_file": "docs/product/demands/LCV-146-markdown-frontmatter-skills-backlog.md",
+      "note": "Deferred; not part of the current implementation queue."
     }
   ]
 }
