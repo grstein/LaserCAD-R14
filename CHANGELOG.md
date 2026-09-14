@@ -69,6 +69,7 @@ No version of LaserCAD v2 has been tagged or released yet. Everything below is u
 - Settings now load at startup: the recent-files list and the agent configuration persist across restarts. The default agent endpoint is now OpenRouter. See LCV-101.
 - Window title changed from "LaserCAD v2 — bootstrap" to "LaserCAD v2". See LCV-105 (contract originally frozen by LCV-007).
 - Edit > Select All is now undoable: it goes through the same `SelectionCommand` / history path as every other selection change, instead of bypassing it. See LCV-105.
+- CI matrix: the `test` and `build` jobs now run Ubuntu alone on ordinary pushes and pull requests, and run all three platforms (Ubuntu, Windows, macOS) on tag pushes and manual `workflow_dispatch`. The `package` and `release` jobs remain gated on tags only. `workflow_dispatch:` was added to the trigger list so the full matrix can be exercised on demand without cutting a release. See LCV-135.
 
 ### Fixed
 

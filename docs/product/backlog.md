@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on |
 |---|---|---|---|
-| LCV-135 | CI bills Windows and macOS on every push; gate to tags and dispatch | 11 | — |
 | LCV-134 | The F1 dialog has 8pt of headroom and the next tool needs 21 | 11 | LCV-133 |
 | LCV-132 | A rendering criterion is paid for in painted text, not in a source scan | 12 | LCV-125, LCV-126, LCV-129, LCV-133 |
 
@@ -158,6 +157,7 @@ _None._
 | LCV-129 | A hung endpoint wedges the app: the agent turn has no timeout and no cancel | 12 | 2026-09-13 | d7b72c5, 9d9d04e |
 | LCV-128 | `AGENTS.md`'s normative per-file and per-symbol enumerations have no scan | 12 | 2026-09-13 | 8e2b7fe, 3b0e4a8 |
 | LCV-133 | The F1 dialog hides five of its eight groups behind its own fold | 11 | 2026-09-13 | aa36bd8, 14708d3 |
+| LCV-135 | CI bills Windows and macOS on every push; gate to tags and dispatch | 11 | 2026-09-13 | a3b9769 |
 
 ## Blocked
 
@@ -171,6 +171,24 @@ _None._
 |---|---|---|
 | LCV-130 | The test suite's isolation from the network depends on the absence of a proxy | 12 |
 | LCV-131 | Typing `LINE` sends the word "line" to a language model | 12 |
+| LCV-136 | Discard responds to real pointer clicks | 11 |
+| LCV-137 | Visible grid and consistent viewport coordinates | 11 |
+| LCV-138 | Native document title and honest file feedback | 11 |
+| LCV-139 | Readable command input and destination preview | 12 |
+| LCV-140 | Compact R14 chrome and useful action hints | 11 |
+| LCV-141 | Agent panel stays within the right third | 12 |
+| LCV-142 | Larger tool budgets without losing turn undo | 12 |
+| LCV-143 | Editable harness-aware system prompt | 12 |
+| LCV-144 | Create a drawing from declarative JSON | 12 |
+| LCV-145 | Opt-in canvas observations for vision models | 12 |
+| LCV-146 | Future Markdown and frontmatter agent skills (deferred) | 12 |
+
+LCV-136 through LCV-146 register the user-requested interface and agent-harness
+plan. Discard reproduction and the one-third panel cap are the first usability
+priorities. Preserve LCV-134 before LCV-132 for shared paint coverage. LCV-142
+must preserve whole-turn undo beyond the 200-entry history depth before raising
+the tool budget. LCV-146 is deferred and must not be selected for implementation.
+LCV-131 is outside this initiative: the user chose to retain current routing.
 
 **Drive order after Marco 2**: LCV-129 → LCV-127 → LCV-126 → LCV-128, with
 LCV-130 and LCV-131 newly opened and not yet placed — the `project-manager`

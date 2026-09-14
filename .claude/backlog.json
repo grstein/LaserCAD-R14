@@ -1427,12 +1427,13 @@
       "id": "LCV-135",
       "title": "CI bills Windows and macOS on every push; gate them to tags and dispatch",
       "phase": 11,
-      "status": "Ready",
+      "status": "Done",
       "depends_on": [],
       "suggested_agent": "implementer-rust",
       "suggested_model": "sonnet",
       "demand_file": "docs/product/demands/LCV-135-ci-matrix-cost-gate.md",
-      "note": "Ready, product-owner refined 555dd68. Gates the CI test and build jobs' Windows and macOS legs to tags and workflow_dispatch, leaving ubuntu-24.04 on every push and PR. The first run after quota renewal (1 October 2026) will be cheap. No CI run (billing hold); proof is hand-evaluation of the conditional expression plus YAML parse, exhaustive because the gating expression reads exactly two context values fully determined by trigger shape. The demand deliberately supersedes the workflow_dispatch half of LCV-092's out-of-scope (cron remains out of scope)."
+      "shipped_commit": "a3b9769",
+      "note": "Done, shipped commit a3b9769. Gates the CI test and build jobs' Windows and macOS legs to tags and workflow_dispatch, leaving ubuntu-24.04 on every push and PR. The first run after quota renewal (1 October 2026) will be cheap. No CI run (billing hold); proof is hand-evaluation of the conditional expression plus YAML parse, exhaustive because the gating expression reads exactly two context values fully determined by trigger shape. The demand deliberately supersedes the workflow_dispatch half of LCV-092's out-of-scope (cron remains out of scope)."
     }
   ]
 }
