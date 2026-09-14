@@ -12,6 +12,18 @@
   explicitly — variants frozen, letters closed, words open — so the misreading
   cannot recur, and corrects one factual error in §A2 about v1's `extend`. No
   decision in §A1..§A4 is reversed; nothing in §B..§F changes.
+- **Amended (3)**: 2026-09-14 — §A2a described *how* `src/agent/classifier.rs`
+  obeys the single-alias-table rule ("by calling `parse`") and listed it among
+  the readers of the `CommandInput` variants. Both were true when amendment (2)
+  was written and stop being true when **LCV-148** lands: deleting `classify`'s
+  one `agent_available`-guarded arm collapses its inner `match parse(raw)` to a
+  bare `Route::Cad`, after which the production path of that file neither calls
+  `parse` nor names a `CommandInput` variant. Only the *account* is corrected —
+  the rule is unchanged and compliance with it gets **stronger**, not weaker.
+  This amendment was written before LCV-148's code landed and describes the
+  post-LCV-148 tree; until that commit lands, the file still shows the
+  amendment (2) mechanism. No decision in §A1..§A4 is reversed; nothing in
+  §B..§F changes.
 - **Date**: 2026-09-12
 - **Deciders**: architect (Marco 1 / LCV-110, LCV-111, LCV-112)
 
@@ -168,8 +180,12 @@ statement of which axis is which, which is written here once.)*
 **The contract is the variants.** `CommandInput`, `ToolKind`, `ToggleKind` and
 `ZoomKind` are the types every caller matches on; adding, removing or renaming a
 variant is an ADR-level change because `tools::make`'s exhaustive `match`
-(§A3), `src/ui/shortcuts.rs::TOOL_KEYS` and `src/agent/classifier.rs` all read
-them. **The alias table is a table.** A row is a row.
+(§A3), `src/app/cmdline.rs::submit`'s exhaustive `match` (§B5) and
+`src/ui/shortcuts.rs::TOOL_KEYS` all read them. *(Amendment (3): this list named
+`src/agent/classifier.rs` as a fourth reader. It was one until **LCV-148**;
+after it, the variants survive there only in that file's `#[cfg(test)] mod
+tests`, and a test module is not a caller the contract is owed to.)* **The alias
+table is a table.** A row is a row.
 
 Two axes map text onto those variants, and they are independent:
 
@@ -192,9 +208,26 @@ Two axes map text onto those variants, and they are independent:
   enters the product.
 
 **The alias table lives in `src/cmdline/parse.rs` and nothing outside
-`src/cmdline/` may hold a second copy of it.** `src/agent/classifier.rs` already
-obeys this by calling `parse` rather than re-deciding a rule of it, and its
-module header says so. A UI file *reading* the table is the allowed direction
+`src/cmdline/` may hold a second copy of it.** *(Amendment (3) rewrites the
+sentence that stood here. It read: "`src/agent/classifier.rs` already obeys this
+by calling `parse` rather than re-deciding a rule of it, and its module header
+says so." That was the mechanism until **LCV-148**, which deletes the one arm
+that call fed and leaves `classify` deciding on the `:` / `/ai` prefix alone.
+From LCV-148 on the classifier obeys the rule by **not needing the grammar at
+all**, which is the stronger compliance: a file that never consults the alias
+table cannot hold a second copy of it and cannot re-decide a rule of it. The
+rule is not weakened and the classifier is not the reason for it.)*
+
+**This is not a ban, and no demand may turn it into one.** `crate::cmdline`
+stays a permitted import of `src/agent/classifier.rs` — LCV-148 moves the `use`
+into that file's `#[cfg(test)] mod tests`, which still needs `parse` to record
+what the grammar does with `z`, `ze` and `zoom in` — and `crate::cmdline` is
+**not** added to the forbidden list of its `classifier_is_kernel_pure` scan.
+`agent/ → cmdline/` is an allowed direction that the production path simply no
+longer travels. Nothing in §A2a bars any file from *calling* `parse`; what is
+barred is the second copy.
+
+A UI file *reading* the table is the allowed direction
 (`ui → cmdline`), but **reading it is not free**, and two constraints on
 `src/ui/dialogs.rs` are load-bearing right now:
 
