@@ -5,7 +5,7 @@
 - **Depends on**: none (LCV-124's own fix for the leak landed separately at `a1b37aa`; what it did not reach is AC 1)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: b008c3c, 8840add, 260afeb, c3cfab0
 
 ## Problem
 

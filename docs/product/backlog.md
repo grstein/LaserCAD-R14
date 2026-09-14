@@ -4,9 +4,10 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 ## Ready
 
-| ID | Title | Phase | Depends on |
-|---|---|---|---|
-| LCV-130 | The test suite's isolation from the network depends on the absence of a proxy | 12 | — |
+| ID | Title | Phase | Depends on | Notes |
+|---|---|---|---|---|
+| LCV-130 | The test suite's isolation from the network depends on the absence of a proxy | 12 | — | Blocked pending LCV-147 (AC 4b's scan is disabled, awaiting re-enablement) |
+| LCV-147 | The tree-wide loopback scan ships disabled, blocked by a control that breaks the rule it controls for | 12 | LCV-130, LCV-124 | — |
 
 **Marco 2 — complete, 2026-09-13.** All five demands are `Done` and reviewed: **LCV-121** (`d584f4d`), **LCV-122**
 (`61d609b`…`ff267ec`), **LCV-123** (`6102c68`, `e7ba0a6`, `af5ef82`),
