@@ -476,23 +476,30 @@ fn a_second_turn_is_refused_not_queued() {
 
 // ── The bare typo hazard, end to end ────────────────────────────────────────
 
-/// The §Risks decision, made visible: with a key configured `lien` is sent,
-/// loudly; without one it is a free local error. One app each, one line each.
+/// LCV-148's witness (ADR 0007 §D9a rule 3): the §Risks decision this test
+/// used to pin under the name `a_typo_reaches_the_agent_only_when_a_key_is_configured`
+/// — "with a key configured `lien` is sent" — is the accepted hazard rule 4's
+/// flip closes. Inverted **in place**, not deleted: same file, same two-app
+/// shape, now asserting that a key configured or not makes no difference at
+/// all to a bare typo. This is the only assertion in the suite that bare text
+/// never reaches the model.
 #[test]
-fn a_typo_reaches_the_agent_only_when_a_key_is_configured() {
+fn a_typo_never_reaches_the_agent_even_with_a_key_configured() {
     let mut without = App::default();
     submit(&mut without, "lien");
-    assert!(!without.agent_busy);
-    assert!(without.command_feedback.contains("lien"));
-    assert!(!without.command_feedback.starts_with('\u{2192}'));
 
     let mut with = app_with_a_key();
     submit(&mut with, "lien");
-    assert!(with.agent_busy, "with a key, the same typo is a turn");
-    assert_eq!(
-        with.command_feedback,
-        concat!("\u{2192} agent: ", "\"lien\""),
-        "and the command line says so at a glance"
-    );
-    assert!(with.agent_panel_open);
+
+    for app in [&without, &with] {
+        assert_eq!(
+            app.command_feedback, "Unknown command: \"lien\"",
+            "both apps answer the same local error, key or no key"
+        );
+        assert!(!app.agent_busy);
+        assert!(app.agent_rx.is_none());
+        assert!(app.agent_chat.is_empty());
+        assert!(!app.agent_panel_open);
+        assert_eq!(app.document.entity_count(), 0);
+    }
 }

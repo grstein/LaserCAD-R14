@@ -67,9 +67,9 @@ const ECHO_CHARS: usize = 60;
 /// 3. parse;
 /// 4. push the line to the recall ring (rejected input included — recall
 ///    exists so a typo can be fixed);
-/// 5. classify (LCV-124): a `:` / `/ai` line, or — with an API key configured
-///    — a line the grammar did not recognise, becomes one agent turn and
-///    returns here;
+/// 5. classify (LCV-124, rule 4 flipped by LCV-148): a `:` / `/ai` line
+///    becomes one agent turn and returns here; every other line is CAD,
+///    whatever the settings say;
 /// 6. dispatch per the AC 10 table.
 ///
 /// Never panics and never returns a value: everything it has to say, it says
@@ -106,12 +106,10 @@ pub fn submit(app: &mut App, raw: &str) {
     // appends. Guarding the call here would silently drop the reset.
     app.command_history.push(raw);
 
-    // LCV-124 — where does this line go? `classify` reads the same `parse`
-    // this function already called, which is safe because `parse` is pure and
-    // total: two calls on one string cannot disagree. What the grammar must
-    // never have is two *implementations*, and it does not — `classifier.rs`
-    // calls `crate::cmdline::parse` rather than reimplementing a single rule
-    // of it (AC 11).
+    // LCV-124 / LCV-148 — where does this line go? Since the rule-4 flip
+    // `classify` decides on the `:` / `/ai` prefix alone and no longer calls
+    // `parse` at all (ADR 0003 §A2a, amendment (3)); `parsed` below is this
+    // function's own, single call site.
     match classify(raw, agent_available(app)) {
         // The grammar owns the line; fall through to the dispatch below.
         Route::Cad => {}
@@ -156,7 +154,8 @@ fn agent_available(app: &App) -> bool {
 
 /// Hand one prompt to the agent — loudly (AC 8).
 ///
-/// Bare free text now costs a network call, so a send must be impossible to
+/// Only a `:` / `/ai` prefixed line ever reaches here (LCV-148 — bare free
+/// text never costs a network call), so a send must still be impossible to
 /// miss: the command line echoes what was sent, and the panel opens itself so
 /// the prompt, the spinner and the reply are visible where they happen. The
 /// operator's `user` row is [`super::start_turn`]'s to write (ADR 0007 §D3);
@@ -640,10 +639,11 @@ mod tests {
             .count()
     }
 
-    /// AC 11 — the grammar is parsed in one place. `classify` calls
-    /// `crate::cmdline::parse`; `submit` has **exactly one** `parse(` call
-    /// site of its own, so no second decision point can drift away from the
-    /// first. Adding `let again = parse(raw);` to `submit` fails this.
+    /// AC 11 — the grammar is parsed in one place. Since LCV-148 `classify`
+    /// calls `parse` not at all — it decides on the `:` / `/ai` prefix alone
+    /// — so `submit`'s own **exactly one** `parse(` call site is now the
+    /// grammar's only reader here. Adding `let again = parse(raw);` to
+    /// `submit` fails this.
     ///
     /// Shown to discriminate: the two positive controls below run the same
     /// `code_hits` over the same slice, so a scan that were reading the wrong

@@ -14,11 +14,10 @@
 //! posts the string an operator is typing into a TEXT entity to a language
 //! model; `tests/lcv124_command_line_routing.rs` guards it by name.
 //!
-//! Purity: this file may import nothing but `crate::cmdline` and `std`. No
-//! `egui`, no `eframe`, no `rfd`, no `reqwest`, no `crate::app` — asserted by
-//! [`tests::classifier_is_kernel_pure`].
-
-use crate::cmdline::{parse, CommandInput};
+//! Purity: this file's implementation imports nothing but `std`. `crate::cmdline`
+//! is a permitted import (ADR 0003 §A2a) that, since LCV-148, lives only in
+//! `#[cfg(test)] mod tests`. No `egui`, no `eframe`, no `rfd`, no `reqwest`, no
+//! `crate::app` — asserted by [`tests::classifier_is_kernel_pure`].
 
 /// The `:` escape hatch: everything after the first colon is the prompt.
 const COLON_PREFIX: char = ':';
@@ -33,9 +32,10 @@ pub enum Route {
     /// The command line's own grammar owns this line. Dispatch it exactly as
     /// it was dispatched before the agent existed — including the
     /// `Unknown command: "…"` message, which is what an unrecognised line
-    /// still gets when no API key is configured.
+    /// gets unconditionally (ADR 0007 §D9 rule 4, amendment (5)).
     Cad,
-    /// Send the payload to the agent as a prompt.
+    /// Send the payload to the agent as a prompt. A `:` or `/ai` prefix is
+    /// now its only producer (ADR 0007 §D9 rule 4, amendment (5)).
     ///
     /// The payload is already trimmed. An **empty** payload is a prefix with
     /// nothing behind it (`":"`, `"/ai   "`): it is a refusal for the caller
@@ -50,17 +50,17 @@ pub enum Route {
 /// 1. **raw-input mode wins over everything** — enforced by the caller, which
 ///    returns before this function is reached (see the module header).
 /// 2. a `:` or `/ai` prefix is **absolute**: `":line"`, `":50,25"` and
-///    `":snap"` all go to the agent, even though the remainder parses as a CAD
-///    command. This is the escape hatch and nothing overrides it.
-/// 3. [`parse`] returning anything other than [`CommandInput::Unknown`] is
-///    CAD: verbs, aliases, toggles, zoom, points, offsets, bare distances and
-///    a bare Enter always win.
-/// 4. an `Unknown` line reaches the agent only when `agent_available`;
-///    otherwise it stays CAD and gets the same `Unknown command: "…"` it has
-///    always got.
+///    `":snap"` all go to the agent, even though the remainder would parse as
+///    a CAD command. This is the escape hatch and nothing overrides it.
+/// 3. everything else is **CAD, always** (this collapses the old rules 3 and
+///    4 into one — amendment (5)): whatever `agent_available` says, an
+///    unprefixed line never reaches the agent. The grammar's own verdict,
+///    recognised or `Unknown command: "…"`, is all it ever gets, and
+///    `classify` does not consult the grammar to know this.
 ///
 /// `agent_available` is data, not a global: the caller computes it as
-/// "a non-whitespace API key is configured" and passes it in.
+/// "a non-whitespace API key is configured" and passes it in; it still
+/// separates [`Route::Agent`] from [`Route::Unavailable`] on a prefixed line.
 pub fn classify(raw: &str, agent_available: bool) -> Route {
     match agent_prompt(raw.trim()) {
         // An empty prompt is refused before availability is even consulted:
@@ -69,12 +69,9 @@ pub fn classify(raw: &str, agent_available: bool) -> Route {
         Some("") => Route::Agent(String::new()),
         Some(_) if !agent_available => Route::Unavailable,
         Some(prompt) => Route::Agent(prompt.to_owned()),
-        None => match parse(raw) {
-            // The payload is the trimmed original text in its original case,
-            // so the caller echoes it without keeping a second copy.
-            CommandInput::Unknown(text) if agent_available => Route::Agent(text),
-            _ => Route::Cad,
-        },
+        // Rule 4 (amendment (5)): no prefix is always CAD, whatever
+        // `agent_available` says.
+        None => Route::Cad,
     }
 }
 
@@ -106,6 +103,12 @@ fn agent_prompt(trimmed: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // LCV-148: the implementation above no longer calls `parse` or names a
+    // `CommandInput` variant — `classify` decides on the prefix alone (ADR
+    // 0003 §A2a, amendment (3)). This import survives here, and only here,
+    // for `z_is_not_a_zoom_word`, which records what the grammar does with
+    // `z`, `ze` and `zoom in` independently of how `classify` routes them.
+    use crate::cmdline::{parse, CommandInput};
 
     /// The implementation section of this file: everything before the bare
     /// `#[cfg(test)]` at column 0. Scanning the whole file would let this test
@@ -130,19 +133,25 @@ mod tests {
             .any(|line| line.contains(needle) && !line.trim_start().starts_with("//"))
     }
 
-    /// AC 1 — the classifier is pure and takes availability as data. Needles
-    /// are built with `concat!` so the scan can never match the literal
-    /// written next to it, the haystack stops at the test module, and each
-    /// absence is backed by a positive control run through the **same**
-    /// `code_contains` over the **same** slice: if the scan were reading the
-    /// wrong bytes, or skipping every line, the control fails first.
+    /// AC 5 (LCV-148) — the classifier is pure and, since the rule-4 flip, no
+    /// longer needs the grammar to decide anything. Needles are built with
+    /// `concat!` so the scan can never match the literal written next to it,
+    /// the haystack stops at the test module, and each absence is backed by a
+    /// positive control run through the **same** `code_contains` over the
+    /// **same** slice: if the scan were reading the wrong bytes, or skipping
+    /// every line, the control fails first. The positive controls are
+    /// re-derived from the post-flip implementation section: `crate::cmdline`
+    /// and `CommandInput` are no longer in it and must not be asserted as
+    /// present (ADR 0003 §A2a, amendment (3)); `crate::cmdline` is **not**
+    /// added to the forbidden list — this is not a new ban, the classifier
+    /// simply no longer needs the import.
     #[test]
     fn classifier_is_kernel_pure() {
         let implementation = implementation();
         for control in [
             concat!("pub fn ", "classify"),
-            concat!("crate::", "cmdline"),
-            concat!("Command", "Input"),
+            concat!("agent_", "available"),
+            concat!("pub enum ", "Route"),
         ] {
             assert!(
                 code_contains(implementation, control),
@@ -175,13 +184,27 @@ mod tests {
         );
     }
 
-    /// AC 2 — the whole precedence table, every row asserted with
-    /// `agent_available` both `true` and `false`, so the flag is *proved* to
-    /// matter: the only rows that move with it are the ones rule 4 owns.
+    /// AC 2 (LCV-148) — `classify` keeps its two-argument signature. The
+    /// coercion below only type-checks against `fn(&str, bool) -> Route`, so a
+    /// change that "simplifies" `classify` to drop `agent_available` fails to
+    /// compile here rather than silently losing rule 2's discrimination
+    /// between [`Route::Agent`] and [`Route::Unavailable`].
+    #[test]
+    fn classify_keeps_its_pinned_two_argument_signature() {
+        let f: fn(&str, bool) -> Route = classify;
+        assert_eq!(f("lien", true), Route::Cad);
+    }
+
+    /// AC 1 / AC 7 (LCV-148) — the whole precedence table, every row asserted
+    /// with `agent_available` both `true` and `false`, so the flag is
+    /// *proved* to matter for exactly the rows it still owns. Since the
+    /// rule-4 flip only the five prefixed rows may move with availability;
+    /// every unprefixed line — recognised by the grammar or not — is
+    /// `Route::Cad` under both.
     #[test]
     fn the_precedence_table_holds_for_both_availabilities() {
         // (line, route when a key is configured, route without one)
-        let rows: [(&str, Route, Route); 15] = [
+        let rows: [(&str, Route, Route); 24] = [
             // Rule 2 — the prefix is absolute, even over a real CAD command.
             (":line", Route::Agent("line".into()), Route::Unavailable),
             ("/ai line", Route::Agent("line".into()), Route::Unavailable),
@@ -197,10 +220,23 @@ mod tests {
             ("@10,0", Route::Cad, Route::Cad),
             ("37.5", Route::Cad, Route::Cad),
             ("", Route::Cad, Route::Cad),
-            // Rule 4 — the rows the availability flag moves. `"z"` sits here
-            // and not above on purpose: see `z_is_not_a_zoom_word` below.
-            ("lien", Route::Agent("lien".into()), Route::Cad),
-            ("z", Route::Agent("z".into()), Route::Cad),
+            // Rule 4, post-flip (ADR 0007 §D9, amendment (5)): every
+            // unrecognised line is CAD too, whatever the settings say. `lien`
+            // and `z` are the two the flip is named after; the rest are the
+            // words refinement found the old rule 4 also fired on (a full
+            // AutoCAD command name), plus the multi-byte and malformed inputs
+            // that must not panic on the way to the same verdict.
+            ("lien", Route::Cad, Route::Cad),
+            ("z", Route::Cad, Route::Cad),
+            ("zoom", Route::Cad, Route::Cad),
+            ("zoom sideways", Route::Cad, Route::Cad),
+            ("/aim", Route::Cad, Route::Cad),
+            ("é", Route::Cad, Route::Cad),
+            ("x", Route::Cad, Route::Cad),
+            ("d", Route::Cad, Route::Cad),
+            ("1,2,3", Route::Cad, Route::Cad),
+            ("nan", Route::Cad, Route::Cad),
+            ("Foo", Route::Cad, Route::Cad),
         ];
         let mut moved_with_availability = 0;
         for (line, with_key, without_key) in rows {
@@ -219,22 +255,21 @@ mod tests {
             }
         }
         assert_eq!(
-            moved_with_availability, 7,
-            "the five prefixed rows, `lien` and `z` must depend on availability"
+            moved_with_availability, 5,
+            "only the five prefixed rows — `:line`, `/ai line`, `/AI line`, \
+             `:50,25`, `:snap` — may depend on availability"
         );
     }
 
     /// `"z"` is **not** a zoom word. The zoom forms are `"ze"` and
     /// `"zoom <in|out|extents>"` (ADR 0003, `src/cmdline/parse.rs`), so a bare
-    /// `z` parses as `Unknown` and belongs to rule 4, not rule 3.
+    /// `z` parses as `Unknown` — a CAD row like every other unrecognised line
+    /// since LCV-148, not the "rule 4 row" this test recorded before the flip.
     ///
-    /// The LCV-124 demand lists `"z"` among the lines that "still behave
-    /// exactly as they do today", which reads as a claim that it is a zoom
-    /// command. It never was one: today a bare `z` answers
-    /// `Unknown command: "z"`, and rule 4 therefore sends it to the agent when
-    /// a key is configured, exactly like `lien` — with no key it keeps that
-    /// same message, so it *does* still behave exactly as it does today. This
-    /// test records the grammar the table row above is asserted against.
+    /// A bare `z` has always answered `Unknown command: "z"` locally; what
+    /// LCV-148 changed is that it now answers that way whatever the settings
+    /// say, exactly like `lien`. This test records the grammar the table row
+    /// above is asserted against.
     #[test]
     fn z_is_not_a_zoom_word() {
         assert_eq!(parse("z"), CommandInput::Unknown("z".into()));
@@ -253,11 +288,12 @@ mod tests {
         );
     }
 
-    /// AC 3 — `/ai` needs a word boundary, so `/aim` is not a prefix: it falls
-    /// through to rules 3/4 as an unrecognised line.
+    /// AC 3 / AC 7 (LCV-148) — `/ai` needs a word boundary, so `/aim` is not a
+    /// prefix: it falls through to rule 4 and is now CAD under both
+    /// availabilities.
     #[test]
     fn slash_ai_requires_a_boundary() {
-        assert_eq!(classify("/aim", true), Route::Agent("/aim".into()));
+        assert_eq!(classify("/aim", true), Route::Cad);
         assert_eq!(classify("/aim", false), Route::Cad);
         assert_eq!(classify("/ai", true), Route::Agent(String::new()));
         assert_eq!(classify("/ai hello", true), Route::Agent("hello".into()));
@@ -306,11 +342,13 @@ mod tests {
         }
     }
 
-    /// AC 3 — a multi-byte first character cannot panic the prefix match.
+    /// AC 3 / AC 7 (LCV-148) — a multi-byte first character cannot panic the
+    /// prefix match, and since the flip an unprefixed multi-byte line is CAD
+    /// under both availabilities, exactly like any other unrecognised line.
     #[test]
     fn a_multibyte_line_is_classified_without_panicking() {
-        assert_eq!(classify("é", true), Route::Agent("é".into()));
+        assert_eq!(classify("é", true), Route::Cad);
         assert_eq!(classify("é", false), Route::Cad);
-        assert_eq!(classify("/é", true), Route::Agent("/é".into()));
+        assert_eq!(classify("/é", true), Route::Cad);
     }
 }
