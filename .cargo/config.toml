@@ -1,0 +1,35 @@
+# LCV-130 — keep the suite's loopback fixtures off the ambient proxy.
+#
+# `reqwest::blocking::Client::new()` sets `auto_sys_proxy: true`, and reqwest
+# 0.12 has no loopback bypass: with `HTTP_PROXY` set, a request aimed at
+# `127.0.0.1` or `localhost` — every mockito fixture, and the two loopback
+# `TcpListener`s in `src/agent/transport.rs` — is handed to the proxy instead
+# of reaching the socket the test itself bound and owns. A reviewer captured a
+# real `POST` carrying `authorization: Bearer sk-test-DO-NOT-LEAK` this way
+# while `cargo test` reported all green.
+#
+# `NO_PROXY` also reaches `cargo run`, which starts the real app, so
+# `force = false` is deliberate: a developer who already sets their own
+# `NO_PROXY` (to bypass a different set of hosts) keeps that list, and cargo
+# must never clobber it. If a developer's own list does not cover loopback,
+# the 23 mockito-backed tests fail loudly under a proxy — the safe direction,
+# and the whole reason this half of LCV-130 is not urgent. The one test this
+# entry cannot make proxy-proof, `unparseable_endpoint_is_a_request_error` in
+# `src/agent/transport.rs`, does not need it: its endpoint fails `Url::parse`
+# before any socket or proxy lookup is even possible.
+#
+# Measured (LCV-130 AC 2, AC 5):
+# - `cargo test --all --no-fail-fast` under a capturing proxy: PASS — 0
+#   requests reached the capturing listener, before and after was 25 out /
+#   23 failing, after is 0 out / 0 failing. reqwest 0.12 honours `NO_PROXY`
+#   under `auto_sys_proxy` for both the `http` and `https` schemes.
+# - `cargo nextest run` inherits this entry: NOT MEASURED — `cargo-nextest`
+#   is not installed in this environment and was not installed to check (per
+#   the demand's own instruction not to install it). Treat as unverified.
+# - A bare `./target/debug/deps/<binary>` invocation: does NOT inherit this
+#   entry — `[env]` in `.cargo/config.toml` is applied by the `cargo`
+#   front-end when it builds the run/test invocation, not by the produced
+#   binary itself, so an operator who skips `cargo test` and runs a compiled
+#   test binary directly gets none of this and is running unprotected.
+[env]
+NO_PROXY = { value = "127.0.0.1,localhost,::1", force = false }
