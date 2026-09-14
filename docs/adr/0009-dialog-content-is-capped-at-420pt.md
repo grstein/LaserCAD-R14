@@ -1,6 +1,14 @@
 # ADR 0009 — Dialog content is capped at 420pt, and dialog growth is asserted, not assumed
 
 - **Status**: Accepted
+- **Amended (1)**: 2026-09-13 — two §Context measurements were wrong as written
+  at `4e4f3ba` and are corrected in place: the `+3 tools` row's required run
+  count (`68 / 68` → **`68 / 70`**), and the claim that the first three growth
+  rows "pass every test LCV-133 shipped" (they do not; the suite goes red on
+  all three, and on the first two it names the wrong cause). §Context gains the
+  misdiagnosing-control finding and the false-green it produces. Decisions 1..5
+  are unchanged — decision 5 already used 70 for the `+3 tools` case. See
+  §"Amendment (1)".
 - **Date**: 2026-09-13
 - **Deciders**: architect
 
@@ -37,14 +45,85 @@ Eight points is 38% of one row. What that buys, measured the same way
 | shipped | +8.00 | +32.00 | 64 / 64 | correct |
 | +1 tool | **−13.00** | +32.00 | 66 / 66 | a row sliced by the clip edge |
 | +2 tools | −13.00 | +32.00 | 66 / **68** | a row gone |
-| +3 tools | +17.00 | −21.00 | 68 / 68 | `Help` painted outside the clip |
+| +3 tools | +17.00 | −21.00 | 68 / **70** | `Help` heading painted outside the clip, its `F1` row culled |
 | +4 rows on `Help` | +8.00 | +20.00 | 67 / **72** | `View` gone |
 | +1 group of 4 rows | +8.00 | −10.00 | 68 / **73** | `View` gone |
 
-**The first three of those pass every test LCV-133 shipped.** AC 1/AC 2 assert
-eight hand-typed headings and the `F1` / `This dialog` row; a sliced or culled
-*tool* row is none of those. Only AC 3's derived run count sees it, and only from
-the second added row on.
+**What `tests/lcv133_shortcuts_dialog_fits.rs` actually says about the first
+three rows** — re-measured at `14708d3` against the real `App`, each mutation
+rendered rather than counted:
+
+| content | the five tests in that file | what the red message says |
+|---|---|---|
+| +1 tool | 4 pass, **1 fails**: `ac2_containment_check_is_not_decorative` | "this screen height no longer demonstrates the case and must be shrunk further" |
+| +2 tools | 3 pass, **2 fail**: AC 3's derived count, and the same control | AC 3: "a row or a heading went missing"; the control: as above |
+| +3 tools | **0 pass**: AC 1/AC 2 join in at all three sizes, because `Help` is a heading | "headings painted but not fully inside the clip rect: ["Help"]" |
+
+AC 1/AC 2 assert eight hand-typed headings and the `F1` / `This dialog` row, so
+a sliced or culled *tool* row is invisible to them until the damage reaches a
+heading — which is what +3 tools does. AC 3's derived count sees the loss from
+the second added row on, but not the first: at +1 tool the content still paints
+all 66 runs it owes, `Ctrl+Y` / `Redo` among them, with **one point of a 14pt
+row inside the clip** (`pos.y = 653.68`, clip bottom `654.68`, at 1280×800).
+
+**The negative control misdiagnoses all of it.**
+`ac2_containment_check_is_not_decorative` pins 1280×460 and asserts `F1`
+*straddles* the clip bottom there. That pin is calibrated to today's content
+height: any growth pushes the content down, the `ScrollArea` culls a different
+row, `F1` lands fully inside, and the control goes red — at +1 tool and at +2
+tools alike — telling the reader the *screen height* is stale. It is not. The
+content grew. Not one red message in the suite, lib tests included, mentions
+the clipped row; the four lib tests that also go red are tool-inventory counts
+the implementer must update anyway to add the tool at all.
+
+Followed literally, that instruction manufactures a false green. Measured: with
+one tool added, moving the control's screen from `[1280.0, 460.0]` to
+`[1280.0, 444.0]` — the shrink the message asks for — turns the file green,
+**5 of 5**, while `Ctrl+Y` / `Redo` is still sliced at 1280×800. The suite then
+certifies as correct the exact defect LCV-126 and LCV-133 exist to fix. A green
+suite reached by following that message is a false green, and it is reachable
+by an implementer doing nothing except what the failure told them to do.
+
+**This is why LCV-134's AC 5 names a minimum slack in points instead of leaning
+on the containment tests that already exist.** A containment assertion pinned to
+a screen size measures the relationship between two moving numbers and cannot
+report which one moved. A slack floor on the deepest column, asserted at the
+three sizes AC 1 already uses, has only one moving part and fails in the units
+of the defect. That is decision 4 below, and this is its evidence.
+
+The control's message should change too — `implementer-rust` owns that edit, not
+this ADR. It should offer both causes and rank them: *"`F1` is fully contained at
+1280×460. Either this screen height no longer demonstrates the case, **or** the
+dialog content grew and the `ScrollArea` is culling a different row — check the
+deepest column's slack at 1280×800 before shrinking this number."* A control
+whose only suggested remedy is to weaken the control is not a control.
+
+*(Amendment (1), 2026-09-13. The `+3 tools` row of the growth table, the
+verdict table, and every paragraph between them and here replace text written
+at `4e4f3ba`; everything else in §Context re-measured exactly,
+including the clip `[236.68, 662.68]`, the shipped `64 / 64` at `+8.00` /
+`+32.00`, all five other growth rows, and the ten-cut table below. Three
+corrections, so a reader of the original numbers knows which ones were wrong:*
+
+1. *The `+3 tools` row read `68 / 68`. The content requires **70** runs there —
+   8 headings + 31 rows × 2 — of which 68 are painted. So **AC 3's derived count
+   fails at +3 tools as well as AC 2**, where the original table implied only
+   AC 2 did. Decision 5 below already used 70 for this case, so the original
+   §Context contradicted decision 5 inside one document. Cause: the `runs`
+   column was re-derived by arithmetic for that row instead of read off the
+   render.*
+2. *The prose read "**The first three of those pass every test LCV-133
+   shipped**" and "Only AC 3's derived run count sees it". Both are false. The
+   suite goes red on all three rows. Cause: the claim was checked against AC 1,
+   AC 2 and AC 3 and not against the other two tests in the file.*
+3. *Found while verifying (2), and not in the report that prompted this
+   amendment: the control's misdiagnosis is **not specific to `+1 tool`**. It
+   fires with the same "must be shrunk further" message at `+2 tools`, and will
+   fire on any growth that shifts the content past its 1280×460 pin. It is a
+   recurring trap, not a one-off.*
+
+*Found by `product-owner` re-measuring this section before writing LCV-134
+against it. No decision changes; decisions 1..5 stand as written.)*
 
 The same measurement refutes a second assumption. LCV-133 §Expected tests probes
 AC 5 by adding a synthetic ninth group of four rows and re-running the AC 1 test
