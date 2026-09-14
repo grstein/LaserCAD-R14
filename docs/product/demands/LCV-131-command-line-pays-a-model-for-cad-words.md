@@ -1,11 +1,11 @@
 # LCV-131 — The command line does not know the words that name its own commands
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 12
 - **Depends on**: LCV-124 (the classifier), LCV-148 (the rule-4 flip; it lands first and is what makes this demand a pure grammar change)
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: —
+- **Implementation**: b3f00e3, f3cf2cc
 
 > **Filename note.** The slug is historical (`…-pays-a-model-for-cad-words`).
 > After [LCV-148](LCV-148-unrecognised-lines-stay-local.md) lands, typing `LINE`
