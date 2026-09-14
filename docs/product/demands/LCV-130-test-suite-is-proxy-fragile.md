@@ -1,6 +1,6 @@
 # LCV-130 — The test suite's isolation from the network depends on the absence of a proxy
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 12
 - **Depends on**: none (LCV-124's own fix for the leak landed separately at `a1b37aa`; what it did not reach is AC 1)
 - **Suggested agent**: implementer-rust
