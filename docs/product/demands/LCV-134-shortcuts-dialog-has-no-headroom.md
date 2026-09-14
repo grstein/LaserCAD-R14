@@ -37,7 +37,9 @@ nobody looks. What the suite says about it, in the same copy:
   reads *"if it is now fully contained, this screen height no longer
   demonstrates the case and must be shrunk further"*. It tells you to tune the
   probe. It does not mention the clipped row, and at the three real sizes it
-  asserts nothing.
+  asserts nothing. It is not specific to `+1 tool` either: the same message
+  fires at `+2 tools` (re-measured at `2860edd`: 3 pass, 2 fail), and on any
+  growth that shifts content past its pin. **AC 8 fixes that message.**
 - The four other reds are the tool-inventory counts
   (`tool_rows_match_the_toolbar_table`, `toolbar_table_is_the_v010_tool_set`,
   `tools_make_covers_all_toolbar_entries`,
@@ -57,7 +59,7 @@ one run per heading and two per row, derived from `SHORTCUT_GROUPS` and
 |---|---|---|---|---|
 | shipped | +8.00 | +32.00 | 64 / 64 | nothing — correct |
 | **+1 tool** | **−13.00** | +32.00 | 66 / 66 | **nothing that names the dialog** |
-| +2 tools | −13.00 | +32.00 | 66 / 68 | its AC 3 only |
+| +2 tools | −13.00 | +32.00 | 66 / 68 | its AC 3 — **plus the same misdiagnosing control** |
 | +3 tools | +17.00 | −21.00 | 68 / 70 | its AC 2 (`Help` outside the clip) and its AC 3 |
 | +1 group of 4 rows | +8.00 | −10.00 | 68 / 73 | its AC 1 (`View` painted zero times), AC 2, AC 3 |
 
@@ -68,7 +70,7 @@ a monitor: the body clip is **426.00pt at every screen size tested**, because
 
 ## Scope
 
-All four parts, in one demand, because each is inert without the others. The
+All five parts, in one demand, because each is inert without the others. The
 assertions alone land red on day one — today's content is 13pt short of the
 21pt floor. The sizing call alone lands unguarded: measured, it buys +45.32pt at
 600-high screens, two added tools bring that back to +20.32pt, and nothing in
@@ -87,6 +89,10 @@ the suite would say so — or would notice the call being deleted as gratuitous.
 - **Two growth mutations**, run and recorded in the handover: +3 tools, and +1
   group of four rows. The second of those is LCV-133's AC 5 probe as amended
   (ADR 0009 decision 3), run against a dialog that can pass it honestly.
+- **One failure message**: the negative control in
+  `tests/lcv133_shortcuts_dialog_fits.rs` currently sends a reader to weaken the
+  control when the real cause is content growth, and following it manufactures a
+  green suite over a sliced row. See AC 8.
 
 ## Out of scope
 
@@ -240,7 +246,45 @@ that say what it is for, which is AC 4, AC 5 and AC 6 below.
    AC 5 and AC 6 are asserted on the **real** content; the growth mutations are
    asserted on runs painted and contained.
 
-8. **Caps and gates.** Post-split `awk` LOC reported for both
+8. **The negative control offers both causes, and ranks them.**
+   `ac2_containment_check_is_not_decorative` in
+   `tests/lcv133_shortcuts_dialog_fits.rs` fires whenever `F1` is fully
+   contained at its 1280×460 pin, and today it names exactly one cause —
+   that the pin is stale and "must be shrunk further". That is the one cause
+   whose remedy *weakens the control*, and it is the wrong one on every growth
+   case this demand exists to catch. Re-measured at `2860edd` against the real
+   `App`: the same message fires verbatim at **+1 tool** and again at
+   **+2 tools**, where `F1` is contained with 16.32pt to spare
+   (`pos.y = 429.682`, `height = 14.0`, clip bottom `460.000`) because the
+   `ScrollArea` has begun culling a *different* row — and it will fire on any
+   growth that shifts content past that pin. It is a recurring trap, not a
+   one-off (ADR 0009 Amendment (1), correction 3).
+
+   **A green suite reached by obeying the current message is a false green.**
+   Measured end to end by `architect`: with one tool added, moving the
+   control's screen to `[1280.0, 444.0]` — exactly the shrink the message asks
+   for — turns the file **green 5 of 5 while `Ctrl+Y` / `Redo` is still sliced**
+   at 1280×800. The suite then certifies the defect LCV-126 and LCV-133
+   exist to fix, and it does so for an implementer who did nothing but what the
+   failure told them to do.
+
+   So the message must offer both causes and rank them, in substance:
+
+   > `F1` is fully contained at 1280×460. Either this screen height no
+   > longer demonstrates the case, **or** the dialog content grew and the
+   > `ScrollArea` is culling a different row — check the deepest column's slack
+   > at 1280×800 before shrinking this number.
+
+   Wording may be adapted to the assertion's formatting, but it must (a) name
+   content growth as a cause, (b) send the reader to the deepest column's slack
+   at 1280×800 — which after AC 5 is a test that names the real cause in the
+   units of the defect — and (c) put shrinking the pin **last**. Nothing else in
+   that test changes: the 1280×460 pin, its `!vertically_contained` claim and
+   the positive control above it stay exactly as LCV-133 landed them. This is a
+   message-only edit, and it is here because ADR 0009 declined to make it:
+   `implementer-rust` owns the test, not the ADR.
+
+9. **Caps and gates.** Post-split `awk` LOC reported for both
    `src/ui/dialogs.rs` and `src/ui/shortcuts_dialog.rs`; if either lands in
    270–300, flag `architect` rather than splitting again. All three local gates
    green, with the pass count reported: `cargo fmt --all -- --check`,
@@ -280,6 +324,18 @@ of that collector is precisely what LCV-132 exists to delete. Name them
   `screen_rect().expand(100.0)` instead and confirm the test still passes, then
   restore — a containment assertion against a rect that cannot bind proves
   nothing. Report the measured window rect at each of the three sizes.
+- **Integration / AC 8 — the control's message.** No new test: the mutation is
+  the check. With one `ToolEntry` added (AC 7's revert discipline applies), run
+  the file and paste the **new** failure message verbatim in the handover; it
+  must name content growth and send the reader to the slack. Then, in the same
+  mutated tree, do what the **old** message asked — move the control's screen to
+  `[1280.0, 444.0]` — and report the result: it must be **5 of 5 green** with
+  `Ctrl+Y` / `Redo` still sliced at 1280×800, which is the false green this
+  criterion exists to make unreachable. Revert the pin, then the tool. Baseline
+  for comparison, measured at `2860edd` on unmutated content: the control's own
+  numbers at its pin are `pos.y = 446.682`, `height = 14.0`, clip bottom
+  `460.000` — a **0.682pt** straddle, which is the margin the whole control
+  turns on.
 - **Integration / AC 1 + AC 2 — the split is inert.** The pass count before and
   after the split commit, from the same command. Mutation: leave one
   `include_str!("dialogs.rs")` needle pointing at the old file and confirm the
@@ -333,22 +389,30 @@ None.
   +8.00/+32.00 slack) and was used only for configurations the shared worktree
   must not carry; and, for the `+1 tool` and sizing-call cases, a throwaway copy
   of the repository with the real mutation applied and the real suite run.
-- **Two numbers in ADR 0009 §Context's first table did not reproduce**, and this
-  demand uses the measured values: the `+3 tools` row reads `68 / 68`, but the
-  content requires **70** runs (8 headings + 31 rows × 2) and 68 are painted, so
-  **AC 3 fails there as well as AC 2**; and the ADR's "the first three of those
-  pass every test LCV-133 shipped" is true of the three size tests and the
-  derived count but not of `ac2_containment_check_is_not_decorative`, which goes
-  red at `+1 tool` with a message that sends the reader to tune the probe rather
-  than to the clipped row. Neither correction changes ADR 0009's decisions; the
-  `+1 tool` case is if anything worse than recorded, because the one red test
-  misdiagnoses it. ADR 0009 decision 5's own figures (145/169, 45/69, 70/70,
-  73/73, 36 of 64 at 800×600) all reproduced exactly.
+- **ADR 0009 is amended (`2860edd`) and this demand is written against the
+  amended text.** Two §Context numbers written at `4e4f3ba` did not reproduce
+  when `product-owner` re-measured them for this demand — the `+3 tools` row's
+  required run count (`68 / 68`, actually **68 / 70**, so AC 3 fails there as
+  well as AC 2) and the claim that the first three growth rows "pass every test
+  LCV-133 shipped" — and `architect` confirmed both and corrected them in place.
+  Verifying them turned up a **third**, which is where this demand's AC 8 comes
+  from: the control's misdiagnosis is not specific to `+1 tool`. Re-measured
+  here at `2860edd`, `+2 tools` gives 3 pass / 2 fail with the control's message
+  unchanged, and the ADR's false-green demonstration (pin → `[1280.0, 444.0]`,
+  5 of 5 green, row still sliced) is the reason AC 8 is a criterion and not a
+  note. ADR 0009 decision 5's own figures (145/169, 45/69, 70/70, 73/73, 36 of
+  64 at 800×600) all reproduced exactly, and decisions 1..5 are unchanged.
 - **Ordering.** This must land before any demand that adds a tool to `TOOLS` or a
   row to `SHORTCUT_GROUPS`; after it, such a demand gets a red test naming the
-  slack in its own commit. It has no ordering constraint against LCV-132 — see
-  §Expected tests for the two shapes, one per LCV-132 state. If LCV-132 lands
-  between refinement and implementation, use the harness and delete nothing.
+  slack in its own commit. Against **LCV-132** there is no hard constraint —
+  see §Expected tests for the two shapes, one per LCV-132 state — but the
+  scheduling preference is **this demand first**: AC 8 and the growth mutations
+  edit `tests/lcv133_shortcuts_dialog_fits.rs`, and editing a helper while it is
+  private to one file is a local change, where the same edit after LCV-132 has
+  promoted it to a shared `pub` helper is a cross-file change with innocent
+  bystanders. That is LCV-133 §Notes' own reasoning, applied once more; LCV-132
+  §Notes carries the full argument. If LCV-132 lands first anyway, use the
+  harness and delete nothing.
 - **The split is not this demand's idea.** ADR 0004 Amended (2) decided the seam,
   the destination name, the re-export list, the three `include_str!` needles and
   why `src/ui/shortcuts_dialog.rs` is safe next to `src/ui/shortcuts.rs` (which
