@@ -6,6 +6,9 @@
   is known: the agent harness. Consequences gains §"The `src/app/mod.rs` seam",
   which also corrects LCV-123 AC 20's destination for `AgentState`. Rule 4 is
   applied, not changed; nothing in rules 1..4 is reversed.
+- **Amended (2)**: 2026-09-13 — `src/ui/dialogs.rs` reached **299** on LCV-133 and
+  flagged `architect` as rule 4 asks. Consequences gains §"The `src/ui/dialogs.rs`
+  seam". Rule 4 is applied, not changed; nothing in rules 1..4 is reversed.
 - **Date**: 2026-09-13
 - **Deciders**: architect
 
@@ -188,6 +191,59 @@ source scans carry field paths in their needles —
 guard scan — so those needles and `AGENTS.md` §Event flow → Repaint policy are
 updated in the same commit, with the conditional-repaint count staying at three.
 
+**The `src/ui/dialogs.rs` seam, pre-decided per rule 4.**
+
+`src/ui/dialogs.rs` is at **299** implementation lines at `aa36bd8`, measured with
+the rule 2 recipe: 246 before LCV-133, 299 after. One line of headroom is not
+headroom, and rule 4 still forbids splitting on sight — no demand is queued
+against the file, and LCV-132 touches `tests/`, not this. So the seam is written
+down now, and the trigger is sharper than usual: **the next demand that adds an
+implementation line to this file executes the split as its first commit**, before
+its own change, because at 299 it has no other option.
+
+**The seam is the dialog itself, not data-versus-presentation: the keyboard
+shortcuts dialog leaves whole.**
+
+| stays in `src/ui/dialogs.rs` | moves to `src/ui/shortcuts_dialog.rs` |
+|---|---|
+| the module doc, `DialogResult`, `confirm_dialog`, `error_dialog`, `about_dialog`, and their inline tests | `ShortcutGroup`, `SHORTCUT_GROUPS`, `tool_rows`, `Section`, `item_count`, `sections`, `split_into_columns`, `render_column`, `shortcuts_dialog`, `shortcut_row`, and the LCV-116 / LCV-133 half of the inline tests |
+
+Five notes make it executable without a second decision:
+
+- **Why not the data/presentation seam.** Moving only `ShortcutGroup` /
+  `SHORTCUT_GROUPS` / `tool_rows` into a table file leaves the split rule, the
+  renderer and the table in two files that only ever call each other — a
+  two-file module nobody asked for, and both halves still change together on
+  every demand that touches this dialog. The seam above leaves three generic
+  modal helpers in one file and one self-contained feature in the other, which
+  is what AGENTS.md §Module tree's "one responsibility per file" asks for. The
+  thing that grew is what moves out, which is the same rule the `src/app/mod.rs`
+  seam above applies.
+- **The arithmetic.** ~160 implementation lines move plus a new module doc, so
+  `src/ui/dialogs.rs` lands near **130** and `src/ui/shortcuts_dialog.rs` near
+  **180**. Both have real headroom, not one line of it.
+- **`src/ui/mod.rs` keeps every name it re-exports today**, sourced from the new
+  module (`pub use shortcuts_dialog::{shortcuts_dialog, tool_rows, ShortcutGroup,
+  SHORTCUT_GROUPS};`). The only caller outside `src/ui/` is
+  `src/app/panels.rs`, which goes through `crate::ui::shortcuts_dialog` and does
+  not change. `tests/lcv133_shortcuts_dialog_fits.rs` imports the deep path
+  `lasercad::ui::dialogs::{…}` and must be repointed — or, better, moved to the
+  `lasercad::ui::{…}` re-export while it is being touched.
+- **Three `include_str!` needles move with the tests.**
+  `the_shortcuts_dialog_reads_no_key`,
+  `the_dialog_holds_no_second_copy_of_the_tool_table` and
+  `implementation_source` all read `include_str!("dialogs.rs")`; after the move
+  they read `include_str!("shortcuts_dialog.rs")`. A scan left pointing at the
+  old file keeps passing and stops proving anything, which is the same
+  self-match failure `src/lib.rs`'s
+  `run_arms_native_dialogs_as_its_first_statement` already documents.
+  `include_str!("shortcuts.rs")` and `include_str!("../app/input.rs")` resolve
+  unchanged from `src/ui/`.
+- **On the name.** `src/ui/shortcuts.rs` reads keys; `src/ui/shortcuts_dialog.rs`
+  must not, and that is enforced by test, not by naming — the moved
+  `the_shortcuts_dialog_reads_no_key` is exactly that enforcement, and ADR 0002
+  §A6's "two key readers" invariant is unchanged by the move.
+
 **The rest of the band, for the record.** `src/app/agent_apply.rs` is at 284,
 `src/app/file_ops.rs` at 281, `src/app/agent_turn.rs` at 272 and
 `src/io/settings.rs` at 265. Only `agent_apply.rs` needs a seam named, and it is
@@ -224,3 +280,6 @@ above.
   is required.
 - `src/app/mod.rs` or `src/app/agent_apply.rs` crosses 300 → execute the seam
   named for it in Consequences; no new decision is required.
+- Any demand adds an implementation line to `src/ui/dialogs.rs` (at 299) →
+  execute the seam named for it in Consequences first; no new decision is
+  required.
