@@ -190,7 +190,7 @@ plan. Discard reproduction and the one-third panel cap are the first usability
 priorities. Preserve LCV-134 before LCV-132 for shared paint coverage. LCV-142
 must preserve whole-turn undo beyond the 200-entry history depth before raising
 the tool budget. LCV-146 is deferred and must not be selected for implementation.
-LCV-131 is outside this initiative; it was split into LCV-148 (routing) and LCV-131 (grammar), both now shipped per ADR 0007 amendment (5).
+LCV-131 is outside this initiative; per the user's 2026-09-14 decision, LCV-148 (prefix-only routing) and LCV-131 (full command words) both shipped with routing specified in ADR 0007.
 
 **Drive order after Marco 2**: LCV-129 → LCV-127 → LCV-126 → LCV-128, with
 LCV-130 and LCV-131 newly opened and not yet placed — the `project-manager`
