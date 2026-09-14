@@ -71,9 +71,18 @@ and `View`/`Modes`/`Drawing`/`Command line`/`Help` in the right:
 
 | screen | text runs | headings painted | galleys wrapped | every bottom run fully inside its clip rect |
 |---|---|---|---|---|
-| 1280 × 800 | 65 | **8 of 8** | 0 | yes |
-| 1024 × 600 | 65 | **8 of 8** | 0 | yes |
-| 800 × 600 | 65 | **8 of 8** | 0 | yes |
+| 1280 × 800 | 64 | **8 of 8** | 0 | yes |
+| 1024 × 600 | 64 | **8 of 8** | 0 | yes |
+| 800 × 600 | 64 | **8 of 8** | 0 | yes |
+
+*(Corrected 2026-09-13, after implementation: this table read **65** when the
+demand was written. The count derived at runtime from `SHORTCUT_GROUPS` and
+`tool_rows()` — one run per heading, two per row — is **64**: 8 headings and 28
+rows. The shipped `expected_run_count` in
+`tests/lcv133_shortcuts_dialog_fits.rs` computes 64 and the rendered frame paints
+64 at all three sizes, re-measured on the real `App` at `14708d3`. AC 3's
+"never a hand-typed `65`" below names the same stale literal; what AC 3 requires
+— that the number be derived, never typed — is unchanged and is what shipped.)*
 
 No `.default_height()`, no `.default_width()`, no `.max_size()` — three candidate
 widths (620 / 680 / 760) and no width call at all produced byte-identical
@@ -85,6 +94,34 @@ content. **The fix is the layout and nothing else.** Both columns together span
 The split matters and must not be assumed: putting only `File` in the left
 column leaves `Help` clipped again (62 runs, `Help` missing). That failing
 configuration is this demand's mutation.
+
+### Known limitation, measured after implementation (2026-09-13)
+
+The fix shipped with **8.00pt** of headroom. On a settled frame at
+`pixels_per_point = 1.0`, the deepest column's bottom clears the body clip
+bottom by 8.00pt — the other column has 32.00pt — and the two numbers are
+**identical at 1280×800, 1024×600 and 800×600**, because the 426.00pt body cap
+does not move with the screen. One shortcut row costs **21.00pt** of vertical
+pitch (ADR 0009 records the row widget at 20.91pt; the pitch is what a new row
+actually spends).
+
+Eight points is not a row, so the **next tool added to `TOOLS` puts a row back
+under the fold**. Measured at `14708d3` with one real extra `ToolEntry`: the
+left column overshoots by 13.00pt at all three sizes and `Ctrl+Y` / `Redo` is
+painted with one point of itself on screen — while this demand's three size
+tests *and* its derived run count stay green, because a straddling run is still
+a painted run and no test in the suite names that row.
+
+This is a limit of the fix, not a defect in it. The two-column layout was the
+only measured configuration that fixed the fold, and §Out of scope was right
+that a sizing call stacked on afterwards, unexplained, is how a dialog acquires
+a permanent mystery. **Closing the limit is LCV-134**, which adds
+`.default_height(ctx.screen_rect().height() - 80.0)` *on top of* these columns
+together with the assertions that make it legible and keep it honest: every
+non-empty run contained, a named 21.00pt slack floor, and the window rect inside
+the screen rect. See ADR 0009 (the cap, the growth table, decision 5) and ADR
+0004 Amended (2) (the `src/ui/shortcuts_dialog.rs` split LCV-134 carries as its
+first commit).
 
 ## Scope
 
@@ -210,10 +247,41 @@ New file `tests/lcv133_shortcuts_dialog_fits.rs`. It needs a paint collector; se
   swap `ArrowUp` and `ArrowDown` in the table and confirm the reworked test still
   catches the order — the column bucketing must not have turned an ordered
   assertion into a set membership one.
-- **Unit / AC 5 — the split adapts.** Mutation: add a synthetic ninth group with
-  four rows to `SHORTCUT_GROUPS`, run the AC 1 test unchanged, and confirm it
-  still passes at all three sizes; remove it. If it fails, the split rule is
-  wrong and the demand is not done.
+- **Unit / AC 5 — the split adapts.** *(Probe rewritten 2026-09-13, after
+  implementation. AC 5 itself is unchanged and is met by what shipped; the probe
+  originally specified here was invalid — see below.)* Mutation: add a synthetic
+  ninth group of four rows to `SHORTCUT_GROUPS` and run **AC 1's heading check
+  and AC 3's derived run count together**, at all three sizes. The pass condition
+  is **73 / 73** runs — nine headings plus thirty-two rows at two runs each —
+  with all nine headings painted exactly once and fully inside the clip rect.
+  Remove the group afterwards; a synthetic binding never ships.
+
+  **Why the original probe could not work.** It said: re-run the AC 1 test
+  *unchanged* and, if it fails, the split rule is wrong. AC 1's expectations are
+  fixed — eight hand-typed headings — so re-running it proves that the fixed
+  expectations still hold, which is a different and weaker claim than "the
+  content that was added is visible" (ADR 0009 decision 3). Measured by rendering
+  all ten order-preserving whole-section cut points of the mutated
+  9-section / 41-item set at `14708d3`: the cut that puts **19 items left and 22
+  right paints 65 of 73 runs, passes the probe with all nine headings painted
+  exactly once — and culls all four rows of the group the probe had just
+  added**. The cut the shipped rule actually derives (22/19) paints more than any
+  other cut, 68, and *fails* the probe because `View` is culled. **No cut paints
+  73.** The probe was therefore green-able on a dialog exhibiting the exact defect
+  LCV-126 and LCV-133 exist to fix, and the distance between green and red was
+  which way a 19/22-versus-22/19 tie happened to break — an accident, not a
+  property.
+
+  **What the rewritten probe reports on the shipped dialog, and why that is not
+  an AC 5 failure.** 68 / 73, with `View` culled. That is the 426pt body cap
+  binding (ADR 0009 §Context and §Known limitation above), not the split rule
+  misbehaving: no whole-section assignment of 41 items fits in 426pt. AC 5 is met
+  by what shipped — `split_into_columns` takes no group name, which
+  `split_into_columns_balances_by_item_count_not_by_name` pins, and the boundary
+  it derives paints all 64 runs of the **real** content at all three sizes. The
+  probe's 73 / 73 is reachable and has been measured: it lands once the sizing
+  call does, and **LCV-134** carries this exact probe as one of its acceptance
+  criteria, measured there at 73 / 73 at all three sizes.
 - **Unit / AC 7** — the `awk` LOC number, in the handover.
 - **[manual] smoke** — this is the criterion the whole demand is about, so it is
   worth the ninety seconds:
