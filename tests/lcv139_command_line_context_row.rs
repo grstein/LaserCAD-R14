@@ -22,6 +22,10 @@ use harness::paint::{painted_runs_at, runs_in};
 use harness::{frame, raw_input_at, submit_command, tap, type_command};
 use lasercad::app::{arm_turn, App};
 use lasercad::document::Entity;
+use lasercad::ui::{
+    LABEL_AI, LABEL_AI_BUSY, LABEL_AI_PROMPT_EMPTY, LABEL_AI_UNAVAILABLE, LABEL_CAD,
+    LABEL_TOOL_INPUT,
+};
 
 /// The id `src/app/panels.rs::draw_chrome` registers the command-line
 /// `TopBottomPanel` under.
@@ -328,13 +332,19 @@ fn ac3_ac4_ac5_destination_matches_a_real_submit_for_cad_lines() {
 
     // A blank line: always CAD, and Enter's existing empty-input behaviour
     // is unchanged (a fresh `SelectTool` answers nothing to an empty submit).
-    assert_eq!(painted_destination(&ctx, &mut app, [800.0, 600.0]), "CAD");
+    assert_eq!(
+        painted_destination(&ctx, &mut app, [800.0, 600.0]),
+        LABEL_CAD
+    );
 
     // A recognised CAD alias. Checked, then cleared before the real gesture
     // types it fresh — `submit_command` types into whatever is already
     // there, and this string must not be typed twice.
     app.command_line_input = "l".to_owned();
-    assert_eq!(painted_destination(&ctx, &mut app, [800.0, 600.0]), "CAD");
+    assert_eq!(
+        painted_destination(&ctx, &mut app, [800.0, 600.0]),
+        LABEL_CAD
+    );
     app.command_line_input.clear();
     submit_command(&ctx, &mut app, "l");
     assert_eq!(app.tool_manager.active_tool_name(), "LINE");
@@ -342,7 +352,10 @@ fn ac3_ac4_ac5_destination_matches_a_real_submit_for_cad_lines() {
     // An unrecognised word never reaches the agent, key or no key, and the
     // grammar's own refusal is what actually happens on Enter.
     app.command_line_input = "lien".to_owned();
-    assert_eq!(painted_destination(&ctx, &mut app, [800.0, 600.0]), "CAD");
+    assert_eq!(
+        painted_destination(&ctx, &mut app, [800.0, 600.0]),
+        LABEL_CAD
+    );
     app.command_line_input.clear();
     submit_command(&ctx, &mut app, "lien");
     assert_eq!(app.command_feedback, "Unknown command: \"lien\"");
@@ -366,7 +379,7 @@ fn ac3_raw_input_mode_paints_tool_input() {
 
     assert_eq!(
         painted_destination(&ctx, &mut app, [800.0, 600.0]),
-        "tool input"
+        LABEL_TOOL_INPUT
     );
 }
 
@@ -383,7 +396,7 @@ fn ac4_the_remaining_labels_and_busy_never_touches_a_cad_line() {
     app.command_line_input = ":draw a line".to_owned();
     assert_eq!(
         painted_destination(&ctx, &mut app, [800.0, 600.0]),
-        "AI unavailable"
+        LABEL_AI_UNAVAILABLE
     );
 
     // A whitespace-only key is the same as none (AC 4, `agent_available`'s
@@ -391,7 +404,7 @@ fn ac4_the_remaining_labels_and_busy_never_touches_a_cad_line() {
     app.settings.agent_api_key = "   ".to_owned();
     assert_eq!(
         painted_destination(&ctx, &mut app, [800.0, 600.0]),
-        "AI unavailable"
+        LABEL_AI_UNAVAILABLE
     );
 
     // A configured key: a bare prefix is refused for emptiness, not sent.
@@ -399,7 +412,7 @@ fn ac4_the_remaining_labels_and_busy_never_touches_a_cad_line() {
     app.command_line_input = ":".to_owned();
     assert_eq!(
         painted_destination(&ctx, &mut app, [800.0, 600.0]),
-        "AI prompt empty"
+        LABEL_AI_PROMPT_EMPTY
     );
     app.command_line_input.clear();
     submit_command(&ctx, &mut app, ":");
@@ -408,7 +421,10 @@ fn ac4_the_remaining_labels_and_busy_never_touches_a_cad_line() {
 
     // A real prompt with the key configured: reachable.
     app.command_line_input = ":draw a line".to_owned();
-    assert_eq!(painted_destination(&ctx, &mut app, [800.0, 600.0]), "AI");
+    assert_eq!(
+        painted_destination(&ctx, &mut app, [800.0, 600.0]),
+        LABEL_AI
+    );
 
     // Arm a turn with no thread (LCV-124's `arm_turn` pattern) and re-check:
     // the same prefixed line is now `AI busy`, but the blank line and `lien`
@@ -417,13 +433,19 @@ fn ac4_the_remaining_labels_and_busy_never_touches_a_cad_line() {
     assert!(app.agent.busy);
     assert_eq!(
         painted_destination(&ctx, &mut app, [800.0, 600.0]),
-        "AI busy"
+        LABEL_AI_BUSY
     );
 
     app.command_line_input.clear();
-    assert_eq!(painted_destination(&ctx, &mut app, [800.0, 600.0]), "CAD");
+    assert_eq!(
+        painted_destination(&ctx, &mut app, [800.0, 600.0]),
+        LABEL_CAD
+    );
     app.command_line_input = "lien".to_owned();
-    assert_eq!(painted_destination(&ctx, &mut app, [800.0, 600.0]), "CAD");
+    assert_eq!(
+        painted_destination(&ctx, &mut app, [800.0, 600.0]),
+        LABEL_CAD
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -471,13 +493,14 @@ fn ac6_editing_and_rendering_never_sends_or_mutates_with_no_enter() {
 }
 
 // ---------------------------------------------------------------------------
-// AC 7 — a real Enter/Escape/recall-driven frame on the two-row layout
+// AC 7 — a real Enter/Escape frame on the two-row layout
 // ---------------------------------------------------------------------------
 
 /// AC 7 — the existing gestures still work, driven through the real,
 /// now-two-row frame body: Enter submits exactly once and commits a line,
-/// Escape clears the field, and the destination label agrees with the CAD
-/// verdict throughout.
+/// and Escape clears the field. Recall (`ArrowUp`/`ArrowDown`) is not
+/// re-driven here — `tests/lcv111.rs` already covers it end to end — this
+/// file's job is only the two-row layout these gestures now run on top of.
 #[test]
 fn ac7_enter_and_escape_still_work_on_the_two_row_layout() {
     let (ctx, mut app) = ctx_and_app();
