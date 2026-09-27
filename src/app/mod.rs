@@ -19,10 +19,13 @@
 //! hold pure helpers those phases call, and `cmdline` resolves one submitted
 //! command line into a [`ToolInput`](crate::cmdline::ToolInput) (LCV-111).
 //!
-//! Three files carry the agent's UI-side half (ADR 0007 §D8): `agent_poll`
+//! Four files carry the agent's UI-side half (ADR 0007 §D8): `agent_poll`
 //! drains the thread→UI channel once per frame, `agent_apply` turns one
-//! `AgentAction` into one `Command` committed through [`App::commit`], and
-//! `agent_turn` holds [`TurnFence`] and drives one whole turn.
+//! `AgentAction` into one `Command` committed through [`App::commit`],
+//! `agent_turn` holds [`TurnFence`] and drives one whole turn, and
+//! `agent_state` holds the plain data those three (and `src/agent/panel.rs`)
+//! read and write — [`AgentState`], `App`'s one `agent` field (ADR 0004 §"The
+//! `src/app/mod.rs` seam", LCV-136).
 //!
 //! `mod.rs` re-exports the module's whole public surface, so callers outside
 //! `app` use `lasercad::app::…` paths and never a deep one.
@@ -41,9 +44,11 @@ mod viewport;
 
 mod agent_apply;
 mod agent_poll;
+mod agent_state;
 mod agent_turn;
 pub use agent_apply::apply;
 pub use agent_poll::{cancel_turn, poll_agent_rx, AGENT_CANCELLED_MESSAGE, AGENT_LOST_MESSAGE};
+pub use agent_state::AgentState;
 pub use agent_turn::{arm_turn, run_agent_turn, start_turn, TurnFence, AGENT_FENCE_REFUSAL};
 pub use autosave::{autosave_due, schedule_flush_repaint};
 pub use bed_dialog::{apply_bed_dialog_result, draw_bed_dialog};
@@ -167,28 +172,11 @@ pub struct App {
     pub grid_enabled: bool,
     /// Whether ortho mode is active. Toggled by F8 (LCV-070/LCV-053). Defaults to false.
     pub ortho_enabled: bool,
-    /// Whether the AI assistant side panel is visible (LCV-080).
-    /// Toggled by the 🤖 toolbar button.
-    pub agent_panel_open: bool,
-    /// Chat history as `(role, content)` pairs (LCV-080).
-    /// Role is one of `"user"`, `"assistant"`, `"error"`, `"tool"`,
-    /// `"refused"` or `"note"` (LCV-123 AC 23; LCV-125 renders them).
-    pub agent_chat: Vec<(String, String)>,
-    /// Live contents of the AI text-input widget; cleared on submit (LCV-080).
-    pub agent_input_draft: String,
-    /// `true` while a background agent thread is in flight (LCV-080).
-    /// The Send button is disabled and a spinner is shown when this is `true`.
-    pub agent_busy: bool,
-    /// Receiver polled every frame; `Some` while a turn is in flight (LCV-080).
-    pub agent_rx: Option<std::sync::mpsc::Receiver<crate::agent::AgentEvent>>,
-    /// Guards the in-flight turn against commits it did not make (ADR 0007
-    /// §D4). Re-armed by `arm_turn`; meaningless while `agent_busy` is false.
-    pub agent_fence: TurnFence,
-    /// How many of the in-flight turn's actions really changed the drawing.
-    /// Read once at turn end by the coalesce and the note row (AC 10, AC 11).
-    pub agent_applied: usize,
-    /// The undo-stack label a coalesced turn gets: `Agent:` plus the prompt.
-    pub agent_turn_label: String,
+    /// The agent's UI-side state: chat transcript, panel visibility, the
+    /// in-flight turn's channel and fence (ADR 0004 §"The `src/app/mod.rs`
+    /// seam", LCV-136). `agent_settings_open` stays here on `App` — it is one
+    /// of the dialog-visibility cluster, not a turn's.
+    pub agent: AgentState,
     /// Path of the file most recently opened or saved. `None` for an unsaved
     /// new document (LCV-062).
     pub current_file: Option<std::path::PathBuf>,
@@ -216,7 +204,9 @@ pub struct App {
     /// document still dirty (`Exit` performs no save), re-park
     /// `PendingAction::Exit`, and send `CancelClose` — cancelling the very
     /// close the operator just confirmed, forever. See
-    /// `src/app/file_ops.rs::poll_close_request`.
+    /// `src/app/file_ops.rs::poll_close_request`. The latch assumes the
+    /// window tears down once `Close` is sent uncancelled (eframe 0.29.1
+    /// behaviour).
     pub exit_confirmed: bool,
 }
 
@@ -260,7 +250,7 @@ impl App {
 
         // Poll agent background thread (LCV-080).
         poll_agent_rx(self);
-        if self.agent_busy {
+        if self.agent.busy {
             // Load-bearing for *progress*, not just for the spinner (ADR 0007
             // §Consequences). The worker blocks on a reply that only
             // `poll_agent_rx` above can send, and that line only runs inside a
@@ -306,11 +296,11 @@ impl eframe::App for App {
 mod tests {
     use super::*;
 
-    /// The roles in `agent_chat`, in order — the shape LCV-123 AC 23 fixes.
+    /// The roles in `agent.chat`, in order — the shape LCV-123 AC 23 fixes.
     /// Asserting on roles rather than on `last()` is what makes an inserted or
     /// reordered row visible instead of silently shifting the tail.
     fn roles(app: &App) -> Vec<&str> {
-        app.agent_chat.iter().map(|(r, _)| r.as_str()).collect()
+        app.agent.chat.iter().map(|(r, _)| r.as_str()).collect()
     }
 
     /// LCV-030 AC#1 — `App::default()` produces an empty document and an
@@ -469,11 +459,11 @@ mod tests {
     #[test]
     fn app_default_agent_fields() {
         let a = App::default();
-        assert!(!a.agent_panel_open);
-        assert!(a.agent_chat.is_empty());
-        assert!(!a.agent_busy);
-        assert!(a.agent_rx.is_none());
-        assert!(a.agent_input_draft.is_empty());
+        assert!(!a.agent.panel_open);
+        assert!(a.agent.chat.is_empty());
+        assert!(!a.agent.busy);
+        assert!(a.agent.rx.is_none());
+        assert!(a.agent.input_draft.is_empty());
     }
 
     /// LCV-080 AC#13, retargeted by LCV-122 AC 4 — `Done` appends an assistant
@@ -483,18 +473,21 @@ mod tests {
         use crate::agent::AgentEvent;
         let (tx, rx) = std::sync::mpsc::channel();
         let mut app = App {
-            agent_rx: Some(rx),
-            agent_busy: true,
+            agent: AgentState {
+                rx: Some(rx),
+                busy: true,
+                ..AgentState::default()
+            },
             ..App::default()
         };
         tx.send(AgentEvent::Done("done".into())).unwrap();
         poll_agent_rx(&mut app);
         assert_eq!(
-            app.agent_chat.last(),
+            app.agent.chat.last(),
             Some(&("assistant".into(), "done".into())),
         );
-        assert!(!app.agent_busy);
-        assert!(app.agent_rx.is_none());
+        assert!(!app.agent.busy);
+        assert!(app.agent.rx.is_none());
     }
 
     /// LCV-080 AC#14, retargeted by LCV-122 AC 4 — `Failed` appends an error
@@ -504,19 +497,22 @@ mod tests {
         use crate::agent::AgentEvent;
         let (tx, rx) = std::sync::mpsc::channel();
         let mut app = App {
-            agent_rx: Some(rx),
-            agent_busy: true,
+            agent: AgentState {
+                rx: Some(rx),
+                busy: true,
+                ..AgentState::default()
+            },
             ..App::default()
         };
         tx.send(AgentEvent::Failed("err".into())).unwrap();
         poll_agent_rx(&mut app);
-        assert_eq!(app.agent_chat.last(), Some(&("error".into(), "err".into())));
-        assert!(!app.agent_busy);
-        assert!(app.agent_rx.is_none());
+        assert_eq!(app.agent.chat.last(), Some(&("error".into(), "err".into())));
+        assert!(!app.agent.busy);
+        assert!(app.agent.rx.is_none());
     }
 
     /// ADR 0007 §D11 — a worker that ends without a verdict must still bring
-    /// `agent_busy` back down, or `update_ui` requests a repaint every frame
+    /// `agent.busy` back down, or `update_ui` requests a repaint every frame
     /// for the rest of the session (the LCV-120 bug, reopened silently).
     ///
     /// No thread and no sleep: dropping the `Sender` is exactly what a
@@ -527,34 +523,40 @@ mod tests {
         use crate::agent::AgentEvent;
         let (tx, rx) = std::sync::mpsc::channel::<AgentEvent>();
         let mut app = App {
-            agent_rx: Some(rx),
-            agent_busy: true,
+            agent: AgentState {
+                rx: Some(rx),
+                busy: true,
+                ..AgentState::default()
+            },
             ..App::default()
         };
         drop(tx);
         poll_agent_rx(&mut app);
         assert_eq!(
-            app.agent_chat.last(),
+            app.agent.chat.last(),
             Some(&("error".into(), AGENT_LOST_MESSAGE.to_owned())),
         );
-        assert!(!app.agent_busy, "a lost turn must clear agent_busy");
-        assert!(app.agent_rx.is_none());
+        assert!(!app.agent.busy, "a lost turn must clear agent.busy");
+        assert!(app.agent.rx.is_none());
     }
 
     /// An empty but live channel is a no-op: the turn is still running, so the
-    /// receiver must survive to the next frame and `agent_busy` must stay up.
+    /// receiver must survive to the next frame and `agent.busy` must stay up.
     #[test]
     fn an_empty_channel_keeps_the_turn_alive() {
         use crate::agent::AgentEvent;
         let (tx, rx) = std::sync::mpsc::channel::<AgentEvent>();
         let mut app = App {
-            agent_rx: Some(rx),
-            agent_busy: true,
+            agent: AgentState {
+                rx: Some(rx),
+                busy: true,
+                ..AgentState::default()
+            },
             ..App::default()
         };
         poll_agent_rx(&mut app);
-        assert!(app.agent_busy);
-        assert!(app.agent_rx.is_some());
+        assert!(app.agent.busy);
+        assert!(app.agent.rx.is_some());
         drop(tx);
     }
 
@@ -567,8 +569,11 @@ mod tests {
         let (tx, rx) = std::sync::mpsc::channel::<AgentEvent>();
         let (reply, answers) = std::sync::mpsc::channel::<AgentOutcome>();
         let mut app = App {
-            agent_rx: Some(rx),
-            agent_busy: true,
+            agent: AgentState {
+                rx: Some(rx),
+                busy: true,
+                ..AgentState::default()
+            },
             ..App::default()
         };
         let before = app.history.revision();
@@ -597,14 +602,14 @@ mod tests {
             roles(&app),
             ["tool", "assistant", "note"],
             "{:?}",
-            app.agent_chat
+            app.agent.chat
         );
-        assert_eq!(app.agent_chat[0].1, outcome.text(), "verbatim, AC 23");
+        assert_eq!(app.agent.chat[0].1, outcome.text(), "verbatim, AC 23");
         assert_eq!(
-            app.agent_chat[1],
+            app.agent.chat[1],
             ("assistant".to_owned(), "drawn".to_owned())
         );
-        assert!(!app.agent_busy);
+        assert!(!app.agent.busy);
     }
 
     /// ADR 0007 §D2, the other half — an `Act` on its own ends **nothing**.
@@ -614,7 +619,7 @@ mod tests {
     /// turn, because the `Done` behind it would tidy up anyway. So here the
     /// `Act` arrives alone: the rendezvous is still open, the worker is still
     /// blocked on the reply it just got, and the next tool call is still to
-    /// come. Killing `agent_busy` here would stop the repaints that ADR 0007
+    /// come. Killing `agent.busy` here would stop the repaints that ADR 0007
     /// §D2 needs to turn the crank, and dropping the receiver would strand the
     /// rest of the turn.
     #[test]
@@ -623,8 +628,11 @@ mod tests {
         let (tx, rx) = std::sync::mpsc::channel::<AgentEvent>();
         let (reply, answers) = std::sync::mpsc::channel::<AgentOutcome>();
         let mut app = App {
-            agent_rx: Some(rx),
-            agent_busy: true,
+            agent: AgentState {
+                rx: Some(rx),
+                busy: true,
+                ..AgentState::default()
+            },
             ..App::default()
         };
         tx.send(AgentEvent::Act {
@@ -642,11 +650,11 @@ mod tests {
         assert!(answers.try_recv().is_ok(), "the Act must still be answered");
         assert_eq!(app.document.entity_count(), 1);
         assert!(
-            app.agent_busy,
+            app.agent.busy,
             "an Act is not a verdict: the turn is still running"
         );
         assert!(
-            app.agent_rx.is_some(),
+            app.agent.rx.is_some(),
             "dropping the receiver here strands every later tool call"
         );
         assert_eq!(
@@ -660,11 +668,11 @@ mod tests {
         poll_agent_rx(&mut app);
         assert_eq!(roles(&app), ["tool", "assistant", "note"]);
         assert_eq!(
-            app.agent_chat[1],
+            app.agent.chat[1],
             ("assistant".to_owned(), "drawn".to_owned())
         );
-        assert!(!app.agent_busy);
-        assert!(app.agent_rx.is_none());
+        assert!(!app.agent.busy);
+        assert!(app.agent.rx.is_none());
     }
 
     /// The fourth turn exit (ADR 0007 §D11, extended) — the worker vanishes
@@ -673,7 +681,7 @@ mod tests {
     /// The event channel still looks alive, because the worker's `Sender` for
     /// it has not been dropped yet, so neither `Done`, nor `Failed`, nor
     /// `Disconnected` will ever arrive. Only the dead reply channel says
-    /// anything is wrong. Leaving `agent_busy` up here is not a cosmetic bug:
+    /// anything is wrong. Leaving `agent.busy` up here is not a cosmetic bug:
     /// `App::update_ui` requests a repaint on every frame while it is set, so
     /// the app would spin for the rest of the session — LCV-120, reopened, with
     /// a symptom that surfaces nowhere near the agent.
@@ -693,8 +701,11 @@ mod tests {
         let (tx, rx) = std::sync::mpsc::channel::<AgentEvent>();
         let (reply, answers) = std::sync::mpsc::channel::<AgentOutcome>();
         let mut app = App {
-            agent_rx: Some(rx),
-            agent_busy: true,
+            agent: AgentState {
+                rx: Some(rx),
+                busy: true,
+                ..AgentState::default()
+            },
             ..App::default()
         };
         tx.send(AgentEvent::Act {
@@ -711,17 +722,17 @@ mod tests {
         poll_agent_rx(&mut app);
 
         assert!(
-            !app.agent_busy,
+            !app.agent.busy,
             "a worker that stopped listening must not leave the app spinning"
         );
-        assert!(app.agent_rx.is_none(), "nothing more can arrive");
+        assert!(app.agent.rx.is_none(), "nothing more can arrive");
         assert_eq!(
             roles(&app),
             ["tool", "error", "note"],
             "the applied action, the verdict, then the undo shape (AC 22, AC 23)"
         );
         assert_eq!(
-            app.agent_chat.get(1),
+            app.agent.chat.get(1),
             Some(&("error".into(), AGENT_LOST_MESSAGE.to_owned())),
             "this exit reports the same fact as a dropped sender — the worker \
              is gone — so it must show the operator the same row (ADR 0007 §D11)"

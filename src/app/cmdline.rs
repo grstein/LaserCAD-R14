@@ -171,12 +171,12 @@ fn to_agent(app: &mut App, prompt: &str) {
         app.command_feedback = AGENT_EMPTY_PROMPT.to_owned();
         return;
     }
-    if app.agent_busy {
+    if app.agent.busy {
         app.command_feedback = AGENT_BUSY.to_owned();
         return;
     }
     app.command_feedback = format!("→ agent: \"{}\"", echo(prompt));
-    app.agent_panel_open = true;
+    app.agent.panel_open = true;
     super::start_turn(app, prompt);
 }
 
@@ -726,9 +726,9 @@ mod tests {
         for line in [":", ":   ", "/ai", "/ai   "] {
             submit(&mut app, line);
             assert_eq!(app.command_feedback, "Agent prompt is empty.", "{line}");
-            assert!(!app.agent_busy, "{line} must arm no turn");
-            assert!(app.agent_rx.is_none(), "{line}");
-            assert!(app.agent_chat.is_empty(), "{line}");
+            assert!(!app.agent.busy, "{line} must arm no turn");
+            assert!(app.agent.rx.is_none(), "{line}");
+            assert!(app.agent.chat.is_empty(), "{line}");
             assert_eq!(
                 app.tool_manager.anchor(),
                 Some(Vec2::new(0.0, 0.0)),
@@ -744,7 +744,7 @@ mod tests {
         let mut app = App::default();
         app.settings.agent_api_key = "sk-test".to_owned();
         let tx = super::super::arm_turn(&mut app, "the first prompt");
-        let chat_before = app.agent_chat.clone();
+        let chat_before = app.agent.chat.clone();
 
         submit(&mut app, ":the second prompt");
 
@@ -752,9 +752,9 @@ mod tests {
             app.command_feedback,
             "Agent is busy — wait for the current turn to finish."
         );
-        assert!(app.agent_busy, "the in-flight turn is left alone");
-        assert!(app.agent_rx.is_some(), "and keeps its receiver");
-        assert_eq!(app.agent_chat, chat_before, "and its transcript");
+        assert!(app.agent.busy, "the in-flight turn is left alone");
+        assert!(app.agent.rx.is_some(), "and keeps its receiver");
+        assert_eq!(app.agent.chat, chat_before, "and its transcript");
         assert_eq!(
             app.command_history.older(),
             Some(":the second prompt".to_owned()),
@@ -778,10 +778,10 @@ mod tests {
                 "Help > Agent settings"
             )
         );
-        assert!(!app.agent_busy);
-        assert!(app.agent_rx.is_none());
-        assert!(app.agent_chat.is_empty());
-        assert!(!app.agent_panel_open, "and opens no panel");
+        assert!(!app.agent.busy);
+        assert!(app.agent.rx.is_none());
+        assert!(app.agent.chat.is_empty());
+        assert!(!app.agent.panel_open, "and opens no panel");
         assert_eq!(app.document.entity_count(), 0);
         assert_eq!(app.tool_manager.anchor(), Some(Vec2::new(0.0, 0.0)));
     }
@@ -839,8 +839,8 @@ mod tests {
         submit(&mut app, "c");
         assert_eq!(app.tool_manager.active_tool_name(), "CIRCLE");
 
-        assert!(!app.agent_busy, "none of that reached the agent");
-        assert!(app.agent_chat.is_empty());
-        assert!(!app.agent_panel_open);
+        assert!(!app.agent.busy, "none of that reached the agent");
+        assert!(app.agent.chat.is_empty());
+        assert!(!app.agent.panel_open);
     }
 }

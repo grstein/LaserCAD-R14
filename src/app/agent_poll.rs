@@ -9,7 +9,7 @@
 //!
 //! ## Why a turn must always announce its end (ADR 0007 §D11)
 //!
-//! `agent_busy` is not just the spinner's flag. `App::update_ui` reads it to
+//! `agent.busy` is not just the spinner's flag. `App::update_ui` reads it to
 //! decide whether to `ctx.request_repaint()`, so while it is `true` the app
 //! never idles — and under ADR 0007 §D2 it is also what keeps frames turning so
 //! an in-flight rendezvous can advance. A turn that ends without saying so
@@ -19,7 +19,7 @@
 //!
 //! What guarantees that cannot happen is a closure property, not a list of
 //! arms — a count rots the moment someone adds one. [`end_turn`] is the only
-//! place in the program that writes `agent_busy = false` or clears `agent_rx`
+//! place in the program that writes `agent.busy = false` or clears `agent.rx`
 //! after startup, and every path out of [`poll_agent_rx`] that does not put
 //! the receiver back is a tail call to it. Any exit added later must obey
 //! that, not this paragraph.
@@ -34,7 +34,7 @@
 //!
 //! [`cancel_turn`] is the fifth exit §D11 allowed for (LCV-129), and it obeys
 //! the property rather than widening it: it is a new *caller* of [`end_turn`],
-//! not a second writer of `agent_busy`. It is the only exit the operator
+//! not a second writer of `agent.busy`. It is the only exit the operator
 //! chooses, and the only one that does not come off the channel — which is
 //! exactly why it has to end the turn the same way. Dropping the receiver is
 //! also what tells the worker to stop: both halves of its rendezvous fail the
@@ -56,17 +56,17 @@ pub const AGENT_LOST_MESSAGE: &str = "Agent turn ended without a reply.";
 pub const AGENT_CANCELLED_MESSAGE: &str =
     "Turn cancelled. The agent stopped; anything it already applied stays applied and stays undoable.";
 
-/// Drain `app.agent_rx` and update `agent_chat`, `agent_busy` and `agent_rx`.
+/// Drain `app.agent.rx` and update `agent.chat`, `agent.busy` and `agent.rx`.
 ///
 /// Called once per frame at the top of `App::update_ui`, before any panel is
-/// drawn. A no-op when `agent_rx` is `None`.
+/// drawn. A no-op when `agent.rx` is `None`.
 ///
 /// `Act` applies to the live document and the drain continues unless nobody is
 /// left to answer; every other arm ends the turn, all through [`end_turn`].
 pub fn poll_agent_rx(app: &mut App) {
     // Taken, not borrowed: applying an `Act` needs `&mut App`, which the
     // receiver's borrow would forbid. It goes back below unless the turn ended.
-    let Some(rx) = app.agent_rx.take() else {
+    let Some(rx) = app.agent.rx.take() else {
         return;
     };
     loop {
@@ -81,7 +81,7 @@ pub fn poll_agent_rx(app: &mut App) {
                     // §D11). It returns rather than falling through, because
                     // falling through assumes both channels die in the same
                     // instant; where they do not, `try_recv` says `Empty`, the
-                    // receiver goes back, and `agent_busy` latches for good.
+                    // receiver goes back, and `agent.busy` latches for good.
                     end_turn(app, Some(("error", AGENT_LOST_MESSAGE.to_string())));
                     return;
                 }
@@ -96,7 +96,7 @@ pub fn poll_agent_rx(app: &mut App) {
             }
             Err(TryRecvError::Empty) => {
                 // The turn is still running; keep the channel for next frame.
-                app.agent_rx = Some(rx);
+                app.agent.rx = Some(rx);
                 return;
             }
             Err(TryRecvError::Disconnected) => {
@@ -124,7 +124,7 @@ pub fn poll_agent_rx(app: &mut App) {
 /// action, it gets a transcript row like any other, and it is not an *applied*
 /// action.
 fn apply_fenced(app: &mut App, action: &AgentAction) -> AgentOutcome {
-    if let Err(refusal) = app.agent_fence.check(app.history.revision()) {
+    if let Err(refusal) = app.agent.fence.check(app.history.revision()) {
         let outcome = AgentOutcome::Refused(refusal);
         agent_apply::transcribe(app, &outcome);
         return outcome;
@@ -133,8 +133,8 @@ fn apply_fenced(app: &mut App, action: &AgentAction) -> AgentOutcome {
     let outcome = agent_apply::apply(app, action);
     let after = app.history.revision();
     if after != before {
-        app.agent_fence.advance(after);
-        app.agent_applied += 1;
+        app.agent.fence.advance(after);
+        app.agent.applied += 1;
     }
     outcome
 }
@@ -149,18 +149,20 @@ fn apply_fenced(app: &mut App, action: &AgentAction) -> AgentOutcome {
 /// The counter is **taken**, not read: `end_turn` is the only caller, but a
 /// counter that survived its turn would silently fold the next one's entries.
 fn finish_turn(app: &mut App) {
-    let applied = std::mem::take(&mut app.agent_applied);
+    let applied = std::mem::take(&mut app.agent.applied);
     if applied == 0 {
         return;
     }
     let coalesced = app
-        .agent_fence
+        .agent
+        .fence
         .may_coalesce(app.history.revision(), applied);
     if coalesced {
-        let label = std::mem::take(&mut app.agent_turn_label);
+        let label = std::mem::take(&mut app.agent.turn_label);
         app.history.coalesce_last(applied, &label);
     }
-    app.agent_chat
+    app.agent
+        .chat
         .push(("note".to_owned(), undo_note(applied, coalesced)));
 }
 
@@ -187,18 +189,18 @@ fn undo_note(applied: usize, coalesced: bool) -> String {
 /// terminal row says how the turn ended, the note row says what it left behind.
 fn end_turn(app: &mut App, row: Option<(&str, String)>) {
     if let Some((role, text)) = row {
-        app.agent_chat.push((role.to_owned(), text));
+        app.agent.chat.push((role.to_owned(), text));
     }
     finish_turn(app);
-    app.agent_busy = false;
-    app.agent_rx = None;
+    app.agent.busy = false;
+    app.agent.rx = None;
 }
 
 /// End the in-flight turn because the operator asked to (LCV-129 AC 6).
 ///
 /// The fifth exit of ADR 0007 §D11, and the only one that is not an event off
 /// the channel. It obeys the closure property by construction: it writes
-/// neither `agent_busy` nor `agent_rx`, pushes no row itself, and its whole
+/// neither `agent.busy` nor `agent.rx`, pushes no row itself, and its whole
 /// body is a tail call to [`end_turn`] — so a cancelled turn coalesces into one
 /// undo entry, says what it left behind and clears the repaint gate exactly as
 /// a `Done` or a `Failed` does. A cancel that assigned the flag here would
@@ -216,7 +218,7 @@ fn end_turn(app: &mut App, row: Option<(&str, String)>) {
 /// `Err`. Either way it returns `AgentError::Cancelled` and says nothing,
 /// because its channel is dead and a later turn owns a different one.
 pub fn cancel_turn(app: &mut App) {
-    if !app.agent_busy {
+    if !app.agent.busy {
         return;
     }
     end_turn(app, Some(("note", AGENT_CANCELLED_MESSAGE.to_owned())))
@@ -267,16 +269,16 @@ mod tests {
     fn a_turn_that_applied_nothing_writes_no_note() {
         let mut app = App::default();
         let _tx = arm_turn(&mut app, "what is on the bed?");
-        let rows = app.agent_chat.len();
+        let rows = app.agent.chat.len();
         let stack = app.history.len();
 
         finish_turn(&mut app);
 
-        assert_eq!(app.agent_chat.len(), rows, "no note row for zero actions");
+        assert_eq!(app.agent.chat.len(), rows, "no note row for zero actions");
         assert_eq!(app.history.len(), stack);
     }
 
-    /// ADR 0007 §D11 — [`end_turn`] is the one place that clears `agent_rx`,
+    /// ADR 0007 §D11 — [`end_turn`] is the one place that clears `agent.rx`,
     /// and it clears it whichever exit got here.
     ///
     /// `poll_agent_rx` **takes** the receiver at the top of the drain, so on
@@ -284,25 +286,28 @@ mod tests {
     /// `end_turn` runs and the assignment looks like dead code. It is not the
     /// assignment that is load-bearing, it is the *property*: a future exit
     /// that puts the receiver back before ending the turn — the shape the
-    /// `Empty` arm already has — would otherwise latch `agent_busy` on a dead
+    /// `Empty` arm already has — would otherwise latch `agent.busy` on a dead
     /// channel for the rest of the session. Calling `end_turn` directly with
     /// the receiver in place is the only way to state that, so this test does.
     #[test]
     fn end_turn_clears_the_channel_even_when_it_is_still_there() {
         let (_tx, rx) = std::sync::mpsc::channel::<AgentEvent>();
         let mut app = App {
-            agent_rx: Some(rx),
-            agent_busy: true,
+            agent: crate::app::AgentState {
+                rx: Some(rx),
+                busy: true,
+                ..Default::default()
+            },
             ..Default::default()
         };
 
         end_turn(&mut app, None);
 
         assert!(
-            app.agent_rx.is_none(),
+            app.agent.rx.is_none(),
             "the channel is dropped on the way out"
         );
-        assert!(!app.agent_busy, "and the flag goes with it");
+        assert!(!app.agent.busy, "and the flag goes with it");
     }
 
     /// LCV-129 AC 6 — a cancel with no turn to cancel changes nothing.
@@ -314,14 +319,14 @@ mod tests {
     #[test]
     fn ac6_cancelling_an_idle_app_does_nothing_at_all() {
         let mut app = App::default();
-        app.agent_chat.push(("user".to_owned(), "hello".to_owned()));
-        let before = app.agent_chat.clone();
+        app.agent.chat.push(("user".to_owned(), "hello".to_owned()));
+        let before = app.agent.chat.clone();
 
         cancel_turn(&mut app);
 
-        assert_eq!(app.agent_chat, before, "no row is written for no turn");
-        assert!(!app.agent_busy);
-        assert!(app.agent_rx.is_none());
+        assert_eq!(app.agent.chat, before, "no row is written for no turn");
+        assert!(!app.agent.busy);
+        assert!(app.agent.rx.is_none());
     }
 
     /// LCV-129 AC 7 — the cancel row, pinned character for character, in the
@@ -335,11 +340,11 @@ mod tests {
     fn ac7_cancelling_a_live_turn_writes_the_note_row() {
         let mut app = App::default();
         let _tx = arm_turn(&mut app, "draw something slow");
-        assert!(app.agent_busy, "arm_turn must leave a turn in flight");
+        assert!(app.agent.busy, "arm_turn must leave a turn in flight");
 
         cancel_turn(&mut app);
 
-        let (role, text) = app.agent_chat.last().expect("a row must have been written");
+        let (role, text) = app.agent.chat.last().expect("a row must have been written");
         assert_eq!(role, "note");
         assert_eq!(
             text,
@@ -357,12 +362,12 @@ mod tests {
     fn finishing_a_turn_clears_the_applied_counter() {
         let mut app = App::default();
         let _tx = arm_turn(&mut app, "one");
-        app.agent_applied = 3;
+        app.agent.applied = 3;
         finish_turn(&mut app);
-        assert_eq!(app.agent_applied, 0);
+        assert_eq!(app.agent.applied, 0);
         finish_turn(&mut app);
         assert_eq!(
-            app.agent_chat.iter().filter(|(r, _)| r == "note").count(),
+            app.agent.chat.iter().filter(|(r, _)| r == "note").count(),
             1,
             "a second finish must not invent a second note"
         );

@@ -19,7 +19,7 @@
 //!
 //! MUST NOT import `eframe` or `rfd`.
 
-use super::App;
+use super::{AgentState, App};
 use crate::cmdline::CommandHistory;
 use crate::document::{Document, History};
 use crate::io::settings::Settings;
@@ -64,14 +64,7 @@ impl Default for App {
             snap_enabled: true,
             grid_enabled: true,
             ortho_enabled: false,
-            agent_panel_open: false,
-            agent_chat: Vec::new(),
-            agent_input_draft: String::new(),
-            agent_busy: false,
-            agent_rx: None,
-            agent_fence: crate::app::TurnFence::new(0),
-            agent_applied: 0,
-            agent_turn_label: String::new(),
+            agent: AgentState::default(),
             current_file: None,
             error_message: None,
             saved_revision: None,

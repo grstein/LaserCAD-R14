@@ -134,7 +134,7 @@ impl AgentOutcome {
 ///
 /// Exactly one channel carries all three (ADR 0007 §D3): the reply `Sender`
 /// for an [`AgentEvent::Act`] is built per request by the thread and travels
-/// inside the message, so `App` keeps a single `agent_rx` field and there is
+/// inside the message, so `App` keeps a single `agent.rx` field and there is
 /// never more than one request outstanding — the thread blocks on the answer.
 ///
 /// Dropping the reply `Sender` without answering is the documented

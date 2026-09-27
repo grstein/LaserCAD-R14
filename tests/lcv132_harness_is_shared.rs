@@ -143,7 +143,7 @@ fn ac1_rs_files_returns_every_rs_file_in_the_tree_and_nothing_else() {
 
 /// A two-file fixture: one code hit, one comment hit, one file with neither.
 fn matcher_fixture() -> Vec<(String, String)> {
-    let needle = concat!("agent_", "busy = false");
+    let needle = concat!("agent", ".busy = false");
     vec![
         (
             "writes_twice.rs".to_owned(),
@@ -159,14 +159,14 @@ fn matcher_fixture() -> Vec<(String, String)> {
 
 /// AC 2 — `occurrences` counts code lines and skips comment lines.
 ///
-/// A count rather than a flag: "`agent_busy = false` appears once, in
+/// A count rather than a flag: "`agent.busy = false` appears once, in
 /// `agent_poll.rs`" is a strictly stronger claim than "it appears in
 /// `agent_poll.rs`", and a second write smuggled into the owning file is
 /// exactly the regression the weaker claim misses. LCV-129 AC 5 rests on that
 /// difference.
 #[test]
 fn ac2_occurrences_counts_code_lines_and_skips_comments() {
-    let hits = occurrences(&matcher_fixture(), concat!("agent_", "busy = false"));
+    let hits = occurrences(&matcher_fixture(), concat!("agent", ".busy = false"));
     assert_eq!(
         hits,
         vec![("writes_twice.rs".to_owned(), 2)],
@@ -185,7 +185,7 @@ fn ac2_occurrences_counts_code_lines_and_skips_comments() {
 #[test]
 fn ac2_files_containing_is_derived_from_occurrences() {
     let fixture = matcher_fixture();
-    let needle = concat!("agent_", "busy = false");
+    let needle = concat!("agent", ".busy = false");
     assert_eq!(
         files_containing(&fixture, needle),
         occurrences(&fixture, needle)

@@ -22,7 +22,7 @@
 //! each role looks. It appends no row of its own and invents no seventh role.
 //!
 //! **LCV-129 adds the one control that ends a turn.** `Cancel` sits in the
-//! thinking row, exists only while `agent_busy`, and calls
+//! thinking row, exists only while `agent.busy`, and calls
 //! [`crate::app::cancel_turn`]. The row it leaves behind is `note` — written
 //! by `agent_poll`, in the six-role vocabulary, like every other row here.
 
@@ -41,7 +41,7 @@ const TOOL_COLOR: egui::Color32 = egui::Color32::from_rgb(120, 190, 255);
 /// Render the AI assistant chat panel into `ui`.
 ///
 /// Call site: inside `egui::SidePanel::right("agent_panel")` in `App::update`,
-/// gated by `app.agent_panel_open`. Wired in by LCV-080.
+/// gated by `app.agent.panel_open`. Wired in by LCV-080.
 pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
     // ── Header row ────────────────────────────────────────────────────────────
     ui.horizontal(|ui| {
@@ -49,7 +49,7 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
         // Push the close button to the right edge.
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if ui.small_button("×").clicked() {
-                app.agent_panel_open = false;
+                app.agent.panel_open = false;
             }
         });
     });
@@ -65,18 +65,18 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
         .stick_to_bottom(true)
         .max_height(scroll_height)
         .show(ui, |ui| {
-            for (role, content) in &app.agent_chat {
+            for (role, content) in &app.agent.chat {
                 draw_chat_row(ui, role, content);
             }
         });
 
     // ── Thinking indicator, and the way out of it ─────────────────────────────
-    // The button lives inside the `agent_busy` block and nowhere else: it can
+    // The button lives inside the `agent.busy` block and nowhere else: it can
     // only offer to end a turn that is running, and when none is the row does
     // not exist at all (LCV-129 AC 8). Its body is one call into the app, the
     // same shape as the Send button's — this file renders and reports, and
     // ending a turn is `agent_poll`'s alone (ADR 0007 §D8, §D11).
-    if app.agent_busy {
+    if app.agent.busy {
         ui.horizontal(|ui| {
             ui.spinner();
             ui.label("Thinking…");
@@ -89,12 +89,12 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
     ui.separator();
 
     // ── Input row ─────────────────────────────────────────────────────────────
-    let can_send = !app.agent_busy && !app.agent_input_draft.trim().is_empty();
+    let can_send = !app.agent.busy && !app.agent.input_draft.trim().is_empty();
     let mut do_submit = false;
 
     ui.horizontal(|ui| {
         let text_resp = ui.add(
-            egui::TextEdit::singleline(&mut app.agent_input_draft)
+            egui::TextEdit::singleline(&mut app.agent.input_draft)
                 .hint_text("Ask the AI…")
                 .desired_width(f32::INFINITY),
         );
@@ -111,11 +111,11 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
     });
 
     if do_submit {
-        let prompt = app.agent_input_draft.trim().to_owned();
-        if !prompt.is_empty() && !app.agent_busy {
+        let prompt = app.agent.input_draft.trim().to_owned();
+        if !prompt.is_empty() && !app.agent.busy {
             // Cleared before the turn is armed, so the field is empty the
             // instant the operator's row appears in the chat above.
-            app.agent_input_draft = String::new();
+            app.agent.input_draft = String::new();
             crate::app::start_turn(app, &prompt);
         }
     }
@@ -123,7 +123,7 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
 
 // ── One transcript row ────────────────────────────────────────────────────────
 
-/// Render one `agent_chat` row the way its role deserves (LCV-125 AC 1).
+/// Render one `agent.chat` row the way its role deserves (LCV-125 AC 1).
 ///
 /// The vocabulary is **closed at six**, and every value in it is written
 /// elsewhere — this function only decides how each one looks:
@@ -449,14 +449,14 @@ mod tests {
         }
     }
 
-    /// The body of the `if app.agent_busy { .. }` block, brace-matched.
+    /// The body of the `if app.agent.busy { .. }` block, brace-matched.
     ///
     /// Slicing to the closing brace is what makes the two LCV-129 scans
     /// discriminate: a `Cancel` button moved one line down, out of the block
     /// and into the unconditional part of the panel, is still in the file and
     /// still spelled the same — but it is no longer in *this* string.
     fn busy_block(implementation: &str) -> String {
-        let head = concat!("if app.agent_", "busy {");
+        let head = concat!("if app.agent", ".busy {");
         let start = implementation
             .find(head)
             .unwrap_or_else(|| panic!("panel.rs must guard its thinking row on `{head}`"))
@@ -483,7 +483,7 @@ mod tests {
     /// What it is painted like, and that it is painted at all, is asserted at
     /// runtime in `tests/lcv129_agent_timeout_and_cancel.rs`. What only a scan
     /// can say is the second half: that the click handler does *nothing else* —
-    /// no `agent_busy` assignment here, no `agent_rx` cleared here, because
+    /// no `agent.busy` assignment here, no `agent.rx` cleared here, because
     /// ending a turn is `agent_poll`'s alone (ADR 0007 §D11).
     #[test]
     fn ac8_the_cancel_button_lives_inside_the_busy_block_source_scan() {
@@ -500,10 +500,10 @@ mod tests {
             );
         }
 
-        let witness = "app.agent_busy = false; app.agent_rx = None;";
+        let witness = "app.agent.busy = false; app.agent.rx = None;";
         for forbidden in [
-            concat!("agent_busy =", " false"),
-            concat!("agent_rx =", " "),
+            concat!("agent.busy =", " false"),
+            concat!("agent.rx =", " "),
         ] {
             assert!(
                 witness.contains(forbidden),

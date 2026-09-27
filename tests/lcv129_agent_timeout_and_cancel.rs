@@ -1,7 +1,7 @@
 //! LCV-129 — the bounded call, and the way out of a turn that will not end.
 //!
 //! Two halves of one defect. A call with no window hangs the worker; a worker
-//! that never reports leaves `agent_busy` latched; a latched flag repaints for
+//! that never reports leaves `agent.busy` latched; a latched flag repaints for
 //! the rest of the session (LCV-120, reopened through a different door). The
 //! timeout closes the common case and Cancel closes the rest, and both end the
 //! turn through the *same* exit — `agent_poll::end_turn` — because ADR 0007
@@ -105,7 +105,7 @@ fn ctrl() -> egui::Modifiers {
 /// The agent panel, open, after two frames — egui sizes a layout on the first
 /// and paints it settled on the second (ADR 0002).
 fn settled_panel(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
-    app.agent_panel_open = true;
+    app.agent.panel_open = true;
     let _ = painted_runs(ctx, app);
     painted_runs(ctx, app)
 }
@@ -140,11 +140,11 @@ fn ac4_a_timed_out_call_ends_the_turn_through_failed() {
     poll_agent_rx(&mut app);
 
     assert!(
-        !app.agent_busy,
+        !app.agent.busy,
         "AC 4: the busy flag falls — LCV-120's latch"
     );
-    assert!(app.agent_rx.is_none(), "AC 4: and the channel goes with it");
-    let (role, text) = app.agent_chat.last().expect("a terminal row");
+    assert!(app.agent.rx.is_none(), "AC 4: and the channel goes with it");
+    let (role, text) = app.agent.chat.last().expect("a terminal row");
     assert_eq!(role, "error", "a timeout is a failure, not a note");
     assert_eq!(text, &sentence);
     assert!(
@@ -198,7 +198,7 @@ fn implementation_sections() -> Vec<(String, String)> {
 /// clears the busy flag, and now something says so out loud.
 ///
 /// This is the guard that makes the rest of the demand safe. The tempting way
-/// to write Cancel is `app.agent_busy = false` in the panel's click handler: it
+/// to write Cancel is `app.agent.busy = false` in the panel's click handler: it
 /// passes every manual test, and it skips the coalesce, the note row and the
 /// channel drop. AC 12 catches the undo shape; this catches the *shape of the
 /// code*, which is what ADR 0007 promised and what prose alone cannot keep.
@@ -211,7 +211,7 @@ fn implementation_sections() -> Vec<(String, String)> {
 /// scan of the same tree with the same hygiene (the demand's own sequencing
 /// note: this file landed first, so it owns the invariant). The other two
 /// single-writer claims in the same AGENTS.md §Event flow paragraph —
-/// `agent_rx = None` cleared only by `end_turn`, and `agent_busy = true` set
+/// `agent.rx = None` cleared only by `end_turn`, and `agent.busy = true` set
 /// only by `arm_turn` — are asserted by the same loop, over the same
 /// `implementation_sections()`, with the same witness technique.
 #[test]
@@ -219,9 +219,9 @@ fn ac5_only_agent_poll_clears_the_busy_flag() {
     let sections = implementation_sections();
 
     for (needle, owner) in [
-        (concat!("agent_busy", " = false"), "app/agent_poll.rs"),
-        (concat!("agent_rx", " = None"), "app/agent_poll.rs"),
-        (concat!("agent_busy", " = true"), "app/agent_turn.rs"),
+        (concat!("agent.busy", " = false"), "app/agent_poll.rs"),
+        (concat!("agent.rx", " = None"), "app/agent_poll.rs"),
+        (concat!("agent.busy", " = true"), "app/agent_turn.rs"),
     ] {
         let witness = vec![
             (
@@ -255,7 +255,7 @@ fn ac5_only_agent_poll_clears_the_busy_flag() {
 /// is running, and off it when none is.
 ///
 /// The inline scan in `src/agent/panel.rs` proves the literal is written inside
-/// the `agent_busy` block. It cannot prove the block is reached, that the
+/// the `agent.busy` block. It cannot prove the block is reached, that the
 /// button is laid out rather than clipped to nothing, or that the row really
 /// disappears — three ways to ship a Cancel nobody can click. The two frames
 /// below differ in exactly one field, so the comparison is the discrimination.
@@ -290,7 +290,7 @@ fn ac8_the_cancel_button_is_painted_only_while_a_turn_runs() {
 ///
 /// The cancel note says work already applied stays applied; the undo note says
 /// in how many steps it comes back. Reversed, the second sentence answers a
-/// question the first has not asked yet. `agent_chat` order is asserted too,
+/// question the first has not asked yet. `agent.chat` order is asserted too,
 /// but only the paint list can say the panel renders them in that order: the
 /// loop that feeds `draw_chat_row` could be reversed and every state assertion
 /// in this repository would stay green.
@@ -309,7 +309,8 @@ fn ac7_the_cancel_note_is_painted_above_the_undo_note() {
 
     let undo_note = "Applied 3 actions — Ctrl+Z undoes the whole turn.";
     assert_eq!(
-        app.agent_chat
+        app.agent
+            .chat
             .iter()
             .map(|(r, _)| r.as_str())
             .collect::<Vec<_>>(),
@@ -317,10 +318,10 @@ fn ac7_the_cancel_note_is_painted_above_the_undo_note() {
         "AC 7: no seventh role — a cancel is a note like the undo note is"
     );
     assert_eq!(
-        app.agent_chat[4].1, AGENT_CANCELLED_MESSAGE,
+        app.agent.chat[4].1, AGENT_CANCELLED_MESSAGE,
         "the cancel row comes first"
     );
-    assert_eq!(app.agent_chat[5].1, undo_note, "and the undo row after it");
+    assert_eq!(app.agent.chat[5].1, undo_note, "and the undo row after it");
 
     let runs = settled_panel(&ctx, &mut app);
     let lines = panel_lines(&runs);
@@ -343,7 +344,7 @@ fn ac7_the_cancel_note_is_painted_above_the_undo_note() {
 /// it may sleep (`Duration::MAX`), where the frame before it demanded an
 /// immediate wake-up. That is the whole defect — a repaint condition that can
 /// no longer fall — measured at the seam LCV-120 established rather than
-/// inferred from `agent_busy`.
+/// inferred from `agent.busy`.
 ///
 /// Then the second half: a prompt typed after a cancel is *accepted*, not
 /// refused by LCV-124 AC 10's busy gate. The turn it starts is real — a worker
@@ -369,8 +370,8 @@ fn ac9_after_a_cancel_the_app_idles_and_takes_a_new_turn() {
 
     cancel_turn(&mut app);
 
-    assert!(!app.agent_busy);
-    assert!(app.agent_rx.is_none());
+    assert!(!app.agent.busy);
+    assert!(app.agent.rx.is_none());
     let _ = delay(&ctx, &mut app); // the frame that observes the change
     assert_eq!(
         delay(&ctx, &mut app),
@@ -385,7 +386,7 @@ fn ac9_after_a_cancel_the_app_idles_and_takes_a_new_turn() {
         "AC 9: a cancelled turn does not hold the busy gate shut: {}",
         app.command_feedback
     );
-    assert!(app.agent_busy, "the second turn really started");
+    assert!(app.agent.busy, "the second turn really started");
     cancel_turn(&mut app);
 }
 
@@ -412,7 +413,7 @@ fn ac11_the_old_sender_cannot_speak_into_the_new_turn() {
     cancel_turn(&mut app);
 
     let _live = arm_turn(&mut app, "the new turn");
-    let chat = app.agent_chat.clone();
+    let chat = app.agent.chat.clone();
     let revision = app.history.revision();
 
     assert!(
@@ -421,10 +422,10 @@ fn ac11_the_old_sender_cannot_speak_into_the_new_turn() {
     );
     poll_agent_rx(&mut app);
 
-    assert_eq!(app.agent_chat, chat, "the new turn heard nothing");
-    assert!(app.agent_busy, "and is still running");
-    assert!(app.agent_rx.is_some(), "on its own channel");
-    assert_eq!(app.agent_applied, 0);
+    assert_eq!(app.agent.chat, chat, "the new turn heard nothing");
+    assert!(app.agent.busy, "and is still running");
+    assert!(app.agent.rx.is_some(), "on its own channel");
+    assert_eq!(app.agent.applied, 0);
     assert_eq!(app.history.revision(), revision);
 }
 
@@ -432,7 +433,7 @@ fn ac11_the_old_sender_cannot_speak_into_the_new_turn() {
 ///
 /// Three actions, a cancel, one `Ctrl+Z`, and the bed is as it was. This is the
 /// criterion that makes the tempting implementation visible: a `cancel_turn`
-/// that cleared `agent_busy` itself instead of tail-calling `end_turn` would
+/// that cleared `agent.busy` itself instead of tail-calling `end_turn` would
 /// leave three separate undo entries behind a note claiming one, and every
 /// manual test would look fine.
 #[test]
@@ -458,7 +459,7 @@ fn ac12_a_cancelled_turn_still_folds_into_one_undo_entry() {
         "AC 12: three commits, one undo entry — the cancel went through end_turn"
     );
     assert_eq!(
-        app.agent_chat.last().map(|(r, t)| (r.as_str(), t.as_str())),
+        app.agent.chat.last().map(|(r, t)| (r.as_str(), t.as_str())),
         Some(("note", "Applied 3 actions — Ctrl+Z undoes the whole turn.")),
         "and the note says the shape the stack really has"
     );

@@ -18,7 +18,7 @@
 //! - a **paint-list assertion** here, built on `tests/harness/paint.rs`,
 //!   proving the call it pinned actually ran and put those strings on the
 //!   screen in that order.
-//!   A scan cannot do this: the loop between `agent_chat` and `draw_chat_row`
+//!   A scan cannot do this: the loop between `agent.chat` and `draw_chat_row`
 //!   is a call no scan observes, and wrapping it, reversing it or skipping a
 //!   role leaves every scan in this demand green;
 //! - the reviewer's eye and the manual smoke, which are the actual acceptance
@@ -91,7 +91,7 @@ fn push_act(tx: &Sender<AgentEvent>, action: AgentAction) -> Receiver<AgentOutco
 }
 
 fn roles(app: &App) -> Vec<&str> {
-    app.agent_chat.iter().map(|(r, _)| r.as_str()).collect()
+    app.agent.chat.iter().map(|(r, _)| r.as_str()).collect()
 }
 
 /// A private, empty directory under the system temp dir, named after the test
@@ -111,30 +111,31 @@ fn tempdir(name: &str) -> PathBuf {
 /// reached; what the six *look like* is the inline scans plus the smoke.
 ///
 /// It also pins the seam from the rendering side: the panel appends nothing.
-/// `agent_chat` comes out of the frame exactly as it went in.
+/// `agent.chat` comes out of the frame exactly as it went in.
 #[test]
 fn ac1_every_role_including_an_unknown_one_renders_headless_frame() {
     let (ctx, mut app) = ctx_and_app();
-    app.agent_panel_open = true;
+    app.agent.panel_open = true;
     for role in EVERY_ROLE {
-        app.agent_chat
+        app.agent
+            .chat
             .push((role.to_owned(), format!("a {role} row")));
     }
-    let before = app.agent_chat.clone();
+    let before = app.agent.chat.clone();
 
     idle(&ctx, &mut app);
     idle(&ctx, &mut app);
 
     assert_eq!(
-        app.agent_chat, before,
+        app.agent.chat, before,
         "LCV-125 renders LCV-123's rows and writes none of its own"
     );
-    assert!(app.agent_panel_open, "the panel stayed open");
+    assert!(app.agent.panel_open, "the panel stayed open");
     assert!(app.error_message.is_none(), "no modal was raised");
 }
 
 /// AC 2 / AC 4 / AC 5 — **painted output**: the seven rows really reach the
-/// screen, one line each, in `agent_chat` order, directly under the panel
+/// screen, one line each, in `agent.chat` order, directly under the panel
 /// heading, carrying the markers the tool and refused rows are supposed to
 /// carry.
 ///
@@ -150,9 +151,10 @@ fn ac1_every_role_including_an_unknown_one_renders_headless_frame() {
 #[test]
 fn ac2_ac4_ac5_the_seven_rows_are_painted_one_line_each_in_order() {
     let (ctx, mut app) = ctx_and_app();
-    app.agent_panel_open = true;
+    app.agent.panel_open = true;
     for role in EVERY_ROLE {
-        app.agent_chat
+        app.agent
+            .chat
             .push((role.to_owned(), format!("{ROW_MARK}-{role}")));
     }
 
@@ -216,15 +218,15 @@ fn ac2_ac4_ac5_the_seven_rows_are_painted_one_line_each_in_order() {
 #[test]
 fn ac5_a_three_hundred_character_row_renders_headless_frame() {
     let (ctx, mut app) = ctx_and_app();
-    app.agent_panel_open = true;
+    app.agent.panel_open = true;
     let long = "outcome ".repeat(38);
     assert!(long.len() >= 300);
-    app.agent_chat.push(("tool".to_owned(), long.clone()));
-    app.agent_chat.push(("tool".to_owned(), long.clone()));
+    app.agent.chat.push(("tool".to_owned(), long.clone()));
+    app.agent.chat.push(("tool".to_owned(), long.clone()));
 
     idle(&ctx, &mut app);
 
-    assert_eq!(app.agent_chat.len(), 2, "two rows in, two rows out");
+    assert_eq!(app.agent.chat.len(), 2, "two rows in, two rows out");
 }
 
 // ── AC 6: the key reaches nothing the operator reads ────────────────────────
@@ -237,7 +239,7 @@ fn ac5_a_three_hundred_character_row_renders_headless_frame() {
 fn ac6_the_api_key_reaches_no_transcript_row() {
     let (ctx, mut app) = ctx_and_app();
     app.settings.agent_api_key = DUMMY_KEY.to_owned();
-    app.agent_panel_open = true;
+    app.agent.panel_open = true;
 
     let tx = arm_turn(&mut app, "draw a 20 mm line and delete entity 5");
     let answer = push_act(
@@ -266,13 +268,13 @@ fn ac6_the_api_key_reaches_no_transcript_row() {
         .expect("the armed Receiver must still be on App");
     idle(&ctx, &mut app);
 
-    assert!(!app.agent_busy, "the turn ended");
+    assert!(!app.agent.busy, "the turn ended");
     assert_eq!(
         roles(&app),
         ["user", "tool", "refused", "assistant", "note"],
         "the turn really produced the rows this demand renders"
     );
-    for (role, content) in &app.agent_chat {
+    for (role, content) in &app.agent.chat {
         assert!(
             !content.contains(DUMMY_KEY),
             "the key leaked into a `{role}` row: {content}"

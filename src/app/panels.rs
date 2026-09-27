@@ -6,7 +6,7 @@
 //! - [`draw_chrome`] — menubar, statusbar, command line, toolbar. Rendered
 //!   before the `CentralPanel` so egui shrinks the canvas to what is left.
 //! - [`draw_agent_side_panel`] — the AI assistant panel (LCV-080), only when
-//!   `agent_panel_open`.
+//!   `agent.panel_open`.
 //! - [`draw_dialogs`] — About, Keyboard shortcuts (LCV-116), Agent Settings,
 //!   the error modal, the discard-confirmation dialog (LCV-113) and the Bed
 //!   size… dialog (LCV-114), rendered after the `CentralPanel` so they float
@@ -40,7 +40,7 @@ pub fn draw_chrome(ctx: &egui::Context, app: &mut App) {
 
 /// Render the agent side panel (LCV-080) when it is open; a no-op otherwise.
 pub fn draw_agent_side_panel(ctx: &egui::Context, app: &mut App) {
-    if !app.agent_panel_open {
+    if !app.agent.panel_open {
         return;
     }
     egui::SidePanel::right("agent_panel")
@@ -108,11 +108,11 @@ mod tests {
     fn agent_side_panel_is_skipped_while_closed() {
         let ctx = egui::Context::default();
         let mut app = App::default();
-        assert!(!app.agent_panel_open);
+        assert!(!app.agent.panel_open);
         let _ = ctx.run(egui::RawInput::default(), |ctx| {
             draw_agent_side_panel(ctx, &mut app);
         });
-        assert!(!app.agent_panel_open);
+        assert!(!app.agent.panel_open);
     }
 
     /// The implementation section — everything before the bare `#[cfg(test)]`

@@ -50,7 +50,7 @@ mod harness;
 use std::time::{Duration, Instant};
 
 use harness::raw_input;
-use lasercad::app::{schedule_flush_repaint, App};
+use lasercad::app::{schedule_flush_repaint, AgentState, App};
 
 /// The debounce, mirrored. `AUTOSAVE_DEBOUNCE` is private to
 /// `src/app/autosave.rs`; the value is pinned there by a unit test, so a drift
@@ -171,7 +171,7 @@ fn the_schedule_stops_when_the_document_goes_clean() {
 }
 
 /// AC 9 — the pre-existing agent repaint is independent of this one and still
-/// works. `schedule_flush_repaint` reads only `dirty_since`; the `agent_busy`
+/// works. `schedule_flush_repaint` reads only `dirty_since`; the `agent.busy`
 /// repaint in `update_ui` is a separate, unconditional request that LCV-116
 /// must not have disturbed.
 #[test]
@@ -188,7 +188,7 @@ fn the_agent_repaint_is_untouched_by_the_autosave_schedule() {
         .0;
 
     assert!(
-        body.contains("if self.agent_busy {"),
+        body.contains("if self.agent.busy {"),
         "the agent-busy repaint guard must survive LCV-116"
     );
     assert!(
@@ -197,10 +197,13 @@ fn the_agent_repaint_is_untouched_by_the_autosave_schedule() {
     );
 
     // And the autosave scheduler itself must not be the one repainting for the
-    // agent: a clean app with `agent_busy` set still schedules nothing.
+    // agent: a clean app with `agent.busy` set still schedules nothing.
     let ctx = egui::Context::default();
     let app = App {
-        agent_busy: true,
+        agent: AgentState {
+            busy: true,
+            ..Default::default()
+        },
         ..App::default()
     };
     settle(&ctx, &app);

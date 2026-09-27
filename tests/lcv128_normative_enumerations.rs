@@ -14,10 +14,10 @@
 //!   states a rule for it.
 //!
 //! **AC 3 is not duplicated here.** It overlaps LCV-129 AC 5 by one needle
-//! (`agent_busy = false`), and that demand landed first: its scan in
+//! (`agent.busy = false`), and that demand landed first: its scan in
 //! `tests/lcv129_agent_timeout_and_cancel.rs::ac5_only_agent_poll_clears_the_busy_flag`
 //! was extended in place with the other two single-writer needles
-//! (`agent_rx = None`, `agent_busy = true`) rather than copied here, per the
+//! (`agent.rx = None`, `agent.busy = true`) rather than copied here, per the
 //! demand's own sequencing note.
 //!
 //! Every scan follows the two rules that keep a scan able to fail (AGENTS.md;

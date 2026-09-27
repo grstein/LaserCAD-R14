@@ -178,10 +178,10 @@ fn raw_input_wins_over_the_agent_prefix() {
         "TEXT Specify height <5>:",
         "the prefixed line was consumed as the string, not routed"
     );
-    assert!(!app.agent_busy, "no turn may be armed from raw input");
-    assert!(app.agent_rx.is_none());
-    assert!(app.agent_chat.is_empty(), "and nothing reached the panel");
-    assert!(!app.agent_panel_open);
+    assert!(!app.agent.busy, "no turn may be armed from raw input");
+    assert!(app.agent.rx.is_none());
+    assert!(app.agent.chat.is_empty(), "and nothing reached the panel");
+    assert!(!app.agent.panel_open);
     assert_eq!(
         app.command_history.len(),
         ring_before,
@@ -213,8 +213,8 @@ fn raw_input_wins_for_the_slash_ai_prefix_too() {
         "TEXT Height must be between 0.1 and 2000 mm. Specify height <5>:",
         "`:10` was offered to the height parser, not to the agent"
     );
-    assert!(!app.agent_busy);
-    assert!(app.agent_chat.is_empty());
+    assert!(!app.agent.busy);
+    assert!(app.agent.chat.is_empty());
 }
 
 // ── AC 4: an empty prompt is refused, not sent ──────────────────────────────
@@ -247,10 +247,10 @@ fn a_bare_colon_does_not_finish_a_polyline() {
         Some(Vec2::new(20.0, 0.0)),
         "a bare `:` must not finish the polyline"
     );
-    assert!(!app.agent_busy, "and nothing was sent");
-    assert!(app.agent_rx.is_none());
-    assert!(app.agent_chat.is_empty());
-    assert!(!app.agent_panel_open);
+    assert!(!app.agent.busy, "and nothing was sent");
+    assert!(app.agent.rx.is_none());
+    assert!(app.agent.chat.is_empty());
+    assert!(!app.agent.panel_open);
     assert_eq!(app.document.entity_count(), 1, "and committed nothing new");
 
     // Control: the blank line the operator really does mean.
@@ -284,10 +284,10 @@ fn without_a_key_a_prefixed_line_is_refused_verbatim() {
             "Help > Agent settings"
         )
     );
-    assert!(!app.agent_busy);
-    assert!(app.agent_rx.is_none());
-    assert!(app.agent_chat.is_empty());
-    assert!(!app.agent_panel_open);
+    assert!(!app.agent.busy);
+    assert!(app.agent.rx.is_none());
+    assert!(app.agent.chat.is_empty());
+    assert!(!app.agent.panel_open);
     assert_eq!(app.document.entity_count(), 0);
 }
 
@@ -313,9 +313,9 @@ fn without_a_key_a_typo_is_still_a_local_error() {
 
     submit_command(&ctx, &mut app, "lien");
     assert_eq!(app.command_feedback, pinned.replace("bogus", "lien"));
-    assert!(!app.agent_busy, "nothing was sent");
-    assert!(app.agent_chat.is_empty());
-    assert!(!app.agent_panel_open);
+    assert!(!app.agent.busy, "nothing was sent");
+    assert!(app.agent.chat.is_empty());
+    assert!(!app.agent.panel_open);
 }
 
 // ── AC 8: a send is unmistakable ────────────────────────────────────────────
@@ -327,7 +327,7 @@ fn without_a_key_a_typo_is_still_a_local_error() {
 #[test]
 fn a_send_is_unmistakable() {
     let mut app = app_with_a_key();
-    assert!(!app.agent_panel_open, "the panel starts closed");
+    assert!(!app.agent.panel_open, "the panel starts closed");
 
     submit(&mut app, ":draw a 20 mm square at 10,10");
 
@@ -335,13 +335,13 @@ fn a_send_is_unmistakable() {
         app.command_feedback,
         concat!("\u{2192} agent: ", "\"draw a 20 mm square at 10,10\"")
     );
-    assert!(app.agent_panel_open, "the panel opens itself");
+    assert!(app.agent.panel_open, "the panel opens itself");
     assert_eq!(
-        app.agent_chat.first(),
+        app.agent.chat.first(),
         Some(&("user".to_owned(), "draw a 20 mm square at 10,10".to_owned())),
         "the prompt is the transcript's first row"
     );
-    assert!(app.agent_busy, "and a turn really is in flight");
+    assert!(app.agent.busy, "and a turn really is in flight");
 }
 
 /// AC 8 — the echo is cut at 60 characters with an `…`, so a pasted paragraph
@@ -361,7 +361,7 @@ fn a_long_prompt_is_echoed_truncated() {
     assert!(echoed.ends_with('…'));
     assert_eq!(&echoed[..60], &long[..60]);
     assert_eq!(
-        app.agent_chat.first().map(|(_, text)| text.len()),
+        app.agent.chat.first().map(|(_, text)| text.len()),
         Some(75),
         "the prompt itself is sent whole — only the echo is cut"
     );
@@ -372,7 +372,7 @@ fn a_long_prompt_is_echoed_truncated() {
 /// `arm_turn` sets up, and driving them by hand puts the model's geometry on
 /// the operator's own bed.
 ///
-/// Replacing `agent_rx` drops the worker's receiver, so the thread that
+/// Replacing `agent.rx` drops the worker's receiver, so the thread that
 /// `start_turn` spawned — against [`UNPARSEABLE_ENDPOINT`], which never
 /// becomes a socket — exits `Cancelled` without a word. Everything below is
 /// this test's own channel.
@@ -380,10 +380,10 @@ fn a_long_prompt_is_echoed_truncated() {
 fn a_turn_started_from_the_command_line_draws_on_the_real_bed() {
     let (ctx, mut app, _) = boot(app_with_a_key());
     submit(&mut app, ":draw a 20 mm line");
-    assert!(app.agent_busy);
+    assert!(app.agent.busy);
 
     let (tx, rx) = channel::<AgentEvent>();
-    app.agent_rx = Some(rx);
+    app.agent.rx = Some(rx);
 
     let (reply, answer) = channel();
     tx.send(AgentEvent::Act {
@@ -408,9 +408,9 @@ fn a_turn_started_from_the_command_line_draws_on_the_real_bed() {
     tx.send(AgentEvent::Done("Drew it.".to_owned()))
         .expect("the app holds the receiver");
     frame(&ctx, &mut app, Vec::new());
-    assert!(!app.agent_busy, "and the turn ends");
+    assert!(!app.agent.busy, "and the turn ends");
     assert_eq!(
-        app.agent_chat.first(),
+        app.agent.chat.first(),
         Some(&("user".to_owned(), "draw a 20 mm line".to_owned()))
     );
 }
@@ -447,7 +447,7 @@ fn an_agent_routed_line_is_recalled_by_arrow_up() {
 fn a_second_turn_is_refused_not_queued() {
     let mut app = app_with_a_key();
     let tx = arm_turn(&mut app, "the first prompt");
-    let chat_before = app.agent_chat.clone();
+    let chat_before = app.agent.chat.clone();
 
     submit(&mut app, "/ai the second prompt");
 
@@ -458,18 +458,18 @@ fn a_second_turn_is_refused_not_queued() {
             "\u{2014} wait for the current turn to finish."
         )
     );
-    assert_eq!(app.agent_chat, chat_before, "the transcript is untouched");
-    assert!(app.agent_busy, "the first turn is still in flight");
-    assert!(app.agent_rx.is_some(), "and still holds its receiver");
+    assert_eq!(app.agent.chat, chat_before, "the transcript is untouched");
+    assert!(app.agent.busy, "the first turn is still in flight");
+    assert!(app.agent.rx.is_some(), "and still holds its receiver");
 
     // The first turn is still drivable, which is the real claim: nothing about
     // the refusal disturbed it.
     tx.send(AgentEvent::Done("done".to_owned()))
         .expect("the armed receiver must still be on App");
     lasercad::app::poll_agent_rx(&mut app);
-    assert!(!app.agent_busy);
+    assert!(!app.agent.busy);
     assert_eq!(
-        app.agent_chat.last(),
+        app.agent.chat.last(),
         Some(&("assistant".to_owned(), "done".to_owned()))
     );
 }
@@ -496,10 +496,10 @@ fn a_typo_never_reaches_the_agent_even_with_a_key_configured() {
             app.command_feedback, "Unknown command: \"lien\"",
             "both apps answer the same local error, key or no key"
         );
-        assert!(!app.agent_busy);
-        assert!(app.agent_rx.is_none());
-        assert!(app.agent_chat.is_empty());
-        assert!(!app.agent_panel_open);
+        assert!(!app.agent.busy);
+        assert!(app.agent.rx.is_none());
+        assert!(app.agent.chat.is_empty());
+        assert!(!app.agent.panel_open);
         assert_eq!(app.document.entity_count(), 0);
     }
 }

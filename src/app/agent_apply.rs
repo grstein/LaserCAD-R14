@@ -21,7 +21,7 @@
 //!   outcome reports the resulting entity count, and a delete names the entity
 //!   it removed and the indices that moved down (ADR 0007 §D5).
 //! - **Every action leaves a row.** LCV-123 AC 23: the sentence handed back to
-//!   the model is appended verbatim to `agent_chat` by [`transcribe`], here,
+//!   the model is appended verbatim to `agent.chat` by [`transcribe`], here,
 //!   the one place that already holds both the action and its narration. The
 //!   operator and the model therefore read the same words, and a transcript
 //!   that disagrees with what the model was told is impossible by construction.
@@ -64,7 +64,7 @@ pub fn apply(app: &mut App, action: &AgentAction) -> AgentOutcome {
     outcome
 }
 
-/// Append one `agent_chat` row for `outcome`, content **verbatim** (AC 23).
+/// Append one `agent.chat` row for `outcome`, content **verbatim** (AC 23).
 ///
 /// Two roles, and the split is the one thing the operator most needs to see at
 /// a glance: `tool` is something that happened, `refused` is something that did
@@ -79,7 +79,8 @@ pub(crate) fn transcribe(app: &mut App, outcome: &AgentOutcome) {
     } else {
         "tool"
     };
-    app.agent_chat
+    app.agent
+        .chat
         .push((role.to_owned(), outcome.text().to_owned()));
 }
 
@@ -617,10 +618,10 @@ mod tests {
             },
         );
         assert_eq!(
-            app.agent_chat,
+            app.agent.chat,
             vec![("tool".to_owned(), outcome.text().to_owned())]
         );
-        assert!(app.agent_chat[0].1.starts_with("Line created:"));
+        assert!(app.agent.chat[0].1.starts_with("Line created:"));
     }
 
     /// AC 23 — a refusal is role `refused`, not `tool`. Mutation (k) writes
@@ -631,7 +632,7 @@ mod tests {
         let outcome = apply(&mut app, &AgentAction::Delete { index: 7 });
         assert!(outcome.is_refused());
         assert_eq!(
-            app.agent_chat,
+            app.agent.chat,
             vec![("refused".to_owned(), outcome.text().to_owned())]
         );
     }
@@ -646,7 +647,7 @@ mod tests {
         let entities = apply(&mut app, &AgentAction::QueryEntities);
         let selection = apply(&mut app, &AgentAction::QuerySelection);
         assert_eq!(
-            app.agent_chat,
+            app.agent.chat,
             vec![
                 ("tool".to_owned(), entities.text().to_owned()),
                 ("tool".to_owned(), selection.text().to_owned()),

@@ -74,13 +74,13 @@ fn line(x2: f64) -> AgentAction {
     }
 }
 
-/// The roles in `agent_chat`, in order — AC 23's total ordering, made visible.
+/// The roles in `agent.chat`, in order — AC 23's total ordering, made visible.
 fn roles(app: &App) -> Vec<&str> {
-    app.agent_chat.iter().map(|(r, _)| r.as_str()).collect()
+    app.agent.chat.iter().map(|(r, _)| r.as_str()).collect()
 }
 
 fn row(app: &App, index: usize) -> (&str, &str) {
-    let (role, text) = &app.agent_chat[index];
+    let (role, text) = &app.agent.chat[index];
     (role.as_str(), text.as_str())
 }
 
@@ -186,13 +186,13 @@ fn one_frame_drains_every_queued_act_and_then_the_terminal_event() {
     assert_eq!(app.document.entities.len(), 2, "both actions, one frame");
     assert!(first.try_recv().is_ok(), "the first Act was answered");
     assert!(second.try_recv().is_ok(), "the second Act was answered");
-    assert!(!app.agent_busy, "and the turn ended in the same frame");
-    assert!(app.agent_rx.is_none());
+    assert!(!app.agent.busy, "and the turn ended in the same frame");
+    assert!(app.agent.rx.is_none());
     assert_eq!(roles(&app), ["user", "tool", "tool", "assistant", "note"]);
 }
 
 /// AC 7 — a frame that carried only `Act`s leaves the turn running. Mutation
-/// (b) — clearing `agent_rx` after an `Act` — strands every later tool call
+/// (b) — clearing `agent.rx` after an `Act` — strands every later tool call
 /// and fails here.
 #[test]
 fn a_frame_of_only_acts_leaves_the_turn_armed() {
@@ -202,8 +202,8 @@ fn a_frame_of_only_acts_leaves_the_turn_armed() {
 
     idle(&ctx, &mut app);
 
-    assert!(app.agent_busy, "an Act is not a verdict");
-    assert!(app.agent_rx.is_some(), "the turn must survive the frame");
+    assert!(app.agent.busy, "an Act is not a verdict");
+    assert!(app.agent.rx.is_some(), "the turn must survive the frame");
     assert_eq!(app.document.entities.len(), 1);
 
     // And the next frame still reaches the worker's next tool call.
@@ -213,7 +213,7 @@ fn a_frame_of_only_acts_leaves_the_turn_armed() {
 }
 
 /// AC 7 exit (3) — the worker's `Sender` dropped without a verdict. The turn
-/// must end anyway: `agent_busy` stuck true is a permanent repaint loop
+/// must end anyway: `agent.busy` stuck true is a permanent repaint loop
 /// (LCV-120, reopened). Mutation (c) — deleting the `Disconnected` arm — hangs
 /// the turn and fails here.
 #[test]
@@ -225,10 +225,10 @@ fn a_dropped_event_sender_ends_the_turn_with_the_lost_row() {
     idle(&ctx, &mut app);
 
     assert!(
-        !app.agent_busy,
+        !app.agent.busy,
         "a lost worker must not leave the app spinning"
     );
-    assert!(app.agent_rx.is_none());
+    assert!(app.agent.rx.is_none());
     assert_eq!(roles(&app), ["user", "error"]);
     assert_eq!(row(&app, 1), ("error", AGENT_LOST_MESSAGE));
 }
@@ -238,7 +238,7 @@ fn a_dropped_event_sender_ends_the_turn_with_the_lost_row() {
 /// The event `Sender` is deliberately kept alive, so no `Disconnected` can
 /// arrive and the dead reply channel is the **only** thing that says anything
 /// is wrong. Mutation (h) — falling through to the next `try_recv` instead of
-/// returning — leaves `agent_busy` set and fails here.
+/// returning — leaves `agent.busy` set and fails here.
 ///
 /// The row is compared against the constant *and* against the row exit (3)
 /// wrote, never against a copy of the sentence: two spellings of "the worker is
@@ -251,7 +251,7 @@ fn a_dead_reply_channel_ends_the_turn_with_the_same_row() {
     let tx = arm_turn(&mut lost, "draw something");
     drop(tx);
     idle(&ctx, &mut lost);
-    let expected = lost.agent_chat[1].clone();
+    let expected = lost.agent.chat[1].clone();
 
     // Exit (4).
     let (ctx, mut app) = ctx_and_app();
@@ -262,10 +262,10 @@ fn a_dead_reply_channel_ends_the_turn_with_the_same_row() {
     idle(&ctx, &mut app);
 
     assert!(
-        !app.agent_busy,
+        !app.agent.busy,
         "a worker that stopped listening must not spin"
     );
-    assert!(app.agent_rx.is_none());
+    assert!(app.agent.rx.is_none());
     assert_eq!(
         app.document.entities.len(),
         1,
@@ -274,7 +274,7 @@ fn a_dead_reply_channel_ends_the_turn_with_the_same_row() {
     assert!(app.history.can_undo(), "and it stays undoable");
     assert_eq!(roles(&app), ["user", "tool", "error", "note"]);
     assert_eq!(
-        app.agent_chat[2], expected,
+        app.agent.chat[2], expected,
         "exit (4) reports the same fact as exit (3), so it writes the same row"
     );
     assert_eq!(row(&app, 2), ("error", AGENT_LOST_MESSAGE));
@@ -299,8 +299,8 @@ fn a_failed_turn_reports_the_workers_error() {
 
     assert_eq!(roles(&app), ["user", "error"]);
     assert_eq!(row(&app, 1), ("error", "HTTP 401"));
-    assert!(!app.agent_busy);
-    assert!(app.agent_rx.is_none());
+    assert!(!app.agent.busy);
+    assert!(app.agent.rx.is_none());
 }
 
 // ── AC 9: the fence ─────────────────────────────────────────────────────────
@@ -356,7 +356,7 @@ fn a_foreign_commit_mid_turn_refuses_every_later_action() {
         // the first action stays applied and undoable.
         tx.send(AgentEvent::Done("I stopped.".to_owned())).unwrap();
         idle(&ctx, &mut app);
-        assert!(!app.agent_busy, "{foreign}");
+        assert!(!app.agent.busy, "{foreign}");
         assert!(app.history.can_undo(), "{foreign}");
         assert!(
             app.history.undo(&mut app.document),
@@ -487,7 +487,7 @@ fn a_fence_aborted_turn_stays_separate_undo_steps() {
     );
     assert_eq!(app.history.len(), stack_before + 3);
     assert_eq!(
-        app.agent_chat.last().map(|(r, t)| (r.as_str(), t.as_str())),
+        app.agent.chat.last().map(|(r, t)| (r.as_str(), t.as_str())),
         Some((
             "note",
             "Applied 2 actions — the drawing changed mid-turn, so they stay 2 separate undo steps."
@@ -574,7 +574,7 @@ fn a_lost_turn_still_coalesces_and_still_says_so() {
         let last_two: Vec<&str> = roles(&app).into_iter().rev().take(2).rev().collect();
         assert_eq!(last_two, ["error", "note"], "{exit}: AC 22 row order");
         assert_eq!(
-            app.agent_chat.last().map(|(_, t)| t.as_str()),
+            app.agent.chat.last().map(|(_, t)| t.as_str()),
             Some("Applied 3 actions — Ctrl+Z undoes the whole turn."),
             "{exit}: including the action whose answer was lost"
         );
@@ -605,7 +605,7 @@ fn a_lost_fence_aborted_turn_keeps_its_separate_entries() {
 
     assert_eq!(app.history.len(), stack_after_foreign, "nothing folded");
     assert_eq!(
-        app.agent_chat.last().map(|(r, t)| (r.as_str(), t.as_str())),
+        app.agent.chat.last().map(|(r, t)| (r.as_str(), t.as_str())),
         Some((
             "note",
             "Applied 3 actions — the drawing changed mid-turn, so they stay 3 separate undo steps."
@@ -669,7 +669,7 @@ fn the_operator_can_still_commit_while_an_act_is_outstanding() {
     let _outstanding = push_act(&tx, line(10.0));
 
     // The Act is queued and not yet drained: the worker is waiting.
-    assert!(app.agent_busy);
+    assert!(app.agent.busy);
     app.commit(Box::new(CreateCircle::new(Circle::new(
         Vec2::new(50.0, 50.0),
         5.0,
@@ -704,11 +704,11 @@ fn the_api_key_never_reaches_anything_the_operator_reads() {
     run_until_idle(&ctx, &mut app, "the 401 turn must end");
 
     assert!(
-        app.agent_chat.iter().any(|(role, _)| role == "error"),
+        app.agent.chat.iter().any(|(role, _)| role == "error"),
         "the turn really did fail, so there was something to leak: {:?}",
-        app.agent_chat
+        app.agent.chat
     );
-    for (role, content) in &app.agent_chat {
+    for (role, content) in &app.agent.chat {
         assert!(
             !content.contains(DUMMY_KEY),
             "the key leaked into a `{role}` row: {content}"
@@ -732,14 +732,14 @@ fn the_api_key_never_reaches_anything_the_operator_reads() {
 fn run_until_idle(ctx: &egui::Context, app: &mut App, message: &str) {
     for _ in 0..400 {
         idle(ctx, app);
-        if !app.agent_busy {
+        if !app.agent.busy {
             return;
         }
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
     panic!(
         "{message}: still busy after 400 frames (~2 s), chat was {:?}",
-        app.agent_chat
+        app.agent.chat
     );
 }
 
@@ -749,7 +749,7 @@ fn run_until_idle(ctx: &egui::Context, app: &mut App, message: &str) {
 /// This is the test that closes `CHANGELOG.md`'s *"the agent can read and
 /// narrate the drawing but does not yet modify it end-to-end from chat"*.
 ///
-/// It does **not** prove `src/app/mod.rs`'s `if self.agent_busy {
+/// It does **not** prove `src/app/mod.rs`'s `if self.agent.busy {
 /// ctx.request_repaint(); }` is load-bearing, and no headless test can: this
 /// loop calls `update_ui` on its own schedule, so it keeps running frames
 /// whether or not anything asked for a repaint. Deleting the guard leaves this
@@ -788,7 +788,7 @@ fn a_whole_turn_lands_on_the_bed() {
     start_turn(&mut app, "draw two 20 mm lines");
     run_until_idle(&ctx, &mut app, "the end-to-end turn must finish");
 
-    assert_eq!(app.document.entities.len(), 2, "{:?}", app.agent_chat);
+    assert_eq!(app.document.entities.len(), 2, "{:?}", app.agent.chat);
     let points: Vec<(Vec2, Vec2)> = app
         .document
         .entities
@@ -812,7 +812,8 @@ fn a_whole_turn_lands_on_the_bed() {
         "one turn, one undo entry"
     );
     assert_eq!(
-        app.agent_chat
+        app.agent
+            .chat
             .iter()
             .rev()
             .find(|(role, _)| role == "assistant")
@@ -859,7 +860,7 @@ fn guard_above(src: &str, needle: &str) -> String {
         .to_owned()
 }
 
-/// AC 19 — the agent's repaint is guarded on `agent_busy`, and on nothing else.
+/// AC 19 — the agent's repaint is guarded on `agent.busy`, and on nothing else.
 ///
 /// `every_repaint_request_in_src_is_conditional` (LCV-120 AC 8) pins that
 /// `src/app/mod.rs` holds one repaint call and that it sits inside an `if`.
@@ -873,9 +874,9 @@ fn guard_above(src: &str, needle: &str) -> String {
 #[test]
 fn the_agent_repaint_is_guarded_on_the_busy_flag() {
     let needle = concat!("request_", "repaint");
-    let flag = concat!("agent_", "busy");
+    let flag = concat!("agent", ".busy");
 
-    let witness = "if self.agent_busy {\n    ctx.request_repaint();\n}\n";
+    let witness = "if self.agent.busy {\n    ctx.request_repaint();\n}\n";
     assert!(
         guard_above(witness, needle).contains(flag),
         "control: the needles must be able to find a real guarded repaint"

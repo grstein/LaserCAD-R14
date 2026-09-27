@@ -105,7 +105,7 @@ fn boot(app: App) -> (egui::Context, App, egui::Rect) {
 fn an_idle_app_asks_for_no_repaint() {
     let (ctx, mut app, _canvas) = boot(App::default());
     assert!(
-        app.last_cursor_world.is_none() && app.dirty_since.is_none() && !app.agent_busy,
+        app.last_cursor_world.is_none() && app.dirty_since.is_none() && !app.agent.busy,
         "precondition: nothing about this app is live"
     );
 

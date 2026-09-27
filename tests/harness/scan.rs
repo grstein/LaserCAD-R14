@@ -74,7 +74,7 @@ pub fn rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
 ///
 /// Comment lines are skipped — see the module header for why that trade is
 /// deliberate and what it costs. A count rather than a flag, because
-/// "`agent_busy = false` appears once, in `agent_poll.rs`" is a strictly
+/// "`agent.busy = false` appears once, in `agent_poll.rs`" is a strictly
 /// stronger claim than "it appears in `agent_poll.rs`", and a second write
 /// smuggled into the owning file is exactly the regression the weaker claim
 /// misses.

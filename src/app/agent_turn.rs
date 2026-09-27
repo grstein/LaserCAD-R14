@@ -60,7 +60,11 @@ pub const AGENT_FENCE_REFUSAL: &str = "The drawing changed outside this turn —
 /// Three `u64`-sized pieces of state and no borrow of anything: `start` is the
 /// revision the turn began at, `expected` is the revision the next action
 /// requires, and `tripped` records that the guard has already fired.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// `Default` derives to `{ start: 0, expected: 0, tripped: false }`, exactly
+/// [`TurnFence::new(0)`](TurnFence::new) — which is what lets
+/// [`AgentState`](crate::app::AgentState) derive `Default` too (LCV-136).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TurnFence {
     start: u64,
     expected: u64,
@@ -205,23 +209,23 @@ fn ask_ui(tx: &Sender<AgentEvent>, action: AgentAction) -> Result<AgentOutcome, 
 /// about applying, fencing, coalescing and ending a turn deterministic.
 pub fn arm_turn(app: &mut App, prompt: &str) -> Sender<AgentEvent> {
     let (tx, rx) = channel::<AgentEvent>();
-    app.agent_chat.push(("user".to_owned(), prompt.to_owned()));
-    app.agent_busy = true;
-    app.agent_rx = Some(rx);
-    app.agent_fence = TurnFence::new(app.history.revision());
-    app.agent_applied = 0;
-    app.agent_turn_label = turn_label(prompt);
+    app.agent.chat.push(("user".to_owned(), prompt.to_owned()));
+    app.agent.busy = true;
+    app.agent.rx = Some(rx);
+    app.agent.fence = TurnFence::new(app.history.revision());
+    app.agent.applied = 0;
+    app.agent.turn_label = turn_label(prompt);
     tx
 }
 
 /// Arm a turn and spawn the thread that runs it. The panel's Send button and
 /// (from LCV-124) the command line both land here.
 ///
-/// A no-op while a turn is in flight: one `agent_rx` and one fence mean one
+/// A no-op while a turn is in flight: one `agent.rx` and one fence mean one
 /// turn (ADR 0007 §Revisit criteria), and a second `arm_turn` would drop the
 /// first turn's receiver on the floor and strand its thread.
 pub fn start_turn(app: &mut App, prompt: &str) {
-    if app.agent_busy {
+    if app.agent.busy {
         return;
     }
     // Cloned, never borrowed: the thread outlives this frame (ADR 0007 §D1).
@@ -452,18 +456,19 @@ mod tests {
         let tx = arm_turn(&mut app, "draw a 20 mm square");
 
         assert_eq!(
-            app.agent_chat,
+            app.agent.chat,
             vec![("user".to_owned(), "draw a 20 mm square".to_owned())]
         );
-        assert!(app.agent_busy);
-        assert!(app.agent_rx.is_some());
-        assert_eq!(app.agent_applied, 0);
-        assert_eq!(app.agent_turn_label, "Agent: draw a 20 mm square");
+        assert!(app.agent.busy);
+        assert!(app.agent.rx.is_some());
+        assert_eq!(app.agent.applied, 0);
+        assert_eq!(app.agent.turn_label, "Agent: draw a 20 mm square");
 
         tx.send(AgentEvent::Done("hi".to_owned()))
             .expect("the returned Sender must reach the Receiver on App");
         match app
-            .agent_rx
+            .agent
+            .rx
             .as_ref()
             .expect("armed")
             .try_recv()
@@ -490,12 +495,12 @@ mod tests {
         assert_ne!(revision, 0, "the fixture must have moved the revision");
 
         let _tx = arm_turn(&mut app, "go on");
-        assert_eq!(app.agent_fence, TurnFence::new(revision));
-        assert_eq!(app.agent_fence.check(revision), Ok(()));
+        assert_eq!(app.agent.fence, TurnFence::new(revision));
+        assert_eq!(app.agent.fence.check(revision), Ok(()));
     }
 
     /// AC 3 — a second turn is refused while one is in flight, and refused
-    /// *silently*: `start_turn` touches nothing. One `agent_rx` and one fence
+    /// *silently*: `start_turn` touches nothing. One `agent.rx` and one fence
     /// mean one turn, and re-arming would strand the running thread.
     ///
     /// Asserted on a busy `App` whose channel was armed by hand, so no thread
@@ -504,22 +509,22 @@ mod tests {
     fn start_turn_on_a_busy_app_changes_nothing() {
         let mut app = App::default();
         let _tx = arm_turn(&mut app, "the first prompt");
-        let chat = app.agent_chat.clone();
-        let fence = app.agent_fence.clone();
-        let label = app.agent_turn_label.clone();
-        let armed = app.agent_rx.as_ref().map(std::ptr::from_ref);
+        let chat = app.agent.chat.clone();
+        let fence = app.agent.fence.clone();
+        let label = app.agent.turn_label.clone();
+        let armed = app.agent.rx.as_ref().map(std::ptr::from_ref);
 
         start_turn(&mut app, "the second prompt");
 
-        assert_eq!(app.agent_chat, chat, "no row for a turn that never started");
-        assert_eq!(app.agent_fence, fence, "the running turn keeps its fence");
-        assert_eq!(app.agent_turn_label, label);
+        assert_eq!(app.agent.chat, chat, "no row for a turn that never started");
+        assert_eq!(app.agent.fence, fence, "the running turn keeps its fence");
+        assert_eq!(app.agent.turn_label, label);
         assert_eq!(
-            app.agent_rx.as_ref().map(std::ptr::from_ref),
+            app.agent.rx.as_ref().map(std::ptr::from_ref),
             armed,
             "the running turn keeps its receiver"
         );
-        assert!(app.agent_busy);
+        assert!(app.agent.busy);
     }
 
     // ── AC 18: the budget is read and clamped here ───────────────────────────
@@ -1118,7 +1123,7 @@ mod tests {
     /// scan covers both files that run turn code.
     #[test]
     fn no_turn_function_opens_a_dialog() {
-        let witness = "app.agent_settings_open = true; app.agent_panel_open = false;";
+        let witness = "app.agent_settings_open = true; app.agent.panel_open = false;";
         for (name, src) in [
             ("agent_turn.rs", include_str!("agent_turn.rs")),
             ("agent_poll.rs", include_str!("agent_poll.rs")),
