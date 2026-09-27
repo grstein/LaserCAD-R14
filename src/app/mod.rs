@@ -10,11 +10,12 @@
 //! calls one function per phase, each in its own file: `input` (keyboard and
 //! text routing), `panels` (chrome, agent panel, dialogs), `viewport` (canvas,
 //! pointer, camera), `autosave` (the dirty signal, the debounce and the
-//! flush), `file_ops` (the guarded New / Open / Exit entry points and the
-//! discard-confirmation dialog, LCV-113), `bed_dialog` (the Bed size… modal,
-//! LCV-114), `document_title` (native title + recovery flag, LCV-138),
-//! `unsaved_guard` (the three fields behind `App::has_unsaved_changes`,
-//! ADR 0004 §"The `src/app/mod.rs` seam"). `init` holds the two `App` constructors — `Default` and
+//! flush), `file_ops` (the guarded New / Open / Exit entry points, LCV-113)
+//! and `discard` (its egui half: the discard-confirmation dialog and the
+//! window close button, split out by ADR 0004 §"The `src/app/mod.rs` seam"),
+//! `bed_dialog` (the Bed size… modal, LCV-114), `document_title` (native
+//! title + recovery flag, LCV-138), `unsaved_guard` (the three fields behind
+//! `App::has_unsaved_changes`, same seam). `init` holds the two `App` constructors — `Default` and
 //! [`App::new`] — moved out of this file to stay under the 300-LOC
 //! implementation cap (LCV-115); `persist` holds the three methods that are
 //! the only readers of the two injected path fields (LCV-119, ADR 0006). `ortho`, `snap` and `agent_poll`
@@ -35,6 +36,7 @@
 mod autosave;
 mod bed_dialog;
 mod cmdline;
+mod discard;
 mod document_title;
 mod file_ops;
 mod init;
@@ -57,8 +59,9 @@ pub use agent_turn::{arm_turn, run_agent_turn, start_turn, TurnFence, AGENT_FENC
 pub use autosave::{autosave_due, schedule_flush_repaint};
 pub use bed_dialog::{apply_bed_dialog_result, draw_bed_dialog};
 pub use cmdline::submit;
+pub use discard::{apply_dialog_result, draw_discard_dialog, poll_close_request};
 pub use document_title::DocumentTitleState;
-pub use file_ops::{apply_dialog_result, draw_discard_dialog, poll_close_request, PendingAction};
+pub use file_ops::PendingAction;
 pub use input::process_input;
 pub use ortho::apply_ortho;
 pub use snap::{resolve_snap, suppress_snap_if_disabled};

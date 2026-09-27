@@ -4,11 +4,13 @@
 //! File > New / Ctrl+N discarded the document *and* the undo history without
 //! asking, File > Open / Ctrl+O / Open Recent replaced them the moment the
 //! native dialog returned, and File > Exit / the window close button ended
-//! the process outright. This file wires the existing, previously-uncalled
-//! `confirm_dialog` (`src/ui/dialogs.rs`) to all three, alongside the five
-//! `App` file-action wrappers already living here (moved out of
-//! `src/app/mod.rs` in the previous commit to make room under the 300-LOC
-//! implementation cap).
+//! the process outright. This file owns the safe-to-discard signal, the
+//! parked-action state machine's four guards and the five `App` file-action
+//! wrappers; the egui half — rendering `confirm_dialog`
+//! (`src/ui/dialogs.rs`), applying the operator's answer and polling the
+//! window close button — lives in `src/app/discard.rs` (split out, ADR 0004
+//! §"The `src/app/mod.rs` seam", when this file reached the 300-LOC
+//! implementation cap and LCV-138 needed to add a line to it).
 //!
 //! Two mechanisms, kept apart on purpose:
 //!
@@ -28,9 +30,10 @@
 //!   action parked while the confirmation dialog is up. `confirm_dialog` is
 //!   immediate-mode, so this parked value *is* the whole state machine: the
 //!   four `request_*` guards below run the action immediately on a clean
-//!   document and park it on a dirty one, [`draw_discard_dialog`] renders the
-//!   dialog only while something is parked, and [`apply_dialog_result`] is
-//!   the one place that clears it, on both the Discard and the Cancel path.
+//!   document and park it on a dirty one; `discard.rs`'s
+//!   `draw_discard_dialog` renders the dialog only while something is
+//!   parked, and its `apply_dialog_result` is the one place that clears it,
+//!   on both the Discard and the Cancel path.
 //!
 //! MUST NOT import `eframe` or `rfd`. `request_open` / `request_open_path`
 //! reach `crate::io::action_open` / `action_open_path` only on a clean
@@ -40,8 +43,6 @@
 //! dialog and would hang the run).
 
 use std::path::PathBuf;
-
-use crate::ui::DialogResult;
 
 use super::App;
 
@@ -204,103 +205,12 @@ impl App {
 }
 
 // ---------------------------------------------------------------------------
-// The dialog driver
-// ---------------------------------------------------------------------------
-
-/// Render the discard-confirmation dialog. Renders nothing while
-/// `UnsavedGuard::pending_action` is `None`; on a click, delegates the decision to
-/// [`apply_dialog_result`].
-///
-/// Called from [`super::panels::draw_dialogs`]. The render and the decision
-/// are split on purpose (not inlined here): it is what makes
-/// [`apply_dialog_result`] testable directly, with no simulated pointer
-/// click, which is how the Discard and Cancel behaviour is actually covered.
-pub fn draw_discard_dialog(ctx: &egui::Context, app: &mut App) {
-    if app.guard.pending_action.is_none() {
-        return;
-    }
-    if let Some(result) = crate::ui::confirm_dialog(
-        ctx,
-        "Discard unsaved changes?",
-        "The current drawing has unsaved changes. Continuing will discard them and the undo history.",
-        "Discard",
-        "Cancel",
-    ) {
-        apply_dialog_result(ctx, app, result);
-    }
-}
-
-/// Apply the operator's answer to the parked action.
-///
-/// Takes `UnsavedGuard::pending_action` unconditionally, so both branches clear it —
-/// forgetting to clear it on either one would leave a dialog that reopens
-/// every frame. On [`DialogResult::Confirmed`] the parked action runs exactly
-/// once (`Exit` sets `UnsavedGuard::exit_confirmed` and sends
-/// `ViewportCommand::Close`); on [`DialogResult::Cancelled`] nothing else
-/// happens and no viewport command is sent.
-pub fn apply_dialog_result(ctx: &egui::Context, app: &mut App, result: DialogResult) {
-    let action = app.guard.pending_action.take();
-    if result != DialogResult::Confirmed {
-        return;
-    }
-    match action {
-        Some(PendingAction::New) => app.action_new(),
-        Some(PendingAction::Open) => app.action_open(),
-        Some(PendingAction::OpenPath(path)) => app.action_open_path(path),
-        Some(PendingAction::Exit) => {
-            // Latched first (LCV-136) — see `poll_close_request` below.
-            app.guard.exit_confirmed = true;
-            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-        }
-        None => {}
-    }
-}
-
-// ---------------------------------------------------------------------------
-// The window close button
-// ---------------------------------------------------------------------------
-
-/// Poll the window close button (the viewport X) once per frame.
-///
-/// Called from [`App::update_ui`](super::App::update_ui), immediately before
-/// [`super::panels::draw_dialogs`]. When
-/// `ctx.input(|i| i.viewport().close_requested())` is true this calls
-/// [`App::request_exit`]; if that returns `false` (the document is dirty),
-/// `ViewportCommand::CancelClose` is sent in the *same* frame — verified
-/// against eframe 0.29.1 (`native/epi_integration.rs:284-295`): the
-/// integration checks that frame's `viewport_output[ROOT].commands` for
-/// `CancelClose` and closes the window otherwise. On a clean document nothing
-/// is sent and the window closes normally.
-///
-/// `UnsavedGuard::exit_confirmed` short-circuits all of the above once set
-/// (LCV-136): `ViewportCommand::Close` only *records* a fresh
-/// `ViewportEvent::Close` (`egui_winit::process_viewport_command`, verified
-/// against the vendored 0.29.1 source) rather than closing the window
-/// itself, so `close_requested()` reports `true` again next frame for that
-/// same close. `Exit` mutates no document, so `has_unsaved_changes()` is
-/// still `true` then — without this guard, `request_exit` would re-park
-/// `Exit` and cancel the confirmed close, forever. Once latched, every later
-/// close request is let through unconditionally.
-pub fn poll_close_request(ctx: &egui::Context, app: &mut App) {
-    if !ctx.input(|i| i.viewport().close_requested()) {
-        return;
-    }
-    if app.guard.exit_confirmed {
-        return;
-    }
-    if !app.request_exit() {
-        ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::UnsavedGuard;
     use crate::document::{CreateLine, Entity};
     use crate::geometry::{Line, Vec2};
 
@@ -535,87 +445,6 @@ mod tests {
             app.guard.pending_action,
             Some(PendingAction::New),
             "request_exit must not park while another action is already pending"
-        );
-    }
-
-    // -- AC 12, 13 — apply_dialog_result --------------------------------------
-
-    /// AC 12 — Confirmed runs the parked action exactly once and clears
-    /// `pending_action`, for both a document action (`New`) and `Exit`
-    /// (asserted via the returned `FullOutput`'s viewport commands, which is
-    /// why this drives `apply_dialog_result` inside a `ctx.run` closure).
-    #[test]
-    fn confirm_runs_the_parked_action_once() {
-        let ctx = egui::Context::default();
-
-        let mut app = App::default();
-        commit_a_line(&mut app);
-        app.guard.pending_action = Some(PendingAction::New);
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
-            apply_dialog_result(ctx, &mut app, DialogResult::Confirmed);
-        });
-        assert!(app.guard.pending_action.is_none());
-        assert_eq!(
-            app.document.entity_count(),
-            0,
-            "action_new must have run exactly once"
-        );
-        assert!(!out.viewport_output[&egui::ViewportId::ROOT]
-            .commands
-            .contains(&egui::ViewportCommand::Close));
-
-        let mut exit_app = App {
-            guard: UnsavedGuard {
-                pending_action: Some(PendingAction::Exit),
-                ..Default::default()
-            },
-            ..App::default()
-        };
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
-            apply_dialog_result(ctx, &mut exit_app, DialogResult::Confirmed);
-        });
-        assert!(exit_app.guard.pending_action.is_none());
-        assert!(
-            out.viewport_output[&egui::ViewportId::ROOT]
-                .commands
-                .contains(&egui::ViewportCommand::Close),
-            "a confirmed Exit must send ViewportCommand::Close"
-        );
-    }
-
-    /// AC 13 — Cancelled clears `pending_action` and leaves every other field
-    /// exactly as it was, sending no viewport command even when the parked
-    /// action was `Exit`.
-    #[test]
-    fn cancel_restores_nothing_and_clears_the_pending_action() {
-        let ctx = egui::Context::default();
-        let mut app = App::default();
-        commit_a_line(&mut app);
-        app.mark_saved();
-        app.current_file = Some(PathBuf::from("keep.svg"));
-        app.guard.pending_action = Some(PendingAction::Exit);
-
-        let entity_count = app.document.entity_count();
-        let revision = app.history.revision();
-        let current_file = app.current_file.clone();
-        let saved_revision = app.guard.saved_revision;
-        let dirty_since = app.dirty_since;
-
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
-            apply_dialog_result(ctx, &mut app, DialogResult::Cancelled);
-        });
-
-        assert!(app.guard.pending_action.is_none());
-        assert_eq!(app.document.entity_count(), entity_count);
-        assert_eq!(app.history.revision(), revision);
-        assert_eq!(app.current_file, current_file);
-        assert_eq!(app.guard.saved_revision, saved_revision);
-        assert_eq!(app.dirty_since, dirty_since);
-        assert!(
-            !out.viewport_output[&egui::ViewportId::ROOT]
-                .commands
-                .contains(&egui::ViewportCommand::Close),
-            "Cancel must never send a viewport command"
         );
     }
 
