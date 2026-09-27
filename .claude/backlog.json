@@ -1525,7 +1525,7 @@
             "id": "LCV-141",
             "title": "Agent panel stays within the right third",
             "phase": 12,
-            "status": "Ready",
+            "status": "Done",
             "depends_on": [
                 "LCV-125",
                 "LCV-129",
@@ -1534,7 +1534,8 @@
             "suggested_agent": "implementer-rust",
             "suggested_model": "sonnet",
             "demand_file": "docs/product/demands/LCV-141-agent-panel-width-composer-and-settings-completion.md",
-            "note": "In 1.0 scope per user decision 2026-09-27."
+            "shipped_commit": "eff5c93, b703fdd, 2a2e447, 92f2367, 77b316b, 4bb53eb",
+            "note": "In 1.0 scope per user decision 2026-09-27. Shipped 2026-09-27: agent panel capped at one third of window width (drag- and shrink-safe), composer/busy-Cancel row no longer overflows or overlaps the transcript, Agent Settings gained a Done button, a live-edit persistence note, and a bounded ScrollArea."
         },
         {
             "id": "LCV-142",

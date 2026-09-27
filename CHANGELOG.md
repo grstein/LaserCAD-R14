@@ -72,6 +72,7 @@ No version of LaserCAD v2 has been tagged or released yet. Everything below is u
 - Window title changed from "LaserCAD v2 — bootstrap" to "LaserCAD v2". See LCV-105 (contract originally frozen by LCV-007).
 - Edit > Select All is now undoable: it goes through the same `SelectionCommand` / history path as every other selection change, instead of bypassing it. See LCV-105.
 - CI matrix: the `test` and `build` jobs now run Ubuntu alone on ordinary pushes and pull requests, and run all three platforms (Ubuntu, Windows, macOS) on tag pushes and manual `workflow_dispatch`. The `package` and `release` jobs remain gated on tags only. `workflow_dispatch:` was added to the trigger list so the full matrix can be exercised on demand without cutting a release. See LCV-135.
+- The agent side panel is now hard-capped at one third of the application window's width, recomputed every frame so the ceiling holds after a drag, after the window shrinks, or on the very first frame — previously it could be resized to consume most of the drawing surface. Agent Settings gained a "Done" button (using the same close-and-persist path as `×`) and a one-sentence note that changes apply immediately and persist on close. See LCV-141.
 
 ### Fixed
 
@@ -90,6 +91,7 @@ No version of LaserCAD v2 has been tagged or released yet. Everything below is u
 - `cargo test` no longer destroys developer state: real user paths are now resolved once at boot and injected, so the test suite can never reach the crash-recovery autosave file or the settings file. Previously an ordinary green library test deleted `~/.local/share/lasercad/autosave.json` on every run. See LCV-119.
 - The canvas now only asks for a new frame while it is actually live — the pointer is over it, a drag is in progress, or a tool preview is on screen — instead of requesting a repaint on every frame forever. On a compositor that throttles an unchanging window the wasted requests were already being declined (measured idle cost: 0.0% of a core), but on a platform that does not throttle, or on battery, the app no longer pays for frames it does not need. See LCV-120.
 - Closing the window with unsaved changes and choosing Discard now actually closes the app; it used to reopen the confirmation dialog forever, because eframe re-delivers the native Close event on a later frame after a confirmed Exit had already been handled. The New and Open discard paths were verified working and are now covered by pointer-driven tests (no behaviour change there). See LCV-136.
+- The agent panel's Send button no longer overflows the panel edge, and the busy "Thinking… / Cancel" row no longer overlaps the transcript: the transcript's reserved height now accounts for whether the busy row will render this frame instead of assuming it never does. Agent Settings now scrolls instead of clipping its fields on small windows. See LCV-141.
 
 ### Removed
 

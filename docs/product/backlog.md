@@ -10,7 +10,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 | LCV-138 | Native document title and honest file feedback | 11 | LCV-113, LCV-119, LCV-136 | In 1.0 scope per user decision 2026-09-27 |
 | LCV-139 | Readable command input and destination preview | 12 | LCV-111, LCV-112, LCV-124, LCV-132 | In 1.0 scope per user decision 2026-09-27 |
 | LCV-140 | Compact R14 chrome and useful action hints | 11 | LCV-115, LCV-116, LCV-132, LCV-139, LCV-141 | In 1.0 scope per user decision 2026-09-27 |
-| LCV-141 | Agent panel stays within the right third | 12 | LCV-125, LCV-129, LCV-132 | In 1.0 scope per user decision 2026-09-27 |
 | LCV-142 | Larger tool budgets without losing turn undo | 12 | LCV-123, LCV-125, LCV-129 | In 1.0 scope per user decision 2026-09-27; suggested agent implementer-rust / opus (ADR 0007 am.(7) closes the architecture gate) |
 | LCV-143 | Editable harness-aware system prompt | 12 | LCV-125, LCV-141, LCV-142 | In 1.0 scope per user decision 2026-09-27; depends-on gained LCV-142 (TurnConfig) |
 | LCV-144 | Create a drawing from declarative JSON | 12 | LCV-122, LCV-123, LCV-142, LCV-143 | In 1.0 scope per user decision 2026-09-27; suggested agent implementer-rust / opus (ADR 0010 closes the architecture gate) |
@@ -171,6 +170,7 @@ _None._
 | LCV-147 | The tree-wide loopback scan ships disabled, blocked by a control that breaks the rule it controls for | 12 | 2026-09-14 | f2aca88 |
 | LCV-148 | An unrecognised line answers locally and never reaches the model | 12 | 2026-09-14 | 421d730, 4caac01, e5d33d7 |
 | LCV-136 | Discard responds to real pointer clicks | 11 | 2026-09-27 | af86b34, 149797e, 54ada25, 26d5c0d, f061a56 |
+| LCV-141 | Agent panel stays within the right third | 12 | 2026-09-27 | eff5c93, b703fdd, 2a2e447, 92f2367, 77b316b, 4bb53eb |
 
 ## Blocked
 

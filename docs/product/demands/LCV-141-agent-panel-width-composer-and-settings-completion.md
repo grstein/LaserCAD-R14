@@ -1,11 +1,11 @@
 # LCV-141 - Agent panel stays within the right third
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 12
 - **Depends on**: LCV-125, LCV-129, LCV-132
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: -
+- **Implementation**: implementer-rust — eff5c93, b703fdd, 2a2e447, 92f2367, 77b316b, 4bb53eb
 
 ## Problem
 
