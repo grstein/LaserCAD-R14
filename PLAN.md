@@ -134,7 +134,7 @@ src/
 | LCV-091 | macOS dmg + notarization | 9 | Draft | implementer-rust | sonnet | LCV-089 |
 | LCV-092 | CI multi-platform pipeline | 9 | Draft | implementer-rust | sonnet | LCV-090, LCV-091 |
 | LCV-136 | Discard responds to real pointer clicks | 11 | Done | implementer-rust | sonnet | LCV-113, LCV-118, LCV-119 |
-| LCV-137 | Visible grid and consistent viewport coordinates | 11 | Ready | implementer-rust | sonnet | LCV-032, LCV-033, LCV-034, LCV-120 |
+| LCV-137 | Visible grid and consistent viewport coordinates | 11 | Done | implementer-rust | sonnet | LCV-032, LCV-033, LCV-034, LCV-120 |
 | LCV-138 | Native document title and honest file feedback | 11 | Ready | implementer-rust | sonnet | LCV-113, LCV-119, LCV-136 |
 | LCV-139 | Readable command input and destination preview | 12 | Ready | implementer-rust | sonnet | LCV-111, LCV-112, LCV-124, LCV-132 |
 | LCV-140 | Compact R14 chrome and useful action hints | 11 | Ready | implementer-rust | sonnet | LCV-115, LCV-116, LCV-132, LCV-139, LCV-141 |
@@ -144,6 +144,7 @@ src/
 | LCV-144 | Create a drawing from declarative JSON | 12 | Ready | implementer-rust | opus | LCV-122, LCV-123, LCV-142, LCV-143 |
 | LCV-145 | Opt-in canvas observations for vision models | 12 | Draft | implementer-rust | opus | LCV-123, LCV-129, LCV-137, LCV-141, LCV-143 |
 | LCV-146 | Future Markdown and frontmatter agent skills | 12 | Draft | product-owner | opus | LCV-143 |
+| LCV-149 | Transport stall test is timing-flaky | 12 | Draft | implementer-rust | sonnet | — |
 
 LCV-003, LCV-005, LCV-006 are marked `Done` because the initial scaffold delivered them (the user can verify by reading `docs/adr/0001-pure-rust-egui.md`, `README.md`, `LICENSE-MIT`, `LICENSE-APACHE`, `CHANGELOG.md`, and `.claude/agents/`). All other demands start as `Draft` and need refinement by `product-owner` before `implementer-rust` can claim them.
 
@@ -185,6 +186,7 @@ On every invocation, the `project-manager`:
 
 > Single-writer: `project-manager`. Most recent entries at the top. Format: `YYYY-MM-DD HH:MM — LCV-NNN status — note`.
 
+- 2026-09-27 — LCV-137 Done — `451b66d`, `b6cb733`, `b330695`, flip `44669d5`. Grid now paints between bed fill and bed border; grid bounds, wheel-zoom anchor and pan Y sign fixed for a viewport offset from the window origin. One rework: the grid-bounds half of AC3 was defended only by a scan; now by a behavioural edge-coverage test. Reviewer's optional note (not blocking): the one-spacing tolerance cannot see a single missing edge line. Gate 1321 passed / 0 failed. LCV-149 registered `Draft` (`21414a6`): `transport.rs::ac3_both_halves_of_a_call_give_up_when_the_endpoint_stalls` flakes ~1 in 5 full runs; outside the approved 136..145 scope, so not scheduled without the user. Next: LCV-138.
 - 2026-09-27 — LCV-141 Done — `eff5c93`, `b703fdd`, `2a2e447`, `92f2367`, `77b316b`, `4bb53eb`, flip `fd5df23`. Agent panel capped at one third of the window (default, drag and shrink); implementer also found and fixed a composer row that overflowed the panel at the shipped 300pt default, and a flat footer reserve that let the busy row overlap the transcript. One rework: the Agent Settings `ScrollArea` was defended only by a source scan; now proven by a paint test on the real dialog at 800x150. Reviewer confirmed the headless frames model eframe's persisted `PanelState` faithfully. Gate 1308 passed / 0 failed. Next: LCV-137.
 - 2026-09-27 — LCV-136 Done — `af86b34`, `149797e`, `54ada25`, `26d5c0d`, `f061a56`, flip `a252889`. The implementer's first pass reported no reproduction; `reviewer-rust` showed the harness modelled a frame the real app never produces: a confirmed Exit sends `Close`, eframe 0.29.1 re-delivers it as next frame's `close_requested`, and `poll_close_request` re-parked Exit + `CancelClose` forever. Fixed with an `exit_confirmed` latch; the fix pushed `src/app/mod.rs` to 304 LOC, so ADR 0004's pre-decided `AgentState` seam was executed (mod.rs 294). `painted_runs_at` now asserts `pixels_per_point == 1.0` (parked item closed). Gate 1291 passed / 0 failed. Real-window Close is inferred from eframe source, not smoked: goes on the user's smoke list. Follow-up for `architect`: ADR 0004 seam now executed; ADR 0007 am.(7)'s `agent_turn: TurnState` on `App` must be restated against `App::agent: AgentState` before LCV-142.
 - 2026-09-27 — LCV-136..144 Ready — step 1 cleanup at `909ebba` + `1859f3f`; bodies refined (`b04cd54`, `ffdfb2a`, `c5a03d3`, `ddfef11`, `2e54fd8`); `architect` recorded ADR 0007 amendment (7) (LCV-142: flat turn group beside the undo stack, D12–D15), ADR 0010 (`create_drawing`), ADR 0011 (canvas observation = offscreen grayscale document raster) at `b10ebf4`; flips at `db9394f`. LCV-145 held `Draft`: Ready-quality, but ADR 0011's drawing-only raster (no grid/selection/preview) awaits the user's confirmation, asked via `team-lead`. Next: LCV-136 to `implementer-rust`.
