@@ -1,11 +1,11 @@
 # LCV-140 - Compact R14 chrome and useful action hints
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 11
 - **Depends on**: LCV-115, LCV-116, LCV-132, LCV-139, LCV-141
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: -
+- **Implementation**: implementer-rust, commits 234f472, a7fd396, f57c4c0, 1baad47, 0f9710b
 
 ## Problem
 

@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on | Notes |
 |---|---|---|---|---|
-| LCV-140 | Compact R14 chrome and useful action hints | 11 | LCV-115, LCV-116, LCV-132, LCV-139, LCV-141 | In 1.0 scope per user decision 2026-09-27 |
 | LCV-142 | Larger tool budgets without losing turn undo | 12 | LCV-123, LCV-125, LCV-129 | In 1.0 scope per user decision 2026-09-27; suggested agent implementer-rust / opus (ADR 0007 am.(7) closes the architecture gate) |
 | LCV-143 | Editable harness-aware system prompt | 12 | LCV-125, LCV-141, LCV-142 | In 1.0 scope per user decision 2026-09-27; depends-on gained LCV-142 (TurnConfig) |
 | LCV-144 | Create a drawing from declarative JSON | 12 | LCV-122, LCV-123, LCV-142, LCV-143 | In 1.0 scope per user decision 2026-09-27; suggested agent implementer-rust / opus (ADR 0010 closes the architecture gate) |
@@ -172,6 +171,7 @@ _None._
 | LCV-137 | Visible grid and consistent viewport coordinates | 11 | 2026-09-27 | 451b66d, b6cb733, b330695 |
 | LCV-138 | Native document title and honest file feedback | 11 | 2026-09-27 | 445ec44, 5f7884e, c46b1aa, d5ccef3, fba90da, 4b85072, 0ca5281 |
 | LCV-139 | Readable command input and destination preview | 12 | 2026-09-27 | dd90ff9, e34cbe5, 598047b |
+| LCV-140 | Compact R14 chrome and useful action hints | 11 | 2026-09-27 | 234f472, a7fd396, f57c4c0, 1baad47, 0f9710b |
 
 ## Blocked
 

@@ -1511,7 +1511,7 @@
             "id": "LCV-140",
             "title": "Compact R14 chrome and useful action hints",
             "phase": 11,
-            "status": "Ready",
+            "status": "Done",
             "depends_on": [
                 "LCV-115",
                 "LCV-116",
@@ -1522,7 +1522,8 @@
             "suggested_agent": "implementer-rust",
             "suggested_model": "sonnet",
             "demand_file": "docs/product/demands/LCV-140-compact-r14-chrome-and-action-hints.md",
-            "note": "In 1.0 scope per user decision 2026-09-27."
+            "shipped_commit": "234f472, a7fd396, f57c4c0, 1baad47, 0f9710b",
+            "note": "In 1.0 scope per user decision 2026-09-27. Done 2026-09-27, reviewed and approved after one rework: the tool rail is now resizable(false) and capped at TOOLBAR_WIDTH_CEILING = 120.0pt, scrolling via a ScrollArea that keeps the agent toggle reachable instead of clipping; every toolbar button, the SNAP/GRID/ORTHO indicators, the agent toggle and the preset badge carry hover text; format_coords now emits an explicit mm unit."
         },
         {
             "id": "LCV-141",
