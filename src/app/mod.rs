@@ -24,9 +24,9 @@
 //!
 //! Four files carry the agent's UI-side half (ADR 0007 §D8): `agent_poll`
 //! drains the thread→UI channel once per frame, `agent_apply` turns one
-//! `AgentAction` into one `Command` committed through [`App::commit`],
-//! `agent_turn` holds [`TurnFence`] and drives one whole turn, and
-//! `agent_state` holds the plain data those three (and `src/agent/panel.rs`)
+//! `AgentAction` into one `Command`, `agent_turn` holds [`TurnFence`] and arms
+//! a turn whose thread `agent_worker` drives (LCV-142), and
+//! `agent_state` holds the plain data those files (and `src/agent/panel.rs`)
 //! read and write — [`AgentState`], `App`'s one `agent` field (ADR 0004 §"The
 //! `src/app/mod.rs` seam", LCV-136).
 //!
@@ -52,10 +52,12 @@ mod agent_apply;
 mod agent_poll;
 mod agent_state;
 mod agent_turn;
+mod agent_worker;
 pub use agent_apply::apply;
 pub use agent_poll::{cancel_turn, poll_agent_rx, AGENT_CANCELLED_MESSAGE, AGENT_LOST_MESSAGE};
 pub use agent_state::AgentState;
-pub use agent_turn::{arm_turn, run_agent_turn, start_turn, TurnFence, AGENT_FENCE_REFUSAL};
+pub use agent_turn::{arm_turn, start_turn, TurnFence, AGENT_FENCE_REFUSAL};
+pub use agent_worker::run_agent_turn;
 pub use autosave::{autosave_due, schedule_flush_repaint};
 pub use bed_dialog::{apply_bed_dialog_result, draw_bed_dialog};
 pub(crate) use cmdline::agent_available;
