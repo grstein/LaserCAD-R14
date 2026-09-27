@@ -41,6 +41,26 @@ const PLAINTEXT_KEY_WARNING: &str = "The API key is stored in plain text in sett
 const STEP_BUDGET_HELP: &str = "How many tool calls one prompt may make. More steps means a \
                                 bigger drawing per prompt, and more API calls.";
 
+/// States that edits are live and persist on close (LCV-141 AC 6), next to
+/// the Done button that is a second way to trigger that same close — never a
+/// different semantics: the dialog stays live-edit, persist-on-close.
+const LIVE_EDIT_NOTE: &str = "Changes apply immediately and are saved when this window closes.";
+
+/// What one frame of the form reported.
+pub struct AgentSettingsFrame {
+    /// `true` if **any** of the four fields changed this frame — the flag
+    /// [`draw_agent_settings`] always reported, now carried on a named field
+    /// instead of being the whole return value.
+    pub changed: bool,
+    /// `true` if the Done button (LCV-141 AC 6) was clicked this frame. The
+    /// caller — `src/app/panels.rs::agent_settings_dialog` — closes the
+    /// window through the exact same path it already runs for the × button:
+    /// same `persist_settings()` call, same `was_open &&
+    /// !app.agent_settings_open` guard, never a second, parallel persistence
+    /// path.
+    pub done_clicked: bool,
+}
+
 /// Draw the agent-settings form into `ui`.
 ///
 /// Four labelled rows, in the order the operator meets them:
@@ -57,16 +77,24 @@ const STEP_BUDGET_HELP: &str = "How many tool calls one prompt may make. More st
 ///
 /// Every text field has a minimum width of [`FIELD_MIN_WIDTH`] logical pixels.
 ///
-/// Returns `true` if **any** of the four fields changed this frame, `false`
-/// otherwise — `src/app/panels.rs::agent_settings_dialog` persists on close, so
-/// the flag is what tells the operator's edit apart from an idle frame.
+/// [`AgentSettingsFrame::changed`] is `true` if **any** of the four fields
+/// changed this frame, `false` otherwise — `agent_settings_dialog` persists on
+/// close, so the flag is what tells the operator's edit apart from an idle
+/// frame. [`AgentSettingsFrame::done_clicked`] is `true` the one frame the new
+/// Done button (AC 6) is clicked.
 ///
 /// The slider clamps as it draws (`SliderClamping::Always`), so a settings file
 /// hand-edited to `200` is written back as `32` on the first frame the dialog
-/// is open — and reports `true` that frame, which is what gets the clamped
+/// is open — and reports `changed` that frame, which is what gets the clamped
 /// value persisted. The read-site clamp in `src/app/agent_turn.rs` stays
 /// regardless: a file the dialog was never opened on is still a hand-edited file.
-pub fn draw_agent_settings(ui: &mut egui::Ui, settings: &mut Settings) -> bool {
+///
+/// The body is not wrapped in its own `ScrollArea`: `agent_settings_dialog`
+/// wraps the whole call in one (AC 7, ADR 0009), so a caller measuring this
+/// function in isolation — every inline test below — sees exactly the rows
+/// and sentences this function draws, with no scrolling machinery of its own
+/// to account for.
+pub fn draw_agent_settings(ui: &mut egui::Ui, settings: &mut Settings) -> AgentSettingsFrame {
     let mut changed = false;
     ui.set_max_width(FORM_MAX_WIDTH);
 
@@ -106,7 +134,13 @@ pub fn draw_agent_settings(ui: &mut egui::Ui, settings: &mut Settings) -> bool {
     });
     ui.add(egui::Label::new(egui::RichText::new(STEP_BUDGET_HELP).small()).wrap());
 
-    changed
+    ui.add(egui::Label::new(egui::RichText::new(LIVE_EDIT_NOTE).small()).wrap());
+    let done_clicked = ui.button("Done").clicked();
+
+    AgentSettingsFrame {
+        changed,
+        done_clicked,
+    }
 }
 
 /// One two-column form grid. Two of them, so the long sentences between and
@@ -174,7 +208,7 @@ mod tests {
         };
         let _ = ctx.run(input, |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
-                changed = draw_agent_settings(ui, settings);
+                changed = draw_agent_settings(ui, settings).changed;
             });
         });
         changed
@@ -242,7 +276,7 @@ mod tests {
         let mut changed = false;
         let _output = ctx.run(egui::RawInput::default(), |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
-                changed = draw_agent_settings(ui, &mut settings);
+                changed = draw_agent_settings(ui, &mut settings).changed;
             });
         });
         assert!(!changed);
