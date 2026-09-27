@@ -1,6 +1,6 @@
 # LCV-137 - Visible grid and consistent viewport coordinates
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 11
 - **Depends on**: LCV-032, LCV-033, LCV-034, LCV-120
 - **Suggested agent**: implementer-rust

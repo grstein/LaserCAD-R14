@@ -1,8 +1,8 @@
 # LCV-143 - Editable harness-aware system prompt
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 12
-- **Depends on**: LCV-125, LCV-141
+- **Depends on**: LCV-125, LCV-141, LCV-142
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
 - **Implementation**: -

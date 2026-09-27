@@ -1,6 +1,6 @@
 # LCV-136 - Discard responds to real pointer clicks
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 11
 - **Depends on**: LCV-113, LCV-118, LCV-119
 - **Suggested agent**: implementer-rust

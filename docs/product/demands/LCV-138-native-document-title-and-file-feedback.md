@@ -1,6 +1,6 @@
 # LCV-138 - Native document title and honest file feedback
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 11
 - **Depends on**: LCV-113, LCV-119, LCV-136
 - **Suggested agent**: implementer-rust

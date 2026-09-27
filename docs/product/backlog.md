@@ -6,6 +6,15 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on | Notes |
 |---|---|---|---|---|
+| LCV-136 | Discard responds to real pointer clicks | 11 | LCV-113, LCV-118, LCV-119 | In 1.0 scope per user decision 2026-09-27 |
+| LCV-137 | Visible grid and consistent viewport coordinates | 11 | LCV-032, LCV-033, LCV-034, LCV-120 | In 1.0 scope per user decision 2026-09-27 |
+| LCV-138 | Native document title and honest file feedback | 11 | LCV-113, LCV-119, LCV-136 | In 1.0 scope per user decision 2026-09-27 |
+| LCV-139 | Readable command input and destination preview | 12 | LCV-111, LCV-112, LCV-124, LCV-132 | In 1.0 scope per user decision 2026-09-27 |
+| LCV-140 | Compact R14 chrome and useful action hints | 11 | LCV-115, LCV-116, LCV-132, LCV-139, LCV-141 | In 1.0 scope per user decision 2026-09-27 |
+| LCV-141 | Agent panel stays within the right third | 12 | LCV-125, LCV-129, LCV-132 | In 1.0 scope per user decision 2026-09-27 |
+| LCV-142 | Larger tool budgets without losing turn undo | 12 | LCV-123, LCV-125, LCV-129 | In 1.0 scope per user decision 2026-09-27; suggested agent implementer-rust / opus (ADR 0007 am.(7) closes the architecture gate) |
+| LCV-143 | Editable harness-aware system prompt | 12 | LCV-125, LCV-141, LCV-142 | In 1.0 scope per user decision 2026-09-27; depends-on gained LCV-142 (TurnConfig) |
+| LCV-144 | Create a drawing from declarative JSON | 12 | LCV-122, LCV-123, LCV-142, LCV-143 | In 1.0 scope per user decision 2026-09-27; suggested agent implementer-rust / opus (ADR 0010 closes the architecture gate) |
 
 **Marco 2 — complete, 2026-09-13.** All five demands are `Done` and reviewed: **LCV-121** (`d584f4d`), **LCV-122**
 (`61d609b`…`ff267ec`), **LCV-123** (`6102c68`, `e7ba0a6`, `af5ef82`),
@@ -171,26 +180,24 @@ _None._
 
 ## Draft (awaiting refinement)
 
-| ID | Title | Phase |
-|---|---|---|
-| LCV-136 | Discard responds to real pointer clicks | 11 |
-| LCV-137 | Visible grid and consistent viewport coordinates | 11 |
-| LCV-138 | Native document title and honest file feedback | 11 |
-| LCV-139 | Readable command input and destination preview | 12 |
-| LCV-140 | Compact R14 chrome and useful action hints | 11 |
-| LCV-141 | Agent panel stays within the right third | 12 |
-| LCV-142 | Larger tool budgets without losing turn undo | 12 |
-| LCV-143 | Editable harness-aware system prompt | 12 |
-| LCV-144 | Create a drawing from declarative JSON | 12 |
-| LCV-145 | Opt-in canvas observations for vision models | 12 |
-| LCV-146 | Future Markdown and frontmatter agent skills (deferred) | 12 |
+| ID | Title | Phase | Notes |
+|---|---|---|---|
+| LCV-145 | Opt-in canvas observations for vision models | 12 | In 1.0 scope per user decision 2026-09-27; Ready-quality body (product-owner refined, ADR 0011 recorded) but held at Draft — its own Open Questions section still carries a pending user confirmation of ADR 0011's drawing-only raster (bed outline + entities, no grid/selection/preview). Suggested agent updated to implementer-rust / opus. If the user confirms, flip to Ready without further refinement; if the user declines, return to `architect` per the demand's own note. |
+| LCV-146 | Future Markdown and frontmatter agent skills (deferred) | 12 | Stays Deferred past 1.0 per user decision 2026-09-27; not part of the current implementation queue |
 
-LCV-136 through LCV-146 register the user-requested interface and agent-harness
-plan. Discard reproduction and the one-third panel cap are the first usability
-priorities. Preserve LCV-134 before LCV-132 for shared paint coverage. LCV-142
-must preserve whole-turn undo beyond the 200-entry history depth before raising
-the tool budget. LCV-146 is deferred and must not be selected for implementation.
-LCV-131 is outside this initiative; per the user's 2026-09-14 decision, LCV-148 (prefix-only routing) and LCV-131 (full command words) both shipped with routing specified in ADR 0007.
+LCV-136 through LCV-144 were refined to `Ready` and registered as in-1.0-scope
+by user decision on 2026-09-27 (see the Ready table above); their bodies were
+refined by `product-owner` (commits b04cd54, ffdfb2a, c5a03d3, ddfef11,
+2e54fd8) and their architecture gates closed by `architect` (ADR 0007 am.(7),
+ADR 0010, ADR 0011 — b10ebf4). Discard reproduction and the one-third panel
+cap are the first usability priorities. Preserve LCV-134 before LCV-132 for
+shared paint coverage. LCV-142 must preserve whole-turn undo beyond the
+200-entry history depth before raising the tool budget. LCV-145 is
+Ready-quality but held at Draft on a pending user confirmation (see its row
+above); LCV-146 is deferred past 1.0 and must not be selected for
+implementation. LCV-131 is outside this initiative; per the user's 2026-09-14
+decision, LCV-148 (prefix-only routing) and LCV-131 (full command words) both
+shipped with routing specified in ADR 0007.
 
 **Drive order after Marco 2**: LCV-129 → LCV-127 → LCV-126 → LCV-128, with
 LCV-130 and LCV-131 newly opened and not yet placed — the `project-manager`

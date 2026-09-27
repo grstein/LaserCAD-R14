@@ -1,6 +1,6 @@
 # LCV-139 - Readable command input and destination preview
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 12
 - **Depends on**: LCV-111, LCV-112, LCV-124, LCV-132
 - **Suggested agent**: implementer-rust

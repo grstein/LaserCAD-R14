@@ -1,9 +1,9 @@
 # LCV-142 - Larger tool budgets without losing turn undo
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 12
 - **Depends on**: LCV-123, LCV-125, LCV-129
-- **Suggested agent**: architect
+- **Suggested agent**: implementer-rust
 - **Suggested model**: opus
 - **Implementation**: -
 

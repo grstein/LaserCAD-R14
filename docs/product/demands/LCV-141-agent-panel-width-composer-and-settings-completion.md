@@ -1,6 +1,6 @@
 # LCV-141 - Agent panel stays within the right third
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 12
 - **Depends on**: LCV-125, LCV-129, LCV-132
 - **Suggested agent**: implementer-rust

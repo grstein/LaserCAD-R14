@@ -1,6 +1,6 @@
 # LCV-140 - Compact R14 chrome and useful action hints
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 11
 - **Depends on**: LCV-115, LCV-116, LCV-132, LCV-139, LCV-141
 - **Suggested agent**: implementer-rust
