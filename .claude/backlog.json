@@ -1445,7 +1445,7 @@
             "id": "LCV-136",
             "title": "Discard responds to real pointer clicks",
             "phase": 11,
-            "status": "Ready",
+            "status": "Done",
             "depends_on": [
                 "LCV-113",
                 "LCV-118",
@@ -1454,7 +1454,8 @@
             "suggested_agent": "implementer-rust",
             "suggested_model": "sonnet",
             "demand_file": "docs/product/demands/LCV-136-discard-button-pointer-click-regression.md",
-            "note": "In 1.0 scope per user decision 2026-09-27."
+            "shipped_commit": "af86b34, 149797e, 54ada25, 26d5c0d, f061a56",
+            "note": "Done 2026-09-27. Reproduced and fixed the real regression: a confirmed Exit re-parked and reopened the discard-confirmation dialog forever because eframe re-delivers ViewportEvent::Close on a later frame after the app has already asked to close. 149797e stops a confirmed Exit from re-parking on a re-delivered Close. The New and Open discard paths were investigated too and found not to reproduce the reported failure; they are now covered by real-pointer tests (locating the painted Discard/Cancel button and driving PointerMoved + PointerButton, never calling apply_dialog_result directly) alongside two rounds of re-delivered Close. tests/harness/paint.rs::painted_runs_at now asserts pixels_per_point == 1.0 before collecting runs. 26d5c0d is a refactor extracting AgentState per ADR 0004, folded into this drive."
         },
         {
             "id": "LCV-137",

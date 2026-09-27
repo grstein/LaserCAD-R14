@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on | Notes |
 |---|---|---|---|---|
-| LCV-136 | Discard responds to real pointer clicks | 11 | LCV-113, LCV-118, LCV-119 | In 1.0 scope per user decision 2026-09-27 |
 | LCV-137 | Visible grid and consistent viewport coordinates | 11 | LCV-032, LCV-033, LCV-034, LCV-120 | In 1.0 scope per user decision 2026-09-27 |
 | LCV-138 | Native document title and honest file feedback | 11 | LCV-113, LCV-119, LCV-136 | In 1.0 scope per user decision 2026-09-27 |
 | LCV-139 | Readable command input and destination preview | 12 | LCV-111, LCV-112, LCV-124, LCV-132 | In 1.0 scope per user decision 2026-09-27 |
@@ -171,6 +170,7 @@ _None._
 | LCV-132 | A rendering criterion is paid for in painted text, not in a source scan | 12 | 2026-09-14 | 1b89f0e, 4069efc, 8495a2a, dbca0a3 |
 | LCV-147 | The tree-wide loopback scan ships disabled, blocked by a control that breaks the rule it controls for | 12 | 2026-09-14 | f2aca88 |
 | LCV-148 | An unrecognised line answers locally and never reaches the model | 12 | 2026-09-14 | 421d730, 4caac01, e5d33d7 |
+| LCV-136 | Discard responds to real pointer clicks | 11 | 2026-09-27 | af86b34, 149797e, 54ada25, 26d5c0d, f061a56 |
 
 ## Blocked
 
