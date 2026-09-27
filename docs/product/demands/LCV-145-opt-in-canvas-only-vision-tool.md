@@ -165,11 +165,12 @@ Permissions are enforced in code, independently of the (editable) prompt.
 
 ## Open questions
 
-- **Pending user confirmation before implementation:** is a drawing-only
-  raster (bed outline and entities; no grid, selection, preview or UI) an
-  acceptable canvas observation for 1.0? ADR 0011 is written on that basis.
-  If the user says no, this demand returns to `architect`; the screenshot
-  route is not a fallback.
+None. The drawing-only raster — an offscreen grayscale image of the bed
+outline and entities only, framed to the visible viewport, longest edge
+at most 1024 px, with no grid, selection, preview or chrome — was
+confirmed by the user when asked directly on 2026-09-27. This demand's
+scope, acceptance criteria and expected tests are written against that
+answer and against ADR 0011.
 
 ## Notes
 
