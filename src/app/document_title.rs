@@ -11,8 +11,10 @@
 //! - [`DocumentTitleState::recovered_from_autosave`] — set once, in
 //!   `App::new()`'s recovery branch (`src/app/init.rs`), when the session's
 //!   document came back from the crash-safety autosave rather than a normal
-//!   load or a blank start. Read by `src/ui/statusbar.rs` to show a label
-//!   distinct from the ordinary autosave badge.
+//!   load or a blank start; cleared by `App::mark_saved()` once the drawing
+//!   is actually saved or replaced (LCV-138 amended AC 4). Read by
+//!   `src/ui/statusbar.rs` to show a label distinct from the ordinary
+//!   autosave badge.
 //!
 //! MUST NOT import `eframe` or `rfd`.
 
@@ -32,10 +34,15 @@ pub struct DocumentTitleState {
     /// `true` while this session's document was recovered from the
     /// crash-safety autosave at boot (`App::new()`, LCV-138 AC 4) rather than
     /// loaded normally or started blank. Set in exactly one place, alongside
-    /// `app.document = recovered` — never elsewhere, and never cleared: it
-    /// records what happened *at boot*, not whether the document is still
-    /// unsaved ([`App::has_unsaved_changes`] is that signal). `App::default()`
-    /// — the test constructor — leaves it `false`.
+    /// `app.document = recovered`, and nowhere else; cleared in exactly one
+    /// place, [`App::mark_saved`](super::App::mark_saved) (LCV-138 amended
+    /// AC 4) — the label's whole point is honest file feedback, so it must
+    /// stop naming a state that has stopped being true once the recovered
+    /// drawing is actually written to a file, or the operator replaces it
+    /// outright via New/Open(/Recent). An autosave flush (`mark_clean()`
+    /// alone, with no `mark_saved()`) leaves it set: a crash-safety write is
+    /// not the operator saving. `App::default()` — the test constructor —
+    /// leaves it `false`.
     pub recovered_from_autosave: bool,
 }
 

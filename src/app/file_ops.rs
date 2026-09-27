@@ -97,8 +97,17 @@ impl App {
     /// `action_open_path`, `action_save`, `action_save_as` — in place of the
     /// bare `mark_clean()` they used to call, always after any `history`
     /// replacement so `history.revision()` reads the fresh history's value.
+    ///
+    /// Also the **only** clearer of `title.recovered_from_autosave` (LCV-138
+    /// amended AC 4): once this call certifies the document safe to discard —
+    /// actually written to a file, or replaced outright via New/Open(/Recent)
+    /// — the label's claim ("recovered and unsaved") has stopped being true,
+    /// so it must stop being shown. An autosave flush calls only
+    /// `mark_clean()`, never this method, so a crash-safety write alone
+    /// leaves the flag set — it is not the operator saving.
     pub fn mark_saved(&mut self) {
         self.guard.saved_revision = Some(self.history.revision());
+        self.title.recovered_from_autosave = false;
         self.mark_clean();
     }
 
@@ -352,6 +361,43 @@ mod tests {
         assert_eq!(app.guard.saved_revision, Some(app.history.revision()));
         assert!(app.dirty_since.is_none());
         assert_eq!(app.last_synced_revision, app.history.revision());
+    }
+
+    /// LCV-138 amended AC 4 — `mark_saved` is the only clearer of
+    /// `title.recovered_from_autosave`: once the document is certified safe
+    /// to discard, the "recovered and unsaved" label has stopped being true.
+    #[test]
+    fn mark_saved_clears_recovered_from_autosave() {
+        let mut app = App {
+            title: crate::app::DocumentTitleState {
+                recovered_from_autosave: true,
+                ..Default::default()
+            },
+            ..App::default()
+        };
+
+        app.mark_saved();
+
+        assert!(!app.title.recovered_from_autosave);
+    }
+
+    /// LCV-138 amended AC 4, the companion regression: an autosave flush
+    /// (`mark_clean()` alone, with no `mark_saved()`) must leave the flag
+    /// set — a crash-safety write is not the operator saving, matching AC 3's
+    /// guarantee that autosave never clears the unsaved marker either.
+    #[test]
+    fn mark_clean_alone_does_not_clear_recovered_from_autosave() {
+        let mut app = App {
+            title: crate::app::DocumentTitleState {
+                recovered_from_autosave: true,
+                ..Default::default()
+            },
+            ..App::default()
+        };
+
+        app.mark_clean();
+
+        assert!(app.title.recovered_from_autosave);
     }
 
     // -- AC 5, 6 — the guarded entry points ----------------------------------

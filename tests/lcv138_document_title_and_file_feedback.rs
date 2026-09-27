@@ -401,6 +401,108 @@ fn recovered_badge_paints_with_its_hover_text_and_touches_nothing_else() {
     );
 }
 
+/// LCV-138 amended AC 4 — a successful Save clears the recovered flag: the
+/// drawing that came back from the crash-safety copy has now actually been
+/// written to a file.
+#[test]
+fn action_save_clears_recovered_from_autosave() {
+    let dir = tempdir("recovered_save");
+    let mut app = App {
+        settings_path: Some(dir.join("settings.json")),
+        autosave_path: Some(dir.join("autosave.json")),
+        current_file: Some(dir.join("drawing.svg")),
+        title: DocumentTitleState {
+            recovered_from_autosave: true,
+            ..Default::default()
+        },
+        ..App::default()
+    };
+    app.history
+        .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
+
+    app.action_save();
+
+    assert_eq!(app.error_message, None, "the save must succeed");
+    assert!(
+        !app.title.recovered_from_autosave,
+        "a successful save must clear the recovered label"
+    );
+}
+
+/// LCV-138 amended AC 4 — a successful Open Recent clears the recovered
+/// flag too: the operator has replaced the recovered drawing outright.
+#[test]
+fn action_open_path_clears_recovered_from_autosave() {
+    let dir = tempdir("recovered_open_path");
+    let svg = dir.join("opened.svg");
+    std::fs::write(&svg, VALID_SVG).unwrap();
+    let mut app = App {
+        settings_path: Some(dir.join("settings.json")),
+        autosave_path: Some(dir.join("autosave.json")),
+        title: DocumentTitleState {
+            recovered_from_autosave: true,
+            ..Default::default()
+        },
+        ..App::default()
+    };
+
+    app.action_open_path(svg);
+
+    assert_eq!(app.error_message, None, "the open must succeed");
+    assert!(
+        !app.title.recovered_from_autosave,
+        "a successful Open Recent must clear the recovered label"
+    );
+}
+
+/// LCV-138 amended AC 4 — File > New clears the recovered flag as well: the
+/// operator has discarded the recovered drawing for a blank one.
+#[test]
+fn action_new_clears_recovered_from_autosave() {
+    let dir = tempdir("recovered_new");
+    let mut app = App {
+        settings_path: Some(dir.join("settings.json")),
+        autosave_path: Some(dir.join("autosave.json")),
+        title: DocumentTitleState {
+            recovered_from_autosave: true,
+            ..Default::default()
+        },
+        ..App::default()
+    };
+
+    app.action_new();
+
+    assert!(
+        !app.title.recovered_from_autosave,
+        "File > New must clear the recovered label"
+    );
+}
+
+/// LCV-138 amended AC 4, the companion regression at the app-action level:
+/// an autosave flush alone (`mark_clean()`, no Save/Open/New) must leave the
+/// recovered flag set — a crash-safety write is not the operator saving,
+/// matching AC 3's guarantee that autosave never clears the unsaved marker
+/// either.
+#[test]
+fn autosave_flush_leaves_recovered_from_autosave_set() {
+    let mut app = App {
+        title: DocumentTitleState {
+            recovered_from_autosave: true,
+            ..Default::default()
+        },
+        ..App::default()
+    };
+    app.history
+        .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
+
+    app.mark_clean(); // what flush_if_due calls after every write
+
+    assert!(
+        app.title.recovered_from_autosave,
+        "an autosave flush must not clear the recovered label"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // AC 5 — Open Recent disambiguation and honest failure
 // ---------------------------------------------------------------------------
