@@ -9,46 +9,99 @@
 
 ## Problem
 
-Prompt, feedback and editor currently compete in one horizontal row. The
-operator cannot see the CAD/AI destination before submitting input.
+Prompt, feedback and the editable field currently share one horizontal row
+(`src/ui/command_line.rs::draw_command_line`). A long tool prompt, a long
+feedback message and the input field compete for the same strip, and the
+operator cannot see whether the line they are about to submit will be read as
+CAD grammar or sent to the agent before pressing Enter.
 
 ## Scope
 
-A bounded two-row command dock and a read-only destination indication using
-the existing classifier, without changing input or routing semantics.
+- A bounded two-row command dock: a context row (prompt + feedback + a
+  read-only destination label) above an editable input row.
+- The destination label reflects, live and without side effects, where the
+  current field text would go if submitted right now.
 
 ## Out of scope
 
-LCV-131, new aliases, prefix-only routing, a CAD/AI mode selector, input
-rewriting, network calls during preview or a command history viewer.
+- Any change to routing behavior. LCV-131 (full CAD command words, e.g.
+  `line`/`circle`) and LCV-148 (prefix-only agent routing — only `:` / `/ai`
+  reach the model, every other line is CAD grammar, recognised or not) are
+  already shipped (ADR 0007 §D9, amendment (5)). This demand **presents**
+  that routing; it does not add a prefix, an alias or a word of its own.
+- A CAD/AI mode selector, input rewriting, network calls made while previewing
+  (before Enter), and a command-history viewer.
 
 ## Acceptance criteria
 
-1. At 800x600 logical points, the default-font dock is at most 64pt high and its single-line editor at least 240pt wide. Context and editor have separate rows.
-2. Prompt/result presentation is bounded, with full-text tooltips for elision. Stored input, feedback and recall data remain exact.
-3. Raw tool input wins before classification. Otherwise reuse `agent::classify` and submission's availability definition, not another parser or prefix table.
-4. Show CAD, AI, tool input, unavailable AI, empty AI prompt and busy AI as applicable. Blank CAD input still retains existing Enter behavior; valid CAD/raw input is never relabelled AI merely because the agent is busy.
-5. Current routing remains authoritative: `LINE` is unknown grammar input, routes to AI with a configured key and remains a local error without one. Explicit prefixes and raw TEXT precedence are unchanged.
-6. Editing/rendering the indicator never sends HTTP, arms a turn, opens the agent panel, changes focus, inserts history or mutates geometry.
-7. Enter submits once; Escape, recall, raw TEXT focus and exact typed geometry retain their existing behavior. Labels cannot obscure input at supported sizes.
+1. At 800x600 logical points, the default-font two-row dock is at most 64pt
+   tall in total, and its single-line editor is at least 240pt wide. The
+   context row (prompt, feedback, destination label) and the editable input
+   sit on visually separate rows.
+2. Prompt and feedback text are bounded (no strip that grows unbounded with a
+   long message); elided text carries a full-text tooltip. The stored
+   `command_line_input`, `command_feedback` and recall-ring contents remain
+   byte-exact — only the *display* elides.
+3. Raw tool input (`app.tool_manager.wants_raw_input()`) wins before
+   classification and shows a `tool input` destination without calling
+   `classify`. Otherwise the destination is computed by calling
+   `crate::agent::classify(raw, agent_available)` with the same
+   `agent_available` definition `src/app/cmdline.rs::agent_available` uses (a
+   configured API key with non-whitespace content) — never a second parser,
+   parallel prefix table or independent availability check.
+4. The label shows exactly one of: `CAD` (`Route::Cad`, including a blank
+   line and any unrecognised word), `AI` (`Route::Agent` with a non-empty
+   prompt and a configured key), `tool input` (raw-input mode), `AI
+   unavailable` (`Route::Agent` with no configured key), `AI prompt empty` (a
+   bare `:` or `/ai` prefix with nothing after it), and `AI busy` (a
+   `:`/`/ai`-prefixed line while `app.agent_busy` is true). A blank line
+   always reads `CAD` and Enter's existing empty-input behavior
+   (`CommandInput::Empty`) is unchanged; a valid CAD or raw-tool line is never
+   relabelled `AI` merely because the agent happens to be busy.
+5. Routing precedence itself is unchanged (ADR 0007 §D9, amendment (5)): a
+   `:` or `/ai` prefix is the only way to reach the agent; every unprefixed
+   line stays local whether or not the grammar recognises it. An unrecognised
+   unprefixed word (e.g. `lien`) always shows `CAD` and, on submit, still
+   answers the grammar's own `Unknown command: "…"` — never a network call.
+   `line`, `circle` and the rest of LCV-131's tool words are ordinary CAD
+   grammar under this label, not an agent destination.
+6. Editing the field or re-rendering the label never sends HTTP, arms a turn,
+   opens the agent panel, changes egui focus, writes to the recall ring, or
+   mutates the document/history.
+7. Enter submits exactly once from the editor row; Escape, recall
+   (`ArrowUp`/`ArrowDown`), raw-TEXT focus-holding and exact typed geometry
+   (LCV-111 / LCV-112) keep their existing behavior unchanged. The
+   destination label never overlaps or truncates the editor's visible text at
+   any supported size.
 
 ## Expected tests
 
-- AC 1-2/7: settled real-App layout with long prompt/error content, actual editor bounds and tooltip content.
-- AC 3-5: destination/submission table for raw text, blank, aliases, numeric input, prefixes, whitespace keys, `LINE` and busy state.
-- AC 6: fake send counter and state comparisons over repeated edit/render frames.
-- AC 7: preserve LCV-111/112/124 behavioral expectations and real Enter/Escape/recall events.
+- AC 1-2 / AC 7: a settled real-`App` frame with long prompt/feedback content,
+  measuring actual editor bounds, row separation and tooltip content — not a
+  source scan.
+- AC 3-5: a destination/submission table covering raw-tool-input mode, a
+  blank line, CAD tool aliases (`line`, `l`, `circle`), numeric/coordinate
+  input, `:`/`/ai` prefixes, a whitespace-only key, an unrecognised word
+  (`lien`) and the busy-agent state, each asserted with and without a
+  configured key.
+- AC 6: a fake send counter plus before/after state comparisons (focus,
+  history revision, recall ring, `agent_busy`) across repeated edit/render
+  frames with no Enter.
+- AC 7: the existing LCV-111 / LCV-112 / LCV-124 regression suites still
+  pass unchanged, plus a real Enter/Escape/recall-driven frame test on the
+  two-row layout.
 
 ## Open questions
 
-Before Ready, architect checks current ADR 0007 D9 wording against the user's
-explicit retained-routing choice. If concurrent documentation specifies
-prefix-only routing, reconcile that conflict explicitly; do not implement it
-silently under this presentation demand.
+None. ADR 0007 §D9 / amendment (5) and `src/agent/classifier.rs`'s shipped
+precedence table (`the_precedence_table_holds_for_both_availabilities`)
+already settle prefix-only routing; this demand presents that routing and
+defines no new one.
 
 ## Notes
 
 Primary files: `src/ui/command_line.rs`, a focused
-`src/ui/command_destination.rs`, and root re-exports. Share the existing
-availability predicate rather than duplicating it. Consume LCV-132 paint
-helpers after the existing LCV-134-before-LCV-132 sequence.
+`src/ui/command_destination.rs`, and the `src/ui/mod.rs` re-export. Reuse
+`crate::agent::classify` and `src/app/cmdline.rs::agent_available` rather than
+duplicating either. Consume `tests/harness/paint.rs` (LCV-132, Done) for the
+rendering assertions in AC 1, AC 2 and AC 7.
