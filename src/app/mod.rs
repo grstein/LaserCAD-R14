@@ -574,6 +574,8 @@ mod tests {
             },
             ..App::default()
         };
+        // A hand-armed turn opens its group as `arm_turn` would (§D14).
+        app.history.begin_group("Agent: test");
         let before = app.history.revision();
         tx.send(AgentEvent::Act {
             action: AgentAction::CreateCircle {
@@ -633,6 +635,8 @@ mod tests {
             },
             ..App::default()
         };
+        // A hand-armed turn opens its group as `arm_turn` would (§D14).
+        app.history.begin_group("Agent: test");
         tx.send(AgentEvent::Act {
             action: AgentAction::CreateCircle {
                 cx: 0.0,
@@ -706,6 +710,8 @@ mod tests {
             },
             ..App::default()
         };
+        // A hand-armed turn opens its group as `arm_turn` would (§D14).
+        app.history.begin_group("Agent: test");
         tx.send(AgentEvent::Act {
             action: AgentAction::CreateCircle {
                 cx: 0.0,

@@ -124,8 +124,10 @@ pub fn poll_agent_rx(app: &mut App) {
 /// action, it gets a transcript row like any other, and it is not an *applied*
 /// action.
 fn apply_fenced(app: &mut App, action: &AgentAction) -> AgentOutcome {
-    if let Err(refusal) = app.agent.turn.fence.check(app.history.revision()) {
-        let outcome = AgentOutcome::Refused(refusal);
+    let (revision, group_open) = (app.history.revision(), app.history.group_open());
+    if let Err(refusal) = app.agent.turn.fence.check(revision, group_open) {
+        // §D14: the worker reads `Fenced` as "stop dispatching".
+        let outcome = AgentOutcome::Fenced(refusal);
         agent_apply::transcribe(app, &outcome);
         return outcome;
     }

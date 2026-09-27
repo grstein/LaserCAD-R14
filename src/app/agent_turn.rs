@@ -76,15 +76,21 @@ impl TurnFence {
         }
     }
 
-    /// Is `current` still the revision this turn expects?
+    /// Is `current` still the revision this turn expects, and is the turn's
+    /// history group still open (ADR 0007 §D14)?
+    ///
+    /// The second witness catches what the revision alone cannot: document
+    /// replacement restarts `History` at revision 0, so a turn armed at 0 would
+    /// otherwise read `0 == 0` against a different file. Every seal and every
+    /// replacement leaves no group open.
     ///
     /// # Errors
     ///
     /// [`AGENT_FENCE_REFUSAL`] when the revision moved without this turn's
-    /// knowledge — and on **every** later call, whatever `current` is, because
-    /// the trip is sticky.
-    pub fn check(&mut self, current: u64) -> Result<(), String> {
-        if self.tripped || current != self.expected {
+    /// knowledge or the group is gone — and on **every** later call, whatever
+    /// the arguments, because the trip is sticky.
+    pub fn check(&mut self, current: u64, group_open: bool) -> Result<(), String> {
+        if self.tripped || current != self.expected || !group_open {
             self.tripped = true;
             return Err(AGENT_FENCE_REFUSAL.to_string());
         }
@@ -234,8 +240,8 @@ mod tests {
     #[test]
     fn a_matching_revision_passes() {
         let mut fence = TurnFence::new(10);
-        assert_eq!(fence.check(10), Ok(()));
-        assert_eq!(fence.check(10), Ok(()));
+        assert_eq!(fence.check(10, true), Ok(()));
+        assert_eq!(fence.check(10, true), Ok(()));
         assert!(!fence.is_tripped());
     }
 
@@ -244,7 +250,7 @@ mod tests {
     #[test]
     fn a_foreign_revision_is_refused_with_the_adr_wording() {
         let mut fence = TurnFence::new(10);
-        assert_eq!(fence.check(11), Err(AGENT_FENCE_REFUSAL.to_string()));
+        assert_eq!(fence.check(11, true), Err(AGENT_FENCE_REFUSAL.to_string()));
         assert!(AGENT_FENCE_REFUSAL.contains("Nothing was applied"));
         assert!(AGENT_FENCE_REFUSAL.contains("Undo is unaffected"));
     }
@@ -255,9 +261,9 @@ mod tests {
     #[test]
     fn a_tripped_fence_refuses_even_a_matching_revision() {
         let mut fence = TurnFence::new(10);
-        assert!(fence.check(11).is_err());
-        assert_eq!(fence.check(10), Err(AGENT_FENCE_REFUSAL.to_string()));
-        assert_eq!(fence.check(11), Err(AGENT_FENCE_REFUSAL.to_string()));
+        assert!(fence.check(11, true).is_err());
+        assert_eq!(fence.check(10, true), Err(AGENT_FENCE_REFUSAL.to_string()));
+        assert_eq!(fence.check(11, true), Err(AGENT_FENCE_REFUSAL.to_string()));
         assert!(fence.is_tripped());
     }
 
@@ -268,11 +274,22 @@ mod tests {
     fn advance_moves_the_expectation() {
         let mut fence = TurnFence::new(10);
         fence.advance(11);
-        assert_eq!(fence.check(11), Ok(()));
+        assert_eq!(fence.check(11, true), Ok(()));
         assert!(
-            fence.check(10).is_err(),
+            fence.check(10, true).is_err(),
             "a rewound revision is still foreign"
         );
+    }
+
+    /// LCV-142 AC 9 (ADR 0007 §D14) — the second witness: a matching revision
+    /// with no group open trips the fence, and the trip is sticky even once a
+    /// group is open again. This is the revision-0 replacement hole.
+    #[test]
+    fn a_closed_group_trips_the_fence_even_on_a_matching_revision() {
+        let mut fence = TurnFence::new(0);
+        assert_eq!(fence.check(0, false), Err(AGENT_FENCE_REFUSAL.to_string()));
+        assert!(fence.is_tripped());
+        assert_eq!(fence.check(0, true), Err(AGENT_FENCE_REFUSAL.to_string()));
     }
 
     // ── AC 3: arming, and refusing to arm twice ──────────────────────────────
@@ -329,7 +346,7 @@ mod tests {
 
         let _tx = arm_turn(&mut app, "go on");
         assert_eq!(app.agent.turn.fence, TurnFence::new(revision));
-        assert_eq!(app.agent.turn.fence.check(revision), Ok(()));
+        assert_eq!(app.agent.turn.fence.check(revision, true), Ok(()));
     }
 
     /// AC 3 — a second turn is refused while one is in flight, and refused

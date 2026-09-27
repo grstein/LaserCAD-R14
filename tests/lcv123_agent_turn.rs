@@ -338,12 +338,13 @@ fn a_foreign_commit_mid_turn_refuses_every_later_action() {
 
         assert_eq!(
             second.try_recv().unwrap(),
-            AgentOutcome::Refused(AGENT_FENCE_REFUSAL.to_owned()),
-            "{foreign}: the fence must refuse in the ADR 0007 §D4 wording"
+            AgentOutcome::Fenced(AGENT_FENCE_REFUSAL.to_owned()),
+            "{foreign}: the fence must refuse in the ADR 0007 §D4 wording, as \
+             `Fenced` (§D14)"
         );
         assert_eq!(
             third.try_recv().unwrap(),
-            AgentOutcome::Refused(AGENT_FENCE_REFUSAL.to_owned()),
+            AgentOutcome::Fenced(AGENT_FENCE_REFUSAL.to_owned()),
             "{foreign}: the trip is sticky — every later action is refused too"
         );
         assert_eq!(

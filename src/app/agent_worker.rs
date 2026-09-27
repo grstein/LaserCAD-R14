@@ -10,7 +10,8 @@
 //! test it is a closure.
 
 use crate::agent::{
-    agent_loop, AgentAction, AgentError, AgentEvent, AgentOutcome, ChatMessage, AGENT_SYSTEM_PROMPT,
+    agent_loop, AgentAction, AgentError, AgentEvent, AgentOutcome, AssistantMessage, ChatMessage,
+    AGENT_SYSTEM_PROMPT,
 };
 use std::sync::mpsc::{channel, Sender};
 
@@ -59,8 +60,10 @@ impl std::fmt::Debug for TurnConfig {
 /// # Errors
 ///
 /// [`AgentError`] for a transport failure, a malformed tool call, an exhausted
-/// step budget, a reply carrying neither text nor tool calls, or
-/// [`AgentError::Cancelled`] when `ask` reports that nobody is left to answer.
+/// step budget, a reply carrying neither text nor tool calls, tool calls asked
+/// for after a `Fenced` answer stopped the turn ([`AgentError::FenceStopped`],
+/// §D14), or [`AgentError::Cancelled`] when `ask` reports that nobody is left
+/// to answer.
 /// An action the document *refuses* is **not** an error: the refusal goes back
 /// to the model as the tool result and the turn continues (ADR 0007 §D2a).
 pub fn run_agent_turn<A>(
@@ -71,10 +74,6 @@ pub fn run_agent_turn<A>(
 where
     A: FnMut(AgentAction) -> Result<AgentOutcome, AgentError>,
 {
-    let mut messages = vec![
-        ChatMessage::system(AGENT_SYSTEM_PROMPT),
-        ChatMessage::user(prompt),
-    ];
     // Built once; every round offers the model the same schemas.
     let tools = crate::agent::tool_definitions();
     let mut send_fn = |msgs: &[ChatMessage]| {
@@ -90,6 +89,26 @@ where
         crate::agent::chat_completion(endpoint, api_key, model, msgs, &tools)
             .map_err(|e| AgentError::Transport(e.to_string()))
     };
+    drive_turn(prompt, config.step_limit, &mut send_fn, ask)
+}
+
+/// [`run_agent_turn`] minus the network: the conversation, the parse and the
+/// `ask`, with `send_fn` injected so the worker's own rules — the fence stop
+/// (§D14) and malformed calls (§D15) — are testable without an endpoint.
+fn drive_turn<F, A>(
+    prompt: &str,
+    step_limit: u32,
+    send_fn: &mut F,
+    ask: &mut A,
+) -> Result<String, AgentError>
+where
+    F: FnMut(&[ChatMessage]) -> Result<AssistantMessage, AgentError>,
+    A: FnMut(AgentAction) -> Result<AgentOutcome, AgentError>,
+{
+    let mut messages = vec![
+        ChatMessage::system(AGENT_SYSTEM_PROMPT),
+        ChatMessage::user(prompt),
+    ];
     let mut dispatch_fn = |name: &str, args: &str| {
         // The argument-free queries are routinely called with `""` rather than
         // `"{}"`, which is not JSON; both mean the same empty object here.
@@ -101,15 +120,11 @@ where
         };
         let action = crate::agent::parse_tool_call(name, &value)
             .map_err(|e| AgentError::ToolDispatch(e.to_string()))?;
-        // A refusal is a tool result, not a failure (ADR 0007 §D2a).
-        Ok(ask(action)?.into_text())
+        // A refusal is a tool result, not a failure (ADR 0007 §D2a); a
+        // `Fenced` answer is read, not evaluated, by `agent_loop` (§D14).
+        ask(action)
     };
-    agent_loop(
-        &mut send_fn,
-        &mut dispatch_fn,
-        &mut messages,
-        config.step_limit,
-    )
+    agent_loop(send_fn, &mut dispatch_fn, &mut messages, step_limit)
 }
 
 /// The worker thread's `ask`: one rendezvous with the UI thread (ADR 0007 §D2).
@@ -760,5 +775,101 @@ mod tests {
             matches!(outcome, Err(AgentError::Cancelled)),
             "a worker parked on an answer nobody will give must unwind, got {outcome:?}"
         );
+    }
+
+    // ── LCV-142 AC 9: a `Fenced` answer stops dispatch (ADR 0007 §D14) ───────
+
+    fn batch(calls: &[(&str, &str)]) -> AssistantMessage {
+        AssistantMessage {
+            content: None,
+            tool_calls: Some(
+                calls
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (name, args))| {
+                        crate::agent::ToolCall::function(format!("call_{i}"), *name, *args)
+                    })
+                    .collect(),
+            ),
+        }
+    }
+
+    fn text(content: &str) -> AssistantMessage {
+        AssistantMessage {
+            content: Some(content.to_owned()),
+            tool_calls: None,
+        }
+    }
+
+    /// Drive a fake turn: first reply a batch of three, then `last`, then
+    /// (if asked) anything. `ask` answers `Fenced` every time. Returns the
+    /// result, the ask count, the send count and the messages the final send
+    /// saw.
+    fn fenced_turn(
+        last: AssistantMessage,
+    ) -> (Result<String, AgentError>, usize, usize, Vec<ChatMessage>) {
+        let three = batch(&[
+            ("query_entities", "{}"),
+            ("delete_entity", r#"{"index":0}"#),
+            ("query_selection", ""),
+        ]);
+        let (mut sends, mut asks) = (0usize, 0usize);
+        let mut seen = Vec::new();
+        let mut send_fn = |msgs: &[ChatMessage]| {
+            sends += 1;
+            seen = msgs.to_vec();
+            Ok(match sends {
+                1 => three.clone(),
+                2 => last.clone(),
+                _ => text("a third send must never happen"),
+            })
+        };
+        let mut ask = |_action: AgentAction| {
+            asks += 1;
+            Ok(AgentOutcome::Fenced(
+                crate::app::AGENT_FENCE_REFUSAL.to_owned(),
+            ))
+        };
+        let result = drive_turn("go", AGENT_STEP_BUDGET_DEFAULT, &mut send_fn, &mut ask);
+        (result, asks, sends, seen)
+    }
+
+    /// AC 9 — the first `Fenced` answer stops dispatch: `ask` is called once,
+    /// the other two calls get the fixed placeholder so every id is answered,
+    /// and exactly one more completion is sent, whose text ends the turn `Ok`.
+    #[test]
+    fn a_fenced_answer_placeholders_the_rest_and_sends_once_more() {
+        let (result, asks, sends, seen) = fenced_turn(text("I stopped."));
+        assert_eq!(result.expect("text ends the turn Ok"), "I stopped.");
+        assert_eq!((asks, sends), (1, 2));
+
+        let tools: Vec<_> = seen.iter().filter(|m| m.role == "tool").collect();
+        assert_eq!(tools.len(), 3, "every tool_call_id is answered");
+        let ids: Vec<_> = tools.iter().map(|m| m.tool_call_id.clone()).collect();
+        let want = ["call_0", "call_1", "call_2"].map(|id| Some(id.to_owned()));
+        assert_eq!(ids, want);
+        assert_eq!(
+            tools[0].content.as_deref(),
+            Some(crate::app::AGENT_FENCE_REFUSAL)
+        );
+        let placeholder = "not run: the turn stopped after the drawing changed outside it";
+        assert_eq!(crate::agent::loop_::FENCE_STOP_PLACEHOLDER, placeholder);
+        for tool in &tools[1..] {
+            assert_eq!(tool.content.as_deref(), Some(placeholder));
+        }
+    }
+
+    /// AC 9 — if the one last reply asks for more tool calls, none is
+    /// dispatched and the turn ends `FenceStopped` with the exact sentence.
+    #[test]
+    fn tool_calls_after_a_fence_stop_end_the_turn_failed_undispatched() {
+        let (result, asks, sends, _) = fenced_turn(batch(&[("query_entities", "{}")]));
+        let error = result.expect_err("tool calls after the stop must fail");
+        assert!(matches!(error, AgentError::FenceStopped), "got {error:?}");
+        assert_eq!(
+            error.to_string(),
+            "the turn stopped after the drawing changed outside it"
+        );
+        assert_eq!((asks, sends), (1, 2), "no further ask, no third send");
     }
 }

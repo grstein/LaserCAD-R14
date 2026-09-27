@@ -96,16 +96,22 @@ pub enum AgentAction {
 
 /// What the UI thread answers for one [`AgentAction`].
 ///
-/// Both variants travel back to the model as the `tool` result: **a refusal is
+/// Every variant travels back to the model as the `tool` result: **a refusal is
 /// information, not a failure** (ADR 0007 §D2a). An out-of-range index or a
-/// tripped fence answers `Refused` and the model can re-read the drawing and
-/// try again; only a transport or protocol failure ends a turn.
+/// malformed call answers `Refused` and the model can re-read the drawing and
+/// try again. A tripped fence answers `Fenced`, after which the worker sends
+/// one last completion and the turn ends (§D14).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AgentOutcome {
     /// The action was applied. Carries the sentence the model reads back.
     Ok(String),
     /// The action was not applied, and this is why.
     Refused(String),
+    /// The action was not applied because the turn's fence has tripped (ADR
+    /// 0007 §D14). A refusal like any other to the model and the transcript,
+    /// and the one verdict on which the worker stops dispatching: it reads the
+    /// UI thread's decision, it never evaluates the fence itself.
+    Fenced(String),
 }
 
 impl AgentOutcome {
@@ -113,20 +119,25 @@ impl AgentOutcome {
     /// model as the `tool` result.
     pub fn text(&self) -> &str {
         match self {
-            Self::Ok(text) | Self::Refused(text) => text,
+            Self::Ok(text) | Self::Refused(text) | Self::Fenced(text) => text,
         }
     }
 
     /// Consume the outcome and take its sentence.
     pub fn into_text(self) -> String {
         match self {
-            Self::Ok(text) | Self::Refused(text) => text,
+            Self::Ok(text) | Self::Refused(text) | Self::Fenced(text) => text,
         }
     }
 
-    /// Was this a refusal? Convenience for tests and for the transcript.
+    /// Was this a refusal — `Fenced` included? Drives the transcript role.
     pub fn is_refused(&self) -> bool {
-        matches!(self, Self::Refused(_))
+        matches!(self, Self::Refused(_) | Self::Fenced(_))
+    }
+
+    /// Did the fence stop this turn? The worker's cue to dispatch nothing more.
+    pub fn is_fenced(&self) -> bool {
+        matches!(self, Self::Fenced(_))
     }
 }
 
@@ -244,6 +255,19 @@ mod tests {
         assert!(refused.is_refused());
         assert_eq!(refused.clone().into_text(), "index 7 is out of range");
         assert_eq!(ok.into_text(), "applied");
+    }
+
+    /// LCV-142 AC 9 — `Fenced` is a refusal to the transcript and the only
+    /// outcome the worker stops on.
+    #[test]
+    fn fenced_is_a_refusal_and_the_only_stop() {
+        let fenced = AgentOutcome::Fenced("changed".into());
+        assert!(fenced.is_refused());
+        assert!(fenced.is_fenced());
+        assert!(!AgentOutcome::Refused("r".into()).is_fenced());
+        assert!(!AgentOutcome::Ok("o".into()).is_fenced());
+        assert_eq!(fenced.text(), "changed");
+        assert_eq!(fenced.into_text(), "changed");
     }
 
     /// AC 2 — this file is kernel-pure: no UI crate and no HTTP crate reaches

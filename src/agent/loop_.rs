@@ -11,6 +11,7 @@
 //!
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
+use crate::agent::bridge::AgentOutcome;
 use crate::agent::wire::{AssistantMessage, ChatMessage};
 
 // ── Step budget ──────────────────────────────────────────────────────────────
@@ -62,6 +63,12 @@ pub(crate) const AGENT_SYSTEM_PROMPT: &str =
      the drawing changed, stop and tell the operator what happened instead of \
      retrying.";
 
+/// The tool result every call left in a batch gets once the fence has stopped
+/// the turn (ADR 0007 §D14): not dispatched, but still answered, so every
+/// `tool_call_id` the model sent stays paired.
+pub(crate) const FENCE_STOP_PLACEHOLDER: &str =
+    "not run: the turn stopped after the drawing changed outside it";
+
 // ── Error ────────────────────────────────────────────────────────────────────
 
 /// Errors that [`crate::app::run_agent_turn`] can return.
@@ -76,6 +83,9 @@ pub enum AgentError {
     IterationLimitExceeded(u32),
     /// The endpoint answered with neither content nor tool calls.
     NoContent,
+    /// The fence stopped the turn and the model's one last reply asked for
+    /// more tool calls anyway (ADR 0007 §D14). None of them was dispatched.
+    FenceStopped,
     /// The UI thread stopped answering: the app is closing, the turn was
     /// abandoned, or the frame loop is gone (ADR 0007 §D2). The worker returns
     /// on this **without** sending a terminal event — there is nobody left to
@@ -95,6 +105,9 @@ impl std::fmt::Display for AgentError {
             }
             Self::NoContent => write!(f, "API response contained neither content nor tool calls"),
             Self::Cancelled => write!(f, "the turn was cancelled"),
+            Self::FenceStopped => {
+                write!(f, "the turn stopped after the drawing changed outside it")
+            }
         }
     }
 }
@@ -113,8 +126,13 @@ impl std::error::Error for AgentError {}
 /// batch and wave it through.
 ///
 /// `dispatch_fn` receives `(tool_name, raw_json_arguments)` and returns the
-/// `tool`-role result text. It is the caller's business whether that text came
-/// from a real mutation, a refusal or a stub; this loop only sequences it.
+/// outcome whose text becomes the `tool`-role result. It is the caller's
+/// business whether that came from a real mutation, a refusal or a stub; this
+/// loop only sequences it — with one exception it reads rather than decides.
+/// On [`AgentOutcome::Fenced`] (ADR 0007 §D14) nothing more is dispatched: the
+/// rest of the batch gets [`FENCE_STOP_PLACEHOLDER`], exactly one more
+/// completion is sent, and its text ends the turn `Ok` while tool calls end it
+/// [`AgentError::FenceStopped`].
 pub(crate) fn agent_loop<F, D>(
     send_fn: &mut F,
     dispatch_fn: &mut D,
@@ -123,7 +141,7 @@ pub(crate) fn agent_loop<F, D>(
 ) -> Result<String, AgentError>
 where
     F: FnMut(&[ChatMessage]) -> Result<AssistantMessage, AgentError>,
-    D: FnMut(&str, &str) -> Result<String, AgentError>,
+    D: FnMut(&str, &str) -> Result<AgentOutcome, AgentError>,
 {
     let budget = usize::try_from(step_budget).unwrap_or(usize::MAX);
     let mut dispatched: usize = 0;
@@ -138,15 +156,35 @@ where
                     content,
                     calls.clone(),
                 ));
+                let mut fenced = false;
                 for call in &calls {
-                    let result = dispatch_fn(&call.function.name, &call.function.arguments)?;
+                    let result = if fenced {
+                        FENCE_STOP_PLACEHOLDER.to_owned()
+                    } else {
+                        let outcome = dispatch_fn(&call.function.name, &call.function.arguments)?;
+                        dispatched += 1;
+                        fenced = outcome.is_fenced();
+                        outcome.into_text()
+                    };
                     messages.push(ChatMessage::tool_result(call.id.clone(), result));
-                    dispatched += 1;
+                }
+                if fenced {
+                    return last_word(send_fn(messages)?);
                 }
             }
             (_, Some(text)) => return Ok(text),
             _ => return Err(AgentError::NoContent),
         }
+    }
+}
+
+/// The one completion a fence-stopped turn is allowed (ADR 0007 §D14): text is
+/// the model's report of what it got done; anything else is not dispatched.
+fn last_word(message: AssistantMessage) -> Result<String, AgentError> {
+    match (message.tool_calls, message.content) {
+        (Some(calls), _) if !calls.is_empty() => Err(AgentError::FenceStopped),
+        (_, Some(text)) => Ok(text),
+        _ => Err(AgentError::NoContent),
     }
 }
 
@@ -282,7 +320,7 @@ mod tests {
             },
             &mut |_, _| {
                 dispatches += 1;
-                Ok("ok".into())
+                Ok(AgentOutcome::Ok("ok".into()))
             },
             &mut messages,
             budget,
@@ -392,7 +430,7 @@ mod tests {
             &mut |_| text_reply("Done."),
             &mut |_, _| {
                 dispatches += 1;
-                Ok("ok".into())
+                Ok(AgentOutcome::Ok("ok".into()))
             },
             &mut messages,
             AGENT_STEP_BUDGET_DEFAULT,
@@ -418,7 +456,7 @@ mod tests {
                     text_reply("Line created.")
                 }
             },
-            &mut |_, _| Ok("Line created: ….".into()),
+            &mut |_, _| Ok(AgentOutcome::Ok("Line created: ….".into())),
             &mut messages,
             AGENT_STEP_BUDGET_DEFAULT,
         );
@@ -458,7 +496,7 @@ mod tests {
                     text_reply("Two lines.")
                 }
             },
-            &mut |_, _| Ok("2 entities.".into()),
+            &mut |_, _| Ok(AgentOutcome::Ok("2 entities.".into())),
             &mut messages,
             AGENT_STEP_BUDGET_DEFAULT,
         );
@@ -483,7 +521,7 @@ mod tests {
                     tool_calls: None,
                 })
             },
-            &mut |_, _| Ok("ok".into()),
+            &mut |_, _| Ok(AgentOutcome::Ok("ok".into())),
             &mut messages,
             AGENT_STEP_BUDGET_DEFAULT,
         );
@@ -496,7 +534,7 @@ mod tests {
         let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
         let result = agent_loop(
             &mut |_| Err(AgentError::Transport("timeout".into())),
-            &mut |_, _| Ok("ok".into()),
+            &mut |_, _| Ok(AgentOutcome::Ok("ok".into())),
             &mut messages,
             AGENT_STEP_BUDGET_DEFAULT,
         );
@@ -516,7 +554,7 @@ mod tests {
                     Err(AgentError::ToolDispatch("fail".into()))
                 } else {
                     applied += 1;
-                    Ok("ok".into())
+                    Ok(AgentOutcome::Ok("ok".into()))
                 }
             },
             &mut messages,
