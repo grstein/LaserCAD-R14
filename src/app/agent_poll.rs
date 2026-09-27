@@ -109,12 +109,15 @@ pub fn poll_agent_rx(app: &mut App) {
 
 /// Apply one action behind the turn's fence (ADR 0007 §D4), and count it.
 ///
-/// Three things happen here that `agent_apply` deliberately does not know
+/// Four things happen here that `agent_apply` deliberately does not know
 /// about, because they are properties of the *turn* rather than of the action:
 ///
-/// - the fence check, which refuses anything at all once the revision moved
-///   outside this turn — including a query, whose answer would be read against
-///   a drawing the model has not seen (AC 9);
+/// - the step count the panel's progress row reads — every `Act`, ungated
+///   (LCV-142 AC 3/4);
+/// - the fence check, which answers `Fenced` to anything at all once the
+///   revision moved outside this turn or its group was sealed — including a
+///   query, whose answer would be read against a drawing the model has not
+///   seen (AC 9, ADR 0007 §D14);
 /// - the advance, which re-anchors the expectation on the revision this apply
 ///   produced;
 /// - the applied-action count the end-of-turn note reads (LCV-142 AC 12).
@@ -124,6 +127,8 @@ pub fn poll_agent_rx(app: &mut App) {
 /// action, it gets a transcript row like any other, and it is not an *applied*
 /// action.
 fn apply_fenced(app: &mut App, action: &AgentAction) -> AgentOutcome {
+    // Every `Act` is a step — fenced, malformed and queries included (§D13).
+    app.agent.turn.steps = app.agent.turn.steps.saturating_add(1);
     let (revision, group_open) = (app.history.revision(), app.history.group_open());
     if let Err(refusal) = app.agent.turn.fence.check(revision, group_open) {
         // §D14: the worker reads `Fenced` as "stop dispatching".

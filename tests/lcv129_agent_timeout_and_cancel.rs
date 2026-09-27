@@ -277,7 +277,7 @@ fn ac8_the_cancel_button_is_painted_only_while_a_turn_runs() {
     let busy_lines = panel_lines(&busy);
     let thinking = busy_lines
         .iter()
-        .find(|line| line.iter().any(|t| t == "Thinking…"))
+        .find(|line| line.iter().any(|t| t == "Thinking… 0 of 256 steps"))
         .unwrap_or_else(|| panic!("the thinking row must be painted: {busy_lines:?}"));
     assert!(
         thinking.iter().any(|t| t == "Cancel"),

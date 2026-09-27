@@ -108,7 +108,9 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
     if app.agent.busy {
         ui.horizontal(|ui| {
             ui.spinner();
-            ui.label("Thinking…");
+            // Progress is counted UI-side, per `Act` received (ADR 0007 §D13).
+            let turn = &app.agent.turn;
+            ui.label(format!("Thinking… {} of {} steps", turn.steps, turn.limit));
             if ui.button("Cancel").clicked() {
                 crate::app::cancel_turn(app);
             }
