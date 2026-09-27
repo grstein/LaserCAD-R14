@@ -321,6 +321,13 @@ fn ac8_ac9_ac10_the_settings_dialog_draws_headless_frame() {
 ///
 /// The second phase is AC 8's masking: a key that is set paints as bullets, and
 /// the key itself is painted nowhere at all.
+///
+/// **LCV-141 note**: the expected set below gained its last two lines — the
+/// live-edit sentence and the Done button — the two additions that demand
+/// makes to this exact dialog (its AC 6). ADR 0009 decision 2 is why the fix
+/// is here rather than around it: a paint assertion that claims a surface
+/// shows *nothing else* must be updated the moment intentional content is
+/// added, or it certifies the old screen as still correct.
 #[test]
 fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
     let (ctx, mut app) = ctx_and_app();
@@ -348,6 +355,8 @@ fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
                 "How many tool calls one prompt may make. More steps means a ",
                 "bigger drawing per prompt, and more API calls."
             )],
+            vec!["Changes apply immediately and are saved when this window closes."],
+            vec!["Done"],
         ],
         "the form paints its labels, its values and both sentences, in order, \
          and paints nothing else"
