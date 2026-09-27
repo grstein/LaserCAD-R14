@@ -12,20 +12,34 @@
 //! rule 3) — the operator's actual gesture, and the one path LCV-113's own
 //! tests never exercised.
 //!
-//! **Investigation finding (AC 8):** driving New, OpenPath and Exit through
-//! this real pointer path reproduces no defect. `confirm_dialog`'s button is
-//! reachable, click-through to the canvas or the toolbar behind the modal
-//! does not happen, a stray second click at the button's old position does
-//! not re-dispatch, and a repeated native Close request neither replaces the
-//! parked action nor eats a later Discard click. The two mechanics that
-//! looked like plausible culprits going in — layer ordering between the
-//! `CentralPanel` (`Order::Background`) and the confirm `Window`
-//! (`Order::Middle`, always on top irrespective of draw-call order at
-//! egui 0.29.1) and the "first frame paints nothing" settling trap
-//! (`tests/harness/paint.rs` trap 7) — were the two things checked hardest
-//! and neither broke a single one of the tests below. This file is therefore
-//! the closed regression gate the report asked for, not a bug fix: nothing
-//! in `src/` changed to make it pass.
+//! **Investigation finding (AC 8), corrected:** New and OpenPath, driven
+//! through this real pointer path, reproduce no defect — `confirm_dialog`'s
+//! button is reachable, click-through to the canvas behind the modal does
+//! not happen, and a stray second click at the button's old position does
+//! not re-dispatch. Layer ordering (the `CentralPanel`'s `Order::Background`
+//! vs. the confirm `Window`'s `Order::Middle`, always on top irrespective of
+//! draw-call order at egui 0.29.1) and the "first frame paints nothing"
+//! settling trap (`tests/harness/paint.rs` trap 7) were the two mechanics
+//! that looked like plausible culprits, and neither broke a New/OpenPath
+//! test below.
+//!
+//! **Exit did reproduce**, on the real re-issued-Close mechanism verified
+//! against the vendored `egui-winit`/`eframe` 0.29.1 sources:
+//! `ViewportCommand::Close` does not synchronously destroy the window — it
+//! only records a fresh `ViewportEvent::Close` on the viewport
+//! (`egui_winit::process_viewport_command`), which reports
+//! `close_requested() == true` again on the *next* frame, for the *same*
+//! close. `Exit` mutates no document, so `has_unsaved_changes()` was still
+//! `true` on that next frame: `poll_close_request` re-ran `request_exit`,
+//! re-parked `PendingAction::Exit`, and sent `CancelClose` — cancelling the
+//! close the operator just confirmed and reopening the dialog, forever. The
+//! fix is `App::exit_confirmed`, a latch set by `apply_dialog_result`'s
+//! confirmed-`Exit` arm and checked first by `poll_close_request`
+//! (`src/app/file_ops.rs`), which lets every later close request through
+//! unconditionally once the operator has answered once. A repeated *native*
+//! Close request arriving *before* any confirmation (the window-X pressed
+//! twice while the dialog is still up) was already handled correctly and
+//! stays covered below.
 //!
 //! Two rules specific to this demand, both inherited from `tests/lcv113.rs`:
 //!
@@ -174,6 +188,20 @@ fn click_button(ctx: &egui::Context, app: &mut App, pos: egui::Pos2) -> egui::Fu
         app.update_ui(c)
     });
     ctx.run(raw_input(click_events(pos)), |c| app.update_ui(c))
+}
+
+/// Open the File menu through a real click on its "File" label in the
+/// menubar — the same trap 7 shape as a `Window`: the dropdown is a popup
+/// `Area` of its own and paints no items on the frame it first opens, so one
+/// more idle frame is spent settling it before its items are handed back.
+/// The label a menu item paints is its whole button text verbatim, tab and
+/// all (`ui.button("New\tCtrl+N")` paints one `Shape::Text` reading exactly
+/// that), so a caller locates e.g. `"New\tCtrl+N"`, never a substring.
+fn open_file_menu(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
+    let runs = paint::painted_runs(ctx, app);
+    let file = locate(&runs, "File");
+    click_button(ctx, app, file);
+    paint::painted_runs(ctx, app)
 }
 
 /// A tempdir this test owns and cleans first — `src/io/file_actions.rs`'s own
@@ -357,17 +385,94 @@ fn discard_confirms_exit_exactly_once_and_does_not_reopen() {
     );
     assert!(app.pending_action.is_none());
 
-    let out = ctx.run(raw_input(vec![]), |c| app.update_ui(c));
+    // The real framework's follow-up frame is not an idle one: sending
+    // `ViewportCommand::Close` only *records* a fresh `ViewportEvent::Close`
+    // (`egui_winit::process_viewport_command`, verified against the vendored
+    // 0.29.1 source) rather than destroying the window, so the very next
+    // frame's `RawInput` reports `close_requested() == true` again for that
+    // same close — modeled here with the identical `close_request_input()`
+    // fixture used for the operator's original close, not an empty frame.
+    // Without `App::exit_confirmed` this second `close_requested()` would
+    // hit `request_exit` again, find the (still dirty — `Exit` performs no
+    // save) document unsaved, re-park `PendingAction::Exit` and emit
+    // `CancelClose`, cancelling the close the operator just confirmed and
+    // reopening the dialog.
+    let out = ctx.run(close_request_input(), |c| app.update_ui(c));
     assert!(
         !out.viewport_output[&egui::ViewportId::ROOT]
             .commands
-            .contains(&egui::ViewportCommand::Close),
-        "a confirmed Exit must not send a second Close on a later frame"
+            .contains(&egui::ViewportCommand::CancelClose),
+        "the re-delivered close request must not be cancelled"
+    );
+    assert!(
+        app.pending_action.is_none(),
+        "the re-delivered close request must not re-park Exit"
     );
     let runs = paint::runs_in(&out.shapes);
     assert!(
         !runs.iter().any(|r| r.text.trim() == "Discard"),
         "a confirmed Exit must not reopen the dialog"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// The reported entry points themselves: File > New and File > Open, driven
+// through a real click on the menubar (not just the keyboard shortcut) — the
+// user's report named these two menu paths specifically.
+// ---------------------------------------------------------------------------
+
+/// A real click on File > New reaches `request_new` exactly as `Ctrl+N`
+/// does: on a dirty document it parks `PendingAction::New` and leaves the
+/// drawing untouched.
+#[test]
+fn file_menu_new_reaches_request_new_through_a_real_pointer_click() {
+    let ctx = egui::Context::default();
+    let mut app = App::default();
+    ctx.set_pixels_per_point(1.0);
+    boot(&ctx, &mut app);
+    with_lines(&mut app, 2);
+
+    let menu_runs = open_file_menu(&ctx, &mut app);
+    let new_item = locate(&menu_runs, "New\tCtrl+N");
+    click_button(&ctx, &mut app, new_item);
+
+    assert_eq!(
+        app.pending_action,
+        Some(PendingAction::New),
+        "a real click on File > New must reach request_new, same as Ctrl+N"
+    );
+    assert_eq!(
+        app.document.entity_count(),
+        2,
+        "the drawing must survive until Discard is clicked"
+    );
+}
+
+/// A real click on File > Open… reaches `request_open` exactly as `Ctrl+O`
+/// does: on a dirty document it parks `PendingAction::Open` without ever
+/// touching the filesystem, so no native `rfd` dialog opens and this test
+/// cannot hang (ADR 0002 §A4 rule 1).
+#[test]
+fn file_menu_open_reaches_request_open_through_a_real_pointer_click() {
+    let ctx = egui::Context::default();
+    let mut app = App::default();
+    ctx.set_pixels_per_point(1.0);
+    boot(&ctx, &mut app);
+    with_lines(&mut app, 1);
+
+    let menu_runs = open_file_menu(&ctx, &mut app);
+    let open_item = locate(&menu_runs, "Open…\tCtrl+O");
+    click_button(&ctx, &mut app, open_item);
+
+    assert_eq!(
+        app.pending_action,
+        Some(PendingAction::Open),
+        "a real click on File > Open… must reach request_open, same as Ctrl+O"
+    );
+    assert_eq!(
+        app.document.entity_count(),
+        1,
+        "the drawing must be untouched"
     );
 }
 
