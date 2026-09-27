@@ -79,14 +79,26 @@ recomputed every frame from existing fields; nothing new is written to
    this demand must not weaken that).
 4. `App` gains a `recovered_from_autosave: bool` field: `false` on
    `App::default()`, set to `true` only inside `App::new()`'s recovery
-   branch (alongside `app.document = recovered`), and never set anywhere
-   else. While true, the status bar shows one label distinct from the
-   existing autosave badge — its text names recovery explicitly (e.g.
-   "Recovered (not saved)") — carrying `.on_hover_text(...)` that explains
-   the drawing was restored from a crash-safety copy and the file on disk,
-   if any, is untouched until the operator saves. Rendering it never calls
+   branch (alongside `app.document = recovered`), and cleared back to
+   `false` by `App::mark_saved()` — the one call every successful Save,
+   Save As, Open, Open Recent and New already makes
+   (`src/io/file_actions.rs`) — and nowhere else. The label's whole point is
+   honest file feedback, so it must not keep naming a state that has
+   stopped being true: once the recovered drawing is actually written to a
+   file, or the operator replaces it entirely via New/Open(/Recent), the
+   document `mark_saved()` just certified is no longer "recovered and
+   unsaved". An autosave flush (`mark_clean()` alone, with no
+   `mark_saved()`) leaves the flag set, matching AC 3's guarantee that
+   autosave never clears the unsaved marker either — a crash-safety write
+   is not the operator saving. While true, the status bar shows one label
+   distinct from the existing autosave badge — its text names recovery
+   explicitly (e.g. "Recovered (not saved)") — carrying
+   `.on_hover_text(...)` that explains the drawing was restored from a
+   crash-safety copy and the file on disk, if any, is untouched until the
+   operator saves. Rendering the label itself still never calls
    `mark_saved`/`mark_clean` and never touches `dirty_since` or
-   `last_autosave_at`.
+   `last_autosave_at` — it only reads a flag that `App::mark_saved()`, not
+   the status bar, is responsible for clearing.
 5. In File > Open Recent, an entry whose basename collides with another
    entry in the same list shows enough of its parent path to disambiguate
    the two (e.g. `"parent/name.svg"`); a non-colliding entry keeps showing
@@ -117,11 +129,15 @@ recomputed every frame from existing fields; nothing new is written to
 - AC 4: a source scan of `App::new`'s recovery branch (mirroring
   `src/app/init.rs`'s existing `boot_seeds_the_bed_only_when_no_autosave_is_recovered`
   style, since `App::new()` cannot be driven behaviorally) proving
-  `recovered_from_autosave = true` is set only there; an egui-harness paint
-  test (`tests/harness/paint.rs`) driving `App::default()` with
-  `recovered_from_autosave` set by hand, asserting the distinct label and
-  its hover text are painted, and asserting `dirty_since`/`last_autosave_at`
-  are untouched by rendering it.
+  `recovered_from_autosave = true` is set only there; a unit test setting
+  `recovered_from_autosave = true` by hand and calling `App::mark_saved()`,
+  asserting the flag is now `false`; a companion test from the same
+  starting state calling `App::mark_clean()` alone (the autosave-flush
+  path, no `mark_saved()`), asserting the flag is still `true`; an
+  egui-harness paint test (`tests/harness/paint.rs`) driving
+  `App::default()` with `recovered_from_autosave` set by hand, asserting
+  the distinct label and its hover text are painted, and asserting
+  `dirty_since`/`last_autosave_at` are untouched by rendering it.
 - AC 5: two recent-file entries sharing a basename in different directories,
   asserting the disambiguated labels via `tests/harness/paint.rs`'s painted
   text; a missing-file and a malformed-SVG fixture selected from Open
