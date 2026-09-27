@@ -59,13 +59,13 @@ impl std::fmt::Debug for TurnConfig {
 ///
 /// # Errors
 ///
-/// [`AgentError`] for a transport failure, a malformed tool call, an exhausted
-/// step budget, a reply carrying neither text nor tool calls, tool calls asked
+/// [`AgentError`] for a transport failure, an exhausted step budget, a reply carrying neither text nor tool calls, tool calls asked
 /// for after a `Fenced` answer stopped the turn ([`AgentError::FenceStopped`],
 /// §D14), or [`AgentError::Cancelled`] when `ask` reports that nobody is left
 /// to answer.
-/// An action the document *refuses* is **not** an error: the refusal goes back
-/// to the model as the tool result and the turn continues (ADR 0007 §D2a).
+/// An action the document *refuses* is **not** an error, and neither is a
+/// malformed tool call: either goes back to the model as the tool result and
+/// the turn continues (ADR 0007 §D2a, §D15).
 pub fn run_agent_turn<A>(
     prompt: &str,
     config: &TurnConfig,
@@ -109,22 +109,31 @@ where
         ChatMessage::system(AGENT_SYSTEM_PROMPT),
         ChatMessage::user(prompt),
     ];
-    let mut dispatch_fn = |name: &str, args: &str| {
-        // The argument-free queries are routinely called with `""` rather than
-        // `"{}"`, which is not JSON; both mean the same empty object here.
-        let value = if args.trim().is_empty() {
-            serde_json::Value::Null
-        } else {
-            serde_json::from_str::<serde_json::Value>(args)
-                .map_err(|e| AgentError::ToolDispatch(e.to_string()))?
-        };
-        let action = crate::agent::parse_tool_call(name, &value)
-            .map_err(|e| AgentError::ToolDispatch(e.to_string()))?;
-        // A refusal is a tool result, not a failure (ADR 0007 §D2a); a
-        // `Fenced` answer is read, not evaluated, by `agent_loop` (§D14).
-        ask(action)
-    };
+    // A refusal is a tool result, not a failure (ADR 0007 §D2a), and so is a
+    // malformed call (§D15); a `Fenced` answer is read by `agent_loop` (§D14).
+    let mut dispatch_fn = |name: &str, args: &str| ask(to_action(name, args));
     agent_loop(send_fn, &mut dispatch_fn, &mut messages, step_limit)
+}
+
+/// Shape-check one tool call. Anything that fails — JSON syntax, unknown tool,
+/// any `ToolCallError` — becomes [`AgentAction::Malformed`] and still goes to
+/// the UI as an ordinary `Act` (ADR 0007 §D15). The reason never quotes `args`.
+fn to_action(name: &str, args: &str) -> AgentAction {
+    let malformed = |reason: String| AgentAction::Malformed {
+        tool: name.to_owned(),
+        reason,
+    };
+    // The argument-free queries are routinely called with `""` rather than
+    // `"{}"`, which is not JSON; both mean the same empty object here.
+    let value = if args.trim().is_empty() {
+        serde_json::Value::Null
+    } else {
+        match serde_json::from_str::<serde_json::Value>(args) {
+            Ok(value) => value,
+            Err(e) => return malformed(format!("tool `{name}` arguments are not valid JSON: {e}")),
+        }
+    };
+    crate::agent::parse_tool_call(name, &value).unwrap_or_else(|e| malformed(e.to_string()))
 }
 
 /// The worker thread's `ask`: one rendezvous with the UI thread (ADR 0007 §D2).
@@ -871,5 +880,95 @@ mod tests {
             "the turn stopped after the drawing changed outside it"
         );
         assert_eq!((asks, sends), (1, 2), "no further ask, no third send");
+    }
+
+    // ── LCV-142 AC 10: a malformed call is an `Act` too (ADR 0007 §D15) ──────
+
+    /// AC 10 — invalid JSON, an unknown tool and a missing field each reach
+    /// `ask` as `Malformed`, and the turn continues to `Ok`. A sentinel inside
+    /// the arguments never reaches a reason.
+    #[test]
+    fn malformed_calls_reach_ask_and_the_turn_continues() {
+        const SENTINEL: &str = "SENTINEL-7f3a";
+        let bad_json = format!(r#"{{"x1": {SENTINEL}"#);
+        let missing = format!(r#"{{"x1": 0, "y1": 0, "x2": "{SENTINEL}"}}"#);
+        let unknown = format!(r#"{{"note": "{SENTINEL}"}}"#);
+        let three = batch(&[
+            ("create_line", &bad_json),
+            ("draw_unicorn", &unknown),
+            ("create_line", &missing),
+        ]);
+        let mut sends = 0usize;
+        let mut send_fn = |_: &[ChatMessage]| {
+            sends += 1;
+            Ok(if sends == 1 {
+                three.clone()
+            } else {
+                text("fixed")
+            })
+        };
+        let mut asked = Vec::new();
+        let mut ask = |action: AgentAction| {
+            asked.push(action.clone());
+            match action {
+                AgentAction::Malformed { reason, .. } => Ok(AgentOutcome::Refused(reason)),
+                other => panic!("expected Malformed, got {other:?}"),
+            }
+        };
+        let result = drive_turn("go", AGENT_STEP_BUDGET_DEFAULT, &mut send_fn, &mut ask);
+        assert_eq!(result.expect("the turn continues"), "fixed");
+
+        let reasons: Vec<(String, String)> = asked
+            .into_iter()
+            .map(|a| match a {
+                AgentAction::Malformed { tool, reason } => (tool, reason),
+                other => panic!("{other:?}"),
+            })
+            .collect();
+        assert_eq!(reasons.len(), 3);
+        assert_eq!(reasons[0].0, "create_line");
+        assert!(
+            reasons[0]
+                .1
+                .starts_with("tool `create_line` arguments are not valid JSON: "),
+            "{:?}",
+            reasons[0]
+        );
+        assert_eq!(
+            reasons[1],
+            ("draw_unicorn".into(), "unknown tool: `draw_unicorn`".into())
+        );
+        assert_eq!(
+            reasons[2].1,
+            "tool `create_line` missing required argument `x2`"
+        );
+        for (_, reason) in &reasons {
+            assert!(!reason.contains(SENTINEL), "the raw args leaked: {reason}");
+        }
+    }
+
+    /// AC 3 / AC 10 — a malformed call counts as a step: budget 2 and a batch
+    /// of two malformed calls exhausts it, so a third call is refused whole.
+    #[test]
+    fn a_malformed_call_counts_as_a_step() {
+        let mut sends = 0usize;
+        let mut send_fn = |_: &[ChatMessage]| {
+            sends += 1;
+            Ok(match sends {
+                1 => batch(&[("nope", "{}"), ("create_line", "{")]),
+                _ => batch(&[("query_entities", "{}")]),
+            })
+        };
+        let mut asks = 0usize;
+        let mut ask = |_: AgentAction| {
+            asks += 1;
+            Ok(AgentOutcome::Refused("bad".into()))
+        };
+        let result = drive_turn("go", 2, &mut send_fn, &mut ask);
+        assert!(
+            matches!(result, Err(AgentError::IterationLimitExceeded(2))),
+            "got {result:?}"
+        );
+        assert_eq!(asks, 2);
     }
 }

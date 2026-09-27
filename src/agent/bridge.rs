@@ -92,6 +92,15 @@ pub enum AgentAction {
     QueryEntities,
     /// Read back the current selection. Commits nothing.
     QuerySelection,
+    /// A tool call that failed its shape check in the worker — JSON syntax,
+    /// unknown tool, or any `ToolCallError` (ADR 0007 §D15). The UI answers
+    /// `Refused(reason)` without reading the document; it is still a step.
+    Malformed {
+        /// The tool name as the model sent it.
+        tool: String,
+        /// Names the tool and the field; never echoes the raw arguments.
+        reason: String,
+    },
 }
 
 /// What the UI thread answers for one [`AgentAction`].

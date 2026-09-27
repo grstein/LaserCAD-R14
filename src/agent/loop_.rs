@@ -5,8 +5,8 @@
 //! call from [`crate::agent::transport`]; nothing is declared twice.
 //!
 //! Since LCV-122 the loop has no idea what a drawing is: `dispatch_fn` takes a
-//! tool name and a JSON argument string and hands back the sentence the model
-//! reads. Whoever supplies that closure — `crate::app::run_agent_turn` — is the
+//! tool name and a JSON argument string and hands back the outcome whose
+//! sentence the model reads. Whoever supplies that closure — `crate::app::run_agent_turn` — is the
 //! only party that knows where the geometry goes (ADR 0007 §D1).
 //!
 //! MUST NOT import `egui`, `eframe`, or `rfd`.

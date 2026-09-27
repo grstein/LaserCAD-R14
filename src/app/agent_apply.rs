@@ -148,6 +148,10 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
         },
         AgentAction::QueryEntities => Planned::Answer(AgentOutcome::Ok(list_entities(doc))),
         AgentAction::QuerySelection => Planned::Answer(AgentOutcome::Ok(list_selection(doc))),
+        // §D15: answered from the reason alone; the document is not read.
+        AgentAction::Malformed { ref reason, .. } => {
+            Planned::Answer(AgentOutcome::Refused(reason.clone()))
+        }
     }
 }
 
@@ -635,6 +639,29 @@ mod tests {
         assert_eq!(
             app.agent.chat,
             vec![("refused".to_owned(), outcome.text().to_owned())]
+        );
+    }
+
+    /// LCV-142 AC 10 — a malformed call is answered `Refused(reason)` verbatim,
+    /// commits nothing and leaves one `refused` row.
+    #[test]
+    fn a_malformed_call_is_refused_with_its_reason_and_commits_nothing() {
+        let mut app = app_with(vec![line(0.0)]);
+        let revision = app.history.revision();
+        let reason = "tool `create_line` missing required argument `x2`";
+        let action = AgentAction::Malformed {
+            tool: "create_line".into(),
+            reason: reason.into(),
+        };
+        assert_eq!(
+            apply(&mut app, &action),
+            AgentOutcome::Refused(reason.into())
+        );
+        assert_eq!(app.history.revision(), revision);
+        assert_eq!(app.document.entity_count(), 1);
+        assert_eq!(
+            app.agent.chat,
+            vec![("refused".to_owned(), reason.to_owned())]
         );
     }
 
