@@ -413,6 +413,31 @@ fn discard_confirms_exit_exactly_once_and_does_not_reopen() {
         !runs.iter().any(|r| r.text.trim() == "Discard"),
         "a confirmed Exit must not reopen the dialog"
     );
+
+    // A *second* re-delivered Close, not just one: `App::exit_confirmed` must
+    // stay latched rather than being read once and cleared. A one-shot guard
+    // shaped `if app.exit_confirmed { app.exit_confirmed = false; return; }`
+    // passes everything above — the first re-delivery still finds the flag
+    // set — and only misbehaves on the request after that, once its own read
+    // has cleared it: `poll_close_request` would fall through to
+    // `request_exit` again, find the document still dirty, re-park
+    // `PendingAction::Exit` and cancel this close too.
+    let out = ctx.run(close_request_input(), |c| app.update_ui(c));
+    assert!(
+        !out.viewport_output[&egui::ViewportId::ROOT]
+            .commands
+            .contains(&egui::ViewportCommand::CancelClose),
+        "a second re-delivered close request must not be cancelled either"
+    );
+    assert!(
+        app.pending_action.is_none(),
+        "a second re-delivered close request must not re-park Exit either"
+    );
+    let runs = paint::runs_in(&out.shapes);
+    assert!(
+        !runs.iter().any(|r| r.text.trim() == "Discard"),
+        "a confirmed Exit must not reopen the dialog on a second re-delivery either"
+    );
 }
 
 // ---------------------------------------------------------------------------
