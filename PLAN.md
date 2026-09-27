@@ -133,7 +133,7 @@ src/
 | LCV-090 | Windows MSI/NSIS build | 9 | Draft | implementer-rust | sonnet | LCV-089 |
 | LCV-091 | macOS dmg + notarization | 9 | Draft | implementer-rust | sonnet | LCV-089 |
 | LCV-092 | CI multi-platform pipeline | 9 | Draft | implementer-rust | sonnet | LCV-090, LCV-091 |
-| LCV-136 | Discard responds to real pointer clicks | 11 | Ready | implementer-rust | sonnet | LCV-113, LCV-118, LCV-119 |
+| LCV-136 | Discard responds to real pointer clicks | 11 | Done | implementer-rust | sonnet | LCV-113, LCV-118, LCV-119 |
 | LCV-137 | Visible grid and consistent viewport coordinates | 11 | Ready | implementer-rust | sonnet | LCV-032, LCV-033, LCV-034, LCV-120 |
 | LCV-138 | Native document title and honest file feedback | 11 | Ready | implementer-rust | sonnet | LCV-113, LCV-119, LCV-136 |
 | LCV-139 | Readable command input and destination preview | 12 | Ready | implementer-rust | sonnet | LCV-111, LCV-112, LCV-124, LCV-132 |
@@ -185,6 +185,7 @@ On every invocation, the `project-manager`:
 
 > Single-writer: `project-manager`. Most recent entries at the top. Format: `YYYY-MM-DD HH:MM — LCV-NNN status — note`.
 
+- 2026-09-27 — LCV-136 Done — `af86b34`, `149797e`, `54ada25`, `26d5c0d`, `f061a56`, flip `a252889`. The implementer's first pass reported no reproduction; `reviewer-rust` showed the harness modelled a frame the real app never produces: a confirmed Exit sends `Close`, eframe 0.29.1 re-delivers it as next frame's `close_requested`, and `poll_close_request` re-parked Exit + `CancelClose` forever. Fixed with an `exit_confirmed` latch; the fix pushed `src/app/mod.rs` to 304 LOC, so ADR 0004's pre-decided `AgentState` seam was executed (mod.rs 294). `painted_runs_at` now asserts `pixels_per_point == 1.0` (parked item closed). Gate 1291 passed / 0 failed. Real-window Close is inferred from eframe source, not smoked: goes on the user's smoke list. Follow-up for `architect`: ADR 0004 seam now executed; ADR 0007 am.(7)'s `agent_turn: TurnState` on `App` must be restated against `App::agent: AgentState` before LCV-142.
 - 2026-09-27 — LCV-136..144 Ready — step 1 cleanup at `909ebba` + `1859f3f`; bodies refined (`b04cd54`, `ffdfb2a`, `c5a03d3`, `ddfef11`, `2e54fd8`); `architect` recorded ADR 0007 amendment (7) (LCV-142: flat turn group beside the undo stack, D12–D15), ADR 0010 (`create_drawing`), ADR 0011 (canvas observation = offscreen grayscale document raster) at `b10ebf4`; flips at `db9394f`. LCV-145 held `Draft`: Ready-quality, but ADR 0011's drawing-only raster (no grid/selection/preview) awaits the user's confirmation, asked via `team-lead`. Next: LCV-136 to `implementer-rust`.
 - 2026-09-27 — DRIVE RESUMED on LCV-136..145 at `31dbb7a`. USER DECISION, stated directly by the user to the main session on 2026-09-27 (not a relay) and passed to this drive by `team-lead`: LCV-136..145 are in the 1.0 scope; LCV-146 stays `Deferred` past 1.0. Order: 136 → 141 → 137 → 138 → 139 → 140 → 142 → 143 → 144 → 145. Step 1 routed to `demand-manager`: strike the superseded routing boundary sentence in the initiative section, record the scope decision, commit this file and the LCV-142..146 bodies.
 
