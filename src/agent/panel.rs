@@ -36,6 +36,31 @@ use crate::app::App;
 /// `the_row_colours_are_distinct_under_the_real_theme` pins all three apart.
 const TOOL_COLOR: egui::Color32 = egui::Color32::from_rgb(120, 190, 255);
 
+/// Vertical space (points) the separator and the composer row below the
+/// transcript always need, whether or not a turn is running (LCV-080's
+/// original reservation). Generous, not exact — see [`BUSY_ROW_RESERVE`].
+const COMPOSER_RESERVE: f32 = 60.0;
+
+/// Extra vertical space the busy "Thinking… / Cancel" row and its own
+/// surrounding gap need, on top of [`COMPOSER_RESERVE`], only while a turn is
+/// running (LCV-141 AC 4). Generous by design: the transcript gives up a
+/// little more room than that row strictly needs rather than risk the row —
+/// and the composer beneath it — being pushed past the panel's clipped
+/// bottom edge, which is the defect this constant exists to close.
+const BUSY_ROW_RESERVE: f32 = 40.0;
+
+/// The footer's total reservation for one frame (LCV-141 AC 4): a plain
+/// function of `busy`, not an inline `if app.agent.busy` next to the block
+/// below — so a source scan bounding *that* block by its own guard (AC 8's
+/// `busy_block`) cannot mistake this arithmetic for it.
+fn footer_reserve(busy: bool) -> f32 {
+    if busy {
+        COMPOSER_RESERVE + BUSY_ROW_RESERVE
+    } else {
+        COMPOSER_RESERVE
+    }
+}
+
 // ── Public render entry ───────────────────────────────────────────────────────
 
 /// Render the AI assistant chat panel into `ui`.
@@ -57,9 +82,13 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
     ui.separator();
 
     // ── Chat history scroll area ──────────────────────────────────────────────
-    // Reserve enough vertical space for the thinking indicator, separator, and
-    // input row below (~60 px total).
-    let scroll_height = (ui.available_height() - 60.0).max(0.0);
+    // Reserve room for the composer row below, and — read *before* the scroll
+    // area claims what is left, not after — for the busy "Thinking… / Cancel"
+    // row exactly on the frames it will actually render (LCV-141 AC 4). The
+    // old flat constant reserved the same amount whether or not that row
+    // existed, so a long transcript could push the row itself, and the
+    // composer beneath it, past the panel's clipped bottom edge.
+    let scroll_height = (ui.available_height() - footer_reserve(app.agent.busy)).max(0.0);
 
     egui::ScrollArea::vertical()
         .stick_to_bottom(true)
@@ -93,21 +122,31 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
     let mut do_submit = false;
 
     ui.horizontal(|ui| {
-        let text_resp = ui.add(
-            egui::TextEdit::singleline(&mut app.agent.input_draft)
-                .hint_text("Ask the AI…")
-                .desired_width(f32::INFINITY),
-        );
-        // Submit when Enter is pressed with focus in the text field.
-        if text_resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-            do_submit = true;
-        }
-        if ui
-            .add_enabled(can_send, egui::Button::new("Send"))
-            .clicked()
-        {
-            do_submit = true;
-        }
+        // Right-to-left, Send first: `desired_width(f32::INFINITY)` only caps
+        // at `ui.available_width()` measured *before* the button is placed,
+        // so a plain left-to-right row leaves the button no room and the row
+        // grows past the panel's own width by however wide "Send" is (LCV-141
+        // AC 1 / AC 5) — measured at this egui pin, an unbounded panel this
+        // narrow reproduces it exactly. Placing Send first inside a
+        // right-to-left layout pins it to the trailing edge and hands the
+        // text field whatever `ui.available_width()` is left over.
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui
+                .add_enabled(can_send, egui::Button::new("Send"))
+                .clicked()
+            {
+                do_submit = true;
+            }
+            let text_resp = ui.add(
+                egui::TextEdit::singleline(&mut app.agent.input_draft)
+                    .hint_text("Ask the AI…")
+                    .desired_width(ui.available_width()),
+            );
+            // Submit when Enter is pressed with focus in the text field.
+            if text_resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                do_submit = true;
+            }
+        });
     });
 
     if do_submit {
@@ -200,6 +239,17 @@ fn draw_chat_row(ui: &mut egui::Ui, role: &str, content: &str) {
 #[cfg(test)]
 mod tests {
     use crate::agent::AgentEvent;
+
+    /// LCV-141 AC 4 — the busy row's reservation is strictly additional, and
+    /// only while a turn is running.
+    #[test]
+    fn footer_reserve_adds_the_busy_row_only_while_busy() {
+        assert_eq!(super::footer_reserve(false), super::COMPOSER_RESERVE);
+        assert_eq!(
+            super::footer_reserve(true),
+            super::COMPOSER_RESERVE + super::BUSY_ROW_RESERVE
+        );
+    }
 
     /// The implementation section — everything before the bare `#[cfg(test)]`
     /// at column 0 — **with comment lines removed**.
