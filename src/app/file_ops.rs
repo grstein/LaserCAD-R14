@@ -13,7 +13,8 @@
 //! Two mechanisms, kept apart on purpose:
 //!
 //! - [`App::has_unsaved_changes`] / [`App::mark_saved`] — the safe-to-discard
-//!   signal. `App::saved_revision` is the `history.revision()` at which the
+//!   signal. `UnsavedGuard::saved_revision` (`app.guard.saved_revision`,
+//!   `src/app/unsaved_guard.rs`) is the `history.revision()` at which the
 //!   document was last known safe to discard (just written to a file, just
 //!   loaded from one, or just reset to blank). It is deliberately **not**
 //!   `dirty_since`: that field is an 800 ms autosave debounce timer that
@@ -23,8 +24,8 @@
 //!   recovery, not a save — the file on disk, if any, is still stale — so
 //!   `flush_if_due` keeps calling `mark_clean()` alone and never learns about
 //!   `saved_revision`.
-//! - [`PendingAction`] / [`App::pending_action`] — the destructive action
-//!   parked while the confirmation dialog is up. `confirm_dialog` is
+//! - [`PendingAction`] / `UnsavedGuard::pending_action` — the destructive
+//!   action parked while the confirmation dialog is up. `confirm_dialog` is
 //!   immediate-mode, so this parked value *is* the whole state machine: the
 //!   four `request_*` guards below run the action immediately on a clean
 //!   document and park it on a dirty one, [`draw_discard_dialog`] renders the
@@ -50,7 +51,7 @@ use super::App;
 
 /// A destructive action parked while the discard-confirmation dialog is up.
 ///
-/// `None` on [`App::pending_action`] means no dialog is pending. Carrying
+/// `None` on `UnsavedGuard::pending_action` means no dialog is pending. Carrying
 /// `OpenPath`'s argument here (rather than re-deriving it from
 /// `App::current_file` or similar) is what lets Open Recent's guard be a
 /// single variant instead of a special case.
@@ -81,7 +82,7 @@ impl App {
     ///   it is unsaved iff it is non-empty. An empty, never-saved document
     ///   has nothing to lose.
     pub fn has_unsaved_changes(&self) -> bool {
-        match self.saved_revision {
+        match self.guard.saved_revision {
             Some(saved) => self.history.revision() != saved,
             None => self.document.entity_count() > 0,
         }
@@ -96,7 +97,7 @@ impl App {
     /// bare `mark_clean()` they used to call, always after any `history`
     /// replacement so `history.revision()` reads the fresh history's value.
     pub fn mark_saved(&mut self) {
-        self.saved_revision = Some(self.history.revision());
+        self.guard.saved_revision = Some(self.history.revision());
         self.mark_clean();
     }
 
@@ -109,11 +110,11 @@ impl App {
     /// nothing else. A no-op while another action is already parked, so a
     /// second Ctrl+N cannot queue a second action or swap the parked one.
     pub fn request_new(&mut self) {
-        if self.pending_action.is_some() {
+        if self.guard.pending_action.is_some() {
             return;
         }
         if self.has_unsaved_changes() {
-            self.pending_action = Some(PendingAction::New);
+            self.guard.pending_action = Some(PendingAction::New);
         } else {
             self.action_new();
         }
@@ -124,11 +125,11 @@ impl App {
     /// [`PendingAction::Open`] on a dirty one without touching the
     /// filesystem. A no-op while another action is already parked.
     pub fn request_open(&mut self) {
-        if self.pending_action.is_some() {
+        if self.guard.pending_action.is_some() {
             return;
         }
         if self.has_unsaved_changes() {
-            self.pending_action = Some(PendingAction::Open);
+            self.guard.pending_action = Some(PendingAction::Open);
         } else {
             self.action_open();
         }
@@ -139,11 +140,11 @@ impl App {
     /// [`PendingAction::OpenPath`]`(path)` on a dirty one. A no-op while
     /// another action is already parked.
     pub fn request_open_path(&mut self, path: PathBuf) {
-        if self.pending_action.is_some() {
+        if self.guard.pending_action.is_some() {
             return;
         }
         if self.has_unsaved_changes() {
-            self.pending_action = Some(PendingAction::OpenPath(path));
+            self.guard.pending_action = Some(PendingAction::OpenPath(path));
         } else {
             self.action_open_path(path);
         }
@@ -160,11 +161,11 @@ impl App {
     /// returning `false` while another action is already parked, so a second
     /// click on the window X cannot park on top of an already-parked action.
     pub fn request_exit(&mut self) -> bool {
-        if self.pending_action.is_some() {
+        if self.guard.pending_action.is_some() {
             return false;
         }
         if self.has_unsaved_changes() {
-            self.pending_action = Some(PendingAction::Exit);
+            self.guard.pending_action = Some(PendingAction::Exit);
             false
         } else {
             true
@@ -207,7 +208,7 @@ impl App {
 // ---------------------------------------------------------------------------
 
 /// Render the discard-confirmation dialog. Renders nothing while
-/// `App::pending_action` is `None`; on a click, delegates the decision to
+/// `UnsavedGuard::pending_action` is `None`; on a click, delegates the decision to
 /// [`apply_dialog_result`].
 ///
 /// Called from [`super::panels::draw_dialogs`]. The render and the decision
@@ -215,7 +216,7 @@ impl App {
 /// [`apply_dialog_result`] testable directly, with no simulated pointer
 /// click, which is how the Discard and Cancel behaviour is actually covered.
 pub fn draw_discard_dialog(ctx: &egui::Context, app: &mut App) {
-    if app.pending_action.is_none() {
+    if app.guard.pending_action.is_none() {
         return;
     }
     if let Some(result) = crate::ui::confirm_dialog(
@@ -231,14 +232,14 @@ pub fn draw_discard_dialog(ctx: &egui::Context, app: &mut App) {
 
 /// Apply the operator's answer to the parked action.
 ///
-/// Takes `App::pending_action` unconditionally, so both branches clear it —
+/// Takes `UnsavedGuard::pending_action` unconditionally, so both branches clear it —
 /// forgetting to clear it on either one would leave a dialog that reopens
 /// every frame. On [`DialogResult::Confirmed`] the parked action runs exactly
-/// once (`Exit` sets [`App::exit_confirmed`] and sends
+/// once (`Exit` sets `UnsavedGuard::exit_confirmed` and sends
 /// `ViewportCommand::Close`); on [`DialogResult::Cancelled`] nothing else
 /// happens and no viewport command is sent.
 pub fn apply_dialog_result(ctx: &egui::Context, app: &mut App, result: DialogResult) {
-    let action = app.pending_action.take();
+    let action = app.guard.pending_action.take();
     if result != DialogResult::Confirmed {
         return;
     }
@@ -248,7 +249,7 @@ pub fn apply_dialog_result(ctx: &egui::Context, app: &mut App, result: DialogRes
         Some(PendingAction::OpenPath(path)) => app.action_open_path(path),
         Some(PendingAction::Exit) => {
             // Latched first (LCV-136) — see `poll_close_request` below.
-            app.exit_confirmed = true;
+            app.guard.exit_confirmed = true;
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
         None => {}
@@ -271,7 +272,7 @@ pub fn apply_dialog_result(ctx: &egui::Context, app: &mut App, result: DialogRes
 /// `CancelClose` and closes the window otherwise. On a clean document nothing
 /// is sent and the window closes normally.
 ///
-/// [`App::exit_confirmed`] short-circuits all of the above once set
+/// `UnsavedGuard::exit_confirmed` short-circuits all of the above once set
 /// (LCV-136): `ViewportCommand::Close` only *records* a fresh
 /// `ViewportEvent::Close` (`egui_winit::process_viewport_command`, verified
 /// against the vendored 0.29.1 source) rather than closing the window
@@ -284,7 +285,7 @@ pub fn poll_close_request(ctx: &egui::Context, app: &mut App) {
     if !ctx.input(|i| i.viewport().close_requested()) {
         return;
     }
-    if app.exit_confirmed {
+    if app.guard.exit_confirmed {
         return;
     }
     if !app.request_exit() {
@@ -299,6 +300,7 @@ pub fn poll_close_request(ctx: &egui::Context, app: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::UnsavedGuard;
     use crate::document::{CreateLine, Entity};
     use crate::geometry::{Line, Vec2};
 
@@ -313,16 +315,16 @@ mod tests {
 
     // -- AC 1, 2, 14 — has_unsaved_changes -----------------------------------
 
-    /// AC 1 — `App::default().saved_revision` is `None`.
+    /// AC 1 — `App::default().guard.saved_revision` is `None`.
     #[test]
     fn app_default_saved_revision_is_none() {
-        assert_eq!(App::default().saved_revision, None);
+        assert_eq!(App::default().guard.saved_revision, None);
     }
 
-    /// AC 5 — `App::default().pending_action` is `None`.
+    /// AC 5 — `App::default().guard.pending_action` is `None`.
     #[test]
     fn app_default_pending_action_is_none() {
-        assert_eq!(App::default().pending_action, None);
+        assert_eq!(App::default().guard.pending_action, None);
     }
 
     /// AC 2 — the truth table in the demand body, one assertion per row.
@@ -437,7 +439,7 @@ mod tests {
 
         app.mark_saved();
 
-        assert_eq!(app.saved_revision, Some(app.history.revision()));
+        assert_eq!(app.guard.saved_revision, Some(app.history.revision()));
         assert!(app.dirty_since.is_none());
         assert_eq!(app.last_synced_revision, app.history.revision());
     }
@@ -458,7 +460,7 @@ mod tests {
 
         assert_eq!(app.document.entity_count(), 0, "action_new must have run");
         assert!(app.current_file.is_none(), "action_new resets current_file");
-        assert!(app.pending_action.is_none());
+        assert!(app.guard.pending_action.is_none());
     }
 
     /// AC 5, 6 — a dirty document parks `PendingAction::New` and changes
@@ -473,7 +475,7 @@ mod tests {
 
         app.request_new();
 
-        assert_eq!(app.pending_action, Some(PendingAction::New));
+        assert_eq!(app.guard.pending_action, Some(PendingAction::New));
         assert_eq!(app.document.entity_count(), 1, "document must be untouched");
         assert_eq!(app.history.revision(), revision_before);
     }
@@ -488,7 +490,7 @@ mod tests {
 
         app.request_open();
 
-        assert_eq!(app.pending_action, Some(PendingAction::Open));
+        assert_eq!(app.guard.pending_action, Some(PendingAction::Open));
         assert_eq!(app.document.entity_count(), 1, "document must be untouched");
     }
 
@@ -499,7 +501,7 @@ mod tests {
         commit_a_line(&mut app);
 
         assert!(!app.request_exit());
-        assert_eq!(app.pending_action, Some(PendingAction::Exit));
+        assert_eq!(app.guard.pending_action, Some(PendingAction::Exit));
     }
 
     /// AC 6 — `request_exit` returns `true` and parks nothing on a clean
@@ -508,7 +510,7 @@ mod tests {
     fn request_exit_returns_true_when_clean() {
         let mut app = App::default();
         assert!(app.request_exit());
-        assert!(app.pending_action.is_none());
+        assert!(app.guard.pending_action.is_none());
     }
 
     /// AC 6 — a second request while one is already parked is a no-op: it
@@ -519,18 +521,18 @@ mod tests {
         commit_a_line(&mut app);
 
         app.request_new();
-        assert_eq!(app.pending_action, Some(PendingAction::New));
+        assert_eq!(app.guard.pending_action, Some(PendingAction::New));
 
         app.request_open();
         assert_eq!(
-            app.pending_action,
+            app.guard.pending_action,
             Some(PendingAction::New),
             "a second request must not replace the parked action"
         );
 
         assert!(!app.request_exit());
         assert_eq!(
-            app.pending_action,
+            app.guard.pending_action,
             Some(PendingAction::New),
             "request_exit must not park while another action is already pending"
         );
@@ -548,11 +550,11 @@ mod tests {
 
         let mut app = App::default();
         commit_a_line(&mut app);
-        app.pending_action = Some(PendingAction::New);
+        app.guard.pending_action = Some(PendingAction::New);
         let out = ctx.run(egui::RawInput::default(), |ctx| {
             apply_dialog_result(ctx, &mut app, DialogResult::Confirmed);
         });
-        assert!(app.pending_action.is_none());
+        assert!(app.guard.pending_action.is_none());
         assert_eq!(
             app.document.entity_count(),
             0,
@@ -563,13 +565,16 @@ mod tests {
             .contains(&egui::ViewportCommand::Close));
 
         let mut exit_app = App {
-            pending_action: Some(PendingAction::Exit),
+            guard: UnsavedGuard {
+                pending_action: Some(PendingAction::Exit),
+                ..Default::default()
+            },
             ..App::default()
         };
         let out = ctx.run(egui::RawInput::default(), |ctx| {
             apply_dialog_result(ctx, &mut exit_app, DialogResult::Confirmed);
         });
-        assert!(exit_app.pending_action.is_none());
+        assert!(exit_app.guard.pending_action.is_none());
         assert!(
             out.viewport_output[&egui::ViewportId::ROOT]
                 .commands
@@ -588,23 +593,23 @@ mod tests {
         commit_a_line(&mut app);
         app.mark_saved();
         app.current_file = Some(PathBuf::from("keep.svg"));
-        app.pending_action = Some(PendingAction::Exit);
+        app.guard.pending_action = Some(PendingAction::Exit);
 
         let entity_count = app.document.entity_count();
         let revision = app.history.revision();
         let current_file = app.current_file.clone();
-        let saved_revision = app.saved_revision;
+        let saved_revision = app.guard.saved_revision;
         let dirty_since = app.dirty_since;
 
         let out = ctx.run(egui::RawInput::default(), |ctx| {
             apply_dialog_result(ctx, &mut app, DialogResult::Cancelled);
         });
 
-        assert!(app.pending_action.is_none());
+        assert!(app.guard.pending_action.is_none());
         assert_eq!(app.document.entity_count(), entity_count);
         assert_eq!(app.history.revision(), revision);
         assert_eq!(app.current_file, current_file);
-        assert_eq!(app.saved_revision, saved_revision);
+        assert_eq!(app.guard.saved_revision, saved_revision);
         assert_eq!(app.dirty_since, dirty_since);
         assert!(
             !out.viewport_output[&egui::ViewportId::ROOT]
@@ -632,7 +637,7 @@ mod tests {
     // -- AC 3, 4 — promoted static checks (review finding) -------------------
     //
     // Both were hand-run greps until a mutation review proved that "hand-run"
-    // is not a gate: adding `app.saved_revision = Some(app.history.revision())`
+    // is not a gate: adding `app.guard.saved_revision = Some(app.history.revision())`
     // inside `flush_if_due`'s due branch passed all 746 library tests. A
     // source scan, unlike a grep in a PR description, runs on every
     // `cargo test`.

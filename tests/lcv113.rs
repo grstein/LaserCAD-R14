@@ -82,7 +82,7 @@ fn ctrl_n_on_clean_document_resets_immediately() {
 
     tap(&ctx, &mut app, egui::Key::N, ctrl());
 
-    assert!(app.pending_action.is_none());
+    assert!(app.guard.pending_action.is_none());
     assert_eq!(app.document.entity_count(), 0);
 }
 
@@ -98,7 +98,7 @@ fn ctrl_n_on_dirty_document_opens_the_dialog_and_keeps_the_drawing() {
 
     tap(&ctx, &mut app, egui::Key::N, ctrl());
 
-    assert_eq!(app.pending_action, Some(PendingAction::New));
+    assert_eq!(app.guard.pending_action, Some(PendingAction::New));
     assert_eq!(
         app.document.entity_count(),
         2,
@@ -121,7 +121,7 @@ fn ctrl_o_on_dirty_document_parks_without_opening_a_native_dialog() {
 
     tap(&ctx, &mut app, egui::Key::O, ctrl());
 
-    assert_eq!(app.pending_action, Some(PendingAction::Open));
+    assert_eq!(app.guard.pending_action, Some(PendingAction::Open));
     assert_eq!(app.document.entity_count(), 1);
 }
 
@@ -147,7 +147,7 @@ fn close_request_on_a_dirty_document_is_cancelled() {
             .contains(&egui::ViewportCommand::CancelClose),
         "a dirty document's close request must be cancelled"
     );
-    assert_eq!(app.pending_action, Some(PendingAction::Exit));
+    assert_eq!(app.guard.pending_action, Some(PendingAction::Exit));
 }
 
 /// AC 9 — a close request on a clean document is not cancelled: no
@@ -166,5 +166,5 @@ fn close_request_on_a_clean_document_is_not_cancelled() {
             .contains(&egui::ViewportCommand::CancelClose),
         "a clean document's close request must not be cancelled"
     );
-    assert!(app.pending_action.is_none());
+    assert!(app.guard.pending_action.is_none());
 }

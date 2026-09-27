@@ -678,7 +678,10 @@ fn the_operator_can_still_commit_while_an_act_is_outstanding() {
 
     idle(&ctx, &mut app);
 
-    assert!(app.pending_action.is_none(), "no modal parked the operator");
+    assert!(
+        app.guard.pending_action.is_none(),
+        "no modal parked the operator"
+    );
     assert!(app.error_message.is_none(), "no error dialog");
     assert!(app.bed_dialog.is_none(), "no dialog opened by the turn");
 }

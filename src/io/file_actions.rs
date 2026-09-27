@@ -583,7 +583,7 @@ mod tests {
         action_new(&mut app);
 
         assert!(!app.has_unsaved_changes());
-        assert_eq!(app.saved_revision, Some(app.history.revision()));
+        assert_eq!(app.guard.saved_revision, Some(app.history.revision()));
     }
 
     // --- AC 9 — action_save with current_file set ---------------------------

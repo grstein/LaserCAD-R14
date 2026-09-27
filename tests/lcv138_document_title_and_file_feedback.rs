@@ -298,7 +298,7 @@ fn cancelling_the_discard_dialog_leaves_the_title_unchanged() {
 
     app.request_open_path(would_succeed.clone());
     assert_eq!(
-        app.pending_action,
+        app.guard.pending_action,
         Some(PendingAction::OpenPath(would_succeed))
     );
 
@@ -307,7 +307,7 @@ fn cancelling_the_discard_dialog_leaves_the_title_unchanged() {
         lasercad::app::apply_dialog_result(c, &mut app, DialogResult::Cancelled);
     });
 
-    assert!(app.pending_action.is_none());
+    assert!(app.guard.pending_action.is_none());
     assert_eq!(app.display_title(), title_before);
 }
 

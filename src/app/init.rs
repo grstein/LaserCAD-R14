@@ -19,7 +19,7 @@
 //!
 //! MUST NOT import `eframe` or `rfd`.
 
-use super::{AgentState, App, DocumentTitleState};
+use super::{AgentState, App, DocumentTitleState, UnsavedGuard};
 use crate::cmdline::CommandHistory;
 use crate::document::{Document, History};
 use crate::io::settings::Settings;
@@ -68,9 +68,7 @@ impl Default for App {
             current_file: None,
             title: DocumentTitleState::default(),
             error_message: None,
-            saved_revision: None,
-            pending_action: None,
-            exit_confirmed: false,
+            guard: UnsavedGuard::default(),
         };
         // Pre-seed the title cache to what this fresh state already computes
         // (LCV-138): a test `App` never backs a real OS window, so there is

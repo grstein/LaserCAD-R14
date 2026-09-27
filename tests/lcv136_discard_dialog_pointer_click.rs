@@ -33,7 +33,7 @@
 //! `true` on that next frame: `poll_close_request` re-ran `request_exit`,
 //! re-parked `PendingAction::Exit`, and sent `CancelClose` — cancelling the
 //! close the operator just confirmed and reopening the dialog, forever. The
-//! fix is `App::exit_confirmed`, a latch set by `apply_dialog_result`'s
+//! fix is `App::guard.exit_confirmed`, a latch set by `apply_dialog_result`'s
 //! confirmed-`Exit` arm and checked first by `poll_close_request`
 //! (`src/app/file_ops.rs`), which lets every later close request through
 //! unconditionally once the operator has answered once. A repeated *native*
@@ -288,13 +288,16 @@ fn discard_confirms_new_exactly_once_and_is_not_replayed() {
     let _ = ctx.run(raw_input(key_events(egui::Key::N, ctrl())), |c| {
         app.update_ui(c)
     });
-    assert_eq!(app.pending_action, Some(PendingAction::New));
+    assert_eq!(app.guard.pending_action, Some(PendingAction::New));
 
     let runs = settle(&ctx, &mut app);
     let discard = locate(&runs, "Discard");
     click_button(&ctx, &mut app, discard);
 
-    assert!(app.pending_action.is_none(), "the dialog must be dismissed");
+    assert!(
+        app.guard.pending_action.is_none(),
+        "the dialog must be dismissed"
+    );
     assert_eq!(
         app.document.entity_count(),
         0,
@@ -332,7 +335,7 @@ fn discard_confirms_open_path_exactly_once_and_is_not_replayed() {
 
     app.request_open_path(fixture.clone());
     assert_eq!(
-        app.pending_action,
+        app.guard.pending_action,
         Some(PendingAction::OpenPath(fixture.clone()))
     );
 
@@ -340,7 +343,7 @@ fn discard_confirms_open_path_exactly_once_and_is_not_replayed() {
     let discard = locate(&runs, "Discard");
     click_button(&ctx, &mut app, discard);
 
-    assert!(app.pending_action.is_none());
+    assert!(app.guard.pending_action.is_none());
     assert_eq!(
         app.document.entity_count(),
         1,
@@ -372,7 +375,7 @@ fn discard_confirms_exit_exactly_once_and_does_not_reopen() {
     assert!(out.viewport_output[&egui::ViewportId::ROOT]
         .commands
         .contains(&egui::ViewportCommand::CancelClose));
-    assert_eq!(app.pending_action, Some(PendingAction::Exit));
+    assert_eq!(app.guard.pending_action, Some(PendingAction::Exit));
 
     let runs = settle(&ctx, &mut app);
     let discard = locate(&runs, "Discard");
@@ -383,7 +386,7 @@ fn discard_confirms_exit_exactly_once_and_does_not_reopen() {
             .contains(&egui::ViewportCommand::Close),
         "the confirmed Exit must send Close"
     );
-    assert!(app.pending_action.is_none());
+    assert!(app.guard.pending_action.is_none());
 
     // The real framework's follow-up frame is not an idle one: sending
     // `ViewportCommand::Close` only *records* a fresh `ViewportEvent::Close`
@@ -392,7 +395,7 @@ fn discard_confirms_exit_exactly_once_and_does_not_reopen() {
     // frame's `RawInput` reports `close_requested() == true` again for that
     // same close — modeled here with the identical `close_request_input()`
     // fixture used for the operator's original close, not an empty frame.
-    // Without `App::exit_confirmed` this second `close_requested()` would
+    // Without `App::guard.exit_confirmed` this second `close_requested()` would
     // hit `request_exit` again, find the (still dirty — `Exit` performs no
     // save) document unsaved, re-park `PendingAction::Exit` and emit
     // `CancelClose`, cancelling the close the operator just confirmed and
@@ -405,7 +408,7 @@ fn discard_confirms_exit_exactly_once_and_does_not_reopen() {
         "the re-delivered close request must not be cancelled"
     );
     assert!(
-        app.pending_action.is_none(),
+        app.guard.pending_action.is_none(),
         "the re-delivered close request must not re-park Exit"
     );
     let runs = paint::runs_in(&out.shapes);
@@ -414,9 +417,9 @@ fn discard_confirms_exit_exactly_once_and_does_not_reopen() {
         "a confirmed Exit must not reopen the dialog"
     );
 
-    // A *second* re-delivered Close, not just one: `App::exit_confirmed` must
+    // A *second* re-delivered Close, not just one: `App::guard.exit_confirmed` must
     // stay latched rather than being read once and cleared. A one-shot guard
-    // shaped `if app.exit_confirmed { app.exit_confirmed = false; return; }`
+    // shaped `if app.guard.exit_confirmed { app.guard.exit_confirmed = false; return; }`
     // passes everything above — the first re-delivery still finds the flag
     // set — and only misbehaves on the request after that, once its own read
     // has cleared it: `poll_close_request` would fall through to
@@ -430,7 +433,7 @@ fn discard_confirms_exit_exactly_once_and_does_not_reopen() {
         "a second re-delivered close request must not be cancelled either"
     );
     assert!(
-        app.pending_action.is_none(),
+        app.guard.pending_action.is_none(),
         "a second re-delivered close request must not re-park Exit either"
     );
     let runs = paint::runs_in(&out.shapes);
@@ -462,7 +465,7 @@ fn file_menu_new_reaches_request_new_through_a_real_pointer_click() {
     click_button(&ctx, &mut app, new_item);
 
     assert_eq!(
-        app.pending_action,
+        app.guard.pending_action,
         Some(PendingAction::New),
         "a real click on File > New must reach request_new, same as Ctrl+N"
     );
@@ -490,7 +493,7 @@ fn file_menu_open_reaches_request_open_through_a_real_pointer_click() {
     click_button(&ctx, &mut app, open_item);
 
     assert_eq!(
-        app.pending_action,
+        app.guard.pending_action,
         Some(PendingAction::Open),
         "a real click on File > Open… must reach request_open, same as Ctrl+O"
     );
@@ -523,13 +526,13 @@ fn cancel_preserves_state_for_new() {
     let _ = ctx.run(raw_input(key_events(egui::Key::N, ctrl())), |c| {
         app.update_ui(c)
     });
-    assert_eq!(app.pending_action, Some(PendingAction::New));
+    assert_eq!(app.guard.pending_action, Some(PendingAction::New));
 
     let runs = settle(&ctx, &mut app);
     let cancel = locate(&runs, "Cancel");
     click_button(&ctx, &mut app, cancel);
 
-    assert!(app.pending_action.is_none());
+    assert!(app.guard.pending_action.is_none());
     assert_unchanged(&app, &before);
 }
 
@@ -551,13 +554,16 @@ fn cancel_preserves_state_for_open_path() {
     let fixture = dir.join("fixture.svg");
     std::fs::write(&fixture, VALID_SVG).unwrap();
     app.request_open_path(fixture.clone());
-    assert_eq!(app.pending_action, Some(PendingAction::OpenPath(fixture)));
+    assert_eq!(
+        app.guard.pending_action,
+        Some(PendingAction::OpenPath(fixture))
+    );
 
     let runs = settle(&ctx, &mut app);
     let cancel = locate(&runs, "Cancel");
     click_button(&ctx, &mut app, cancel);
 
-    assert!(app.pending_action.is_none());
+    assert!(app.guard.pending_action.is_none());
     assert_unchanged(&app, &before);
 }
 
@@ -580,7 +586,7 @@ fn cancel_preserves_state_for_exit() {
     assert!(out.viewport_output[&egui::ViewportId::ROOT]
         .commands
         .contains(&egui::ViewportCommand::CancelClose));
-    assert_eq!(app.pending_action, Some(PendingAction::Exit));
+    assert_eq!(app.guard.pending_action, Some(PendingAction::Exit));
 
     let runs = settle(&ctx, &mut app);
     let cancel = locate(&runs, "Cancel");
@@ -592,7 +598,7 @@ fn cancel_preserves_state_for_exit() {
             .contains(&egui::ViewportCommand::Close),
         "Cancel must never send Close"
     );
-    assert!(app.pending_action.is_none());
+    assert!(app.guard.pending_action.is_none());
     assert_unchanged(&app, &before);
 }
 
@@ -618,14 +624,17 @@ fn open_path_missing_file_confirmed_preserves_drawing_and_surfaces_error() {
     let dir = tempdir("open_path_missing");
     let missing = dir.join("does_not_exist.svg");
     app.request_open_path(missing.clone());
-    assert_eq!(app.pending_action, Some(PendingAction::OpenPath(missing)));
+    assert_eq!(
+        app.guard.pending_action,
+        Some(PendingAction::OpenPath(missing))
+    );
 
     let runs = settle(&ctx, &mut app);
     let discard = locate(&runs, "Discard");
     click_button(&ctx, &mut app, discard);
 
     assert!(
-        app.pending_action.is_none(),
+        app.guard.pending_action.is_none(),
         "the dialog must be dismissed either way"
     );
     assert_eq!(
@@ -670,13 +679,16 @@ fn open_path_malformed_svg_confirmed_preserves_drawing_and_surfaces_error() {
     let fixture = dir.join("malformed.svg");
     std::fs::write(&fixture, MALFORMED_SVG).unwrap();
     app.request_open_path(fixture.clone());
-    assert_eq!(app.pending_action, Some(PendingAction::OpenPath(fixture)));
+    assert_eq!(
+        app.guard.pending_action,
+        Some(PendingAction::OpenPath(fixture))
+    );
 
     let runs = settle(&ctx, &mut app);
     let discard = locate(&runs, "Discard");
     click_button(&ctx, &mut app, discard);
 
-    assert!(app.pending_action.is_none());
+    assert!(app.guard.pending_action.is_none());
     assert_eq!(
         app.document.entities, before_entities,
         "a failed parse must not clear the drawing"
@@ -719,7 +731,7 @@ fn pointer_input_behind_the_dialog_is_inert() {
     let _ = ctx.run(raw_input(key_events(egui::Key::N, ctrl())), |c| {
         app.update_ui(c)
     });
-    assert_eq!(app.pending_action, Some(PendingAction::New));
+    assert_eq!(app.guard.pending_action, Some(PendingAction::New));
 
     settle(&ctx, &mut app);
     let dialog_id = egui::Id::new("Discard unsaved changes?");
@@ -775,7 +787,7 @@ fn pointer_input_behind_the_dialog_is_inert() {
     assert_eq!(app.document.entities, entities_before);
 
     assert_eq!(
-        app.pending_action,
+        app.guard.pending_action,
         Some(PendingAction::New),
         "the dialog must still be up throughout"
     );
@@ -799,7 +811,7 @@ fn a_second_click_after_discard_is_handled_does_not_double_dispatch() {
     let discard = locate(&runs, "Discard");
 
     click_button(&ctx, &mut app, discard);
-    assert!(app.pending_action.is_none());
+    assert!(app.guard.pending_action.is_none());
     assert_eq!(app.document.entity_count(), 0);
 
     // Dirty the document again and click at the exact same screen position,
@@ -815,7 +827,7 @@ fn a_second_click_after_discard_is_handled_does_not_double_dispatch() {
         app.document.entities, entities_before_second_click,
         "a stray click at the dialog's old position must not run action_new again"
     );
-    assert!(app.pending_action.is_none());
+    assert!(app.guard.pending_action.is_none());
 }
 
 // ---------------------------------------------------------------------------
@@ -837,14 +849,14 @@ fn repeated_close_requests_do_not_replace_the_parked_action_or_consume_the_next_
     assert!(out1.viewport_output[&egui::ViewportId::ROOT]
         .commands
         .contains(&egui::ViewportCommand::CancelClose));
-    assert_eq!(app.pending_action, Some(PendingAction::Exit));
+    assert_eq!(app.guard.pending_action, Some(PendingAction::Exit));
 
     let out2 = ctx.run(close_request_input(), |c| app.update_ui(c));
     assert!(out2.viewport_output[&egui::ViewportId::ROOT]
         .commands
         .contains(&egui::ViewportCommand::CancelClose));
     assert_eq!(
-        app.pending_action,
+        app.guard.pending_action,
         Some(PendingAction::Exit),
         "a repeated close request must not replace the parked action"
     );
@@ -859,7 +871,7 @@ fn repeated_close_requests_do_not_replace_the_parked_action_or_consume_the_next_
             .contains(&egui::ViewportCommand::Close),
         "the click after the repeated close requests must still confirm Exit"
     );
-    assert!(app.pending_action.is_none());
+    assert!(app.guard.pending_action.is_none());
 }
 
 // ---------------------------------------------------------------------------

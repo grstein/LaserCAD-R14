@@ -12,7 +12,9 @@
 //! pointer, camera), `autosave` (the dirty signal, the debounce and the
 //! flush), `file_ops` (the guarded New / Open / Exit entry points and the
 //! discard-confirmation dialog, LCV-113), `bed_dialog` (the Bed size… modal,
-//! LCV-114), `document_title` (native title + recovery flag, LCV-138). `init` holds the two `App` constructors — `Default` and
+//! LCV-114), `document_title` (native title + recovery flag, LCV-138),
+//! `unsaved_guard` (the three fields behind `App::has_unsaved_changes`,
+//! ADR 0004 §"The `src/app/mod.rs` seam"). `init` holds the two `App` constructors — `Default` and
 //! [`App::new`] — moved out of this file to stay under the 300-LOC
 //! implementation cap (LCV-115); `persist` holds the three methods that are
 //! the only readers of the two injected path fields (LCV-119, ADR 0006). `ortho`, `snap` and `agent_poll`
@@ -41,6 +43,7 @@ mod ortho;
 mod panels;
 mod persist;
 mod snap;
+mod unsaved_guard;
 mod viewport;
 
 mod agent_apply;
@@ -59,6 +62,7 @@ pub use file_ops::{apply_dialog_result, draw_discard_dialog, poll_close_request,
 pub use input::process_input;
 pub use ortho::apply_ortho;
 pub use snap::{resolve_snap, suppress_snap_if_disabled};
+pub use unsaved_guard::UnsavedGuard;
 pub use viewport::{handle_pan, handle_wheel_zoom, handle_zoom_extents};
 
 use std::time::Instant;
@@ -187,31 +191,13 @@ pub struct App {
     /// When `Some`, a modal error window is rendered on the next frame; cleared
     /// when the user dismisses it (LCV-062).
     pub error_message: Option<String>,
-    /// The `history.revision()` at which the document was last known safe to
-    /// discard: just written to a file, just loaded from one, or just reset
-    /// to blank (LCV-113). `None` means "never was" — a fresh unsaved
-    /// document or one recovered from autosave at boot, both unsaved per
-    /// [`App::has_unsaved_changes`]. **Not** the autosave signal: unlike
-    /// `dirty_since`, autosave (`mark_clean`) never touches this field. The
-    /// only writer is [`App::mark_saved`].
-    pub saved_revision: Option<u64>,
-    /// A destructive action parked while the discard-confirmation dialog is
-    /// up (LCV-113). `None` means no dialog is pending; see `src/app/file_ops.rs`.
-    pub pending_action: Option<PendingAction>,
-    /// Set once a parked `Exit` is confirmed; never cleared afterward
-    /// (LCV-136). `ViewportCommand::Close` does not synchronously destroy the
-    /// window: egui-winit's `process_viewport_command` only records a fresh
-    /// `ViewportEvent::Close` on the viewport, which makes
-    /// `close_requested()` report `true` again on the *next* frame — the
-    /// same close request, re-delivered. Without this latch,
-    /// `poll_close_request` would run `request_exit` a second time, find the
-    /// document still dirty (`Exit` performs no save), re-park
-    /// `PendingAction::Exit`, and send `CancelClose` — cancelling the very
-    /// close the operator just confirmed, forever. See
-    /// `src/app/file_ops.rs::poll_close_request`. The latch assumes the
-    /// window tears down once `Close` is sent uncancelled (eframe 0.29.1
-    /// behaviour).
-    pub exit_confirmed: bool,
+    /// The unsaved-changes guard's state: the last known safe-to-discard
+    /// revision, a destructive action parked behind the discard-confirmation
+    /// dialog, and whether a parked `Exit` has already been confirmed
+    /// (`src/app/unsaved_guard.rs`, ADR 0004 §"The `src/app/mod.rs` seam",
+    /// LCV-138). [`App::has_unsaved_changes`] and [`App::mark_saved`]
+    /// (`src/app/file_ops.rs`) are its only reader and writer.
+    pub guard: UnsavedGuard,
 }
 
 impl App {
