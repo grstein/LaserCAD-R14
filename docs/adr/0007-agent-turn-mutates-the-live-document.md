@@ -44,6 +44,21 @@
   a competing record in `docs/product/backlog.md` claimed the opposite choice,
   and the conflict could not be settled from inside the repository because both
   sides traced back to the same person through different couriers.
+- **Amended (7)**: 2026-09-27 — LCV-142 (tool budget default 256, range
+  1..=4096). §D6's end-of-turn coalesce cannot survive a budget above
+  `HISTORY_DEPTH`, and the "at most 32" bound §D4 and §D6 both leaned on is
+  gone. **§D6 is superseded by §D12** (one flat history group per turn,
+  opened at turn start) and **§D7's constants and type are superseded by §D13**
+  (`u32`, 256, 1..=4096; §D7's placement and clamp-at-read-site rule stand).
+  §D4 gains a second fence witness and a stop rule (§D14). §D2a's *routing* of a
+  shape failure is corrected by §D15 — as shipped, a shape failure ended the
+  whole turn `Failed`, contrary to §D2a's own text. §D8 gains rows; §D11's
+  closure property is unchanged and no exit is added. §D1, §D3, §D5, §D9, §D9a
+  and §D10 are untouched. The original §D4/§D6/§D7 text is kept below, marked.
+  The same date, [ADR 0010](0010-declarative-drawing-batch-tool.md) (LCV-144)
+  and [ADR 0011](0011-canvas-observation-is-an-offscreen-raster.md) (LCV-145)
+  extend §D2's vocabulary and §D8's map without relaxing §D1: no worker-held
+  document state, `Document` stays `!Clone`, no `Arc<Mutex<_>>`.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
@@ -179,6 +194,11 @@ frame loop is gone — aborts the turn cleanly with no extra machinery.
 
 ### D2a — Validation splits where the document does: shape in the thread, range at the apply site
 
+> **Amended (7):** which checks live where is unchanged. How a shape failure
+> *travels* is replaced by §D15: it becomes an `AgentAction::Malformed` `Act`,
+> answered `Refused` without touching the document. The "never leaves the
+> thread" bullet below is historical.
+
 *(Added by amendment. §D4 originally claimed out-of-range indices were "still
 caught where they already are, in `get_index`". They are not, and cannot be:
 `get_index` takes a `doc_len`, and §D1 forbids the thread from holding anything
@@ -227,6 +247,12 @@ second thing to clear on every exit path, and no gain — there is never more th
 one outstanding request, because the thread blocks.
 
 ### D4 — `History::revision()` is the fence; a foreign commit aborts the turn
+
+> **Amended (7):** read with §D14. The fence gains a second witness
+> (`History::group_open()`), and the "each refusal consumes one step … at most
+> 32 wasted round trips" paragraph is replaced: dispatch stops at the first
+> fence refusal. Stickiness stands; its justification moves from §D6's coalesce
+> gate to §D12's group.
 
 Every mutation in this program bumps `History::revision()` exactly once, and the
 UI thread is its only writer. That makes it a complete sequencer, already built
@@ -303,6 +329,12 @@ The real fix is stable entity IDs. That is a separate ADR — see §Deferred.
 
 ### D6 — One turn is one undo entry, produced by coalescing, gated on the fence
 
+> **Superseded by §D12 (amendment 7).** The goal — one turn, one `Ctrl+Z`; no
+> deferred application; no partial rejection — stands. The mechanism below
+> (`coalesce_last` at turn end, `may_coalesce`) is retired: with more than
+> `HISTORY_DEPTH` commits in a turn, the depth cap evicts the turn's own first
+> steps, and all earlier user history, before any end-of-turn fold can run.
+
 Twenty lines from one prompt must not leave twenty `Ctrl+Z` presses. Partial
 rejection of half a turn is a non-goal: R14 does not offer it for its own
 commands either, and the cure is to undo and re-prompt.
@@ -326,6 +358,10 @@ The mechanism must not defer application (D2 forbids that), so:
 there) because `HISTORY_DEPTH` is 200 and the step budget caps at 32.
 
 ### D7 — The step budget is configurable, and the range lives with the loop
+
+> **Constants and type superseded by §D13 (amendment 7).** Where the constants
+> live, the `serde(default)` rule, the clamp at the read site and the
+> no-`agent`-import rule for `io/settings.rs` all stand.
 
 `MAX_TOOL_CALLS_PER_TURN = 10` is retired. `loop_` takes the budget as a
 parameter. The three constants — `AGENT_STEP_BUDGET_DEFAULT: u8 = 12`,
@@ -376,6 +412,37 @@ The wire types currently duplicated between `loop_.rs` (public `ToolCall`,
 `ChatResponse`, `Choice`, `ChoiceMessage`) collapse into `wire.rs`. That
 deduplication is what keeps `transport.rs` and `loop_.rs` under the cap once
 tool calls, a `tool` role and status mapping are added to them.
+
+> **Amended (7) — rows added, 2026-09-27.** Measured with the ADR 0004 recipe
+> at `1859f3f`: `agent_turn.rs` 272, `agent_apply.rs` 284, `src/app/mod.rs`
+> 292, `io/settings.rs` 265, `history.rs` 199, `loop_.rs` 150. Three are in the
+> 270–300 zone and the demands below all grow them, so the seams are named now
+> and each is performed by the demand that first touches the file:
+>
+> ```
+> src/app/
+>   agent_worker.rs  run_agent_turn, ask_ui, TurnConfig — the worker-side half
+>                    of agent_turn.rs, split out by LCV-142 (§D13).
+>   agent_turn.rs    TurnFence (§D14), TurnState, arm_turn, start_turn.
+>   agent_narrate.rs pt / sweep / kind / geometry / describe / bed_line /
+>                    list_entities / list_selection, split out of
+>                    agent_apply.rs by LCV-144 before it adds its arm (ADR 0010).
+>   agent_capture.rs capture_canvas + upload authorization (ADR 0011).
+> src/agent/
+>   drawing.rs       create_drawing schema fragment, parser, DrawingItem (ADR 0010).
+> src/render/
+>   raster.rs        kernel-pure document rasterizer + PNG encode (ADR 0011).
+> ```
+>
+> `App`'s `agent_fence`, `agent_applied` and `agent_turn_label` collapse into
+> one field `agent_turn: TurnState` (declared in `agent_turn.rs`: fence, applied
+> count, dispatched-step count, snapshotted step limit). LCV-142 does it; it is
+> what keeps `src/app/mod.rs` under 300 while adding progress. `agent_busy` and
+> `agent_rx` stay top-level fields: they are §D11's single-writer pair and
+> `tests/lcv129_agent_timeout_and_cancel.rs` scans them by name.
+> `io/settings.rs`' seam, for whichever of LCV-142/143/145 crosses 270:
+> `platform_path` / `load_from` / `save_to` and the `.bak` logic move to
+> `src/io/settings_store.rs`; the `Settings` struct and its field defaults stay.
 
 ### D9 — Command-line routing precedence
 
@@ -547,6 +614,155 @@ coalesce gate needs also happens, once, for all of them. A reviewer checks that
 every terminal arm is a tail call to `end_turn`, and a test mutating any one of
 them into leaving `agent_busy` set must fail.
 
+> **Amended (7):** "whatever turn-end work §D6's coalesce gate needs" is now
+> §D12's `History::end_group()`, called once from `finish_turn`, which only
+> `end_turn` reaches — so every exit, `cancel_turn` included, finalizes the
+> group exactly once. No exit is added: §D15's `Malformed` and ADR 0011's
+> `AuthorizeUpload` ride the existing `Act` arm (a failed `reply.send` on them
+> is exit 4 like any other), and §D14's fence stop ends through `Done` or
+> `Failed`.
+
+### D12 — One turn is one flat history group, opened at turn start and sealed by anything that is not the turn
+
+*(Added by amendment (7). Supersedes §D6's mechanism.)*
+
+`History` gains **one open group**, held *beside* the undo stack, not in it —
+`Option<{ label: String, commands: Vec<Box<dyn Command>> }>`. Names below are
+normative; exact signatures are the implementer's.
+
+- **`begin_group(label)`** arms an empty group. It seals any group already
+  open first (unreachable with one turn at a time; defensive).
+- **`commit_grouped(cmd, doc)`** runs `cmd.do_(doc)` now, appends it to the
+  open group, clears redo and bumps `revision` by one — exactly `commit`'s
+  observable effect on the document and the revision; only *where the command
+  is remembered* differs. Called with no group armed it behaves as `commit`;
+  §D14's fence makes that unreachable.
+- **`end_group()`** seals: a group of one command is pushed bare, of two or
+  more as one `CompositeCommand` (the old `n < 2` rule), of zero not at all;
+  the depth cap runs once; the group is disarmed. It reports whether a group
+  was armed and how many commands it sealed. Idempotent.
+- **`group_open()`** — is a group armed? §D14's second witness.
+- **`commit`, `undo` and `redo` call `end_group()` first.** That is the seal:
+  a foreign create/delete, a `SelectionCommand` (it goes through `commit`), an
+  Undo or a Redo closes the turn's group *before* touching the stack, so
+  foreign work is never absorbed, reordered or replayed. Undo mid-turn
+  therefore seals and then undoes the agent's work so far, as one step.
+- **`can_undo` / `len` / `is_empty` count a non-empty open group as one
+  entry**, so menus and tests see the turn's work while it is in flight.
+- **Document replacement drops the group** with the `History` it belongs to
+  (`src/io/file_actions.rs` assigns a fresh `History`). Nothing in `io/` learns
+  about agents; §D14 is what notices.
+
+Production callers, each exactly one: `begin_group` ← `agent_turn::arm_turn`;
+`commit_grouped` ← `agent_apply` (directly on `app.history`; `App::commit`
+remains the human/tool path, and it seals); `end_group` outside `History` ←
+`agent_poll::finish_turn`. `coalesce_last`, `TurnFence::may_coalesce` and the
+fence's `start` field are deleted. `CompositeCommand` is unchanged — built once,
+at seal, never grown.
+
+Why this is sound where §D6 was not:
+
+- **Nothing of the turn is on the stack until it is one entry.** The depth cap
+  cannot evict step 1 of a 4096-step turn, and a sealing turn displaces at
+  most one oldest entry, like any other commit.
+- **Flat, one level.** The group holds the turn's commands. ADR 0010's batch
+  is one command in it; no composite is nested per entity or per step.
+- **Chronology holds by construction.** While armed, the group is the newest
+  thing that happened; the first foreign event seals it, and §D14 guarantees
+  the turn commits nothing after that. So a sealed group is always the whole
+  turn, and it always sits directly beneath the foreign event that sealed it.
+
+§D6's "two undo behaviours" retires: a turn is one undo entry whether or not
+the fence tripped. The one exception is document replacement, where the turn's
+work left with the document it was done to. The end-of-turn note must be
+derived from `end_group`'s report and must not say "Ctrl+Z undoes the whole
+turn" unless `finish_turn`'s own `end_group` sealed all `applied` commands;
+otherwise its wording is neutral. The words are `product-owner`'s.
+
+Memory: up to 4096 small captured-geometry commands per turn, freed at the
+first eviction or document replacement. Accepted.
+
+### D13 — The step budget is a `u32`, default 256, range 1..=4096
+
+*(Added by amendment (7). Supersedes §D7's constants and type.)*
+
+- `AGENT_STEP_BUDGET_DEFAULT: u32 = 256`, `AGENT_STEP_BUDGET_MIN: u32 = 1`,
+  `AGENT_STEP_BUDGET_MAX: u32 = 4096`, in `loop_.rs`. `Settings::
+  agent_step_budget: u32`, `serde` default 256 written as a literal in
+  `io/settings.rs` with a test pinning it to the constant (the existing
+  pattern). A stored value is kept verbatim and clamped in `agent_turn` at the
+  read site. A value `u32` cannot represent follows `settings.rs`' existing
+  whole-file fallback; changing that is out of scope.
+- **The history no longer bounds the budget; cost does.** 4096 is "a runaway
+  turn is still bounded in minutes and in money", not a structural limit.
+- **A step is one `Act` carrying a tool action** (§D15 makes that include
+  malformed calls). Not an HTTP response, not an entity, not a success. The
+  whole-batch preflight stays: a batch that would cross the budget is refused
+  before any of it is dispatched. After exact exhaustion one more completion
+  is sent; tool calls in it end the turn with `IterationLimitExceeded`.
+- **Everything that crosses into the worker is one owned `TurnConfig`**
+  (`agent_worker.rs`): endpoint, key, model, budget — and, from LCV-143, the
+  effective system prompt; from ADR 0011, the vision flag. `run_agent_turn`
+  already takes six parameters; the next two would trip clippy's
+  `too_many_arguments` at seven. `TurnConfig` carries the API key, so it
+  derives no `Debug`, or a manual one that redacts it (§D10). It is built once
+  in `start_turn`: that is the turn-start snapshot, and settings edited
+  mid-turn affect the next turn only.
+- **Progress** is UI-side: `TurnState` counts step `Act`s as `agent_poll`
+  receives them and holds the snapshotted limit. Because every step is an
+  `Act` (§D15), the count is exact with no progress event. Non-step
+  rendezvous (ADR 0011's `AuthorizeUpload`) are not counted.
+
+### D14 — The fence has two witnesses, and a tripped fence stops dispatch
+
+*(Added by amendment (7). Amends §D4.)*
+
+**Second witness.** `TurnFence::check(revision, group_open)` trips when the
+revision moved **or** `History::group_open()` is false. The revision alone
+misses document replacement: a fresh `History` restarts at 0, so a turn armed
+at revision 0 (a freshly opened file) with nothing applied yet would see
+`0 == 0` after `File > Open` and move entity 7 *of a different file*. That hole
+predates LCV-142; the group closes it for free, because every seal — foreign
+commit, selection, Undo, Redo — and every replacement leaves no group armed.
+
+**Stop rule.** §D4's "each refusal consumes one step … at most 32 wasted round
+trips" does not scale to 4096 and is replaced:
+
+1. The first fence refusal is answered `AgentOutcome::Fenced(text)` — a new
+   variant; `is_refused()` is true, it is transcribed `refused`, the text is
+   `AGENT_FENCE_REFUSAL`. The worker still evaluates nothing: it reads a
+   verdict the UI thread reached, which is §D4's placement rule intact.
+2. On `Fenced`, the loop dispatches nothing more. Each remaining call of that
+   batch gets one fixed tool result ("not run: the turn stopped after the
+   drawing changed outside it") so every `tool_call_id` stays paired.
+3. Exactly **one** more completion is sent — the same allowance as budget
+   exhaustion — so the model can report partial work, which is what LCV-143's
+   prompt instructs. Text → `Done(text)`. Tool calls → not dispatched; the
+   turn ends `Failed` with a fixed stop sentence (a new `AgentError` variant).
+
+Bounded at one extra round trip whatever the budget. Stickiness stands, now for
+§D12's reason: a re-armed fence would commit after the seal, `commit_grouped`
+would record that as a second, separate entry, and the turn would split around
+a foreign edit.
+
+### D15 — A malformed tool call is an `Act` too
+
+*(Added by amendment (7). Amends §D2a's routing.)*
+
+As shipped, `run_agent_turn`'s dispatch closure maps a JSON syntax error or a
+`ToolCallError` to `AgentError::ToolDispatch` and `?`s it, ending the whole turn
+`Failed` — contrary to §D2a ("the thread turns `ToolCallError` straight into
+the `tool` result"). At 4096 steps and 1000-entity batches (ADR 0010), ending a
+turn on one typo is the wrong trade, and the operator never sees the bad call.
+
+Decision: a shape failure — JSON syntax, unknown tool, any `ToolCallError` —
+becomes `AgentAction::Malformed { tool, reason }` and is sent as an ordinary
+`Act`. The UI answers `Refused(reason)` without reading or touching the
+document, transcribes it (LCV-123 AC 23: every action leaves a row) and counts
+it as a step. It goes through the fence like every action, so after a trip it
+is `Fenced` and §D14 stops. `reason` names the field and never echoes the
+arguments (ADR 0010). Cost: one frame per malformed call.
+
 ## Consequences
 
 **Easier.**
@@ -577,6 +793,7 @@ them into leaving `agent_busy` set must fail.
   them. See §Where the existing code resists.
 - Two undo behaviours exist: coalesced (normal) and per-action (fence aborted).
   Both are correct; the transcript makes it visible which happened.
+  *(Retired by amendment (7): under §D12 a turn is one undo entry either way.)*
 
 **Committed to.**
 
