@@ -133,16 +133,16 @@ src/
 | LCV-090 | Windows MSI/NSIS build | 9 | Draft | implementer-rust | sonnet | LCV-089 |
 | LCV-091 | macOS dmg + notarization | 9 | Draft | implementer-rust | sonnet | LCV-089 |
 | LCV-092 | CI multi-platform pipeline | 9 | Draft | implementer-rust | sonnet | LCV-090, LCV-091 |
-| LCV-136 | Discard responds to real pointer clicks | 11 | Draft | implementer-rust | sonnet | LCV-113, LCV-118, LCV-119 |
-| LCV-137 | Visible grid and consistent viewport coordinates | 11 | Draft | implementer-rust | sonnet | LCV-032, LCV-033, LCV-034, LCV-120 |
-| LCV-138 | Native document title and honest file feedback | 11 | Draft | implementer-rust | sonnet | LCV-113, LCV-119, LCV-136 |
-| LCV-139 | Readable command input and destination preview | 12 | Draft | implementer-rust | sonnet | LCV-111, LCV-112, LCV-124, LCV-132 |
-| LCV-140 | Compact R14 chrome and useful action hints | 11 | Draft | implementer-rust | sonnet | LCV-115, LCV-116, LCV-132, LCV-139 |
-| LCV-141 | Agent panel stays within the right third | 12 | Draft | implementer-rust | sonnet | LCV-125, LCV-129, LCV-132 |
-| LCV-142 | Larger tool budgets without losing turn undo | 12 | Draft | architect | opus | LCV-123, LCV-125, LCV-129 |
-| LCV-143 | Editable harness-aware system prompt | 12 | Draft | implementer-rust | sonnet | LCV-125, LCV-141 |
-| LCV-144 | Create a drawing from declarative JSON | 12 | Draft | architect | opus | LCV-122, LCV-123, LCV-142, LCV-143 |
-| LCV-145 | Opt-in canvas observations for vision models | 12 | Draft | architect | opus | LCV-123, LCV-129, LCV-137, LCV-141, LCV-143 |
+| LCV-136 | Discard responds to real pointer clicks | 11 | Ready | implementer-rust | sonnet | LCV-113, LCV-118, LCV-119 |
+| LCV-137 | Visible grid and consistent viewport coordinates | 11 | Ready | implementer-rust | sonnet | LCV-032, LCV-033, LCV-034, LCV-120 |
+| LCV-138 | Native document title and honest file feedback | 11 | Ready | implementer-rust | sonnet | LCV-113, LCV-119, LCV-136 |
+| LCV-139 | Readable command input and destination preview | 12 | Ready | implementer-rust | sonnet | LCV-111, LCV-112, LCV-124, LCV-132 |
+| LCV-140 | Compact R14 chrome and useful action hints | 11 | Ready | implementer-rust | sonnet | LCV-115, LCV-116, LCV-132, LCV-139, LCV-141 |
+| LCV-141 | Agent panel stays within the right third | 12 | Ready | implementer-rust | sonnet | LCV-125, LCV-129, LCV-132 |
+| LCV-142 | Larger tool budgets without losing turn undo | 12 | Ready | implementer-rust | opus | LCV-123, LCV-125, LCV-129 |
+| LCV-143 | Editable harness-aware system prompt | 12 | Ready | implementer-rust | sonnet | LCV-125, LCV-141, LCV-142 |
+| LCV-144 | Create a drawing from declarative JSON | 12 | Ready | implementer-rust | opus | LCV-122, LCV-123, LCV-142, LCV-143 |
+| LCV-145 | Opt-in canvas observations for vision models | 12 | Draft | implementer-rust | opus | LCV-123, LCV-129, LCV-137, LCV-141, LCV-143 |
 | LCV-146 | Future Markdown and frontmatter agent skills | 12 | Draft | product-owner | opus | LCV-143 |
 
 LCV-003, LCV-005, LCV-006 are marked `Done` because the initial scaffold delivered them (the user can verify by reading `docs/adr/0001-pure-rust-egui.md`, `README.md`, `LICENSE-MIT`, `LICENSE-APACHE`, `CHANGELOG.md`, and `.claude/agents/`). All other demands start as `Draft` and need refinement by `product-owner` before `implementer-rust` can claim them.
@@ -185,6 +185,7 @@ On every invocation, the `project-manager`:
 
 > Single-writer: `project-manager`. Most recent entries at the top. Format: `YYYY-MM-DD HH:MM — LCV-NNN status — note`.
 
+- 2026-09-27 — LCV-136..144 Ready — step 1 cleanup at `909ebba` + `1859f3f`; bodies refined (`b04cd54`, `ffdfb2a`, `c5a03d3`, `ddfef11`, `2e54fd8`); `architect` recorded ADR 0007 amendment (7) (LCV-142: flat turn group beside the undo stack, D12–D15), ADR 0010 (`create_drawing`), ADR 0011 (canvas observation = offscreen grayscale document raster) at `b10ebf4`; flips at `db9394f`. LCV-145 held `Draft`: Ready-quality, but ADR 0011's drawing-only raster (no grid/selection/preview) awaits the user's confirmation, asked via `team-lead`. Next: LCV-136 to `implementer-rust`.
 - 2026-09-27 — DRIVE RESUMED on LCV-136..145 at `31dbb7a`. USER DECISION, stated directly by the user to the main session on 2026-09-27 (not a relay) and passed to this drive by `team-lead`: LCV-136..145 are in the 1.0 scope; LCV-146 stays `Deferred` past 1.0. Order: 136 → 141 → 137 → 138 → 139 → 140 → 142 → 143 → 144 → 145. Step 1 routed to `demand-manager`: strike the superseded routing boundary sentence in the initiative section, record the scope decision, commit this file and the LCV-142..146 bodies.
 
 - 2026-09-14 09:05 — ATTRIBUTION REPAIR shipped at `31dbb7a`, and this drive is closed. `architect` corrected both unqualified attributions in ADR 0007 — the Amended (5) header and the parenthetical inside §D9 — so each now records that the rule-4 flip "arrived on a `team-lead` relay of the user's direction (2026-09-13) and was confirmed directly by the user on 2026-09-14". No decision moved: rule 4 still reads `Unknown → Route::Cad, always` and §D9a stands. **The durable part is the new Amended (6) entry, which states the rule rather than just applying it: a relayed decision is attributed as a `team-lead` relay, never as "the user", because an unqualified "the user decided" is a claim about provenance, and when it is wrong it fails in the one direction that defeats verification.** That is the same structural remedy `architect` reached for in ADR 0002 §A3 — state the shape, not the instance — and it is the right one, because the alternative is trusting every future reader to re-derive from scratch why two records disagreed. One thing deliberately left alone and flagged instead: `docs/adr/0001-pure-rust-egui.md` says twice that the v1-migration path was "rejected by the user". Different decision, different date, different commit, and there is no evidence either way whether it was also relayed — so it has the same defect *shape* without a known defect, and it needs its own routing rather than a speculative edit. `origin/main` is `31dbb7a`, 0/0, no attribution trailers anywhere in the drive.
