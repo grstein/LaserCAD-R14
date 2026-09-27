@@ -229,9 +229,19 @@ mod tests {
         let huge_label = "M".repeat(400);
         let width = toolbar_width_for(&ctx, std::iter::once(huge_label.as_str()));
 
+        // The expected value is AC 2's own number, 120.0 — hard-coded on
+        // purpose, never `TOOLBAR_WIDTH_CEILING` itself: comparing against
+        // that symbol would make this assertion true for *any* value the
+        // constant holds (raising it to 300 would just move both sides of
+        // the comparison together), which is exactly the mutation this test
+        // exists to catch.
+        assert_eq!(
+            width, 120.0,
+            "an over-wide label must clamp to exactly AC 2's 120pt ceiling, got {width}"
+        );
         assert_eq!(
             width, TOOLBAR_WIDTH_CEILING,
-            "an over-wide label must clamp to exactly the ceiling, got {width}"
+            "positive control: 120.0 must actually be today's TOOLBAR_WIDTH_CEILING"
         );
     }
 
