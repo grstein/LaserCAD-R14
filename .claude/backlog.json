@@ -1641,6 +1641,17 @@
             "shipped_commit": "421d730, 4caac01, e5d33d7",
             "demand_file": "docs/product/demands/LCV-148-unrecognised-lines-stay-local.md",
             "note": "Done 2026-09-14. Opened and closed in one batch as the ROUTING half of the LCV-131 split. WHAT SHIPPED: an unprefixed command-line input is never sent to the language model; ':' and '/ai' are the only way out. The guarded arm CommandInput::Unknown(text) if agent_available => Route::Agent(text) was deleted from src/agent/classifier.rs::classify, collapsing the inner match to a bare Route::Cad. WHY IT EXISTED: ADR 0007 D9 amendment (5) at 300c766 had already closed D9's open product question against rule 4, and the code had not honoured it - an ADR ruling that no code obeys. PRODUCT DECISION, RECORDED: this was contested. The LCV-136..146 initiative registration carried a boundary sentence reading 'current CAD/AI routing is unchanged; LCV-131 is excluded', and docs/product/backlog.md carried 'the user chose to retain current routing' (entered at 6dc71e7 inside an unrelated CI commit). ADR 0007 amendment (5) pointed the other way. THE USER DECIDED DIRECTLY ON 2026-09-14: LCV-148 accepted, LCV-131 accepted, nothing reverted. ATTRIBUTION CORRECTION worth carrying: ADR 0007 amendment (5)'s phrase 'decided by the user' was a team-lead RELAY of the user's direction, not a direct user statement. Relayed decisions must be attributed as 'team-lead relay' in ADRs, not as 'the user', or a relay becomes indistinguishable from a ruling. ADR 0007 still carries the unqualified wording. THINGS THAT COULD HAVE GONE WRONG AND DID NOT: D9a rule 3 required the LCV-124 pin asserting 'lien' IS sent to be inverted in place and renamed, never deleted (now a_typo_never_reaches_the_agent_even_with_a_key_configured), because deleting it would erase the record that LCV-124 knowingly accepted that hazard. The orphaned 'use crate::cmdline' moved into the test module and crate::cmdline was deliberately NOT added to classifier_is_kernel_pure's forbidden list - ADR 0003 A2a now says 'This is not a ban, and no demand may turn it into one'. That scan's positive controls had to be RE-DERIVED, since the old ones would have failed from absence; a control that cannot fail is the bug class this project keeps rediscovering. classify keeps its two-argument arity under D9a rule 1, pinned by a function-pointer coercion. Six mutations, no survivor."
+        },
+        {
+            "id": "LCV-149",
+            "title": "Transport stall test is timing-flaky",
+            "phase": 12,
+            "status": "Draft",
+            "depends_on": [],
+            "suggested_agent": "implementer-rust",
+            "suggested_model": "sonnet",
+            "demand_file": "docs/product/demands/LCV-149-transport-stall-test-is-timing-flaky.md",
+            "note": "Opened from the 2026-09-27 drive. src/agent/transport.rs::tests::ac3_both_halves_of_a_call_give_up_when_the_endpoint_stalls failed intermittently during that drive - about 1 in 5 full-suite runs in one reviewer's measurement, passes standalone; panic site near the test's timing-budget assertion. A flaky test in the authoritative local gate (CI on billing hold) erodes gate integrity. Awaiting product-owner refinement."
         }
     ]
 }

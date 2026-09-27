@@ -184,6 +184,7 @@ _None._
 |---|---|---|---|
 | LCV-145 | Opt-in canvas observations for vision models | 12 | In 1.0 scope per user decision 2026-09-27; Ready-quality body (product-owner refined, ADR 0011 recorded) but held at Draft — its own Open Questions section still carries a pending user confirmation of ADR 0011's drawing-only raster (bed outline + entities, no grid/selection/preview). Suggested agent updated to implementer-rust / opus. If the user confirms, flip to Ready without further refinement; if the user declines, return to `architect` per the demand's own note. |
 | LCV-146 | Future Markdown and frontmatter agent skills (deferred) | 12 | Stays Deferred past 1.0 per user decision 2026-09-27; not part of the current implementation queue |
+| LCV-149 | Transport stall test is timing-flaky | 12 | Opened from the 2026-09-27 drive: `src/agent/transport.rs::tests::ac3_both_halves_of_a_call_give_up_when_the_endpoint_stalls` failed roughly 1 in 5 full-suite runs in one reviewer's measurement, but passes standalone; a flaky test in the authoritative local gate (CI on billing hold) erodes gate integrity. Awaiting product-owner refinement. |
 
 LCV-136 through LCV-144 were refined to `Ready` and registered as in-1.0-scope
 by user decision on 2026-09-27 (see the Ready table above); their bodies were
