@@ -19,7 +19,7 @@
 //!
 //! MUST NOT import `eframe` or `rfd`.
 
-use super::{AgentState, App};
+use super::{AgentState, App, DocumentTitleState};
 use crate::cmdline::CommandHistory;
 use crate::document::{Document, History};
 use crate::io::settings::Settings;
@@ -37,7 +37,7 @@ use crate::tools::ToolManager;
 /// which resolves the two real platform locations.
 impl Default for App {
     fn default() -> Self {
-        Self {
+        let mut app = Self {
             document: Document::default(),
             history: History::default(),
             camera: Camera::default(),
@@ -66,11 +66,28 @@ impl Default for App {
             ortho_enabled: false,
             agent: AgentState::default(),
             current_file: None,
+            title: DocumentTitleState::default(),
             error_message: None,
             saved_revision: None,
             pending_action: None,
             exit_confirmed: false,
-        }
+        };
+        // Pre-seed the title cache to what this fresh state already computes
+        // (LCV-138): a test `App` never backs a real OS window, so there is
+        // no native title to correct, and every one of egui's
+        // `ctx.send_viewport_cmd` calls costs *two* frames of
+        // `repaint_delay == 0` internally (`egui-0.29.1`
+        // `context.rs::request_repaint_after`'s "each request results in two
+        // repaints" `outstanding` counter) — without this, a freshly
+        // constructed, untouched `App::default()` would fail
+        // `tests/lcv120_idle_repaint.rs::an_idle_app_asks_for_no_repaint` on
+        // its first two supposedly-idle frames, purely from the title cache
+        // starting `None`. `App::new()` deliberately does **not** do this:
+        // the real native window was already told the static `APP_TITLE` by
+        // `ViewportBuilder::with_title` before the first frame runs, so that
+        // first frame must still send the real correction.
+        app.title.last_title = Some(app.display_title());
+        app
     }
 }
 
@@ -88,7 +105,8 @@ impl App {
     ///   `settings`;
     /// - overwrites `document` with the autosaved one from the resolved data
     ///   path, if present and schema-compatible (LCV-059 AC#1) — the
-    ///   envelope's own `bed_mm` wins;
+    ///   envelope's own `bed_mm` wins, and `title.recovered_from_autosave` is
+    ///   set (LCV-138 AC 4) — the only place in the tree that sets it;
     /// - otherwise seeds the blank document's bed from
     ///   `settings.default_bed_mm` (LCV-114 AC 11).
     ///
@@ -117,6 +135,7 @@ impl App {
             .and_then(crate::io::autosave::load_autosave_from);
         if let Some(recovered) = recovered {
             app.document = recovered;
+            app.title.recovered_from_autosave = true;
         } else {
             app.document.bed_mm = app.settings.clamped_default_bed_mm();
         }
@@ -230,5 +249,88 @@ mod tests {
             recovered < seed && body[recovered..seed].contains("} else {"),
             "the seed must be the else-branch: a recovered envelope keeps its own bed"
         );
+    }
+
+    /// LCV-138 AC 4 — `title.recovered_from_autosave` is set to `true`
+    /// **inside** the recovered branch, right alongside
+    /// `app.document = recovered;` and strictly before the `} else {` that
+    /// closes it — the same bounded-scan technique
+    /// `boot_seeds_the_bed_only_when_no_autosave_is_recovered` uses just
+    /// above, since `App::new` cannot be driven behaviourally (ADR 0002 §A2).
+    #[test]
+    fn recovered_from_autosave_is_set_inside_the_recovered_branch() {
+        let body = app_new_body();
+        let recovered = body
+            .find("app.document = recovered;")
+            .expect("the autosave branch must install the recovered document");
+        let flag = body
+            .find(concat!("app.title.recovered_from_", "autosave = true;"))
+            .expect("the recovered branch must set title.recovered_from_autosave");
+        let else_at = body
+            .find("} else {")
+            .expect("positive control: the branch must close with an else");
+        assert!(
+            recovered < flag && flag < else_at,
+            "the flag must be set inside the recovered arm, before the else"
+        );
+    }
+
+    /// LCV-138 AC 4 — the same fact, proved the other way round: nowhere else
+    /// in the whole of `src/` sets the recovery flag to `true`. Combined with
+    /// the scan above, this is what "set only there" means — not merely "set
+    /// in this branch", but "set in no other branch either".
+    #[test]
+    fn recovered_from_autosave_is_set_nowhere_else_in_src() {
+        let needle = concat!("title.recovered_from_", "autosave = true");
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut files = Vec::new();
+        walk(&root, &mut files);
+        assert!(
+            files.len() > 40,
+            "positive control: the walk must see the whole tree, saw {}",
+            files.len()
+        );
+
+        // Total *occurrences*, not files: a second site in the same file
+        // must still be caught, so this counts `matches(needle)` per file and
+        // sums them, rather than asking only whether a file contains the
+        // needle at all.
+        let mut total = 0usize;
+        let mut carrying_files = Vec::new();
+        for path in &files {
+            let n = std::fs::read_to_string(path)
+                .expect("readable source")
+                .matches(needle)
+                .count();
+            if n > 0 {
+                total += n;
+                carrying_files.push((path.clone(), n));
+            }
+        }
+        assert_eq!(
+            total, 1,
+            "expected exactly one occurrence of the flag being set, found {carrying_files:?}"
+        );
+        assert_eq!(
+            carrying_files[0].0.file_name().and_then(|n| n.to_str()),
+            Some("init.rs"),
+            "the one site must be src/app/init.rs, found {:?}",
+            carrying_files[0].0
+        );
+    }
+
+    /// Every `.rs` file under `dir`, recursively — mirrors
+    /// `src/ui/statusbar.rs`'s own `walk_src` helper (each file that needs a
+    /// whole-tree scan keeps its own private copy; nothing under `src/` may
+    /// import `#[cfg(test)]` plumbing from a sibling module).
+    fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(dir).expect("readable directory") {
+            let path = entry.expect("readable entry").path();
+            if path.is_dir() {
+                walk(&path, out);
+            } else if path.extension().is_some_and(|e| e == "rs") {
+                out.push(path);
+            }
+        }
     }
 }

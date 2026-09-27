@@ -140,13 +140,26 @@ pub(crate) fn format_autosave(write_pending: bool, ever_saved: bool) -> &'static
     }
 }
 
+/// The recovery label's text (LCV-138 AC 4) — distinct from
+/// [`format_autosave`]'s badge, which reports whether a *write* happened this
+/// session; this one reports whether the session's document *started* from a
+/// crash-safety copy at all, a fact `format_autosave` cannot see.
+pub(crate) const RECOVERY_LABEL: &str = "Recovered (not saved)";
+
+/// The recovery label's hover text, spelling out the autosave-vs-save
+/// distinction so "recovered" never leaves the operator guessing.
+pub(crate) const RECOVERY_HOVER_TEXT: &str = "This drawing was restored from a crash-safety \
+     copy. The file on disk, if any, is untouched until you save.";
+
 /// Render the status bar into `ui`.
 ///
 /// Displays — left to right — cursor coordinates, the active tool name
 /// (uppercased), the document entity count, the active export preset
 /// (LCV-115), the three clickable mode indicators `SNAP` / `GRID` / `ORTHO`
-/// (LCV-116, always visible, selected iff their flag is on), and last the
-/// autosave indicator, all separated in the existing style.
+/// (LCV-116, always visible, selected iff their flag is on), the autosave
+/// indicator, and — only while [`App::title`]'s
+/// `recovered_from_autosave` is set (LCV-138) — a recovery label with an
+/// explanatory tooltip, all separated in the existing style.
 ///
 /// Takes `&mut App` since LCV-116: the mode indicators write back the flag
 /// they display. `src/app/panels.rs::draw_chrome` is the only caller and
@@ -180,6 +193,15 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
         }
         ui.separator();
         ui.label(autosave_str);
+        // LCV-138 AC 4 — distinct from the autosave badge above: this
+        // session's document came back from the crash-safety copy at boot.
+        // Reading the flag and painting a label/tooltip touches nothing
+        // else — no `mark_saved`/`mark_clean`, no `dirty_since`, no
+        // `last_autosave_at`.
+        if app.title.recovered_from_autosave {
+            ui.separator();
+            ui.label(RECOVERY_LABEL).on_hover_text(RECOVERY_HOVER_TEXT);
+        }
     });
 
     if let Some(mode) = toggled {
@@ -363,6 +385,92 @@ mod tests {
             format_autosave(app.dirty_since.is_some(), app.last_autosave_at.is_some()),
             "\u{25cb} no autosave yet"
         );
+    }
+
+    // ── LCV-138 — recovery label ───────────────────────────────────────────
+
+    /// AC 4 — a default `App` never shows the recovery label: the flag it
+    /// gates on is `false` until `App::new()`'s recovery branch sets it.
+    #[test]
+    fn recovery_label_is_absent_by_default() {
+        let mut app = App::default();
+        assert!(!app.title.recovered_from_autosave);
+        let ctx = egui::Context::default();
+        let out = ctx.run(egui::RawInput::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| draw_statusbar(ui, &mut app));
+        });
+        let painted = harness_texts(&out.shapes);
+        assert!(
+            !painted.iter().any(|t| t == RECOVERY_LABEL),
+            "the recovery label must not paint while the flag is false: {painted:?}"
+        );
+    }
+
+    /// AC 4 — with the flag set by hand (the only way to reach it in a test:
+    /// `App::new()` cannot be called, ADR 0002 §A2), the label paints, its
+    /// hover text is wired to the same widget, and rendering it touches none
+    /// of the autosave/save bookkeeping fields.
+    #[test]
+    fn recovery_label_paints_when_the_flag_is_set_and_touches_nothing_else() {
+        let mut app = App {
+            title: crate::app::DocumentTitleState {
+                recovered_from_autosave: true,
+                ..Default::default()
+            },
+            ..App::default()
+        };
+        let dirty_before = app.dirty_since;
+        let autosave_before = app.last_autosave_at;
+
+        let ctx = egui::Context::default();
+        let out = ctx.run(egui::RawInput::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| draw_statusbar(ui, &mut app));
+        });
+        let painted = harness_texts(&out.shapes);
+        assert!(
+            painted.iter().any(|t| t == RECOVERY_LABEL),
+            "the recovery label must paint while the flag is true: {painted:?}"
+        );
+        assert_eq!(
+            app.dirty_since, dirty_before,
+            "rendering the recovery label must not touch dirty_since"
+        );
+        assert_eq!(
+            app.last_autosave_at, autosave_before,
+            "rendering the recovery label must not touch last_autosave_at"
+        );
+    }
+
+    /// AC 4 — the label's response really does carry the hover text this
+    /// demand requires: a source scan bounded to `draw_statusbar`, since a
+    /// tooltip's *content* is not itself a painted run until it is actually
+    /// hovered (see the behavioural test above for the *painting* half).
+    #[test]
+    fn recovery_label_carries_its_hover_text_source_scan() {
+        let body = draw_statusbar_body();
+        assert!(
+            body.contains("ui.label(RECOVERY_LABEL).on_hover_text(RECOVERY_HOVER_TEXT)"),
+            "the recovery label must carry its explanatory hover text"
+        );
+    }
+
+    /// The `Shape::Text` runs egui actually painted, reduced to their string
+    /// content — the minimal local stand-in for `tests/harness/paint.rs`'s
+    /// collector (that harness lives under `tests/`, invisible to a unit test
+    /// compiled inside the library, ADR 0002 §A3).
+    fn harness_texts(shapes: &[egui::epaint::ClippedShape]) -> Vec<String> {
+        fn collect(shape: &egui::Shape, out: &mut Vec<String>) {
+            match shape {
+                egui::Shape::Text(t) => out.push(t.galley.text().to_owned()),
+                egui::Shape::Vec(shapes) => shapes.iter().for_each(|s| collect(s, out)),
+                _ => {}
+            }
+        }
+        let mut out = Vec::new();
+        for clipped in shapes {
+            collect(&clipped.shape, &mut out);
+        }
+        out
     }
 
     // ── LCV-116 static checks ─────────────────────────────────────────────

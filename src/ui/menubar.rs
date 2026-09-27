@@ -95,17 +95,68 @@ fn recent_submenu(ui: &mut egui::Ui, app: &mut App) {
         ui.add_enabled(false, egui::Button::new("No recent files"));
         return;
     }
-    for (i, entry) in recent.iter().enumerate() {
-        let label = std::path::Path::new(entry)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or(entry.as_str());
-        if ui.button(label).clicked() {
+    // Labels disambiguate a colliding basename with one directory of context
+    // (LCV-138 AC 5); every entry's tooltip is its full path regardless.
+    let labels = recent_labels(&recent);
+    for (entry, label) in recent.iter().zip(labels.iter()) {
+        if ui.button(label).on_hover_text(entry).clicked() {
             ui.close_menu();
-            if let Ok(path) = crate::io::open_recent(i, &mut app.settings) {
-                app.request_open_path(path);
-            }
+            // Deliberately not `crate::io::open_recent`: that function
+            // promotes the entry to the front of the list *before* the file
+            // is even read, so a missing or malformed file would still
+            // reorder — and, on a colliding basename, permanently blend —
+            // the list on a failed open (LCV-138 AC 5). `action_open_path`
+            // already promotes-to-front and persists on its own success path
+            // (`src/io/file_actions.rs`); that is the only outcome that
+            // should move this entry at all.
+            app.request_open_path(std::path::PathBuf::from(entry));
         }
+    }
+}
+
+/// Build File > Open Recent's display labels (LCV-138 AC 5): a bare basename
+/// when it does not collide with another entry's basename in the same list,
+/// or `"parent/name.svg"` — one directory of context plus the basename —
+/// when it does. The full path is never shown here; it is every entry's
+/// hover text instead (`recent_submenu` above).
+fn recent_labels(entries: &[String]) -> Vec<String> {
+    let basenames: Vec<&str> = entries.iter().map(|e| basename(e)).collect();
+    (0..entries.len())
+        .map(|i| {
+            let collides = basenames
+                .iter()
+                .enumerate()
+                .any(|(j, b)| j != i && *b == basenames[i]);
+            if collides {
+                disambiguated(&entries[i])
+            } else {
+                basenames[i].to_owned()
+            }
+        })
+        .collect()
+}
+
+/// The last path component of `entry`, or `entry` itself when it has none.
+fn basename(entry: &str) -> &str {
+    std::path::Path::new(entry)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(entry)
+}
+
+/// `"parent/name.svg"`. Falls back to the basename alone when `entry` has no
+/// parent component — not reachable for a real recent-files entry, which is
+/// always an absolute path, but keeps this total.
+fn disambiguated(entry: &str) -> String {
+    let path = std::path::Path::new(entry);
+    let name = basename(entry);
+    match path
+        .parent()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+    {
+        Some(parent) => format!("{parent}/{name}"),
+        None => name.to_owned(),
     }
 }
 
@@ -393,6 +444,66 @@ mod tests {
     fn open_recent_submenu_empty_message() {
         let mut app = App::default();
         run_menubar(&mut app); // must not panic with empty recent list
+    }
+
+    // ── LCV-138 AC 5 — Open Recent label disambiguation ───────────────────
+
+    /// No basenames collide: every label is the bare basename.
+    #[test]
+    fn recent_labels_bare_basenames_when_no_collision() {
+        let entries = vec![
+            "/home/op/a.svg".to_owned(),
+            "/home/op/jobs/b.svg".to_owned(),
+        ];
+        assert_eq!(recent_labels(&entries), vec!["a.svg", "b.svg"]);
+    }
+
+    /// Two entries share a basename in different directories: both — and
+    /// only both — get `"parent/name.svg"`.
+    #[test]
+    fn recent_labels_disambiguates_a_colliding_pair() {
+        let entries = vec![
+            "/home/op/cuts/plate.svg".to_owned(),
+            "/home/op/marks/plate.svg".to_owned(),
+        ];
+        assert_eq!(
+            recent_labels(&entries),
+            vec!["cuts/plate.svg", "marks/plate.svg"]
+        );
+    }
+
+    /// Three entries, two colliding and one not: only the colliding pair is
+    /// disambiguated, the third keeps its bare basename.
+    #[test]
+    fn recent_labels_disambiguates_only_the_colliding_subset() {
+        let entries = vec![
+            "/home/op/cuts/plate.svg".to_owned(),
+            "/home/op/marks/plate.svg".to_owned(),
+            "/home/op/other.svg".to_owned(),
+        ];
+        assert_eq!(
+            recent_labels(&entries),
+            vec!["cuts/plate.svg", "marks/plate.svg", "other.svg"]
+        );
+    }
+
+    /// Every entry's tooltip is its own full path — never a substring of a
+    /// neighbour's, and never the disambiguated label.
+    #[test]
+    fn recent_submenu_hover_text_is_the_full_path_source_scan() {
+        let src = include_str!("menubar.rs");
+        let start = src
+            .find("fn recent_submenu(")
+            .expect("recent_submenu must exist");
+        let end = src[start..]
+            .find("\n/// Build File > Open Recent")
+            .expect("recent_submenu must be followed by recent_labels")
+            + start;
+        let body = &src[start..end];
+        assert!(
+            body.contains("ui.button(label).on_hover_text(entry)"),
+            "every Open Recent entry must show its full path on hover"
+        );
     }
 
     // -----------------------------------------------------------------------

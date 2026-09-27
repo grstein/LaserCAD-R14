@@ -12,7 +12,7 @@
 //! pointer, camera), `autosave` (the dirty signal, the debounce and the
 //! flush), `file_ops` (the guarded New / Open / Exit entry points and the
 //! discard-confirmation dialog, LCV-113), `bed_dialog` (the Bed size… modal,
-//! LCV-114). `init` holds the two `App` constructors — `Default` and
+//! LCV-114), `document_title` (native title + recovery flag, LCV-138). `init` holds the two `App` constructors — `Default` and
 //! [`App::new`] — moved out of this file to stay under the 300-LOC
 //! implementation cap (LCV-115); `persist` holds the three methods that are
 //! the only readers of the two injected path fields (LCV-119, ADR 0006). `ortho`, `snap` and `agent_poll`
@@ -33,6 +33,7 @@
 mod autosave;
 mod bed_dialog;
 mod cmdline;
+mod document_title;
 mod file_ops;
 mod init;
 mod input;
@@ -53,6 +54,7 @@ pub use agent_turn::{arm_turn, run_agent_turn, start_turn, TurnFence, AGENT_FENC
 pub use autosave::{autosave_due, schedule_flush_repaint};
 pub use bed_dialog::{apply_bed_dialog_result, draw_bed_dialog};
 pub use cmdline::submit;
+pub use document_title::DocumentTitleState;
 pub use file_ops::{apply_dialog_result, draw_discard_dialog, poll_close_request, PendingAction};
 pub use input::process_input;
 pub use ortho::apply_ortho;
@@ -180,6 +182,8 @@ pub struct App {
     /// Path of the file most recently opened or saved. `None` for an unsaved
     /// new document (LCV-062).
     pub current_file: Option<std::path::PathBuf>,
+    /// Native title cache + autosave-recovery flag, grouped the way `agent: AgentState` is (`src/app/document_title.rs`, LCV-138).
+    pub title: DocumentTitleState,
     /// When `Some`, a modal error window is rendered on the next frame; cleared
     /// when the user dismisses it (LCV-062).
     pub error_message: Option<String>,
@@ -279,6 +283,8 @@ impl App {
         // `PendingAction::Exit` when the document is dirty.
         poll_close_request(ctx, self);
         panels::draw_dialogs(ctx, self);
+        // Native window title (LCV-138), last, so it reflects this frame's own changes above; sends nothing unless the title actually changed (AC 2, no new repaint call site).
+        document_title::update_title(ctx, self);
     }
 }
 
