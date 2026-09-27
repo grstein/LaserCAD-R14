@@ -487,24 +487,15 @@ mod tests {
         );
     }
 
-    /// Every entry's tooltip is its own full path — never a substring of a
-    /// neighbour's, and never the disambiguated label.
-    #[test]
-    fn recent_submenu_hover_text_is_the_full_path_source_scan() {
-        let src = include_str!("menubar.rs");
-        let start = src
-            .find("fn recent_submenu(")
-            .expect("recent_submenu must exist");
-        let end = src[start..]
-            .find("\n/// Build File > Open Recent")
-            .expect("recent_submenu must be followed by recent_labels")
-            + start;
-        let body = &src[start..end];
-        assert!(
-            body.contains("ui.button(label).on_hover_text(entry)"),
-            "every Open Recent entry must show its full path on hover"
-        );
-    }
+    // The full-path-on-hover claim itself (every entry's tooltip is its own
+    // full path — never a substring of a neighbour's, and never the
+    // disambiguated label) used to be a source scan here
+    // (`recent_submenu_hover_text_is_the_full_path_source_scan`). Replaced by
+    // a real painted hover — a scan proves the `.on_hover_text(entry)` call
+    // is *written*, not that the tooltip actually paints (AGENTS.md "a
+    // rendering acceptance criterion is not satisfied by a source scan
+    // alone") — see
+    // `tests/lcv138_document_title_and_file_feedback.rs::open_recent_entry_hover_text_paints_the_full_path`.
 
     // -----------------------------------------------------------------------
     // LCV-104 — Tools menu, Help > Agent settings

@@ -532,6 +532,50 @@ fn open_recent_disambiguates_colliding_basenames_via_the_real_menu() {
     );
 }
 
+/// AC 5 — replaces the source-scan-only proof
+/// (`recent_submenu_hover_text_is_the_full_path_source_scan`,
+/// `src/ui/menubar.rs`) with a real painted hover, mirroring the
+/// recovered-badge hover test above: a source scan proves the
+/// `.on_hover_text(entry)` call is *written*, not that the tooltip actually
+/// paints (AGENTS.md "a rendering acceptance criterion is not satisfied by a
+/// source scan alone").
+#[test]
+fn open_recent_entry_hover_text_paints_the_full_path() {
+    let ctx = egui::Context::default();
+    let mut app = App::default();
+    ctx.set_pixels_per_point(1.0);
+    boot(&ctx, &mut app);
+
+    app.settings.recent_files = vec!["/home/op/jobs/plate.svg".to_owned()];
+
+    let runs = open_recent_submenu(&ctx, &mut app);
+    let pos = locate(&runs, "plate.svg");
+
+    let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(pos)]), |c| {
+        app.update_ui(c)
+    });
+    // Unlike the recovered-badge hover test above, the pointer here has
+    // already moved twice before landing on this entry (onto "File", then
+    // onto "Open Recent ▶"), so egui's pointer-velocity window
+    // (`emath::History`, up to 0.1 s / 3 samples) is still warm and
+    // `last_move_time` keeps advancing for a few more frames even though the
+    // pointer itself has stopped. A handful of idle frames lets that window
+    // flush and `tooltip_delay` (0.5 s, in ~1/60 s `predicted_dt` steps)
+    // elapse for real, exactly as an operator's own stationary cursor would.
+    let mut out = ctx.run(raw_input(vec![]), |c| app.update_ui(c));
+    for _ in 0..45 {
+        out = ctx.run(raw_input(vec![]), |c| app.update_ui(c));
+    }
+    let hover_runs = paint::runs_in(&out.shapes);
+    assert!(
+        hover_runs
+            .iter()
+            .any(|r| r.text.trim() == "/home/op/jobs/plate.svg"),
+        "hovering an Open Recent entry must paint its full path: {:?}",
+        hover_runs.iter().map(|r| &r.text).collect::<Vec<_>>()
+    );
+}
+
 /// AC 5 — a missing file selected from Open Recent preserves the drawing,
 /// history, `current_file` and the recent-files order, and surfaces
 /// `error_message`; the failing entry is not removed from the list.
