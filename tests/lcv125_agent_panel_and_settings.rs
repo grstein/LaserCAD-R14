@@ -350,7 +350,7 @@ fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
                 "The API key is stored in plain text in settings.json. ",
                 "Anyone who can read that file can read your key."
             )],
-            vec!["Steps per turn", "12"],
+            vec!["Steps per turn", "256"],
             vec![concat!(
                 "How many tool calls one prompt may make. More steps means a ",
                 "bigger drawing per prompt, and more API calls."
@@ -391,8 +391,8 @@ fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
     );
 }
 
-/// AC 12 — the hand-edited file, end to end: a settings file saying `200` is
-/// clamped to `32` by opening the dialog, and the clamped value is what the
+/// AC 12 — the hand-edited file, end to end: a settings file saying `5000` is
+/// clamped to `4096` (LCV-142) by opening the dialog, and the clamped value is what the
 /// close path writes back. The read site still agrees.
 ///
 /// The close is `App::persist_settings`, called here directly because that is
@@ -416,14 +416,14 @@ fn ac12_a_hand_edited_budget_is_clamped_by_opening_the_dialog() {
         agent_settings_open: true,
         ..App::default()
     };
-    app.settings.agent_step_budget = 200;
+    app.settings.agent_step_budget = 5000;
     assert!(app.settings.agent_api_key.is_empty(), "no key is written");
 
     // Opened…
     idle(&ctx, &mut app);
     idle(&ctx, &mut app);
     assert_eq!(
-        app.settings.agent_step_budget, 32,
+        app.settings.agent_step_budget, 4096,
         "the slider shows the clamped value"
     );
 
@@ -435,12 +435,12 @@ fn ac12_a_hand_edited_budget_is_clamped_by_opening_the_dialog() {
     let parsed: serde_json::Value =
         serde_json::from_str(&written).expect("the settings file must be JSON");
     assert_eq!(
-        parsed["agent_step_budget"], 32,
-        "the file keeps the clamped value, not the 200 it was hand-edited to"
+        parsed["agent_step_budget"], 4096,
+        "the file keeps the clamped value, not the 5000 it was hand-edited to"
     );
     assert_eq!(
         lasercad::agent::clamp_step_budget(app.settings.agent_step_budget),
-        32,
+        4096,
         "and the read site agrees (LCV-123 AC 18)"
     );
     let _ = std::fs::remove_dir_all(&dir);

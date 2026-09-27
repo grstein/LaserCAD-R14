@@ -98,9 +98,10 @@ pub struct Settings {
     /// module, an edge that would invert the layering (ADR 0007 §D7).
     ///
     /// Needs its own serde default because the field's `Default` (`0`) would
-    /// be a turn that cannot call a single tool.
+    /// be a turn that cannot call a single tool. A `u32` since LCV-142 (ADR
+    /// 0007 §D13); a stored `12` from an older file is honoured as is.
     #[serde(default = "default_agent_step_budget")]
-    pub agent_step_budget: u8,
+    pub agent_step_budget: u32,
 
     /// The bed size, in millimetres `[width, height]`, that a **new** document
     /// starts at (LCV-114 AC 11).
@@ -125,11 +126,11 @@ fn default_agent_model() -> String {
     "anthropic/claude-sonnet-4.6".to_string()
 }
 
-/// The literal `12` rather than `AGENT_STEP_BUDGET_DEFAULT`: importing the
+/// The literal `256` rather than `AGENT_STEP_BUDGET_DEFAULT`: importing the
 /// agent module from `io` would invert the module layering (ADR 0007 §D7). A
 /// test in this file pins the two numbers to each other instead.
-fn default_agent_step_budget() -> u8 {
-    12
+fn default_agent_step_budget() -> u32 {
+    256
 }
 
 fn default_bed_mm() -> [f64; 2] {
@@ -607,12 +608,24 @@ mod tests {
     // ------------------------------------------------------------------
 
     /// AC 12 — the two new fields default to the OpenRouter-compatible model
-    /// id and to a budget of 12.
+    /// id and (LCV-142 AC 2) to a budget of 256.
     #[test]
     fn agent_model_and_step_budget_defaults() {
         let s = Settings::default();
         assert_eq!(s.agent_model, "anthropic/claude-sonnet-4.6");
-        assert_eq!(s.agent_step_budget, 12);
+        assert_eq!(s.agent_step_budget, 256);
+    }
+
+    /// LCV-142 AC 2 — the serde literal is the loop's constant. The import is
+    /// in the test section only; the implementation still names no agent path.
+    #[test]
+    fn the_default_budget_literal_is_the_agent_constant() {
+        assert_eq!(
+            default_agent_step_budget(),
+            crate::agent::AGENT_STEP_BUDGET_DEFAULT
+        );
+        let s: Settings = serde_json::from_str("{}").expect("an empty object parses");
+        assert_eq!(s.agent_step_budget, crate::agent::AGENT_STEP_BUDGET_DEFAULT);
     }
 
     /// AC 12 — a settings file written before this demand loads with both new
@@ -628,7 +641,10 @@ mod tests {
         let s: Settings = serde_json::from_str(json).expect("legacy JSON must still parse");
 
         assert_eq!(s.agent_model, "anthropic/claude-sonnet-4.6");
-        assert_eq!(s.agent_step_budget, 12);
+        assert_eq!(
+            s.agent_step_budget, 256,
+            "LCV-142 AC 2: a missing field is 256"
+        );
         assert_eq!(s.recent_files, vec!["foo.lcad", "bar.lcad"]);
         assert_eq!(s.agent_endpoint, "https://api.openai.com/v1");
         assert_eq!(s.default_bed_mm, [300.0, 180.0]);
@@ -636,11 +652,14 @@ mod tests {
 
     /// AC 13 — the stored budget is kept exactly as written, however silly.
     /// Clamping belongs to the reader (`agent::clamp_step_budget`); doing it
-    /// here would hide what the file actually says.
+    /// here would hide what the file actually says. LCV-142 AC 2: an older
+    /// file's `12` stays 12, and `4096` loads unchanged.
     #[test]
     fn stored_step_budget_is_kept_verbatim() {
         for (json, expected) in [
-            (r#"{"agent_step_budget":200}"#, 200u8),
+            (r#"{"agent_step_budget":12}"#, 12u32),
+            (r#"{"agent_step_budget":4096}"#, 4096),
+            (r#"{"agent_step_budget":5000}"#, 5000),
             (r#"{"agent_step_budget":0}"#, 0),
             (r#"{"agent_step_budget":7}"#, 7),
         ] {

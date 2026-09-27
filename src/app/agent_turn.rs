@@ -33,14 +33,15 @@
 //!
 //! ## What crosses the thread boundary
 //!
-//! [`start_turn`] is the only place a turn's thread is spawned. Four owned
-//! `String`s, one `u8` and one `Sender` cross into it — no `Document`, no
-//! `History`, no `App`, nothing borrowed (ADR 0007 §D1). What runs there is
+//! [`start_turn`] is the only place a turn's thread is spawned. The prompt, one
+//! owned `TurnConfig` (§D13) and one `Sender` cross into it — no `Document`,
+//! no `History`, no `App`, nothing borrowed (ADR 0007 §D1). What runs there is
 //! `agent_worker::run_agent_turn`, which asks the UI thread through `ask_ui`.
 
-use super::agent_worker::{ask_ui, run_agent_turn};
+use super::agent_worker::{ask_ui, run_agent_turn, TurnConfig};
 use crate::agent::{AgentError, AgentEvent};
 use crate::app::App;
+use crate::io::settings::Settings;
 use std::sync::mpsc::{channel, Sender};
 
 /// What the model is told when a foreign commit landed mid-turn (ADR 0007 §D4).
@@ -112,6 +113,11 @@ pub struct TurnState {
     /// How many of the turn's actions really changed the drawing. Taken once
     /// at turn end by the note row (LCV-142 AC 12).
     pub applied: usize,
+    /// Step `Act`s received this turn (ADR 0007 §D13) — the `n` of the
+    /// panel's `n of limit`.
+    pub steps: u32,
+    /// The turn's effective step limit, snapshotted when it was armed.
+    pub limit: u32,
     /// The label of the turn's history group: `Agent:` plus the prompt.
     pub label: String,
 }
@@ -131,6 +137,13 @@ const LABEL_CHARS: usize = 40;
 /// instead of standing up a thread and a socket. That makes every assertion
 /// about applying, fencing, grouping and ending a turn deterministic.
 pub fn arm_turn(app: &mut App, prompt: &str) -> Sender<AgentEvent> {
+    let limit = effective_step_limit(&app.settings);
+    arm_with_limit(app, prompt, limit)
+}
+
+/// [`arm_turn`] with the limit the caller already snapshotted, so the panel's
+/// `of {limit}` and the worker's [`TurnConfig`] can never disagree.
+fn arm_with_limit(app: &mut App, prompt: &str, limit: u32) -> Sender<AgentEvent> {
     let (tx, rx) = channel::<AgentEvent>();
     app.agent.chat.push(("user".to_owned(), prompt.to_owned()));
     app.agent.busy = true;
@@ -140,6 +153,8 @@ pub fn arm_turn(app: &mut App, prompt: &str) -> Sender<AgentEvent> {
     app.agent.turn = TurnState {
         fence: TurnFence::new(app.history.revision()),
         applied: 0,
+        steps: 0,
+        limit,
         label,
     };
     tx
@@ -155,17 +170,14 @@ pub fn start_turn(app: &mut App, prompt: &str) {
     if app.agent.busy {
         return;
     }
-    // Cloned, never borrowed: the thread outlives this frame (ADR 0007 §D1).
-    let endpoint = app.settings.agent_endpoint.clone();
-    let api_key = app.settings.agent_api_key.clone();
-    let model = app.settings.agent_model.clone();
-    let step_budget = turn_step_budget(app);
+    // Owned, never borrowed: the thread outlives this frame (ADR 0007 §D1).
+    let config = turn_config(&app.settings);
     let prompt = prompt.to_owned();
-    let tx = arm_turn(app, &prompt);
+    let tx = arm_with_limit(app, &prompt, config.step_limit);
     std::thread::spawn(move || {
         let result = {
             let mut ask = |action| ask_ui(&tx, action);
-            run_agent_turn(&prompt, &endpoint, &api_key, &model, step_budget, &mut ask)
+            run_agent_turn(&prompt, &config, &mut ask)
         };
         match result {
             Ok(reply) => drop(tx.send(AgentEvent::Done(reply))),
@@ -177,13 +189,24 @@ pub fn start_turn(app: &mut App, prompt: &str) {
     });
 }
 
-/// The step budget this turn may spend, clamped **at the read site**.
+/// The turn-start snapshot of `settings` that crosses into the worker (ADR
+/// 0007 §D13): cloned once, so a mid-turn edit reaches the next turn only.
+fn turn_config(settings: &Settings) -> TurnConfig {
+    TurnConfig {
+        endpoint: settings.agent_endpoint.clone(),
+        api_key: settings.agent_api_key.clone(),
+        model: settings.agent_model.clone(),
+        step_limit: effective_step_limit(settings),
+    }
+}
+
+/// The step budget a turn may spend, clamped **at the read site**.
 ///
-/// ADR 0007 §D7: `settings.agent_step_budget` comes from a hand-editable JSON
-/// file, so `0` and `200` are both things a real file can say. Clamping here,
-/// once, is what lets everything downstream treat the number as sane.
-fn turn_step_budget(app: &App) -> u8 {
-    crate::agent::clamp_step_budget(app.settings.agent_step_budget)
+/// ADR 0007 §D7/§D13: `settings.agent_step_budget` comes from a hand-editable
+/// JSON file, so `0` and `5000` are both things a real file can say. Clamping
+/// here, once, is what lets everything downstream treat the number as sane.
+fn effective_step_limit(settings: &Settings) -> u32 {
+    crate::agent::clamp_step_budget(settings.agent_step_budget)
 }
 
 /// The undo-stack label for a turn: `Agent:` and the prompt, trimmed and cut to
@@ -342,15 +365,46 @@ mod tests {
 
     // ── AC 18: the budget is read and clamped here ───────────────────────────
 
-    /// AC 18 / ADR 0007 §D7 — the stored budget is clamped at this read site.
-    /// `0` and `200` are both things a hand-edited settings file can say.
+    /// AC 18 / LCV-142 AC 2 — the stored budget is clamped at this read site,
+    /// and the armed turn snapshots the clamped value.
     #[test]
     fn the_budget_is_clamped_where_it_is_read() {
-        for (stored, expected) in [(0, 1), (1, 1), (12, 12), (32, 32), (200, 32), (255, 32)] {
+        for (stored, expected) in [
+            (0, 1),
+            (1, 1),
+            (12, 12),
+            (256, 256),
+            (4096, 4096),
+            (4097, 4096),
+            (u32::MAX, 4096),
+        ] {
             let mut app = App::default();
             app.settings.agent_step_budget = stored;
-            assert_eq!(turn_step_budget(&app), expected, "stored {stored}");
+            assert_eq!(effective_step_limit(&app.settings), expected, "{stored}");
+            assert_eq!(turn_config(&app.settings).step_limit, expected);
+            let _tx = arm_turn(&mut app, "x");
+            assert_eq!(app.agent.turn.limit, expected, "stored {stored}");
         }
+    }
+
+    /// LCV-142 AC 11 — the config is a snapshot: built from a budget of 7, it
+    /// still says 7 after the settings change to 9, and so does the armed
+    /// turn's limit.
+    #[test]
+    fn the_turn_config_is_a_turn_start_snapshot() {
+        let mut app = App::default();
+        app.settings.agent_step_budget = 7;
+        app.settings.agent_model = "m/one".to_owned();
+        let config = turn_config(&app.settings);
+        let _tx = arm_with_limit(&mut app, "x", config.step_limit);
+
+        app.settings.agent_step_budget = 9;
+        app.settings.agent_model = "m/two".to_owned();
+
+        assert_eq!(config.step_limit, 7);
+        assert_eq!(config.model, "m/one");
+        assert_eq!(app.agent.turn.limit, 7);
+        assert_eq!(turn_config(&app.settings).step_limit, 9, "the next turn");
     }
 
     /// AC 18 — the settings module knows nothing about the agent. The clamp
@@ -365,7 +419,7 @@ mod tests {
             .expect("settings.rs must have a bare #[cfg(test)] marker");
         let implementation = &src[..at];
         assert!(
-            implementation.contains(concat!("pub agent_step", "_budget: u8")),
+            implementation.contains(concat!("pub agent_step", "_budget: u32")),
             "positive control: settings must still hold the stored budget"
         );
         let needle = concat!("crate::", "agent");

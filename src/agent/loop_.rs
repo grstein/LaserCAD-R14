@@ -15,15 +15,17 @@ use crate::agent::wire::{AssistantMessage, ChatMessage};
 
 // ── Step budget ──────────────────────────────────────────────────────────────
 
-/// Tool-call dispatches allowed in one turn when the operator has not chosen
-/// otherwise (ADR 0007 §D7).
-pub const AGENT_STEP_BUDGET_DEFAULT: u8 = 12;
+/// Tool-call dispatches (steps) allowed in one turn when the operator has not
+/// chosen otherwise (ADR 0007 §D13, LCV-142).
+pub const AGENT_STEP_BUDGET_DEFAULT: u32 = 256;
 
 /// Smallest budget that still lets the agent do anything at all.
-pub const AGENT_STEP_BUDGET_MIN: u8 = 1;
+pub const AGENT_STEP_BUDGET_MIN: u32 = 1;
 
-/// Largest budget. Caps how long a runaway turn can keep drawing.
-pub const AGENT_STEP_BUDGET_MAX: u8 = 32;
+/// Largest budget. Not a structural limit — the flat history group (§D12)
+/// holds any turn as one entry — but a runaway turn stays bounded in minutes
+/// and in money.
+pub const AGENT_STEP_BUDGET_MAX: u32 = 4096;
 
 /// Hold a stored budget inside `AGENT_STEP_BUDGET_MIN..=AGENT_STEP_BUDGET_MAX`.
 ///
@@ -32,7 +34,7 @@ pub const AGENT_STEP_BUDGET_MAX: u8 = 32;
 /// and anything oversized becomes the maximum. Clamping deliberately lives with
 /// the loop that enforces the budget, not in `io::settings` — that module must
 /// not import `crate::agent` (ADR 0007 §D7).
-pub fn clamp_step_budget(value: u8) -> u8 {
+pub fn clamp_step_budget(value: u32) -> u32 {
     value.clamp(AGENT_STEP_BUDGET_MIN, AGENT_STEP_BUDGET_MAX)
 }
 
@@ -71,7 +73,7 @@ pub enum AgentError {
     ToolDispatch(String),
     /// The loop guard fired. Carries the budget that was in force, so the
     /// message names the real number rather than a constant.
-    IterationLimitExceeded(u8),
+    IterationLimitExceeded(u32),
     /// The endpoint answered with neither content nor tool calls.
     NoContent,
     /// The UI thread stopped answering: the app is closing, the turn was
@@ -107,8 +109,8 @@ impl std::error::Error for AgentError {}
 /// `step_budget` is the number of individual tool-call dispatches this turn may
 /// make; the guard fires **before** dispatching any call of a batch that would
 /// cross it, so a turn never half-applies a batch it cannot finish. The
-/// comparison is done in `usize` — `u8` arithmetic would wrap on a large batch
-/// and wave it through.
+/// comparison is done in `usize` — narrower arithmetic could wrap on a large
+/// batch and wave it through.
 ///
 /// `dispatch_fn` receives `(tool_name, raw_json_arguments)` and returns the
 /// `tool`-role result text. It is the caller's business whether that text came
@@ -117,13 +119,13 @@ pub(crate) fn agent_loop<F, D>(
     send_fn: &mut F,
     dispatch_fn: &mut D,
     messages: &mut Vec<ChatMessage>,
-    step_budget: u8,
+    step_budget: u32,
 ) -> Result<String, AgentError>
 where
     F: FnMut(&[ChatMessage]) -> Result<AssistantMessage, AgentError>,
     D: FnMut(&str, &str) -> Result<String, AgentError>,
 {
-    let budget = step_budget as usize;
+    let budget = usize::try_from(step_budget).unwrap_or(usize::MAX);
     let mut dispatched: usize = 0;
     loop {
         let message = send_fn(messages)?;
@@ -231,28 +233,29 @@ mod tests {
 
     // ── AC 10: the step budget replaces the constant ─────────────────────────
 
-    /// AC 10 — the three constants are the documented numbers.
+    /// LCV-142 AC 2 — the three constants are the documented numbers.
     #[test]
-    fn step_budget_constants_are_12_1_and_32() {
-        assert_eq!(AGENT_STEP_BUDGET_DEFAULT, 12);
+    fn step_budget_constants_are_256_1_and_4096() {
+        assert_eq!(AGENT_STEP_BUDGET_DEFAULT, 256);
         assert_eq!(AGENT_STEP_BUDGET_MIN, 1);
-        assert_eq!(AGENT_STEP_BUDGET_MAX, 32);
+        assert_eq!(AGENT_STEP_BUDGET_MAX, 4096);
     }
 
-    /// AC 10 — `clamp_step_budget` holds the range at both ends and leaves
-    /// everything inside it alone. The `0 → 1` and `200 → 32` rows are what
-    /// fail if the clamp is ever replaced by the identity function.
+    /// LCV-142 AC 2 — `clamp_step_budget` holds the range at both ends and
+    /// leaves everything inside it alone, including the old default and the
+    /// old maximum.
     #[test]
     fn clamp_step_budget_holds_the_range() {
         for (stored, expected) in [
-            (0u8, 1u8),
+            (0u32, 1u32),
             (1, 1),
-            (2, 2),
             (12, 12),
             (32, 32),
-            (33, 32),
-            (200, 32),
-            (255, 32),
+            (33, 33),
+            (256, 256),
+            (4096, 4096),
+            (4097, 4096),
+            (u32::MAX, 4096),
         ] {
             assert_eq!(
                 clamp_step_budget(stored),
@@ -264,22 +267,35 @@ mod tests {
 
     // ── AC 11: the budget is a parameter, and the guard fires early ──────────
 
-    /// AC 11 — a batch that would cross the budget is refused **before** any of
-    /// its calls is dispatched: budget 1, two calls in one response, zero
-    /// dispatches.
-    #[test]
-    fn budget_of_one_refuses_a_two_call_batch_before_dispatching() {
-        let mut dispatches = 0usize;
+    /// Drive the loop with `send` and a counting dispatch; returns the result,
+    /// the number of dispatches and the number of `send` calls.
+    fn drive(
+        mut send: impl FnMut(usize) -> Result<AssistantMessage, AgentError>,
+        budget: u32,
+    ) -> (Result<String, AgentError>, usize, usize) {
+        let (mut sends, mut dispatches) = (0usize, 0usize);
         let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
         let result = agent_loop(
-            &mut |_| call_reply(2),
+            &mut |_| {
+                sends += 1;
+                send(sends)
+            },
             &mut |_, _| {
                 dispatches += 1;
                 Ok("ok".into())
             },
             &mut messages,
-            1,
+            budget,
         );
+        (result, dispatches, sends)
+    }
+
+    /// AC 11 — a batch that would cross the budget is refused **before** any of
+    /// its calls is dispatched: budget 1, two calls in one response, zero
+    /// dispatches.
+    #[test]
+    fn budget_of_one_refuses_a_two_call_batch_before_dispatching() {
+        let (result, dispatches, _) = drive(|_| call_reply(2), 1);
         assert!(
             matches!(result, Err(AgentError::IterationLimitExceeded(1))),
             "got {result:?}"
@@ -287,51 +303,69 @@ mod tests {
         assert_eq!(dispatches, 0, "not one call of the batch may be applied");
     }
 
-    /// AC 11 — the guard counts across rounds: two batches of 6 fit a budget of
-    /// 12, the third is refused with 12 dispatches already done.
+    /// LCV-142 AC 3 — budget 5, one batch of 6: rejected whole, zero dispatches.
     #[test]
-    fn guard_counts_dispatches_across_rounds() {
-        let mut dispatches = 0usize;
-        let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
-        let result = agent_loop(
-            &mut |_| call_reply(6),
-            &mut |_, _| {
-                dispatches += 1;
-                Ok("ok".into())
-            },
-            &mut messages,
-            AGENT_STEP_BUDGET_DEFAULT,
-        );
+    fn budget_of_five_refuses_a_six_call_batch_whole() {
+        let (result, dispatches, sends) = drive(|_| call_reply(6), 5);
         assert!(
-            matches!(result, Err(AgentError::IterationLimitExceeded(12))),
+            matches!(result, Err(AgentError::IterationLimitExceeded(5))),
             "got {result:?}"
         );
-        assert_eq!(dispatches, 12);
+        assert_eq!((dispatches, sends), (0, 1));
     }
 
-    /// AC 11 — a turn that uses exactly the budget still succeeds.
+    /// LCV-142 AC 3 — the guard counts across rounds at the new scale: budget
+    /// 300 takes three batches of 100, and a fourth batch of one is refused
+    /// with nothing of it dispatched.
     #[test]
-    fn exactly_the_budget_is_allowed() {
-        let (mut rounds, mut dispatches) = (0usize, 0usize);
-        let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
-        let result = agent_loop(
-            &mut |_| {
-                rounds += 1;
-                if rounds <= 2 {
+    fn budget_of_300_takes_three_batches_of_100_and_refuses_a_fourth() {
+        let (result, dispatches, sends) = drive(
+            |n| {
+                if n <= 3 {
+                    call_reply(100)
+                } else {
+                    call_reply(1)
+                }
+            },
+            300,
+        );
+        assert!(
+            matches!(result, Err(AgentError::IterationLimitExceeded(300))),
+            "got {result:?}"
+        );
+        assert_eq!(dispatches, 300, "the three batches of 100 all dispatched");
+        assert_eq!(sends, 4);
+    }
+
+    /// LCV-142 AC 4 — after a batch that lands exactly on the limit, exactly
+    /// one more completion is sent: text ends the turn `Ok`, tool calls end it
+    /// `IterationLimitExceeded(limit)` with nothing more dispatched.
+    #[test]
+    fn exact_exhaustion_allows_exactly_one_more_completion() {
+        let (result, dispatches, sends) = drive(
+            |n| {
+                if n <= 2 {
                     call_reply(3)
                 } else {
                     text_reply("done")
                 }
             },
-            &mut |_, _| {
-                dispatches += 1;
-                Ok("ok".into())
-            },
-            &mut messages,
             6,
         );
         assert_eq!(result.unwrap(), "done");
-        assert_eq!(dispatches, 6);
+        assert_eq!((dispatches, sends), (6, 3));
+
+        let (result, dispatches, sends) = drive(|n| call_reply(if n <= 2 { 3 } else { 1 }), 6);
+        assert!(
+            matches!(result, Err(AgentError::IterationLimitExceeded(6))),
+            "got {result:?}"
+        );
+        assert_eq!(dispatches, 6, "the dispatch count did not move");
+        assert_eq!(sends, 3, "exactly one completion after exhaustion");
+        assert_eq!(
+            AgentError::IterationLimitExceeded(6).to_string(),
+            "step budget exceeded (6 tool calls per turn)"
+        );
     }
 
     /// AC 11 — the error names the budget that was in force, not a constant.

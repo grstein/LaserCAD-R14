@@ -1,5 +1,5 @@
 //! LCV-142 — the worker-side half of an agent turn (ADR 0007 §D8, amendment
-//! 7): [`run_agent_turn`] and [`ask_ui`].
+//! 7): [`TurnConfig`], [`run_agent_turn`] and [`ask_ui`].
 //!
 //! Split out of `agent_turn.rs`, which keeps the UI-side half (the fence,
 //! arming and spawning). Everything here runs on the turn's own thread and
@@ -14,19 +14,47 @@ use crate::agent::{
 };
 use std::sync::mpsc::{channel, Sender};
 
-/// Drive one complete agent turn: send `prompt` to `endpoint` as `model`, ask
-/// `ask` to carry out every tool call the model requests, return its final
-/// text.
+/// Everything that crosses into the worker thread, as one owned value (ADR
+/// 0007 §D13). Built once, in `start_turn`, from `Settings`: that is the
+/// turn-start snapshot, so settings edited mid-turn affect the next turn only.
+///
+/// Carries the API key, so its `Debug` is written by hand and prints
+/// `api_key: "<redacted>"` instead (ADR 0007 §D10).
+#[derive(Clone, PartialEq, Eq)]
+pub struct TurnConfig {
+    /// OpenAI-compatible base URL.
+    pub endpoint: String,
+    /// Bearer token. Never printed.
+    pub api_key: String,
+    /// Model id sent with every request.
+    pub model: String,
+    /// The turn's effective step limit, already clamped at the read site.
+    pub step_limit: u32,
+}
+
+impl std::fmt::Debug for TurnConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TurnConfig")
+            .field("endpoint", &self.endpoint)
+            .field("api_key", &"<redacted>")
+            .field("model", &self.model)
+            .field("step_limit", &self.step_limit)
+            .finish()
+    }
+}
+
+/// Drive one complete agent turn: send `prompt` to `config.endpoint` as
+/// `config.model`, ask `ask` to carry out every tool call the model requests,
+/// return its final text.
 ///
 /// Owns no document state of any kind (ADR 0007 §D1). `ask` is the whole seam:
 /// it receives one [`AgentAction`] and answers with what really happened to the
 /// real drawing. In the app that answer comes from another thread; here it is
 /// just a call.
 ///
-/// `model` and `step_budget` are the caller's to choose — they come from
-/// `Settings`, and the budget must already have been through
-/// [`crate::agent::clamp_step_budget`]. At most `step_budget` actions are
-/// applied per turn.
+/// `config` is the caller's snapshot of `Settings`; its `step_limit` has
+/// already been through [`crate::agent::clamp_step_budget`]. At most
+/// `step_limit` actions are dispatched per turn.
 ///
 /// # Errors
 ///
@@ -37,10 +65,7 @@ use std::sync::mpsc::{channel, Sender};
 /// to the model as the tool result and the turn continues (ADR 0007 §D2a).
 pub fn run_agent_turn<A>(
     prompt: &str,
-    endpoint: &str,
-    api_key: &str,
-    model: &str,
-    step_budget: u8,
+    config: &TurnConfig,
     ask: &mut A,
 ) -> Result<String, AgentError>
 where
@@ -56,6 +81,12 @@ where
         // The slice goes through untouched: filtering it would drop the
         // assistant turns that carry tool calls and the tool turns that answer
         // them, leaving holes in the conversation the model reads back.
+        let TurnConfig {
+            endpoint,
+            api_key,
+            model,
+            ..
+        } = config;
         crate::agent::chat_completion(endpoint, api_key, model, msgs, &tools)
             .map_err(|e| AgentError::Transport(e.to_string()))
     };
@@ -73,7 +104,12 @@ where
         // A refusal is a tool result, not a failure (ADR 0007 §D2a).
         Ok(ask(action)?.into_text())
     };
-    agent_loop(&mut send_fn, &mut dispatch_fn, &mut messages, step_budget)
+    agent_loop(
+        &mut send_fn,
+        &mut dispatch_fn,
+        &mut messages,
+        config.step_limit,
+    )
 }
 
 /// The worker thread's `ask`: one rendezvous with the UI thread (ADR 0007 §D2).
@@ -204,6 +240,31 @@ mod tests {
         named_tool_call_body(id, "create_line", arguments)
     }
 
+    fn config(endpoint: &str, model: &str, step_limit: u32) -> TurnConfig {
+        TurnConfig {
+            endpoint: endpoint.to_owned(),
+            api_key: "k".to_owned(),
+            model: model.to_owned(),
+            step_limit,
+        }
+    }
+
+    /// LCV-142 AC 11 — `Debug` never prints the key, and says it withheld it.
+    #[test]
+    fn turn_config_debug_redacts_the_api_key() {
+        let config = TurnConfig {
+            api_key: "sk-test-DO-NOT-LEAK".to_owned(),
+            ..config("https://example.invalid", "m", 7)
+        };
+        let printed = format!("{config:?}");
+        assert!(!printed.contains("sk-test-DO-NOT-LEAK"), "{printed}");
+        assert!(!printed.contains("DO-NOT-LEAK"), "{printed}");
+        assert!(printed.contains(r#"api_key: "<redacted>""#), "{printed}");
+        assert!(printed.contains("step_limit: 7"), "{printed}");
+        let pretty = format!("{config:#?}");
+        assert!(!pretty.contains("sk-test"), "{pretty}");
+    }
+
     const LINE_ARGS: &str = r#"{"x1":0,"y1":0,"x2":20,"y2":0}"#;
 
     /// LCV-121 AC 6, moved here with the turn — a two-round turn sends the
@@ -233,10 +294,7 @@ mod tests {
         let mut applier = Applier::new();
         let reply = run_agent_turn(
             "draw a line",
-            &server.url(),
-            "k",
-            "test/model",
-            AGENT_STEP_BUDGET_DEFAULT,
+            &config(&server.url(), "test/model", AGENT_STEP_BUDGET_DEFAULT),
             &mut |action| applier.ask(action),
         )
         .expect("the turn must finish");
@@ -316,10 +374,7 @@ mod tests {
         let before = applier.app.history.revision();
         let reply = run_agent_turn(
             "delete entity 7",
-            &server.url(),
-            "k",
-            "test/model",
-            AGENT_STEP_BUDGET_DEFAULT,
+            &config(&server.url(), "test/model", AGENT_STEP_BUDGET_DEFAULT),
             &mut |action| applier.ask(action),
         )
         .expect("a refused tool call must not fail the turn");
@@ -361,10 +416,7 @@ mod tests {
             let mut applier = Applier::new();
             let reply = run_agent_turn(
                 "hello",
-                &server.url(),
-                "k",
-                model,
-                AGENT_STEP_BUDGET_DEFAULT,
+                &config(&server.url(), model, AGENT_STEP_BUDGET_DEFAULT),
                 &mut |action| applier.ask(action),
             );
             assert_eq!(reply.unwrap(), "hi");
@@ -388,10 +440,7 @@ mod tests {
         let mut applier = Applier::new();
         let result = run_agent_turn(
             "draw forever",
-            &server.url(),
-            "k",
-            "test/model",
-            2,
+            &config(&server.url(), "test/model", 2),
             &mut |action| applier.ask(action),
         );
 
@@ -425,10 +474,7 @@ mod tests {
         let mut applier = Applier::new();
         let result = run_agent_turn(
             "hello",
-            &server.url(),
-            "k",
-            "test/model",
-            AGENT_STEP_BUDGET_DEFAULT,
+            &config(&server.url(), "test/model", AGENT_STEP_BUDGET_DEFAULT),
             &mut |action| applier.ask(action),
         );
         match result {
@@ -484,10 +530,7 @@ mod tests {
         let mut applier = Applier::new();
         let reply = run_agent_turn(
             "draw",
-            &server.url(),
-            "k",
-            "test/model",
-            AGENT_STEP_BUDGET_DEFAULT,
+            &config(&server.url(), "test/model", AGENT_STEP_BUDGET_DEFAULT),
             &mut |action| applier.ask(action),
         )
         .expect("the turn must finish");
@@ -550,10 +593,7 @@ mod tests {
         let mut applier = Applier::cancelling();
         let result = run_agent_turn(
             "draw a line",
-            &server.url(),
-            "k",
-            "test/model",
-            AGENT_STEP_BUDGET_DEFAULT,
+            &config(&server.url(), "test/model", AGENT_STEP_BUDGET_DEFAULT),
             &mut |action| applier.ask(action),
         );
 

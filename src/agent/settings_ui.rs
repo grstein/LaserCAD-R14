@@ -84,7 +84,7 @@ pub struct AgentSettingsFrame {
 /// Done button (AC 6) is clicked.
 ///
 /// The slider clamps as it draws (`SliderClamping::Always`), so a settings file
-/// hand-edited to `200` is written back as `32` on the first frame the dialog
+/// hand-edited to `5000` is written back as `4096` on the first frame the dialog
 /// is open — and reports `changed` that frame, which is what gets the clamped
 /// value persisted. The read-site clamp in `src/app/agent_turn.rs` stays
 /// regardless: a file the dialog was never opened on is still a hand-edited file.
@@ -121,14 +121,19 @@ pub fn draw_agent_settings(ui: &mut egui::Ui, settings: &mut Settings) -> AgentS
     grid("agent_budget_grid").show(ui, |ui| {
         ui.label("Steps per turn");
         let before = settings.agent_step_budget;
-        let budget = ui.add(egui::Slider::new(
-            &mut settings.agent_step_budget,
-            AGENT_STEP_BUDGET_MIN..=AGENT_STEP_BUDGET_MAX,
-        ));
+        // Logarithmic: 1..=4096 (LCV-142) is too wide for a linear track to
+        // land on small values; the number box still takes any typed value.
+        let budget = ui.add(
+            egui::Slider::new(
+                &mut settings.agent_step_budget,
+                AGENT_STEP_BUDGET_MIN..=AGENT_STEP_BUDGET_MAX,
+            )
+            .logarithmic(true),
+        );
         // `Response::changed()` covers an interaction; the comparison covers the
         // clamp. egui writes an out-of-range stored value back into range as it
         // draws but reports nothing, so without the second term a file
-        // hand-edited to `200` would be silently corrected and never persisted.
+        // hand-edited to `5000` would be silently corrected and never persisted.
         changed |= budget.changed() || settings.agent_step_budget != before;
         ui.end_row();
     });
@@ -342,16 +347,17 @@ mod tests {
                 "the budget row must contain `{needle}`"
             );
         }
-        let literal = concat!("1..", "=32");
-        let witness = "Slider::new(&mut settings.agent_step_budget, 1..=32)";
-        assert!(
-            witness.contains(literal),
-            "control: `{literal}` must be a needle that can match something"
-        );
-        assert!(
-            !implementation.contains(literal),
-            "the range must be the constants, not the literals"
-        );
+        for literal in [concat!("1..", "=32"), concat!("1..", "=4096")] {
+            let witness = "Slider::new(&mut b, 1..=32) Slider::new(&mut b, 1..=4096)";
+            assert!(
+                witness.contains(literal),
+                "control: `{literal}` must be a needle that can match something"
+            );
+            assert!(
+                !implementation.contains(literal),
+                "the range must be the constants, not the literals"
+            );
+        }
         assert_eq!(
             STEP_BUDGET_HELP,
             concat!(
@@ -475,7 +481,7 @@ mod tests {
         let ctx = egui::Context::default();
         ctx.set_pixels_per_point(1.0);
         let mut settings = Settings {
-            agent_step_budget: 200,
+            agent_step_budget: 5000,
             ..Settings::default()
         };
 
@@ -483,7 +489,7 @@ mod tests {
 
         assert_eq!(
             settings.agent_step_budget, AGENT_STEP_BUDGET_MAX,
-            "opening the dialog on a hand-edited 200 must show 32"
+            "opening the dialog on a hand-edited 5000 must show 4096"
         );
         assert_eq!(
             crate::agent::clamp_step_budget(settings.agent_step_budget),
@@ -508,12 +514,30 @@ mod tests {
             "the dialog opens on an untouched form"
         );
 
-        settings.agent_step_budget = 200;
+        settings.agent_step_budget = 5000;
         let changed = run_form(&ctx, &mut settings, Vec::new());
 
         assert!(changed, "the clamp is a change, and must be persisted");
-        assert_eq!(settings.agent_step_budget, AGENT_STEP_BUDGET_MAX);
+        assert_eq!(settings.agent_step_budget, 4096, "LCV-142 AC 2");
         assert_eq!(moved(&settings), ["step_budget"], "and only that field");
+    }
+
+    /// LCV-142 AC 2 — a stored in-range 4096 survives drawing the form and is
+    /// not reported as a change, on the first frame and on a later one. This
+    /// is what breaks if the control's maximum stays at the old 32.
+    #[test]
+    fn lcv142_a_stored_4096_survives_the_form_unchanged() {
+        let ctx = egui::Context::default();
+        ctx.set_pixels_per_point(1.0);
+        let mut settings = Settings {
+            agent_step_budget: 4096,
+            ..Settings::default()
+        };
+        assert!(!run_form(&ctx, &mut settings, Vec::new()), "first frame");
+        assert_eq!(settings.agent_step_budget, 4096);
+        assert!(!run_form(&ctx, &mut settings, Vec::new()), "a later frame");
+        assert_eq!(settings.agent_step_budget, 4096);
+        assert_eq!(AGENT_STEP_BUDGET_MAX, 4096);
     }
 
     /// AC 12 — the other end of the range, from the same direction.
