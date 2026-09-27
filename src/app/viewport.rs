@@ -70,6 +70,14 @@ fn viewport_is_live(response: &egui::Response, app: &App) -> bool {
 }
 
 /// Paint the canvas background and the whole render pipeline into `rect`.
+///
+/// Paint order (LCV-137 AC 1): canvas background, bed background fill, the
+/// grid (when enabled), the bed border and exterior overlay, entities,
+/// selection, preview, snap marker. The bed's fill is painted BEFORE the
+/// grid and its border/overlay AFTER, so the grid's lines land on top of the
+/// fill and are visible inside the bed rather than painted over by it — the
+/// two halves of what used to be one `draw_bed` call, split for this order
+/// (LCV-137 AC 2, `src/render/bed.rs`).
 fn paint(ui: &egui::Ui, rect: egui::Rect, app: &mut App) {
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, 0.0, crate::ui::CANVAS_BG);
@@ -79,12 +87,15 @@ fn paint(ui: &egui::Ui, rect: egui::Rect, app: &mut App) {
         egui::Stroke::new(1.0, egui::Color32::from_gray(64)),
     );
 
-    if app.grid_enabled {
-        crate::render::draw_grid(&painter, rect, &app.camera);
-    }
     // The bed is the document's, rebuilt every frame (LCV-114 AC 4/AC 15):
     // no cached copy, so a `SetBedSize` shows up on the very next frame.
     let bed = crate::render::Bed::from_size_mm(app.document.bed_mm);
+    crate::render::draw_bed_fill(&painter, rect, &app.camera, &bed);
+
+    if app.grid_enabled {
+        crate::render::draw_grid(&painter, rect, &app.camera);
+    }
+
     crate::render::draw_bed(&painter, rect, &app.camera, &bed);
     crate::render::draw_entities(
         &painter,
@@ -114,14 +125,24 @@ fn paint(ui: &egui::Ui, rect: egui::Rect, app: &mut App) {
 /// Resolve the cursor position and route pointer events while the viewport is
 /// hovered: snap, ortho lock, press / move / release, and wheel zoom.
 fn handle_hover(ctx: &egui::Context, app: &mut App, rect: egui::Rect, hover_pos: egui::Pos2) {
-    // Resolve snap; viewport-local pos = hover_pos - rect.min.
+    // `hover_pos` is global (the whole window); `rect.min` is the viewport's
+    // own origin, which is nonzero whenever a panel claims space before the
+    // `CentralPanel` — always, since the menubar and toolbar always do, and
+    // further when the agent panel is open. Every camera call below wants
+    // the viewport-local point, so the subtraction happens exactly once,
+    // here, and every caller below (snap, world_pos, wheel zoom) reuses the
+    // one result (LCV-137 AC 3).
+    let local_pos = hover_pos - rect.min.to_vec2();
+
+    // `resolve_snap` takes the global `hover_pos` plus `rect` and does this
+    // same subtraction internally.
     if app.snap_enabled {
         app.active_snap = resolve_snap(hover_pos, rect, &app.camera, &app.document.entities);
     }
     let world_pos = app
         .active_snap
         .map(|s| s.point)
-        .unwrap_or_else(|| app.camera.screen_to_world(hover_pos - rect.min.to_vec2()));
+        .unwrap_or_else(|| app.camera.screen_to_world(local_pos));
     // Ortho lock (LCV-053): clamp to nearest cardinal axis from the active
     // tool's anchor, when ortho mode is active.
     let world_pos = if app.ortho_enabled {
@@ -163,7 +184,10 @@ fn handle_hover(ctx: &egui::Context, app: &mut App, rect: egui::Rect, hover_pos:
         poll_successor(app);
     }
 
-    // Wheel zoom around cursor.
+    // Wheel zoom around cursor. `zoom_around` (reached through
+    // `handle_wheel_zoom`) treats its anchor as viewport-local, so this
+    // passes `local_pos` — computed once, above — never the global
+    // `hover_pos` (LCV-137 AC 3/AC 4).
     let scroll_y = ctx.input(|i| i.smooth_scroll_delta.y);
     if scroll_y != 0.0 {
         let factor = if scroll_y > 0.0 {
@@ -171,7 +195,7 @@ fn handle_hover(ctx: &egui::Context, app: &mut App, rect: egui::Rect, hover_pos:
         } else {
             1.0 / WHEEL_ZOOM_FACTOR
         };
-        handle_wheel_zoom(&mut app.camera, hover_pos, factor);
+        handle_wheel_zoom(&mut app.camera, local_pos, factor);
     }
 }
 
@@ -555,5 +579,219 @@ mod tests {
         // A viewport with one zero dimension is equally degenerate.
         handle_zoom_extents(&mut cam, &doc, [800.0, 0.0]);
         assert_eq!(cam.mm_per_px, 4.0);
+    }
+
+    /// A painted shape, reduced to the geometry these tests may assert on —
+    /// never color (AGENTS.md): a rect's screen rectangle plus its stroke
+    /// width (`0.0` for a filled rect, `> 0.0` for a stroked one — `paint`'s
+    /// two calls, `rect_filled` / `rect_stroke`, each set exactly one of
+    /// `fill` / `stroke` and default the other to
+    /// `Stroke`/`Color32::TRANSPARENT`), or a line segment (identity only —
+    /// `draw_grid` is the only caller in `paint` that emits one on this
+    /// fixture).
+    #[derive(Debug, Clone, Copy)]
+    enum Kind {
+        Rect(egui::Rect, f32),
+        Line,
+    }
+
+    /// Flatten `shape` into `out`, recursing into `Shape::Vec` — the only
+    /// shape variant at egui 0.29.1 that contains other shapes (mirrors
+    /// `tests/harness/paint.rs::collect_text`'s identical recursion for
+    /// text runs).
+    fn flatten_shape(shape: &egui::Shape, out: &mut Vec<Kind>) {
+        match shape {
+            egui::Shape::Rect(r) => out.push(Kind::Rect(r.rect, r.stroke.width)),
+            egui::Shape::LineSegment { .. } => out.push(Kind::Line),
+            egui::Shape::Vec(shapes) => shapes.iter().for_each(|s| flatten_shape(s, out)),
+            _ => {}
+        }
+    }
+
+    /// Two rects are "the same" up to sub-point float noise.
+    fn close_rect(a: egui::Rect, b: egui::Rect) -> bool {
+        (a.min.x - b.min.x).abs() < 0.01
+            && (a.min.y - b.min.y).abs() < 0.01
+            && (a.max.x - b.max.x).abs() < 0.01
+            && (a.max.y - b.max.y).abs() < 0.01
+    }
+
+    /// LCV-137 AC 1/AC 2 — paint order inside the private `paint()`: canvas
+    /// background, bed fill, the grid (when enabled), the bed border plus
+    /// exterior overlay, then — on this fixture's empty document, empty
+    /// selection and absent snap — nothing else. Toggling `grid_enabled`
+    /// off removes the grid lines and nothing else.
+    ///
+    /// `paint` is called directly (it is private, and this is its own
+    /// module) with a `rect` whose origin is nonzero — modelling a window
+    /// where the menubar and toolbar have already claimed their share, per
+    /// this demand's own rule that a same-origin rect cannot see a
+    /// global/local mixup. Every shape is identified by computed screen
+    /// geometry, never by color: the bed's fill/border share one
+    /// independently-computed rect (`bed_rect` below, from `Bed::corners`
+    /// and `Camera::world_to_screen` — the same formula `paint` itself
+    /// uses), distinguished from each other only by `stroke.width`, and the
+    /// bed/rect/overlay sizes are chosen so none of them collides with any
+    /// other by coincidence. Scoped to shapes whose `clip_rect` matches
+    /// `rect` exactly (`ui.painter_at(rect)`'s own clip), which is what
+    /// keeps chrome shapes — there are none in this bare-`ctx.run` fixture,
+    /// but the same scoping is what makes this safe to run inside the real
+    /// `App::update_ui` too — out of the count.
+    ///
+    /// A control that fails when `paint`'s call order is reverted (bed fill
+    /// after the grid — bug #1), or when the grid/bed split is undone (a
+    /// mutation tried and confirmed to fail this test during review).
+    #[test]
+    fn ac1_ac2_grid_paints_between_bed_fill_and_bed_border_and_toggles_off() {
+        let rect =
+            egui::Rect::from_min_size(egui::Pos2::new(50.0, 30.0), egui::Vec2::new(400.0, 300.0));
+
+        let mut rects_by_toggle: Vec<Vec<(egui::Rect, f32)>> = Vec::new();
+        for grid_enabled in [true, false] {
+            let mut app = App {
+                grid_enabled,
+                ..App::default()
+            };
+            app.document.bed_mm = [100.0, 50.0];
+            app.camera = Camera {
+                center_world: Vec2::new(50.0, 25.0),
+                mm_per_px: 1.0,
+                viewport_size_px: [rect.width(), rect.height()],
+            };
+            assert!(
+                app.document.entities.is_empty()
+                    && app.document.selection.is_empty()
+                    && app.active_snap.is_none(),
+                "positive control: nothing but bed/grid may paint in this fixture"
+            );
+
+            let ctx = egui::Context::default();
+            ctx.set_pixels_per_point(1.0);
+            let out = ctx.run(egui::RawInput::default(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| paint(ui, rect, &mut app));
+            });
+
+            let mut kinds: Vec<Kind> = Vec::new();
+            for clipped in &out.shapes {
+                if close_rect(clipped.clip_rect, rect) {
+                    flatten_shape(&clipped.shape, &mut kinds);
+                }
+            }
+
+            let bed = crate::render::Bed::from_size_mm(app.document.bed_mm);
+            let corners = bed.corners();
+            let offset = rect.min.to_vec2();
+            let bed_rect = egui::Rect::from_two_pos(
+                app.camera.world_to_screen(corners[0]) + offset,
+                app.camera.world_to_screen(corners[2]) + offset,
+            );
+
+            let bed_fill_idx = kinds
+                .iter()
+                .position(
+                    |k| matches!(k, Kind::Rect(r, w) if close_rect(*r, bed_rect) && *w == 0.0),
+                )
+                .expect("AC 1: the bed's fill must be painted at the bed's own screen rect");
+            let bed_border_idx = kinds
+                .iter()
+                .position(|k| matches!(k, Kind::Rect(r, w) if close_rect(*r, bed_rect) && *w > 0.0))
+                .expect("AC 1: the bed's border must be painted at the bed's own screen rect");
+            let line_indices: Vec<usize> = kinds
+                .iter()
+                .enumerate()
+                .filter(|(_, k)| matches!(k, Kind::Line))
+                .map(|(i, _)| i)
+                .collect();
+
+            if grid_enabled {
+                let first_line = *line_indices
+                    .first()
+                    .expect("AC 1: the grid must paint lines when grid_enabled is true");
+                let last_line = *line_indices.last().expect("checked non-empty above");
+                assert!(
+                    bed_fill_idx < first_line,
+                    "AC 1: the bed fill must paint before every grid line"
+                );
+                assert!(
+                    last_line < bed_border_idx,
+                    "AC 1: the bed border must paint after every grid line"
+                );
+            } else {
+                assert!(
+                    line_indices.is_empty(),
+                    "AC 2: no grid lines must paint when grid_enabled is false"
+                );
+                assert!(
+                    bed_fill_idx < bed_border_idx,
+                    "AC 2: the bed fill/border order is unaffected by the grid toggle"
+                );
+            }
+
+            let rects_only: Vec<(egui::Rect, f32)> = kinds
+                .iter()
+                .filter_map(|k| match k {
+                    Kind::Rect(r, w) => Some((*r, *w)),
+                    Kind::Line => None,
+                })
+                .collect();
+            rects_by_toggle.push(rects_only);
+        }
+
+        // AC 2's other half: every non-grid shape — canvas background, bed
+        // fill, bed border, the exterior overlay strips — is identical,
+        // in the same emission order, whether or not the grid is enabled.
+        assert_eq!(
+            rects_by_toggle[0].len(),
+            rects_by_toggle[1].len(),
+            "AC 2: the same set of non-grid shapes must paint whether or not \
+             the grid is enabled"
+        );
+        for (with_grid, without_grid) in rects_by_toggle[0].iter().zip(&rects_by_toggle[1]) {
+            assert!(
+                close_rect(with_grid.0, without_grid.0)
+                    && (with_grid.1 - without_grid.1).abs() < 1e-6,
+                "AC 2: {with_grid:?} != {without_grid:?} across the grid toggle"
+            );
+        }
+    }
+
+    /// LCV-137 AC 3 — `handle_hover`'s wheel-zoom call site subtracts the
+    /// viewport's origin (`rect.min`) from the global `hover_pos` exactly
+    /// once, before the result ever reaches `handle_wheel_zoom` /
+    /// `Camera::zoom_around` — the same pattern `resolve_snap` and the
+    /// `world_pos` line right above it already use. Mirrors the style of
+    /// `the_live_predicate_has_exactly_three_terms`.
+    #[test]
+    fn ac3_wheel_zoom_call_site_subtracts_the_viewport_origin_source_scan() {
+        let implementation = implementation_of(include_str!("viewport.rs"));
+        let signature = "fn handle_hover(ctx: &egui::Context, app: &mut App, rect: egui::Rect, hover_pos: egui::Pos2) {";
+        let body = implementation
+            .split_once(signature)
+            .expect("AC 3: handle_hover must exist with that exact signature")
+            .1
+            .split_once("\n}\n")
+            .expect("handle_hover must close")
+            .0;
+
+        let subtract_at = body
+            .find("hover_pos - rect.min.to_vec2()")
+            .expect("AC 3: handle_hover must subtract rect.min from hover_pos");
+        let call_at = body
+            .find("handle_wheel_zoom(&mut app.camera, local_pos, factor)")
+            .expect("AC 3: handle_wheel_zoom must be called with the subtracted anchor");
+        assert!(
+            subtract_at < call_at,
+            "AC 3: the subtraction must happen before the call into handle_wheel_zoom"
+        );
+        assert_eq!(
+            body.matches("hover_pos - rect.min.to_vec2()").count(),
+            1,
+            "AC 3: exactly one subtraction site — computed once, reused for \
+             snap, world_pos and the wheel-zoom anchor alike"
+        );
+        assert!(
+            !body.contains("handle_wheel_zoom(&mut app.camera, hover_pos, factor)"),
+            "AC 3: the wheel-zoom anchor must never be the raw global hover_pos"
+        );
     }
 }

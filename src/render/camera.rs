@@ -134,16 +134,29 @@ impl Camera {
     /// Pan the camera by a screen-space delta (the operator dragged the
     /// pointer by `delta_screen_px`).
     ///
-    /// Implements `center_world -= delta_screen_px * mm_per_px` so the world
-    /// point under the cursor stays under the cursor as the cursor drags:
-    /// dragging right by `d` px shifts `center_world.x` by `-d * mm_per_px`.
-    /// The same sign applies on Y: dragging down (positive screen-Y delta)
-    /// shifts `center_world.y` by `-d * mm_per_px`, which — combined with
-    /// the world-Y-up flip in [`Camera::world_to_screen`] — pulls the
-    /// drawing visibly down, tracking the cursor.
+    /// The two axes carry opposite signs because only one of them is flipped
+    /// by [`Camera::world_to_screen`]'s Y-up-to-Y-down convention (LCV-137
+    /// AC 6):
+    ///
+    /// - **X**: `screen_x = half_x + (world.x - center.x) / mm_per_px`, no
+    ///   flip. Dragging right (`dx > 0`) must move a fixed world point right
+    ///   on screen, i.e. increase its `screen_x`, which requires
+    ///   `center.x` to *decrease* — hence `center_world.x -=
+    ///   dx * mm_per_px`.
+    /// - **Y**: `screen_y = half_y - (world.y - center.y) / mm_per_px`, one
+    ///   minus sign. Dragging down (`dy > 0`, screen-Y grows downward) must
+    ///   move a fixed world point down on screen, i.e. increase its
+    ///   `screen_y`; because of the extra minus sign that requires
+    ///   `center.y` to *increase* — hence `center_world.y +=
+    ///   dy * mm_per_px`, the opposite sign from X.
+    ///
+    /// Before LCV-137 both axes carried the same sign, which made a
+    /// vertical middle-drag move the drawing opposite to the cursor while
+    /// horizontal drags tracked it correctly — derivable algebraically from
+    /// the formulas above, not a matter of taste.
     pub fn pan(&mut self, delta_screen_px: egui::Vec2) {
         self.center_world.x -= f64::from(delta_screen_px.x) * self.mm_per_px;
-        self.center_world.y -= f64::from(delta_screen_px.y) * self.mm_per_px;
+        self.center_world.y += f64::from(delta_screen_px.y) * self.mm_per_px;
     }
 
     /// Fit `bounds` to the viewport with a 10% margin on each side.
@@ -258,6 +271,58 @@ mod tests {
         let mut cam = fixture();
         cam.pan(egui::Vec2::new(100.0, 0.0));
         assert!(cam.center_world.approx_eq(Vec2::new(-100.0, 0.0), EPSILON));
+    }
+
+    /// LCV-137 AC 6 — a positive (downward) screen-Y delta increases
+    /// `center_world.y`: the flipped sign, on Y only.
+    #[test]
+    fn pan_positive_y_delta_increases_center_world_y() {
+        let mut cam = fixture();
+        cam.pan(egui::Vec2::new(0.0, 50.0));
+        assert!(cam.center_world.approx_eq(Vec2::new(0.0, 50.0), EPSILON));
+    }
+
+    /// LCV-137 AC 6 — a negative (upward) screen-Y delta decreases
+    /// `center_world.y`.
+    #[test]
+    fn pan_negative_y_delta_decreases_center_world_y() {
+        let mut cam = fixture();
+        cam.pan(egui::Vec2::new(0.0, -30.0));
+        assert!(cam.center_world.approx_eq(Vec2::new(0.0, -30.0), EPSILON));
+    }
+
+    /// LCV-137 AC 6 — a diagonal delta applies both signs at once: X
+    /// subtracts, Y adds, each scaled by `mm_per_px`.
+    #[test]
+    fn pan_diagonal_delta_applies_both_signs() {
+        let mut cam = fixture();
+        cam.mm_per_px = 2.0;
+        cam.pan(egui::Vec2::new(30.0, -20.0));
+        assert!(cam.center_world.approx_eq(Vec2::new(-60.0, -40.0), EPSILON));
+    }
+
+    /// LCV-137 AC 6 — a middle-drag pan moves a fixed world point's
+    /// projected screen position in the *same* direction the operator
+    /// dragged, on both axes at once. This is the property that matters to
+    /// the operator: not the sign of `center_world` in isolation, but that
+    /// the drawing visibly follows the drag. Caught the pre-fix Y bug that
+    /// `pan_shifts_center_world` (X-only) could not.
+    #[test]
+    fn pan_moves_a_fixed_point_the_same_direction_as_the_drag() {
+        let mut cam = fixture();
+        let world_point = Vec2::new(5.0, -3.0);
+        let before = cam.world_to_screen(world_point);
+        let delta = egui::Vec2::new(40.0, 25.0);
+        cam.pan(delta);
+        let after = cam.world_to_screen(world_point);
+        assert!(
+            after.x > before.x,
+            "dragging right must move a fixed point right on screen"
+        );
+        assert!(
+            after.y > before.y,
+            "dragging down must move a fixed point down on screen"
+        );
     }
 
     #[test]

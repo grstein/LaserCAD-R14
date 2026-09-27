@@ -75,33 +75,49 @@ impl Bed {
     }
 }
 
-/// Draw the laser bed rectangle with a border and outer overlay.
-///
-/// **Call order**: this function must be called AFTER [`crate::render::draw_grid`]
-/// and BEFORE any entity rendering so the bed sits over the grid but under
-/// drawn geometry.
-///
-/// Drawing steps:
-/// 1. Convert the four bed corners to screen space.
-/// 2. Fill the bed rectangle with a slightly lighter gray than the canvas
-///    background to visually distinguish the printable area.
-/// 3. Stroke the bed border with a light gray line.
-/// 4. Draw four overlay strips (top/bottom/left/right) around the bed, clipped
-///    to `rect`, covering the area outside the bed with a translucent black
-///    overlay to discourage out-of-bounds placement.
-pub fn draw_bed(painter: &egui::Painter, rect: egui::Rect, camera: &Camera, bed: &Bed) {
-    // Convert bed corners to screen space.
+/// The bed's screen-space bounding rectangle: the four world corners
+/// projected through `camera` (viewport-local) and shifted by `rect.min` to
+/// land in the painter's global clip rect — the same `+ offset` every other
+/// projected point in this render layer applies exactly once.
+fn bed_screen_rect(rect: egui::Rect, camera: &Camera, bed: &Bed) -> egui::Rect {
     let corners = bed.corners();
     let offset = rect.min.to_vec2();
     let screen_bl = camera.world_to_screen(corners[0]) + offset;
     let screen_tr = camera.world_to_screen(corners[2]) + offset;
+    egui::Rect::from_two_pos(screen_bl, screen_tr)
+}
 
-    // Compute the bed's screen-space bounding rectangle.
-    let bed_screen_rect = egui::Rect::from_two_pos(screen_bl, screen_tr);
-
+/// Fill the bed rectangle only — no border, no exterior overlay.
+///
+/// **Call order** (LCV-137 AC 1/AC 2): called BEFORE
+/// [`crate::render::draw_grid`], so the grid's lines paint *on top of* this
+/// fill and are visible inside the bed rather than painted over by it. Pair
+/// with [`draw_bed`], which paints the border and exterior overlay — those
+/// stay AFTER the grid so they still sit under drawn geometry, framing the
+/// grid rather than erasing it.
+pub fn draw_bed_fill(painter: &egui::Painter, rect: egui::Rect, camera: &Camera, bed: &Bed) {
+    let bed_screen_rect = bed_screen_rect(rect, camera, bed);
     // Fill the bed rectangle with a lighter gray (gray(40)) than the canvas
     // background (gray(24)) to make the printable area stand out.
     painter.rect_filled(bed_screen_rect, 0.0, egui::Color32::from_gray(40));
+}
+
+/// Draw the laser bed's border and outer overlay — no fill.
+///
+/// **Call order** (LCV-137 AC 1/AC 2): called AFTER [`crate::render::draw_grid`]
+/// (whose lines must be visible over [`draw_bed_fill`]'s background, painted
+/// before it) and BEFORE any entity rendering, so the border and overlay sit
+/// over the grid but under drawn geometry. The background fill itself is
+/// [`draw_bed_fill`], called first, before the grid.
+///
+/// Drawing steps:
+/// 1. Convert the four bed corners to screen space.
+/// 2. Stroke the bed border with a light gray line.
+/// 3. Draw four overlay strips (top/bottom/left/right) around the bed, clipped
+///    to `rect`, covering the area outside the bed with a translucent black
+///    overlay to discourage out-of-bounds placement.
+pub fn draw_bed(painter: &egui::Painter, rect: egui::Rect, camera: &Camera, bed: &Bed) {
+    let bed_screen_rect = bed_screen_rect(rect, camera, bed);
 
     // Stroke the bed border with a light gray line.
     painter.rect_stroke(
