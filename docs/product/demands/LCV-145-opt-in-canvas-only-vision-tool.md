@@ -67,3 +67,14 @@ if the verified path needs them; do not add another GUI/runtime.
 Pinned API references:
 [ViewportCommand::Screenshot](https://docs.rs/egui/0.29.1/egui/viewport/enum.ViewportCommand.html#variant.Screenshot)
 and [Event::Screenshot](https://docs.rs/egui/0.29.1/egui/enum.Event.html#variant.Screenshot).
+
+## Architecture decision
+
+Recorded 2026-09-27 in
+[ADR 0011](../../adr/0011-canvas-observation-is-an-offscreen-raster.md): the
+image is a software raster of the live document rendered on the UI thread
+inside the `Act`, **not** a `ViewportCommand::Screenshot` framebuffer read.
+That replaces draft AC 1 and AC 3–8 (no crop, modal check, pending capture,
+deadline, late-event correlation or native adapter exist to specify) and
+answers AC 9–11 in ADR 0011 §Decision 8–10. ADR 0007 §D1/§D8 are clarified
+there and in amendment (7). `product-owner` rewrites the ACs against ADR 0011.

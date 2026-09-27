@@ -58,3 +58,13 @@ Primary files: `src/agent/loop_.rs`, `src/io/settings.rs`,
 the existing composite command, and agent panel/settings UI. ADR 0007's
 end-only grouping must be amended; its old 32-step reasoning no longer holds.
 LCV-144's atomic batch is one command and dispatch, not one per entity.
+
+## Architecture decision
+
+Recorded 2026-09-27 in ADR 0007 amendment (7) (satisfies AC 1's gate):
+§D12 flat history group (supersedes §D6), §D13 `u32` budget 256 / 1..=4096 and
+`TurnConfig` (supersedes §D7's constants), §D14 second fence witness
+(`History::group_open()`) and stop-after-first-fence-refusal (amends §D4),
+§D15 malformed tool calls become `Refused` `Act`s (amends §D2a's routing),
+§D8 seams (`src/app/agent_worker.rs` split, `App::agent_turn: TurnState`).
+`product-owner` reconciles the ACs against those sections.

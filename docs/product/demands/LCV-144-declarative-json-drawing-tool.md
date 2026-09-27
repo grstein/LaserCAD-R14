@@ -66,3 +66,11 @@ Each variant accepts only the fields shown below; all are required.
   ]
 }
 ```
+
+## Architecture decision
+
+Recorded 2026-09-27 in
+[ADR 0010](../../adr/0010-declarative-drawing-batch-tool.md) (satisfies AC 1's
+gate; confirms the 1000-entity / 1 MiB limits). Builds on ADR 0007 §D12
+(flat group), §D13 (step = `Act`) and §D15 (malformed → `Refused` `Act`) from
+LCV-142. `product-owner` reconciles the ACs against ADR 0010 §Decision 1–9.
