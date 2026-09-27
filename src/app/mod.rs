@@ -206,6 +206,18 @@ pub struct App {
     /// A destructive action parked while the discard-confirmation dialog is
     /// up (LCV-113). `None` means no dialog is pending; see `src/app/file_ops.rs`.
     pub pending_action: Option<PendingAction>,
+    /// Set once a parked `Exit` is confirmed; never cleared afterward
+    /// (LCV-136). `ViewportCommand::Close` does not synchronously destroy the
+    /// window: egui-winit's `process_viewport_command` only records a fresh
+    /// `ViewportEvent::Close` on the viewport, which makes
+    /// `close_requested()` report `true` again on the *next* frame — the
+    /// same close request, re-delivered. Without this latch,
+    /// `poll_close_request` would run `request_exit` a second time, find the
+    /// document still dirty (`Exit` performs no save), re-park
+    /// `PendingAction::Exit`, and send `CancelClose` — cancelling the very
+    /// close the operator just confirmed, forever. See
+    /// `src/app/file_ops.rs::poll_close_request`.
+    pub exit_confirmed: bool,
 }
 
 impl App {

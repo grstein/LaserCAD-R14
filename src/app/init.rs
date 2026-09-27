@@ -76,6 +76,7 @@ impl Default for App {
             error_message: None,
             saved_revision: None,
             pending_action: None,
+            exit_confirmed: false,
         }
     }
 }

@@ -234,9 +234,9 @@ pub fn draw_discard_dialog(ctx: &egui::Context, app: &mut App) {
 /// Takes `App::pending_action` unconditionally, so both branches clear it —
 /// forgetting to clear it on either one would leave a dialog that reopens
 /// every frame. On [`DialogResult::Confirmed`] the parked action runs exactly
-/// once (`Exit` sends `ViewportCommand::Close`); on
-/// [`DialogResult::Cancelled`] nothing else happens and no viewport command
-/// is sent.
+/// once (`Exit` sets [`App::exit_confirmed`] and sends
+/// `ViewportCommand::Close`); on [`DialogResult::Cancelled`] nothing else
+/// happens and no viewport command is sent.
 pub fn apply_dialog_result(ctx: &egui::Context, app: &mut App, result: DialogResult) {
     let action = app.pending_action.take();
     if result != DialogResult::Confirmed {
@@ -246,7 +246,11 @@ pub fn apply_dialog_result(ctx: &egui::Context, app: &mut App, result: DialogRes
         Some(PendingAction::New) => app.action_new(),
         Some(PendingAction::Open) => app.action_open(),
         Some(PendingAction::OpenPath(path)) => app.action_open_path(path),
-        Some(PendingAction::Exit) => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+        Some(PendingAction::Exit) => {
+            // Latched first (LCV-136) — see `poll_close_request` below.
+            app.exit_confirmed = true;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
         None => {}
     }
 }
@@ -266,8 +270,21 @@ pub fn apply_dialog_result(ctx: &egui::Context, app: &mut App, result: DialogRes
 /// integration checks that frame's `viewport_output[ROOT].commands` for
 /// `CancelClose` and closes the window otherwise. On a clean document nothing
 /// is sent and the window closes normally.
+///
+/// [`App::exit_confirmed`] short-circuits all of the above once set
+/// (LCV-136): `ViewportCommand::Close` only *records* a fresh
+/// `ViewportEvent::Close` (`egui_winit::process_viewport_command`, verified
+/// against the vendored 0.29.1 source) rather than closing the window
+/// itself, so `close_requested()` reports `true` again next frame for that
+/// same close. `Exit` mutates no document, so `has_unsaved_changes()` is
+/// still `true` then — without this guard, `request_exit` would re-park
+/// `Exit` and cancel the confirmed close, forever. Once latched, every later
+/// close request is let through unconditionally.
 pub fn poll_close_request(ctx: &egui::Context, app: &mut App) {
     if !ctx.input(|i| i.viewport().close_requested()) {
+        return;
+    }
+    if app.exit_confirmed {
         return;
     }
     if !app.request_exit() {
