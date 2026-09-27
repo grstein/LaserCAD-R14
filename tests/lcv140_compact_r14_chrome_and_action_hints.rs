@@ -283,6 +283,48 @@ fn ac2_scrolling_activates_only_when_the_rail_has_no_room() {
     );
 }
 
+/// AC 2, mutation-testing follow-up — deleting the `ScrollArea` wrapper still
+/// passes the row-count check above (it only counts what is *visible*), so
+/// this proves the hidden rows are still *reachable*: a real `MouseWheel`
+/// scroll over the cramped rail — hovered, not just present — brings the
+/// agent toggle (the last, and here hidden, row) into view.
+#[test]
+fn ac2_a_real_wheel_scroll_reaches_a_row_hidden_by_the_cramped_rail() {
+    let (ctx, mut app) = ctx_and_app();
+    let screen = [1280.0, 220.0];
+    let runs = painted_runs_at(&ctx, &mut app, screen, Vec::new());
+    assert!(
+        !runs.iter().any(|r| r.text.trim() == "Agent"),
+        "control: the agent toggle must start out of view in this cramped fixture"
+    );
+    let hover_point = locate(&runs, "Select");
+
+    // A real hover over the rail, then many small downward-scroll ticks —
+    // each under egui's smoothing threshold, so the whole delta lands within
+    // this one input pass (the same idiom
+    // `tests/lcv141_agent_panel_width_and_settings.rs::ac7_the_real_settings_dialog_scrolls_to_reach_done`
+    // uses). Negative `y`: per `egui::Event::MouseWheel`'s own doc comment, a
+    // positive `y` reveals content *above*, the opposite of reaching a row
+    // below the fold.
+    let mut events = vec![egui::Event::PointerMoved(hover_point)];
+    events.extend((0..200).map(|_| egui::Event::MouseWheel {
+        unit: egui::MouseWheelUnit::Point,
+        delta: egui::vec2(0.0, -7.0),
+        modifiers: egui::Modifiers::NONE,
+    }));
+    let _ = painted_runs_at(&ctx, &mut app, screen, events);
+    // One more idle frame settles the offset the wheel just requested
+    // (`ScrollArea::show` lays out from the *previous* frame's stored offset).
+    let after = painted_runs_at(&ctx, &mut app, screen, Vec::new());
+
+    assert!(
+        after.iter().any(|r| r.text.trim() == "Agent"),
+        "a real wheel scroll over the rail must reveal the row hidden before \
+         it: {:?}",
+        after.iter().map(|r| &r.text).collect::<Vec<_>>()
+    );
+}
+
 // ---------------------------------------------------------------------------
 // AC 1 / AC 7 — clicks still fire their one action, exactly once
 // ---------------------------------------------------------------------------
