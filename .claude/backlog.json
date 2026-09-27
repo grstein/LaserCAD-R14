@@ -1461,7 +1461,7 @@
             "id": "LCV-137",
             "title": "Visible grid and consistent viewport coordinates",
             "phase": 11,
-            "status": "Ready",
+            "status": "Done",
             "depends_on": [
                 "LCV-032",
                 "LCV-033",
@@ -1471,7 +1471,8 @@
             "suggested_agent": "implementer-rust",
             "suggested_model": "sonnet",
             "demand_file": "docs/product/demands/LCV-137-viewport-grid-opacity-and-coordinate-consistency.md",
-            "note": "In 1.0 scope per user decision 2026-09-27."
+            "note": "In 1.0 scope per user decision 2026-09-27. Shipped 2026-09-27: draw_bed split into a background-fill half (now called before draw_grid) and a border/overlay half, restoring the grid inside the bed; draw_grid subtracts the viewport rect origin before computing world bounds so lines reach every edge even when the CentralPanel does not start at (0,0); handle_wheel_zoom anchors on the local (rect-relative) pointer position so the world point under the cursor stays fixed; Camera::pan flips its Y sign so a middle-drag follows the cursor vertically as well as horizontally.",
+            "shipped_commit": "451b66d, b6cb733, b330695"
         },
         {
             "id": "LCV-138",

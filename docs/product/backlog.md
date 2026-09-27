@@ -6,7 +6,6 @@ Single-writer: `demand-manager`. Reflects the **demand file `Status:` lines** ve
 
 | ID | Title | Phase | Depends on | Notes |
 |---|---|---|---|---|
-| LCV-137 | Visible grid and consistent viewport coordinates | 11 | LCV-032, LCV-033, LCV-034, LCV-120 | In 1.0 scope per user decision 2026-09-27 |
 | LCV-138 | Native document title and honest file feedback | 11 | LCV-113, LCV-119, LCV-136 | In 1.0 scope per user decision 2026-09-27 |
 | LCV-139 | Readable command input and destination preview | 12 | LCV-111, LCV-112, LCV-124, LCV-132 | In 1.0 scope per user decision 2026-09-27 |
 | LCV-140 | Compact R14 chrome and useful action hints | 11 | LCV-115, LCV-116, LCV-132, LCV-139, LCV-141 | In 1.0 scope per user decision 2026-09-27 |
@@ -171,6 +170,7 @@ _None._
 | LCV-148 | An unrecognised line answers locally and never reaches the model | 12 | 2026-09-14 | 421d730, 4caac01, e5d33d7 |
 | LCV-136 | Discard responds to real pointer clicks | 11 | 2026-09-27 | af86b34, 149797e, 54ada25, 26d5c0d, f061a56 |
 | LCV-141 | Agent panel stays within the right third | 12 | 2026-09-27 | eff5c93, b703fdd, 2a2e447, 92f2367, 77b316b, 4bb53eb |
+| LCV-137 | Visible grid and consistent viewport coordinates | 11 | 2026-09-27 | 451b66d, b6cb733, b330695 |
 
 ## Blocked
 
