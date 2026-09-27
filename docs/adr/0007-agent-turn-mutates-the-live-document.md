@@ -59,6 +59,15 @@
   and [ADR 0011](0011-canvas-observation-is-an-offscreen-raster.md) (LCV-145)
   extend §D2's vocabulary and §D8's map without relaxing §D1: no worker-held
   document state, `Document` stays `!Clone`, no `Arc<Mutex<_>>`.
+- **Amended (8)**: 2026-09-27 — field paths only; no decision changes.
+  Amendment (7) placed `TurnState` on `App` as `agent_turn: TurnState`, but
+  LCV-136 (`26d5c0d`, [ADR 0004](0004-measuring-the-300-loc-cap.md)'s
+  `src/app/mod.rs` seam) had already moved `agent_fence`, `agent_applied` and
+  `agent_turn_label` into `AgentState` as `fence`, `applied`, `turn_label`.
+  **`TurnState` nests inside `AgentState` as `app.agent.turn`**; `App` gains no
+  field and LCV-142 does not touch `src/app/mod.rs`. `busy` and `rx` stay
+  direct fields of `AgentState`, outside `TurnState`. §D8's amendment (7) note
+  is corrected in place below, original text kept.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
@@ -443,6 +452,35 @@ tool calls, a `tool` role and status mapping are added to them.
 > `io/settings.rs`' seam, for whichever of LCV-142/143/145 crosses 270:
 > `platform_path` / `load_from` / `save_to` and the `.bak` logic move to
 > `src/io/settings_store.rs`; the `Settings` struct and its field defaults stay.
+>
+> **Amended (8) — correction to the paragraph above, 2026-09-27.** Written
+> against a stale `App`: at `26d5c0d` (LCV-136) the three fields are
+> `app.agent.fence`, `app.agent.applied` and `app.agent.turn_label` on
+> `AgentState` (`src/app/agent_state.rs`), and `busy` / `rx` are
+> `app.agent.busy` / `app.agent.rx`. Read the paragraph above as follows;
+> everything else in it stands.
+>
+> - **`TurnState` is a field of `AgentState`: `pub turn: TurnState`, reached as
+>   `app.agent.turn`.** It replaces `fence`, `applied` and `turn_label` and
+>   holds fence, applied count, dispatched-step count, snapshotted step limit
+>   and the undo label (`app.agent.turn.fence`, `.applied`, `.steps`,
+>   `.limit`, `.label`; exact inner names are the implementer's, the five
+>   roles are not). It is still **declared in `agent_turn.rs`** beside
+>   `TurnFence` — it has behaviour (arm, count a step) and `agent_state.rs`
+>   stays behaviour-free data — and derives `Default` so `AgentState` keeps
+>   `#[derive(Default)]`.
+> - **`App` gains no field; LCV-142 does not touch `src/app/mod.rs`.** The
+>   "keeps `src/app/mod.rs` under 300" reason is void — the file is at 300 and
+>   no longer holds these fields; the growth lands in `agent_state.rs` (52).
+> - **"`agent_busy` and `agent_rx` stay top-level" reads "`busy` and `rx` stay
+>   direct fields of `AgentState`, outside `TurnState`."** Same reason: §D11's
+>   single-writer pair, and the scans key on the path `agent.busy`
+>   (`tests/lcv129_agent_timeout_and_cancel.rs`'s `concat!("agent.busy", " = false")`,
+>   `tests/lcv123_agent_turn.rs`'s `concat!("agent", ".busy")`, and AGENTS.md
+>   §Repaint policy). Nesting them in `TurnState` would move that path.
+> - **Why nest rather than a sibling `App::agent_turn`.** A turn is agent
+>   state; a second top-level agent field would undo the `AgentState` seam's
+>   one-field promise and spend `src/app/mod.rs` lines it does not have.
 
 ### D9 — Command-line routing precedence
 

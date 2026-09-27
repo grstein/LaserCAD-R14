@@ -16,6 +16,15 @@
   seam" records a seam at **267**, three lines below the 270 band, because
   LCV-132 AC 11 flagged it there and three queued demands will push it in. Rule
   4 is applied, not changed; nothing in rules 1..4 is reversed.
+- **Amended (4)**: 2026-09-27 — the band re-measured at `445ec44`, after LCV-136
+  executed the `AgentState` seam (`26d5c0d`) and LCV-138 left `src/app/mod.rs`
+  at exactly **300**. Consequences gains §"The band at `445ec44`": a second
+  `src/app/mod.rs` seam, a sharpened trigger for the existing
+  `src/app/file_ops.rs` seam, a new `src/ui/menubar.rs` seam, and the
+  `tests/harness/paint.rs` seam restated now that the band binds it. The
+  `agent_apply.rs` destination named under §"The rest of the band" is
+  superseded by ADR 0007 amendment (7)'s `agent_narrate.rs`. Rule 4 is applied,
+  not changed; nothing in rules 1..4 is reversed.
 - **Date**: 2026-09-13
 - **Deciders**: architect
 
@@ -198,6 +207,13 @@ source scans carry field paths in their needles —
 guard scan — so those needles and `AGENTS.md` §Event flow → Repaint policy are
 updated in the same commit, with the conditional-repaint count staying at three.
 
+*(Amended (4), 2026-09-27. **Executed** by LCV-136 at `26d5c0d` as written:
+`src/app/agent_state.rs` holds the eight fields as `pub agent: AgentState`.
+LCV-136 had first taken the file to **304** (`exit_confirmed`, `149797e`), so
+the split landed it at **294**, not the ~275 predicted above. LCV-138 then added
+`pub title: DocumentTitleState` on the same pattern and took the file to
+**300**. The next seam is §"The band at `445ec44`" below.)*
+
 **The `src/ui/dialogs.rs` seam, pre-decided per rule 4.**
 
 `src/ui/dialogs.rs` is at **299** implementation lines at `aa36bd8`, measured with
@@ -355,6 +371,132 @@ formatters with no `App` and no `Command` between them. Those ten move to
 pre-decided seam; what it must **not** absorb is `AgentState`, per the note
 above.
 
+*(Amended (4), 2026-09-27. The `agent_apply.rs` destination above is
+**superseded** by [ADR 0007](0007-agent-turn-mutates-the-live-document.md)
+amendment (7) §D8 and [ADR 0010](0010-declarative-drawing-batch-tool.md) §9,
+written later with LCV-144's evidence: the file is `src/app/agent_narrate.rs`,
+and what moves is the eight entity/document narrators — `pt`, `sweep`, `kind`,
+`geometry`, `describe`, `bed_line`, `list_entities`, `list_selection`.
+`with_count` and `shift_note` stay in `agent_apply.rs`: they format an
+`apply` outcome, not an entity. LCV-144 AC 11 executes it. Likewise
+`agent_turn.rs` now has a seam — `agent_worker.rs`, ADR 0007 §D8, executed by
+LCV-142.)*
+
+**The band at `445ec44`.**
+*(Amended (4), 2026-09-27.)*
+
+Measured with the rule 2 recipe at `445ec44`:
+
+| file | impl LOC | status |
+|---|---|---|
+| `src/app/mod.rs` | **300** | at the cap — seam A below, first-commit trigger |
+| `src/app/file_ops.rs` | **298** | seam already decided (`discard.rs`); trigger sharpened |
+| `src/ui/menubar.rs` | **288** | new seam below |
+| `src/app/agent_apply.rs` | 285 | `agent_narrate.rs`, LCV-144 (see note above) |
+| `tests/harness/paint.rs` | **283** | seam decided in amendment (3); now in the band |
+| `src/app/agent_turn.rs` | 276 | `agent_worker.rs`, LCV-142 (ADR 0007 §D8) |
+| `src/app/cmdline.rs`, `src/io/settings.rs` | 265 | below the band; `settings_store.rs` named in ADR 0007 §D8 |
+
+**`src/app/mod.rs`, second seam — the unsaved-changes guard's state.**
+
+At 300 there is no headroom, so the trigger is the `src/ui/dialogs.rs` one:
+**the next demand — or review fix — that adds an implementation line to
+`src/app/mod.rs` executes seam A as its first commit**, before its own change.
+
+The fields that grew since the `AgentState` split are the file lifecycle's
+(LCV-113 `saved_revision` / `pending_action`, LCV-136 `exit_confirmed`,
+LCV-138 `title`). Three of them are one responsibility: the state that
+`src/app/file_ops.rs`'s guard state machine owns and no other phase writes.
+
+| stays in `src/app/mod.rs` | moves to new `src/app/unsaved_guard.rs` |
+|---|---|
+| every other field; `current_file` (read by `io/`, the title, the menubar — file identity, not the guard); `impl App`; the module doc | `saved_revision`, `pending_action`, `exit_confirmed`, with their doc comments, wrapped in `pub struct UnsavedGuard` (`#[derive(Default)]`), reached as `pub guard: UnsavedGuard` |
+
+- **Inner names keep their current spelling** (`app.guard.saved_revision`,
+  `app.guard.pending_action`, `app.guard.exit_confirmed`): no prefix to drop,
+  and `file_ops.rs`'s `saved_revision` absence scan over `autosave.rs` keeps
+  meaning what it says. `PendingAction` stays declared in `file_ops.rs`;
+  `App::has_unsaved_changes` and `App::mark_saved` stay there too, and
+  `mark_saved` stays the only writer of `saved_revision`.
+- **Call sites**: 72 field accesses in `src/app/file_ops.rs`,
+  `src/io/file_actions.rs`, `tests/lcv113.rs`, `tests/lcv123_agent_turn.rs`,
+  `tests/lcv136_discard_dialog_pointer_click.rs` and
+  `tests/lcv138_document_title_and_file_feedback.rs`, plus the three
+  initialisers in `src/app/init.rs` (which collapse into one
+  `guard: UnsavedGuard::default()`) — mechanical, the compiler finds every one.
+- **Arithmetic.** The 25-line block leaves; three lines (field + two doc
+  lines) and a `mod` / `pub use` pair return: `src/app/mod.rs` lands near
+  **281**, `unsaved_guard.rs` near **45**.
+- **Seam B, named now, used next.** If the growth that crosses the cap is a
+  *command-line* field (LCV-139 is the likeliest source), execute B instead of
+  A and put the new field inside it: `command_line_input`, `command_history`,
+  `command_feedback`, `focus_command_line`, `command_line_focused` →
+  `pub command_line: CommandLineState` in new `src/app/command_line_state.rs`,
+  inner names `input`, `history`, `feedback`, `focus_requested`, `focused`
+  (~144 sites, 15 files; lands mod.rs near 280). "The thing that grew moves
+  out" picks between them; nothing else does. Whichever is not executed stays
+  the named next seam.
+
+**`src/app/file_ops.rs` — the `discard.rs` seam stands; its trigger sharpens.**
+
+The seam named above (egui half → `src/app/discard.rs`) is unchanged. At 298
+the trigger becomes the `dialogs.rs` one: **any demand that adds an
+implementation line to `file_ops.rs` executes the split first.** Arithmetic at
+`445ec44`: from the `// The dialog driver` banner to end of file (~94 lines)
+moves, so `file_ops.rs` lands near **205** and `discard.rs` near **110**
+(module doc + `use crate::ui::DialogResult`). **Ordering constraint:** the
+split adds `mod discard;` and a second `pub use` line to `src/app/mod.rs`, so
+while that file has no room for two lines the implementer executes mod.rs
+seam A **first**.
+Tests that call `draw_discard_dialog` / `apply_dialog_result` /
+`poll_close_request` move with them; `file_ops_does_not_import_eframe_or_rfd`
+stays, and after the split `file_ops.rs` is egui-free as the seam promised.
+
+**`src/ui/menubar.rs` — the Open Recent submenu leaves whole.**
+
+At 288, with LCV-140 listing `menubar.rs` as a primary file (hover hints on
+menu items). The file is five menu builders plus one feature with pure logic of
+its own, which LCV-138 grew:
+
+| stays in `src/ui/menubar.rs` | moves to new `src/ui/recent_menu.rs` |
+|---|---|
+| `draw_menubar`, `file_menu`, `preset_submenu`, `edit_menu`, `view_menu`, `tools_menu`, `help_menu`, `do_select_all`, `do_fit_to_bed` | `recent_submenu` (as `pub(super)`), `recent_labels`, `basename`, `disambiguated`, and their tests (`open_recent_submenu_empty_message`, the three `recent_labels_*`, `recent_submenu_hover_text_is_the_full_path_source_scan`) |
+
+- **Arithmetic.** ~72 lines move: `menubar.rs` lands near **218**,
+  `recent_menu.rs` near **85**. `src/ui/mod.rs` gains a private
+  `mod recent_menu;`; nothing is re-exported, no caller outside `src/ui/`
+  changes.
+- **What the split must repoint — found by a test run, not the compiler.**
+  Two menubar scans bound their haystack with `"\nfn recent_submenu("`:
+  `file_menu_has_bed_size_directly_above_exit` (repoint to
+  `"\nfn preset_submenu("`) and `preset_submenu_mutates_only_the_preset_field`
+  (repoint to `"\nfn edit_menu("`). Both `expect` their bound, so they fail
+  loudly rather than vacuously. The moved hover-text scan reads
+  `include_str!("recent_menu.rs")`. The doc comment in
+  `src/app/document_title.rs` citing `src/ui/menubar.rs` for the basename
+  display repoints to `recent_menu.rs` (not checked by anything).
+- **Why not `do_select_all` / `do_fit_to_bed`.** ~30 lines, called only from
+  the Edit and View menus, and not what grows; moving them buys one demand of
+  headroom and splits a menu from its own action.
+- **Trigger.** The first demand that would take `menubar.rs` over 300 — on the
+  queue, LCV-140 — executes it first. So does any demand that touches the
+  recent-files logic, whatever the count.
+
+**`tests/harness/paint.rs` — the amendment (3) seam now binds.**
+
+It went 267 → **283** in LCV-136 (`af86b34`), which added exactly the ADR 0002
+§A3 `pixels_per_point` guard amendment (3) predicted, inside `painted_runs_at`
+(collection side, stays in `paint/mod.rs`). LCV-141 shipped without adding a
+helper, so the seam was not executed. The table, the re-export and the
+repoint list above are unchanged; updated facts only: consumers are now eight
+(add `tests/lcv136_discard_dialog_pointer_click.rs`,
+`tests/lcv138_document_title_and_file_feedback.rs`,
+`tests/lcv141_agent_panel_width_and_settings.rs`), all resolved by the
+re-export; arithmetic `paint/mod.rs` near **155**, `paint/lines.rs` near
+**135**. **Owner: LCV-139**, first queued consumer — it executes the split as
+its first commit if it adds any line to the harness; otherwise LCV-140 does,
+on the same terms.
+
 ## Alternatives considered
 
 - **Leave `AGENTS.md` alone and expect reviewers to read ADR 0002** — already
@@ -387,3 +529,11 @@ above.
 - `tests/harness/paint.rs` (at 267) crosses 300, **or** a demand adds a helper
   to it that reads a `Run` rather than producing one → execute the seam named
   for it in Consequences first; no new decision is required.
+- *(Amended (4).)* Any demand or review fix adds an implementation line to
+  `src/app/mod.rs` (at 300) → execute seam A (`UnsavedGuard`), or seam B
+  (`CommandLineState`) if the new line is a command-line field, first. Any
+  demand adds a line to `src/app/file_ops.rs` (at 298) → execute the
+  `discard.rs` split first — preceded by mod.rs seam A if `src/app/mod.rs`
+  has no room for two lines. `src/ui/menubar.rs` would
+  cross 300, or a demand touches the recent-files logic → execute the
+  `recent_menu.rs` split first. No new decision is required for any of them.
