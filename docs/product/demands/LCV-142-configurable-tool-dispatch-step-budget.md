@@ -247,3 +247,10 @@ Recorded 2026-09-27 in ADR 0007 amendment (7) (satisfies AC 1's gate):
 (`History::group_open()`) and stop-after-first-fence-refusal (amends §D4),
 §D15 malformed tool calls become `Refused` `Act`s (amends §D2a's routing),
 §D8 seams (`src/app/agent_worker.rs` split, `App::agent_turn: TurnState`).
+
+> **Pointer (architect, 2026-09-27):** ADR 0007 amendment (8) restates the
+> `TurnState` field path against LCV-136's `AgentState`: it is
+> `app.agent.turn` (a field of `AgentState` in `src/app/agent_state.rs`), not
+> `App::agent_turn`; `busy` / `rx` stay direct `AgentState` fields; this demand
+> does not touch `src/app/mod.rs`. Item 13, AC 13's scan and the primary-file
+> list still cite the old paths — `product-owner` to reconcile.
