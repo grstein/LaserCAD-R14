@@ -136,13 +136,13 @@ src/
 | LCV-136 | Discard responds to real pointer clicks | 11 | Done | implementer-rust | sonnet | LCV-113, LCV-118, LCV-119 |
 | LCV-137 | Visible grid and consistent viewport coordinates | 11 | Done | implementer-rust | sonnet | LCV-032, LCV-033, LCV-034, LCV-120 |
 | LCV-138 | Native document title and honest file feedback | 11 | Done | implementer-rust | sonnet | LCV-113, LCV-119, LCV-136 |
-| LCV-139 | Readable command input and destination preview | 12 | Ready | implementer-rust | sonnet | LCV-111, LCV-112, LCV-124, LCV-132 |
+| LCV-139 | Readable command input and destination preview | 12 | Done | implementer-rust | sonnet | LCV-111, LCV-112, LCV-124, LCV-132 |
 | LCV-140 | Compact R14 chrome and useful action hints | 11 | Ready | implementer-rust | sonnet | LCV-115, LCV-116, LCV-132, LCV-139, LCV-141 |
 | LCV-141 | Agent panel stays within the right third | 12 | Done | implementer-rust | sonnet | LCV-125, LCV-129, LCV-132 |
 | LCV-142 | Larger tool budgets without losing turn undo | 12 | Ready | implementer-rust | opus | LCV-123, LCV-125, LCV-129 |
 | LCV-143 | Editable harness-aware system prompt | 12 | Ready | implementer-rust | sonnet | LCV-125, LCV-141, LCV-142 |
 | LCV-144 | Create a drawing from declarative JSON | 12 | Ready | implementer-rust | opus | LCV-122, LCV-123, LCV-142, LCV-143 |
-| LCV-145 | Opt-in canvas observations for vision models | 12 | Draft | implementer-rust | opus | LCV-123, LCV-129, LCV-137, LCV-141, LCV-143 |
+| LCV-145 | Opt-in canvas observations for vision models | 12 | Ready | implementer-rust | opus | LCV-123, LCV-129, LCV-137, LCV-141, LCV-143 |
 | LCV-146 | Future Markdown and frontmatter agent skills | 12 | Draft | product-owner | opus | LCV-143 |
 | LCV-149 | Transport stall test is timing-flaky | 12 | Draft | implementer-rust | sonnet | — |
 
@@ -186,6 +186,7 @@ On every invocation, the `project-manager`:
 
 > Single-writer: `project-manager`. Most recent entries at the top. Format: `YYYY-MM-DD HH:MM — LCV-NNN status — note`.
 
+- 2026-09-27 — LCV-139 Done — `dd90ff9`, `e34cbe5`, tidy `598047b`, flip `d90dd56`. Two-row command dock (bounded prompt/feedback with elision tooltip + wide editor), live side-effect-free Destination label. Approved first pass; 6/6 mutations caught; gate 1365 passed / 0 failed. No seam triggered (no App field added); `src/app/cmdline.rs` now at 270 (band threshold). LCV-145 Draft → Ready (`9ce1a48`, flip `8506679`): drawing-only raster per ADR 0011 confirmed by the user when asked directly (team-lead report, 2026-09-27). Next: LCV-140.
 - 2026-09-27 — LCV-138 Done — `445ec44`, `5f7884e`, `c46b1aa`, `d5ccef3`, `fba90da`, `4b85072`, `0ca5281`, flip `2479293`. Live native title (`*name.svg - LaserCAD v2`), recovered-from-autosave label cleared by `mark_saved`/New/Open (AC4 amended by product-owner `5a1dec6`), Open Recent disambiguation + full-path hover, failed Open Recent keeps list order. ADR 0004 seams A (`UnsavedGuard`) and `discard.rs` executed. Two review rounds: App::new must never pre-seed the title / call `mark_saved`; tooltip scan replaced with a painted hover test; stale citation fixed. Gate 1353 passed / 0 failed. Field paths in LCV-139/142/145 bodies repointed (`955b9de`). Next: LCV-139.
 - 2026-09-27 — LCV-137 Done — `451b66d`, `b6cb733`, `b330695`, flip `44669d5`. Grid now paints between bed fill and bed border; grid bounds, wheel-zoom anchor and pan Y sign fixed for a viewport offset from the window origin. One rework: the grid-bounds half of AC3 was defended only by a scan; now by a behavioural edge-coverage test. Reviewer's optional note (not blocking): the one-spacing tolerance cannot see a single missing edge line. Gate 1321 passed / 0 failed. LCV-149 registered `Draft` (`21414a6`): `transport.rs::ac3_both_halves_of_a_call_give_up_when_the_endpoint_stalls` flakes ~1 in 5 full runs; outside the approved 136..145 scope, so not scheduled without the user. Next: LCV-138.
 - 2026-09-27 — LCV-141 Done — `eff5c93`, `b703fdd`, `2a2e447`, `92f2367`, `77b316b`, `4bb53eb`, flip `fd5df23`. Agent panel capped at one third of the window (default, drag and shrink); implementer also found and fixed a composer row that overflowed the panel at the shipped 300pt default, and a flat footer reserve that let the busy row overlap the transcript. One rework: the Agent Settings `ScrollArea` was defended only by a source scan; now proven by a paint test on the real dialog at 800x150. Reviewer confirmed the headless frames model eframe's persisted `PanelState` faithfully. Gate 1308 passed / 0 failed. Next: LCV-137.
