@@ -62,12 +62,27 @@ const TOOLBAR_WIDTH_CEILING: f32 = 120.0;
 /// `agent_panel_width_ceiling`'s "never cached" rule (a font or style change
 /// between frames must be reflected immediately).
 fn toolbar_width(ctx: &egui::Context) -> f32 {
-    let style = ctx.style();
-    let font_id = egui::TextStyle::Button.resolve(&style);
-    let widest_text = crate::ui::toolbar::TOOLS
+    let labels = crate::ui::toolbar::TOOLS
         .iter()
         .map(|entry| entry.label)
-        .chain(std::iter::once(crate::ui::toolbar::AGENT_TOGGLE_LABEL))
+        .chain(std::iter::once(crate::ui::toolbar::AGENT_TOGGLE_LABEL));
+    toolbar_width_for(ctx, labels)
+}
+
+/// The width computation itself, parameterised over the label set so a unit
+/// test can hand it a synthetic over-wide label and prove
+/// [`TOOLBAR_WIDTH_CEILING`]'s clamp actually binds.
+///
+/// LCV-140 review, mutation testing: the shipped `TOOLS` labels never come
+/// close to 120pt, so a test built only from [`toolbar_width`] cannot tell
+/// the ceiling constant being raised, or the `.min(TOOLBAR_WIDTH_CEILING)`
+/// clamp being deleted, from the real behaviour — both mutations left every
+/// test green. `tests::toolbar_width_for_clamps_a_synthetic_over_wide_label`
+/// below closes that gap.
+fn toolbar_width_for<'a>(ctx: &egui::Context, labels: impl Iterator<Item = &'a str>) -> f32 {
+    let style = ctx.style();
+    let font_id = egui::TextStyle::Button.resolve(&style);
+    let widest_text = labels
         .map(|label| {
             ctx.fonts(|f| {
                 f.layout_no_wrap(label.to_owned(), font_id.clone(), egui::Color32::WHITE)
@@ -195,6 +210,30 @@ fn error_modal(ctx: &egui::Context, app: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// LCV-140 AC 2, mutation-testing follow-up — an over-wide synthetic
+    /// label forces the ceiling clamp to actually bind: this fails if
+    /// `TOOLBAR_WIDTH_CEILING` is raised (the returned width would then
+    /// exceed today's 120.0), and fails if `.min(TOOLBAR_WIDTH_CEILING)` is
+    /// deleted (the returned width would be the synthetic label's own huge
+    /// natural size). The real `toolbar_width(ctx)` — built only from the
+    /// shipped `TOOLS` labels, which never reach the ceiling — cannot prove
+    /// either.
+    #[test]
+    fn toolbar_width_for_clamps_a_synthetic_over_wide_label() {
+        let ctx = egui::Context::default();
+        // Fonts are not available until the first `Context::run` (egui-0.29.1
+        // `context.rs::Context::fonts`); one empty pass is enough to prime them.
+        let _ = ctx.run(egui::RawInput::default(), |_| {});
+
+        let huge_label = "M".repeat(400);
+        let width = toolbar_width_for(&ctx, std::iter::once(huge_label.as_str()));
+
+        assert_eq!(
+            width, TOOLBAR_WIDTH_CEILING,
+            "an over-wide label must clamp to exactly the ceiling, got {width}"
+        );
+    }
 
     /// LCV-105 — the agent side panel is skipped entirely while the panel is
     /// closed, which is what keeps the canvas full-width by default.

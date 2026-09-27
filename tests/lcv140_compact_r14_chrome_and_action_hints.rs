@@ -325,6 +325,48 @@ fn ac2_a_real_wheel_scroll_reaches_a_row_hidden_by_the_cramped_rail() {
     );
 }
 
+/// AC 2, mutation-testing follow-up — the rail's edge shows no resize
+/// cursor, because it is not resizable.
+///
+/// A *drag*-based width assertion cannot distinguish `.resizable(false)`
+/// from `.resizable(true)` here: `src/app/panels.rs::toolbar_width` is
+/// applied through `SidePanel::exact_width`, which pins the panel's whole
+/// `width_range` to a single point regardless of `resizable` — any drag delta
+/// is clamped straight back to that one point (egui-0.29.1
+/// `containers/panel.rs::SidePanel::show_inside_dyn`, the
+/// `clamp_to_range(width, width_range)` call inside `if is_resizing`), so the
+/// *width* survives an active drag identically either way. Verified by hand
+/// in a scratch worktree: flipping `.resizable(false)` to `.resizable(true)`
+/// leaves every width-based assertion in this file green.
+///
+/// What *does* differ is whether the resize interaction is armed at all:
+/// only when `resizable` is true does egui's own resize-handle `ui.interact`
+/// register a hover and call `ctx.set_cursor_icon` (same file, the
+/// `if resize_hover || is_resizing` block) — observable in
+/// `FullOutput::platform_output.cursor_icon`, which nothing else in this
+/// codebase ever sets (`grep -rn "cursor_icon" src/` is empty), so a
+/// `Default` cursor here has exactly one cause. Confirmed by hand: with
+/// `.resizable(true)` this same hover reports `CursorIcon::ResizeEast`.
+#[test]
+fn ac2_the_rail_shows_no_resize_cursor_because_it_is_not_resizable() {
+    let (ctx, mut app) = ctx_and_app();
+    let _ = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
+    let rect = egui::containers::panel::PanelState::load(&ctx, egui::Id::new("toolbar"))
+        .expect("the toolbar panel must have stored its state by now")
+        .rect;
+    let edge = egui::pos2(rect.right(), rect.center().y);
+
+    let out = ctx.run(
+        raw_input_at(SCREEN, vec![egui::Event::PointerMoved(edge)]),
+        |c| app.update_ui(c),
+    );
+    assert_eq!(
+        out.platform_output.cursor_icon,
+        egui::CursorIcon::Default,
+        "hovering the rail's edge must not show a resize cursor: the rail's width is fixed"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // AC 1 / AC 7 — clicks still fire their one action, exactly once
 // ---------------------------------------------------------------------------
