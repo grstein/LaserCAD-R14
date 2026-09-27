@@ -74,7 +74,7 @@ budget *and* a history shape that keeps one turn one undo entry at any size.
    exactly one more completion request is sent; text ends the turn `Done`,
    tool calls end it `Failed` with `step budget exceeded (N tool calls per
    turn)` where N is the effective limit, and none of them is dispatched.
-   While `agent_busy`, the panel's thinking row reads exactly
+   While `agent.busy`, the panel's thinking row reads exactly
    `Thinking… {n} of {limit} steps` where `n` is the count of step `Act`s the
    UI has received this turn and `limit` is the turn's snapshotted effective
    limit; the count is kept UI-side in `TurnState`, with no progress event.
@@ -103,7 +103,7 @@ budget *and* a history shape that keeps one turn one undo entry at any size.
 8. **One finalization per exit.** `Done`, `Failed` (including limit and the
    §D14 stop), channel disconnect, a failed `reply.send` and `cancel_turn` each
    finalize the turn exactly once through `end_turn` → `finish_turn`;
-   `agent_busy` clears on every one. Applied work stays applied and undoable
+   `agent.busy` clears on every one. Applied work stays applied and undoable
    as one entry; cancel is not rollback.
 9. **Fence stop (§D14).** `TurnFence::check(revision, group_open)` trips when
    the revision moved or no group is open. The first refused action is
@@ -140,17 +140,18 @@ budget *and* a history shape that keeps one turn one undo entry at any size.
     `Applied {n} actions before the drawing changed outside this turn.` —
     no undo claim. A turn that applied nothing writes no note. The old
     "they stay {n} separate undo steps" sentence is deleted.
-13. **File splits (ADR 0007 §D8, amendment 7).** `run_agent_turn`, `ask_ui`
-    and `TurnConfig` move to a new `src/app/agent_worker.rs`;
-    `src/app/agent_turn.rs` keeps `TurnFence`, `TurnState`, `arm_turn`,
-    `start_turn`. `App`'s `agent_fence`, `agent_applied` and
-    `agent_turn_label` are replaced by one field `agent_turn: TurnState`
-    (fence, applied count, dispatched-step count, snapshotted limit);
-    `agent_busy` and `agent_rx` stay top-level fields. If this demand takes
-    `src/io/settings.rs` above 270 implementation LOC, `platform_path` /
-    `load_from` / `save_to` and the `.bak` logic move to
-    `src/io/settings_store.rs`. Every touched file stays ≤ 300 implementation
-    LOC by the ADR 0004 recipe.
+13. **File splits (ADR 0007 §D8, amendment 7; field paths per amendment 8).**
+    `run_agent_turn`, `ask_ui` and `TurnConfig` move to a new
+    `src/app/agent_worker.rs`; `src/app/agent_turn.rs` keeps `TurnFence`,
+    `TurnState`, `arm_turn`, `start_turn`. `AgentState`'s (`src/app/agent_state.rs`)
+    `fence`, `applied` and `turn_label` fields are replaced by one field
+    `pub turn: TurnState`, reached as `app.agent.turn` (fence, applied count,
+    dispatched-step count, snapshotted limit); `busy` and `rx` stay direct
+    fields of `AgentState` (`app.agent.busy`, `app.agent.rx`); this demand
+    does not touch `src/app/mod.rs`. If this demand takes `src/io/settings.rs`
+    above 270 implementation LOC, `platform_path` / `load_from` / `save_to`
+    and the `.bak` logic move to `src/io/settings_store.rs`. Every touched
+    file stays ≤ 300 implementation LOC by the ADR 0004 recipe.
 
 ## Expected tests
 
@@ -193,7 +194,7 @@ drive `arm_turn` and push `AgentEvent`s by hand.
   witness must make this test fail.
 - AC 8: integration — after 250 applied `Act`s, each of `Done`, `Failed`,
   dropped sender, dropped reply receiver and `cancel_turn` leaves
-  `agent_busy == false`, `agent_rx == None`, exactly one note row, and one
+  `agent.busy == false`, `agent.rx == None`, exactly one note row, and one
   undo entry covering all 250. Existing `tests/lcv129_agent_timeout_and_cancel.rs`
   and `tests/lcv123_agent_turn.rs` stay green.
 - AC 9: `agent_worker.rs` unit with fake `send_fn`/`ask` — a batch of 3 whose
@@ -219,9 +220,10 @@ drive `arm_turn` and push `AgentEvent`s by hand.
   get the neutral note (fails if the note is derived from the fence).
 - AC 13: source scan in `tests/lcv142_*.rs` — `fn run_agent_turn`,
   `fn ask_ui` and `struct TurnConfig` are defined in `src/app/agent_worker.rs`
-  and not in `agent_turn.rs`; `src/app/mod.rs` declares `agent_turn:` and
-  none of `agent_fence`, `agent_applied`, `agent_turn_label`, with a positive
-  control on `agent_busy`. LOC: review with the ADR 0004 recipe.
+  and not in `agent_turn.rs`; `src/app/agent_state.rs` declares
+  `pub turn: TurnState` and none of `pub fence:`, `pub applied:`,
+  `pub turn_label:`, with a positive control on `pub busy:`. LOC: review with
+  the ADR 0004 recipe.
 
 ## Open questions
 
@@ -234,7 +236,7 @@ Primary files: `src/agent/loop_.rs`, `src/agent/bridge.rs`,
 `src/agent/panel.rs`, `src/agent/settings_ui.rs`, `src/io/settings.rs`,
 `src/document/history.rs`, `src/app/agent_turn.rs`, new
 `src/app/agent_worker.rs`, `src/app/agent_poll.rs`, `src/app/agent_apply.rs`,
-`src/app/mod.rs`. Implementation order: LCV-142 first, then LCV-143,
+`src/app/agent_state.rs`. Implementation order: LCV-142 first, then LCV-143,
 LCV-144, LCV-145 — all three extend `TurnConfig`, §D12's group or §D15's
 `Malformed` path. LCV-144's batch is one step and one command in the group,
 never one per entity.
@@ -246,11 +248,13 @@ Recorded 2026-09-27 in ADR 0007 amendment (7) (satisfies AC 1's gate):
 `TurnConfig` (supersedes §D7's constants), §D14 second fence witness
 (`History::group_open()`) and stop-after-first-fence-refusal (amends §D4),
 §D15 malformed tool calls become `Refused` `Act`s (amends §D2a's routing),
-§D8 seams (`src/app/agent_worker.rs` split, `App::agent_turn: TurnState`).
+§D8 seams (`src/app/agent_worker.rs` split, `app.agent.turn: TurnState` on
+`AgentState`).
 
-> **Pointer (architect, 2026-09-27):** ADR 0007 amendment (8) restates the
-> `TurnState` field path against LCV-136's `AgentState`: it is
-> `app.agent.turn` (a field of `AgentState` in `src/app/agent_state.rs`), not
-> `App::agent_turn`; `busy` / `rx` stay direct `AgentState` fields; this demand
-> does not touch `src/app/mod.rs`. Item 13, AC 13's scan and the primary-file
-> list still cite the old paths — `product-owner` to reconcile.
+> **Pointer (architect, 2026-09-27) — resolved by product-owner, 2026-09-27:**
+> ADR 0007 amendment (8) restates the `TurnState` field path against
+> LCV-136's `AgentState`: it is `app.agent.turn` (a field of `AgentState` in
+> `src/app/agent_state.rs`), not `App::agent_turn`; `busy` / `rx` stay direct
+> `AgentState` fields; this demand does not touch `src/app/mod.rs`. Item 13,
+> AC 13's scan and the primary-file list have been reconciled to those paths
+> above.

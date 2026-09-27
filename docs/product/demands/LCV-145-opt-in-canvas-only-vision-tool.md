@@ -85,7 +85,7 @@ Permissions are enforced in code, independently of the (editable) prompt.
 8. **Bridge and privacy.** `AgentAction::CaptureCanvas`;
    `AgentOutcome::Observed { text, png: Vec<u8> }`. Only `text` is the tool
    result and the transcript row; the PNG bytes and their base64 are never
-   transcribed, logged, written to `agent_chat`, settings, autosave or any
+   transcribed, logged, written to `agent.chat`, settings, autosave or any
    file. Nothing under `src/agent/` names a document type.
 9. **Wire (ADR 0011 item 8).** `ChatMessage.content` becomes
    `Option<Content>`, `#[serde(untagged)] enum Content { Text(String),
@@ -140,7 +140,7 @@ Permissions are enforced in code, independently of the (editable) prompt.
   into the raster); the `Act` is answered within the same `update_ui` call.
 - AC 7: review — `Cargo.lock` diff adds no `[[package]]`; scan that
   `base64` appears in no `src/` file but `wire.rs`.
-- AC 8: integration — after a capture, no `agent_chat` row contains `iVBOR`
+- AC 8: integration — after a capture, no `agent.chat` row contains `iVBOR`
   (PNG base64 prefix) or `data:image`; source scan for logging calls carrying
   `png`.
 - AC 9: `wire.rs` unit — JSON fixtures of today's text-only system/user/

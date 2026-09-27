@@ -54,7 +54,7 @@ CAD grammar or sent to the agent before pressing Enter.
    prompt and a configured key), `tool input` (raw-input mode), `AI
    unavailable` (`Route::Agent` with no configured key), `AI prompt empty` (a
    bare `:` or `/ai` prefix with nothing after it), and `AI busy` (a
-   `:`/`/ai`-prefixed line while `app.agent_busy` is true). A blank line
+   `:`/`/ai`-prefixed line while `app.agent.busy` is true). A blank line
    always reads `CAD` and Enter's existing empty-input behavior
    (`CommandInput::Empty`) is unchanged; a valid CAD or raw-tool line is never
    relabelled `AI` merely because the agent happens to be busy.
@@ -85,7 +85,7 @@ CAD grammar or sent to the agent before pressing Enter.
   (`lien`) and the busy-agent state, each asserted with and without a
   configured key.
 - AC 6: a fake send counter plus before/after state comparisons (focus,
-  history revision, recall ring, `agent_busy`) across repeated edit/render
+  history revision, recall ring, `agent.busy`) across repeated edit/render
   frames with no Enter.
 - AC 7: the existing LCV-111 / LCV-112 / LCV-124 regression suites still
   pass unchanged, plus a real Enter/Escape/recall-driven frame test on the
