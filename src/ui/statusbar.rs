@@ -23,8 +23,11 @@ use crate::io::Preset;
 
 /// Format cursor world-space coordinates for display in the status bar.
 ///
-/// Returns `"X: 123.45  Y:  67.89"` (values right-aligned in 6 chars, 2 dp)
-/// when `pos` is `Some`, or `"X: —  Y: —"` (em-dash) when `pos` is `None`.
+/// Returns `"X: 123.45mm  Y:  67.89mm"` (values right-aligned in 6 chars, 2
+/// dp, each carrying an explicit `mm` unit — LCV-140 AC 4, millimetres being
+/// canonical everywhere outside `render/camera`) when `pos` is `Some`, or
+/// `"X: —  Y: —"` (em-dash, no unit — there is no value to carry one) when
+/// `pos` is `None`.
 ///
 /// # Examples
 /// ```
@@ -33,12 +36,12 @@ use crate::io::Preset;
 ///
 /// assert_eq!(format_coords(None), "X: —  Y: —");
 /// let s = format_coords(Some(Vec2::new(123.45, 67.89)));
-/// assert_eq!(s, "X: 123.45  Y:  67.89");
+/// assert_eq!(s, "X: 123.45mm  Y:  67.89mm");
 /// ```
 pub fn format_coords(pos: Option<Vec2>) -> String {
     match pos {
         None => "X: \u{2014}  Y: \u{2014}".to_owned(),
-        Some(p) => format!("X: {:>6.2}  Y: {:>6.2}", p.x, p.y),
+        Some(p) => format!("X: {:>6.2}mm  Y: {:>6.2}mm", p.x, p.y),
     }
 }
 
@@ -81,6 +84,18 @@ impl Mode {
             Mode::Ortho => app.ortho_enabled,
         }
     }
+
+    /// The existing keyboard shortcut that also flips this mode (LCV-140 AC
+    /// 3): the same key `src/ui/shortcuts.rs::dispatch_shortcuts` reads for
+    /// it — restated here only as a hover-tooltip label, never a second
+    /// reader of the key itself (this method reads no input).
+    pub(crate) fn key_hint(self) -> &'static str {
+        match self {
+            Mode::Snap => "F3",
+            Mode::Grid => "F7",
+            Mode::Ortho => "F8",
+        }
+    }
 }
 
 /// Flip exactly the flag `mode` names, and nothing else (LCV-116 AC 3).
@@ -110,6 +125,26 @@ pub(crate) fn format_preset(preset: Preset) -> &'static str {
         Preset::Mark => "MARK",
         Preset::Engrave => "ENGRAVE",
     }
+}
+
+/// The preset badge's hover text (LCV-140 AC 4): spells out, for an operator
+/// who has never opened `src/io/svg/export.rs`, the whole-document fact LCV-115
+/// AC 7 already encodes there — every exported entity goes into the *shown*
+/// preset's group, and the other two groups are written empty. Built from
+/// [`Preset::ALL`] and [`Preset::label`] (the same single name list LCV-115
+/// AC 6 already uses for the `Export preset ▸` menu), never a second,
+/// hand-typed name for a preset.
+pub(crate) fn preset_hover_text(preset: Preset) -> String {
+    let others: Vec<&str> = Preset::ALL
+        .into_iter()
+        .filter(|p| *p != preset)
+        .map(Preset::label)
+        .collect();
+    format!(
+        "Every exported entity goes into the {} group; {} stay empty.",
+        preset.label(),
+        others.join(" and "),
+    )
 }
 
 /// Return the autosave indicator string (LCV-116 AC 8).
@@ -184,10 +219,16 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
         ui.separator();
         ui.label(format!("Entities: {count}"));
         ui.separator();
-        ui.label(format_preset(app.export_preset));
+        ui.label(format_preset(app.export_preset))
+            .on_hover_text(preset_hover_text(app.export_preset));
         for mode in Mode::ALL {
             ui.separator();
-            if ui.selectable_label(mode.is_on(app), mode.label()).clicked() {
+            let hint = format!("{} ({})", mode.label(), mode.key_hint());
+            if ui
+                .selectable_label(mode.is_on(app), mode.label())
+                .on_hover_text(hint)
+                .clicked()
+            {
                 toggled = Some(mode);
             }
         }
@@ -224,26 +265,28 @@ mod tests {
     }
 
     /// LCV-067 AC — positive coordinates are formatted to two decimal places,
-    /// right-aligned in a 6-char field.
+    /// right-aligned in a 6-char field. LCV-140 AC 4 — each axis carries an
+    /// explicit `mm` unit, directly after the number.
     #[test]
     fn format_coords_some_positive_values() {
         let s = format_coords(Some(Vec2::new(123.45, 67.89)));
-        assert_eq!(s, "X: 123.45  Y:  67.89");
+        assert_eq!(s, "X: 123.45mm  Y:  67.89mm");
     }
 
     /// LCV-067 AC — negative x value is formatted correctly (sign included in
-    /// the 6-char field, extending it naturally).
+    /// the 6-char field, extending it naturally). LCV-140 AC 4 — `mm` unit.
     #[test]
     fn format_coords_some_negative_x() {
         let s = format_coords(Some(Vec2::new(-5.0, 0.0)));
-        assert_eq!(s, "X:  -5.00  Y:   0.00");
+        assert_eq!(s, "X:  -5.00mm  Y:   0.00mm");
     }
 
     /// LCV-067 AC — zero coordinates produce all-zero output, not "—".
+    /// LCV-140 AC 4 — `mm` unit.
     #[test]
     fn format_coords_some_zero() {
         let s = format_coords(Some(Vec2::new(0.0, 0.0)));
-        assert_eq!(s, "X:   0.00  Y:   0.00");
+        assert_eq!(s, "X:   0.00mm  Y:   0.00mm");
     }
 
     /// LCV-067 AC — large values are not truncated (no width cap).
@@ -253,6 +296,14 @@ mod tests {
         // 1234.56 is 7 chars — the field is at least that wide.
         assert!(s.contains("1234.56"), "x value present");
         assert!(s.contains("9876.54"), "y value present");
+    }
+
+    /// LCV-140 AC 4 / AC 6 — a six-digit signed coordinate pair renders with
+    /// its `mm` unit intact and undistorted, the exact fixture AC 6 names.
+    #[test]
+    fn format_coords_six_digit_signed_pair_keeps_its_mm_unit() {
+        let s = format_coords(Some(Vec2::new(-1234.56, -1234.56)));
+        assert_eq!(s, "X: -1234.56mm  Y: -1234.56mm");
     }
 
     /// LCV-115 AC#7 — all three presets have an uppercase badge, and it is the
@@ -516,8 +567,11 @@ mod tests {
         let loop_at = body
             .find("for mode in Mode::ALL {")
             .expect("mode loop present");
+        // The needle omits the `ui` receiver: LCV-140's added `.on_hover_text`
+        // call makes the chain long enough that `rustfmt` puts `ui` alone on
+        // its own line, ahead of `.selectable_label(...)`.
         let label_at = body[loop_at..]
-            .find("ui.selectable_label(mode.is_on(app), mode.label())")
+            .find(".selectable_label(mode.is_on(app), mode.label())")
             .expect("positive control: the selectable_label call is in the loop")
             + loop_at;
         assert!(

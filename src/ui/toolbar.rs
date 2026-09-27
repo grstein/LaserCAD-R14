@@ -14,6 +14,16 @@
 //! made the Tools-menu data source by LCV-104. LCV-110 replaced the old
 //! string-keyed label lookup with `entry.kind` + [`tools::make`] — the
 //! single tool-identity map (ADR 0003 §A3).
+//!
+//! LCV-140 added three things, all derived from the same [`TOOLS`] table (no
+//! second, hand-typed one): every button's hover tooltip names its
+//! [`ToolEntry::shortcut`] (via [`tool_hover_text`]); the rail wraps its
+//! eleven entries in a `ScrollArea` so a short window scrolls the list
+//! instead of clipping it; and the AI assistant toggle shows a short visible
+//! label ([`AGENT_TOGGLE_LABEL`]) instead of the old icon-only `"🤖"`, keeping
+//! its existing hover text and click behaviour. The rail's outer width cap
+//! itself is computed in `src/app/panels.rs::toolbar_width` — a panel-sizing
+//! decision, not a drawing one — from this same table.
 
 use crate::app::App;
 use crate::cmdline::ToolKind;
@@ -119,6 +129,26 @@ pub(crate) const TOOLS: &[ToolEntry] = &[
 #[allow(clippy::len_zero)]
 const _: () = assert!(TOOLS.len() >= 1);
 
+/// The AI assistant toggle's visible label (LCV-140 AC 3): a short text
+/// button replacing the old icon-only `"🤖"`, which depended on emoji-font
+/// coverage the rest of the UI never assumes. Its hover text stays the
+/// pre-existing `"AI Assistant"` (set at the one call site in
+/// [`draw_toolbar`]) — only what is visible changes, not the tooltip or the
+/// click behaviour.
+pub(crate) const AGENT_TOGGLE_LABEL: &str = "Agent";
+
+/// Hover-tooltip text for one `TOOLS` entry (LCV-140 AC 1 / AC 3): the
+/// label, plus its keyboard shortcut in parentheses when
+/// [`ToolEntry::shortcut`] names one. Derived entirely from `entry`'s own
+/// two fields — never a second, hand-typed table — and never inventing a
+/// key for `Select`, whose `shortcut` is `None`.
+pub(crate) fn tool_hover_text(entry: &ToolEntry) -> String {
+    match entry.shortcut {
+        Some(key) => format!("{} (shortcut: {key})", entry.label),
+        None => format!("{} (no keyboard shortcut)", entry.label),
+    }
+}
+
 /// Render the left-side toolbar into `ui`.
 ///
 /// Draws one [`egui::SelectableLabel`] per tool, with a separator between the
@@ -130,33 +160,51 @@ const _: () = assert!(TOOLS.len() >= 1);
 ///
 /// **Call site**: inside a `SidePanel::left("toolbar")` added in
 /// [`crate::app::App::update_ui`], *after* the bottom status-bar panel and
-/// *before* the `CentralPanel`.
+/// *before* the `CentralPanel`. The panel's own width is capped by the
+/// caller (`src/app/panels.rs::toolbar_width`, LCV-140 AC 2) — this function
+/// only ever draws into whatever `ui` it is given.
+///
+/// The eleven `TOOLS` entries are wrapped in a `ScrollArea` (LCV-140 AC 2):
+/// egui only shows a scrollbar and clips when the panel's available height is
+/// smaller than the eleven-entry content, so a normal window never scrolls
+/// and a short one degrades to scrolling instead of clipping silently. The AI
+/// assistant toggle sits *below* that scroll area, always reachable without
+/// scrolling — it is one control, not part of the eleven-entry content the
+/// scroll trigger is about.
 pub fn draw_toolbar(ui: &mut egui::Ui, app: &mut App) {
     // `active_tool_name` returns `&'static str` — the borrow on `app` ends
     // immediately so the later mutable call to `set_tool` is safe.
     let active = app.tool_manager.active_tool_name();
 
     // Collect the kind of the clicked button (at most one per frame).
-    let mut clicked: Option<ToolKind> = None;
-
-    for (i, entry) in TOOLS.iter().enumerate() {
-        if i == MODIFY_GROUP_START {
-            ui.separator();
-        }
-        let is_active = active == entry.tool_name;
-        if ui.selectable_label(is_active, entry.label).clicked() {
-            clicked = Some(entry.kind);
-        }
-    }
+    let clicked: Option<ToolKind> = egui::ScrollArea::vertical()
+        .show(ui, |ui| {
+            let mut clicked: Option<ToolKind> = None;
+            for (i, entry) in TOOLS.iter().enumerate() {
+                if i == MODIFY_GROUP_START {
+                    ui.separator();
+                }
+                let is_active = active == entry.tool_name;
+                if ui
+                    .selectable_label(is_active, entry.label)
+                    .on_hover_text(tool_hover_text(entry))
+                    .clicked()
+                {
+                    clicked = Some(entry.kind);
+                }
+            }
+            clicked
+        })
+        .inner;
 
     if let Some(kind) = clicked {
         app.tool_manager.set_tool(tools::make(kind));
     }
 
-    // ── AI assistant toggle (LCV-080) ─────────────────────────────────────────
+    // ── AI assistant toggle (LCV-080; visible label since LCV-140) ─────────
     ui.separator();
     if ui
-        .selectable_label(app.agent.panel_open, "🤖")
+        .selectable_label(app.agent.panel_open, AGENT_TOGGLE_LABEL)
         .on_hover_text("AI Assistant")
         .clicked()
     {
@@ -171,6 +219,46 @@ pub fn draw_toolbar(ui: &mut egui::Ui, app: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── LCV-140 AC 1 / AC 3 — hover-hint inventory ─────────────────────────
+
+    /// AC 1 — every hover hint traces back to *that entry's own* `label` and
+    /// `shortcut` field: it always starts with the label, it names the
+    /// shortcut when one exists, and — the `Select` case — it invents no key
+    /// when `shortcut` is `None`. The expected string is rebuilt from the
+    /// entry's own fields, never from a second, per-tool hand-typed table.
+    #[test]
+    fn tool_hover_text_traces_to_its_own_entry() {
+        for entry in TOOLS {
+            let hint = tool_hover_text(entry);
+            let expected = match entry.shortcut {
+                Some(key) => format!("{} (shortcut: {key})", entry.label),
+                None => format!("{} (no keyboard shortcut)", entry.label),
+            };
+            assert_eq!(hint, expected, "entry {}", entry.label);
+            assert!(
+                hint.starts_with(entry.label),
+                "hint for {} must start with its own label: {hint:?}",
+                entry.label
+            );
+            if let Some(key) = entry.shortcut {
+                assert!(
+                    hint.contains(key),
+                    "{}'s hint must name its shortcut {key}: {hint:?}",
+                    entry.label
+                );
+            }
+        }
+    }
+
+    /// AC 1 — `Select` (the one entry with `shortcut: None`) gets a hint that
+    /// says so in plain words, never a fabricated key.
+    #[test]
+    fn select_hover_text_names_no_key() {
+        let select = TOOLS.iter().find(|e| e.label == "Select").unwrap();
+        assert_eq!(select.shortcut, None, "positive control");
+        assert_eq!(tool_hover_text(select), "Select (no keyboard shortcut)");
+    }
 
     /// LCV-110 AC 12 — every `TOOLS` entry's `kind` resolves through
     /// `tools::make` to the tool that entry's `tool_name` names. Replaces

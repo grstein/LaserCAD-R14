@@ -33,9 +33,53 @@ pub fn draw_chrome(ctx: &egui::Context, app: &mut App) {
         crate::ui::draw_command_line(ui, app);
     });
 
-    egui::SidePanel::left("toolbar").show(ctx, |ui| {
-        crate::ui::draw_toolbar(ui, app);
-    });
+    egui::SidePanel::left("toolbar")
+        .resizable(false)
+        .exact_width(toolbar_width(ctx))
+        .show(ctx, |ui| {
+            crate::ui::draw_toolbar(ui, app);
+        });
+}
+
+/// Cap on the tool rail's outer width, in points (LCV-140 AC 2): its eleven
+/// `TOOLS` labels never need more than this to render in full at any
+/// reasonable font.
+const TOOLBAR_WIDTH_CEILING: f32 = 120.0;
+
+/// The tool rail's fixed outer width — "outer" in the same sense
+/// `SidePanel::exact_width`'s own doc comment uses, i.e. including the
+/// panel's frame margin.
+///
+/// Sized to exactly fit the widest of the `TOOLS` labels and the agent
+/// toggle's own label ([`crate::ui::toolbar::AGENT_TOGGLE_LABEL`]), measured
+/// at the *current* button text style — so a label never wraps onto a
+/// second line inside its `SelectableLabel` (egui wraps rather than elides
+/// button text by default) — plus the button padding and the panel's own
+/// frame margin on both sides, two points of slack for text-layout rounding
+/// at the boundary, and never wider than [`TOOLBAR_WIDTH_CEILING`] (AC 2).
+///
+/// Recomputed from `ctx.style()` / `ctx.fonts()` on every call, mirroring
+/// `agent_panel_width_ceiling`'s "never cached" rule (a font or style change
+/// between frames must be reflected immediately).
+fn toolbar_width(ctx: &egui::Context) -> f32 {
+    let style = ctx.style();
+    let font_id = egui::TextStyle::Button.resolve(&style);
+    let widest_text = crate::ui::toolbar::TOOLS
+        .iter()
+        .map(|entry| entry.label)
+        .chain(std::iter::once(crate::ui::toolbar::AGENT_TOGGLE_LABEL))
+        .map(|label| {
+            ctx.fonts(|f| {
+                f.layout_no_wrap(label.to_owned(), font_id.clone(), egui::Color32::WHITE)
+                    .size()
+                    .x
+            })
+        })
+        .fold(0.0_f32, f32::max);
+    let button_padding = style.spacing.button_padding.x * 2.0;
+    let frame_margin = egui::Frame::side_top_panel(&style).inner_margin;
+    let outer = widest_text + button_padding + frame_margin.left + frame_margin.right + 2.0;
+    outer.min(TOOLBAR_WIDTH_CEILING)
 }
 
 /// Width the agent panel opens at before the ceiling narrows it (LCV-080's
