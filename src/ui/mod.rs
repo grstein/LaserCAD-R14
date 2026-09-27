@@ -3,6 +3,7 @@
 //!
 //! Submodules arrive with demands LCV-065 .. LCV-071.
 
+pub mod command_destination;
 pub mod command_line;
 pub mod dialogs;
 pub mod menubar;
@@ -11,6 +12,10 @@ pub mod shortcuts_dialog;
 pub mod statusbar;
 pub mod theme;
 pub mod toolbar;
+pub use command_destination::{
+    destination_label, LABEL_AI, LABEL_AI_BUSY, LABEL_AI_PROMPT_EMPTY, LABEL_AI_UNAVAILABLE,
+    LABEL_CAD, LABEL_TOOL_INPUT,
+};
 pub use command_line::draw_command_line;
 pub use dialogs::{about_dialog, confirm_dialog, error_dialog, DialogResult};
 pub use menubar::draw_menubar;

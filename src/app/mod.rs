@@ -58,6 +58,7 @@ pub use agent_state::AgentState;
 pub use agent_turn::{arm_turn, run_agent_turn, start_turn, TurnFence, AGENT_FENCE_REFUSAL};
 pub use autosave::{autosave_due, schedule_flush_repaint};
 pub use bed_dialog::{apply_bed_dialog_result, draw_bed_dialog};
+pub(crate) use cmdline::agent_available;
 pub use cmdline::submit;
 pub use discard::{apply_dialog_result, draw_discard_dialog, poll_close_request};
 pub use document_title::DocumentTitleState;

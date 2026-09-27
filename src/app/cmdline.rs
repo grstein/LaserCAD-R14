@@ -148,7 +148,12 @@ pub fn submit(app: &mut App, raw: &str) {
 /// Is an agent reachable at all? **The** definition (AC 5): a configured API
 /// key with something other than whitespace in it. Read once, at the call
 /// site, and handed to [`classify`] as data so the classifier stays pure.
-fn agent_available(app: &App) -> bool {
+///
+/// `pub(crate)` since LCV-139: `src/ui/command_line.rs` reuses this exact
+/// definition to compute the context row's destination label, rather than
+/// growing a second, independent availability check (LCV-139 AC 3).
+/// Re-exported crate-wide as `crate::app::agent_available`.
+pub(crate) fn agent_available(app: &App) -> bool {
     !app.settings.agent_api_key.trim().is_empty()
 }
 
