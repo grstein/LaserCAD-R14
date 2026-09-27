@@ -1,11 +1,11 @@
 # LCV-139 - Readable command input and destination preview
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 12
 - **Depends on**: LCV-111, LCV-112, LCV-124, LCV-132
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: -
+- **Implementation**: implementer-rust — dd90ff9, e34cbe5, 598047b
 
 ## Problem
 
