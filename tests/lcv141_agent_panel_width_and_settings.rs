@@ -805,3 +805,80 @@ fn ac7_a_growth_probe_is_reachable_only_by_scrolling() {
         "Done must be reachable by scrolling within the dialog's own bounds"
     );
 }
+
+/// AC 7 — against the **real** `App` and the real
+/// `src/app/panels.rs::agent_settings_dialog`, not the hand-built `Window` +
+/// `ScrollArea` above: at a screen too short for the shipped form to fit at
+/// all — `800x150`, well under the dialog's own content height — `Done` is
+/// not painted at the default (top) scroll position, and becomes painted
+/// after a real pointer hover over the dialog plus a real
+/// `egui::Event::MouseWheel` scroll. Nothing here builds a second `Window`;
+/// every frame goes through `App::update_ui`, so this is the one test in the
+/// file that can actually tell the shipped `ScrollArea::vertical()` wrap
+/// apart from `ac7_a_growth_probe_is_reachable_only_by_scrolling`'s own,
+/// separate one.
+///
+/// Mutation this catches: deleting `egui::ScrollArea::vertical()` from
+/// `agent_settings_dialog` (leaving `draw_agent_settings` called directly
+/// against the `Window`'s `ui`) — the probe test above stays green because it
+/// never calls that function, but this one goes red: the real `Window` is
+/// `.resizable(false)` and un-scrolled, so its content either paints nothing
+/// past the fold with no way to reach it, or the `Window` grows past the
+/// screen and gets constrained there, and `Done` never becomes reachable
+/// however the wheel spins.
+#[test]
+fn ac7_the_real_settings_dialog_scrolls_to_reach_done() {
+    let (ctx, mut app) = ctx_and_app();
+    app.agent_settings_open = true;
+    let screen = [800.0_f32, 150.0];
+
+    // Trap 7: the Window's Area is not placed on the first frame it is
+    // requested. Two idle frames settle it.
+    let _ = painted_runs_at(&ctx, &mut app, screen, Vec::new());
+    let runs = painted_runs_at(&ctx, &mut app, screen, Vec::new());
+
+    assert!(
+        runs.iter().any(|r| r.text.trim() == "Endpoint URL"),
+        "control: Endpoint URL sits at the top of the form and must already \
+         be visible at the default (top) scroll offset"
+    );
+    assert!(
+        !runs.iter().any(|r| r.text.trim() == "Done"),
+        "control: at {screen:?} the shipped form must really overflow the \
+         window — Done must not be reachable without scrolling"
+    );
+
+    let dialog = ctx
+        .memory(|m| m.area_rect(egui::Id::new("Agent Settings")))
+        .expect("the Agent Settings window must be placed by now");
+    let inside = dialog.center();
+
+    // One frame hovers the dialog and sends a real downward scroll: many
+    // small `MouseWheelUnit::Point` events, each under egui's own 8.0-point
+    // smoothing threshold (egui-0.29.1 `input_state/mod.rs`), so the whole
+    // delta lands in `smooth_scroll_delta` within this one input pass rather
+    // than trickling in over several frames of exponential smoothing. `y` is
+    // negative: per `egui::Event::MouseWheel`'s own doc comment, a positive
+    // `y` moves the content *down*, revealing what is *above* — the opposite
+    // of what reaching a control below the fold needs.
+    let mut events = vec![egui::Event::PointerMoved(inside)];
+    events.extend((0..200).map(|_| egui::Event::MouseWheel {
+        unit: egui::MouseWheelUnit::Point,
+        delta: egui::vec2(0.0, -7.0),
+        modifiers: egui::Modifiers::NONE,
+    }));
+    let _ = painted_runs_at(&ctx, &mut app, screen, events);
+
+    // One more idle frame settles the offset the wheel just requested: an
+    // `egui::ScrollArea` lays this frame's content out from the *previous*
+    // frame's stored offset and only applies the hover+wheel adjustment (and
+    // stores the new offset) after that content is already positioned
+    // (egui-0.29.1 `containers/scroll_area.rs`) — the same one-settling-frame
+    // shape the growth probe above documents for its own forced offset.
+    let runs = painted_runs_at(&ctx, &mut app, screen, Vec::new());
+    assert!(
+        runs.iter().any(|r| r.text.trim() == "Done"),
+        "a real hover plus a real MouseWheel scroll over the real dialog \
+         must reach Done"
+    );
+}
