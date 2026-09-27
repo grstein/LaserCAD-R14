@@ -1,6 +1,6 @@
 # LCV-145 - Opt-in canvas observations for vision models
 
-- **Status**: Draft
+- **Status**: Ready
 - **Phase**: 12
 - **Depends on**: LCV-123, LCV-129, LCV-137, LCV-141, LCV-143
 - **Suggested agent**: implementer-rust
