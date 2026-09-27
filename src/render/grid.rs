@@ -199,6 +199,112 @@ mod tests {
         );
     }
 
+    /// LCV-137 AC 3 (behavioural half — required by review) — grid lines are
+    /// painted all the way to each edge of the viewport, not just somewhere
+    /// inside it, when the viewport rect's origin is nonzero: the normal
+    /// case, since the menubar and toolbar always claim screen space before
+    /// the `CentralPanel` starts, and the agent panel claims more.
+    ///
+    /// Before the AC 3 fix, `draw_grid`'s bounds computation passed the
+    /// global `rect.min`/`rect.max` straight into `Camera::screen_to_world`.
+    /// `screen_to_world`'s formula (`world = center + (screen - half) *
+    /// mm_per_px`, flipped on Y) turns that into a fixed pixel-space shift of
+    /// the *whole* world range the loop walks: `+rect.min.x` on the X bounds,
+    /// `-rect.min.y` on the Y bounds. Because every painted point still adds
+    /// `rect.min` back before reaching the painter, that shift is not
+    /// undone by the reprojection — it leaves a real strip near the panel's
+    /// near edges with no grid lines, and extra lines painted needlessly
+    /// past the far edges. The shift's magnitude in screen pixels tracks
+    /// `rect.min` itself, not `mm_per_px`, which is why a `rect_min` far
+    /// larger than any tested grid spacing (`220`/`96` here, vs. a worst-case
+    /// spacing under 50px across the zooms tested) reliably swamps the
+    /// per-line floor/ceil quantization noise the tolerance below exists to
+    /// absorb.
+    ///
+    /// This differs from `ac5_a_grid_line_passes_through_a_known_world_point…`:
+    /// that test targets one point deep inside the visible range, where the
+    /// bug's uniform shift does not matter — every world point in range still
+    /// gets a line, just at a shifted position. This test instead reads back
+    /// every painted line and checks the extremes against the rect's own
+    /// edges, which is where the shift actually costs a visible line.
+    #[test]
+    fn ac3_grid_lines_cover_up_to_each_edge_of_a_nonzero_origin_viewport() {
+        for mm_per_px in [0.5_f64, 1.0, 4.0] {
+            for rect_min in [egui::Pos2::ZERO, egui::Pos2::new(220.0, 96.0)] {
+                let camera = Camera {
+                    center_world: Vec2::new(0.0, 0.0),
+                    mm_per_px,
+                    viewport_size_px: [800.0, 600.0],
+                };
+                let rect = egui::Rect::from_min_size(rect_min, egui::Vec2::new(800.0, 600.0));
+
+                let ctx = egui::Context::default();
+                let out = ctx.run(egui::RawInput::default(), |ctx| {
+                    let painter = ctx.layer_painter(egui::LayerId::new(
+                        egui::Order::Background,
+                        egui::Id::new("ac3-edges"),
+                    ));
+                    draw_grid(&painter, rect, &camera);
+                });
+
+                let mut xs: Vec<f32> = Vec::new();
+                let mut ys: Vec<f32> = Vec::new();
+                for clipped in &out.shapes {
+                    if let egui::Shape::LineSegment { points, .. } = &clipped.shape {
+                        let [a, b] = *points;
+                        if (a.x - b.x).abs() < 0.01 {
+                            xs.push(a.x);
+                        } else if (a.y - b.y).abs() < 0.01 {
+                            ys.push(a.y);
+                        }
+                    }
+                }
+                assert!(
+                    !xs.is_empty() && !ys.is_empty(),
+                    "positive control: draw_grid must paint at least one \
+                     vertical and one horizontal line"
+                );
+
+                let min_x = xs.iter().cloned().fold(f32::INFINITY, f32::min);
+                let max_x = xs.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+                let min_y = ys.iter().cloned().fold(f32::INFINITY, f32::min);
+                let max_y = ys.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+
+                let minor_mm = pick_minor_spacing_mm(mm_per_px);
+                let spacing_px = (minor_mm / mm_per_px) as f32;
+
+                assert!(
+                    (min_x - rect.min.x).abs() <= spacing_px,
+                    "mm_per_px={mm_per_px}, rect_min={rect_min:?}: leftmost \
+                     vertical line at x={min_x} is more than one grid spacing \
+                     ({spacing_px}) from the rect's left edge ({})",
+                    rect.min.x
+                );
+                assert!(
+                    (max_x - rect.max.x).abs() <= spacing_px,
+                    "mm_per_px={mm_per_px}, rect_min={rect_min:?}: rightmost \
+                     vertical line at x={max_x} is more than one grid spacing \
+                     ({spacing_px}) from the rect's right edge ({})",
+                    rect.max.x
+                );
+                assert!(
+                    (min_y - rect.min.y).abs() <= spacing_px,
+                    "mm_per_px={mm_per_px}, rect_min={rect_min:?}: topmost \
+                     horizontal line at y={min_y} is more than one grid \
+                     spacing ({spacing_px}) from the rect's top edge ({})",
+                    rect.min.y
+                );
+                assert!(
+                    (max_y - rect.max.y).abs() <= spacing_px,
+                    "mm_per_px={mm_per_px}, rect_min={rect_min:?}: bottommost \
+                     horizontal line at y={max_y} is more than one grid \
+                     spacing ({spacing_px}) from the rect's bottom edge ({})",
+                    rect.max.y
+                );
+            }
+        }
+    }
+
     /// LCV-137 AC 5 — a grid line is painted through the screen position of
     /// a known world-space point, across three zoom levels and both a
     /// zero-origin and a nonzero-origin viewport rect.
