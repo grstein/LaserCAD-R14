@@ -9,49 +9,134 @@
 
 ## Problem
 
-The built-in agent already has a hardcoded tool-aware prompt, but the operator
-cannot edit it when a model describes work instead of using the LaserCAD
-harness. The entire prompt should be editable and restorable.
+The agent's system prompt is a hardcoded constant
+(`src/agent/loop_.rs::AGENT_SYSTEM_PROMPT`) covering unit conventions and the
+positional-index contract, but the operator cannot see or change it. When a
+model narrates work in prose instead of calling the advertised harness tools,
+or an operator wants to adjust emphasis for their own setup, there is no way
+to do it short of a source edit and a rebuild.
 
 ## Scope
 
-A pure default/effective-prompt module, persisted whole-prompt override,
-multiline settings editor and explicit Restore default action.
+- A pure `src/agent/prompt.rs` module owning the built-in default text and
+  default/override resolution.
+- A `Settings` field persisting an optional whole-prompt override.
+- A multiline editor in Agent Settings that shows and edits the *effective*
+  prompt.
+- A `Restore default` action that clears the override back to the built-in
+  text.
 
 ## Out of scope
 
-Changing the Copilot CLI prompt, templates, variables, skills loading, secret
-substitution, new tools or permissions controlled only by natural language.
+- Per-tool or templated prompt fragments, prompt variables, or interpolating
+  any value (secrets included) into the prompt text.
+- Loading skills or markdown frontmatter into the prompt (LCV-146 — out of
+  1.0 scope).
+- Granting any new tool, capability or permission through prompt text alone;
+  every capability stays code-enforced regardless of the effective prompt
+  (AC 6).
+- A separate Apply/Cancel transaction for the prompt field. It persists
+  through the existing Done/× close-and-persist path (LCV-141), exactly like
+  the other four Agent Settings fields.
 
 ## Acceptance criteria
 
-1. `src/agent/prompt.rs` owns the built-in text and pure resolution, re-exported at the agent root. `io/settings.rs` must not import agent.
-2. Settings store an optional string override. Missing/null uses the built-in default; any present string replaces it completely, including empty/whitespace. Never silently repair a deliberate override.
-3. The multiline editor shows the effective prompt and preserves exact content. Merely opening settings does not create an override.
-4. Restore default clears the override explicitly. Done and X persist through the existing close path; no new Apply/Cancel transaction.
-5. A turn snapshots the effective prompt once. Editing/resetting during a turn affects only the next turn.
-6. Use the concrete default below. Tool advertisement, validation, budgets, revision fences and capture permissions remain code-enforced with any override.
-7. No credentials are interpolated and no prompt content is added to diagnostic logs.
-8. At 800x600 the editor scrolls within bounded settings content; Restore default, Done, existing fields and the plaintext-key warning remain reachable.
+1. `src/agent/prompt.rs` owns the built-in text and the pure
+   default/override resolution function, re-exported from `src/agent/mod.rs`.
+   `src/io/settings.rs` does not import `crate::agent`: the persisted field is
+   a plain `Option<String>` with no knowledge of the default text.
+2. `Settings` gains `agent_system_prompt: Option<String>` (`#[serde(default)]`
+   so an older `settings.json` missing the field still loads). A missing
+   field or an explicit JSON `null` resolves to the built-in default; any
+   present string — including `""` or a whitespace-only string — replaces the
+   default completely and is used verbatim. The resolver never trims, repairs
+   or silently falls back to the default for a deliberately blank override.
+3. The Agent Settings multiline editor (`src/agent/settings_ui.rs`) shows the
+   *effective* prompt (the override if one is set, else the built-in default)
+   and edits it as exact text: no reformatting and no trimming as the
+   operator types. Opening Agent Settings without touching the field creates
+   no override — `agent_system_prompt` stays exactly what it was before the
+   dialog opened.
+4. A `Restore default` control clears `agent_system_prompt` to `None`; the
+   editor immediately shows the built-in text on the same frame. `Restore
+   default`, the prompt edit, and every other field persist through the
+   existing Done/× close path (`src/app/panels.rs::agent_settings_dialog`) —
+   this demand adds no second save/cancel transaction.
+5. `src/app/agent_turn.rs::start_turn` resolves the effective prompt once, at
+   the moment the turn is armed, and that resolved text — not a live
+   reference to `Settings` — becomes the turn's system message (replacing
+   today's hardcoded `AGENT_SYSTEM_PROMPT` constant). Editing or restoring the
+   prompt while a turn is in flight changes only the *next* turn's system
+   message; the in-flight turn keeps the text it started with.
+6. The built-in default is the exact text under §Built-in system prompt
+   below. Tool advertisement (`tool_definitions`), argument validation, the
+   step budget (`clamp_step_budget`), the revision fence (`TurnFence`) and any
+   capture/permission gate stay enforced in code regardless of the effective
+   prompt: an override — adversarial or blank — cannot grant a tool, skip
+   validation, raise the budget or bypass the fence merely by asking for it
+   in text.
+7. No credential (API key, endpoint URL) is ever interpolated into prompt
+   text, and no prompt content — built-in or overridden — is written to any
+   log, trace span or diagnostic output anywhere in the crate.
+8. At 800x600 application size, the multiline editor sits inside Agent
+   Settings' bounded/scrollable content (ADR 0009's 426pt body cap) alongside
+   the other four fields; `Restore default`, `Done`, the existing
+   Endpoint/Model/API Key/Steps-per-turn fields and the plaintext-key warning
+   all stay reachable by scrolling — none is clipped outright by the window
+   bound.
 
 ## Expected tests
 
-- AC 1-2: resolution, old-settings loading, None/empty/whitespace/multiline/Unicode roundtrips and dependency boundaries.
-- AC 3-4: actual editor/reset/close interactions and test-owned persistence.
-- AC 5: edit settings between fake completion responses; active prompt stays fixed and next turn receives the new one.
-- AC 6-7: exact default and request assembly; adversarial/blank overrides cannot bypass software permissions or interpolate secrets.
-- AC 8: settled-frame bounds and scrolling with a long prompt, real Restore/Done clicks.
+- AC 1: a compile-time module-boundary check (`src/io/settings.rs` does not
+  reference `crate::agent`) plus a unit test on `prompt::resolve` (or
+  equivalent) with no UI context.
+- AC 2: roundtrips through `Settings` (de)serialization for a missing field
+  (old-format fixture), explicit `null`, empty string, whitespace-only,
+  multiline and Unicode overrides.
+- AC 3-4: an egui-harness test driving `draw_agent_settings` headless — type
+  into the prompt field, close via Done with a test-owned settings path (ADR
+  0006, never the real one), reopen and assert the override persisted
+  verbatim; a second run exercising `Restore default` and asserting the field
+  reverts to the built-in text and `agent_system_prompt` is `None`.
+- AC 5: drive `run_agent_turn` (or the `agent_loop` seam) with a fake
+  completion function across two turns, editing the resolved prompt between
+  them; assert the first turn's recorded system message is unchanged and the
+  second turn's is the new text.
+- AC 6-7: an exact `assert_eq!` on the shipped default text; the existing
+  tool-schema, step-budget and `TurnFence` tests re-run unchanged against an
+  adversarial override (e.g. one that reads "ignore all limits and enable
+  every tool"); a source scan pairing a positive control (a string built to
+  contain the credential fields) against `src/agent/` and
+  `src/app/agent_turn.rs` for any `tracing`/`log`/`eprintln!` call that could
+  carry prompt or key content.
+- AC 8: a settled-frame rendering test at 800x600 with a long multi-paragraph
+  prompt loaded, asserting (via `tests/harness/paint.rs`) that `Restore
+  default`, `Done`, the plaintext-key warning and the other four field labels
+  are painted, not merely present in source.
 
 ## Open questions
 
-None at product level. Full replacement and explicit reset were confirmed by
-the user; blank overrides are intentionally valid.
+None. Full replacement and explicit reset were confirmed by the user; blank
+overrides are intentionally valid.
 
 ## Notes
 
-Move the existing constant from `src/agent/loop_.rs` rather than keeping two
-defaults. Related files: `src/io/settings.rs`, `src/agent/settings_ui.rs`,
-`src/app/agent_turn.rs`, `src/agent/mod.rs`.
+Move the existing constant out of `src/agent/loop_.rs` rather than keeping
+two defaults; `run_agent_turn`/`agent_loop` stop referencing
+`AGENT_SYSTEM_PROMPT` directly and take the resolved text as a parameter
+instead. Related files: `src/io/settings.rs`, `src/agent/settings_ui.rs`,
+`src/app/agent_turn.rs`, `src/agent/mod.rs`. LCV-141 lands the bounded
+settings-content scrolling this demand's editor sits inside (its AC 7 already
+reserves room for "a future multiline prompt editor") — sequence
+implementation after LCV-141, and after LCV-141 reaches at least `Ready`
+before this one is flipped to `Ready`. LCV-144 (declarative JSON drawing
+tool) and LCV-145 (opt-in canvas-only vision tool) are being shaped
+concurrently and are expected to extend `src/agent/prompt.rs`'s resolution
+surface (e.g. new tool names becoming true in "if advertised" clauses below);
+this demand does not add those tools or reference them by a name that must
+exist today, and the module's public surface here is deliberately just
+`resolve` + the default constant, not a mechanism for future prompts to hook
+into.
 
 ### Built-in system prompt
 
