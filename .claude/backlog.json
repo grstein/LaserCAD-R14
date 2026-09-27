@@ -1478,7 +1478,7 @@
             "id": "LCV-138",
             "title": "Native document title and honest file feedback",
             "phase": 11,
-            "status": "Ready",
+            "status": "Done",
             "depends_on": [
                 "LCV-113",
                 "LCV-119",
@@ -1487,7 +1487,8 @@
             "suggested_agent": "implementer-rust",
             "suggested_model": "sonnet",
             "demand_file": "docs/product/demands/LCV-138-native-document-title-and-file-feedback.md",
-            "note": "In 1.0 scope per user decision 2026-09-27."
+            "note": "In 1.0 scope per user decision 2026-09-27. Shipped 2026-09-27: App::display_title() (src/app/document_title.rs) returns the basename-only title, `*`-prefixed when unsaved, suffixed with APP_TITLE; recomputed every frame and pushed via ViewportCommand::Title only on change (DocumentTitleState::last_title). A recovered_from_autosave flag, set only in App::new()'s recovery branch and cleared by mark_saved(), drives a distinct 'Recovered (not saved)' status-bar label with hover text. Open Recent entries disambiguate colliding basenames with parent-path context and carry full-path hover text; a failed Open Recent no longer reorders the recent list.",
+            "shipped_commit": "445ec44, 5f7884e, c46b1aa, d5ccef3, fba90da, 4b85072, 0ca5281"
         },
         {
             "id": "LCV-139",

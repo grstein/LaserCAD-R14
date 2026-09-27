@@ -1,11 +1,11 @@
 # LCV-138 - Native document title and honest file feedback
 
-- **Status**: Ready
+- **Status**: Done
 - **Phase**: 11
 - **Depends on**: LCV-113, LCV-119, LCV-136
 - **Suggested agent**: implementer-rust
 - **Suggested model**: sonnet
-- **Implementation**: -
+- **Implementation**: implementer-rust — 445ec44, 5f7884e, c46b1aa, d5ccef3, fba90da, 4b85072, 0ca5281
 
 ## Problem
 
