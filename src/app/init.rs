@@ -214,6 +214,34 @@ mod tests {
         &implementation[start..]
     }
 
+    /// LCV-138 review finding — `App::new()` must never assign
+    /// `title.last_title` itself. Only [`Default::default`]'s pre-seed does
+    /// that (see its own doc comment: a test `App` never backs a real OS
+    /// window, so there is nothing for the first frame to correct). A real
+    /// window, by contrast, was only ever told the *static* `APP_TITLE`
+    /// (`ViewportBuilder::with_title`, `src/lib.rs`) before its first frame
+    /// ran — so that first frame's `update_title` comparison must find the
+    /// cache still `None` and send the real `ViewportCommand::Title`
+    /// correction (recovered document, real `current_file`, or neither).
+    /// Copying `Self::default()`'s pre-seed forward into `App::new` (e.g.
+    /// appending `app.title.last_title = Some(app.display_title());` to its
+    /// body) would pre-fill the cache with a blank-document title that has
+    /// nothing to do with what actually booted, so that first-frame
+    /// comparison would see no change and the real window would keep
+    /// showing the static title forever. Bounded to `App::new`'s own body
+    /// (`app_new_body()`, the same helper the two `recovered_from_autosave`
+    /// scans below reuse), so `Self::default()`'s own, deliberate
+    /// pre-seed line cannot satisfy this scan.
+    #[test]
+    fn app_new_never_assigns_the_title_cache() {
+        let body = app_new_body();
+        assert!(
+            !body.contains("title.last_title"),
+            "App::new must not assign title.last_title itself: doing so \
+             would suppress the real window's first-frame title correction"
+        );
+    }
+
     /// LCV-114 AC 11, boot half — a cold start with no autosave seeds the
     /// blank document from the settings default; a recovered autosave keeps
     /// its own bed.
