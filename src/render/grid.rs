@@ -56,14 +56,14 @@ pub fn draw_grid(painter: &egui::Painter, rect: egui::Rect, camera: &Camera) {
     let minor_mm = pick_minor_spacing_mm(camera.mm_per_px);
     let major_step = pick_major_step(minor_mm) as i64;
 
-    // Visible world bounds. `rect.min`/`rect.max` are global; subtract the
-    // viewport's own origin once to get the local corners `screen_to_world`
-    // expects (LCV-137 AC 3 — before this fix this line passed the global
-    // rect straight through, drifting the visible grid by the toolbar width
-    // and menubar height whenever the viewport did not start at the
-    // window's top-left corner).
-    let local_tl = rect.min - rect.min.to_vec2();
-    let local_br = rect.max - rect.min.to_vec2();
+    // Visible world bounds. `rect.min`/`rect.max` are global; `screen_to_world`
+    // wants the viewport-local corners instead — `(0, 0)` and the rect's own
+    // size — never the global rect itself (LCV-137 AC 3 — before this fix
+    // this line passed the global rect straight through, drifting the
+    // visible grid by the toolbar width and menubar height whenever the
+    // viewport did not start at the window's top-left corner).
+    let local_tl = egui::Pos2::ZERO;
+    let local_br = (rect.max - rect.min).to_pos2();
     let world_tl = camera.screen_to_world(local_tl);
     let world_br = camera.screen_to_world(local_br);
     let world_left = world_tl.x.min(world_br.x);
@@ -158,13 +158,21 @@ mod tests {
         assert_eq!(pick_major_step(100.0), 10);
     }
 
-    /// LCV-137 AC 3 — `draw_grid`'s world-bounds computation subtracts the
-    /// viewport's own origin from the global `rect.min`/`rect.max` exactly
-    /// once, before either reaches `Camera::screen_to_world`. Mirrors the
-    /// scan style of `src/app/viewport.rs`'s
+    /// LCV-137 AC 3 — `draw_grid`'s world-bounds computation feeds
+    /// `Camera::screen_to_world` the viewport-local corners (`(0, 0)` and the
+    /// rect's own size), never the global `rect.min`/`rect.max` directly.
+    /// Mirrors the scan style of `src/app/viewport.rs`'s
     /// `the_live_predicate_has_exactly_three_terms`.
+    ///
+    /// This is intent, not effect: it pins the *shape* of the fix so a
+    /// future edit cannot silently reintroduce the direct global-to-camera
+    /// call. It does not by itself prove the culling is correct at the
+    /// viewport's edges — that is
+    /// `ac3_grid_lines_cover_up_to_each_edge_of_a_nonzero_origin_viewport`,
+    /// added alongside this fix, which is the one that actually fails if the
+    /// fix is reverted.
     #[test]
-    fn ac3_bounds_computation_subtracts_the_viewport_origin_source_scan() {
+    fn ac3_bounds_computation_uses_local_corners_source_scan() {
         let src = include_str!("grid.rs");
         let at = src
             .find("\n#[cfg(test)]")
@@ -172,11 +180,11 @@ mod tests {
         let implementation = &src[..at];
 
         let local_tl_at = implementation
-            .find("let local_tl = rect.min - rect.min.to_vec2();")
-            .expect("AC 3: draw_grid must subtract rect.min from rect.min (local top-left)");
+            .find("let local_tl = egui::Pos2::ZERO;")
+            .expect("AC 3: draw_grid's local top-left must be the viewport origin");
         let local_br_at = implementation
-            .find("let local_br = rect.max - rect.min.to_vec2();")
-            .expect("AC 3: draw_grid must subtract rect.min from rect.max (local bottom-right)");
+            .find("let local_br = (rect.max - rect.min).to_pos2();")
+            .expect("AC 3: draw_grid's local bottom-right must be the rect's own size");
         let tl_call_at = implementation
             .find("let world_tl = camera.screen_to_world(local_tl);")
             .expect("world_tl must be computed from the local point, not the global one");
@@ -185,7 +193,7 @@ mod tests {
             .expect("world_br must be computed from the local point, not the global one");
         assert!(
             local_tl_at < tl_call_at && local_br_at < br_call_at,
-            "AC 3: the subtraction must precede the camera call it feeds"
+            "AC 3: the local corners must be computed before the camera call they feed"
         );
         assert!(
             !implementation.contains("camera.screen_to_world(rect.min)"),
