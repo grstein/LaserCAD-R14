@@ -15,15 +15,14 @@
 use std::sync::mpsc::Receiver;
 
 use crate::agent::AgentEvent;
-use crate::app::TurnFence;
+use crate::app::TurnState;
 
 /// The agent's UI-side state: the chat transcript, the in-flight turn's
-/// channel and fence, the applied-action counter and undo label, and the
-/// panel's own visibility and input draft.
+/// channel and [`TurnState`], and the panel's own visibility and input draft.
 ///
 /// `Default` matches what `App::default()` used to spell out field by field:
-/// an empty transcript, no receiver, `busy == false`, and
-/// [`TurnFence::default()`] equal to `TurnFence::new(0)`.
+/// an empty transcript, no receiver, `busy == false`, and a default
+/// [`TurnState`] whose fence equals `TurnFence::new(0)`.
 #[derive(Default)]
 pub struct AgentState {
     /// Whether the AI assistant side panel is visible (LCV-080).
@@ -40,14 +39,10 @@ pub struct AgentState {
     pub busy: bool,
     /// Receiver polled every frame; `Some` while a turn is in flight (LCV-080).
     pub rx: Option<Receiver<AgentEvent>>,
-    /// Guards the in-flight turn against commits it did not make (ADR 0007
-    /// §D4). Re-armed by `arm_turn`; meaningless while `busy` is false.
-    pub fence: TurnFence,
-    /// How many of the in-flight turn's actions really changed the drawing.
-    /// Read once at turn end by the coalesce and the note row (AC 10, AC 11).
-    pub applied: usize,
-    /// The undo-stack label a coalesced turn gets: `Agent:` plus the prompt.
-    pub turn_label: String,
+    /// The in-flight turn's fence, counters and undo label (ADR 0007 §D8,
+    /// amendment 8). `busy` and `rx` stay outside it: they are §D11's
+    /// single-writer pair. Re-armed by `arm_turn`.
+    pub turn: TurnState,
 }
 
 #[cfg(test)]
@@ -65,8 +60,8 @@ mod tests {
         assert!(state.input_draft.is_empty());
         assert!(!state.busy);
         assert!(state.rx.is_none());
-        assert_eq!(state.fence, TurnFence::new(0));
-        assert_eq!(state.applied, 0);
-        assert!(state.turn_label.is_empty());
+        assert_eq!(state.turn.fence, crate::app::TurnFence::new(0));
+        assert_eq!(state.turn.applied, 0);
+        assert!(state.turn.label.is_empty());
     }
 }

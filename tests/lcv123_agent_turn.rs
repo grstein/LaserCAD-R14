@@ -393,9 +393,10 @@ fn a_fence_refusal_is_transcribed_as_refused_after_the_applied_row() {
 
 // ── AC 10, AC 11, AC 22: one turn, one undo entry ───────────────────────────
 
-/// AC 10 / AC 11 — four actions fold into one undo entry, `revision()` does not
-/// move across the fold, one `Ctrl+Z` reverses the whole turn and one `Ctrl+Y`
-/// reapplies it in order.
+/// AC 10 / AC 11 — four actions seal into one undo entry, `revision()` does
+/// not move across the seal, one `Ctrl+Z` reverses the whole turn and one
+/// `Ctrl+Y` reapplies it in order. Since LCV-142 (ADR 0007 §D12) the turn's
+/// work sits in an open group that already counts as one entry mid-turn.
 ///
 /// `revision()` not moving is deliberate (ADR 0007 §Risks): the autosave
 /// debounce watches it, and an autosave that fired mid-turn already wrote the
@@ -412,7 +413,11 @@ fn a_four_action_turn_is_one_undo_entry() {
         .into_iter()
         .collect();
     idle(&ctx, &mut app);
-    assert_eq!(app.history.len(), stack_before + 4, "four separate commits");
+    assert_eq!(
+        app.history.len(),
+        stack_before + 1,
+        "LCV-142: the open group counts as one entry"
+    );
     let revision_before_fold = app.history.revision();
 
     tx.send(AgentEvent::Done("Drew it.".to_owned())).unwrap();
@@ -426,7 +431,7 @@ fn a_four_action_turn_is_one_undo_entry() {
     assert_eq!(
         app.history.revision(),
         revision_before_fold,
-        "AC 10: the coalesce reshapes the undo stack, it does not commit"
+        "AC 10: the seal reshapes the undo stack, it does not commit"
     );
     assert_eq!(
         roles(&app),
@@ -458,11 +463,11 @@ fn a_four_action_turn_is_one_undo_entry() {
     assert_eq!(xs, [10.0, 20.0, 30.0, 40.0], "redo reapplies them in order");
 }
 
-/// AC 11 — a fence-aborted turn is **not** folded, and the operator is told
-/// which of the two undo shapes they got. Mutation (e) — coalescing
-/// unconditionally — fails here on both the stack depth and the sentence.
+/// LCV-142 AC 7 / AC 12 — a foreign commit seals the turn's group, so the turn
+/// is still one entry, directly beneath the foreign one, and the note makes no
+/// undo claim (ADR 0007 §D12 retired the "separate undo steps" shape).
 #[test]
-fn a_fence_aborted_turn_stays_separate_undo_steps() {
+fn a_fence_aborted_turn_is_one_entry_beneath_the_foreign_one() {
     let (ctx, mut app) = ctx_and_app();
     let stack_before = app.history.len();
     let tx = arm_turn(&mut app, "draw two lines");
@@ -475,24 +480,23 @@ fn a_fence_aborted_turn_stays_separate_undo_steps() {
         Vec2::new(50.0, 50.0),
         5.0,
     ))));
-    let after_foreign = app.history.len();
+    assert_eq!(app.history.len(), stack_before + 2, "turn, then circle");
 
     tx.send(AgentEvent::Done("Drew them.".to_owned())).unwrap();
     idle(&ctx, &mut app);
 
-    assert_eq!(
-        app.history.len(),
-        after_foreign,
-        "AC 11: nothing may be folded once the drawing changed under the turn"
-    );
-    assert_eq!(app.history.len(), stack_before + 3);
+    assert_eq!(app.history.len(), stack_before + 2);
     assert_eq!(
         app.agent.chat.last().map(|(r, t)| (r.as_str(), t.as_str())),
         Some((
             "note",
-            "Applied 2 actions — the drawing changed mid-turn, so they stay 2 separate undo steps."
+            "Applied 2 actions before the drawing changed outside this turn."
         ))
     );
+    tap(&ctx, &mut app, egui::Key::Z, ctrl());
+    assert_eq!(app.document.entities.len(), 2, "the circle went first");
+    tap(&ctx, &mut app, egui::Key::Z, ctrl());
+    assert!(app.document.entities.is_empty(), "then the whole turn");
 }
 
 /// AC 11 — a one-action turn gets its own sentence, and a turn that applied
@@ -538,8 +542,8 @@ fn one_action_and_zero_action_turns_say_their_own_thing() {
 
 /// AC 22 — the turn-end work is the same on the two *lost* exits, not only on
 /// `Done`. Three applied actions, ended by a dropped sender and by a dead reply
-/// channel: both fold to one undo entry, both write the note row, and in both
-/// the note comes **after** the error row. Mutation (j) — skipping the coalesce
+/// channel: both seal to one undo entry, both write the note row, and in both
+/// the note comes **after** the error row. Mutation (j) — skipping the seal
 /// on these exits — fails here.
 #[test]
 fn a_lost_turn_still_coalesces_and_still_says_so() {
@@ -587,11 +591,12 @@ fn a_lost_turn_still_coalesces_and_still_says_so() {
     }
 }
 
-/// AC 22 — a fence-aborted turn ended by a dropped sender keeps its `n`
-/// separate entries and gets the other sentence.
+/// AC 22 / LCV-142 AC 12 — a fence-aborted turn ended by a dropped sender is
+/// still one entry beneath the foreign one, and gets the neutral sentence.
 #[test]
-fn a_lost_fence_aborted_turn_keeps_its_separate_entries() {
+fn a_lost_fence_aborted_turn_is_still_one_entry() {
     let (ctx, mut app) = ctx_and_app();
+    let stack_before = app.history.len();
     let tx = arm_turn(&mut app, "draw three lines");
     let _answers = [10.0, 20.0, 30.0].map(|x| push_act(&tx, line(x)));
     idle(&ctx, &mut app);
@@ -599,16 +604,15 @@ fn a_lost_fence_aborted_turn_keeps_its_separate_entries() {
         Vec2::new(50.0, 50.0),
         5.0,
     ))));
-    let stack_after_foreign = app.history.len();
     drop(tx);
     idle(&ctx, &mut app);
 
-    assert_eq!(app.history.len(), stack_after_foreign, "nothing folded");
+    assert_eq!(app.history.len(), stack_before + 2, "turn, then circle");
     assert_eq!(
         app.agent.chat.last().map(|(r, t)| (r.as_str(), t.as_str())),
         Some((
             "note",
-            "Applied 3 actions — the drawing changed mid-turn, so they stay 3 separate undo steps."
+            "Applied 3 actions before the drawing changed outside this turn."
         ))
     );
 }

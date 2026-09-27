@@ -7,10 +7,15 @@
 //! calls [`History::redo`]. A new commit after one or more undos clears the
 //! redo stack (classic CAD single-branch semantics).
 //!
-//! [`History::coalesce_last`] folds the last *n* entries into one
-//! [`CompositeCommand`] without running anything: it is how one agent turn
-//! becomes one `Ctrl+Z` (ADR 0007 §D6). The document does not change, so the
-//! revision counter does not move.
+//! One **flat group** may be open beside the undo stack — never in it — and
+//! that is how one agent turn of any length becomes one `Ctrl+Z` (ADR 0007
+//! §D12, LCV-142). [`History::begin_group`] arms it,
+//! [`History::commit_grouped`] applies a command at once and remembers it in
+//! the group, and [`History::end_group`] seals the group onto the stack as one
+//! entry (bare for one command, one [`CompositeCommand`] for more). `commit`,
+//! `undo` and `redo` seal first, so foreign work is never absorbed into a
+//! group, and nothing of a group reaches the stack until it is one entry — the
+//! depth cap cannot evict step 1 of a long turn.
 //!
 //! `undo_stack` is a [`VecDeque`] (overflow drops the front, commit/undo work
 //! at the back); `redo_stack` is a plain [`Vec`] (pure LIFO). The depth cap
@@ -44,6 +49,16 @@ pub struct History {
     /// instead of sampling `len()`, which is not monotonic across an
     /// undo-then-commit in the same frame.
     revision: u64,
+    /// The open flat group, if one is armed (ADR 0007 §D12). Held beside the
+    /// stack; see [`History::begin_group`].
+    group: Option<Group>,
+}
+
+/// An armed group: its undo label and the commands applied into it so far,
+/// oldest first.
+struct Group {
+    label: String,
+    commands: Vec<Box<dyn Command>>,
 }
 
 impl History {
@@ -60,6 +75,7 @@ impl History {
             redo_stack: Vec::new(),
             max_depth: depth,
             revision: 0,
+            group: None,
         }
     }
 
@@ -74,9 +90,11 @@ impl History {
 
     /// Run a command against `doc`, remember it for undo, invalidate redo.
     ///
-    /// Steps: `cmd.do_(doc)`, push onto `undo_stack`, drop the oldest entry
-    /// if over `max_depth`, clear `redo_stack`, bump `revision`.
+    /// Steps: seal any open group ([`History::end_group`]), `cmd.do_(doc)`,
+    /// push onto `undo_stack`, drop the oldest entry if over `max_depth`,
+    /// clear `redo_stack`, bump `revision`.
     pub fn commit(&mut self, mut cmd: Box<dyn Command>, doc: &mut Document) {
+        self.end_group();
         cmd.do_(doc);
         self.undo_stack.push_back(cmd);
         self.enforce_depth_cap();
@@ -87,8 +105,10 @@ impl History {
     /// Reverse the most recent commit. Returns `true` if a command was undone,
     /// `false` if the undo stack was empty (document unchanged). The undone
     /// command moves onto the redo stack. Bumps `revision` iff it returns
-    /// `true`.
+    /// `true`. Seals any open group first, so an undo mid-group reverses the
+    /// group's work so far as one step.
     pub fn undo(&mut self, doc: &mut Document) -> bool {
+        self.end_group();
         match self.undo_stack.pop_back() {
             Some(mut cmd) => {
                 cmd.undo(doc);
@@ -103,8 +123,9 @@ impl History {
     /// Replay the most recently undone command. Returns `true` on success,
     /// `false` if the redo stack was empty. The redone command moves back
     /// onto the undo stack and the depth cap is re-checked there. Bumps
-    /// `revision` iff it returns `true`.
+    /// `revision` iff it returns `true`. Seals any open group first.
     pub fn redo(&mut self, doc: &mut Document) -> bool {
+        self.end_group();
         match self.redo_stack.pop() {
             Some(mut cmd) => {
                 cmd.do_(doc);
@@ -117,43 +138,73 @@ impl History {
         }
     }
 
-    /// Fold the last `n` undo entries into a single [`CompositeCommand`]
-    /// labelled `label`, in their original order.
+    /// Arm an empty flat group labelled `label` (ADR 0007 §D12). A group
+    /// already open is sealed first, so groups never nest.
+    pub fn begin_group(&mut self, label: &str) {
+        self.end_group();
+        self.group = Some(Group {
+            label: label.to_owned(),
+            commands: Vec::new(),
+        });
+    }
+
+    /// Run `cmd` against `doc` **now** and remember it in the open group.
     ///
-    /// This is a **pure stack rewrite** (ADR 0007 §D6 step 2). Nothing is run:
-    /// no `do_`, no `undo`, the document is not touched, [`History::revision`]
-    /// does not move, and the redo stack is left exactly as it was. The
-    /// entries were already applied one at a time as they were committed; all
-    /// that changes is how many `Ctrl+Z` presses it takes to reverse them.
-    ///
-    /// Edges, all deliberate:
-    ///
-    /// - `n < 2` is a no-op. Wrapping one command in a composite would only
-    ///   relabel it and [`History::len`] would not change.
-    /// - `n` greater than [`History::len`] folds what is there. `HISTORY_DEPTH`
-    ///   is 200 and the agent step budget caps at 32, so this is a tolerance
-    ///   rather than a path.
-    ///
-    /// The caller is responsible for proving the top `n` entries are really
-    /// the ones it means to fold — `crate::app::TurnFence::may_coalesce` is
-    /// that proof for an agent turn.
-    pub fn coalesce_last(&mut self, n: usize, label: &str) {
-        let n = n.min(self.undo_stack.len());
-        if n < 2 {
+    /// Observably the same as [`History::commit`] for the document and the
+    /// revision — `do_` runs at once, redo is cleared, `revision` bumps by
+    /// one — only *where the command is remembered* differs. With no group
+    /// armed it is exactly `commit`.
+    pub fn commit_grouped(&mut self, mut cmd: Box<dyn Command>, doc: &mut Document) {
+        let Some(group) = self.group.as_mut() else {
+            self.commit(cmd, doc);
             return;
+        };
+        cmd.do_(doc);
+        group.commands.push(cmd);
+        self.redo_stack.clear();
+        self.revision += 1;
+    }
+
+    /// Seal the open group onto the undo stack and disarm it.
+    ///
+    /// Zero commands push nothing, one is pushed bare, two or more become one
+    /// [`CompositeCommand`] under the group's label; the depth cap runs once.
+    /// Nothing is re-run and the revision does not move. Returns `None` when
+    /// no group was armed (idempotent: a second call is a no-op) and
+    /// `Some(n)` with the number of commands it sealed otherwise.
+    pub fn end_group(&mut self) -> Option<usize> {
+        let Group {
+            label,
+            mut commands,
+        } = self.group.take()?;
+        let sealed = commands.len();
+        match sealed {
+            0 => {}
+            1 => self.undo_stack.extend(commands.pop()),
+            _ => self
+                .undo_stack
+                .push_back(Box::new(CompositeCommand::new(commands, label))),
         }
-        // `split_off` keeps stack order: the tail comes back oldest-first,
-        // which is exactly the order `CompositeCommand` must replay. Popping
-        // `n` times from the back would hand them over reversed.
-        let at = self.undo_stack.len().saturating_sub(n);
-        let folded: Vec<Box<dyn Command>> = self.undo_stack.split_off(at).into();
-        self.undo_stack
-            .push_back(Box::new(CompositeCommand::new(folded, label)));
+        self.enforce_depth_cap();
+        Some(sealed)
+    }
+
+    /// Is a group armed? The fence's second witness (ADR 0007 §D14): every
+    /// seal and every document replacement leaves this `false`.
+    pub fn group_open(&self) -> bool {
+        self.group.is_some()
+    }
+
+    /// Does the open group hold any command? It counts as one undo entry.
+    fn open_entries(&self) -> usize {
+        self.group
+            .as_ref()
+            .map_or(0, |g| usize::from(!g.commands.is_empty()))
     }
 
     /// At least one command available for undo?
     pub fn can_undo(&self) -> bool {
-        !self.undo_stack.is_empty()
+        !self.is_empty()
     }
 
     /// At least one command available for redo?
@@ -161,15 +212,17 @@ impl History {
         !self.redo_stack.is_empty()
     }
 
-    /// Current depth of the undo stack (not the cap — see [`History::max_depth`]).
+    /// Current depth of the undo stack (not the cap — see [`History::max_depth`]),
+    /// counting a non-empty open group as the one entry it will seal into.
+    /// Never above the cap: sealing evicts the oldest entry to make room.
     pub fn len(&self) -> usize {
-        self.undo_stack.len()
+        (self.undo_stack.len() + self.open_entries()).min(self.max_depth)
     }
 
     /// Is the undo stack empty? Paired with [`History::len`] to satisfy
     /// clippy's `len_without_is_empty`.
     pub fn is_empty(&self) -> bool {
-        self.undo_stack.is_empty()
+        self.len() == 0
     }
 
     /// Configured maximum undo depth.
@@ -193,7 +246,11 @@ impl Default for History {
 impl fmt::Debug for History {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (u, r, d) = (self.undo_stack.len(), self.redo_stack.len(), self.max_depth);
-        write!(f, "History {{ undo: {u}, redo: {r}, max_depth: {d} }}")
+        let g = self.group.as_ref().map(|g| g.commands.len());
+        write!(
+            f,
+            "History {{ undo: {u}, redo: {r}, max_depth: {d}, group: {g:?} }}"
+        )
     }
 }
 
@@ -441,178 +498,208 @@ mod tests {
         assert!(after_undo < after_second_commit);
     }
 
-    // --- LCV-122 — coalesce_last (ADR 0007 §D6) ----------------------------
+    // --- LCV-142 — the flat group (ADR 0007 §D12) ---------------------------
 
     fn line_at(y: f64) -> Line {
         Line::new(Vec2::new(0.0, y), Vec2::new(10.0, y))
     }
 
-    /// Four agent-ish commits, the third of which is a delete, so a composite
+    /// Four grouped commits, the third of which is a delete, so a composite
     /// that undid its children forward would not restore the document.
-    fn four_agent_commits(doc: &mut Document, h: &mut History) {
-        h.commit(Box::new(CreateLine::new(line_at(0.0))), doc);
-        h.commit(Box::new(CreateLine::new(line_at(1.0))), doc);
-        h.commit(Box::new(DeleteEntities::new(vec![0])), doc);
-        h.commit(Box::new(CreateLine::new(line_at(2.0))), doc);
+    fn four_grouped_commits(doc: &mut Document, h: &mut History) {
+        h.commit_grouped(Box::new(CreateLine::new(line_at(0.0))), doc);
+        h.commit_grouped(Box::new(CreateLine::new(line_at(1.0))), doc);
+        h.commit_grouped(Box::new(DeleteEntities::new(vec![0])), doc);
+        h.commit_grouped(Box::new(CreateLine::new(line_at(2.0))), doc);
     }
 
-    /// AC 12 — `coalesce_last(4, …)` on a four-deep stack: `len()` drops to 1,
-    /// `revision()` is identical before and after, the document is untouched
-    /// by the call, one `undo` reverses all four and one `redo` reapplies all
-    /// four in the original order.
+    /// AC 5 — `commit_grouped` applies at once and bumps the revision by one
+    /// per call, exactly like `commit`; it also clears redo.
     #[test]
-    fn coalesce_last_folds_four_commits_into_one_undo_entry() {
+    fn commit_grouped_applies_immediately_and_bumps_the_revision() {
         let mut doc = Document::default();
         let mut h = History::new();
-        four_agent_commits(&mut doc, &mut h);
-
-        let applied = doc.entities.clone();
-        assert_eq!(
-            applied.len(),
-            2,
-            "line(1.0) and line(2.0) survive the delete"
-        );
-        let (len_before, revision_before) = (h.len(), h.revision());
-        assert_eq!((len_before, revision_before), (4, 4));
-
-        h.coalesce_last(4, "Agent: draw a square");
-
-        assert_eq!(h.len(), 1, "four entries became one");
-        assert_eq!(
-            h.revision(),
-            revision_before,
-            "coalescing runs nothing, so the revision must not move"
-        );
-        assert_eq!(
-            doc.entities, applied,
-            "coalescing must not re-run do_ on anything"
-        );
-
-        assert!(h.undo(&mut doc));
-        assert!(
-            doc.entities.is_empty(),
-            "one undo reverses the whole turn, got {:?}",
-            doc.entities
-        );
-        assert!(!h.can_undo(), "the turn was one entry");
-
-        assert!(h.redo(&mut doc));
-        assert_eq!(
-            doc.entities, applied,
-            "one redo reapplies all four in order"
-        );
-    }
-
-    /// AC 12 — the label reaches the folded entry, so `Edit > Undo …` can name
-    /// the turn. Two different labels, so a hardcoded string cannot pass.
-    #[test]
-    fn coalesce_last_stores_the_label_it_was_given() {
-        for label in ["Agent: draw a square", "Agent: delete that circle"] {
-            let mut doc = Document::default();
-            let mut h = History::new();
-            h.commit(Box::new(NoOpCommand), &mut doc);
-            h.commit(Box::new(NoOpCommand), &mut doc);
-            h.coalesce_last(2, label);
-            assert_eq!(h.len(), 1);
-            let folded = h.undo_stack.back().expect("the folded entry");
-            assert_eq!(folded.label(), label);
-        }
-    }
-
-    /// AC 12 — `n = 0` and `n = 1` are no-ops: `len()` is unchanged and so is
-    /// the revision. A composite of one would only relabel a command.
-    #[test]
-    fn coalesce_last_of_zero_or_one_is_a_noop() {
-        for n in [0usize, 1] {
-            let mut doc = Document::default();
-            let mut h = History::new();
-            four_agent_commits(&mut doc, &mut h);
-            let (len_before, revision_before) = (h.len(), h.revision());
-
-            h.coalesce_last(n, "nothing to fold");
-
-            assert_eq!(h.len(), len_before, "n = {n} must not change the depth");
-            assert_eq!(h.revision(), revision_before, "n = {n} must not commit");
-            assert_eq!(h.undo_stack.back().map(|c| c.label()), Some("Create Line"));
-        }
-    }
-
-    /// AC 12 — `n` larger than the stack folds what is there rather than
-    /// panicking or underflowing (`9` against a four-deep stack).
-    #[test]
-    fn coalesce_last_tolerates_more_than_the_stack_holds() {
-        let mut doc = Document::default();
-        let mut h = History::new();
-        four_agent_commits(&mut doc, &mut h);
-
-        h.coalesce_last(9, "Agent: everything");
-
-        assert_eq!(h.len(), 1);
-        assert!(h.undo(&mut doc));
-        assert!(doc.entities.is_empty(), "all four were folded");
-    }
-
-    /// AC 12 — the entries **below** the fold are untouched and stay
-    /// individually undoable: three user commits, then two agent commits,
-    /// then `coalesce_last(2)`.
-    #[test]
-    fn coalesce_last_leaves_the_entries_below_it_alone() {
-        let mut doc = Document::default();
-        let mut h = History::new();
-        for y in [0.0, 1.0, 2.0] {
-            h.commit(Box::new(CreateLine::new(line_at(y))), &mut doc);
-        }
-        let user_only = doc.entities.clone();
-        h.commit(Box::new(CreateLine::new(line_at(3.0))), &mut doc);
-        h.commit(Box::new(CreateLine::new(line_at(4.0))), &mut doc);
-        assert_eq!(h.len(), 5);
-
-        h.coalesce_last(2, "Agent: two lines");
-        assert_eq!(h.len(), 4, "only the top two folded");
-
-        assert!(h.undo(&mut doc));
-        assert_eq!(
-            doc.entities, user_only,
-            "one undo took back the agent's two"
-        );
-
-        // The three below are still three separate entries.
-        for expected in [2usize, 1, 0] {
-            assert!(h.undo(&mut doc));
-            assert_eq!(doc.entities.len(), expected);
-        }
-        assert!(!h.can_undo());
-    }
-
-    /// AC 12 — the redo stack is not touched by a fold.
-    #[test]
-    fn coalesce_last_does_not_touch_the_redo_stack() {
-        let mut doc = Document::default();
-        let mut h = History::new();
-        for y in [0.0, 1.0, 2.0] {
-            h.commit(Box::new(CreateLine::new(line_at(y))), &mut doc);
-        }
+        h.commit(Box::new(CreateLine::new(line_at(9.0))), &mut doc);
         assert!(h.undo(&mut doc));
         assert!(h.can_redo());
-        let revision_before = h.revision();
+        let start = h.revision();
 
-        h.coalesce_last(2, "Agent: two lines");
-
-        assert!(h.can_redo(), "the pending redo survived the fold");
-        assert_eq!(h.revision(), revision_before);
-        assert!(h.redo(&mut doc));
-        assert_eq!(doc.entities.len(), 3);
-        assert_eq!(h.len(), 2, "the folded entry plus the redone one");
+        h.begin_group("Agent: draw");
+        assert!(h.group_open());
+        for (i, y) in [0.0, 1.0, 2.0].into_iter().enumerate() {
+            h.commit_grouped(Box::new(CreateLine::new(line_at(y))), &mut doc);
+            assert_eq!(doc.entities.len(), i + 1, "applied at once");
+            assert_eq!(h.revision(), start + i as u64 + 1, "one bump per call");
+        }
+        assert!(!h.can_redo(), "a grouped commit clears redo like commit");
     }
 
-    /// AC 12 — folding an empty stack is a no-op rather than a panic.
+    /// AC 5 — sealing 0 / 1 / n commands: nothing, the bare command, one
+    /// composite under the group's label. The revision never moves on seal,
+    /// the report says how many were sealed, and a second call is a no-op.
     #[test]
-    fn coalesce_last_on_an_empty_stack_is_a_noop() {
+    fn end_group_seals_zero_one_or_many_and_is_idempotent() {
         let mut doc = Document::default();
         let mut h = History::new();
-        h.coalesce_last(4, "Agent: nothing happened");
+        assert_eq!(h.end_group(), None, "no group armed");
+
+        h.begin_group("Agent: nothing");
+        assert_eq!(h.end_group(), Some(0));
+        assert_eq!(h.len(), 0, "an empty group pushes nothing");
+
+        h.begin_group("Agent: one");
+        h.commit_grouped(Box::new(CreateLine::new(line_at(0.0))), &mut doc);
+        let revision = h.revision();
+        assert_eq!(h.end_group(), Some(1));
+        assert_eq!(h.revision(), revision, "sealing runs nothing");
+        assert_eq!(h.len(), 1);
+        assert_eq!(
+            h.undo_stack.back().map(|c| c.label()),
+            Some("Create Line"),
+            "a group of one is pushed bare"
+        );
+
+        for label in ["Agent: draw a square", "Agent: delete that circle"] {
+            h.begin_group(label);
+            four_grouped_commits(&mut doc, &mut h);
+            let applied = doc.entities.clone();
+            let before = h.len();
+            assert_eq!(h.end_group(), Some(4));
+            assert!(!h.group_open());
+            assert_eq!(h.len(), before, "the open group already counted as one");
+            assert_eq!(h.undo_stack.back().map(|c| c.label()), Some(label));
+            assert_eq!(doc.entities, applied, "sealing must not re-run do_");
+            assert_eq!(h.end_group(), None, "idempotent");
+            assert_eq!(h.len(), before);
+        }
+    }
+
+    /// AC 5 — one undo reverses a sealed group of four in reverse order, one
+    /// redo re-applies it in the original order.
+    #[test]
+    fn a_sealed_group_undoes_and_redoes_as_one_entry() {
+        let mut doc = Document::default();
+        let mut h = History::new();
+        h.begin_group("Agent: four");
+        four_grouped_commits(&mut doc, &mut h);
+        let applied = doc.entities.clone();
+        assert_eq!(applied.len(), 2, "line(1.0) and line(2.0) survive");
+        h.end_group();
+
+        assert!(h.undo(&mut doc));
+        assert!(doc.entities.is_empty(), "got {:?}", doc.entities);
+        assert!(!h.can_undo(), "the group was one entry");
+        assert!(h.redo(&mut doc));
+        assert_eq!(doc.entities, applied);
+    }
+
+    /// AC 5 — `len` / `can_undo` / `is_empty` see an open non-empty group as
+    /// one entry, and an open empty one as nothing.
+    #[test]
+    fn an_open_group_counts_as_one_entry_once_it_holds_a_command() {
+        let mut doc = Document::default();
+        let mut h = History::new();
+        h.begin_group("Agent: x");
         assert_eq!(h.len(), 0);
-        assert_eq!(h.revision(), 0);
-        assert!(!h.undo(&mut doc));
+        assert!(h.is_empty());
+        assert!(!h.can_undo());
+
+        h.commit_grouped(Box::new(NoOpCommand), &mut doc);
+        assert_eq!(h.len(), 1);
+        assert!(!h.is_empty());
+        assert!(h.can_undo());
+        h.commit_grouped(Box::new(NoOpCommand), &mut doc);
+        assert_eq!(h.len(), 1, "still one entry");
+    }
+
+    /// AC 5 — `commit`, `undo` and `redo` each seal the group before they
+    /// touch the stack, so foreign work is never absorbed into it.
+    #[test]
+    fn commit_undo_and_redo_seal_the_group_first() {
+        // commit: the foreign entry sits above the sealed group.
+        let mut doc = Document::default();
+        let mut h = History::new();
+        h.begin_group("Agent: two");
+        h.commit_grouped(Box::new(CreateLine::new(line_at(0.0))), &mut doc);
+        h.commit_grouped(Box::new(CreateLine::new(line_at(1.0))), &mut doc);
+        h.commit(Box::new(CreateLine::new(line_at(5.0))), &mut doc);
+        assert!(!h.group_open());
+        assert_eq!(h.len(), 2);
+        assert!(h.undo(&mut doc));
+        assert_eq!(doc.entities.len(), 2, "the foreign line went first, alone");
+        assert!(h.undo(&mut doc));
+        assert!(doc.entities.is_empty(), "then the whole group");
+
+        // undo: seals, then reverses the group so far as one step.
+        let mut doc = Document::default();
+        let mut h = History::new();
+        h.commit(Box::new(CreateLine::new(line_at(9.0))), &mut doc);
+        h.begin_group("Agent: two");
+        h.commit_grouped(Box::new(CreateLine::new(line_at(0.0))), &mut doc);
+        h.commit_grouped(Box::new(CreateLine::new(line_at(1.0))), &mut doc);
+        assert!(h.undo(&mut doc));
+        assert!(!h.group_open());
+        assert_eq!(doc.entities.len(), 1, "only the human line is left");
+
+        // redo: seals too, even with nothing to redo.
+        h.begin_group("Agent: again");
+        h.commit_grouped(Box::new(CreateLine::new(line_at(3.0))), &mut doc);
+        assert!(!h.redo(&mut doc), "the grouped commit cleared redo");
+        assert!(!h.group_open());
+        assert_eq!(h.len(), 2);
+    }
+
+    /// AC 5 — `begin_group` seals a group already open; groups never nest.
+    #[test]
+    fn begin_group_seals_an_open_group_first() {
+        let mut doc = Document::default();
+        let mut h = History::new();
+        h.begin_group("first");
+        h.commit_grouped(Box::new(NoOpCommand), &mut doc);
+        h.commit_grouped(Box::new(NoOpCommand), &mut doc);
+        h.begin_group("second");
+        h.commit_grouped(Box::new(NoOpCommand), &mut doc);
+        h.commit_grouped(Box::new(NoOpCommand), &mut doc);
+        assert_eq!(h.end_group(), Some(2));
+        assert_eq!(h.len(), 2);
+        let labels: Vec<&str> = h.undo_stack.iter().map(|c| c.label()).collect();
+        assert_eq!(labels, ["first", "second"]);
+    }
+
+    /// AC 5 — with no group armed `commit_grouped` is `commit`.
+    #[test]
+    fn commit_grouped_without_a_group_is_commit() {
+        let mut doc = Document::default();
+        let mut h = History::new();
+        h.commit_grouped(Box::new(CreateLine::new(line_at(0.0))), &mut doc);
+        h.commit_grouped(Box::new(CreateLine::new(line_at(1.0))), &mut doc);
+        assert_eq!(h.len(), 2, "two separate entries");
+        assert_eq!(h.revision(), 2);
+        assert!(!h.group_open());
+    }
+
+    /// AC 6 at the unit level — a group far longer than the cap never has an
+    /// entry evicted from inside it; sealing displaces one oldest entry.
+    #[test]
+    fn a_group_longer_than_the_cap_seals_into_one_entry() {
+        let mut doc = Document::default();
+        let mut h = History::with_depth(5);
+        for y in 0..5 {
+            h.commit(Box::new(CreateLine::new(line_at(f64::from(y)))), &mut doc);
+        }
+        h.begin_group("Agent: many");
+        for y in 10..40 {
+            h.commit_grouped(Box::new(CreateLine::new(line_at(f64::from(y)))), &mut doc);
+        }
+        assert_eq!(h.len(), 5, "never above the cap");
+        assert_eq!(h.end_group(), Some(30));
+        assert_eq!(h.len(), 5);
+        assert!(h.undo(&mut doc));
+        assert_eq!(doc.entities.len(), 5, "all thirty went in one undo");
+        for _ in 0..4 {
+            assert!(h.undo(&mut doc));
+        }
+        assert!(!h.undo(&mut doc), "the oldest human entry was evicted");
+        assert_eq!(doc.entities.len(), 1);
     }
 }

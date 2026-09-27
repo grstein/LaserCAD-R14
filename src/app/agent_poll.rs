@@ -4,7 +4,7 @@
 //! Extracted from `App::update` so the polling logic is unit-testable
 //! headlessly, with no egui context. Since LCV-123 the drain also *applies*:
 //! ADR 0007 §D8 gives this file the drain, the dispatch, the answer and the
-//! turn end, which is why the fence check, the coalesce gate and the undo note
+//! turn end, which is why the fence check, the group seal and the undo note
 //! live here rather than in `agent_turn.rs`.
 //!
 //! ## Why a turn must always announce its end (ADR 0007 §D11)
@@ -117,14 +117,14 @@ pub fn poll_agent_rx(app: &mut App) {
 ///   a drawing the model has not seen (AC 9);
 /// - the advance, which re-anchors the expectation on the revision this apply
 ///   produced;
-/// - the applied-action count that AC 10's coalesce and AC 11's note read.
+/// - the applied-action count the end-of-turn note reads (LCV-142 AC 12).
 ///
 /// Both of the last two are gated on the revision **actually moving**, which is
 /// what keeps a query out of the count and off the fence (AC 16): a query is an
 /// action, it gets a transcript row like any other, and it is not an *applied*
 /// action.
 fn apply_fenced(app: &mut App, action: &AgentAction) -> AgentOutcome {
-    if let Err(refusal) = app.agent.fence.check(app.history.revision()) {
+    if let Err(refusal) = app.agent.turn.fence.check(app.history.revision()) {
         let outcome = AgentOutcome::Refused(refusal);
         agent_apply::transcribe(app, &outcome);
         return outcome;
@@ -133,51 +133,46 @@ fn apply_fenced(app: &mut App, action: &AgentAction) -> AgentOutcome {
     let outcome = agent_apply::apply(app, action);
     let after = app.history.revision();
     if after != before {
-        app.agent.fence.advance(after);
-        app.agent.applied += 1;
+        app.agent.turn.fence.advance(after);
+        app.agent.turn.applied += 1;
     }
     outcome
 }
 
 /// The work every turn end does, whichever exit got here (LCV-123 AC 22).
 ///
-/// Folds this turn's commits into one undo entry when the fence says they are
-/// still contiguous at the top of the stack, then tells the operator which of
-/// the two undo shapes they got. A turn that applied nothing says nothing:
-/// there is no undo shape to describe and a note row would be noise.
+/// Seals the turn's history group — exactly once per turn, whatever it holds
+/// (ADR 0007 §D12) — then tells the operator what the turn left behind. A
+/// turn that applied nothing says nothing: a note row would be noise.
 ///
-/// The counter is **taken**, not read: `end_turn` is the only caller, but a
-/// counter that survived its turn would silently fold the next one's entries.
+/// The note is derived from **`end_group`'s report**, never from the fence:
+/// only when this seal took all `applied` commands is the whole turn one
+/// `Ctrl+Z` away. A group sealed earlier by a foreign event, or dropped with
+/// a replaced document, reports `None` here and gets the neutral sentence.
+///
+/// The counter is **taken**, not read, so a second finish writes no note.
 fn finish_turn(app: &mut App) {
-    let applied = std::mem::take(&mut app.agent.applied);
+    let applied = std::mem::take(&mut app.agent.turn.applied);
+    let sealed = app.history.end_group();
     if applied == 0 {
         return;
     }
-    let coalesced = app
-        .agent
-        .fence
-        .may_coalesce(app.history.revision(), applied);
-    if coalesced {
-        let label = std::mem::take(&mut app.agent.turn_label);
-        app.history.coalesce_last(applied, &label);
-    }
+    let whole = sealed == Some(applied);
     app.agent
         .chat
-        .push(("note".to_owned(), undo_note(applied, coalesced)));
+        .push(("note".to_owned(), undo_note(applied, whole)));
 }
 
-/// What the operator is told about undoing the turn they just watched (AC 11).
+/// What the operator is told about the turn they just watched (LCV-142 AC 12).
 ///
-/// One action is one undo entry whether or not anything else happened, so it
-/// gets its own sentence rather than a coalesced/not-coalesced pair.
-fn undo_note(applied: usize, coalesced: bool) -> String {
-    match (applied, coalesced) {
-        (1, _) => "Applied 1 action — Ctrl+Z undoes it.".to_owned(),
+/// `whole` is true only when the turn's own seal took every applied action;
+/// otherwise the drawing changed outside the turn and no undo claim is made.
+fn undo_note(applied: usize, whole: bool) -> String {
+    match (applied, whole) {
+        (1, true) => "Applied 1 action — Ctrl+Z undoes it.".to_owned(),
         (n, true) => format!("Applied {n} actions — Ctrl+Z undoes the whole turn."),
-        (n, false) => format!(
-            "Applied {n} actions — the drawing changed mid-turn, so they stay \
-             {n} separate undo steps."
-        ),
+        (1, false) => "Applied 1 action before the drawing changed outside this turn.".to_owned(),
+        (n, false) => format!("Applied {n} actions before the drawing changed outside this turn."),
     }
 }
 
@@ -201,7 +196,7 @@ fn end_turn(app: &mut App, row: Option<(&str, String)>) {
 /// The fifth exit of ADR 0007 §D11, and the only one that is not an event off
 /// the channel. It obeys the closure property by construction: it writes
 /// neither `agent.busy` nor `agent.rx`, pushes no row itself, and its whole
-/// body is a tail call to [`end_turn`] — so a cancelled turn coalesces into one
+/// body is a tail call to [`end_turn`] — so a cancelled turn seals into one
 /// undo entry, says what it left behind and clears the repaint gate exactly as
 /// a `Done` or a `Failed` does. A cancel that assigned the flag here would
 /// "work" in every manual test and leave three separate undo entries behind a
@@ -229,42 +224,39 @@ mod tests {
     use super::*;
     use crate::app::arm_turn;
 
-    /// AC 11 — the four sentences, exactly as the demand decided them. Nothing
-    /// in `src/` owned this copy before, so it is pinned character for
-    /// character rather than by `contains`.
+    /// LCV-142 AC 12 — the four sentences, exactly as the demand decided
+    /// them, pinned character for character.
     #[test]
-    fn the_undo_note_says_which_of_the_two_shapes_the_turn_left() {
+    fn the_undo_note_says_whether_the_turn_is_one_undo_away() {
+        assert_eq!(undo_note(1, true), "Applied 1 action — Ctrl+Z undoes it.");
         assert_eq!(
             undo_note(4, true),
             "Applied 4 actions — Ctrl+Z undoes the whole turn."
         );
         assert_eq!(
+            undo_note(1, false),
+            "Applied 1 action before the drawing changed outside this turn."
+        );
+        assert_eq!(
             undo_note(2, false),
-            "Applied 2 actions — the drawing changed mid-turn, so they stay 2 \
-             separate undo steps."
-        );
-        assert_eq!(undo_note(1, false), "Applied 1 action — Ctrl+Z undoes it.");
-        assert_eq!(
-            undo_note(1, true),
-            "Applied 1 action — Ctrl+Z undoes it.",
-            "one action is one undo entry either way — it never reads `1 actions`"
-        );
-    }
-
-    /// AC 11 — the count in the not-coalesced sentence is the real one, in
-    /// both of its two places. A hardcoded `2` passes the case above.
-    #[test]
-    fn the_not_coalesced_note_counts_the_actions_it_really_left() {
-        assert_eq!(
-            undo_note(3, false),
-            "Applied 3 actions — the drawing changed mid-turn, so they stay 3 \
-             separate undo steps."
+            "Applied 2 actions before the drawing changed outside this turn."
         );
         assert!(undo_note(7, true).contains('7'));
+        assert!(undo_note(9, false).contains('9'));
     }
 
-    /// AC 11 — a turn that applied nothing says nothing: no note row, and no
-    /// coalesce attempted. A query-only turn is the common case.
+    /// LCV-142 AC 12 — the old sentence is gone: nothing claims the turn left
+    /// separate undo steps, and the neutral sentences make no undo claim.
+    #[test]
+    fn no_note_mentions_separate_undo_steps_or_undo_when_not_whole() {
+        for n in [1usize, 2, 5] {
+            assert!(!undo_note(n, true).contains("separate"));
+            assert!(!undo_note(n, false).contains("Ctrl+Z"));
+        }
+    }
+
+    /// AC 11 — a turn that applied nothing says nothing: no note row, and the
+    /// empty group seals into nothing. A query-only turn is the common case.
     #[test]
     fn a_turn_that_applied_nothing_writes_no_note() {
         let mut app = App::default();
@@ -276,6 +268,7 @@ mod tests {
 
         assert_eq!(app.agent.chat.len(), rows, "no note row for zero actions");
         assert_eq!(app.history.len(), stack);
+        assert!(!app.history.group_open(), "the group was still sealed");
     }
 
     /// ADR 0007 §D11 — [`end_turn`] is the one place that clears `agent.rx`,
@@ -357,14 +350,14 @@ mod tests {
     }
 
     /// The applied-action counter must not survive its turn: a second turn
-    /// that inherited it would fold entries that are not its own.
+    /// that inherited it would write a note about work that is not its own.
     #[test]
     fn finishing_a_turn_clears_the_applied_counter() {
         let mut app = App::default();
         let _tx = arm_turn(&mut app, "one");
-        app.agent.applied = 3;
+        app.agent.turn.applied = 3;
         finish_turn(&mut app);
-        assert_eq!(app.agent.applied, 0);
+        assert_eq!(app.agent.turn.applied, 0);
         finish_turn(&mut app);
         assert_eq!(
             app.agent.chat.iter().filter(|(r, _)| r == "note").count(),

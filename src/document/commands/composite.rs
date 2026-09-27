@@ -1,12 +1,12 @@
 //! [`CompositeCommand`] — *n* commands that undo as one (LCV-122).
 //!
-//! One agent turn may commit twenty actions; reversing that sentence must cost
-//! one `Ctrl+Z`, not twenty. ADR 0007 §D6 settles *how*: each action still
-//! commits individually and immediately — the operator watches the geometry
-//! appear — and at turn end
-//! [`History::coalesce_last`](crate::document::History::coalesce_last) folds
-//! the entries that were just pushed into one of these. Nothing is re-run and
-//! the document does not change, so the revision counter does not move either.
+//! One agent turn may commit hundreds of actions; reversing that sentence must
+//! cost one `Ctrl+Z`, not hundreds. ADR 0007 §D12 settles *how*: each action
+//! still applies individually and immediately — the operator watches the
+//! geometry appear — into a flat group held beside the undo stack, and
+//! [`History::end_group`](crate::document::History::end_group) seals that
+//! group into one of these. Nothing is re-run and the document does not
+//! change, so the revision counter does not move either.
 //!
 //! The load-bearing detail is **order**: `do_` runs the children forward and
 //! `undo` runs them in reverse. A sequence like *create A, delete A* only
@@ -37,8 +37,8 @@ impl CompositeCommand {
     /// Wrap `commands` — **in the order they were committed** — under `label`.
     ///
     /// The caller owns the ordering contract: `commands[0]` must be the
-    /// oldest. `History::coalesce_last` is the only production caller and it
-    /// preserves stack order by construction.
+    /// oldest. `History::end_group` is the only production caller and it
+    /// preserves commit order by construction.
     pub fn new(commands: Vec<Box<dyn Command>>, label: impl Into<String>) -> Self {
         Self {
             commands,
@@ -188,7 +188,7 @@ mod tests {
         );
     }
 
-    /// A single-child composite is still a valid command — `coalesce_last`
+    /// A single-child composite is still a valid command — `end_group`
     /// refuses to build one, but nothing here depends on that.
     #[test]
     fn composite_of_one_roundtrips() {

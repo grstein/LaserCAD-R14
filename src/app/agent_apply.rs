@@ -9,9 +9,9 @@
 //! Three rules shape everything below.
 //!
 //! - **Never touch `document.entities` directly.** Every mutation is a
-//!   `Box<dyn Command>` committed through [`App::commit`] (AGENTS.md §"State
-//!   and mutation"), so agent edits get undo, redo, dirty tracking and autosave
-//!   for free and are indistinguishable from a human's.
+//!   `Box<dyn Command>` committed through `History::commit_grouped` into the
+//!   turn's group (AGENTS.md §"State and mutation", ADR 0007 §D12), so agent
+//!   edits get undo, redo, dirty tracking and autosave for free.
 //! - **The range check lives here, and it refuses rather than fails.** The
 //!   worker cannot know `entities.len()` (ADR 0007 §D1), so `index` arrives
 //!   shape-checked but unbounded. An out-of-range index is information the
@@ -56,7 +56,8 @@ pub fn apply(app: &mut App, action: &AgentAction) -> AgentOutcome {
     let outcome = match plan(action, &app.document) {
         Planned::Answer(outcome) => outcome,
         Planned::Commit(command, sentence) => {
-            app.commit(command);
+            // Into the turn's flat group (ADR 0007 §D12); `App::commit` seals.
+            app.history.commit_grouped(command, &mut app.document);
             AgentOutcome::Ok(with_count(&sentence, app.document.entity_count()))
         }
     };
@@ -863,7 +864,7 @@ mod tests {
     ///
     /// Bounded at the bare `#[cfg(test)]` at column 0 with `concat!` needles,
     /// so it cannot match the literals in this very test. The positive control
-    /// is the one commit call that must be here.
+    /// is the one grouped commit call that must be here (ADR 0007 §D12).
     #[test]
     fn agent_apply_only_ever_commits() {
         let src = include_str!("agent_apply.rs");
@@ -873,8 +874,8 @@ mod tests {
         let implementation = &src[..at];
 
         assert!(
-            implementation.contains(concat!("app.co", "mmit(command)")),
-            "positive control: the App commit path must be in this file"
+            implementation.contains(concat!("history.commit_", "grouped(command")),
+            "positive control: the grouped commit path must be in this file"
         );
         for forbidden in [
             concat!("entities.pu", "sh"),

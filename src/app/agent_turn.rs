@@ -7,8 +7,7 @@
 //! protocol, and the protocol is visible to the worker thread; the fence is the
 //! one value in this design the worker thread must never evaluate, because
 //! evaluating it on the wrong side of the channel is exactly the stale-read bug
-//! it exists to prevent. §D6's coalesce gate is the same revision arithmetic,
-//! so it lives in the same type.
+//! it exists to prevent.
 //!
 //! ## What the fence is for
 //!
@@ -22,15 +21,15 @@
 //! turn ends. Already-applied actions stay applied and stay undoable.
 //!
 //! A tripped fence is **sticky**: it does not re-arm, not even after a query
-//! that would give the model a fresh read. That is what keeps the coalesce gate
-//! sound — once tripped the agent commits nothing more, so the entries the gate
-//! wants to fold stay contiguous at the top of the undo stack.
+//! that would give the model a fresh read. That is what keeps the turn one
+//! undo entry (ADR 0007 §D12, §D14) — a re-armed fence would commit after the
+//! foreign event sealed the turn's group, and the turn would split around it.
 //!
-//! [`arm_turn`] constructs the fence at turn start; `agent_poll` checks it once
-//! per action and reads its coalesce gate once per turn. The two call sites sit
-//! there rather than here because they are frame-loop work, and ADR 0007 §D8
-//! gives `agent_poll` the drain, the dispatch and the answer; what this file
-//! owns is the fence itself and the arithmetic it answers with.
+//! [`arm_turn`] constructs the fence and opens the turn's history group at
+//! turn start; `agent_poll` checks the fence once per action and seals the
+//! group once per turn. Those call sites sit there rather than here because
+//! they are frame-loop work, and ADR 0007 §D8 gives `agent_poll` the drain,
+//! the dispatch and the answer; what this file owns is the fence itself.
 //!
 //! ## What crosses the thread boundary
 //!
@@ -53,16 +52,16 @@ pub const AGENT_FENCE_REFUSAL: &str = "The drawing changed outside this turn —
 
 /// Guards one agent turn against mutations it did not make.
 ///
-/// Three `u64`-sized pieces of state and no borrow of anything: `start` is the
-/// revision the turn began at, `expected` is the revision the next action
-/// requires, and `tripped` records that the guard has already fired.
+/// Two pieces of state and no borrow of anything: `expected` is the revision
+/// the next action requires, and `tripped` records that the guard has already
+/// fired.
 ///
-/// `Default` derives to `{ start: 0, expected: 0, tripped: false }`, exactly
+/// `Default` derives to `{ expected: 0, tripped: false }`, exactly
 /// [`TurnFence::new(0)`](TurnFence::new) — which is what lets
-/// [`AgentState`](crate::app::AgentState) derive `Default` too (LCV-136).
+/// [`TurnState`] and [`AgentState`](crate::app::AgentState) derive `Default`
+/// too (LCV-136).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TurnFence {
-    start: u64,
     expected: u64,
     tripped: bool,
 }
@@ -71,7 +70,6 @@ impl TurnFence {
     /// Arm a fence at the revision the turn is starting from.
     pub fn new(start_revision: u64) -> Self {
         Self {
-            start: start_revision,
             expected: start_revision,
             tripped: false,
         }
@@ -102,16 +100,20 @@ impl TurnFence {
     pub fn is_tripped(&self) -> bool {
         self.tripped
     }
+}
 
-    /// May the turn's `n` commits be folded into one undo entry?
-    ///
-    /// ADR 0007 §D6 step 3: only when the revision advanced by exactly `n`
-    /// since the turn started, which proves the top `n` entries of the undo
-    /// stack are contiguously this turn's and nobody else's. `n < 2` is not
-    /// worth folding — a composite of one only relabels it.
-    pub fn may_coalesce(&self, current: u64, n: usize) -> bool {
-        !self.tripped && n >= 2 && current.saturating_sub(self.start) == n as u64
-    }
+/// The in-flight turn's UI-side bookkeeping, reached as `app.agent.turn`
+/// (ADR 0007 §D8, amendments 7 and 8). Re-armed whole by [`arm_turn`];
+/// meaningless while `agent.busy` is false.
+#[derive(Debug, Default)]
+pub struct TurnState {
+    /// Guards the turn against commits it did not make (ADR 0007 §D4, §D14).
+    pub fence: TurnFence,
+    /// How many of the turn's actions really changed the drawing. Taken once
+    /// at turn end by the note row (LCV-142 AC 12).
+    pub applied: usize,
+    /// The label of the turn's history group: `Agent:` plus the prompt.
+    pub label: String,
 }
 
 /// The longest prompt prefix an undo label carries (AC 10).
@@ -120,21 +122,26 @@ const LABEL_CHARS: usize = 40;
 /// Put `app` into a turn and hand back the `Sender` the turn will report on.
 ///
 /// Everything a turn needs before anything can arrive: the `user` row, the busy
-/// flag, the channel, a fence armed at the current revision, a zeroed
-/// applied-action counter and the undo label the coalesce will use.
+/// flag, the channel, a fresh [`TurnState`] whose fence is armed at the
+/// current revision, and the turn's history group, opened under the undo
+/// label (ADR 0007 §D12) — every agent commit lands in it.
 ///
 /// `pub` rather than `pub(crate)` because it is the seam the integration tests
 /// drive: they arm a turn, keep the `Sender`, and push events into it by hand
 /// instead of standing up a thread and a socket. That makes every assertion
-/// about applying, fencing, coalescing and ending a turn deterministic.
+/// about applying, fencing, grouping and ending a turn deterministic.
 pub fn arm_turn(app: &mut App, prompt: &str) -> Sender<AgentEvent> {
     let (tx, rx) = channel::<AgentEvent>();
     app.agent.chat.push(("user".to_owned(), prompt.to_owned()));
     app.agent.busy = true;
     app.agent.rx = Some(rx);
-    app.agent.fence = TurnFence::new(app.history.revision());
-    app.agent.applied = 0;
-    app.agent.turn_label = turn_label(prompt);
+    let label = turn_label(prompt);
+    app.history.begin_group(&label);
+    app.agent.turn = TurnState {
+        fence: TurnFence::new(app.history.revision()),
+        applied: 0,
+        label,
+    };
     tx
 }
 
@@ -245,75 +252,6 @@ mod tests {
         );
     }
 
-    /// AC 13 / ADR 0007 §D6 step 3 — the gate is an equality, not a
-    /// comparison: exactly `n` revisions since the start, nothing else.
-    #[test]
-    fn may_coalesce_is_an_exact_equality_over_at_least_two_entries() {
-        let fence = TurnFence::new(10);
-        assert!(fence.may_coalesce(14, 4), "four commits, four revisions");
-        assert!(!fence.may_coalesce(14, 3), "a foreign commit hid in there");
-        assert!(!fence.may_coalesce(14, 5), "one of them was not ours");
-        assert!(!fence.may_coalesce(11, 1), "one entry is not worth folding");
-        assert!(!fence.may_coalesce(10, 0), "nothing happened");
-        assert!(fence.may_coalesce(12, 2), "two is the smallest fold");
-    }
-
-    /// AC 13 — a tripped fence never folds, whatever the arithmetic says.
-    /// This is what keeps the agent's entries contiguous (ADR 0007 §D4).
-    #[test]
-    fn a_tripped_fence_declines_to_coalesce() {
-        let mut fence = TurnFence::new(10);
-        assert!(fence.may_coalesce(14, 4));
-        assert!(fence.check(99).is_err());
-        assert!(!fence.may_coalesce(14, 4), "a tripped fence must not fold");
-    }
-
-    /// AC 13 — the gate anchors on the **turn's start revision**, never on the
-    /// last advanced expectation.
-    ///
-    /// Every other `may_coalesce` test above runs on a fence that was never
-    /// advanced, where `start` and `expected` hold the same number and so are
-    /// indistinguishable. The real LCV-123 flow advances the fence after each
-    /// apply, so by the end `expected == current`, their difference is `0`, and
-    /// a gate anchored on `expected` would return `false` for the rest of time:
-    /// the turn would quietly leave `n` separate undo entries behind instead of
-    /// one, which is AC 13's whole point, and nothing would say a word. So this
-    /// test advances first, then coalesces.
-    #[test]
-    fn the_gate_anchors_on_the_start_revision_not_the_last_advance() {
-        let mut fence = TurnFence::new(10);
-        fence.advance(11);
-        fence.advance(12);
-        assert!(
-            fence.may_coalesce(12, 2),
-            "two commits since revision 10 fold into one, however often the \
-             fence was advanced along the way"
-        );
-        assert!(
-            !fence.may_coalesce(13, 2),
-            "a third revision the turn did not make still breaks the run"
-        );
-
-        // And the same fence, advanced all the way to a four-commit turn.
-        let mut fence = TurnFence::new(100);
-        for revision in 101..=104 {
-            assert_eq!(fence.check(revision - 1), Ok(()));
-            fence.advance(revision);
-        }
-        assert!(fence.may_coalesce(104, 4), "four commits, four revisions");
-        assert!(!fence.may_coalesce(104, 3), "a foreign commit hid in there");
-    }
-
-    /// The `current - start` in `may_coalesce` is unsigned subtraction one line
-    /// away from a panic. A revision below the start cannot happen in practice
-    /// — `revision()` is monotonic — but the arithmetic must survive it.
-    #[test]
-    fn may_coalesce_survives_a_revision_below_the_start() {
-        let fence = TurnFence::new(10);
-        assert!(!fence.may_coalesce(0, 2));
-        assert!(!fence.may_coalesce(9, 2));
-    }
-
     // ── AC 3: arming, and refusing to arm twice ──────────────────────────────
 
     /// AC 3 — arming records the operator's words, raises the busy flag, parks
@@ -332,8 +270,9 @@ mod tests {
         );
         assert!(app.agent.busy);
         assert!(app.agent.rx.is_some());
-        assert_eq!(app.agent.applied, 0);
-        assert_eq!(app.agent.turn_label, "Agent: draw a 20 mm square");
+        assert_eq!(app.agent.turn.applied, 0);
+        assert_eq!(app.agent.turn.label, "Agent: draw a 20 mm square");
+        assert!(app.history.group_open(), "the turn's group is open");
 
         tx.send(AgentEvent::Done("hi".to_owned()))
             .expect("the returned Sender must reach the Receiver on App");
@@ -366,8 +305,8 @@ mod tests {
         assert_ne!(revision, 0, "the fixture must have moved the revision");
 
         let _tx = arm_turn(&mut app, "go on");
-        assert_eq!(app.agent.fence, TurnFence::new(revision));
-        assert_eq!(app.agent.fence.check(revision), Ok(()));
+        assert_eq!(app.agent.turn.fence, TurnFence::new(revision));
+        assert_eq!(app.agent.turn.fence.check(revision), Ok(()));
     }
 
     /// AC 3 — a second turn is refused while one is in flight, and refused
@@ -381,15 +320,18 @@ mod tests {
         let mut app = App::default();
         let _tx = arm_turn(&mut app, "the first prompt");
         let chat = app.agent.chat.clone();
-        let fence = app.agent.fence.clone();
-        let label = app.agent.turn_label.clone();
+        let fence = app.agent.turn.fence.clone();
+        let label = app.agent.turn.label.clone();
         let armed = app.agent.rx.as_ref().map(std::ptr::from_ref);
 
         start_turn(&mut app, "the second prompt");
 
         assert_eq!(app.agent.chat, chat, "no row for a turn that never started");
-        assert_eq!(app.agent.fence, fence, "the running turn keeps its fence");
-        assert_eq!(app.agent.turn_label, label);
+        assert_eq!(
+            app.agent.turn.fence, fence,
+            "the running turn keeps its fence"
+        );
+        assert_eq!(app.agent.turn.label, label);
         assert_eq!(
             app.agent.rx.as_ref().map(std::ptr::from_ref),
             armed,

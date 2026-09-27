@@ -425,7 +425,7 @@ fn ac11_the_old_sender_cannot_speak_into_the_new_turn() {
     assert_eq!(app.agent.chat, chat, "the new turn heard nothing");
     assert!(app.agent.busy, "and is still running");
     assert!(app.agent.rx.is_some(), "on its own channel");
-    assert_eq!(app.agent.applied, 0);
+    assert_eq!(app.agent.turn.applied, 0);
     assert_eq!(app.history.revision(), revision);
 }
 
