@@ -42,7 +42,7 @@ pub struct UnsavedGuard {
     /// document still dirty (`Exit` performs no save), re-park
     /// `PendingAction::Exit`, and send `CancelClose` — cancelling the very
     /// close the operator just confirmed, forever. See
-    /// `src/app/file_ops.rs::poll_close_request`. The latch assumes the
+    /// `src/app/discard.rs::poll_close_request`. The latch assumes the
     /// window tears down once `Close` is sent uncancelled (eframe 0.29.1
     /// behaviour).
     pub exit_confirmed: bool,

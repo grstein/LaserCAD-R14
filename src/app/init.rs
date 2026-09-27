@@ -242,6 +242,26 @@ mod tests {
         );
     }
 
+    /// Review finding on LCV-138 — `App::new`'s body must never call
+    /// `mark_saved`. `mark_saved` is the **only** clearer of
+    /// `title.recovered_from_autosave` (`src/app/file_ops.rs::mark_saved`),
+    /// so a stray call anywhere in `App::new` — even after the recovered
+    /// branch sets the flag a few lines above — would silently erase the
+    /// "this document was recovered from autosave" signal before the first
+    /// frame ever renders, and no behavioural test could catch it (ADR 0002
+    /// §A2: nothing may drive `App::new` directly). Bounded to `App::new`'s
+    /// own body via `app_new_body()`, so this test's own source, and
+    /// `Default::default`'s unrelated pre-seed, cannot satisfy it.
+    #[test]
+    fn app_new_never_calls_mark_saved() {
+        let body = app_new_body();
+        assert!(
+            !body.contains("mark_saved("),
+            "App::new must not call mark_saved: doing so would clear \
+             title.recovered_from_autosave before the first frame renders"
+        );
+    }
+
     /// LCV-114 AC 11, boot half — a cold start with no autosave seeds the
     /// blank document from the settings default; a recovered autosave keeps
     /// its own bed.
