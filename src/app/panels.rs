@@ -38,14 +38,44 @@ pub fn draw_chrome(ctx: &egui::Context, app: &mut App) {
     });
 }
 
+/// Width the agent panel opens at before the ceiling narrows it (LCV-080's
+/// original default).
+const AGENT_PANEL_DEFAULT_WIDTH: f32 = 300.0;
+
+/// The panel may never claim more than this fraction of the whole
+/// application window's width (LCV-141 AC 1-3) — not `CentralPanel`'s
+/// remaining share after the toolbar and this panel already claimed theirs.
+const AGENT_PANEL_WIDTH_FRACTION: f32 = 1.0 / 3.0;
+
+/// The hard width ceiling for this frame, in logical points.
+///
+/// Recomputed from `ctx.screen_rect()` on every call — never cached — so it
+/// holds on the very first frame, after a width dragged wide in a bigger
+/// window is carried into a smaller one, during an active resize drag, and
+/// after the window itself shrinks (AC 2): `SidePanel` re-clamps its
+/// persisted width against `width_range` on every `show`, so a ceiling that
+/// is fresh every frame is all a caller has to provide.
+fn agent_panel_width_ceiling(ctx: &egui::Context) -> f32 {
+    ctx.screen_rect().width() * AGENT_PANEL_WIDTH_FRACTION
+}
+
 /// Render the agent side panel (LCV-080) when it is open; a no-op otherwise.
 pub fn draw_agent_side_panel(ctx: &egui::Context, app: &mut App) {
     if !app.agent.panel_open {
         return;
     }
+    let ceiling = agent_panel_width_ceiling(ctx);
+    let default_width = AGENT_PANEL_DEFAULT_WIDTH.min(ceiling);
     egui::SidePanel::right("agent_panel")
         .resizable(true)
-        .default_width(300.0)
+        // `.max_width` must follow `.default_width`: `SidePanel::default_width`
+        // widens `width_range.max` via `.at_least(default_width)` when the
+        // default exceeds the existing max, and only `.max_width` narrows the
+        // range unconditionally (egui-0.29.1
+        // `containers/panel.rs::SidePanel::default_width`/`max_width`). Called
+        // in the other order, the ceiling would silently widen back out.
+        .default_width(default_width)
+        .max_width(ceiling)
         .show(ctx, |ui| {
             crate::agent::draw_agent_panel(ui, app);
         });
@@ -65,9 +95,17 @@ pub fn draw_dialogs(ctx: &egui::Context, app: &mut App) {
 }
 
 /// The Agent Settings window (LCV-076). Persists the settings when the window
-/// closes, whether by the × button or programmatically.
+/// closes, whether by the × button, the Done button (LCV-141 AC 6), or
+/// programmatically.
 fn agent_settings_dialog(ctx: &egui::Context, app: &mut App) {
     let was_open = app.agent_settings_open;
+    // Set from inside the content closure below when Done is clicked. Kept
+    // separate from `agent_settings_open` itself: `Window::open` already
+    // borrows that field for the whole `.show()` call, so a second mutable
+    // borrow of the same field from the content closure would not compile —
+    // this is the one new piece of state the Done button needs, read only
+    // after every borrow above has ended (LCV-141 AC 6).
+    let mut done_clicked = false;
     {
         // The window borrows `agent_settings_open` and `settings` mutably for
         // its whole lifetime; `App::persist_settings` needs `&App`, so the
@@ -80,10 +118,22 @@ fn agent_settings_dialog(ctx: &egui::Context, app: &mut App) {
             .collapsible(false)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
             .show(ctx, |ui| {
-                crate::agent::draw_agent_settings(ui, settings);
+                // LCV-141 AC 7: bounded scrolling, so a form that grows in a
+                // later demand scrolls instead of pushing Done off the bottom
+                // of the window (ADR 0009).
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    done_clicked = crate::agent::draw_agent_settings(ui, settings).done_clicked;
+                });
             });
     }
-    // Save on dialog close (× button or programmatic close).
+    // Done runs the exact same close as the × button: it only ever sets the
+    // same flag the window's own `Window::open` would have set, and the one
+    // guard below fires either way — never a second, parallel persistence
+    // path (AC 6).
+    if done_clicked {
+        app.agent_settings_open = false;
+    }
+    // Save on dialog close (× button, Done, or programmatic close).
     if was_open && !app.agent_settings_open {
         app.persist_settings();
     }
@@ -165,6 +215,79 @@ mod tests {
                 "_settings(ui, settings)"
             )),
             "positive control: the dialog must still draw the form"
+        );
+    }
+
+    /// The body of `if done_clicked { .. }` inside `agent_settings_dialog`,
+    /// brace-matched — the same slicing idiom `src/agent/panel.rs::busy_block`
+    /// uses for LCV-129's Cancel button, so a line moved out of the guarded
+    /// block is no longer in *this* string even though it is still in the file.
+    fn done_clicked_block(implementation: &str) -> String {
+        let head = concat!("if done_", "clicked {");
+        let start = implementation
+            .find(head)
+            .unwrap_or_else(|| panic!("agent_settings_dialog must guard a `{head}` block"))
+            + head.len();
+        let mut depth = 1usize;
+        for (offset, ch) in implementation[start..].char_indices() {
+            match ch {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return implementation[start..start + offset].to_owned();
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!("the done_clicked block is never closed — panels.rs does not parse");
+    }
+
+    /// LCV-141 AC 6 — **source scan**: Done's whole effect is setting the same
+    /// flag `Window::open` sets for ×, not a second call into
+    /// `App::persist_settings`. The one persist call below — reached through
+    /// `was_open && !app.agent_settings_open`, which is true after *either*
+    /// path — is what actually saves, and this pins that Done does not also
+    /// reach it directly.
+    #[test]
+    fn ac6_done_only_sets_the_shared_close_flag_source_scan() {
+        let implementation = implementation_code();
+        let block = done_clicked_block(&implementation);
+
+        assert!(
+            block.contains(concat!("agent_settings", "_open = false")),
+            "AC 6: the done_clicked block must set the same flag × sets: {block}"
+        );
+
+        let witness =
+            "if done_clicked { app.agent_settings_open = false; app.persist_settings(); }";
+        let forbidden = concat!("persist_", "settings");
+        assert!(
+            witness.contains(forbidden),
+            "control: `{forbidden}` must be a needle that can match something"
+        );
+        assert!(
+            !block.contains(forbidden),
+            "AC 6: Done must not call `{forbidden}` itself — that is the shared \
+             guard's job, reached the same way × reaches it: {block}"
+        );
+    }
+
+    /// LCV-141 AC 7 — **source scan**: the dialog's body is wrapped in a
+    /// bounded `ScrollArea`, matching `src/ui/shortcuts_dialog.rs`'s own
+    /// pattern (ADR 0009). `tests/lcv141_agent_panel_width_and_settings.rs`
+    /// proves the *mechanism* — a `Window` + `ScrollArea` absorbs an
+    /// overflowing body instead of the window growing — against a
+    /// hand-built harness, because nothing outside this private function can
+    /// inject a growth probe into the real dialog; this scan is what ties
+    /// that proof back to `agent_settings_dialog` itself.
+    #[test]
+    fn ac7_the_dialog_wraps_its_body_in_a_scroll_area_source_scan() {
+        let implementation = implementation_code();
+        assert!(
+            implementation.contains(concat!("ScrollArea::", "vertical()")),
+            "AC 7: agent_settings_dialog must wrap its content in a ScrollArea"
         );
     }
 
