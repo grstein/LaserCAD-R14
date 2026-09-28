@@ -1655,6 +1655,34 @@
             "suggested_model": "sonnet",
             "demand_file": "docs/product/demands/LCV-149-transport-stall-test-is-timing-flaky.md",
             "note": "Opened from the 2026-09-27 drive. src/agent/transport.rs::tests::ac3_both_halves_of_a_call_give_up_when_the_endpoint_stalls failed intermittently during that drive - about 1 in 5 full-suite runs in one reviewer's measurement, passes standalone; panic site near the test's timing-budget assertion. A flaky test in the authoritative local gate (CI on billing hold) erodes gate integrity. Awaiting product-owner refinement."
+        },
+        {
+            "id": "LCV-150",
+            "title": "New conversation button in the agent panel",
+            "phase": 12,
+            "status": "Draft",
+            "depends_on": [
+                "LCV-125",
+                "LCV-141",
+                "LCV-142"
+            ],
+            "suggested_agent": "implementer-rust",
+            "suggested_model": "sonnet",
+            "demand_file": "docs/product/demands/LCV-150-new-conversation-button.md",
+            "note": "User request 2026-09-27; prioritized ahead of LCV-144/145"
+        },
+        {
+            "id": "LCV-151",
+            "title": "Built-in system prompt describes every tool",
+            "phase": 12,
+            "status": "Draft",
+            "depends_on": [
+                "LCV-143"
+            ],
+            "suggested_agent": "implementer-rust",
+            "suggested_model": "sonnet",
+            "demand_file": "docs/product/demands/LCV-151-complete-built-in-system-prompt.md",
+            "note": "User request 2026-09-27; prioritized ahead of LCV-144/145"
         }
     ]
 }

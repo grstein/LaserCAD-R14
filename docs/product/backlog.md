@@ -185,6 +185,8 @@ _None._
 |---|---|---|---|
 | LCV-146 | Future Markdown and frontmatter agent skills (deferred) | 12 | Stays Deferred past 1.0 per user decision 2026-09-27; not part of the current implementation queue |
 | LCV-149 | Transport stall test is timing-flaky | 12 | Opened from the 2026-09-27 drive: `src/agent/transport.rs::tests::ac3_both_halves_of_a_call_give_up_when_the_endpoint_stalls` failed roughly 1 in 5 full-suite runs in one reviewer's measurement, but passes standalone; a flaky test in the authoritative local gate (CI on billing hold) erodes gate integrity. Awaiting product-owner refinement. |
+| LCV-150 | New conversation button in the agent panel | 12 | User request 2026-09-27; prioritized ahead of LCV-144/145 |
+| LCV-151 | Built-in system prompt describes every tool | 12 | User request 2026-09-27; prioritized ahead of LCV-144/145 |
 
 LCV-136 through LCV-144 were refined to `Ready` and registered as in-1.0-scope
 by user decision on 2026-09-27 (see the Ready table above); their bodies were
