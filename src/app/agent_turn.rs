@@ -452,9 +452,10 @@ mod tests {
         use crate::agent::wire::ChatMessage;
         let mut app = App::default();
         for prompt in ["one", "two"] {
-            app.agent
-                .memory
-                .push_turn(vec![ChatMessage::user(prompt), ChatMessage::assistant("ok")]);
+            app.agent.memory.push_turn(vec![
+                ChatMessage::user(prompt),
+                ChatMessage::assistant("ok"),
+            ]);
         }
         assert_eq!(config_for(&app).memory.len(), 4, "remembered before");
 

@@ -25,6 +25,12 @@
 //! thinking row, exists only while `agent.busy`, and calls
 //! [`crate::app::cancel_turn`]. The row it leaves behind is `note` — written
 //! by `agent_poll`, in the six-role vocabulary, like every other row here.
+//!
+//! **LCV-150 adds `New Conversation`** to the header, above the transcript's
+//! `ScrollArea` so it never scrolls away. Enabled from `agent.busy` in the
+//! frame it is drawn; its body is one call into
+//! [`crate::app::AgentState::clear_conversation`], which empties the
+//! transcript and the memory and starts nothing.
 
 use crate::app::App;
 
@@ -75,6 +81,10 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if ui.small_button("×").clicked() {
                 app.agent.panel_open = false;
+            }
+            let new_conversation = egui::Button::new("New Conversation").small();
+            if ui.add_enabled(!app.agent.busy, new_conversation).clicked() {
+                app.agent.clear_conversation();
             }
         });
     });

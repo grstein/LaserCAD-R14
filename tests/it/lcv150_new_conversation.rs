@@ -149,27 +149,69 @@ fn ac2_ac4_ac5_an_idle_click_clears_the_conversation_and_nothing_else() {
     assert!(app.agent.rx.is_none(), "no turn started");
 }
 
-/// AC 3 / AC 6 — while a turn runs the click is inert; the frame whose poll
-/// ends the turn draws the button enabled, so a click in that same frame
-/// clears the transcript and the memory the turn just recorded.
+/// The colours the one text run reading `label` was painted with —
+/// `(fallback_color, override_text_color)`; a disabled widget is tinted.
+fn label_look(
+    shapes: &[egui::epaint::ClippedShape],
+    label: &str,
+) -> (egui::Color32, Option<egui::Color32>) {
+    fn walk(
+        shape: &egui::Shape,
+        label: &str,
+        out: &mut Vec<(egui::Color32, Option<egui::Color32>)>,
+    ) {
+        match shape {
+            egui::Shape::Text(t) if t.galley.text().trim() == label => {
+                out.push((t.fallback_color, t.override_text_color));
+            }
+            egui::Shape::Vec(shapes) => shapes.iter().for_each(|s| walk(s, label, out)),
+            _ => {}
+        }
+    }
+    let mut out = Vec::new();
+    shapes.iter().for_each(|c| walk(&c.shape, label, &mut out));
+    assert_eq!(out.len(), 1, "`{label}` must be painted once");
+    out[0]
+}
+
+/// AC 3 / AC 6 — while a turn runs the button is painted greyed and a click
+/// is inert; the very frame whose poll ends the turn paints it enabled, and
+/// a click then clears the transcript and the memory the turn recorded.
 #[test]
 fn ac3_ac6_a_busy_click_is_inert_and_the_ending_frame_reenables() {
     let (ctx, mut app) = ctx_and_app();
     talked(&mut app);
-    let tx = arm_turn(&mut app, "draw");
     let runs = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
     let pos = locate(&runs, LABEL);
+    let idle = ctx.run(raw_input_at(SCREEN, Vec::new()), |c| app.update_ui(c));
+    let idle = label_look(&idle.shapes, LABEL);
 
+    let tx = arm_turn(&mut app, "draw");
+    let busy = ctx.run(raw_input_at(SCREEN, Vec::new()), |c| app.update_ui(c));
+    assert_ne!(
+        label_look(&busy.shapes, LABEL),
+        idle,
+        "greyed the frame busy starts"
+    );
     click(&ctx, &mut app, SCREEN, pos);
     assert!(app.agent.busy);
     assert_eq!(app.agent.chat.len(), 4, "three rows and the prompt");
     assert_eq!(app.agent.memory.turns().len(), 2);
 
-    frame(&ctx, &mut app, SCREEN, vec![egui::Event::PointerMoved(pos)]);
+    // The pointer leaves while still busy, so the idle look is not the
+    // hovered one.
+    frame(&ctx, &mut app, SCREEN, vec![egui::Event::PointerGone]);
     tx.send(AgentEvent::done("drawn")).expect("receiver armed");
-    frame(&ctx, &mut app, SCREEN, click_events(pos));
-
+    let ended = ctx.run(raw_input_at(SCREEN, Vec::new()), |c| app.update_ui(c));
     assert!(!app.agent.busy, "the turn ended this frame");
+    assert_eq!(
+        label_look(&ended.shapes, LABEL),
+        idle,
+        "enabled the same frame"
+    );
+    assert_eq!(app.agent.memory.turns().len(), 3, "the turn was recorded");
+
+    click(&ctx, &mut app, SCREEN, pos);
     assert!(app.agent.chat.is_empty());
     assert!(app.agent.memory.is_empty());
 }
