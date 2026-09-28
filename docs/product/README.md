@@ -1,6 +1,6 @@
 # LaserCAD v2 — Product Workspace
 
-This directory holds product artifacts: principles, the demand format, the prioritized backlog, and the demand files themselves.
+This directory holds product principles and the generated backlog. Demand specs live in `docs/specs/`.
 
 ## Product principles
 
@@ -43,8 +43,7 @@ Parity with v1.0.0 + the unreleased TEXT command + Agent Harness MVP:
 
 ## Demand workflow
 
-See [`product-owner-agent.md`](product-owner-agent.md) for the demand format, lifecycle, and the product-owner agent's job.
-
-See [`backlog.md`](backlog.md) for the prioritized backlog by state.
-
-Demand files live in [`demands/`](demands/) as `LCV-NNN-<kebab-title>.md`.
+Demands follow lean Spec-Driven Development (`AGENTS.md` §Workflow): one folder per demand under
+[`docs/specs/`](../specs/) with `spec.md`, `plan.md` and `tasks.md`, created from
+[`docs/specs/_templates/`](../specs/_templates/). [`backlog.md`](backlog.md) is generated from the
+`Status` lines by `scripts/backlog.sh`.

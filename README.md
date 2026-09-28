@@ -36,28 +36,22 @@ sudo apt install -y build-essential libxkbcommon-dev libxcb-render0-dev libxcb-s
 
 See [`AGENTS.md`](AGENTS.md) for the full agent and architecture rules. Short version:
 
-- `src/` is one Rust crate, divided into pure-kernel modules (`geometry`, `document`, `io/svg`, `text`) and UI modules (`render`, `tools`, `ui`, `io`, `agent`, `app`).
+- `src/` is one Rust crate, divided into pure-kernel modules (`geometry`, `document`, `io/svg`, `text`, `cmdline`) and UI modules (`render`, `tools`, `ui`, `io`, `agent`, `app`).
 - Kernel modules MUST NOT import `egui`, `eframe`, or `rfd` — they stay testable as a pure library.
 - mm canonical everywhere except `render/camera.rs`. Radians in the kernel.
 - All entity mutation through the `Command` trait + history stack.
-- One responsibility per file; hard cap 300 LOC per `.rs`.
+- One responsibility per file; hard cap 300 implementation LOC per `.rs` (`scripts/loc-cap.sh`).
 
 ## Agent workflow
 
-This repository is designed to be driven by Claude Code agents. The agent suite lives under [`.claude/agents/`](.claude/agents/):
+Development follows lean Spec-Driven Development with Claude Code (details in [`AGENTS.md`](AGENTS.md)):
 
-- `project-manager` (Opus) — drives [`PLAN.md`](PLAN.md), picks the next demand, spawns workers.
-- `architect` (Opus) — ADRs and module-boundary decisions.
-- `product-owner` (Opus) — demand refinement.
-- `demand-manager` (Sonnet) — demand state machine and backlog tables.
-- `implementer-rust` (Sonnet) — actually writes the Rust code.
-- `reviewer-rust` (Sonnet) — verifies KISS / architecture / tests on shipped demands.
+- `/specify LCV-NNN <idea>` — write `docs/specs/LCV-NNN-*/spec.md` (EARS acceptance criteria); you approve.
+- `/design LCV-NNN` — write `plan.md` + `tasks.md`; you approve.
+- `/implement LCV-NNN` — `implementer-rust` (Opus) executes the tasks, `scripts/gate.sh` must be green, `reviewer-rust` (Fable) reviews once, the demand closes as Done.
+- `/next` — what is ready now and what can run in parallel.
 
-To start a session, open a Claude Code shell in this directory and prompt:
-
-> *"You are the project-manager. Read AGENTS.md and PLAN.md, then drive the next demand."*
-
-The PM will pick the lowest-ID `Ready` demand whose dependencies are `Done` (or route a `Draft` demand to `product-owner` for refinement first) and orchestrate it through the worker agents.
+Run `git config core.hooksPath .githooks` once per clone.
 
 ## License
 
