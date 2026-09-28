@@ -264,7 +264,7 @@ fn ac6_the_api_key_reaches_no_transcript_row() {
         "index 5 of a one-entity drawing is a refusal"
     );
 
-    tx.send(AgentEvent::Done("Drew one line.".to_owned()))
+    tx.send(AgentEvent::done("Drew one line."))
         .expect("the armed Receiver must still be on App");
     idle(&ctx, &mut app);
 

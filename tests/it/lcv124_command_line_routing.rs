@@ -405,7 +405,7 @@ fn a_turn_started_from_the_command_line_draws_on_the_real_bed() {
         "the exact millimetres, on the live document"
     );
 
-    tx.send(AgentEvent::Done("Drew it.".to_owned()))
+    tx.send(AgentEvent::done("Drew it."))
         .expect("the app holds the receiver");
     frame(&ctx, &mut app, Vec::new());
     assert!(!app.agent.busy, "and the turn ends");
@@ -464,7 +464,7 @@ fn a_second_turn_is_refused_not_queued() {
 
     // The first turn is still drivable, which is the real claim: nothing about
     // the refusal disturbed it.
-    tx.send(AgentEvent::Done("done".to_owned()))
+    tx.send(AgentEvent::done("done"))
         .expect("the armed receiver must still be on App");
     lasercad::app::poll_agent_rx(&mut app);
     assert!(!app.agent.busy);

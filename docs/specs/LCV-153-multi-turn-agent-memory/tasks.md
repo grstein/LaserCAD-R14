@@ -17,7 +17,7 @@
   LCV-141 Done path) (files: src/io/settings.rs, src/agent/settings_ui.rs)
 - [x] T7 [AC10] Add `AgentEvent::done(text)` / `failed(err)` constructors (old shape still) and
   migrate src test sites (files: src/agent/bridge.rs, src/agent/panel.rs, src/app/agent_turn.rs)
-- [ ] T8 [AC10] Migrate integration-test sites to the constructors (files:
+- [x] T8 [AC10] Migrate integration-test sites to the constructors (files:
   tests/it/lcv123_agent_turn.rs, tests/it/lcv124_command_line_routing.rs, tests/it/lcv125_agent_panel_and_settings.rs)
 - [ ] T9 [AC10] Migrate remaining sites (files: tests/it/lcv129_agent_timeout_and_cancel.rs,
   tests/it/lcv142_turn_group.rs, src/app/mod.rs)

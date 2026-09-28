@@ -178,8 +178,7 @@ fn one_frame_drains_every_queued_act_and_then_the_terminal_event() {
     let tx = arm_turn(&mut app, "draw two lines");
     let first = push_act(&tx, line(10.0));
     let second = push_act(&tx, line(20.0));
-    tx.send(AgentEvent::Done("Drew two lines.".to_owned()))
-        .unwrap();
+    tx.send(AgentEvent::done("Drew two lines.")).unwrap();
 
     idle(&ctx, &mut app);
 
@@ -282,7 +281,7 @@ fn a_dead_reply_channel_ends_the_turn_with_the_same_row() {
     // The event Sender really was still alive — nothing else could have
     // ended this turn.
     assert!(
-        tx.send(AgentEvent::Done("late".to_owned())).is_err(),
+        tx.send(AgentEvent::done("late")).is_err(),
         "the channel is closed only because the turn ended, not before it"
     );
 }
@@ -293,7 +292,7 @@ fn a_dead_reply_channel_ends_the_turn_with_the_same_row() {
 fn a_failed_turn_reports_the_workers_error() {
     let (ctx, mut app) = ctx_and_app();
     let tx = arm_turn(&mut app, "draw something");
-    tx.send(AgentEvent::Failed("HTTP 401".to_owned())).unwrap();
+    tx.send(AgentEvent::failed("HTTP 401")).unwrap();
 
     idle(&ctx, &mut app);
 
@@ -355,7 +354,7 @@ fn a_foreign_commit_mid_turn_refuses_every_later_action() {
 
         // The turn still ends normally when the terminal event arrives, and
         // the first action stays applied and undoable.
-        tx.send(AgentEvent::Done("I stopped.".to_owned())).unwrap();
+        tx.send(AgentEvent::done("I stopped.")).unwrap();
         idle(&ctx, &mut app);
         assert!(!app.agent.busy, "{foreign}");
         assert!(app.history.can_undo(), "{foreign}");
@@ -380,7 +379,7 @@ fn a_fence_refusal_is_transcribed_as_refused_after_the_applied_row() {
         5.0,
     ))));
     let refused = push_act(&tx, line(20.0));
-    tx.send(AgentEvent::Done("I stopped.".to_owned())).unwrap();
+    tx.send(AgentEvent::done("I stopped.")).unwrap();
     idle(&ctx, &mut app);
 
     assert_eq!(
@@ -421,7 +420,7 @@ fn a_four_action_turn_is_one_undo_entry() {
     );
     let revision_before_fold = app.history.revision();
 
-    tx.send(AgentEvent::Done("Drew it.".to_owned())).unwrap();
+    tx.send(AgentEvent::done("Drew it.")).unwrap();
     idle(&ctx, &mut app);
 
     assert_eq!(
@@ -483,7 +482,7 @@ fn a_fence_aborted_turn_is_one_entry_beneath_the_foreign_one() {
     ))));
     assert_eq!(app.history.len(), stack_before + 2, "turn, then circle");
 
-    tx.send(AgentEvent::Done("Drew them.".to_owned())).unwrap();
+    tx.send(AgentEvent::done("Drew them.")).unwrap();
     idle(&ctx, &mut app);
 
     assert_eq!(app.history.len(), stack_before + 2);
@@ -507,7 +506,7 @@ fn one_action_and_zero_action_turns_say_their_own_thing() {
     let (ctx, mut app) = ctx_and_app();
     let tx = arm_turn(&mut app, "draw one line");
     let _answer = push_act(&tx, line(10.0));
-    tx.send(AgentEvent::Done("Drew it.".to_owned())).unwrap();
+    tx.send(AgentEvent::done("Drew it.")).unwrap();
     idle(&ctx, &mut app);
     assert_eq!(roles(&app), ["user", "tool", "assistant", "note"]);
     assert_eq!(
@@ -524,8 +523,7 @@ fn one_action_and_zero_action_turns_say_their_own_thing() {
         push_act(&tx, AgentAction::QueryEntities),
         push_act(&tx, AgentAction::QuerySelection),
     ];
-    tx.send(AgentEvent::Done("Nothing yet.".to_owned()))
-        .unwrap();
+    tx.send(AgentEvent::done("Nothing yet.")).unwrap();
     idle(&ctx, &mut app);
 
     assert_eq!(roles(&app), ["user", "tool", "tool", "assistant"]);
@@ -632,7 +630,7 @@ fn the_transcript_holds_one_verbatim_row_per_action_in_order() {
     let first = push_act(&tx, line(10.0));
     let second = push_act(&tx, line(20.0));
     let query = push_act(&tx, AgentAction::QueryEntities);
-    tx.send(AgentEvent::Done("Two lines.".to_owned())).unwrap();
+    tx.send(AgentEvent::done("Two lines.")).unwrap();
 
     idle(&ctx, &mut app);
 
