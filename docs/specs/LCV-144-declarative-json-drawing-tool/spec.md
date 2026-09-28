@@ -1,6 +1,6 @@
 # LCV-144 - Create a drawing from declarative JSON
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-122, LCV-123, LCV-142, LCV-143
 - **Implementation**: -
 
