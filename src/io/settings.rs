@@ -104,6 +104,17 @@ pub struct Settings {
     /// agent module, which `io` must not import (ADR 0007 §D7).
     #[serde(default)]
     pub agent_system_prompt: Option<String>,
+
+    /// LCV-145 opt-in: the agent may send a picture of the drawing. Off by
+    /// default; images go out only when this and
+    /// [`Settings::agent_model_supports_vision`] are both on (ADR 0011).
+    #[serde(default)]
+    pub agent_allow_canvas_capture: bool,
+
+    /// LCV-145 opt-in: the operator says the configured model accepts images.
+    /// Never guessed from the model name. Off by default.
+    #[serde(default)]
+    pub agent_model_supports_vision: bool,
 }
 
 fn default_agent_endpoint() -> String {
@@ -135,6 +146,8 @@ impl Default for Settings {
             agent_step_budget: default_agent_step_budget(),
             default_bed_mm: default_bed_mm(),
             agent_system_prompt: None,
+            agent_allow_canvas_capture: false,
+            agent_model_supports_vision: false,
         }
     }
 }
@@ -448,5 +461,25 @@ mod tests {
             !implementation.contains(concat!("crate::", "agent")),
             "io::settings must not import the agent module (ADR 0007 §D7)"
         );
+    }
+
+    /// LCV-145 AC 2 — a settings file written before the two canvas opt-ins
+    /// existed loads both as `false`; set values survive a round trip.
+    #[test]
+    fn canvas_opt_ins_default_off_and_round_trip() {
+        let old: Settings =
+            serde_json::from_str(r#"{"agent_model":"m","agent_step_budget":9}"#).unwrap();
+        assert!(!old.agent_allow_canvas_capture);
+        assert!(!old.agent_model_supports_vision);
+        assert!(!Settings::default().agent_allow_canvas_capture);
+        assert!(!Settings::default().agent_model_supports_vision);
+
+        let on = Settings {
+            agent_allow_canvas_capture: true,
+            agent_model_supports_vision: true,
+            ..Settings::default()
+        };
+        let back: Settings = serde_json::from_str(&serde_json::to_string(&on).unwrap()).unwrap();
+        assert_eq!(back, on);
     }
 }
