@@ -95,6 +95,15 @@ pub struct Settings {
     /// (`[0.0, 0.0]`) would be a zero-sized bed.
     #[serde(default = "default_bed_mm")]
     pub default_bed_mm: [f64; 2],
+
+    /// Whole-prompt override for the agent's system message (LCV-143).
+    ///
+    /// `None` — a missing field or an explicit `null` — means the built-in
+    /// default; any string, blank included, replaces it verbatim. Stored as
+    /// plain text with no knowledge of the default: resolution lives in the
+    /// agent module, which `io` must not import (ADR 0007 §D7).
+    #[serde(default)]
+    pub agent_system_prompt: Option<String>,
 }
 
 fn default_agent_endpoint() -> String {
@@ -125,6 +134,7 @@ impl Default for Settings {
             agent_model: default_agent_model(),
             agent_step_budget: default_agent_step_budget(),
             default_bed_mm: default_bed_mm(),
+            agent_system_prompt: None,
         }
     }
 }
