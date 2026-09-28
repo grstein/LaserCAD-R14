@@ -39,30 +39,6 @@ pub fn clamp_step_budget(value: u32) -> u32 {
     value.clamp(AGENT_STEP_BUDGET_MIN, AGENT_STEP_BUDGET_MAX)
 }
 
-/// Hard-coded system prompt injected as the first message of every turn.
-/// Must not be user-configurable in v0.1.0 (see demand Out of scope).
-///
-/// The second half is the index contract of ADR 0007 §D5. Entity handles are
-/// positional until stable ids land, so the two things that can silently
-/// corrupt a drawing — the model's own deletes renumbering what it is about to
-/// touch, and the operator drawing between the model's read and its write —
-/// are disclosed in words rather than left to be discovered. The refusal
-/// sentence is the fence's (`crate::app::AGENT_FENCE_REFUSAL`) seen from the
-/// model's side: retrying cannot help, because the fence is sticky.
-pub(crate) const AGENT_SYSTEM_PROMPT: &str =
-    "You are a CAD assistant embedded in LaserCAD v2, a 2D laser-cutting CAD \
-     tool. All coordinates and dimensions are in millimetres (mm). Angles at \
-     the user interface are in degrees. Use the provided tools to create, \
-     modify, or query the open drawing. Prefer the fewest tool calls that \
-     satisfy the request. Confirm what you did in one or two concise \
-     sentences. Entity handles are positional indices into the drawing: entity \
-     0 is the first entity, and deleting an entity renumbers every higher \
-     index down by one. The drawing may also have changed since you last read \
-     it, so call query_entities before any delete_entity or move_entity whose \
-     index you did not read during this turn. If an action is refused because \
-     the drawing changed, stop and tell the operator what happened instead of \
-     retrying.";
-
 /// The tool result every call left in a batch gets once the fence has stopped
 /// the turn (ADR 0007 §D14): not dispatched, but still answered, so every
 /// `tool_call_id` the model sent stays paired.
@@ -192,53 +168,6 @@ fn last_word(message: AssistantMessage) -> Result<String, AgentError> {
 mod tests {
     use super::*;
     use crate::agent::wire::ToolCall;
-
-    // ── LCV-123 AC 17: the index contract is disclosed ───────────────────────
-
-    /// AC 17 / ADR 0007 §D5 — the prompt tells the model, in words, that entity
-    /// handles are **positional**, that a delete **renumbers** what comes after
-    /// it, and that `query_entities` is how it re-reads the drawing.
-    ///
-    /// The haystack is the constant itself, not this file's source, so the
-    /// scan cannot match its own needles however they are spelt — the failure
-    /// mode ADR 0004 keeps catching. The control is the other direction: a term
-    /// that must be **absent**, proving `contains` is really being evaluated
-    /// against the prompt and not against something that says yes to anything.
-    #[test]
-    fn the_system_prompt_discloses_the_index_contract() {
-        for needle in ["positional", "renumber", "query_entities"] {
-            assert!(
-                AGENT_SYSTEM_PROMPT.contains(needle),
-                "the prompt must say `{needle}`: {AGENT_SYSTEM_PROMPT}"
-            );
-        }
-        assert!(
-            !AGENT_SYSTEM_PROMPT.contains("stable id"),
-            "control: entity ids are explicitly not stable yet (ADR 0007 §D5), \
-             so a prompt that promised them would be lying to the model"
-        );
-        // The pre-existing unit statement survives the rewrite.
-        assert!(
-            AGENT_SYSTEM_PROMPT.contains("millimetres (mm)"),
-            "the unit statement must survive any prompt rewrite"
-        );
-        assert!(
-            AGENT_SYSTEM_PROMPT.contains("degrees"),
-            "angles are named at the UI in degrees, and the prompt says so"
-        );
-        // And the refusal advice is "stop", not "try again". One spelling, not
-        // two: the constant is built from `\`-continuations and holds no
-        // newline at all, so a `"instead of\nretrying"` alternative could never
-        // match and would quietly carry none of this assertion.
-        assert!(
-            AGENT_SYSTEM_PROMPT.contains("instead of retrying"),
-            "a sticky fence cannot be retried, so the prompt must not suggest it"
-        );
-        assert!(
-            !AGENT_SYSTEM_PROMPT.contains('\n'),
-            "the reason the single spelling above is enough"
-        );
-    }
 
     /// The `Cancelled` variant exists, is distinct, and reads as an ended turn
     /// rather than as a failure the operator has to act on (AC 5).

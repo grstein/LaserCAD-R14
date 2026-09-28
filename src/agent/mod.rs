@@ -40,9 +40,9 @@ pub use loop_::{
     clamp_step_budget, AgentError, AGENT_STEP_BUDGET_DEFAULT, AGENT_STEP_BUDGET_MAX,
     AGENT_STEP_BUDGET_MIN,
 };
-// The loop and the prompt are driven from `src/app/agent_turn.rs`, which owns
-// the turn (ADR 0007 §D8). Re-exported here so that file needs no deep path.
-pub(crate) use loop_::{agent_loop, AGENT_SYSTEM_PROMPT};
+// The loop is driven from `src/app/agent_worker.rs`, which owns the turn
+// (ADR 0007 §D8). Re-exported here so that file needs no deep path.
+pub(crate) use loop_::agent_loop;
 
 pub mod panel;
 pub use panel::draw_agent_panel;
