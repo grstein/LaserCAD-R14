@@ -149,6 +149,10 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
         },
         AgentAction::QueryEntities => Planned::Answer(AgentOutcome::Ok(list_entities(doc))),
         AgentAction::QuerySelection => Planned::Answer(AgentOutcome::Ok(list_selection(doc))),
+        // Applied by T7 of LCV-144; refused until then.
+        AgentAction::CreateDrawing { .. } => Planned::Answer(AgentOutcome::Refused(
+            "create_drawing is not available yet".to_owned(),
+        )),
         // §D15: answered from the reason alone; the document is not read.
         AgentAction::Malformed { ref reason, .. } => {
             Planned::Answer(AgentOutcome::Refused(reason.clone()))

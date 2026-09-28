@@ -33,6 +33,7 @@ use serde_json::{json, Value};
 use thiserror::Error;
 
 use crate::agent::bridge::AgentAction;
+use crate::agent::drawing;
 
 /// Why a tool call could not be turned into an [`AgentAction`].
 ///
@@ -85,7 +86,7 @@ pub enum ToolCallError {
 
 /// OpenAI function-calling schemas. Order: create_line(0) create_circle(1)
 /// create_arc(2) delete_entity(3) move_entity(4) query_entities(5)
-/// query_selection(6).
+/// query_selection(6) create_drawing(7).
 ///
 /// The two queries take no arguments at all — an explicitly empty
 /// `properties` / `required` pair rather than an absent `parameters`, because
@@ -127,7 +128,10 @@ pub fn tool_definitions() -> Value {
         "parameters":{"type":"object","properties":{},"required":[]}}},
       {"type":"function","function":{"name":"query_selection",
         "description":"List the zero-based indices of the entities the operator currently has selected.",
-        "parameters":{"type":"object","properties":{},"required":[]}}}
+        "parameters":{"type":"object","properties":{},"required":[]}}},
+      {"type":"function","function":{"name":"create_drawing",
+        "description":"Append many lines, circles and arcs (mm, degrees) in one atomic call. The whole batch is validated first; any error draws nothing.",
+        "parameters":drawing::schema()}}
     ])
 }
 
@@ -217,6 +221,7 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
         // there is no shape to check and nothing to refuse (AC 14, AC 15).
         "query_entities" => Ok(AgentAction::QueryEntities),
         "query_selection" => Ok(AgentAction::QuerySelection),
+        "create_drawing" => Ok(AgentAction::CreateDrawing { items: drawing::parse(args)? }),
         _ => Err(ToolCallError::UnknownTool(name.to_owned())),
     }
 }
@@ -238,8 +243,8 @@ mod tests {
     /// `..._is_five` asserting `7` is a lie a reader has to read the body to
     /// catch.
     #[test]
-    fn tool_definitions_array_length_is_seven() {
-        assert_eq!(tool_definitions().as_array().unwrap().len(), 7);
+    fn tool_definitions_array_length_is_eight() {
+        assert_eq!(tool_definitions().as_array().unwrap().len(), 8);
     }
     /// AC 13 — the order is part of the contract: every other schema test and
     /// `transport.rs`'s wire assertions index into this array.
@@ -247,14 +252,14 @@ mod tests {
     fn tool_definitions_names_in_order() {
         let d = tool_definitions();
         let n = ["create_line","create_circle","create_arc","delete_entity","move_entity",
-                 "query_entities","query_selection"];
+                 "query_entities","query_selection","create_drawing"];
         for (i, nm) in n.iter().enumerate() { assert_eq!(d[i]["function"]["name"], *nm); }
         assert_eq!(d[n.len()], Value::Null, "and nothing after them");
     }
     #[test]
     fn tool_definitions_types_are_function() {
         let d = tool_definitions();
-        for i in 0..7 { assert_eq!(d[i]["type"], "function"); }
+        for i in 0..8 { assert_eq!(d[i]["type"], "function"); }
     }
     #[test]
     fn tool_definitions_required_fields() {
@@ -289,6 +294,46 @@ mod tests {
                 assert_eq!(ok(nm, args.clone()), expected, "{nm} with {args}");
             }
         }
+    }
+    /// LCV-144 AC 10 — `create_drawing` is last, and its schema speaks only the
+    /// keywords every provider accepts (ADR 0010 §2).
+    #[test]
+    fn create_drawing_is_last_and_its_schema_is_provider_safe() {
+        let d = tool_definitions();
+        let last = d.as_array().unwrap().last().unwrap().clone();
+        assert_eq!(last["function"]["name"], "create_drawing");
+        let params = &last["function"]["parameters"];
+        fn walk(v: &Value, found: &mut Vec<String>) {
+            match v {
+                Value::Object(m) => for (k, v) in m {
+                    if ["oneOf","anyOf","allOf","const","additionalProperties"].contains(&k.as_str()) {
+                        found.push(k.clone());
+                    }
+                    walk(v, found);
+                },
+                Value::Array(a) => for v in a { walk(v, found); },
+                _ => {}
+            }
+        }
+        let mut found = Vec::new();
+        walk(params, &mut found);
+        assert!(found.is_empty(), "forbidden keywords: {found:?}");
+        assert!(params["properties"]["entities"]["items"]["properties"]["type"]["enum"].is_array(),
+            "positive control: the walk reaches the item schema");
+        assert_eq!(params["properties"]["entities"]["maxItems"], 1000);
+        assert_eq!(params["properties"]["entities"]["minItems"], 1);
+        assert_eq!(params["properties"]["version"]["enum"], json!([1]));
+        assert_eq!(params["required"], json!(["version","entities"]));
+    }
+    /// LCV-144 — the parse arm delegates to `drawing::parse`.
+    #[test]
+    fn parse_create_drawing_delegates_to_the_drawing_parser() {
+        let a = ok("create_drawing", json!({"version":1,"entities":[
+            {"type":"circle","cx":1.0,"cy":2.0,"r":3.0}]}));
+        assert_eq!(a, AgentAction::CreateDrawing { items: vec![
+            crate::agent::DrawingItem::Circle { cx: 1.0, cy: 2.0, r: 3.0 }] });
+        let e = err("create_drawing", json!({"version":2,"entities":[]}));
+        assert_eq!(e.to_string(), "create_drawing version: must be the integer 1");
     }
     #[test]
     fn tool_definitions_arc_ccw_is_boolean() {

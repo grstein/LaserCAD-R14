@@ -12,7 +12,7 @@
 //!
 //! Names no drawing-state type; MUST NOT import `egui`, `eframe`, or `rfd`.
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::agent::tools::{validate_r, ToolCallError};
 
@@ -66,6 +66,31 @@ const KEY_ECHO_CHARS: usize = 64;
 const LINE_KEYS: [&str; 4] = ["x1", "y1", "x2", "y2"];
 const CIRCLE_KEYS: [&str; 3] = ["cx", "cy", "r"];
 const ARC_KEYS: [&str; 6] = ["cx", "cy", "r", "start_deg", "end_deg", "ccw"];
+
+/// The `parameters` schema of `create_drawing` (ADR 0010 §2).
+///
+/// A provider-compatible hint, not the contract: only `type`, `properties`,
+/// `required`, `description`, `enum`, `minItems`, `maxItems` and `items`, so
+/// no provider drops the tool. Which keys each `type` needs is said in words;
+/// [`parse`] is what enforces it.
+pub fn schema() -> Value {
+    let num = json!({"type": "number"});
+    json!({"type": "object",
+      "properties": {
+        "version": {"type": "integer", "enum": [1],
+          "description": "Format version; always 1."},
+        "entities": {"type": "array", "minItems": 1, "maxItems": MAX_DRAWING_ENTITIES,
+          "items": {"type": "object",
+            "description": "One entity; exactly the keys of its type. line: x1, y1, x2, y2. circle: cx, cy, r. arc: cx, cy, r, start_deg, end_deg, ccw (degrees, 0 = +X; ccw=true is counter-clockwise).",
+            "properties": {
+              "type": {"type": "string", "enum": ["line", "circle", "arc"]},
+              "x1": num, "y1": num, "x2": num, "y2": num,
+              "cx": num, "cy": num, "r": num,
+              "start_deg": num, "end_deg": num,
+              "ccw": {"type": "boolean"}},
+            "required": ["type"]}}},
+      "required": ["version", "entities"]})
+}
 
 /// Parse the arguments of one `create_drawing` call into its items.
 ///

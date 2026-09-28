@@ -471,7 +471,7 @@ mod tests {
         );
         assert_eq!(
             second["tools"].as_array().map(|t| t.len()),
-            Some(7),
+            Some(8),
             "every round offers the tools, body was {second}"
         );
     }

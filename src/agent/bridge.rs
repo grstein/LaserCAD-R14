@@ -24,6 +24,7 @@
 //!
 //! [`Document`]: crate::document::Document
 
+use crate::agent::drawing::DrawingItem;
 use std::sync::mpsc::Sender;
 
 /// One thing the model wants done to the drawing.
@@ -92,6 +93,11 @@ pub enum AgentAction {
     QueryEntities,
     /// Read back the current selection. Commits nothing.
     QuerySelection,
+    /// Append a whole validated batch as one command (LCV-144, ADR 0010).
+    CreateDrawing {
+        /// The entities, in order; 1..=1000, already shape-checked.
+        items: Vec<DrawingItem>,
+    },
     /// A tool call that failed its shape check in the worker — JSON syntax,
     /// unknown tool, or any `ToolCallError` (ADR 0007 §D15). The UI answers
     /// `Refused(reason)` without reading the document; it is still a step.

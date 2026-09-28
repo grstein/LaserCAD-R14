@@ -331,7 +331,7 @@ mod tests {
             .create();
 
         let tools = crate::agent::tools::tool_definitions();
-        assert_eq!(tools.as_array().map(|a| a.len()), Some(7), "fixture check");
+        assert_eq!(tools.as_array().map(|a| a.len()), Some(8), "fixture check");
 
         let result = chat_completion(
             &server.url(),
@@ -345,8 +345,8 @@ mod tests {
         let body = bodies.json(0);
         assert_eq!(
             body["tools"].as_array().map(|a| a.len()),
-            Some(7),
-            "AC 4: all seven tool schemas must reach the wire, body was {body}"
+            Some(8),
+            "AC 4: all eight tool schemas must reach the wire, body was {body}"
         );
         assert_eq!(body["tools"][0]["function"]["name"], "create_line");
     }
