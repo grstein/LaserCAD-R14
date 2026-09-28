@@ -68,6 +68,14 @@
   field and LCV-142 does not touch `src/app/mod.rs`. `busy` and `rx` stay
   direct fields of `AgentState`, outside `TurnState`. §D8's amendment (7) note
   is corrected in place below, original text kept.
+- **Amended (9)**: 2026-09-27 — LCV-153 (multi-turn conversation memory).
+  §D16 is new: memory is conversation state owned by `AgentState`, it crosses
+  the thread by value once per turn in each direction, and it is recorded in
+  `end_turn`. §D3's terminal events gain a payload, §D8 gains two rows, §D11's
+  `end_turn` gains memory work (no exit added), §D13's `TurnConfig` gains a
+  field, and `History` gains `id()`. **§D1 holds as written** — its "message
+  list" already lives in the thread; memory is a longer message list, not
+  document state. Nothing is reversed.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
@@ -254,6 +262,14 @@ thread and carried inside `Act` rather than parked on `App`.
 Two long-lived channels were considered and rejected: a second `App` field, a
 second thing to clear on every exit path, and no gain — there is never more than
 one outstanding request, because the thread blocks.
+
+> **Amended (9), 2026-09-27.** The terminal variants carry the turn's
+> completed tool-call batches: `Done(String, Vec<ChatMessage>)` and
+> `Failed(String, Vec<ChatMessage>)` (§D16). Still one channel and one field;
+> no variant is added. The vector holds only whole batches — each assistant
+> `tool_calls` message followed by all of its results, a trailing batch missing
+> a result dropped whole — with images already elided (ADR 0011), and never the
+> system or user message, which the UI owns.
 
 ### D4 — `History::revision()` is the fence; a foreign commit aborts the turn
 
@@ -481,6 +497,21 @@ tool calls, a `tool` role and status mapping are added to them.
 > - **Why nest rather than a sibling `App::agent_turn`.** A turn is agent
 >   state; a second top-level agent field would undo the `AgentState` seam's
 >   one-field promise and spend `src/app/mod.rs` lines it does not have.
+>
+> **Amended (9) — rows added, 2026-09-27 (LCV-153, §D16).**
+>
+> ```
+> src/agent/
+>   memory.rs        Memory (turns of Vec<ChatMessage>), TurnEnd, turn_record,
+>                    whole_batches, estimate_tokens, trim, clamp. Kernel-pure:
+>                    no egui, no reqwest, names no document type.
+> src/app/
+>   agent_memory.rs  begin (trim, drawing-changed prefix, mark) and record
+>                    (append the turn, advance the mark); UI-thread glue only.
+> ```
+>
+> `AgentState` gains `memory` and `memory_mark` as direct fields beside
+> `turn`: memory outlives a turn, and `TurnState` is reset per turn.
 
 ### D9 — Command-line routing precedence
 
@@ -659,6 +690,11 @@ them into leaving `agent_busy` set must fail.
 > `AuthorizeUpload` ride the existing `Act` arm (a failed `reply.send` on them
 > is exit 4 like any other), and §D14's fence stop ends through `Done` or
 > `Failed`.
+>
+> **Amended (9):** `end_turn` also records the turn into memory (§D16), after
+> `finish_turn`, on every exit — `cancel_turn` and exits 3/4 included, with the
+> batches empty because no terminal event arrived. Recording is infallible and
+> cannot return early, so the closure property is unchanged; no exit is added.
 
 ### D12 — One turn is one flat history group, opened at turn start and sealed by anything that is not the turn
 
@@ -746,6 +782,10 @@ first eviction or document replacement. Accepted.
   derives no `Debug`, or a manual one that redacts it (§D10). It is built once
   in `start_turn`: that is the turn-start snapshot, and settings edited
   mid-turn affect the next turn only.
+- **Amended (9):** `TurnConfig` gains `memory: Vec<ChatMessage>` — the
+  flattened, already-trimmed memory, cloned in `start_turn` after the turn is
+  armed — and carries the turn's user text (prefixed per §D16) in place of the
+  raw prompt. Its `Debug` prints the length, not the messages.
 - **Progress** is UI-side: `TurnState` counts step `Act`s as `agent_poll`
   receives them and holds the snapshotted limit. Because every step is an
   `Act` (§D15), the count is exact with no progress event. Non-step
@@ -800,6 +840,56 @@ document, transcribes it (LCV-123 AC 23: every action leaves a row) and counts
 it as a step. It goes through the fence like every action, so after a trip it
 is `Fenced` and §D14 stops. `reason` names the field and never echoes the
 arguments (ADR 0010). Cost: one frame per malformed call.
+
+### D16 — Conversation memory is UI-side state that crosses the thread by value
+
+*(Added by amendment (9), LCV-153.)*
+
+**Owner.** `AgentState::memory` holds the conversation as a list of turns,
+each a `Vec<ChatMessage>` beginning with its user message. The worker keeps
+nothing between turns — each turn is a fresh thread — so the UI is the only
+place memory can live without a second long-lived channel or shared state.
+Turns, not a flat list, are the unit, so trimming drops whole turns and never
+mistakes ADR 0011's image `user` message for a turn start. Never persisted;
+`App::default()` starts empty (ADR 0006).
+
+**Crossing.** Out: `start_turn` clones `memory.flatten()` into `TurnConfig`,
+and `drive_turn` sends `[system, memory…, user]`; the system prompt is never
+stored (LCV-143 resolves it per turn). Back: the terminal event carries the
+turn's whole batches (§D3). One owned value each way per turn; no `Arc`, no
+lock, no channel. A turn that ends with no event (cancel, exits 3/4) is
+recorded from what the UI already owns: its user message and a fixed text.
+
+**Why §D1 holds.** §D1 forbids the thread any *document* state, because a
+stale copy consulted as truth corrupts index arithmetic. Memory is what the
+model was told, not a copy the program consults: nothing reads it to decide
+an edit, and every action still goes through the rendezvous, the fence and
+§D2a's range check against the live document. Old `query_entities` results in
+memory are stale by design; the cure is §D5's renumbering statement plus the
+prefix below, never a snapshot. `Document` stays `!Clone`; `src/agent/`
+still names no document type.
+
+**Document identity.** The mark is `(History::id(), History::revision())`.
+The revision alone misses File > New/Open/Open Recent — a fresh `History`
+restarts at 0, the same blind spot §D14's second witness covers inside a turn,
+but between turns no group is open to witness it. `id()` is a process-unique
+`u64` from a static `AtomicU64`, assigned in `with_depth`; `History` is not
+`Clone`, so no two live values share one. `io/` is untouched.
+
+**The mark means "the model has seen every change up to here."** `begin`
+(at arm) compares the mark with the live pair; if memory is non-empty and they
+differ, the user message gets the drawing-changed prefix. `begin` then stamps
+the mark. `record` advances it to the end-of-turn pair **only on `Done`**, the
+one end whose memory holds every applied result. After `Failed`, cancel or a
+lost worker, actions may have been applied whose results memory lacks (a
+dropped partial batch, or no batches at all), so the mark stays at arm time
+and the next turn is prefixed. A spurious prefix costs one `query_entities`;
+a missing one lets the model reuse shifted indices.
+
+**Where it runs.** Trimming and the prefix happen at arm, before `TurnConfig`
+is built; recording happens in `end_turn` after `finish_turn` (§D11). Policy
+(record, whole batches, estimate, trim) is in kernel-pure `agent/memory.rs`;
+`app/agent_memory.rs` is glue.
 
 ## Consequences
 
@@ -970,3 +1060,5 @@ history.
   the single fence both assume one.
 - Stable IDs land — D4's fence stays useful but D5 is superseded.
 - `Document` acquires `Clone` for any reason — re-read D1 before using it here.
+- Memory needs to survive a restart, be summarized by the model, or be read by
+  program logic — each breaks a premise of §D16; revisit here first.
