@@ -330,7 +330,7 @@ mod tests {
             .with_body(ok_text("ok"))
             .create();
 
-        let tools = crate::agent::tools::tool_definitions();
+        let tools = crate::agent::tools::tool_definitions(false);
         assert_eq!(tools.as_array().map(|a| a.len()), Some(8), "fixture check");
 
         let result = chat_completion(

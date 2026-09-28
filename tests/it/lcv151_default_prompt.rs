@@ -18,7 +18,7 @@ fn words(text: &str) -> Vec<&str> {
 
 /// Every `(tool name, property keys)` pair advertised by `tool_definitions()`.
 fn tools() -> Vec<(String, Vec<String>)> {
-    let defs = tool_definitions();
+    let defs = tool_definitions(false);
     let defs = defs.as_array().expect("tool_definitions is an array");
     defs.iter()
         .map(|def| {

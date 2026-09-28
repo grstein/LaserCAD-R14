@@ -41,6 +41,9 @@ use crate::document::{
 };
 use crate::geometry::{Arc as GeoArc, Circle, Line, Vec2};
 
+/// The refusal for a capture while either opt-in is off (LCV-145 AC 2).
+pub(crate) const CAPTURE_DISABLED: &str = "canvas capture is disabled in Agent settings";
+
 /// What [`plan`] decided, before anything was applied.
 enum Planned {
     /// Commit this command, then append the entity count to this sentence.
@@ -165,6 +168,13 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
             Box::new(CreateEntities::new(items.iter().map(entity_of).collect())),
             items.len(),
         ),
+        // Never planned against the document: `apply` answers a capture from
+        // the live app, and `agent_poll` answers an upload check before the
+        // fence. Reaching here is a routing slip, so the answer is the safe
+        // one — nothing is rendered and nothing is authorised (LCV-145).
+        AgentAction::CaptureCanvas | AgentAction::AuthorizeUpload { .. } => {
+            Planned::Answer(AgentOutcome::Refused(CAPTURE_DISABLED.to_owned()))
+        }
         // §D15: answered from the reason alone; the document is not read.
         AgentAction::Malformed { ref reason, .. } => {
             Planned::Answer(AgentOutcome::Refused(reason.clone()))

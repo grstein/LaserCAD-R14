@@ -91,7 +91,27 @@ pub enum ToolCallError {
 /// The two queries take no arguments at all — an explicitly empty
 /// `properties` / `required` pair rather than an absent `parameters`, because
 /// some providers reject a function schema without one (LCV-123 AC 13).
-pub fn tool_definitions() -> Value {
+///
+/// `vision` is the turn-start snapshot of both canvas opt-ins (LCV-145,
+/// ADR 0011 item 1): when on, `capture_canvas` is inserted just before
+/// `create_drawing`, which stays last.
+pub fn tool_definitions(vision: bool) -> Value {
+    let mut tools = base_definitions();
+    if let (true, Some(list)) = (vision, tools.as_array_mut()) {
+        let at = list.len().saturating_sub(1);
+        list.insert(at, capture_canvas_definition());
+    }
+    tools
+}
+
+/// `capture_canvas`: no arguments, the empty-properties form.
+fn capture_canvas_definition() -> Value {
+    json!({"type":"function","function":{"name":"capture_canvas",
+      "description":"Look at the drawing: returns a grayscale picture of the bed outline (grey) and every entity (black) as framed in the operator's viewport, with its mm mapping. No grid, selection or UI. Use query_entities for exact numbers.",
+      "parameters":{"type":"object","properties":{},"required":[]}}})
+}
+
+fn base_definitions() -> Value {
     json!([
       {"type":"function","function":{"name":"create_line",
         "description":"Create a straight line segment between two endpoints in mm.",
@@ -221,6 +241,9 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
         // there is no shape to check and nothing to refuse (AC 14, AC 15).
         "query_entities" => Ok(AgentAction::QueryEntities),
         "query_selection" => Ok(AgentAction::QuerySelection),
+        // Argument-free like the queries; permission is checked live at the
+        // apply site, never here (LCV-145 AC 2).
+        "capture_canvas" => Ok(AgentAction::CaptureCanvas),
         "create_drawing" => Ok(AgentAction::CreateDrawing { items: drawing::parse(args)? }),
         _ => Err(ToolCallError::UnknownTool(name.to_owned())),
     }
@@ -244,13 +267,13 @@ mod tests {
     /// catch.
     #[test]
     fn tool_definitions_array_length_is_eight() {
-        assert_eq!(tool_definitions().as_array().unwrap().len(), 8);
+        assert_eq!(tool_definitions(false).as_array().unwrap().len(), 8);
     }
     /// AC 13 — the order is part of the contract: every other schema test and
     /// `transport.rs`'s wire assertions index into this array.
     #[test]
     fn tool_definitions_names_in_order() {
-        let d = tool_definitions();
+        let d = tool_definitions(false);
         let n = ["create_line","create_circle","create_arc","delete_entity","move_entity",
                  "query_entities","query_selection","create_drawing"];
         for (i, nm) in n.iter().enumerate() { assert_eq!(d[i]["function"]["name"], *nm); }
@@ -258,12 +281,12 @@ mod tests {
     }
     #[test]
     fn tool_definitions_types_are_function() {
-        let d = tool_definitions();
+        let d = tool_definitions(false);
         for i in 0..8 { assert_eq!(d[i]["type"], "function"); }
     }
     #[test]
     fn tool_definitions_required_fields() {
-        let d = tool_definitions();
+        let d = tool_definitions(false);
         assert_eq!(req(&d,0), json!(["x1","y1","x2","y2"]));
         assert_eq!(req(&d,1), json!(["cx","cy","r"]));
         assert_eq!(req(&d,2), json!(["cx","cy","r","start_deg","end_deg","ccw"]));
@@ -274,7 +297,7 @@ mod tests {
     /// `properties` is `{}` and `required` is `[]`, both present.
     #[test]
     fn the_two_query_schemas_take_no_parameters() {
-        let d = tool_definitions();
+        let d = tool_definitions(false);
         for i in [5, 6] {
             let params = &d[i]["function"]["parameters"];
             assert_eq!(params["type"], "object", "schema {i}");
@@ -299,7 +322,9 @@ mod tests {
     /// keywords every provider accepts (ADR 0010 §2).
     #[test]
     fn create_drawing_is_last_and_its_schema_is_provider_safe() {
-        let d = tool_definitions();
+        assert_eq!(tool_definitions(true).as_array().unwrap().last().unwrap()["function"]["name"],
+            "create_drawing");
+        let d = tool_definitions(false);
         let last = d.as_array().unwrap().last().unwrap().clone();
         assert_eq!(last["function"]["name"], "create_drawing");
         let params = &last["function"]["parameters"];
@@ -325,6 +350,34 @@ mod tests {
         assert_eq!(params["properties"]["version"]["enum"], json!([1]));
         assert_eq!(params["required"], json!(["version","entities"]));
     }
+    /// LCV-145 AC 2 — `capture_canvas` is advertised only when the turn-start
+    /// vision flag is on, with the empty-parameters form, right before
+    /// `create_drawing` so that stays last; the rest is unchanged.
+    #[test]
+    fn capture_canvas_is_advertised_only_with_vision() {
+        let names = |d: &Value| -> Vec<String> { d.as_array().unwrap().iter()
+            .map(|t| t["function"]["name"].as_str().unwrap().to_owned()).collect() };
+        let off = tool_definitions(false);
+        assert!(!names(&off).contains(&"capture_canvas".to_owned()));
+        let on = tool_definitions(true);
+        let mut expected = names(&off);
+        expected.insert(7, "capture_canvas".to_owned());
+        assert_eq!(names(&on), expected);
+        let params = &on[7]["function"]["parameters"];
+        assert_eq!(*params, json!({"type":"object","properties":{},"required":[]}));
+        assert_eq!(on[8]["function"]["name"], "create_drawing");
+        for (i, tool) in off.as_array().unwrap().iter().enumerate() {
+            let j = if i < 7 { i } else { i + 1 };
+            assert_eq!(on[j], *tool, "tool {i} unchanged");
+        }
+    }
+    /// LCV-145 AC 3 — `capture_canvas` takes no arguments: any object parses.
+    #[test]
+    fn capture_canvas_parses_with_any_arguments() {
+        for args in [json!({}), json!({"frame":"bed"}), Value::Null] {
+            assert_eq!(ok("capture_canvas", args.clone()), AgentAction::CaptureCanvas, "{args}");
+        }
+    }
     /// LCV-144 — the parse arm delegates to `drawing::parse`.
     #[test]
     fn parse_create_drawing_delegates_to_the_drawing_parser() {
@@ -337,7 +390,7 @@ mod tests {
     }
     #[test]
     fn tool_definitions_arc_ccw_is_boolean() {
-        assert_eq!(tool_definitions()[2]["function"]["parameters"]["properties"]["ccw"]["type"], "boolean");
+        assert_eq!(tool_definitions(false)[2]["function"]["parameters"]["properties"]["ccw"]["type"], "boolean");
     }
 
     // ── AC 5: the five names produce the right action ────────────────────────

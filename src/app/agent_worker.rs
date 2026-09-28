@@ -79,7 +79,7 @@ where
     A: FnMut(AgentAction) -> Result<AgentOutcome, AgentError>,
 {
     // Built once; every round offers the model the same schemas.
-    let tools = crate::agent::tool_definitions();
+    let tools = crate::agent::tool_definitions(false);
     let mut send_fn = |msgs: &[ChatMessage]| {
         // The slice goes through untouched: filtering it would drop the
         // assistant turns that carry tool calls and the tool turns that answer
@@ -1187,7 +1187,7 @@ mod tests {
             let sent = bodies.json(0);
             assert_eq!(
                 sent["tools"],
-                crate::agent::tool_definitions(),
+                crate::agent::tool_definitions(false),
                 "{system:?}"
             );
             assert_eq!(sent["messages"][0]["content"], system);

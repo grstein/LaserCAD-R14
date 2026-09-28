@@ -93,6 +93,18 @@ pub enum AgentAction {
     QueryEntities,
     /// Read back the current selection. Commits nothing.
     QuerySelection,
+    /// Render the drawing as framed in the viewport into a grayscale PNG
+    /// (LCV-145, ADR 0011). Commits nothing; one step like any action.
+    CaptureCanvas,
+    /// Ask whether a request carrying canvas images may go to `endpoint` /
+    /// `model` (ADR 0011 item 10). **Not a step**: it bypasses the fence and
+    /// the step counter. Never carries the API key.
+    AuthorizeUpload {
+        /// The endpoint the turn was started with.
+        endpoint: String,
+        /// The model the turn was started with.
+        model: String,
+    },
     /// Append a whole validated batch as one command (LCV-144, ADR 0010).
     CreateDrawing {
         /// The entities, in order; 1..=1000, already shape-checked.
@@ -127,6 +139,15 @@ pub enum AgentOutcome {
     /// and the one verdict on which the worker stops dispatching: it reads the
     /// UI thread's decision, it never evaluates the fence itself.
     Fenced(String),
+    /// A canvas observation (LCV-145). `text` is the tool result and the
+    /// transcript row; `png` goes only to the next request as an image part
+    /// and is never transcribed, logged or persisted (ADR 0011 item 7).
+    Observed {
+        /// The frame's pixel size and mm mapping, and the revision.
+        text: String,
+        /// The encoded grayscale PNG.
+        png: Vec<u8>,
+    },
 }
 
 impl AgentOutcome {
@@ -135,6 +156,7 @@ impl AgentOutcome {
     pub fn text(&self) -> &str {
         match self {
             Self::Ok(text) | Self::Refused(text) | Self::Fenced(text) => text,
+            Self::Observed { text, .. } => text,
         }
     }
 
@@ -142,6 +164,7 @@ impl AgentOutcome {
     pub fn into_text(self) -> String {
         match self {
             Self::Ok(text) | Self::Refused(text) | Self::Fenced(text) => text,
+            Self::Observed { text, .. } => text,
         }
     }
 
@@ -322,6 +345,25 @@ mod tests {
                 "AC 2: bridge.rs must not name `{forbidden}` in code, found `{hit:?}`"
             );
         }
+    }
+
+    /// LCV-145 AC 8 — an observation reads as its text only, is not a
+    /// refusal and does not stop the turn; the PNG never leaks into the text.
+    #[test]
+    fn observed_exposes_only_its_text() {
+        let observed = AgentOutcome::Observed {
+            text: "Canvas 2×1 px".into(),
+            png: vec![0x89, b'P', b'N', b'G'],
+        };
+        assert_eq!(observed.text(), "Canvas 2×1 px");
+        assert!(!observed.is_refused());
+        assert!(!observed.is_fenced());
+        assert_eq!(observed.into_text(), "Canvas 2×1 px");
+        let auth = AgentAction::AuthorizeUpload {
+            endpoint: "https://e".into(),
+            model: "m".into(),
+        };
+        assert_ne!(auth, AgentAction::CaptureCanvas);
     }
 
     /// AC 7 — the action enum is hand-built, never deserialized. A
