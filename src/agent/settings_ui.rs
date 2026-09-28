@@ -7,10 +7,11 @@
 //! LCV-125 took the form from two fields to four. The two it added are not new
 //! behaviour: `agent_model` and `agent_step_budget` have been honoured since
 //! LCV-121, they were simply only reachable by hand-editing `settings.json`.
+//! LCV-143 added the fifth, the system prompt.
 
 use egui;
 
-use crate::agent::{AGENT_STEP_BUDGET_MAX, AGENT_STEP_BUDGET_MIN};
+use crate::agent::{prompt, AGENT_STEP_BUDGET_MAX, AGENT_STEP_BUDGET_MIN};
 use crate::io::settings::Settings;
 
 /// Minimum width of every text field, in logical pixels.
@@ -46,9 +47,16 @@ const STEP_BUDGET_HELP: &str = "How many tool calls one prompt may make. More st
 /// different semantics: the dialog stays live-edit, persist-on-close.
 const LIVE_EDIT_NOTE: &str = "Changes apply immediately and are saved when this window closes.";
 
+/// Rows the system-prompt editor asks for before its own scroll area.
+const PROMPT_ROWS: usize = 6;
+
+/// Tallest the system-prompt editor may get: a long prompt scrolls inside it
+/// rather than pushing Done down the 426pt dialog body (ADR 0009).
+const PROMPT_MAX_HEIGHT: f32 = 110.0;
+
 /// What one frame of the form reported.
 pub struct AgentSettingsFrame {
-    /// `true` if **any** of the four fields changed this frame — the flag
+    /// `true` if **any** of the five fields changed this frame — the flag
     /// [`draw_agent_settings`] always reported, now carried on a named field
     /// instead of being the whole return value.
     pub changed: bool,
@@ -63,7 +71,7 @@ pub struct AgentSettingsFrame {
 
 /// Draw the agent-settings form into `ui`.
 ///
-/// Four labelled rows, in the order the operator meets them:
+/// Five labelled rows, in the order the operator meets them:
 /// - **Endpoint URL** — plain single-line field editing `settings.agent_endpoint`.
 /// - **Model** — plain single-line field editing `settings.agent_model`. Free
 ///   text, hinted with the default: the endpoint is the authority on which ids
@@ -74,10 +82,16 @@ pub struct AgentSettingsFrame {
 /// - **Steps per turn** — a slider over
 ///   `AGENT_STEP_BUDGET_MIN..=AGENT_STEP_BUDGET_MAX` (the range lives with the
 ///   loop that enforces it, ADR 0007 §D7) editing `settings.agent_step_budget`.
+/// - **System prompt** — a multiline editor over the *effective* prompt
+///   (`prompt::resolve`), with a **Restore default** button (LCV-143). The
+///   text is copied into a per-frame buffer, so only a real edit writes
+///   `Some(text)` — opening the dialog creates no override — and the button,
+///   drawn before the editor, sets `None` so the built-in text shows on the
+///   same frame.
 ///
 /// Every text field has a minimum width of [`FIELD_MIN_WIDTH`] logical pixels.
 ///
-/// [`AgentSettingsFrame::changed`] is `true` if **any** of the four fields
+/// [`AgentSettingsFrame::changed`] is `true` if **any** of the five fields
 /// changed this frame, `false` otherwise — `agent_settings_dialog` persists on
 /// close, so the flag is what tells the operator's edit apart from an idle
 /// frame. [`AgentSettingsFrame::done_clicked`] is `true` the one frame the new
@@ -139,6 +153,8 @@ pub fn draw_agent_settings(ui: &mut egui::Ui, settings: &mut Settings) -> AgentS
     });
     ui.add(egui::Label::new(egui::RichText::new(STEP_BUDGET_HELP).small()).wrap());
 
+    changed |= prompt_editor(ui, settings);
+
     ui.add(egui::Label::new(egui::RichText::new(LIVE_EDIT_NOTE).small()).wrap());
     let done_clicked = ui.button("Done").clicked();
 
@@ -146,6 +162,38 @@ pub fn draw_agent_settings(ui: &mut egui::Ui, settings: &mut Settings) -> AgentS
         changed,
         done_clicked,
     }
+}
+
+/// The System prompt row: label, Restore default, then the editor. Returns
+/// whether either changed `settings.agent_system_prompt`.
+fn prompt_editor(ui: &mut egui::Ui, settings: &mut Settings) -> bool {
+    let mut changed = false;
+    ui.horizontal(|ui| {
+        ui.label("System prompt");
+        if ui.button("Restore default").clicked() {
+            settings.agent_system_prompt = None;
+            changed = true;
+        }
+    });
+    let mut text = prompt::resolve(settings.agent_system_prompt.as_deref()).to_owned();
+    let edited = egui::ScrollArea::vertical()
+        .id_salt("agent_system_prompt_scroll")
+        .max_height(PROMPT_MAX_HEIGHT)
+        .show(ui, |ui| {
+            ui.add(
+                egui::TextEdit::multiline(&mut text)
+                    .id_salt("agent_system_prompt")
+                    .desired_width(f32::INFINITY)
+                    .desired_rows(PROMPT_ROWS),
+            )
+            .changed()
+        })
+        .inner;
+    if edited {
+        settings.agent_system_prompt = Some(text);
+        changed = true;
+    }
+    changed
 }
 
 /// One two-column form grid. Two of them, so the long sentences between and

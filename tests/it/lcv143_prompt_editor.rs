@@ -48,14 +48,16 @@ fn open(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
     run(ctx, app, Vec::new())
 }
 
-/// A point inside the one run whose trimmed text starts with `prefix`.
+/// A point on the first line of the one run whose trimmed text starts with
+/// `prefix`. The editor paints its whole text as one multi-line galley, so the
+/// point sits a few points below the run's top, not at its vertical middle.
 fn locate(runs: &[Run], prefix: &str) -> egui::Pos2 {
     let hits: Vec<&Run> = runs
         .iter()
         .filter(|r| r.text.trim().starts_with(prefix))
         .collect();
     assert_eq!(hits.len(), 1, "`{prefix}` must be painted exactly once");
-    egui::pos2(hits[0].pos.x + 2.0, hits[0].pos.y + hits[0].height / 2.0)
+    egui::pos2(hits[0].pos.x + 2.0, hits[0].pos.y + 6.0)
 }
 
 /// A real pointer click at `pos`, preceded by its own hover frame (ADR 0002
@@ -135,7 +137,7 @@ fn ac3_typed_text_persists_verbatim_through_done() {
     assert_eq!(persisted.agent_system_prompt.as_deref(), Some(typed));
 
     let runs = open(&ctx, &mut app);
-    assert!(runs.iter().any(|r| r.text.trim() == "Draw in mm"));
+    assert!(runs.iter().any(|r| r.text == typed), "the editor shows it");
     assert!(!runs
         .iter()
         .any(|r| r.text.trim().starts_with(DEFAULT_FIRST_LINE)));

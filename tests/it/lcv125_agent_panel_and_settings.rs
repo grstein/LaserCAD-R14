@@ -328,6 +328,10 @@ fn ac8_ac9_ac10_the_settings_dialog_draws_headless_frame() {
 /// is here rather than around it: a paint assertion that claims a surface
 /// shows *nothing else* must be updated the moment intentional content is
 /// added, or it certifies the old screen as still correct.
+///
+/// **LCV-143 note**: two more lines, for the same reason — the System prompt
+/// row with its Restore default button, and the editor, which paints the whole
+/// built-in prompt as one multi-line galley.
 #[test]
 fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
     let (ctx, mut app) = ctx_and_app();
@@ -355,6 +359,8 @@ fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
                 "How many tool calls one prompt may make. More steps means a ",
                 "bigger drawing per prompt, and more API calls."
             )],
+            vec!["System prompt", "Restore default"],
+            vec![lasercad::agent::DEFAULT_PROMPT],
             vec!["Changes apply immediately and are saved when this window closes."],
             vec!["Done"],
         ],
