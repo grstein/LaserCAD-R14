@@ -30,9 +30,12 @@
 //! Imports `egui` nowhere, `eframe` nowhere, `rfd` nowhere, and spawns no
 //! thread.
 
-use crate::agent::{AgentAction, AgentOutcome};
-use crate::app::agent_narrate::{describe, list_entities, list_selection, pt, sweep};
+use crate::agent::{AgentAction, AgentOutcome, DrawingItem};
+use crate::app::agent_narrate::{
+    batch_created, describe, list_entities, list_selection, pt, sweep,
+};
 use crate::app::App;
+use crate::document::commands::CreateEntities;
 use crate::document::{
     Command, CreateArc, CreateCircle, CreateLine, DeleteEntities, Document, Entity, MoveEntities,
 };
@@ -44,6 +47,8 @@ enum Planned {
     Commit(Box<dyn Command>, String),
     /// Answer without touching the document: a query, or a refusal.
     Answer(AgentOutcome),
+    /// Commit this batch of `n` entities; the sentence needs post-commit numbers.
+    Batch(Box<dyn Command>, usize),
 }
 
 /// Apply one action to the app's live document and report what happened.
@@ -60,6 +65,12 @@ pub fn apply(app: &mut App, action: &AgentAction) -> AgentOutcome {
             // Into the turn's flat group (ADR 0007 §D12); `App::commit` seals.
             app.history.commit_grouped(command, &mut app.document);
             AgentOutcome::Ok(with_count(&sentence, app.document.entity_count()))
+        }
+        Planned::Batch(command, n) => {
+            let first = app.document.entity_count();
+            app.history.commit_grouped(command, &mut app.document);
+            let (count, revision) = (app.document.entity_count(), app.history.revision());
+            AgentOutcome::Ok(batch_created(n, first, count, revision))
         }
     };
     transcribe(app, &outcome);
@@ -149,14 +160,33 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
         },
         AgentAction::QueryEntities => Planned::Answer(AgentOutcome::Ok(list_entities(doc))),
         AgentAction::QuerySelection => Planned::Answer(AgentOutcome::Ok(list_selection(doc))),
-        // Applied by T7 of LCV-144; refused until then.
-        AgentAction::CreateDrawing { .. } => Planned::Answer(AgentOutcome::Refused(
-            "create_drawing is not available yet".to_owned(),
-        )),
+        // One command for the whole batch (ADR 0010 §1, §5).
+        AgentAction::CreateDrawing { ref items } => Planned::Batch(
+            Box::new(CreateEntities::new(items.iter().map(entity_of).collect())),
+            items.len(),
+        ),
         // §D15: answered from the reason alone; the document is not read.
         AgentAction::Malformed { ref reason, .. } => {
             Planned::Answer(AgentOutcome::Refused(reason.clone()))
         }
+    }
+}
+
+/// One batch item as the entity the matching scalar arm would build.
+fn entity_of(item: &DrawingItem) -> Entity {
+    match *item {
+        DrawingItem::Line { x1, y1, x2, y2 } => {
+            Entity::Line(Line::new(Vec2::new(x1, y1), Vec2::new(x2, y2)))
+        }
+        DrawingItem::Circle { cx, cy, r } => Entity::Circle(Circle::new(Vec2::new(cx, cy), r)),
+        DrawingItem::Arc {
+            cx,
+            cy,
+            r,
+            start,
+            end,
+            ccw,
+        } => Entity::Arc(GeoArc::new(Vec2::new(cx, cy), r, start, end, ccw)),
     }
 }
 
@@ -785,6 +815,78 @@ mod tests {
                 false
             ))),
             "arc, center (1.000, 2.000) mm, r = 3.000 mm, 0.0°→90.0° cw"
+        );
+    }
+
+    // ── LCV-144 AC 5, 7, 8: one batch, one command, one sentence ─────────────
+
+    fn drawing(items: Vec<DrawingItem>) -> AgentAction {
+        AgentAction::CreateDrawing { items }
+    }
+
+    /// LCV-144 AC 8 — both outcome sentences, character for character, on a
+    /// 3-entity drawing; AC 7 — one revision, one undo, whatever the count.
+    #[test]
+    fn a_batch_narrates_its_indices_count_and_revision() {
+        let mut app = app_with(vec![line(0.0), line(1.0), circle()]);
+        let before = app.history.revision();
+        let outcome = apply(
+            &mut app,
+            &drawing(vec![
+                DrawingItem::Line {
+                    x1: 0.0,
+                    y1: 5.0,
+                    x2: 1.0,
+                    y2: 5.0,
+                },
+                DrawingItem::Circle {
+                    cx: 2.0,
+                    cy: 2.0,
+                    r: 1.0,
+                },
+            ]),
+        );
+        assert_eq!(
+            outcome,
+            AgentOutcome::Ok(format!(
+                "Created 2 entities (indices 3..=4). The drawing now has 5 entities. Revision {}.",
+                before + 1
+            ))
+        );
+        assert_eq!(app.history.revision(), before + 1);
+        assert_eq!(app.agent.chat.last().unwrap().1, outcome.text());
+
+        let mut app = app_with(vec![line(0.0), line(1.0), circle()]);
+        let outcome = apply(
+            &mut app,
+            &drawing(vec![DrawingItem::Arc {
+                cx: 1.0,
+                cy: 1.0,
+                r: 2.0,
+                start: 0.0,
+                end: FRAC_PI_2,
+                ccw: true,
+            }]),
+        );
+        assert_eq!(
+            outcome,
+            AgentOutcome::Ok(format!(
+                "Created 1 entity (index 3). The drawing now has 4 entities. Revision {}.",
+                before + 1
+            ))
+        );
+        let AgentOutcome::Ok(listing) = apply(&mut app, &AgentAction::QueryEntities) else {
+            panic!("a query is answered")
+        };
+        assert!(
+            listing.contains("\n3: arc center (1.000, 1.000) mm, r = 2.000 mm, 0.0°→90.0° ccw"),
+            "{listing}"
+        );
+        assert!(app.history.undo(&mut app.document));
+        assert_eq!(
+            app.document.entity_count(),
+            3,
+            "one undo takes the batch back"
         );
     }
 
