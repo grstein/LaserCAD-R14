@@ -9,14 +9,16 @@
 #   - dist/lasercad-x86_64.AppImage  (built by scripts/build-appimage.sh)
 #   - dist/lasercad_*.deb             (built by scripts/build-deb.sh)
 #
-# The script runs the full test/lint gate, creates annotated tag v0.1.0,
-# pushes it, extracts the [0.1.0] CHANGELOG block as release notes, and
-# creates the GitHub release with the binary assets attached.
+# The script runs scripts/gate.sh, creates the annotated tag v<version> (version read
+# from Cargo.toml), pushes it, extracts the matching [<version>] CHANGELOG block as
+# release notes, and creates the GitHub release with the binary assets attached.
 
 set -euo pipefail
 
-RELEASE_TAG="v0.1.0"
-RELEASE_TITLE="LaserCAD v0.1.0"
+VERSION=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+[[ -n "${VERSION}" ]] || { echo "cannot read version from Cargo.toml" >&2; exit 1; }
+RELEASE_TAG="v${VERSION}"
+RELEASE_TITLE="LaserCAD v${VERSION}"
 NOTES_FILE="/tmp/lasercad-release-notes.txt"
 
 # ---------------------------------------------------------------------------
@@ -64,16 +66,9 @@ ok "Debian package: ${DEB_PATH}"
 # ---------------------------------------------------------------------------
 # Build gate: fmt / clippy / test
 # ---------------------------------------------------------------------------
-info "Running build gate (fmt --check, clippy, tests)…"
-
-cargo fmt --all -- --check
-ok "cargo fmt: clean."
-
-cargo clippy --all-targets -- -D warnings
-ok "cargo clippy: clean."
-
-cargo test --all
-ok "cargo test: all passed."
+info "Running scripts/gate.sh…"
+scripts/gate.sh
+ok "Gate green."
 
 # ---------------------------------------------------------------------------
 # Create annotated tag
@@ -93,11 +88,11 @@ git push origin "${RELEASE_TAG}"
 ok "Tag pushed."
 
 # ---------------------------------------------------------------------------
-# Extract [0.1.0] block from CHANGELOG as release notes
+# Extract the [<version>] block from CHANGELOG as release notes
 # ---------------------------------------------------------------------------
 info "Extracting release notes from CHANGELOG.md…"
-# Print lines between the first "## [0.1.0]" heading and the next "## [" heading.
-awk '/^## \[0\.1\.0\]/{found=1; next} found && /^## \[/{exit} found{print}' CHANGELOG.md \
+# Print lines between the first "## [<version>]" heading and the next "## [" heading.
+awk -v h="## [${VERSION}]" 'index($0, h) == 1 {found=1; next} found && /^## \[/{exit} found{print}' CHANGELOG.md \
     | sed '/^[[:space:]]*$/d' \
     > "${NOTES_FILE}"
 
@@ -128,7 +123,6 @@ cat <<'CHECKLIST'
   [ ] Verify the release page on GitHub shows the correct notes.
   [ ] Download and smoke-test the AppImage on a clean Linux VM.
   [ ] Install and smoke-test the .deb on Ubuntu/Debian.
-  [ ] Update PLAN.md: mark LCV-089 Done.
   [ ] Announce on the project channel / forum if applicable.
 ════════════════════════════════════════════════════════════════
 
