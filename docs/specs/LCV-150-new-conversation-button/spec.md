@@ -1,6 +1,6 @@
 # LCV-150 - New conversation button in the agent panel
 
-- **Status**: Draft
+- **Status**: Specified
 - **Depends on**: LCV-125, LCV-141, LCV-142
 - **Implementation**: -
 

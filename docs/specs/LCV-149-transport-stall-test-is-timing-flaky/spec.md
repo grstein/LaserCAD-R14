@@ -1,6 +1,6 @@
 # LCV-149 - Transport stall test is timing-flaky
 
-- **Status**: Draft
+- **Status**: Specified
 - **Depends on**: none
 - **Implementation**: -
 

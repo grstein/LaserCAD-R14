@@ -1,6 +1,6 @@
 # LCV-151 - Built-in system prompt describes every tool
 
-- **Status**: Draft
+- **Status**: Specified
 - **Depends on**: LCV-143
 - **Implementation**: -
 
