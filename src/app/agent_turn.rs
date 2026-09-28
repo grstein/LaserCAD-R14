@@ -49,7 +49,7 @@ use std::sync::mpsc::{channel, Sender};
 /// It says three things on purpose: what happened, that nothing was applied,
 /// and that undo is unaffected — so the operator reading the transcript knows
 /// the drawing is not in a half-finished state.
-pub const AGENT_FENCE_REFUSAL: &str = "The drawing changed outside this turn — someone drew, deleted or selected something since I last looked. Nothing was applied. Undo is unaffected; ask again and I will re-read the drawing.";
+pub const AGENT_FENCE_REFUSAL: &str = "The drawing changed outside this turn - someone drew, deleted or selected something since I last looked. Nothing was applied. Undo is unaffected; ask again and I will re-read the drawing.";
 
 /// Guards one agent turn against mutations it did not make.
 ///
