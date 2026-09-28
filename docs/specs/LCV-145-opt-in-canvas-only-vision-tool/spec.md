@@ -1,8 +1,8 @@
 # LCV-145 - Opt-in canvas observations for vision models
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-123, LCV-129, LCV-137, LCV-141, LCV-143
-- **Implementation**: -
+- **Implementation**: 07f00d3..7785fd7
 
 ## Problem
 
