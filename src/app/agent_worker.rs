@@ -9,6 +9,7 @@
 //! the app that is [`ask_ui`], which blocks on the UI thread's answer; in a
 //! test it is a closure.
 
+use crate::agent::loop_::Dispatch;
 use crate::agent::{
     agent_loop, AgentAction, AgentError, AgentEvent, AgentOutcome, AssistantMessage, ChatMessage,
 };
@@ -97,23 +98,16 @@ where
         crate::agent::chat_completion(endpoint, api_key, model, msgs, &tools)
             .map_err(|e| AgentError::Transport(e.to_string()))
     };
-    drive_turn(
-        prompt,
-        &config.system_prompt,
-        config.step_limit,
-        &mut send_fn,
-        ask,
-    )
+    drive_turn(prompt, config, &mut send_fn, ask)
 }
 
 /// [`run_agent_turn`] minus the network: the conversation, the parse and the
 /// `ask`, with `send_fn` injected so the worker's own rules — the fence stop
 /// (§D14) and malformed calls (§D15) — are testable without an endpoint.
-/// `system` is the turn's system message, verbatim.
+/// `config.system_prompt` is the turn's system message, verbatim.
 fn drive_turn<F, A>(
     prompt: &str,
-    system: &str,
-    step_limit: u32,
+    config: &TurnConfig,
     send_fn: &mut F,
     ask: &mut A,
 ) -> Result<String, AgentError>
@@ -121,11 +115,20 @@ where
     F: FnMut(&[ChatMessage]) -> Result<AssistantMessage, AgentError>,
     A: FnMut(AgentAction) -> Result<AgentOutcome, AgentError>,
 {
-    let mut messages = vec![ChatMessage::system(system), ChatMessage::user(prompt)];
+    let system = ChatMessage::system(config.system_prompt.as_str());
+    let mut messages = vec![system, ChatMessage::user(prompt)];
     // A refusal is a tool result, not a failure (ADR 0007 §D2a), and so is a
     // malformed call (§D15); a `Fenced` answer is read by `agent_loop` (§D14).
-    let mut dispatch_fn = |name: &str, args: &str| ask(to_action(name, args));
-    agent_loop(send_fn, &mut dispatch_fn, &mut messages, step_limit)
+    // An upload check names the turn's endpoint and model, never its key
+    // (ADR 0011 item 10).
+    let mut dispatch_fn = |dispatch: Dispatch<'_>| match dispatch {
+        Dispatch::Tool { name, args } => ask(to_action(name, args)),
+        Dispatch::AuthorizeUpload => ask(AgentAction::AuthorizeUpload {
+            endpoint: config.endpoint.clone(),
+            model: config.model.clone(),
+        }),
+    };
+    agent_loop(send_fn, &mut dispatch_fn, &mut messages, config.step_limit)
 }
 
 /// The raw argument string of any tool call is refused above this many bytes,
@@ -286,6 +289,15 @@ mod tests {
         named_tool_call_body(id, "create_line", arguments)
     }
 
+    /// A config for `drive_turn` tests: only the system prompt and the limit
+    /// matter there.
+    fn cfg(system: &str, step_limit: u32) -> TurnConfig {
+        TurnConfig {
+            system_prompt: system.to_owned(),
+            ..config("https://example.invalid", "m", step_limit)
+        }
+    }
+
     fn config(endpoint: &str, model: &str, step_limit: u32) -> TurnConfig {
         TurnConfig {
             endpoint: endpoint.to_owned(),
@@ -340,7 +352,7 @@ mod tests {
             Ok(text("ok"))
         };
         let mut ask = |_: AgentAction| Ok(AgentOutcome::Ok(String::new()));
-        let result = drive_turn("hi", SENTINEL, 3, &mut send_fn, &mut ask);
+        let result = drive_turn("hi", &cfg(SENTINEL, 3), &mut send_fn, &mut ask);
         assert_eq!(result.expect("text ends the turn"), "ok");
         assert_eq!(seen[0].role, "system");
         assert_eq!(seen[0].text_content(), Some(SENTINEL));
@@ -362,7 +374,7 @@ mod tests {
             Ok(text("ok"))
         };
         let mut ask = |_: AgentAction| Ok(AgentOutcome::Ok(String::new()));
-        let result = drive_turn("hi", &config.system_prompt, 3, &mut send_fn, &mut ask);
+        let result = drive_turn("hi", &config, &mut send_fn, &mut ask);
         assert_eq!(result.expect("text ends the turn"), "ok");
         let messages: Value = serde_json::from_str(&wire).expect("wire parses back");
         assert_eq!(
@@ -978,8 +990,7 @@ mod tests {
         };
         let result = drive_turn(
             "go",
-            system,
-            AGENT_STEP_BUDGET_DEFAULT,
+            &cfg(system, AGENT_STEP_BUDGET_DEFAULT),
             &mut send_fn,
             &mut ask,
         );
@@ -1060,8 +1071,7 @@ mod tests {
         };
         let result = drive_turn(
             "go",
-            "sys",
-            AGENT_STEP_BUDGET_DEFAULT,
+            &cfg("sys", AGENT_STEP_BUDGET_DEFAULT),
             &mut send_fn,
             &mut ask,
         );
@@ -1113,7 +1123,7 @@ mod tests {
             asks += 1;
             Ok(AgentOutcome::Refused("bad".into()))
         };
-        let result = drive_turn("go", "sys", 2, &mut send_fn, &mut ask);
+        let result = drive_turn("go", &cfg("sys", 2), &mut send_fn, &mut ask);
         assert!(
             matches!(result, Err(AgentError::IterationLimitExceeded(2))),
             "got {result:?}"
@@ -1143,7 +1153,7 @@ mod tests {
                 asks += 1;
                 Ok(AgentOutcome::Ok("none".into()))
             };
-            let result = drive_turn("go", system, 2, &mut send_fn, &mut ask);
+            let result = drive_turn("go", &cfg(system, 2), &mut send_fn, &mut ask);
             assert!(
                 matches!(result, Err(AgentError::IterationLimitExceeded(2))),
                 "{system:?}: got {result:?}"
@@ -1234,5 +1244,78 @@ mod tests {
             );
         }
         assert_eq!(MAX_TOOL_ARGUMENT_BYTES, 1_048_576);
+    }
+
+    // ── LCV-145: the vision flag and the upload check ────────────────────────
+
+    /// AC 2 — the tools offered are `tool_definitions(config.vision)`.
+    #[test]
+    fn the_offered_tools_follow_the_turn_vision_flag() {
+        for vision in [false, true] {
+            let mut server = mockito::Server::new();
+            let bodies = Bodies::default();
+            let _mock = server
+                .mock("POST", "/chat/completions")
+                .match_request(bodies.matcher())
+                .with_status(200)
+                .with_body(r#"{"choices":[{"message":{"role":"assistant","content":"hi"}}]}"#)
+                .create();
+            let config = TurnConfig {
+                vision,
+                ..config(&server.url(), "m", AGENT_STEP_BUDGET_DEFAULT)
+            };
+            let mut applier = Applier::new();
+            run_agent_turn("go", &config, &mut |a| applier.ask(a)).expect("the turn finishes");
+            assert_eq!(
+                bodies.json(0)["tools"],
+                crate::agent::tool_definitions(vision)
+            );
+        }
+    }
+
+    /// AC 11 — before the image-bearing send, `ask` gets exactly one
+    /// `AuthorizeUpload` naming the turn's endpoint and model and never its
+    /// key; text-only sends ask nothing.
+    #[test]
+    fn the_upload_check_names_endpoint_and_model_never_the_key() {
+        const KEY: &str = "sk-SECRET-never-leaves";
+        let config = TurnConfig {
+            api_key: KEY.to_owned(),
+            ..config("https://example.invalid/v1", "vision/model", 8)
+        };
+        let mut sends = 0usize;
+        let mut send_fn = |_: &[ChatMessage]| {
+            sends += 1;
+            Ok(match sends {
+                1 => batch(&[("capture_canvas", "{}")]),
+                2 => batch(&[("query_entities", "{}")]),
+                _ => text("done"),
+            })
+        };
+        let mut asked = Vec::new();
+        let mut ask = |action: AgentAction| {
+            asked.push(action.clone());
+            Ok(match action {
+                AgentAction::CaptureCanvas => AgentOutcome::Observed {
+                    text: "Canvas".into(),
+                    png: vec![1, 2, 3],
+                },
+                _ => AgentOutcome::Ok("ok".into()),
+            })
+        };
+        let result = drive_turn("look", &config, &mut send_fn, &mut ask);
+        assert_eq!(result.expect("text ends the turn"), "done");
+        assert_eq!(
+            asked,
+            vec![
+                AgentAction::CaptureCanvas,
+                AgentAction::AuthorizeUpload {
+                    endpoint: "https://example.invalid/v1".into(),
+                    model: "vision/model".into(),
+                },
+                AgentAction::QueryEntities,
+            ]
+        );
+        assert!(!format!("{asked:?}").contains(KEY));
     }
 }

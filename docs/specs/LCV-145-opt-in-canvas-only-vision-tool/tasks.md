@@ -13,7 +13,7 @@
 - [x] T5 [P] [AC2] Test first: an old settings file loads both new flags as `false`. Add `agent_allow_canvas_capture` and `agent_model_supports_vision`. (LCV-143 already moved persistence into `settings_store.rs`.) (files: src/io/settings.rs)
 - [x] T6 [AC2, AC3, AC8] Test first in `tools.rs`: `tool_definitions(false)` omits `capture_canvas`, `(true)` includes it before `create_drawing`, and `capture_canvas` parses to `CaptureCanvas`. Then add the bridge variants `CaptureCanvas`, `AuthorizeUpload` and `Observed`, with `text`/`into_text`/`is_refused` covering them, the flag, the registration and the arm. (files: src/agent/tools.rs, src/agent/bridge.rs)
 - [x] T7 [AC2] Test first: the `turn_config` snapshot's `vision` is true only for (on, on), and flipping a setting afterwards leaves it unchanged. Then add `TurnConfig.vision` and `tool_definitions(config.vision)`. (files: src/app/agent_turn.rs, src/app/agent_worker.rs)
-- [ ] T8 [AC3, AC9, AC10, AC11] Test first in `loop_.rs`, with a fake `send_fn` and dispatch:
+- [x] T8 [AC3, AC9, AC10, AC11] Test first in `loop_.rs`, with a fake `send_fn` and dispatch:
   - No `capture_canvas` call means no `image_url` is sent. Each capture counts as one step.
   - A batch [query, capture, capture] gives three `tool` results, then one `user` message with two text+image pairs naming the right IDs.
   - The next request carries the elided placeholder and no `image_url`, including after a send error.

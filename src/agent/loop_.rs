@@ -12,7 +12,7 @@
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use crate::agent::bridge::AgentOutcome;
-use crate::agent::wire::{AssistantMessage, ChatMessage};
+use crate::agent::wire::{replace_images, AssistantMessage, ChatMessage, ContentPart};
 
 // ── Step budget ──────────────────────────────────────────────────────────────
 
@@ -44,6 +44,31 @@ pub fn clamp_step_budget(value: u32) -> u32 {
 /// `tool_call_id` the model sent stays paired.
 pub(crate) const FENCE_STOP_PLACEHOLDER: &str =
     "not run: the turn stopped after the drawing changed outside it";
+
+/// What an image part becomes once it has ridden its one request (ADR 0011
+/// item 9), whether that send succeeded or failed.
+pub(crate) const IMAGE_ELIDED: &str =
+    "canvas image elided after one use; call capture_canvas to look again";
+
+/// What an image part becomes when the UI did not authorise its upload (ADR
+/// 0011 item 10): the request still goes out, text-only.
+pub(crate) const IMAGE_WITHHELD: &str =
+    "canvas image withheld: capture permission changed during the turn";
+
+/// One request from the loop to whoever owns the drawing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Dispatch<'a> {
+    /// Run one tool call — a step.
+    Tool {
+        /// The tool name as the model sent it.
+        name: &'a str,
+        /// The raw JSON argument string.
+        args: &'a str,
+    },
+    /// May the next request carry its canvas images? Not a step (ADR 0011
+    /// item 10); `AgentOutcome::Ok` is yes, anything else is no.
+    AuthorizeUpload,
+}
 
 // ── Error ────────────────────────────────────────────────────────────────────
 
@@ -101,7 +126,7 @@ impl std::error::Error for AgentError {}
 /// comparison is done in `usize` — narrower arithmetic could wrap on a large
 /// batch and wave it through.
 ///
-/// `dispatch_fn` receives `(tool_name, raw_json_arguments)` and returns the
+/// `dispatch_fn` receives [`Dispatch::Tool`] and returns the
 /// outcome whose text becomes the `tool`-role result. It is the caller's
 /// business whether that came from a real mutation, a refusal or a stub; this
 /// loop only sequences it — with one exception it reads rather than decides.
@@ -109,6 +134,10 @@ impl std::error::Error for AgentError {}
 /// rest of the batch gets [`FENCE_STOP_PLACEHOLDER`], exactly one more
 /// completion is sent, and its text ends the turn `Ok` while tool calls end it
 /// [`AgentError::FenceStopped`].
+///
+/// An [`AgentOutcome::Observed`] (LCV-145) is a step like any other; its PNG
+/// rides after **all** of the batch's tool results in one `user` message,
+/// and every send goes through [`send_images`].
 pub(crate) fn agent_loop<F, D>(
     send_fn: &mut F,
     dispatch_fn: &mut D,
@@ -117,12 +146,12 @@ pub(crate) fn agent_loop<F, D>(
 ) -> Result<String, AgentError>
 where
     F: FnMut(&[ChatMessage]) -> Result<AssistantMessage, AgentError>,
-    D: FnMut(&str, &str) -> Result<AgentOutcome, AgentError>,
+    D: FnMut(Dispatch<'_>) -> Result<AgentOutcome, AgentError>,
 {
     let budget = usize::try_from(step_budget).unwrap_or(usize::MAX);
     let mut dispatched: usize = 0;
     loop {
-        let message = send_fn(messages)?;
+        let message = send_images(send_fn, dispatch_fn, messages)?;
         match (message.tool_calls, message.content) {
             (Some(calls), content) if !calls.is_empty() => {
                 if dispatched + calls.len() > budget {
@@ -132,26 +161,62 @@ where
                     content,
                     calls.clone(),
                 ));
-                let mut fenced = false;
+                let (mut fenced, mut images) = (false, Vec::new());
                 for call in &calls {
                     let result = if fenced {
                         FENCE_STOP_PLACEHOLDER.to_owned()
                     } else {
-                        let outcome = dispatch_fn(&call.function.name, &call.function.arguments)?;
+                        let (name, args) = (&call.function.name, &call.function.arguments);
+                        let outcome = dispatch_fn(Dispatch::Tool { name, args })?;
                         dispatched += 1;
                         fenced = outcome.is_fenced();
-                        outcome.into_text()
+                        match outcome {
+                            AgentOutcome::Observed { text, png } => {
+                                let label = format!("canvas image for tool call {}", call.id);
+                                images.extend([ContentPart::text(label), ContentPart::png(&png)]);
+                                text
+                            }
+                            other => other.into_text(),
+                        }
                     };
                     messages.push(ChatMessage::tool_result(call.id.clone(), result));
                 }
+                if !images.is_empty() {
+                    messages.push(ChatMessage::user_parts(images));
+                }
                 if fenced {
-                    return last_word(send_fn(messages)?);
+                    return last_word(send_images(send_fn, dispatch_fn, messages)?);
                 }
             }
             (_, Some(text)) => return Ok(text),
             _ => return Err(AgentError::NoContent),
         }
     }
+}
+
+/// Every send of the loop (ADR 0011 items 9–10). A request carrying an image
+/// first asks [`Dispatch::AuthorizeUpload`], once: no — or anything but
+/// `Ok` — withholds every image and sends text-only; a failed ask (cancel)
+/// returns before anything is sent. After the send returns, success or error,
+/// every image is elided, so none outlives its one request.
+fn send_images<F, D>(
+    send_fn: &mut F,
+    dispatch_fn: &mut D,
+    messages: &mut [ChatMessage],
+) -> Result<AssistantMessage, AgentError>
+where
+    F: FnMut(&[ChatMessage]) -> Result<AssistantMessage, AgentError>,
+    D: FnMut(Dispatch<'_>) -> Result<AgentOutcome, AgentError>,
+{
+    if messages.iter().any(ChatMessage::has_image) {
+        let verdict = dispatch_fn(Dispatch::AuthorizeUpload)?;
+        if !matches!(verdict, AgentOutcome::Ok(_)) {
+            replace_images(messages, IMAGE_WITHHELD);
+        }
+    }
+    let reply = send_fn(messages);
+    replace_images(messages, IMAGE_ELIDED);
+    reply
 }
 
 /// The one completion a fence-stopped turn is allowed (ADR 0007 §D14): text is
@@ -247,7 +312,7 @@ mod tests {
                 sends += 1;
                 send(sends)
             },
-            &mut |_, _| {
+            &mut |_| {
                 dispatches += 1;
                 Ok(AgentOutcome::Ok("ok".into()))
             },
@@ -357,7 +422,7 @@ mod tests {
         let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
         let result = agent_loop(
             &mut |_| text_reply("Done."),
-            &mut |_, _| {
+            &mut |_| {
                 dispatches += 1;
                 Ok(AgentOutcome::Ok("ok".into()))
             },
@@ -385,7 +450,7 @@ mod tests {
                     text_reply("Line created.")
                 }
             },
-            &mut |_, _| Ok(AgentOutcome::Ok("Line created: ….".into())),
+            &mut |_| Ok(AgentOutcome::Ok("Line created: ….".into())),
             &mut messages,
             AGENT_STEP_BUDGET_DEFAULT,
         );
@@ -425,7 +490,7 @@ mod tests {
                     text_reply("Two lines.")
                 }
             },
-            &mut |_, _| Ok(AgentOutcome::Ok("2 entities.".into())),
+            &mut |_| Ok(AgentOutcome::Ok("2 entities.".into())),
             &mut messages,
             AGENT_STEP_BUDGET_DEFAULT,
         );
@@ -450,7 +515,7 @@ mod tests {
                     tool_calls: None,
                 })
             },
-            &mut |_, _| Ok(AgentOutcome::Ok("ok".into())),
+            &mut |_| Ok(AgentOutcome::Ok("ok".into())),
             &mut messages,
             AGENT_STEP_BUDGET_DEFAULT,
         );
@@ -463,7 +528,7 @@ mod tests {
         let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
         let result = agent_loop(
             &mut |_| Err(AgentError::Transport("timeout".into())),
-            &mut |_, _| Ok(AgentOutcome::Ok("ok".into())),
+            &mut |_| Ok(AgentOutcome::Ok("ok".into())),
             &mut messages,
             AGENT_STEP_BUDGET_DEFAULT,
         );
@@ -477,7 +542,7 @@ mod tests {
         let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
         let result = agent_loop(
             &mut |_| call_reply(3),
-            &mut |_, _| {
+            &mut |_| {
                 seen += 1;
                 if seen == 2 {
                     Err(AgentError::ToolDispatch("fail".into()))
@@ -504,6 +569,309 @@ mod tests {
         ] {
             assert!(!format!("{e}").is_empty(), "empty Display for {e:?}");
         }
+    }
+
+    // ── LCV-145: canvas images ───────────────────────────────────────────────
+
+    const PNG: &[u8] = &[0x89, b'P', b'N', b'G', 1, 2, 3];
+
+    fn named_calls(names: &[&str]) -> Result<AssistantMessage, AgentError> {
+        let calls = names
+            .iter()
+            .enumerate()
+            .map(|(i, name)| ToolCall::function(format!("call_{i}"), *name, "{}"))
+            .collect();
+        Ok(AssistantMessage {
+            content: None,
+            tool_calls: Some(calls),
+        })
+    }
+
+    /// What one scripted turn did: the serialised requests, the authorise
+    /// count, the tool dispatch count and the result.
+    struct Run {
+        requests: Vec<String>,
+        authorisations: usize,
+        tools: usize,
+        messages: Vec<ChatMessage>,
+        result: Result<String, AgentError>,
+    }
+
+    /// Drive the loop: `reply(n)` answers the n-th send (1-based), a
+    /// `capture_canvas` dispatch observes [`PNG`], anything else is `Ok`, and
+    /// the upload check answers `verdict`.
+    fn run(
+        mut reply: impl FnMut(usize) -> Result<AssistantMessage, AgentError>,
+        mut verdict: impl FnMut() -> Result<AgentOutcome, AgentError>,
+        budget: u32,
+    ) -> Run {
+        let (mut requests, mut authorisations, mut tools) = (Vec::new(), 0, 0);
+        let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
+        let result = agent_loop(
+            &mut |msgs| {
+                requests.push(serde_json::to_string(msgs).unwrap());
+                reply(requests.len())
+            },
+            &mut |dispatch| match dispatch {
+                Dispatch::AuthorizeUpload => {
+                    authorisations += 1;
+                    verdict()
+                }
+                Dispatch::Tool { name, .. } => {
+                    tools += 1;
+                    Ok(if name == "capture_canvas" {
+                        AgentOutcome::Observed {
+                            text: format!("Canvas {tools}"),
+                            png: PNG.to_vec(),
+                        }
+                    } else {
+                        AgentOutcome::Ok("ok".into())
+                    })
+                }
+            },
+            &mut messages,
+            budget,
+        );
+        Run {
+            requests,
+            authorisations,
+            tools,
+            messages,
+            result,
+        }
+    }
+
+    fn yes() -> Result<AgentOutcome, AgentError> {
+        Ok(AgentOutcome::Ok("yes".into()))
+    }
+
+    /// AC 3 — a turn with no `capture_canvas` call sends no `image_url` part
+    /// and never asks to authorise an upload.
+    #[test]
+    fn no_capture_sends_no_image_and_asks_nothing() {
+        let r = run(
+            |n| {
+                if n == 1 {
+                    named_calls(&["query_entities"])
+                } else {
+                    text_reply("done")
+                }
+            },
+            yes,
+            AGENT_STEP_BUDGET_DEFAULT,
+        );
+        assert_eq!(r.result.unwrap(), "done");
+        assert_eq!(r.requests.len(), 2);
+        assert!(r.requests.iter().all(|req| !req.contains("image_url")));
+        assert_eq!(r.authorisations, 0);
+    }
+
+    /// AC 3 — each capture is one step: two captures fit a budget of two, and
+    /// a batch of three captures is refused whole by it.
+    #[test]
+    fn each_capture_counts_as_one_step() {
+        let r = run(
+            |n| {
+                if n == 1 {
+                    named_calls(&["capture_canvas", "capture_canvas"])
+                } else {
+                    text_reply("ok")
+                }
+            },
+            yes,
+            2,
+        );
+        assert_eq!(r.result.unwrap(), "ok");
+        assert_eq!(r.tools, 2);
+        let r = run(|_| named_calls(&["capture_canvas"; 3]), yes, 2);
+        assert!(matches!(
+            r.result,
+            Err(AgentError::IterationLimitExceeded(2))
+        ));
+        assert_eq!((r.tools, r.authorisations), (0, 0));
+    }
+
+    /// AC 9 — [query, capture, capture]: three `tool` results in call order,
+    /// then one `user` message with two text+image pairs naming the ids; the
+    /// tool results are text only.
+    #[test]
+    fn a_batch_appends_one_user_message_after_all_tool_results() {
+        let r = run(
+            |n| {
+                if n == 1 {
+                    named_calls(&["query_entities", "capture_canvas", "capture_canvas"])
+                } else {
+                    text_reply("seen")
+                }
+            },
+            yes,
+            AGENT_STEP_BUDGET_DEFAULT,
+        );
+        assert_eq!(r.result.unwrap(), "seen");
+        let sent: Vec<ChatMessage> = serde_json::from_str(&r.requests[1]).unwrap();
+        assert_eq!(sent.len(), 7);
+        let roles: Vec<&str> = sent.iter().map(|m| m.role.as_str()).collect();
+        assert_eq!(
+            roles,
+            [
+                "system",
+                "user",
+                "assistant",
+                "tool",
+                "tool",
+                "tool",
+                "user"
+            ]
+        );
+        for (i, text) in [(3, "ok"), (4, "Canvas 2"), (5, "Canvas 3")] {
+            assert_eq!(
+                sent[i].tool_call_id.as_deref(),
+                Some(format!("call_{}", i - 3).as_str())
+            );
+            assert_eq!(sent[i].text_content(), Some(text));
+        }
+        let image = ContentPart::png(PNG);
+        assert_eq!(
+            sent[6],
+            ChatMessage::user_parts(vec![
+                ContentPart::text("canvas image for tool call call_1"),
+                image.clone(),
+                ContentPart::text("canvas image for tool call call_2"),
+                image,
+            ])
+        );
+        assert_eq!(r.authorisations, 1);
+    }
+
+    /// AC 10 — the image rides exactly one request: the next one carries the
+    /// elided placeholder and no `image_url`.
+    #[test]
+    fn the_request_after_an_image_carries_the_elided_placeholder() {
+        let r = run(
+            |n| match n {
+                1 => named_calls(&["capture_canvas"]),
+                2 => named_calls(&["query_entities"]),
+                _ => text_reply("done"),
+            },
+            yes,
+            AGENT_STEP_BUDGET_DEFAULT,
+        );
+        assert_eq!(r.result.unwrap(), "done");
+        assert!(r.requests[1].contains("image_url"));
+        assert!(!r.requests[2].contains("image_url"), "{}", r.requests[2]);
+        assert!(r.requests[2].contains(IMAGE_ELIDED));
+        assert_eq!(r.authorisations, 1, "asked once, for the one image send");
+    }
+
+    /// AC 10 — a failed send elides too: nothing image-bearing survives it.
+    #[test]
+    fn a_send_error_still_elides_the_image() {
+        let r = run(
+            |n| {
+                if n == 1 {
+                    named_calls(&["capture_canvas"])
+                } else {
+                    Err(AgentError::Transport("down".into()))
+                }
+            },
+            yes,
+            AGENT_STEP_BUDGET_DEFAULT,
+        );
+        assert!(matches!(r.result, Err(AgentError::Transport(_))));
+        assert!(
+            r.requests[1].contains("image_url"),
+            "the image was sent once"
+        );
+        assert!(!r.messages.iter().any(ChatMessage::has_image));
+        let json = serde_json::to_string(&r.messages).unwrap();
+        assert!(json.contains(IMAGE_ELIDED));
+    }
+
+    /// AC 11 — a "no" answer withholds the image; the request still goes out,
+    /// text-only, carrying the withheld placeholder.
+    #[test]
+    fn a_refused_upload_sends_the_withheld_placeholder_text_only() {
+        for verdict in [
+            AgentOutcome::Refused("no".into()),
+            AgentOutcome::Fenced("f".into()),
+        ] {
+            let r = run(
+                |n| {
+                    if n == 1 {
+                        named_calls(&["capture_canvas"])
+                    } else {
+                        text_reply("blind")
+                    }
+                },
+                || Ok(verdict.clone()),
+                AGENT_STEP_BUDGET_DEFAULT,
+            );
+            assert_eq!(r.result.unwrap(), "blind");
+            assert_eq!(r.authorisations, 1);
+            assert!(!r.requests[1].contains("image_url"));
+            assert!(r.requests[1].contains(IMAGE_WITHHELD));
+            assert!(!r.requests[1].contains(IMAGE_ELIDED));
+        }
+    }
+
+    /// AC 11 — a cancelled rendezvous sends nothing: `send_fn` is not called
+    /// again after the image-bearing batch.
+    #[test]
+    fn a_cancelled_upload_check_sends_nothing() {
+        let r = run(
+            |n| {
+                if n == 1 {
+                    named_calls(&["capture_canvas"])
+                } else {
+                    text_reply("never")
+                }
+            },
+            || Err(AgentError::Cancelled),
+            AGENT_STEP_BUDGET_DEFAULT,
+        );
+        assert!(matches!(r.result, Err(AgentError::Cancelled)));
+        assert_eq!(r.requests.len(), 1);
+    }
+
+    /// AC 11 — the fence's one last completion goes through the same check:
+    /// a capture before the fence tripped still needs authorising.
+    #[test]
+    fn the_fence_stop_send_is_authorised_and_elided_too() {
+        let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
+        let (mut requests, mut authorisations, mut tools) = (Vec::<String>::new(), 0, 0);
+        let result = agent_loop(
+            &mut |msgs| {
+                requests.push(serde_json::to_string(msgs).unwrap());
+                if requests.len() == 1 {
+                    named_calls(&["capture_canvas", "query_entities"])
+                } else {
+                    text_reply("stopped")
+                }
+            },
+            &mut |dispatch| match dispatch {
+                Dispatch::AuthorizeUpload => {
+                    authorisations += 1;
+                    Ok(AgentOutcome::Refused("no".into()))
+                }
+                Dispatch::Tool { .. } => {
+                    tools += 1;
+                    Ok(if tools == 1 {
+                        AgentOutcome::Observed {
+                            text: "Canvas".into(),
+                            png: PNG.to_vec(),
+                        }
+                    } else {
+                        AgentOutcome::Fenced("fenced".into())
+                    })
+                }
+            },
+            &mut messages,
+            AGENT_STEP_BUDGET_DEFAULT,
+        );
+        assert_eq!(result.unwrap(), "stopped");
+        assert_eq!(authorisations, 1);
+        assert!(!requests[1].contains("image_url"));
+        assert!(requests[1].contains(IMAGE_WITHHELD));
     }
 
     // ── AC 2: the wire types are declared once, in wire.rs ───────────────────
