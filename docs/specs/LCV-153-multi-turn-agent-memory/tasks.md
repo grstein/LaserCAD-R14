@@ -42,7 +42,7 @@
 - [x] T14 [AC7] [AC9] [AC10] Wire it: `TurnState::user`, `arm_with_limit` → `begin`,
   `start_turn` arms then `config_for`, thread forwards batches; `end_turn(row, TurnEnd, batches)`
   → `record` after `finish_turn`, on all five exits (files: src/app/agent_turn.rs, src/app/agent_poll.rs)
-- [ ] T15 CHANGELOG line: the agent remembers the conversation; "Context tokens" setting (files: CHANGELOG.md)
+- [x] T15 CHANGELOG line: the agent remembers the conversation; "Context tokens" setting (files: CHANGELOG.md)
 
 ## Deviations and notes
 
