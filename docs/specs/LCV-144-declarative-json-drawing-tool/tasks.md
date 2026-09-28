@@ -25,4 +25,4 @@
   
   (files: tests/it/lcv144_drawing_batch.rs)
 - [x] T9 [AC10] Describe `create_drawing` (name, `version`, `entities`, per-type keys) in the built-in system prompt so LCV-151's tool-enumeration test stays green. Update the golden text test wherever LCV-143/151 left it. (files: src/agent/prompt.rs, tests/it/lcv143_system_prompt.rs)
-- [ ] T10 CHANGELOG line: the agent can draw many lines, circles and arcs in one validated, atomic `create_drawing` call. (files: CHANGELOG.md)
+- [x] T10 CHANGELOG line: the agent can draw many lines, circles and arcs in one validated, atomic `create_drawing` call. (files: CHANGELOG.md)
