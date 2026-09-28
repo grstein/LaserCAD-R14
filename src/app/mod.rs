@@ -49,6 +49,7 @@ mod unsaved_guard;
 mod viewport;
 
 mod agent_apply;
+mod agent_narrate;
 mod agent_poll;
 mod agent_state;
 mod agent_turn;
