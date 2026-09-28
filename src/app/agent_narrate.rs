@@ -112,7 +112,7 @@ pub(super) fn batch_created(n: usize, first: usize, count: usize, revision: u64)
     } else {
         format!(
             "Created {n} entities (indices {first}..={}).",
-            first + n - 1
+            first + n.saturating_sub(1)
         )
     };
     format!("{created} The drawing now has {count} entities. Revision {revision}.")
