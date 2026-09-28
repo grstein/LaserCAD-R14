@@ -67,19 +67,46 @@ fn every_tool_has_a_paragraph_with_every_argument() {
     assert_eq!(coverage_gaps(DEFAULT_PROMPT), Vec::<String>::new());
 }
 
-/// AC 2 — positive control: dropping one argument from its tool's paragraph
-/// is caught, even though the same word appears elsewhere in the prompt.
+/// `text` with every whole-word `from` in the paragraph that starts with
+/// `tool` replaced by `to`; the rest of the prompt is untouched.
+fn drop_word(text: &str, tool: &str, from: &str, to: &str) -> String {
+    let rewrite = |p: &str| {
+        let mut out = String::new();
+        let mut word = String::new();
+        for c in p.chars().chain(['\0']) {
+            if c.is_ascii_alphanumeric() || c == '_' {
+                word.push(c);
+                continue;
+            }
+            out.push_str(if word == from { to } else { &word });
+            word.clear();
+            if c != '\0' {
+                out.push(c);
+            }
+        }
+        out
+    };
+    text.split("\n\n")
+        .map(|p| {
+            if words(p).first() == Some(&tool) {
+                rewrite(p)
+            } else {
+                p.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
+/// AC 2 — positive control: dropping `r` from the create_circle paragraph
+/// is caught, even though `r` still appears in the create_arc paragraph.
 #[test]
 fn a_prompt_missing_one_argument_is_caught() {
-    let doctored = DEFAULT_PROMPT.replacen("end_deg", "stop", 1);
-    assert_ne!(
-        doctored, DEFAULT_PROMPT,
-        "control: the prompt names end_deg"
-    );
-    let gaps = coverage_gaps(&doctored);
-    assert!(
-        gaps.iter().any(|g| g == "create_arc: argument end_deg"),
-        "{gaps:?}"
+    let doctored = drop_word(DEFAULT_PROMPT, "create_circle", "r", "radius");
+    assert_ne!(doctored, DEFAULT_PROMPT, "control: create_circle names r");
+    assert_eq!(
+        coverage_gaps(&doctored),
+        vec!["create_circle: argument r".to_owned()]
     );
 }
 
@@ -91,11 +118,16 @@ fn the_default_prompt_is_ascii_only() {
 }
 
 /// AC 1, 3, 4, 6, 7 — the sections of the spec's Scope appear, in order.
+/// Line breaks are folded to spaces, so a needle may span a wrapped line.
 #[test]
 fn the_sections_appear_in_order() {
     let default = AGENT_STEP_BUDGET_DEFAULT.to_string();
     let range = format!("1 to {AGENT_STEP_BUDGET_MAX}");
-    let lower = DEFAULT_PROMPT.to_lowercase();
+    let lower = DEFAULT_PROMPT
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
     let needles: Vec<&str> = vec![
         // What LaserCAD is.
         "laserCAD",
