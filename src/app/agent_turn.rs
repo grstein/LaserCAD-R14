@@ -445,6 +445,25 @@ mod tests {
         assert_eq!(turn_config(&app.settings).step_limit, 9, "the next turn");
     }
 
+    /// LCV-150 AC 4 — after a clear, the next armed turn's config carries no
+    /// memory, so the worker sends `[system, user]` (LCV-153 AC 11).
+    #[test]
+    fn a_turn_after_a_clear_carries_no_memory() {
+        use crate::agent::wire::ChatMessage;
+        let mut app = App::default();
+        for prompt in ["one", "two"] {
+            app.agent
+                .memory
+                .push_turn(vec![ChatMessage::user(prompt), ChatMessage::assistant("ok")]);
+        }
+        assert_eq!(config_for(&app).memory.len(), 4, "remembered before");
+
+        app.agent.clear_conversation();
+        let _tx = arm_turn(&mut app, "fresh");
+
+        assert!(config_for(&app).memory.is_empty());
+    }
+
     /// LCV-145 AC 2 — `vision` is on only when both opt-ins are on at arm
     /// time, and a later flip leaves the armed turn's snapshot alone.
     #[test]
