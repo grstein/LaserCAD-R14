@@ -3,7 +3,7 @@
 - [x] T1 [AC10] Architect: ADR 0007 amendment (9) per plan §Risks ARCHITECT? — §D3 terminal
   payloads, §D8 rows `src/agent/memory.rs` + `src/app/agent_memory.rs`, §D13 `TurnConfig::memory`
   (files: docs/adr/0007-*.md)
-- [ ] T2 [AC1] [AC4] [AC5] [AC6] [AC8] [AC9] Test: `memory.rs` unit tests against stub signatures —
+- [x] T2 [AC1] [AC4] [AC5] [AC6] [AC8] [AC9] Test: `memory.rs` unit tests against stub signatures —
   `turn_record` per `TurnEnd`, `whole_batches` drops an incomplete trailing batch, `estimate_tokens`
   (sum then `/4`, arguments counted), `clamp_context_tokens` bounds/default, `trim` phase 1 (oldest
   first, newest turn untouched), phase 2, stops at ≤ cap/2, keeps a single oversized turn, no
