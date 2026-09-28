@@ -28,7 +28,7 @@
   - `authorize` answers yes only when both flags are on and endpoint and model match, and a yes writes the `note` row.
   
   Then implement `capture` and `authorize`. (files: src/app/agent_capture.rs, src/app/mod.rs)
-- [ ] T10 [AC2, AC6, AC11] Integration tests (network-isolated):
+- [x] T10 [AC2, AC6, AC11] Integration tests (network-isolated):
   - Of the four live setting combinations, only (on, on) gives `Observed`; the other three get the pinned `Refused`, and a fenced capture is `Fenced`.
   - The `Act` is answered within the same `update_ui`.
   - The PNG bytes are identical with the agent panel, the settings window or a tooltip open vs. closed, and with a selection or hover preview present vs. absent.
@@ -47,3 +47,13 @@
   Every transport test added uses the unparseable or owned-socket pattern. (files: tests/it/lcv145_canvas_capture.rs)
 - [ ] T14 [AC2] Name `capture_canvas` in the built-in system prompt so LCV-151's tool-enumeration test (over `tool_definitions(true)`) stays green. Change LCV-151's coverage loop to iterate `[false, true]` and update the pinned-text test. (files: src/agent/prompt.rs, tests/it/lcv151_default_prompt.rs)
 - [ ] T15 CHANGELOG line: opt-in canvas pictures for vision models. Two Agent Settings checkboxes, off by default; the drawing only, never the window. (files: CHANGELOG.md)
+
+## Deviations and notes
+
+- T8: `agent_worker::drive_turn` takes `&TurnConfig` instead of loose fields, so the
+  `AuthorizeUpload` rendezvous can name the turn's endpoint and model (never the key).
+- T10 (AC 6): opening the agent panel legitimately shrinks the viewport, which changes the frame.
+  Each variant therefore pins the camera (centre, mm/px, viewport size) after its settle frame,
+  so the test proves "document + camera only" (ADR 0011 item 12) rather than "same window".
+- T10 (AC 6): "tooltip open" is approximated by resting the pointer on the toolbar for three
+  frames; tooltip visibility itself is not asserted.
