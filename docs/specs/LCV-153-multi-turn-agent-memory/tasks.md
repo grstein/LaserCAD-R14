@@ -19,7 +19,7 @@
   migrate src test sites (files: src/agent/bridge.rs, src/agent/panel.rs, src/app/agent_turn.rs)
 - [x] T8 [AC10] Migrate integration-test sites to the constructors (files:
   tests/it/lcv123_agent_turn.rs, tests/it/lcv124_command_line_routing.rs, tests/it/lcv125_agent_panel_and_settings.rs)
-- [ ] T9 [AC10] Migrate remaining sites (files: tests/it/lcv129_agent_timeout_and_cancel.rs,
+- [x] T9 [AC10] Migrate remaining sites (files: tests/it/lcv129_agent_timeout_and_cancel.rs,
   tests/it/lcv142_turn_group.rs, src/app/mod.rs)
 - [ ] T10 [AC2] [AC3] [AC4] [AC5] [AC11] Test (worker, `agent_worker.rs` tests): empty memory →
   exactly `["system","user"]`; memory M → `[system, M…, user]`; turn-1 requests (serialized
@@ -51,3 +51,4 @@
   `AGENT_LOST_MESSAGE` does not end in `..`.
 - T6: the Done-path persistence test lives in `tests/it/lcv153_agent_memory.rs` (created here,
   `mod` line in `tests/it/main.rs`), and LCV-125's pinned form list gained the Context tokens row.
+- T9: `tests/it/lcv144_drawing_batch.rs` (added by LCV-144 after the plan) also migrated.

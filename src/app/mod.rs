@@ -480,7 +480,7 @@ mod tests {
             },
             ..App::default()
         };
-        tx.send(AgentEvent::Done("done".into())).unwrap();
+        tx.send(AgentEvent::done("done")).unwrap();
         poll_agent_rx(&mut app);
         assert_eq!(
             app.agent.chat.last(),
@@ -504,7 +504,7 @@ mod tests {
             },
             ..App::default()
         };
-        tx.send(AgentEvent::Failed("err".into())).unwrap();
+        tx.send(AgentEvent::failed("err")).unwrap();
         poll_agent_rx(&mut app);
         assert_eq!(app.agent.chat.last(), Some(&("error".into(), "err".into())));
         assert!(!app.agent.busy);
@@ -588,7 +588,7 @@ mod tests {
             reply,
         })
         .unwrap();
-        tx.send(AgentEvent::Done("drawn".into())).unwrap();
+        tx.send(AgentEvent::done("drawn")).unwrap();
 
         poll_agent_rx(&mut app);
 
@@ -668,7 +668,7 @@ mod tests {
         );
 
         // The turn ends only when a terminal event arrives, on a later frame.
-        tx.send(AgentEvent::Done("drawn".into())).unwrap();
+        tx.send(AgentEvent::done("drawn")).unwrap();
         poll_agent_rx(&mut app);
         assert_eq!(roles(&app), ["tool", "assistant", "note"]);
         assert_eq!(

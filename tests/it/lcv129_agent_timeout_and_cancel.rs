@@ -135,7 +135,7 @@ fn ac4_a_timed_out_call_ends_the_turn_through_failed() {
     let tx = arm_turn(&mut app, "draw a very slow circle");
     let sentence = TransportError::Timeout { secs: 120 }.to_string();
 
-    tx.send(AgentEvent::Failed(sentence.clone()))
+    tx.send(AgentEvent::failed(sentence.clone()))
         .expect("the armed Receiver must still be on App");
     poll_agent_rx(&mut app);
 
@@ -417,7 +417,7 @@ fn ac11_the_old_sender_cannot_speak_into_the_new_turn() {
     let revision = app.history.revision();
 
     assert!(
-        ghost.send(AgentEvent::Done("ghost".to_owned())).is_err(),
+        ghost.send(AgentEvent::done("ghost")).is_err(),
         "AC 11: the old channel died with the turn that owned it"
     );
     poll_agent_rx(&mut app);

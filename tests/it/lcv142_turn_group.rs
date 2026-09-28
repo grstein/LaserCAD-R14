@@ -110,7 +110,7 @@ fn ac6_a_300_step_turn_over_200_human_entries_undoes_as_one() {
         .collect();
     idle(&ctx, &mut app);
     assert!(answers.iter().all(|a| !a.try_recv().unwrap().is_refused()));
-    tx.send(AgentEvent::Done("done".into())).unwrap();
+    tx.send(AgentEvent::done("done")).unwrap();
     idle(&ctx, &mut app);
     assert!(!app.agent.busy);
 
@@ -183,7 +183,7 @@ fn ac7_a_foreign_commit_seals_the_turn_beneath_it() {
             assert_eq!(answer.try_recv().unwrap(), FENCED(), "{foreign}: sticky");
         }
         assert_eq!(app.document.entity_count(), after_foreign, "{foreign}");
-        tx.send(AgentEvent::Done("stopped".into())).unwrap();
+        tx.send(AgentEvent::done("stopped")).unwrap();
         idle(&ctx, &mut app);
 
         assert_eq!(app.history.len(), base + 2, "{foreign}: turn + foreign");
@@ -228,7 +228,7 @@ fn ac7_undo_and_redo_mid_turn_seal_the_group_first() {
         idle(&ctx, &mut app);
         assert_eq!(late.try_recv().unwrap(), FENCED(), "{foreign}");
         assert_eq!(app.document.entity_count(), expected, "{foreign}");
-        tx.send(AgentEvent::Done("stopped".into())).unwrap();
+        tx.send(AgentEvent::done("stopped")).unwrap();
         idle(&ctx, &mut app);
 
         if foreign == "undo" {
@@ -269,7 +269,7 @@ fn ac7_a_turn_armed_at_revision_zero_is_fenced_after_a_reopen() {
         idle(&ctx, &mut app);
         assert_eq!(answer.try_recv().unwrap(), FENCED(), "{replacement}");
         assert_eq!(app.document.entity_count(), count, "{replacement}");
-        tx.send(AgentEvent::Done("stopped".into())).unwrap();
+        tx.send(AgentEvent::done("stopped")).unwrap();
         idle(&ctx, &mut app);
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -296,8 +296,8 @@ fn ac8_every_exit_after_250_acts_finalizes_once() {
             answers.push(last);
         }
         match exit {
-            "done" => tx.send(AgentEvent::Done("ok".into())).unwrap(),
-            "failed" => tx.send(AgentEvent::Failed("boom".into())).unwrap(),
+            "done" => tx.send(AgentEvent::done("ok")).unwrap(),
+            "failed" => tx.send(AgentEvent::failed("boom")).unwrap(),
             "disconnected" => drop(tx),
             "dead-reply" => {}
             _ => {
@@ -388,7 +388,7 @@ fn ac12_the_note_follows_the_seal_not_the_fence() {
             "replaced" => app.action_new(),
             _ => {}
         }
-        tx.send(AgentEvent::Done("done".into())).unwrap();
+        tx.send(AgentEvent::done("done")).unwrap();
         idle(&ctx, &mut app);
         let expected = if case == "clean" {
             "Applied 3 actions — Ctrl+Z undoes the whole turn."

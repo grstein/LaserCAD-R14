@@ -265,7 +265,7 @@ fn ac7_a_thousand_items_are_one_revision_one_step_and_one_undo() {
     assert_eq!(app.agent.turn.steps, steps + 1);
 
     let last = push_act(&tx, line);
-    tx.send(AgentEvent::Done("done".into())).unwrap();
+    tx.send(AgentEvent::done("done")).unwrap();
     idle(&ctx, &mut app);
     assert!(!last.try_recv().unwrap().is_refused());
     assert_eq!(app.document.entity_count(), 1002);
@@ -281,7 +281,7 @@ fn ac9_undo_redo_and_svg_round_trip() {
     app.document.bed_mm = [300.0, 180.0];
     let tx = arm_turn(&mut app, "draw");
     let answer = push_act(&tx, mixed());
-    tx.send(AgentEvent::Done("done".into())).unwrap();
+    tx.send(AgentEvent::done("done")).unwrap();
     idle(&ctx, &mut app);
     assert!(!answer.try_recv().unwrap().is_refused());
     let drawn = app.document.entities.clone();
