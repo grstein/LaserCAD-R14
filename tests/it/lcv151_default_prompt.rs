@@ -16,11 +16,21 @@ fn words(text: &str) -> Vec<&str> {
         .collect()
 }
 
-/// Every `(tool name, property keys)` pair advertised by `tool_definitions()`.
+/// Every `(tool name, property keys)` pair advertised by `tool_definitions()`,
+/// with the vision flag off and on (LCV-145 adds `capture_canvas` behind it),
+/// each tool once.
 fn tools() -> Vec<(String, Vec<String>)> {
-    let defs = tool_definitions(false);
-    let defs = defs.as_array().expect("tool_definitions is an array");
-    defs.iter()
+    let mut seen = Vec::new();
+    for vision in [false, true] {
+        let defs = tool_definitions(vision);
+        let defs = defs.as_array().expect("tool_definitions is an array");
+        for def in defs {
+            if !seen.contains(def) {
+                seen.push(def.clone());
+            }
+        }
+    }
+    seen.iter()
         .map(|def| {
             let function = &def["function"];
             let name = function["name"].as_str().expect("tool name").to_owned();
@@ -64,6 +74,10 @@ fn coverage_gaps(prompt: &str) -> Vec<String> {
 #[test]
 fn every_tool_has_a_paragraph_with_every_argument() {
     assert!(tools().len() >= 7, "control: the registry is not empty");
+    assert!(
+        tools().iter().any(|(name, _)| name == "capture_canvas"),
+        "control: the vision-only tool is covered too"
+    );
     assert_eq!(coverage_gaps(DEFAULT_PROMPT), Vec::<String>::new());
 }
 

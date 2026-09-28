@@ -45,7 +45,7 @@
   - No logging call carries `png`.
   
   Every transport test added uses the unparseable or owned-socket pattern. (files: tests/it/lcv145_canvas_capture.rs)
-- [ ] T14 [AC2] Name `capture_canvas` in the built-in system prompt so LCV-151's tool-enumeration test (over `tool_definitions(true)`) stays green. Change LCV-151's coverage loop to iterate `[false, true]` and update the pinned-text test. (files: src/agent/prompt.rs, tests/it/lcv151_default_prompt.rs)
+- [x] T14 [AC2] Name `capture_canvas` in the built-in system prompt so LCV-151's tool-enumeration test (over `tool_definitions(true)`) stays green. Change LCV-151's coverage loop to iterate `[false, true]` and update the pinned-text test. (files: src/agent/prompt.rs, tests/it/lcv151_default_prompt.rs)
 - [ ] T15 CHANGELOG line: opt-in canvas pictures for vision models. Two Agent Settings checkboxes, off by default; the drawing only, never the window. (files: CHANGELOG.md)
 
 ## Deviations and notes
@@ -57,3 +57,6 @@
   so the test proves "document + camera only" (ADR 0011 item 12) rather than "same window".
 - T10 (AC 6): "tooltip open" is approximated by resting the pointer on the toolbar for three
   frames; tooltip visibility itself is not asserted.
+- T14: the pinned-text test is `tests/it/lcv143_system_prompt.rs::SPEC_TEXT` (LCV-143 AC 6), so it
+  changed with the prompt; `tests/it/lcv125_agent_panel_and_settings.rs`'s "paints nothing else"
+  form list gained the two checkboxes and the disclosure in T12 for the same reason.
