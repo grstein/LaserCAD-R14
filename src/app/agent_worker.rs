@@ -338,9 +338,9 @@ mod tests {
         let result = drive_turn("hi", SENTINEL, 3, &mut send_fn, &mut ask);
         assert_eq!(result.expect("text ends the turn"), "ok");
         assert_eq!(seen[0].role, "system");
-        assert_eq!(seen[0].content.as_deref(), Some(SENTINEL));
+        assert_eq!(seen[0].text_content(), Some(SENTINEL));
         assert_eq!(seen[1].role, "user");
-        assert_eq!(seen[1].content.as_deref(), Some("hi"));
+        assert_eq!(seen[1].text_content(), Some("hi"));
     }
 
     /// LCV-151 AC 1 — with no override, the wire's first message is exactly
@@ -996,13 +996,13 @@ mod tests {
         let want = ["call_0", "call_1", "call_2"].map(|id| Some(id.to_owned()));
         assert_eq!(ids, want);
         assert_eq!(
-            tools[0].content.as_deref(),
+            tools[0].text_content(),
             Some(crate::app::AGENT_FENCE_REFUSAL)
         );
         let placeholder = "not run: the turn stopped after the drawing changed outside it";
         assert_eq!(crate::agent::loop_::FENCE_STOP_PLACEHOLDER, placeholder);
         for tool in &tools[1..] {
-            assert_eq!(tool.content.as_deref(), Some(placeholder));
+            assert_eq!(tool.text_content(), Some(placeholder));
         }
     }
 

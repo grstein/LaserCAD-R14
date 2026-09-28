@@ -6,7 +6,7 @@
 //! responses with them, and [`loop_`](super::loop_) builds the conversation out
 //! of them; neither keeps a private copy (ADR 0007 §D8).
 //!
-//! Kernel-pure: `serde` is the only thing this file imports. It describes bytes
+//! Kernel-pure: `serde` and `base64` are the only things this file imports. It describes bytes
 //! on a socket, so it knows nothing about HTTP clients, the drawing, or the UI
 //! toolkit, and a scan in the test module below keeps it that way.
 //!
@@ -15,6 +15,8 @@
 //! so a plain user message has to reach the wire as
 //! `{"role":"user","content":"…"}` and nothing else.
 
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 
 /// The only tool-call `type` the API defines today.
@@ -78,10 +80,11 @@ impl ToolCall {
 pub struct ChatMessage {
     /// `"system"`, `"user"`, `"assistant"` or `"tool"`.
     pub role: String,
-    /// The text of the turn. `None` on an assistant turn that is nothing but
-    /// tool calls.
+    /// The text of the turn — or, on a `user` turn that carries canvas
+    /// images, its typed parts. `None` on an assistant turn that is nothing
+    /// but tool calls.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub content: Option<String>,
+    pub content: Option<Content>,
     /// Tool calls requested by an assistant turn.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
@@ -106,7 +109,7 @@ impl ChatMessage {
     pub fn assistant_with_tool_calls(content: Option<String>, tool_calls: Vec<ToolCall>) -> Self {
         Self {
             role: "assistant".to_string(),
-            content,
+            content: content.map(Content::Text),
             tool_calls: Some(tool_calls),
             tool_call_id: None,
         }
@@ -116,9 +119,37 @@ impl ChatMessage {
     pub fn tool_result(tool_call_id: impl Into<String>, content: impl Into<String>) -> Self {
         Self {
             role: "tool".to_string(),
-            content: Some(content.into()),
+            content: Some(Content::Text(content.into())),
             tool_calls: None,
             tool_call_id: Some(tool_call_id.into()),
+        }
+    }
+
+    /// A `"user"` turn made of typed parts (LCV-145: canvas images).
+    pub fn user_parts(parts: Vec<ContentPart>) -> Self {
+        Self {
+            role: "user".to_string(),
+            content: Some(Content::Parts(parts)),
+            tool_calls: None,
+            tool_call_id: None,
+        }
+    }
+
+    /// The turn's text, when it is plain text; `None` for parts or no content.
+    pub fn text_content(&self) -> Option<&str> {
+        match &self.content {
+            Some(Content::Text(text)) => Some(text),
+            _ => None,
+        }
+    }
+
+    /// Whether any part of this turn is an image.
+    pub fn has_image(&self) -> bool {
+        match &self.content {
+            Some(Content::Parts(parts)) => parts
+                .iter()
+                .any(|part| matches!(part, ContentPart::ImageUrl { .. })),
+            _ => false,
         }
     }
 
@@ -126,11 +157,79 @@ impl ChatMessage {
     fn text(role: &str, content: impl Into<String>) -> Self {
         Self {
             role: role.to_string(),
-            content: Some(content.into()),
+            content: Some(Content::Text(content.into())),
             tool_calls: None,
             tool_call_id: None,
         }
     }
+}
+
+/// The `content` of a [`ChatMessage`]: a bare string — which serialises
+/// exactly as `content` did before LCV-145 — or a list of typed parts.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Content {
+    /// Plain text; every turn except a canvas-image `user` turn.
+    Text(String),
+    /// Typed parts, OpenAI chat-completions form.
+    Parts(Vec<ContentPart>),
+}
+
+/// One typed part of a multimodal `user` turn.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ContentPart {
+    /// `{"type":"text","text":…}`.
+    Text {
+        /// The text.
+        text: String,
+    },
+    /// `{"type":"image_url","image_url":{"url":…}}`.
+    ImageUrl {
+        /// The image location; here always a `data:` URL.
+        image_url: ImageUrl,
+    },
+}
+
+/// The `image_url` object of an [`ContentPart::ImageUrl`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ImageUrl {
+    /// `data:image/png;base64,…`.
+    pub url: String,
+}
+
+impl ContentPart {
+    /// A text part.
+    pub fn text(text: impl Into<String>) -> Self {
+        Self::Text { text: text.into() }
+    }
+
+    /// An image part carrying `png` as a base64 `data:` URL. This file is the
+    /// only place `base64` is used (LCV-145 AC 7).
+    pub fn png(png: &[u8]) -> Self {
+        let url = format!("data:image/png;base64,{}", STANDARD.encode(png));
+        Self::ImageUrl {
+            image_url: ImageUrl { url },
+        }
+    }
+}
+
+/// Replace every image part in `messages` with a text part `placeholder`;
+/// returns how many were replaced. Used once an image has ridden its one
+/// request, or when its upload was not authorised (ADR 0011 items 9–10).
+pub fn replace_images(messages: &mut [ChatMessage], placeholder: &str) -> usize {
+    let mut replaced = 0;
+    for message in messages {
+        if let Some(Content::Parts(parts)) = &mut message.content {
+            for part in parts.iter_mut() {
+                if matches!(part, ContentPart::ImageUrl { .. }) {
+                    *part = ContentPart::text(placeholder);
+                    replaced += 1;
+                }
+            }
+        }
+    }
+    replaced
 }
 
 /// The assistant half of one [`Choice`] — what the endpoint answered.
@@ -246,6 +345,94 @@ mod tests {
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].kind, "function");
         assert_eq!(calls[0].function.name, "create_line");
+    }
+
+    /// LCV-145 AC 9 — today's text-only requests, pinned as literal bytes
+    /// before `content` became `Option<Content>`: the type change must not
+    /// move one byte of any of them.
+    #[test]
+    fn text_only_messages_serialise_byte_identically() {
+        let calls = vec![ToolCall::function("call_1", "create_line", r#"{"x1":0}"#)];
+        for (message, pinned) in [
+            (
+                ChatMessage::system("be brief"),
+                r#"{"role":"system","content":"be brief"}"#,
+            ),
+            (
+                ChatMessage::user("draw a line"),
+                r#"{"role":"user","content":"draw a line"}"#,
+            ),
+            (
+                ChatMessage::assistant_with_tool_calls(None, calls.clone()),
+                r#"{"role":"assistant","tool_calls":[{"id":"call_1","type":"function","function":{"name":"create_line","arguments":"{\"x1\":0}"}}]}"#,
+            ),
+            (
+                ChatMessage::assistant_with_tool_calls(Some("Let me look.".into()), calls),
+                r#"{"role":"assistant","content":"Let me look.","tool_calls":[{"id":"call_1","type":"function","function":{"name":"create_line","arguments":"{\"x1\":0}"}}]}"#,
+            ),
+            (
+                ChatMessage::tool_result("call_1", "Line created."),
+                r#"{"role":"tool","content":"Line created.","tool_call_id":"call_1"}"#,
+            ),
+        ] {
+            assert_eq!(serde_json::to_string(&message).unwrap(), pinned);
+        }
+    }
+
+    /// LCV-145 AC 9 — a parts message has the OpenAI chat-completions shape:
+    /// typed `text` and `image_url` parts, the image a base64 PNG data URL.
+    #[test]
+    fn parts_message_serialises_to_the_openai_shape() {
+        let message = ChatMessage::user_parts(vec![
+            ContentPart::text("canvas image for tool call call_2"),
+            ContentPart::png(&[0x89, b'P', b'N', b'G']),
+        ]);
+        assert_eq!(
+            serde_json::to_string(&message).unwrap(),
+            concat!(
+                r#"{"role":"user","content":["#,
+                r#"{"type":"text","text":"canvas image for tool call call_2"},"#,
+                r#"{"type":"image_url","image_url":{"url":"data:image/png;base64,iVBORw=="}}"#,
+                r#"]}"#
+            )
+        );
+        assert!(message.has_image());
+        assert_eq!(message.text_content(), None);
+        let back: ChatMessage =
+            serde_json::from_str(&serde_json::to_string(&message).unwrap()).unwrap();
+        assert_eq!(back, message);
+    }
+
+    /// LCV-145 AC 10/11 — `replace_images` swaps every image part, in every
+    /// message, for a text placeholder, and leaves everything else alone.
+    #[test]
+    fn replace_images_swaps_only_image_parts() {
+        let mut messages = vec![
+            ChatMessage::user("u"),
+            ChatMessage::user_parts(vec![
+                ContentPart::text("a"),
+                ContentPart::png(b"1"),
+                ContentPart::text("b"),
+                ContentPart::png(b"2"),
+            ]),
+        ];
+        let before_text = messages[0].clone();
+        assert_eq!(replace_images(&mut messages, "gone"), 2);
+        assert_eq!(messages[0], before_text);
+        assert!(!messages.iter().any(ChatMessage::has_image));
+        assert_eq!(
+            messages[1],
+            ChatMessage::user_parts(vec![
+                ContentPart::text("a"),
+                ContentPart::text("gone"),
+                ContentPart::text("b"),
+                ContentPart::text("gone"),
+            ])
+        );
+        assert_eq!(replace_images(&mut messages, "gone"), 0, "idempotent");
+        assert_eq!(messages[0].text_content(), Some("u"));
+        assert!(!ChatMessage::user("u").has_image());
+        assert!(!ChatMessage::user_parts(vec![ContentPart::text("t")]).has_image());
     }
 
     /// AC 3 — the wire types stay kernel-pure. Bounded to the implementation

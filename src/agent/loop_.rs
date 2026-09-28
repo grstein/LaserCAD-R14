@@ -396,7 +396,7 @@ mod tests {
         assert_eq!(calls[0].id, "call_0");
         assert_eq!(messages[3].role, "tool");
         assert_eq!(messages[3].tool_call_id.as_deref(), Some("call_0"));
-        assert_eq!(messages[3].content.as_deref(), Some("Line created: …."));
+        assert_eq!(messages[3].text_content(), Some("Line created: …."));
     }
 
     /// LCV-121 carry-over, closed by LCV-122 — a model that narrates *and*
@@ -432,7 +432,7 @@ mod tests {
         assert_eq!(result.unwrap(), "Two lines.");
         assert_eq!(messages[2].role, "assistant");
         assert_eq!(
-            messages[2].content.as_deref(),
+            messages[2].text_content(),
             Some("Let me look at the drawing first."),
             "the assistant's own words must go back with its tool calls"
         );
