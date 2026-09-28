@@ -29,6 +29,9 @@ pub use bridge::{AgentAction, AgentEvent, AgentOutcome};
 pub mod classifier;
 pub use classifier::{classify, Route};
 
+pub mod drawing;
+pub use drawing::DrawingItem;
+
 pub mod tools;
 pub use tools::{parse_tool_call, tool_definitions, ToolCallError};
 
