@@ -32,6 +32,9 @@ pub use classifier::{classify, Route};
 pub mod tools;
 pub use tools::{parse_tool_call, tool_definitions, ToolCallError};
 
+pub mod prompt;
+pub use prompt::DEFAULT_PROMPT;
+
 pub mod loop_;
 pub use loop_::{
     clamp_step_budget, AgentError, AGENT_STEP_BUDGET_DEFAULT, AGENT_STEP_BUDGET_MAX,

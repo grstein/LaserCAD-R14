@@ -73,9 +73,9 @@ The tree is orientation; `ls` is the inventory.
 
 - Kernel — `src/geometry/`, `src/document/`, `src/io/svg/`, `src/text/`, `src/cmdline/` — never imports `egui`, `eframe` or `rfd`.
 - `src/agent/`: only `panel.rs` and `settings_ui.rs` may import `egui`; none may import `eframe`/`rfd`.
-  `classifier.rs`, `wire.rs`, `transport.rs`, `tools.rs`, `bridge.rs`, `loop_.rs` and `mod.rs` are
-  kernel-pure. Only `transport.rs` imports `reqwest`. `panel.rs` never spawns a thread and never
-  builds a `Document`/`History` (ADR 0007 §D8).
+  `classifier.rs`, `wire.rs`, `transport.rs`, `tools.rs`, `bridge.rs`, `loop_.rs`, `prompt.rs` and
+  `mod.rs` are kernel-pure. Only `transport.rs` imports `reqwest`. `panel.rs` never spawns a thread
+  and never builds a `Document`/`History` (ADR 0007 §D8).
 
 ### Invariants (review blockers)
 
