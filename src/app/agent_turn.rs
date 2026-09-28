@@ -206,6 +206,7 @@ fn turn_config(settings: &Settings) -> TurnConfig {
         model: settings.agent_model.clone(),
         step_limit: effective_step_limit(settings),
         system_prompt: prompt::resolve(settings.agent_system_prompt.as_deref()).to_owned(),
+        vision: settings.agent_allow_canvas_capture && settings.agent_model_supports_vision,
     }
 }
 
@@ -425,6 +426,25 @@ mod tests {
         assert_eq!(config.model, "m/one");
         assert_eq!(app.agent.turn.limit, 7);
         assert_eq!(turn_config(&app.settings).step_limit, 9, "the next turn");
+    }
+
+    /// LCV-145 AC 2 — `vision` is on only when both opt-ins are on at arm
+    /// time, and a later flip leaves the armed turn's snapshot alone.
+    #[test]
+    fn the_turn_config_vision_flag_needs_both_opt_ins() {
+        let mut app = App::default();
+        for (allow, supports) in [(false, false), (true, false), (false, true), (true, true)] {
+            app.settings.agent_allow_canvas_capture = allow;
+            app.settings.agent_model_supports_vision = supports;
+            assert_eq!(turn_config(&app.settings).vision, allow && supports);
+        }
+        let armed = turn_config(&app.settings);
+        app.settings.agent_model_supports_vision = false;
+        assert!(armed.vision, "the armed turn keeps its snapshot");
+        assert!(
+            !turn_config(&app.settings).vision,
+            "the next turn sees the flip"
+        );
     }
 
     /// LCV-143 AC 5 — the prompt is resolved once, into the config: built

@@ -34,6 +34,9 @@ pub struct TurnConfig {
     /// The turn's system message, resolved from `Settings` when the turn was
     /// armed (LCV-143). Never printed.
     pub system_prompt: String,
+    /// Both canvas opt-ins were on when the turn was armed (LCV-145): the
+    /// turn advertises `capture_canvas`. Execution re-checks them live.
+    pub vision: bool,
 }
 
 impl std::fmt::Debug for TurnConfig {
@@ -44,6 +47,7 @@ impl std::fmt::Debug for TurnConfig {
             .field("model", &self.model)
             .field("step_limit", &self.step_limit)
             .field("system_prompt_len", &self.system_prompt.len())
+            .field("vision", &self.vision)
             .finish()
     }
 }
@@ -79,7 +83,7 @@ where
     A: FnMut(AgentAction) -> Result<AgentOutcome, AgentError>,
 {
     // Built once; every round offers the model the same schemas.
-    let tools = crate::agent::tool_definitions(false);
+    let tools = crate::agent::tool_definitions(config.vision);
     let mut send_fn = |msgs: &[ChatMessage]| {
         // The slice goes through untouched: filtering it would drop the
         // assistant turns that carry tool calls and the tool turns that answer
@@ -289,6 +293,7 @@ mod tests {
             model: model.to_owned(),
             step_limit,
             system_prompt: "test system prompt".to_owned(),
+            vision: false,
         }
     }
 
