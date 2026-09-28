@@ -1,8 +1,8 @@
 # LCV-150 - New conversation button in the agent panel
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-125, LCV-141, LCV-142, LCV-153
-- **Implementation**: -
+- **Implementation**: 4a67eac..a257104 (excluding f285e42)
 
 ## Problem
 
