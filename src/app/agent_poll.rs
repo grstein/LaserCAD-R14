@@ -93,11 +93,11 @@ pub fn poll_agent_rx(app: &mut App) {
                     return;
                 }
             }
-            Ok(AgentEvent::Done(text)) => {
+            Ok(AgentEvent::Done(text, _batches)) => {
                 end_turn(app, Some(("assistant", text)));
                 return;
             }
-            Ok(AgentEvent::Failed(error)) => {
+            Ok(AgentEvent::Failed(error, _batches)) => {
                 end_turn(app, Some(("error", error)));
                 return;
             }

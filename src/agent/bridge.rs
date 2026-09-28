@@ -25,6 +25,7 @@
 //! [`Document`]: crate::document::Document
 
 use crate::agent::drawing::DrawingItem;
+use crate::agent::wire::ChatMessage;
 use std::sync::mpsc::Sender;
 
 /// One thing the model wants done to the drawing.
@@ -197,21 +198,23 @@ pub enum AgentEvent {
         /// One-shot channel for the real outcome.
         reply: Sender<AgentOutcome>,
     },
-    /// Terminal: the turn finished; carries the final assistant text.
-    Done(String),
-    /// Terminal: the turn failed; carries a human-readable error.
-    Failed(String),
+    /// Terminal: the turn finished; carries the final assistant text and
+    /// the turn's whole tool-call batches for memory (ADR 0007 §D16).
+    Done(String, Vec<ChatMessage>),
+    /// Terminal: the turn failed; carries a human-readable error and the
+    /// batches that completed before it.
+    Failed(String, Vec<ChatMessage>),
 }
 
 impl AgentEvent {
-    /// A [`AgentEvent::Done`] carrying `text`.
+    /// A [`AgentEvent::Done`] carrying `text` and no batches.
     pub fn done(text: impl Into<String>) -> Self {
-        Self::Done(text.into())
+        Self::Done(text.into(), Vec::new())
     }
 
-    /// A [`AgentEvent::Failed`] carrying `error`.
+    /// A [`AgentEvent::Failed`] carrying `error` and no batches.
     pub fn failed(error: impl Into<String>) -> Self {
-        Self::Failed(error.into())
+        Self::Failed(error.into(), Vec::new())
     }
 }
 

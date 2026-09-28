@@ -181,16 +181,16 @@ pub fn start_turn(app: &mut App, prompt: &str) {
     let prompt = prompt.to_owned();
     let tx = arm_with_limit(app, &prompt, config.step_limit);
     std::thread::spawn(move || {
-        let result = {
+        let (result, batches) = {
             let mut ask = |action| ask_ui(&tx, action);
-            run_agent_turn(&prompt, &config, &mut ask).0
+            run_agent_turn(&prompt, &config, &mut ask)
         };
         match result {
-            Ok(reply) => drop(tx.send(AgentEvent::Done(reply))),
+            Ok(reply) => drop(tx.send(AgentEvent::Done(reply, batches))),
             // Nobody is listening — saying so would only surface in a later
             // turn's transcript (ADR 0007 §D2).
             Err(AgentError::Cancelled) => {}
-            Err(error) => drop(tx.send(AgentEvent::Failed(error.to_string()))),
+            Err(error) => drop(tx.send(AgentEvent::Failed(error.to_string(), batches))),
         }
     });
 }
@@ -329,7 +329,7 @@ mod tests {
             .try_recv()
             .expect("and the event must arrive on the Receiver App is holding")
         {
-            AgentEvent::Done(text) => assert_eq!(text, "hi"),
+            AgentEvent::Done(text, _) => assert_eq!(text, "hi"),
             _ => panic!("the event must arrive intact"),
         }
     }

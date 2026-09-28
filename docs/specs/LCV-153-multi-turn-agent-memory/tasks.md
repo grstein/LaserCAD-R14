@@ -27,7 +27,7 @@
   `turn_record`; a `reasoning_content` response field never reaches the batches; failure
   batches = whole batches only (transport mid-turn, step budget, `FenceStopped`, `NoContent`)
   (files: src/app/agent_worker.rs)
-- [ ] T11 [AC2] [AC5] [AC10] `TurnConfig::memory`, `drive_turn`/`run_agent_turn` tuple return,
+- [x] T11 [AC2] [AC5] [AC10] `TurnConfig::memory`, `drive_turn`/`run_agent_turn` tuple return,
   `AgentEvent::Done/Failed(_, Vec<ChatMessage>)`; `poll_agent_rx` destructures (files:
   src/app/agent_worker.rs, src/agent/bridge.rs, src/app/agent_poll.rs)
 - [ ] T12 [AC1] [AC5] [AC6] [AC7] [AC9] [AC10] [AC11] Test (integration, `arm_turn` + events):

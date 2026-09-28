@@ -9,7 +9,9 @@
 //! the app that is [`ask_ui`], which blocks on the UI thread's answer; in a
 //! test it is a closure.
 
-use crate::agent::loop_::Dispatch;
+use crate::agent::loop_::{Dispatch, IMAGE_ELIDED};
+use crate::agent::memory::whole_batches;
+use crate::agent::wire::replace_images;
 use crate::agent::{
     agent_loop, AgentAction, AgentError, AgentEvent, AgentOutcome, AssistantMessage, ChatMessage,
 };
@@ -70,6 +72,10 @@ impl std::fmt::Debug for TurnConfig {
 /// already been through [`crate::agent::clamp_step_budget`]. At most
 /// `step_limit` actions are dispatched per turn.
 ///
+/// `config.memory` goes between the system prompt and `prompt`. Returns the
+/// result together with the whole tool-call batches that followed `prompt`,
+/// images elided, whether the turn succeeded or not (LCV-153).
+///
 /// # Errors
 ///
 /// [`AgentError`] for a transport failure, an exhausted step budget, a reply carrying neither text nor tool calls, tool calls asked
@@ -119,8 +125,12 @@ where
     F: FnMut(&[ChatMessage]) -> Result<AssistantMessage, AgentError>,
     A: FnMut(AgentAction) -> Result<AgentOutcome, AgentError>,
 {
-    let system = ChatMessage::system(config.system_prompt.as_str());
-    let mut messages = vec![system, ChatMessage::user(prompt)];
+    // `[system, memory…, user]` (ADR 0007 §D16): only appended to from here,
+    // so each request is a prefix of the next, and of the next turn's.
+    let mut messages = vec![ChatMessage::system(config.system_prompt.as_str())];
+    messages.extend(config.memory.iter().cloned());
+    messages.push(ChatMessage::user(prompt));
+    let first_batch = messages.len();
     // A refusal is a tool result, not a failure (ADR 0007 §D2a), and so is a
     // malformed call (§D15); a `Fenced` answer is read by `agent_loop` (§D14).
     // An upload check names the turn's endpoint and model, never its key
@@ -133,7 +143,10 @@ where
         }),
     };
     let result = agent_loop(send_fn, &mut dispatch_fn, &mut messages, config.step_limit);
-    (result, Vec::new())
+    // What memory keeps of this turn: whole batches, no image (§D3, ADR 0011).
+    let mut batches = whole_batches(&messages[first_batch..]);
+    replace_images(&mut batches, IMAGE_ELIDED);
+    (result, batches)
 }
 
 /// The raw argument string of any tool call is refused above this many bytes,
