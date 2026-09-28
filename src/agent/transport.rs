@@ -919,7 +919,7 @@ mod tests {
     /// seven seconds for the connect, which both fixtures complete instantly.
     /// So a `Timeout` naming `0` seconds (250 ms, truncated) proves the request
     /// window was the one reported, and a `7` would prove it was not.
-    fn timeout_case(reply: Option<&'static str>) -> TransportError {
+    fn timeout_case(reply: Option<&'static str>) -> (TransportError, Vec<u8>) {
         use std::io::{Read, Write};
         use std::net::TcpListener;
 
@@ -932,6 +932,7 @@ mod tests {
         );
         let fixture = std::thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("the client must connect");
+            let received: Vec<u8> = Vec::new();
             if let Some(head) = reply {
                 let _ = stream.write_all(head.as_bytes());
                 let _ = stream.flush();
@@ -940,6 +941,7 @@ mod tests {
             // is read and never answered.
             let mut sink = [0u8; 1024];
             while matches!(stream.read(&mut sink), Ok(n) if n > 0) {}
+            received
         });
 
         let (done, result) = std::sync::mpsc::channel();
@@ -958,8 +960,9 @@ mod tests {
         let answer = result
             .recv_timeout(std::time::Duration::from_secs(5))
             .expect("AC 3: an unbounded client hangs here — the call never gave up");
-        fixture.join().expect("the fixture thread must not panic");
-        answer.expect_err("a fixture that never answers cannot produce a message")
+        let received = fixture.join().expect("the fixture thread must not panic");
+        let error = answer.expect_err("a fixture that never answers cannot produce a message");
+        (error, received)
     }
 
     /// LCV-129 AC 3 — the bound really fires, on both halves of a call.
@@ -990,7 +993,16 @@ mod tests {
                 Some("HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n"),
             ),
         ] {
-            let error = timeout_case(reply);
+            let (error, received) = timeout_case(reply);
+            let received = String::from_utf8_lossy(&received);
+            assert!(
+                received.starts_with("POST /chat/completions "),
+                "{what}: the fixture must read the request head before replying, read {received:?}"
+            );
+            assert!(
+                received.contains(r#""model":"m""#),
+                "{what}: the fixture must read the JSON body before replying, read {received:?}"
+            );
             match error {
                 TransportError::Timeout { secs } => assert_eq!(
                     secs, 0,
