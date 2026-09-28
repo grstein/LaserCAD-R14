@@ -5,7 +5,7 @@
 Sequenced after LCV-153, which gives `AgentState` a conversation memory (the pairs sent
 before each new prompt) next to the display-only `agent.chat`, and copies it into
 `TurnConfig` at turn start. "New Conversation" empties both; with the memory empty the next
-turn sends exactly `[system, user]` (LCV-153 AC 9), so AC4 needs no worker change.
+turn sends exactly `[system, user]` (LCV-153 AC 11), so AC4 needs no worker change.
 
 - One method `AgentState::clear_conversation(&mut self)` empties `chat` and the LCV-153
   memory, and does nothing while `busy` (defence in depth under the disabled button). It
@@ -25,7 +25,7 @@ turn sends exactly `[system, user]` (LCV-153 AC 9), so AC4 needs no worker chang
   doc "Pure data, no behaviour" amended to name this one guarded method.
 - `src/agent/panel.rs::draw_agent_panel` — header button; module doc gains an LCV-150 paragraph.
 - `src/app/agent_turn.rs` (tests only) — after a clear, the `TurnConfig` `start_turn` builds
-  carries an empty memory. The empty-memory → `["system", "user"]` half is LCV-153 AC 9's
+  carries an empty memory. The empty-memory → `["system", "user"]` half is LCV-153 AC 11's
   test in `src/app/agent_worker.rs`; not duplicated.
 - `tests/it/lcv150_new_conversation.rs` (new) + `tests/it/main.rs` — paint and pointer tests
   using `tests/harness/paint.rs` and the ADR 0002 §A4 rule 3 click convention (helpers
@@ -41,7 +41,7 @@ turn sends exactly `[system, user]` (LCV-153 AC 9), so AC4 needs no worker chang
 - AC3 / AC6 pointer: click while `busy == true` leaves `chat` intact; set `busy = false`, the very
   next frame's click clears it. Unit: `clear_conversation` while busy is a no-op.
 - AC4 painted transcript after the click has no row text; with 2 remembered pairs, a clear, then
-  a turn start: the built `TurnConfig` memory is empty (so LCV-153 AC 9 sends `[system, user]`).
+  a turn start: the built `TurnConfig` memory is empty (so LCV-153 AC 11 sends `[system, user]`).
 - AC5 after the click: `history` revision and undo depth unchanged, entity count unchanged,
   `agent.busy == false`, `agent.rx.is_none()`, no new `user` row.
 - AC7 at 800×600 with a 200-row transcript and with `busy == true`: the button's painted rect is

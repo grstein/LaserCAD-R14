@@ -1,8 +1,8 @@
 # LCV-143 - Editable harness-aware system prompt
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-125, LCV-141, LCV-142
-- **Implementation**: -
+- **Implementation**: 76ad102..90c6e3b (excluding d374c97)
 
 ## Problem
 
