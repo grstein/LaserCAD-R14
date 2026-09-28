@@ -11,7 +11,7 @@
 - [x] T3 [AC1] [AC5] [AC6] [AC8] [AC9] Implement `memory.rs`; `ChatMessage::assistant` (files: src/agent/memory.rs, src/agent/wire.rs)
 - [x] T4 [P] [AC7] Test: two fresh `History` values differ in `id()`; `id()` is stable across
   commit/undo/redo/`end_group` (files: src/document/history.rs)
-- [ ] T5 [AC7] Implement `History::id` (static `AtomicU64`, set in `with_depth`) (files: src/document/history.rs)
+- [x] T5 [AC7] Implement `History::id` (static `AtomicU64`, set in `with_depth`) (files: src/document/history.rs)
 - [ ] T6 [P] [AC8] Test then implement `Settings::agent_context_tokens` (serde default 128 000, old
   file without the key loads) and the Agent Settings integer field (harness edit persists via the
   LCV-141 Done path) (files: src/io/settings.rs, src/agent/settings_ui.rs)

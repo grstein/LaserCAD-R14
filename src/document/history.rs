@@ -26,12 +26,16 @@
 
 use std::collections::VecDeque;
 use std::fmt;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::document::{Command, CompositeCommand, Document};
 
 /// Maximum number of commands retained for undo. Matches LaserCAD v1 and
 /// AGENTS.md §"State and mutation".
 pub const HISTORY_DEPTH: usize = 200;
+
+/// The next [`History::id`]; every constructor goes through `with_depth`.
+static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 
 /// Single-branch undo/redo history stack. See the [module docs](self) for the
 /// API surface and shape rationale. No `Debug` derive — `Box<dyn Command>`
@@ -52,6 +56,8 @@ pub struct History {
     /// The open flat group, if one is armed (ADR 0007 §D12). Held beside the
     /// stack; see [`History::begin_group`].
     group: Option<Group>,
+    /// Process-unique, fixed at construction (ADR 0007 §D16).
+    id: u64,
 }
 
 /// An armed group: its undo label and the commands applied into it so far,
@@ -76,6 +82,7 @@ impl History {
             max_depth: depth,
             revision: 0,
             group: None,
+            id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
         }
     }
 
@@ -88,9 +95,13 @@ impl History {
         self.revision
     }
 
-    /// Process-unique identity of this `History` (ADR 0007 §D16).
+    /// Process-unique identity of this `History` (ADR 0007 §D16). With
+    /// [`History::revision`] it names one state of one document: replacing
+    /// the document assigns a fresh `History`, whose revision restarts at 0
+    /// but whose id is new. `History` is not `Clone`, so no two live values
+    /// share an id.
     pub fn id(&self) -> u64 {
-        0
+        self.id
     }
 
     /// Run a command against `doc`, remember it for undo, invalidate redo.
