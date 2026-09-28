@@ -326,3 +326,164 @@ fn agent_settings_paints_both_opt_ins_and_the_disclosure() {
         assert!(painted(text), "{text:?} is not painted");
     }
 }
+
+/// Every `src/` file as `(relative path, body)`, the path rebuilt from
+/// `components()` joined with `/`. `bounded` cuts each body at its column-0
+/// `#[cfg(test)]` (scan rule 1).
+fn src_sections(bounded: bool) -> Vec<(String, String)> {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut files = Vec::new();
+    harness::scan::rs_files(&root.join("src"), &mut files);
+    let mut sections: Vec<(String, String)> = files
+        .iter()
+        .map(|path| {
+            let relative = path
+                .strip_prefix(root)
+                .expect("under the manifest dir")
+                .components()
+                .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+                .join("/");
+            let body = std::fs::read_to_string(path).expect("readable source");
+            let end = match (bounded, body.find("\n#[cfg(test)]")) {
+                (true, Some(end)) => end,
+                _ => body.len(),
+            };
+            (relative, body[..end].to_owned())
+        })
+        .collect();
+    sections.sort();
+    assert!(sections.len() > 50, "control: the walk found the tree");
+    sections
+}
+
+/// AC 7 — `render/raster.rs` is kernel-pure: the whole file, inline tests
+/// included (as LCV-128 AC 1 scans the kernel), names no GUI crate.
+#[test]
+fn the_raster_imports_no_gui_crate() {
+    let sections = src_sections(false);
+    let needles = [
+        concat!("eg", "ui"),
+        concat!("efr", "ame"),
+        concat!("rf", "d::"),
+    ];
+    let hits = harness::scan::files_containing(&sections, needles[0]);
+    assert!(
+        hits.iter().any(|f| f == "src/render/camera.rs"),
+        "positive control: the matcher finds egui in render/camera.rs"
+    );
+    let raster: Vec<_> = sections
+        .into_iter()
+        .filter(|(path, _)| path == "src/render/raster.rs")
+        .collect();
+    assert_eq!(raster.len(), 1, "control: raster.rs was read");
+    for needle in needles {
+        assert_eq!(
+            harness::scan::files_containing(&raster, needle),
+            Vec::<String>::new()
+        );
+    }
+}
+
+/// AC 1 — no framebuffer read exists: no source names egui's screenshot
+/// command or event.
+#[test]
+fn nothing_requests_a_screenshot() {
+    let needles = [
+        concat!("ViewportCommand::", "Screenshot"),
+        concat!("Event::", "Screenshot"),
+    ];
+    let control = vec![(
+        "control.rs".to_owned(),
+        format!("ctx.send_viewport_cmd({}(Default::default()));", needles[0]),
+    )];
+    assert_eq!(
+        harness::scan::files_containing(&control, needles[0]),
+        ["control.rs"]
+    );
+    let sections = src_sections(false);
+    for needle in needles {
+        assert_eq!(
+            harness::scan::files_containing(&sections, needle),
+            Vec::<String>::new()
+        );
+    }
+}
+
+/// AC 7 — base64 is the wire's business alone.
+#[test]
+fn only_the_wire_encodes_base64() {
+    let needle = concat!("base", "64");
+    let cargo = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"))
+        .expect("Cargo.toml");
+    assert!(
+        cargo.contains(&format!("{needle} = ")),
+        "control: the dependency is declared"
+    );
+    assert_eq!(
+        harness::scan::files_containing(&src_sections(true), needle),
+        ["src/agent/wire.rs"],
+        "positive control and claim at once: wire.rs, and nothing else"
+    );
+}
+
+/// AC 8 — the transcript carries the outcome text only: no PNG signature and
+/// no data URL reaches `agent.chat`, even after an authorised upload.
+#[test]
+fn no_image_bytes_reach_the_transcript() {
+    let (ctx, mut app) = ctx_and_app();
+    draw_something(&mut app);
+    allow(&mut app, true, true);
+    idle(&ctx, &mut app);
+    let tx = arm_turn(&mut app, "look");
+    pin_camera(&mut app);
+    let AgentOutcome::Observed { png, .. } = capture_in_one_frame(&ctx, &mut app, &tx) else {
+        panic!("expected Observed");
+    };
+    assert!(matches!(
+        authorize_in_one_frame(&ctx, &mut app, &tx),
+        AgentOutcome::Ok(_)
+    ));
+
+    let needles = [concat!("iVB", "OR"), concat!("data:", "image")];
+    let part = lasercad::agent::wire::ContentPart::png(&png);
+    let wire = serde_json::to_string(&lasercad::agent::ChatMessage::user_parts(vec![part]))
+        .expect("serialisable");
+    for needle in needles {
+        assert!(
+            wire.contains(needle),
+            "positive control: {needle} is on the wire"
+        );
+        for (role, text) in &app.agent.chat {
+            assert!(!text.contains(needle), "{role} row carries {needle}");
+        }
+    }
+    assert!(app.agent.chat.iter().any(|(_, t)| t.starts_with("Canvas ")));
+}
+
+/// AC 12 — no logging or printing call anywhere in `src/` carries the PNG.
+#[test]
+fn no_log_call_carries_the_png() {
+    let macros = [
+        concat!("print", "!("),
+        concat!("println", "!("),
+        concat!("eprint", "!("),
+        concat!("eprintln", "!("),
+        concat!("dbg", "!("),
+        concat!("log", "::"),
+        concat!("trac", "ing"),
+    ];
+    let png = concat!("pn", "g");
+    let logs_png = |body: &str| {
+        body.lines()
+            .filter(|l| !l.trim_start().starts_with("//"))
+            .any(|l| macros.iter().any(|m| l.contains(m)) && l.contains(png))
+    };
+    assert!(
+        logs_png(&format!("    {}\"{{:?}}\", {png});", macros[3])),
+        "positive control: the matcher fires on a png print"
+    );
+    for (path, body) in src_sections(true) {
+        assert!(!logs_png(&body), "{path} logs the png");
+    }
+}
