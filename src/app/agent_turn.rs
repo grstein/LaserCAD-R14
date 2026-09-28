@@ -183,7 +183,7 @@ pub fn start_turn(app: &mut App, prompt: &str) {
     std::thread::spawn(move || {
         let result = {
             let mut ask = |action| ask_ui(&tx, action);
-            run_agent_turn(&prompt, &config, &mut ask)
+            run_agent_turn(&prompt, &config, &mut ask).0
         };
         match result {
             Ok(reply) => drop(tx.send(AgentEvent::Done(reply))),
@@ -207,6 +207,7 @@ fn turn_config(settings: &Settings) -> TurnConfig {
         step_limit: effective_step_limit(settings),
         system_prompt: prompt::resolve(settings.agent_system_prompt.as_deref()).to_owned(),
         vision: settings.agent_allow_canvas_capture && settings.agent_model_supports_vision,
+        memory: Vec::new(),
     }
 }
 

@@ -22,7 +22,7 @@ use std::sync::mpsc::{channel, Sender};
 /// Carries the API key and the prompt, so its `Debug` is written by hand: it
 /// prints `api_key: "<redacted>"` (ADR 0007 §D10) and the prompt's length
 /// only (LCV-143 AC 7).
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq)]
 pub struct TurnConfig {
     /// OpenAI-compatible base URL.
     pub endpoint: String,
@@ -38,6 +38,9 @@ pub struct TurnConfig {
     /// Both canvas opt-ins were on when the turn was armed (LCV-145): the
     /// turn advertises `capture_canvas`. Execution re-checks them live.
     pub vision: bool,
+    /// The conversation so far (LCV-153, ADR 0007 §D16), flattened: sent
+    /// between the system prompt and the new user message. Never printed.
+    pub memory: Vec<ChatMessage>,
 }
 
 impl std::fmt::Debug for TurnConfig {
@@ -49,6 +52,7 @@ impl std::fmt::Debug for TurnConfig {
             .field("step_limit", &self.step_limit)
             .field("system_prompt_len", &self.system_prompt.len())
             .field("vision", &self.vision)
+            .field("memory_len", &self.memory.len())
             .finish()
     }
 }
@@ -79,7 +83,7 @@ pub fn run_agent_turn<A>(
     prompt: &str,
     config: &TurnConfig,
     ask: &mut A,
-) -> Result<String, AgentError>
+) -> (Result<String, AgentError>, Vec<ChatMessage>)
 where
     A: FnMut(AgentAction) -> Result<AgentOutcome, AgentError>,
 {
@@ -110,7 +114,7 @@ fn drive_turn<F, A>(
     config: &TurnConfig,
     send_fn: &mut F,
     ask: &mut A,
-) -> Result<String, AgentError>
+) -> (Result<String, AgentError>, Vec<ChatMessage>)
 where
     F: FnMut(&[ChatMessage]) -> Result<AssistantMessage, AgentError>,
     A: FnMut(AgentAction) -> Result<AgentOutcome, AgentError>,
@@ -128,7 +132,8 @@ where
             model: config.model.clone(),
         }),
     };
-    agent_loop(send_fn, &mut dispatch_fn, &mut messages, config.step_limit)
+    let result = agent_loop(send_fn, &mut dispatch_fn, &mut messages, config.step_limit);
+    (result, Vec::new())
 }
 
 /// The raw argument string of any tool call is refused above this many bytes,
@@ -306,6 +311,7 @@ mod tests {
             step_limit,
             system_prompt: "test system prompt".to_owned(),
             vision: false,
+            memory: Vec::new(),
         }
     }
 
@@ -352,7 +358,7 @@ mod tests {
             Ok(text("ok"))
         };
         let mut ask = |_: AgentAction| Ok(AgentOutcome::Ok(String::new()));
-        let result = drive_turn("hi", &cfg(SENTINEL, 3), &mut send_fn, &mut ask);
+        let (result, _) = drive_turn("hi", &cfg(SENTINEL, 3), &mut send_fn, &mut ask);
         assert_eq!(result.expect("text ends the turn"), "ok");
         assert_eq!(seen[0].role, "system");
         assert_eq!(seen[0].text_content(), Some(SENTINEL));
@@ -374,7 +380,7 @@ mod tests {
             Ok(text("ok"))
         };
         let mut ask = |_: AgentAction| Ok(AgentOutcome::Ok(String::new()));
-        let result = drive_turn("hi", &config, &mut send_fn, &mut ask);
+        let (result, _) = drive_turn("hi", &config, &mut send_fn, &mut ask);
         assert_eq!(result.expect("text ends the turn"), "ok");
         let messages: Value = serde_json::from_str(&wire).expect("wire parses back");
         assert_eq!(
@@ -423,7 +429,7 @@ mod tests {
             ..config(&server.url(), "m", AGENT_STEP_BUDGET_DEFAULT)
         };
         let mut applier = Applier::new();
-        let reply = run_agent_turn("hello", &config, &mut |a| applier.ask(a));
+        let (reply, _) = run_agent_turn("hello", &config, &mut |a| applier.ask(a));
         assert_eq!(reply.expect("the turn finishes"), "hi");
         let first = &bodies.json(0)["messages"][0];
         assert_eq!(first["role"], "system");
@@ -462,6 +468,7 @@ mod tests {
             &config(&server.url(), "test/model", AGENT_STEP_BUDGET_DEFAULT),
             &mut |action| applier.ask(action),
         )
+        .0
         .expect("the turn must finish");
 
         assert_eq!(reply, "Done.");
@@ -542,6 +549,7 @@ mod tests {
             &config(&server.url(), "test/model", AGENT_STEP_BUDGET_DEFAULT),
             &mut |action| applier.ask(action),
         )
+        .0
         .expect("a refused tool call must not fail the turn");
 
         assert_eq!(reply, "There is nothing there.");
@@ -579,7 +587,7 @@ mod tests {
                 .create();
 
             let mut applier = Applier::new();
-            let reply = run_agent_turn(
+            let (reply, _) = run_agent_turn(
                 "hello",
                 &config(&server.url(), model, AGENT_STEP_BUDGET_DEFAULT),
                 &mut |action| applier.ask(action),
@@ -603,7 +611,7 @@ mod tests {
             .create();
 
         let mut applier = Applier::new();
-        let result = run_agent_turn(
+        let (result, _) = run_agent_turn(
             "draw forever",
             &config(&server.url(), "test/model", 2),
             &mut |action| applier.ask(action),
@@ -637,7 +645,7 @@ mod tests {
             .create();
 
         let mut applier = Applier::new();
-        let result = run_agent_turn(
+        let (result, _) = run_agent_turn(
             "hello",
             &config(&server.url(), "test/model", AGENT_STEP_BUDGET_DEFAULT),
             &mut |action| applier.ask(action),
@@ -698,6 +706,7 @@ mod tests {
             &config(&server.url(), "test/model", AGENT_STEP_BUDGET_DEFAULT),
             &mut |action| applier.ask(action),
         )
+        .0
         .expect("the turn must finish");
 
         assert_eq!(reply, "Done.");
@@ -756,7 +765,7 @@ mod tests {
             .create();
 
         let mut applier = Applier::cancelling();
-        let result = run_agent_turn(
+        let (result, _) = run_agent_turn(
             "draw a line",
             &config(&server.url(), "test/model", AGENT_STEP_BUDGET_DEFAULT),
             &mut |action| applier.ask(action),
@@ -988,7 +997,7 @@ mod tests {
                 crate::app::AGENT_FENCE_REFUSAL.to_owned(),
             ))
         };
-        let result = drive_turn(
+        let (result, _) = drive_turn(
             "go",
             &cfg(system, AGENT_STEP_BUDGET_DEFAULT),
             &mut send_fn,
@@ -1069,7 +1078,7 @@ mod tests {
                 other => panic!("expected Malformed, got {other:?}"),
             }
         };
-        let result = drive_turn(
+        let (result, _) = drive_turn(
             "go",
             &cfg("sys", AGENT_STEP_BUDGET_DEFAULT),
             &mut send_fn,
@@ -1123,7 +1132,7 @@ mod tests {
             asks += 1;
             Ok(AgentOutcome::Refused("bad".into()))
         };
-        let result = drive_turn("go", &cfg("sys", 2), &mut send_fn, &mut ask);
+        let (result, _) = drive_turn("go", &cfg("sys", 2), &mut send_fn, &mut ask);
         assert!(
             matches!(result, Err(AgentError::IterationLimitExceeded(2))),
             "got {result:?}"
@@ -1153,7 +1162,7 @@ mod tests {
                 asks += 1;
                 Ok(AgentOutcome::Ok("none".into()))
             };
-            let result = drive_turn("go", &cfg(system, 2), &mut send_fn, &mut ask);
+            let (result, _) = drive_turn("go", &cfg(system, 2), &mut send_fn, &mut ask);
             assert!(
                 matches!(result, Err(AgentError::IterationLimitExceeded(2))),
                 "{system:?}: got {result:?}"
@@ -1198,7 +1207,9 @@ mod tests {
                 ..config(&server.url(), "m", AGENT_STEP_BUDGET_DEFAULT)
             };
             let mut applier = Applier::new();
-            run_agent_turn("go", &config, &mut |a| applier.ask(a)).expect("the turn finishes");
+            run_agent_turn("go", &config, &mut |a| applier.ask(a))
+                .0
+                .expect("the turn finishes");
             let sent = bodies.json(0);
             assert_eq!(
                 sent["tools"],
@@ -1265,7 +1276,9 @@ mod tests {
                 ..config(&server.url(), "m", AGENT_STEP_BUDGET_DEFAULT)
             };
             let mut applier = Applier::new();
-            run_agent_turn("go", &config, &mut |a| applier.ask(a)).expect("the turn finishes");
+            run_agent_turn("go", &config, &mut |a| applier.ask(a))
+                .0
+                .expect("the turn finishes");
             assert_eq!(
                 bodies.json(0)["tools"],
                 crate::agent::tool_definitions(vision)
@@ -1303,7 +1316,7 @@ mod tests {
                 _ => AgentOutcome::Ok("ok".into()),
             })
         };
-        let result = drive_turn("look", &config, &mut send_fn, &mut ask);
+        let (result, _) = drive_turn("look", &config, &mut send_fn, &mut ask);
         assert_eq!(result.expect("text ends the turn"), "done");
         assert_eq!(
             asked,
@@ -1317,5 +1330,216 @@ mod tests {
             ]
         );
         assert!(!format!("{asked:?}").contains(KEY));
+    }
+
+    // ── LCV-153: memory in, whole batches out (ADR 0007 §D16) ───────────────
+
+    use crate::agent::memory::{turn_record, TurnEnd};
+
+    /// Each message as the bytes it goes on the wire as.
+    fn wire(msgs: &[ChatMessage]) -> Vec<String> {
+        msgs.iter()
+            .map(|m| serde_json::to_string(m).expect("a message serialises"))
+            .collect()
+    }
+
+    fn with_memory(memory: Vec<ChatMessage>) -> TurnConfig {
+        TurnConfig {
+            memory,
+            ..cfg("sys", AGENT_STEP_BUDGET_DEFAULT)
+        }
+    }
+
+    /// Run `drive_turn` against scripted replies (a reply of `None` is a
+    /// transport error); `ask` answers `Ok` to steps, and a canvas capture
+    /// with a PNG. Returns the result, the batches and every request's
+    /// messages.
+    #[allow(clippy::type_complexity)]
+    fn scripted(
+        prompt: &str,
+        config: &TurnConfig,
+        replies: Vec<Option<AssistantMessage>>,
+    ) -> (
+        Result<String, AgentError>,
+        Vec<ChatMessage>,
+        Vec<Vec<ChatMessage>>,
+    ) {
+        let mut requests = Vec::new();
+        let mut replies = replies.into_iter();
+        let mut send_fn = |msgs: &[ChatMessage]| {
+            requests.push(msgs.to_vec());
+            match replies.next().flatten() {
+                Some(reply) => Ok(reply),
+                None => Err(AgentError::Transport("503".into())),
+            }
+        };
+        let mut ask = |action: AgentAction| {
+            Ok(match action {
+                AgentAction::CaptureCanvas => AgentOutcome::Observed {
+                    text: "Canvas".into(),
+                    png: vec![1, 2, 3],
+                },
+                _ => AgentOutcome::Ok("ok".into()),
+            })
+        };
+        let (result, batches) = drive_turn(prompt, config, &mut send_fn, &mut ask);
+        (result, batches, requests)
+    }
+
+    /// AC 11 — with empty memory the first request is exactly `[system, user]`.
+    #[test]
+    fn empty_memory_sends_exactly_system_then_user() {
+        let (_, _, requests) = scripted("hi", &with_memory(Vec::new()), vec![Some(text("t"))]);
+        let roles: Vec<&str> = requests[0].iter().map(|m| m.role.as_str()).collect();
+        assert_eq!(roles, ["system", "user"]);
+        assert_eq!(requests[0][1], ChatMessage::user("hi"));
+    }
+
+    /// AC 2 — memory goes between the turn's system prompt and its user
+    /// message, verbatim and in order.
+    #[test]
+    fn memory_sits_between_system_and_user() {
+        let memory = vec![ChatMessage::user("before"), ChatMessage::assistant("reply")];
+        let (_, _, requests) = scripted("now", &with_memory(memory.clone()), vec![Some(text("t"))]);
+        let mut expected = vec![ChatMessage::system("sys")];
+        expected.extend(memory);
+        expected.push(ChatMessage::user("now"));
+        assert_eq!(requests[0], expected);
+    }
+
+    /// AC 1 / AC 3 — the batches after the user message come back, and every
+    /// request of turn 1 is a byte-identical prefix of turn 2's first
+    /// request once turn 1 is recorded. A request that carried an image is
+    /// a prefix in its elided form (LCV-145).
+    #[test]
+    fn each_request_is_a_byte_prefix_of_the_next_turn() {
+        let replies = vec![
+            Some(batch(&[("query_entities", "{}"), ("query_selection", "")])),
+            Some(batch(&[("capture_canvas", "{}")])),
+            Some(text("two lines")),
+        ];
+        let config = with_memory(Vec::new());
+        let (result, batches, turn1) = scripted("draw", &config, replies);
+        let done = TurnEnd::Done {
+            text: result.expect("text ends the turn"),
+        };
+        assert_eq!(batches.len(), 6, "two batches and the elided image message");
+        assert!(batches.iter().all(|m| !m.has_image()));
+        let memory = turn_record("draw", batches, &done);
+        let (_, _, turn2) = scripted("wider", &with_memory(memory), vec![Some(text("t"))]);
+        let next = wire(&turn2[0]);
+        for (n, request) in turn1.iter().enumerate() {
+            let mut sent = request.clone();
+            crate::agent::wire::replace_images(&mut sent, crate::agent::loop_::IMAGE_ELIDED);
+            let sent = wire(&sent);
+            assert_eq!(next[..sent.len()], sent[..], "request {n}");
+        }
+        assert_eq!(next.last(), wire(&[ChatMessage::user("wider")]).last());
+    }
+
+    /// AC 4 — a response's `reasoning_content` never reaches the batches.
+    #[test]
+    fn reasoning_content_never_reaches_the_batches() {
+        let reply = |body: serde_json::Value| -> AssistantMessage {
+            serde_json::from_value(body).expect("a response message parses")
+        };
+        let calls = reply(json!({
+            "content": null,
+            "reasoning_content": "SECRET-THOUGHT",
+            "tool_calls": [{"id": "c", "type": "function",
+                "function": {"name": "query_entities", "arguments": "{}"}}]
+        }));
+        let last = reply(json!({"content": "done", "reasoning_content": "SECRET-THOUGHT"}));
+        let (_, batches, _) = scripted(
+            "go",
+            &with_memory(Vec::new()),
+            vec![Some(calls), Some(last)],
+        );
+        assert_eq!(batches.len(), 2);
+        assert!(!wire(&batches).concat().contains("SECRET-THOUGHT"));
+        assert!(!wire(&batches).concat().contains("reasoning_content"));
+    }
+
+    /// AC 5 — a failed turn reports its whole batches only: a transport error
+    /// mid-turn, an exhausted budget, a reply with no content, a fence stop.
+    #[test]
+    fn a_failed_turn_returns_its_whole_batches() {
+        let one = || Some(batch(&[("query_entities", "{}")]));
+        let cases = [
+            ("transport", with_memory(Vec::new()), vec![one(), None]),
+            (
+                "budget",
+                cfg("sys", 2),
+                vec![one(), Some(batch(&[("a", ""), ("b", "")]))],
+            ),
+            (
+                "no content",
+                with_memory(Vec::new()),
+                vec![one(), Some(batch(&[]))],
+            ),
+        ];
+        for (name, config, replies) in cases {
+            let (result, batches, requests) = scripted("go", &config, replies);
+            assert!(result.is_err(), "{name}");
+            assert_eq!(batches, requests[1][2..].to_vec(), "{name}");
+            assert_eq!(batches.len(), 2, "{name}: one call and its result");
+        }
+        let (result, _, _, _) = fenced_turn(batch(&[("query_entities", "{}")]));
+        assert!(matches!(result, Err(AgentError::FenceStopped)));
+    }
+
+    /// AC 5 — the fence-stopped turn keeps its batch: every call answered,
+    /// the rest by the placeholder.
+    #[test]
+    fn a_fence_stopped_turn_keeps_its_answered_batch() {
+        let mut sends = 0;
+        let mut send_fn = |_: &[ChatMessage]| {
+            sends += 1;
+            Ok(batch(&[
+                ("delete_entity", r#"{"index":0}"#),
+                ("query_selection", ""),
+            ]))
+        };
+        let mut ask = |_: AgentAction| Ok(AgentOutcome::Fenced("fenced".into()));
+        let config = with_memory(vec![ChatMessage::user("old")]);
+        let (result, batches) = drive_turn("go", &config, &mut send_fn, &mut ask);
+        assert!(matches!(result, Err(AgentError::FenceStopped)));
+        assert_eq!(batches.len(), 3);
+        assert_eq!(batches[1].text_content(), Some("fenced"));
+        let placeholder = crate::agent::loop_::FENCE_STOP_PLACEHOLDER;
+        assert_eq!(batches[2].text_content(), Some(placeholder));
+    }
+
+    /// AC 5 — a batch cut short by a failed `ask` is dropped whole, and an
+    /// image that never rode a request comes back elided (AC 4).
+    #[test]
+    fn a_cut_batch_is_dropped_and_an_unsent_image_is_elided() {
+        let mut sends = 0;
+        let mut send_fn = |_: &[ChatMessage]| {
+            sends += 1;
+            Ok(match sends {
+                1 => batch(&[("capture_canvas", "{}")]),
+                _ => batch(&[("query_entities", "{}"), ("query_selection", "")]),
+            })
+        };
+        let mut asks = 0;
+        let mut ask = |action: AgentAction| {
+            asks += 1;
+            match action {
+                AgentAction::CaptureCanvas => Ok(AgentOutcome::Observed {
+                    text: "Canvas".into(),
+                    png: vec![9],
+                }),
+                _ => Err(AgentError::Cancelled),
+            }
+        };
+        let config = with_memory(vec![ChatMessage::user("old")]);
+        let (result, batches) = drive_turn("go", &config, &mut send_fn, &mut ask);
+        assert!(matches!(result, Err(AgentError::Cancelled)));
+        assert_eq!(batches.len(), 3, "the capture batch and its image message");
+        assert!(batches.iter().all(|m| !m.has_image()));
+        assert!(wire(&batches)
+            .concat()
+            .contains(crate::agent::loop_::IMAGE_ELIDED));
     }
 }
