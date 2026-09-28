@@ -2,7 +2,7 @@
 # 300 implementation-LOC cap per .rs file (ADR 0004).
 # Implementation LOC = lines before the first column-0 `#[cfg(test)]`.
 # Exempt: data-only files with no `fn`, and test-only files (`tests.rs`,
-# integration binaries directly under tests/). tests/harness/ is capped.
+# the integration-test modules under tests/it/). tests/harness/ is capped.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 cap=300; fail=0

@@ -18,4 +18,6 @@ paths:
   derivations; the doc comment names the test. No test-only accessor functions.
 - No test sends Ctrl+O / Ctrl+S / Ctrl+Shift+S or arms dialogs. Persistence tests inject tempdir
   paths into `settings_path` / `autosave_path` (ADR 0006).
-- `tests/harness/` is shared implementation and obeys the 300-LOC cap; test binaries are exempt.
+- Integration tests are modules of the one binary `tests/it/main.rs` (LCV-152); a new file gets a
+  `mod` line there and `use crate::harness;` if it needs the harness. Never add `tests/<name>.rs`.
+- `tests/harness/` is shared implementation and obeys the 300-LOC cap; `tests/it/` modules are exempt.
