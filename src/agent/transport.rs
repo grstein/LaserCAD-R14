@@ -919,6 +919,13 @@ mod tests {
     /// seven seconds for the connect, which both fixtures complete instantly.
     /// So a `Timeout` naming `0` seconds (250 ms, truncated) proves the request
     /// window was the one reported, and a `7` would prove it was not.
+    ///
+    /// **Ordering rule (LCV-149)**: the fixture reads the whole request (head
+    /// and `Content-Length` body) *before* it writes `reply`. Writing first
+    /// races the client: under CPU contention the head reaches hyper before it
+    /// has finished sending the request, and hyper rejects it as
+    /// `UnexpectedMessage` — a `Request` error, not the `Timeout` under test.
+    /// The bytes read before the reply are returned so the test can prove it.
     fn timeout_case(reply: Option<&'static str>) -> (TransportError, Vec<u8>) {
         use std::io::{Read, Write};
         use std::net::TcpListener;
@@ -932,7 +939,7 @@ mod tests {
         );
         let fixture = std::thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("the client must connect");
-            let received: Vec<u8> = Vec::new();
+            let received = read_request(&mut stream);
             if let Some(head) = reply {
                 let _ = stream.write_all(head.as_bytes());
                 let _ = stream.flush();
@@ -963,6 +970,42 @@ mod tests {
         let received = fixture.join().expect("the fixture thread must not panic");
         let error = answer.expect_err("a fixture that never answers cannot produce a message");
         (error, received)
+    }
+
+    /// Reads one HTTP request from `stream`: the head through `\r\n\r\n`,
+    /// then exactly `Content-Length` body bytes. Returns everything read.
+    /// Stops early, returning what it has, if the client hangs up.
+    fn read_request(stream: &mut std::net::TcpStream) -> Vec<u8> {
+        use std::io::Read;
+
+        let mut received = Vec::new();
+        let mut chunk = [0u8; 1024];
+        let head_end = loop {
+            if let Some(at) = received.windows(4).position(|w| w == b"\r\n\r\n") {
+                break at + 4;
+            }
+            match stream.read(&mut chunk) {
+                Ok(n) if n > 0 => received.extend_from_slice(&chunk[..n]),
+                _ => return received,
+            }
+        };
+        let body_len = String::from_utf8_lossy(&received[..head_end])
+            .lines()
+            .find_map(|line| {
+                let (name, value) = line.split_once(':')?;
+                name.trim()
+                    .eq_ignore_ascii_case("content-length")
+                    .then(|| value.trim().parse::<usize>().ok())
+                    .flatten()
+            })
+            .unwrap_or(0);
+        while received.len() < head_end + body_len {
+            match stream.read(&mut chunk) {
+                Ok(n) if n > 0 => received.extend_from_slice(&chunk[..n]),
+                _ => break,
+            }
+        }
+        received
     }
 
     /// LCV-129 AC 3 — the bound really fires, on both halves of a call.
