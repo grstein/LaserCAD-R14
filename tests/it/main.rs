@@ -55,5 +55,6 @@ mod lcv143_prompt_editor;
 mod lcv143_source_scans;
 mod lcv143_system_prompt;
 mod lcv148_changelog_unreleased_clause;
+mod lcv151_default_prompt;
 mod lcv152_single_test_binary;
 mod skeleton;
