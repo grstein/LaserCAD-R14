@@ -11,6 +11,7 @@
 
 use egui;
 
+use crate::agent::memory::{CONTEXT_TOKENS_MAX, CONTEXT_TOKENS_MIN};
 use crate::agent::{prompt, AGENT_STEP_BUDGET_MAX, AGENT_STEP_BUDGET_MIN};
 use crate::io::settings::Settings;
 
@@ -60,7 +61,7 @@ const PROMPT_MAX_HEIGHT: f32 = 110.0;
 
 /// What one frame of the form reported.
 pub struct AgentSettingsFrame {
-    /// `true` if **any** of the seven fields changed this frame — the flag
+    /// `true` if **any** of the eight fields changed this frame — the flag
     /// [`draw_agent_settings`] always reported, now carried on a named field
     /// instead of being the whole return value.
     pub changed: bool,
@@ -86,6 +87,9 @@ pub struct AgentSettingsFrame {
 /// - **Steps per turn** — a slider over
 ///   `AGENT_STEP_BUDGET_MIN..=AGENT_STEP_BUDGET_MAX` (the range lives with the
 ///   loop that enforces it, ADR 0007 §D7) editing `settings.agent_step_budget`.
+/// - **Context tokens** — an integer over
+///   `CONTEXT_TOKENS_MIN..=CONTEXT_TOKENS_MAX` editing
+///   `settings.agent_context_tokens` (LCV-153).
 /// - **Allow canvas capture** / **Model supports images** — the two LCV-145
 ///   opt-ins, followed by [`CANVAS_DISCLOSURE`].
 /// - **System prompt** — a multiline editor over the *effective* prompt
@@ -97,7 +101,7 @@ pub struct AgentSettingsFrame {
 ///
 /// Every text field has a minimum width of [`FIELD_MIN_WIDTH`] logical pixels.
 ///
-/// [`AgentSettingsFrame::changed`] is `true` if **any** of the seven fields
+/// [`AgentSettingsFrame::changed`] is `true` if **any** of the eight fields
 /// changed this frame, `false` otherwise — `agent_settings_dialog` persists on
 /// close, so the flag is what tells the operator's edit apart from an idle
 /// frame. [`AgentSettingsFrame::done_clicked`] is `true` the one frame the new
@@ -158,6 +162,17 @@ pub fn draw_agent_settings(ui: &mut egui::Ui, settings: &mut Settings) -> AgentS
         ui.end_row();
     });
     ui.add(egui::Label::new(egui::RichText::new(STEP_BUDGET_HELP).small()).wrap());
+
+    // LCV-153: memory is capped at half of this. Clamped as drawn, like the
+    // budget, so the comparison catches a silent write-back.
+    grid("agent_context_grid").show(ui, |ui| {
+        ui.label("Context tokens");
+        let before = settings.agent_context_tokens;
+        let range = CONTEXT_TOKENS_MIN..=CONTEXT_TOKENS_MAX;
+        let tokens = ui.add(egui::DragValue::new(&mut settings.agent_context_tokens).range(range));
+        changed |= tokens.changed() || settings.agent_context_tokens != before;
+        ui.end_row();
+    });
 
     // LCV-145: both off by default; read live at every capture.
     changed |= ui
@@ -607,6 +622,23 @@ mod tests {
         assert!(!run_form(&ctx, &mut settings, Vec::new()), "a later frame");
         assert_eq!(settings.agent_step_budget, 4096);
         assert_eq!(AGENT_STEP_BUDGET_MAX, 4096);
+    }
+
+    /// LCV-153 AC 8 — the context field clamps a stored value into range as
+    /// it draws and reports that as a change; an in-range value is left alone.
+    #[test]
+    fn the_context_field_clamps_and_reports() {
+        let ctx = egui::Context::default();
+        ctx.set_pixels_per_point(1.0);
+        let mut settings = Settings::default();
+        assert!(!run_form(&ctx, &mut settings, Vec::new()));
+        assert_eq!(settings.agent_context_tokens, 128_000);
+        settings.agent_context_tokens = 5;
+        assert!(run_form(&ctx, &mut settings, Vec::new()));
+        assert_eq!(settings.agent_context_tokens, CONTEXT_TOKENS_MIN);
+        settings.agent_context_tokens = u32::MAX;
+        assert!(run_form(&ctx, &mut settings, Vec::new()));
+        assert_eq!(settings.agent_context_tokens, CONTEXT_TOKENS_MAX);
     }
 
     /// AC 12 — the other end of the range, from the same direction.

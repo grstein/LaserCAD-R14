@@ -115,6 +115,12 @@ pub struct Settings {
     /// Never guessed from the model name. Off by default.
     #[serde(default)]
     pub agent_model_supports_vision: bool,
+
+    /// The model's context window in tokens (LCV-153); conversation memory
+    /// is capped at half of it. Stored verbatim — the reader clamps with
+    /// `agent::memory::clamp_context_tokens` (ADR 0007 §D7).
+    #[serde(default = "default_agent_context_tokens")]
+    pub agent_context_tokens: u32,
 }
 
 fn default_agent_endpoint() -> String {
@@ -130,6 +136,12 @@ fn default_agent_model() -> String {
 /// test in this file pins the two numbers to each other instead.
 fn default_agent_step_budget() -> u32 {
     256
+}
+
+/// The literal for `agent::memory::CONTEXT_TOKENS_DEFAULT`, pinned by a test
+/// for the same layering reason as the step budget.
+fn default_agent_context_tokens() -> u32 {
+    128_000
 }
 
 fn default_bed_mm() -> [f64; 2] {
@@ -148,6 +160,7 @@ impl Default for Settings {
             agent_system_prompt: None,
             agent_allow_canvas_capture: false,
             agent_model_supports_vision: false,
+            agent_context_tokens: default_agent_context_tokens(),
         }
     }
 }
@@ -399,6 +412,22 @@ mod tests {
         assert_eq!(s.recent_files, vec!["foo.lcad", "bar.lcad"]);
         assert_eq!(s.agent_endpoint, "https://api.openai.com/v1");
         assert_eq!(s.default_bed_mm, [300.0, 180.0]);
+    }
+
+    /// LCV-153 AC 8 — the context size defaults to the agent constant, and a
+    /// file without the key loads with it; a stored value is kept verbatim.
+    #[test]
+    fn the_context_tokens_default_and_load() {
+        assert_eq!(
+            default_agent_context_tokens(),
+            crate::agent::memory::CONTEXT_TOKENS_DEFAULT
+        );
+        assert_eq!(Settings::default().agent_context_tokens, 128_000);
+        let old: Settings = serde_json::from_str(r#"{"agent_step_budget":12}"#).expect("parses");
+        assert_eq!(old.agent_context_tokens, 128_000);
+        assert_eq!(old.agent_step_budget, 12);
+        let s: Settings = serde_json::from_str(r#"{"agent_context_tokens":5}"#).expect("parses");
+        assert_eq!(s.agent_context_tokens, 5);
     }
 
     /// AC 13 — the stored budget is kept exactly as written, however silly.

@@ -335,6 +335,9 @@ fn ac8_ac9_ac10_the_settings_dialog_draws_headless_frame() {
 ///
 /// **LCV-145 note**: three more lines — the two canvas opt-in checkboxes and
 /// their disclosure sentence, drawn above the System prompt row.
+///
+/// **LCV-153 note**: one more line — the Context tokens field, under the step
+/// budget's sentence.
 #[test]
 fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
     let (ctx, mut app) = ctx_and_app();
@@ -362,6 +365,7 @@ fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
                 "How many tool calls one prompt may make. More steps means a ",
                 "bigger drawing per prompt, and more API calls."
             )],
+            vec!["Context tokens", "128000"],
             vec!["Allow canvas capture"],
             vec!["Model supports images"],
             vec![concat!(

@@ -59,4 +59,5 @@ mod lcv145_canvas_capture;
 mod lcv148_changelog_unreleased_clause;
 mod lcv151_default_prompt;
 mod lcv152_single_test_binary;
+mod lcv153_agent_memory;
 mod skeleton;

@@ -12,7 +12,7 @@
 - [x] T4 [P] [AC7] Test: two fresh `History` values differ in `id()`; `id()` is stable across
   commit/undo/redo/`end_group` (files: src/document/history.rs)
 - [x] T5 [AC7] Implement `History::id` (static `AtomicU64`, set in `with_depth`) (files: src/document/history.rs)
-- [ ] T6 [P] [AC8] Test then implement `Settings::agent_context_tokens` (serde default 128 000, old
+- [x] T6 [P] [AC8] Test then implement `Settings::agent_context_tokens` (serde default 128 000, old
   file without the key loads) and the Agent Settings integer field (harness edit persists via the
   LCV-141 Done path) (files: src/io/settings.rs, src/agent/settings_ui.rs)
 - [ ] T7 [AC10] Add `AgentEvent::done(text)` / `failed(err)` constructors (old shape still) and
@@ -43,3 +43,11 @@
   `start_turn` arms then `config_for`, thread forwards batches; `end_turn(row, TurnEnd, batches)`
   → `record` after `finish_turn`, on all five exits (files: src/app/agent_turn.rs, src/app/agent_poll.rs)
 - [ ] T15 CHANGELOG line: the agent remembers the conversation; "Context tokens" setting (files: CHANGELOG.md)
+
+## Deviations and notes
+
+- T3: the trim leaves a tool result no longer than `ELIDED_TOOL_RESULT` as it is (replacing it
+  would grow memory), and `Turn stopped: <error>.` drops a trailing full stop from `<error>` so
+  `AGENT_LOST_MESSAGE` does not end in `..`.
+- T6: the Done-path persistence test lives in `tests/it/lcv153_agent_memory.rs` (created here,
+  `mod` line in `tests/it/main.rs`), and LCV-125's pinned form list gained the Context tokens row.
