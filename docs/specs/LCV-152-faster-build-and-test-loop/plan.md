@@ -38,3 +38,8 @@ Measure first, then take the three cheap wins in order of expected gain:
 Machine: 16 threads, Fedora 43, default linker (`mold` not installed). The name list is
 `cargo test --all -- --list`, each name prefixed with its binary (`tests/<name>.rs` → `<name>`,
 unit tests → `unittests`), sorted: sha256 `72fdf827…09298`.
+
+After T2 the same listing, with `tests/it/main.rs` names taken as-is (their module path is the
+old binary name), is byte-identical: 1408 names, sha256 `72fdf827…09298`, zero missing, zero added;
+`--ignored` still lists 2. Test binaries run: 3 (lib, main, `tests/it`). The harness stays at
+`tests/harness/`, pulled in once by `#[path]` from `tests/it/main.rs`.
