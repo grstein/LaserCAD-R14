@@ -424,6 +424,32 @@ mod tests {
         assert_eq!(turn_config(&app.settings).step_limit, 9, "the next turn");
     }
 
+    /// LCV-143 AC 5 — the prompt is resolved once, into the config: built
+    /// with override A, the config still carries A verbatim after the
+    /// settings move to B, and later configs carry B, then the default.
+    #[test]
+    fn the_turn_config_snapshots_the_resolved_prompt() {
+        let mut app = App::default();
+        let a = "  prompt A\n\twith edges  ";
+        app.settings.agent_system_prompt = Some(a.to_owned());
+        let first = turn_config(&app.settings);
+
+        app.settings.agent_system_prompt = Some("prompt B".to_owned());
+        let second = turn_config(&app.settings);
+        app.settings.agent_system_prompt = None;
+        let third = turn_config(&app.settings);
+
+        assert_eq!(first.system_prompt, a, "the armed turn keeps A verbatim");
+        assert_eq!(second.system_prompt, "prompt B");
+        assert_eq!(third.system_prompt, crate::agent::DEFAULT_PROMPT);
+        app.settings.agent_system_prompt = Some(String::new());
+        assert_eq!(
+            turn_config(&app.settings).system_prompt,
+            "",
+            "blank is kept"
+        );
+    }
+
     /// AC 18 — the settings module knows nothing about the agent. The clamp
     /// belongs to the reader, not to the store: `io/settings.rs` deserialises
     /// whatever the JSON says and hands it over unjudged, which is why the

@@ -270,6 +270,7 @@ mod tests {
             api_key: "k".to_owned(),
             model: model.to_owned(),
             step_limit,
+            system_prompt: "test system prompt".to_owned(),
         }
     }
 
@@ -287,6 +288,65 @@ mod tests {
         assert!(printed.contains("step_limit: 7"), "{printed}");
         let pretty = format!("{config:#?}");
         assert!(!pretty.contains("sk-test"), "{pretty}");
+    }
+
+    /// LCV-143 AC 5 / AC 7 — `Debug` omits the prompt text and prints its
+    /// length only.
+    #[test]
+    fn turn_config_debug_omits_the_system_prompt() {
+        let config = TurnConfig {
+            system_prompt: "PROMPT-SENTINEL-91c2".to_owned(),
+            ..config("https://example.invalid", "m", 7)
+        };
+        for printed in [format!("{config:?}"), format!("{config:#?}")] {
+            assert!(!printed.contains("SENTINEL"), "{printed}");
+            assert!(printed.contains("system_prompt_len"), "{printed}");
+            assert!(printed.contains("20"), "{printed}");
+        }
+        assert!(format!("{config:?}").contains("system_prompt_len: 20"));
+    }
+
+    /// LCV-143 AC 5 — `drive_turn` seeds the conversation with exactly the
+    /// system text it is handed, then the user's prompt.
+    #[test]
+    fn drive_turn_seeds_the_given_system_prompt() {
+        const SENTINEL: &str = "SYSTEM-SENTINEL\n  kept  verbatim ";
+        let mut seen = Vec::new();
+        let mut send_fn = |msgs: &[ChatMessage]| {
+            seen = msgs.to_vec();
+            Ok(text("ok"))
+        };
+        let mut ask = |_: AgentAction| Ok(AgentOutcome::Ok(String::new()));
+        let result = drive_turn("hi", SENTINEL, 3, &mut send_fn, &mut ask);
+        assert_eq!(result.expect("text ends the turn"), "ok");
+        assert_eq!(seen[0].role, "system");
+        assert_eq!(seen[0].content.as_deref(), Some(SENTINEL));
+        assert_eq!(seen[1].role, "user");
+        assert_eq!(seen[1].content.as_deref(), Some("hi"));
+    }
+
+    /// LCV-143 AC 5 — `run_agent_turn` sends `config.system_prompt` as the
+    /// first message, not a built-in constant.
+    #[test]
+    fn run_agent_turn_sends_the_configured_system_prompt() {
+        let mut server = mockito::Server::new();
+        let bodies = Bodies::default();
+        let _mock = server
+            .mock("POST", "/chat/completions")
+            .match_request(bodies.matcher())
+            .with_status(200)
+            .with_body(r#"{"choices":[{"message":{"role":"assistant","content":"hi"}}]}"#)
+            .create();
+        let config = TurnConfig {
+            system_prompt: "CONFIGURED-SENTINEL".to_owned(),
+            ..config(&server.url(), "m", AGENT_STEP_BUDGET_DEFAULT)
+        };
+        let mut applier = Applier::new();
+        let reply = run_agent_turn("hello", &config, &mut |a| applier.ask(a));
+        assert_eq!(reply.expect("the turn finishes"), "hi");
+        let first = &bodies.json(0)["messages"][0];
+        assert_eq!(first["role"], "system");
+        assert_eq!(first["content"], "CONFIGURED-SENTINEL");
     }
 
     const LINE_ARGS: &str = r#"{"x1":0,"y1":0,"x2":20,"y2":0}"#;
