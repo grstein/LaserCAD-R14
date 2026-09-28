@@ -60,3 +60,9 @@
 - T14: the pinned-text test is `tests/it/lcv143_system_prompt.rs::SPEC_TEXT` (LCV-143 AC 6), so it
   changed with the prompt; `tests/it/lcv125_agent_panel_and_settings.rs`'s "paints nothing else"
   form list gained the two checkboxes and the disclosure in T12 for the same reason.
+- Mutation testing (cargo-mutants 27.1.0, own `CARGO_TARGET_DIR`, `--in-diff` over the LCV-145
+  changes in `loop_.rs`, `wire.rs`, `agent_capture.rs`, `raster.rs`, `agent_poll.rs`,
+  `agent_apply.rs`, `tools.rs`, `bridge.rs`, `agent_worker.rs`): 302 mutants, 282 caught,
+  **0 missed**, 4 unviable, 16 timeouts. Every timeout is in `raster.rs` `Canvas::segment` /
+  `clip`: the mutant un-clips a segment or reverses the walk step, so the line walk runs
+  unbounded and the suite never finishes. A hang is a detection, not a survivor.
