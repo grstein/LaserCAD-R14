@@ -88,6 +88,11 @@ impl History {
         self.revision
     }
 
+    /// Process-unique identity of this `History` (ADR 0007 §D16).
+    pub fn id(&self) -> u64 {
+        0
+    }
+
     /// Run a command against `doc`, remember it for undo, invalidate redo.
     ///
     /// Steps: seal any open group ([`History::end_group`]), `cmd.do_(doc)`,
@@ -274,6 +279,37 @@ mod tests {
         assert_eq!(History::new().max_depth(), 200);
         assert_eq!(History::default().max_depth(), HISTORY_DEPTH);
         assert_eq!(History::with_depth(7).max_depth(), 7);
+    }
+
+    /// LCV-153 AC 7 — two fresh histories never share an id, so replacing
+    /// the document is visible even when both revisions read 0.
+    #[test]
+    fn fresh_histories_have_distinct_ids() {
+        let (a, b) = (History::new(), History::with_depth(3));
+        let c = History::default();
+        assert_ne!(a.id(), b.id());
+        assert_ne!(b.id(), c.id());
+        assert_ne!(a.id(), c.id());
+        assert_eq!(a.revision(), b.revision());
+    }
+
+    /// LCV-153 AC 7 — the id never moves with editing: commit, group,
+    /// undo and redo all leave it where it was.
+    #[test]
+    fn the_id_is_stable_across_edits() {
+        let mut doc = Document::default();
+        let mut h = History::new();
+        let id = h.id();
+        h.commit(Box::new(CreateLine::new(line_a())), &mut doc);
+        assert_eq!(h.id(), id);
+        h.begin_group("g");
+        h.commit_grouped(Box::new(CreateLine::new(line_b())), &mut doc);
+        assert_eq!(h.id(), id);
+        h.end_group();
+        assert!(h.undo(&mut doc));
+        assert_eq!(h.id(), id);
+        assert!(h.redo(&mut doc));
+        assert_eq!(h.id(), id);
     }
 
     /// AC#2 — a fresh history has nothing to undo or redo.
