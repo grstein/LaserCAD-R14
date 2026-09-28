@@ -334,6 +334,52 @@ mod tests {
         assert_eq!(seen[1].content.as_deref(), Some("hi"));
     }
 
+    /// LCV-151 AC 1 — with no override, the wire's first message is exactly
+    /// `{"role":"system","content":DEFAULT_PROMPT}`.
+    #[test]
+    fn with_no_override_the_wire_starts_with_the_default_prompt() {
+        let config = TurnConfig {
+            system_prompt: crate::agent::prompt::resolve(None).to_owned(),
+            ..config("https://example.invalid", "m", 3)
+        };
+        let mut wire = String::new();
+        let mut send_fn = |msgs: &[ChatMessage]| {
+            wire = serde_json::to_string(msgs).expect("messages serialize");
+            Ok(text("ok"))
+        };
+        let mut ask = |_: AgentAction| Ok(AgentOutcome::Ok(String::new()));
+        let result = drive_turn("hi", &config.system_prompt, 3, &mut send_fn, &mut ask);
+        assert_eq!(result.expect("text ends the turn"), "ok");
+        let messages: Value = serde_json::from_str(&wire).expect("wire parses back");
+        assert_eq!(
+            messages[0],
+            json!({"role": "system", "content": crate::agent::DEFAULT_PROMPT})
+        );
+    }
+
+    /// LCV-151 AC 5, AC 6 — the prompt quotes the fence's tool results and
+    /// the operator-only budget message verbatim.
+    #[test]
+    fn the_default_prompt_quotes_the_fence_and_budget_messages() {
+        let budget = AgentError::IterationLimitExceeded(7).to_string();
+        let prefix = budget
+            .split(" (")
+            .next()
+            .expect("split yields a first part");
+        assert_eq!(prefix, "step budget exceeded", "control");
+        for needle in [
+            crate::app::AGENT_FENCE_REFUSAL,
+            crate::agent::loop_::FENCE_STOP_PLACEHOLDER,
+            prefix,
+            "step budget exceeded (N tool calls per turn)",
+        ] {
+            assert!(
+                crate::agent::DEFAULT_PROMPT.contains(needle),
+                "the prompt must quote `{needle}`"
+            );
+        }
+    }
+
     /// LCV-143 AC 5 — `run_agent_turn` sends `config.system_prompt` as the
     /// first message, not a built-in constant.
     #[test]
