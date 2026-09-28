@@ -14,7 +14,7 @@
 
 use serde_json::Value;
 
-use crate::agent::tools::ToolCallError;
+use crate::agent::tools::{validate_r, ToolCallError};
 
 /// One entity of a `create_drawing` batch, in mm; arc angles in radians.
 #[derive(Debug, Clone, PartialEq)]
@@ -56,14 +56,156 @@ pub enum DrawingItem {
     },
 }
 
+/// Most entities one `create_drawing` call may carry (ADR 0010 §3).
+pub const MAX_DRAWING_ENTITIES: usize = 1000;
+
+/// Longest unknown-key name echoed back in an error, in characters.
+const KEY_ECHO_CHARS: usize = 64;
+
+/// The keys each entity type takes besides `type`, in reading order.
+const LINE_KEYS: [&str; 4] = ["x1", "y1", "x2", "y2"];
+const CIRCLE_KEYS: [&str; 3] = ["cx", "cy", "r"];
+const ARC_KEYS: [&str; 6] = ["cx", "cy", "r", "start_deg", "end_deg", "ccw"];
+
 /// Parse the arguments of one `create_drawing` call into its items.
+///
+/// Pure. Checks, in order: the root is an object whose keys are exactly
+/// `version` and `entities`; `version` is the integer 1; `entities` holds
+/// 1..=[`MAX_DRAWING_ENTITIES`] items; then each item in turn.
 ///
 /// # Errors
 ///
-/// The first shape failure, as `ToolCallError::DrawingRoot` or
-/// `ToolCallError::DrawingItem`.
-pub fn parse(_args: &Value) -> Result<Vec<DrawingItem>, ToolCallError> {
-    Err(ToolCallError::UnknownTool("create_drawing".to_owned()))
+/// The first shape failure, as [`ToolCallError::DrawingRoot`] or
+/// [`ToolCallError::DrawingItem`].
+pub fn parse(args: &Value) -> Result<Vec<DrawingItem>, ToolCallError> {
+    let root = |field: &str, reason: &str| ToolCallError::DrawingRoot {
+        field: field.to_owned(),
+        reason: reason.to_owned(),
+    };
+    let obj = args
+        .as_object()
+        .ok_or_else(|| root("arguments", "must be a JSON object"))?;
+    if let Some(key) = obj
+        .keys()
+        .find(|k| !["version", "entities"].contains(&k.as_str()))
+    {
+        return Err(root(&cut(key), "unknown key"));
+    }
+    let version = obj
+        .get("version")
+        .ok_or_else(|| root("version", "missing"))?;
+    if version.as_u64() != Some(1) {
+        return Err(root("version", "must be the integer 1"));
+    }
+    let entities = obj
+        .get("entities")
+        .ok_or_else(|| root("entities", "missing"))?
+        .as_array()
+        .ok_or_else(|| root("entities", "must be an array"))?;
+    if entities.is_empty() || entities.len() > MAX_DRAWING_ENTITIES {
+        return Err(root(
+            "entities",
+            &format!(
+                "must hold 1..={MAX_DRAWING_ENTITIES} items, got {}",
+                entities.len()
+            ),
+        ));
+    }
+    entities
+        .iter()
+        .enumerate()
+        .map(|(i, v)| item(i, v))
+        .collect()
+}
+
+/// One entity: an object, a known `type`, exactly that type's keys, finite
+/// numbers, a boolean `ccw`, and the shared radius rule.
+fn item(index: usize, value: &Value) -> Result<DrawingItem, ToolCallError> {
+    let fail = |field: &str, reason: String| ToolCallError::DrawingItem {
+        index,
+        field: field.to_owned(),
+        reason,
+    };
+    let obj = value
+        .as_object()
+        .ok_or_else(|| ToolCallError::DrawingRoot {
+            field: format!("entities[{index}]"),
+            reason: "must be a JSON object".to_owned(),
+        })?;
+    let kind = obj
+        .get("type")
+        .ok_or_else(|| fail("type", "missing".to_owned()))?;
+    let keys: &[&str] = match kind.as_str() {
+        Some("line") => &LINE_KEYS,
+        Some("circle") => &CIRCLE_KEYS,
+        Some("arc") => &ARC_KEYS,
+        _ => {
+            let reason = r#"must be "line", "circle" or "arc""#.to_owned();
+            return Err(fail("type", reason));
+        }
+    };
+    if let Some(key) = obj
+        .keys()
+        .find(|k| *k != "type" && !keys.contains(&k.as_str()))
+    {
+        return Err(fail(&cut(key), "unknown key".to_owned()));
+    }
+    for key in keys {
+        if !obj.contains_key(*key) {
+            return Err(fail(key, "missing".to_owned()));
+        }
+    }
+    let num = |key: &str| {
+        obj.get(key)
+            .and_then(Value::as_f64)
+            .filter(|n| n.is_finite())
+            .ok_or_else(|| fail(key, "must be a finite number".to_owned()))
+    };
+    let radius = || {
+        let r = num("r")?;
+        match validate_r("create_drawing", r) {
+            Ok(()) => Ok(r),
+            Err(e) => Err(fail("r", reason_of(e))),
+        }
+    };
+    Ok(match kind.as_str() {
+        Some("line") => DrawingItem::Line {
+            x1: num("x1")?,
+            y1: num("y1")?,
+            x2: num("x2")?,
+            y2: num("y2")?,
+        },
+        Some("circle") => DrawingItem::Circle {
+            cx: num("cx")?,
+            cy: num("cy")?,
+            r: radius()?,
+        },
+        _ => DrawingItem::Arc {
+            cx: num("cx")?,
+            cy: num("cy")?,
+            r: radius()?,
+            // The one unit boundary of this file: degrees in, radians out.
+            start: num("start_deg")?.to_radians(),
+            end: num("end_deg")?.to_radians(),
+            ccw: obj
+                .get("ccw")
+                .and_then(Value::as_bool)
+                .ok_or_else(|| fail("ccw", "must be a boolean".to_owned()))?,
+        },
+    })
+}
+
+/// The reason of the shared radius check, without its scalar-tool framing.
+fn reason_of(e: ToolCallError) -> String {
+    match e {
+        ToolCallError::InvalidArg { reason, .. } => reason,
+        other => other.to_string(),
+    }
+}
+
+/// An unknown key's name, cut to [`KEY_ECHO_CHARS`] characters.
+fn cut(key: &str) -> String {
+    key.chars().take(KEY_ECHO_CHARS).collect()
 }
 
 #[cfg(test)]

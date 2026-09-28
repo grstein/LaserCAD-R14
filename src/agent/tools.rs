@@ -62,6 +62,25 @@ pub enum ToolCallError {
         /// Human-readable explanation, read by the model as the tool result.
         reason: String,
     },
+    /// A `create_drawing` root-level failure (ADR 0010 §3). `field` is a root
+    /// key, `arguments`, or `entities[i]` when the item is not an object.
+    #[error("create_drawing {field}: {reason}")]
+    DrawingRoot {
+        /// The failing path, never a payload value.
+        field: String,
+        /// Human-readable explanation, read by the model as the tool result.
+        reason: String,
+    },
+    /// A `create_drawing` entity failure (ADR 0010 §3).
+    #[error("create_drawing entities[{index}].{field}: {reason}")]
+    DrawingItem {
+        /// Zero-based index of the failing entity.
+        index: usize,
+        /// The failing key; an unknown one is cut to 64 characters.
+        field: String,
+        /// Human-readable explanation, read by the model as the tool result.
+        reason: String,
+    },
 }
 
 /// OpenAI function-calling schemas. Order: create_line(0) create_circle(1)
@@ -136,8 +155,10 @@ fn get_index(args: &Value, tool: &'static str) -> Result<usize, ToolCallError> {
     Ok(raw as usize)
 }
 
+/// The one radius rule, shared by `create_circle`, `create_arc` and
+/// `create_drawing` (ADR 0010 §3).
 #[rustfmt::skip]
-fn validate_r(tool: &'static str, r: f64) -> Result<(), ToolCallError> {
+pub(crate) fn validate_r(tool: &'static str, r: f64) -> Result<(), ToolCallError> {
     if r > 0.0 && r.is_finite() { Ok(()) } else { Err(ToolCallError::InvalidArg {
         tool, field: "r", reason: format!("{r} is not a positive finite number") }) }
 }
