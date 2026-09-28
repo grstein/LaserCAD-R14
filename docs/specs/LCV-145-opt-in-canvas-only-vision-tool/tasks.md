@@ -8,7 +8,7 @@
   - An entity at (−10000, −10000) is clipped cheaply.
   
   Register it in `render/mod.rs` and add the file to AGENTS.md's purity list. (files: src/render/raster.rs, src/render/mod.rs, AGENTS.md)
-- [ ] T3 [AC1, AC5] Implement `rasterize` (clip, line walk, chord tessellation) and `encode_png_gray`. T2 goes green. (files: src/render/raster.rs)
+- [x] T3 [AC1, AC5] Implement `rasterize` (clip, line walk, chord tessellation) and `encode_png_gray`. T2 goes green. (files: src/render/raster.rs)
 - [ ] T4 [AC9] Test first: in `wire.rs`, pin today's text-only system / user / assistant-with-tool-calls / tool JSON as literal fixtures, and they pass. Then add a failing `Parts` → pinned OpenAI shape test. Then add `Content`, `ContentPart`, the base64 data URL, `user_parts`, `text_content`, `has_image` and `replace_images`, and move existing test accesses to `text_content()`. (files: src/agent/wire.rs, src/agent/loop_.rs, src/app/agent_worker.rs)
 - [ ] T5 [P] [AC2] Test first: an old settings file loads both new flags as `false`. Add `agent_allow_canvas_capture` and `agent_model_supports_vision`. (LCV-143 already moved persistence into `settings_store.rs`.) (files: src/io/settings.rs)
 - [ ] T6 [AC2, AC3, AC8] Test first in `tools.rs`: `tool_definitions(false)` omits `capture_canvas`, `(true)` includes it before `create_drawing`, and `capture_canvas` parses to `CaptureCanvas`. Then add the bridge variants `CaptureCanvas`, `AuthorizeUpload` and `Observed`, with `text`/`into_text`/`is_refused` covering them, the flag, the registration and the arm. (files: src/agent/tools.rs, src/agent/bridge.rs)
