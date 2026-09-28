@@ -9,14 +9,13 @@
 //! - [`scan`] — the source-scan walker and matcher, and the four rules that
 //!   keep a scan able to fail.
 //!
-//! Each integration-test binary compiles its own copy, hence `allow(dead_code)`.
-//! The blanket is not laziness and is not narrowed to per-item allows: Cargo
-//! compiles this directory into **every** consumer binary, so a file that uses
-//! only [`tap`] would trip `-D warnings` on every other item here. What the
-//! blanket costs is paid for directly — an unused `mod harness;` is caught by
-//! `tests/lcv132_harness_is_shared.rs`, because the blanket hides exactly that
-//! case and nothing else was looking for it. The attribute propagates into the
-//! submodules declared below, which therefore carry no second copy of it.
+//! Since LCV-152 this directory is compiled once, into the single integration
+//! binary `tests/it/main.rs`. The `allow(dead_code)` predates that, from when
+//! Cargo compiled this directory into **every** consumer binary and a file that
+//! used only [`tap`] tripped `-D warnings` on every other item here. What the
+//! blanket costs is paid for directly — an unused `use crate::harness;` is
+//! caught by `tests/it/lcv132_harness_is_shared.rs`. The attribute propagates
+//! into the submodules declared below, which therefore carry no second copy.
 //!
 //! Five rules for every test built on this harness (ADR 0002 §A4):
 //!
