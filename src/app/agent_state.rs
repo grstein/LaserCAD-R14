@@ -11,6 +11,11 @@
 //! `agent_settings_open` stays on `App` itself, not here — it sits with
 //! `about_open` and `shortcuts_open` in the dialog-visibility cluster; the
 //! seam follows the turn, not every flag whose name starts with `agent`.
+//!
+//! One guarded method is the exception to "no behaviour":
+//! [`AgentState::clear_conversation`] (LCV-150) empties the transcript and
+//! the memory together, so the panel's button cannot clear one without the
+//! other.
 
 use std::sync::mpsc::Receiver;
 
@@ -49,6 +54,19 @@ pub struct AgentState {
     /// `(History::id(), History::revision())` up to which the model has seen
     /// every change; `None` before the first turn (ADR 0007 §D16).
     pub memory_mark: Option<(u64, u64)>,
+}
+
+impl AgentState {
+    /// Start a new conversation (LCV-150): empty the transcript and the
+    /// memory, so the next turn sends only the system prompt and its own
+    /// prompt. Does nothing while a turn is in flight; touches no other field.
+    pub fn clear_conversation(&mut self) {
+        if self.busy {
+            return;
+        }
+        self.chat.clear();
+        self.memory.clear();
+    }
 }
 
 #[cfg(test)]
