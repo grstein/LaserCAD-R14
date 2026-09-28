@@ -72,6 +72,7 @@ The tree is orientation; `ls` is the inventory.
 ### Purity rule
 
 - Kernel — `src/geometry/`, `src/document/`, `src/io/svg/`, `src/text/`, `src/cmdline/` — never imports `egui`, `eframe` or `rfd`.
+  `src/render/raster.rs` is kernel-pure too, although the rest of `render/` imports `egui` (ADR 0011).
 - `src/agent/`: only `panel.rs` and `settings_ui.rs` may import `egui`; none may import `eframe`/`rfd`.
   `classifier.rs`, `wire.rs`, `transport.rs`, `tools.rs`, `bridge.rs`, `loop_.rs`, `prompt.rs`,
   `memory.rs`, `drawing.rs` and `mod.rs` are kernel-pure. Only `transport.rs` imports `reqwest`. `panel.rs` never spawns a thread
