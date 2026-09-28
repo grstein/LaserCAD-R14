@@ -19,6 +19,11 @@
   now lived only in the `1b89f0e` commit message, and rules on two review
   questions (uniform `pub`; an explicit `pixels_per_point`). §A4, §A5 and §B are
   unchanged.
+- **Amended (3)**: 2026-09-27 — LCV-152 note on §A3. New headless tests are
+  modules `tests/it/lcvNNN.rs` of the single integration binary
+  `tests/it/main.rs`, which declares the harness once (`#[path]` to
+  `tests/harness/mod.rs`); a module brings it in with `use crate::harness;`.
+  The `tests/lcvNNN.rs` paths below are historical.
 - **Date**: 2026-09-12
 - **Deciders**: architect (Marco 0 / LCV-103)
 
@@ -133,6 +138,8 @@ The matching rule, which must be added as a doc comment on both functions:
 the existing `tests/lcv070.rs` convention. Shared plumbing lives under
 **`tests/harness/`**, declared `mod harness;` in each consumer. *(Rewritten
 2026-09-14 — see **Amended (2)** in the header for the text this replaces.)*
+*(Location superseded by LCV-152 — see **Amended (3)**: new tests go in
+`tests/it/`.)*
 
 **Why `tests/harness/` and not a `#[cfg(test)]` module under `src/`.** This is a
 compilation fact, not taste, and it has been load-bearing since the first
