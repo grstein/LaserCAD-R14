@@ -4,9 +4,11 @@ All notable changes to LaserCAD v2 are documented in this file. The format is ba
 
 This is the v2 (green-field, pure Rust + egui) line of LaserCAD R14. The v1 line (TypeScript + Tauri) is maintained in a separate directory and its history is recorded in its own CHANGELOG.
 
-No version of LaserCAD v2 has been tagged or released yet. Everything below is unreleased.
+v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it (0.1.0 was bumped in `Cargo.toml` but never tagged).
 
 ## [Unreleased]
+
+## [0.2.0] - 2026-09-28
 
 ### Added
 

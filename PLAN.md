@@ -21,9 +21,10 @@ Rust (toolchain pinned) · `egui`/`eframe` · `rfd` dialogs · blocking `reqwest
 - Phases 0–11 (foundation → kernel → document → render → tools → IO → chrome → agent harness →
   Linux distribution → live-document agent) are done; legacy demand files LCV-001..148 were
   retired in the SDD migration and remain in git history (`git log -- docs/product/demands`).
-- **1.0 scope** (user decision 2026-09-27): LCV-142..145 in order 142 → 143 → 144 → 145.
+- **1.0 scope** (user decisions 2026-09-27/28): LCV-142..145, 149..153 — all Done.
   LCV-146 is deferred past 1.0.
-- **Release**: LCV-089 (v0.1.0 tag) is blocked on the user's manual smoke run; agents never tag.
+- **Release**: v0.2.0 (LCV-089) tagged and published on 2026-09-28 with the user's authorization; the user smoke-tests it.
+- **Next**: LCV-146 (skills) and LCV-154 (replay `reasoning_content`) are Draft for 1.x.
 - **Tooling**: LCV-152 makes build and test faster.
 
 ## Later

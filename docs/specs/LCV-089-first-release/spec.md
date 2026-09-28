@@ -1,9 +1,9 @@
-# LCV-089 — First 0.1.0 release tag + GitHub release
+# LCV-089 — First release tag + GitHub release (shipped as v0.2.0)
 
-- **Status**: Blocked
+- **Status**: Done
 - **Depends on**: LCV-085, LCV-086, LCV-088
 - **Implementation**: b936570 — chore(LCV-089): bump Cargo.toml to v0.1.0, finalize CHANGELOG, add release.sh
-- **Note**: b936570 bumped Cargo.toml to 0.1.0, finalized the CHANGELOG and added scripts/release.sh, but no git tag and no GitHub release exist (the repository has no git remote). Blocked on the user choosing a remote.
+- **Note**: b936570 prepared a 0.1.0 release that was never tagged. On 2026-09-28 the user widened the scope (LCV-142..145, 149..153) and authorized the team lead to tag and publish the first release as v0.2.0: the version was bumped, the CHANGELOG got its dated `[0.2.0]` section, `scripts/release.sh` now reads the version from `Cargo.toml`, and the release was published on GitHub (grstein/LaserCAD-R14-V2).
 
 ## Problem
 
