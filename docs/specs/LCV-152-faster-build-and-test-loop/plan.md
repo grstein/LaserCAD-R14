@@ -30,10 +30,10 @@ Measure first, then take the three cheap wins in order of expected gain:
 
 | Measure | Before | After |
 |---|---|---|
-| clean `cargo test --no-run` (after `cargo clean -p lasercad`) | 29.9 s | |
-| incremental gate after touching `src/geometry/vec2.rs` | 38.6 s / 35.4 s | |
-| test binaries run by `cargo test --all` | 47 (lib, main, 45 under `tests/`) | |
-| test functions listed by `cargo test --all -- --list` | 1408 (2 `#[ignore]`) | |
+| clean `cargo test --no-run` (after `cargo clean -p lasercad`) | 29.9 s | 6.4 s |
+| incremental gate after touching `src/geometry/vec2.rs` | 38.6 s / 35.4 s | 11.2 s / 9.1 s |
+| test binaries run by `cargo test --all` | 47 (lib, main, 45 under `tests/`) | 3 (lib, main, `tests/it`) |
+| test functions listed by `cargo test --all -- --list` | 1408 (2 `#[ignore]`) | 1408 (2 `#[ignore]`) |
 
 Machine: 16 threads, Fedora 43, default linker (`mold` not installed). The name list is
 `cargo test --all -- --list`, each name prefixed with its binary (`tests/<name>.rs` → `<name>`,
