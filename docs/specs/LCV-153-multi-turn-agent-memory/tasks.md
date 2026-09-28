@@ -37,7 +37,7 @@
   nothing changed or memory is empty; over-cap memory is trimmed at arm; `App::default()` memory
   is empty; the next `config_for` memory equals `memory.flatten()` (files:
   tests/it/lcv153_agent_memory.rs, tests/it/main.rs)
-- [ ] T13 [AC1] [AC5] [AC6] [AC7] [AC9] `agent_memory.rs` (`begin`, `record`), `mod` line,
+- [x] T13 [AC1] [AC5] [AC6] [AC7] [AC9] `agent_memory.rs` (`begin`, `record`), `mod` line,
   `AgentState::{memory, memory_mark}` (files: src/app/agent_memory.rs, src/app/mod.rs, src/app/agent_state.rs)
 - [ ] T14 [AC7] [AC9] [AC10] Wire it: `TurnState::user`, `arm_with_limit` → `begin`,
   `start_turn` arms then `config_for`, thread forwards batches; `end_turn(row, TurnEnd, batches)`
