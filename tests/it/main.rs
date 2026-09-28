@@ -52,4 +52,5 @@ mod lcv142_progress_row;
 mod lcv142_source_scans;
 mod lcv142_turn_group;
 mod lcv148_changelog_unreleased_clause;
+mod lcv152_single_test_binary;
 mod skeleton;

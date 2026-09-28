@@ -10,12 +10,8 @@
 //!   keep a scan able to fail.
 //!
 //! Since LCV-152 this directory is compiled once, into the single integration
-//! binary `tests/it/main.rs`. The `allow(dead_code)` predates that, from when
-//! Cargo compiled this directory into **every** consumer binary and a file that
-//! used only [`tap`] tripped `-D warnings` on every other item here. What the
-//! blanket costs is paid for directly — an unused `use crate::harness;` is
-//! caught by `tests/it/lcv132_harness_is_shared.rs`. The attribute propagates
-//! into the submodules declared below, which therefore carry no second copy.
+//! binary `tests/it/main.rs`, so it carries no `allow(dead_code)`: a helper
+//! that loses its last caller fails `-D warnings` like any other dead code.
 //!
 //! Five rules for every test built on this harness (ADR 0002 §A4):
 //!
@@ -46,7 +42,6 @@
 //!    `hovered()` to `false` while `dragged()` survives. A `PointerMoved` to a
 //!    position outside the widget does **not** do this: `latest_pos` stays
 //!    populated, so `hovered()` stays `true` and a mutant term goes uncaught.
-#![allow(dead_code)]
 
 pub mod paint;
 pub mod scan;
