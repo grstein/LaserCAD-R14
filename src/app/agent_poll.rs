@@ -41,8 +41,8 @@
 //! moment the channel dies (ADR 0007 §D2), so no thread is killed and none is
 //! asked to check a flag.
 
-use crate::agent::{AgentAction, AgentEvent, AgentOutcome};
-use crate::app::{agent_apply, agent_capture, App};
+use crate::agent::{AgentAction, AgentEvent, AgentOutcome, ChatMessage, TurnEnd};
+use crate::app::{agent_apply, agent_capture, agent_memory, App};
 use std::sync::mpsc::TryRecvError;
 
 /// Text shown in the chat when the worker thread ended without a verdict.
@@ -89,16 +89,18 @@ pub fn poll_agent_rx(app: &mut App) {
                     // falling through assumes both channels die in the same
                     // instant; where they do not, `try_recv` says `Empty`, the
                     // receiver goes back, and `agent.busy` latches for good.
-                    end_turn(app, Some(("error", AGENT_LOST_MESSAGE.to_string())));
+                    lost(app);
                     return;
                 }
             }
-            Ok(AgentEvent::Done(text, _batches)) => {
-                end_turn(app, Some(("assistant", text)));
+            Ok(AgentEvent::Done(text, batches)) => {
+                let row = Some(("assistant", text.clone()));
+                end_turn(app, row, TurnEnd::Done { text }, batches);
                 return;
             }
-            Ok(AgentEvent::Failed(error, _batches)) => {
-                end_turn(app, Some(("error", error)));
+            Ok(AgentEvent::Failed(error, batches)) => {
+                let row = Some(("error", error.clone()));
+                end_turn(app, row, TurnEnd::Stopped { error }, batches);
                 return;
             }
             Err(TryRecvError::Empty) => {
@@ -107,7 +109,7 @@ pub fn poll_agent_rx(app: &mut App) {
                 return;
             }
             Err(TryRecvError::Disconnected) => {
-                end_turn(app, Some(("error", AGENT_LOST_MESSAGE.to_string())));
+                lost(app);
                 return;
             }
         }
@@ -190,17 +192,27 @@ fn undo_note(applied: usize, whole: bool) -> String {
     }
 }
 
+/// Exits 3 and 4: the worker is gone, with no batches to report.
+fn lost(app: &mut App) {
+    let row = Some(("error", AGENT_LOST_MESSAGE.to_owned()));
+    let error = AGENT_LOST_MESSAGE.to_owned();
+    end_turn(app, row, TurnEnd::Stopped { error }, Vec::new());
+}
+
 /// Every exit path, in one place: push an optional chat row, do the turn-end
-/// work, clear the busy flag, drop the channel. ADR 0007 §D11 — a reviewer
-/// checks this list.
+/// work, record the turn in memory, clear the busy flag, drop the channel.
+/// ADR 0007 §D11 — a reviewer checks this list.
 ///
 /// The order of the first two is the tail of AC 23's total ordering: the
 /// terminal row says how the turn ended, the note row says what it left behind.
-fn end_turn(app: &mut App, row: Option<(&str, String)>) {
+/// Memory is recorded after the seal, so a `Done` mark sees the sealed history
+/// (LCV-153, ADR 0007 §D16).
+fn end_turn(app: &mut App, row: Option<(&str, String)>, end: TurnEnd, batches: Vec<ChatMessage>) {
     if let Some((role, text)) = row {
         app.agent.chat.push((role.to_owned(), text));
     }
     finish_turn(app);
+    agent_memory::record(app, end, batches);
     app.agent.busy = false;
     app.agent.rx = None;
 }
@@ -230,7 +242,8 @@ pub fn cancel_turn(app: &mut App) {
     if !app.agent.busy {
         return;
     }
-    end_turn(app, Some(("note", AGENT_CANCELLED_MESSAGE.to_owned())))
+    let row = Some(("note", AGENT_CANCELLED_MESSAGE.to_owned()));
+    end_turn(app, row, TurnEnd::Cancelled, Vec::new())
 }
 
 #[cfg(test)]
@@ -308,7 +321,7 @@ mod tests {
             ..Default::default()
         };
 
-        end_turn(&mut app, None);
+        end_turn(&mut app, None, TurnEnd::Cancelled, Vec::new());
 
         assert!(
             app.agent.rx.is_none(),

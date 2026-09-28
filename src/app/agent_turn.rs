@@ -40,7 +40,7 @@
 
 use super::agent_worker::{ask_ui, run_agent_turn, TurnConfig};
 use crate::agent::{prompt, AgentError, AgentEvent};
-use crate::app::App;
+use crate::app::{agent_memory, App};
 use crate::io::settings::Settings;
 use std::sync::mpsc::{channel, Sender};
 
@@ -154,6 +154,8 @@ pub fn arm_turn(app: &mut App, prompt: &str) -> Sender<AgentEvent> {
 /// `of {limit}` and the worker's [`TurnConfig`] can never disagree.
 fn arm_with_limit(app: &mut App, prompt: &str, limit: u32) -> Sender<AgentEvent> {
     let (tx, rx) = channel::<AgentEvent>();
+    // Before the group opens: the mark is the history the model last saw.
+    let user = agent_memory::begin(app, prompt);
     app.agent.chat.push(("user".to_owned(), prompt.to_owned()));
     app.agent.busy = true;
     app.agent.rx = Some(rx);
@@ -165,7 +167,7 @@ fn arm_with_limit(app: &mut App, prompt: &str, limit: u32) -> Sender<AgentEvent>
         steps: 0,
         limit,
         label,
-        user: String::new(),
+        user,
     };
     tx
 }
@@ -180,10 +182,11 @@ pub fn start_turn(app: &mut App, prompt: &str) {
     if app.agent.busy {
         return;
     }
+    // Armed first, so the config carries the memory `begin` just trimmed.
+    let tx = arm_with_limit(app, prompt, effective_step_limit(&app.settings));
     // Owned, never borrowed: the thread outlives this frame (ADR 0007 §D1).
-    let config = turn_config(&app.settings);
-    let prompt = prompt.to_owned();
-    let tx = arm_with_limit(app, &prompt, config.step_limit);
+    let config = config_for(app);
+    let prompt = app.agent.turn.user.clone();
     std::thread::spawn(move || {
         let (result, batches) = {
             let mut ask = |action| ask_ui(&tx, action);
@@ -218,7 +221,10 @@ fn turn_config(settings: &Settings) -> TurnConfig {
 /// The [`TurnConfig`] for the turn `app` has just armed (LCV-153): its
 /// settings snapshot and a clone of the conversation memory.
 pub fn config_for(app: &App) -> TurnConfig {
-    turn_config(&app.settings)
+    TurnConfig {
+        memory: app.agent.memory.flatten(),
+        ..turn_config(&app.settings)
+    }
 }
 
 /// The step budget a turn may spend, clamped **at the read site**.

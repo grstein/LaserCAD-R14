@@ -39,7 +39,7 @@
   tests/it/lcv153_agent_memory.rs, tests/it/main.rs)
 - [x] T13 [AC1] [AC5] [AC6] [AC7] [AC9] `agent_memory.rs` (`begin`, `record`), `mod` line,
   `AgentState::{memory, memory_mark}` (files: src/app/agent_memory.rs, src/app/mod.rs, src/app/agent_state.rs)
-- [ ] T14 [AC7] [AC9] [AC10] Wire it: `TurnState::user`, `arm_with_limit` → `begin`,
+- [x] T14 [AC7] [AC9] [AC10] Wire it: `TurnState::user`, `arm_with_limit` → `begin`,
   `start_turn` arms then `config_for`, thread forwards batches; `end_turn(row, TurnEnd, batches)`
   → `record` after `finish_turn`, on all five exits (files: src/app/agent_turn.rs, src/app/agent_poll.rs)
 - [ ] T15 CHANGELOG line: the agent remembers the conversation; "Context tokens" setting (files: CHANGELOG.md)
@@ -57,3 +57,5 @@
 - T12: so the tests compile, this commit already adds the inert fields `AgentState::memory`,
   `AgentState::memory_mark`, `TurnState::user` and `config_for` (plain `turn_config`); T13–T14
   make them real.
+- T14: the T12 trim test's sizes were wrong (both turns over the target, so the oldest was
+  dropped, as the trim should); this commit resizes them so eliding alone lands under the target.

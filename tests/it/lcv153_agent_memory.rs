@@ -314,31 +314,33 @@ fn ac7_only_done_advances_the_mark() {
 /// setting is clamped first, so a stored `0` means 8 000.
 #[test]
 fn ac9_memory_over_the_cap_is_trimmed_at_arm() {
-    let big = "r".repeat(12_000);
-    let turn = |n: usize| {
+    let result = |bytes: usize| "r".repeat(bytes);
+    let turn = |n: usize, bytes: usize| {
         let batch = vec![
             ChatMessage::assistant_with_tool_calls(
                 None,
                 vec![ToolCall::function("c", "query_entities", "{}")],
             ),
-            ChatMessage::tool_result("c", big.clone()),
+            ChatMessage::tool_result("c", result(bytes)),
         ];
         record(&format!("turn {n}"), batch, "ok")
     };
-    // Two turns, ~6 000 tokens: over the 4 000 cap of the clamped 8 000.
+    // ~5 000 tokens: over the 4 000 cap of the clamped 8 000. Eliding the old
+    // result lands under the 2 000 target, so both turns stay.
     let mut app = App::default();
     app.settings.agent_context_tokens = 0;
-    app.agent.memory.push_turn(turn(0));
-    app.agent.memory.push_turn(turn(1));
+    app.agent.memory.push_turn(turn(0, 16_000));
+    app.agent.memory.push_turn(turn(1, 4_000));
     let _tx = arm_turn(&mut app, "next");
     let turns = app.agent.memory.turns();
     assert_eq!(turns.len(), 2);
     assert_eq!(turns[0][2].text_content(), Some(ELIDED_TOOL_RESULT));
-    assert_eq!(turns[1][2].text_content(), Some(big.as_str()));
+    assert_eq!(turns[1][2].text_content(), Some(result(4_000).as_str()));
     // At or under the cap, nothing moves.
     let mut app = App::default();
     app.settings.agent_context_tokens = 0;
-    app.agent.memory.push_turn(turn(0));
+    app.agent.memory.push_turn(turn(0, 4_000));
+    app.agent.memory.push_turn(turn(1, 8_000));
     let before = app.agent.memory.clone();
     assert!(estimate_tokens(&before.flatten()) <= 4_000);
     let _tx = arm_turn(&mut app, "next");
