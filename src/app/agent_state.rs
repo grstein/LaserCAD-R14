@@ -14,7 +14,7 @@
 
 use std::sync::mpsc::Receiver;
 
-use crate::agent::AgentEvent;
+use crate::agent::{AgentEvent, Memory};
 use crate::app::TurnState;
 
 /// The agent's UI-side state: the chat transcript, the in-flight turn's
@@ -43,6 +43,12 @@ pub struct AgentState {
     /// amendment 8). `busy` and `rx` stay outside it: they are §D11's
     /// single-writer pair. Re-armed by `arm_turn`.
     pub turn: TurnState,
+    /// The conversation so far (LCV-153, ADR 0007 §D16). Starts empty and is
+    /// never persisted.
+    pub memory: Memory,
+    /// `(History::id(), History::revision())` up to which the model has seen
+    /// every change; `None` before the first turn (ADR 0007 §D16).
+    pub memory_mark: Option<(u64, u64)>,
 }
 
 #[cfg(test)]

@@ -126,6 +126,9 @@ pub struct TurnState {
     pub limit: u32,
     /// The label of the turn's history group: `Agent:` plus the prompt.
     pub label: String,
+    /// The turn's user message as the model gets it: the prompt, prefixed
+    /// when the drawing changed since the last turn (LCV-153 AC 7).
+    pub user: String,
 }
 
 /// The longest prompt prefix an undo label carries (AC 10).
@@ -162,6 +165,7 @@ fn arm_with_limit(app: &mut App, prompt: &str, limit: u32) -> Sender<AgentEvent>
         steps: 0,
         limit,
         label,
+        user: String::new(),
     };
     tx
 }
@@ -209,6 +213,12 @@ fn turn_config(settings: &Settings) -> TurnConfig {
         vision: settings.agent_allow_canvas_capture && settings.agent_model_supports_vision,
         memory: Vec::new(),
     }
+}
+
+/// The [`TurnConfig`] for the turn `app` has just armed (LCV-153): its
+/// settings snapshot and a clone of the conversation memory.
+pub fn config_for(app: &App) -> TurnConfig {
+    turn_config(&app.settings)
 }
 
 /// The step budget a turn may spend, clamped **at the read site**.

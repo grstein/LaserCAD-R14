@@ -30,7 +30,7 @@
 - [x] T11 [AC2] [AC5] [AC10] `TurnConfig::memory`, `drive_turn`/`run_agent_turn` tuple return,
   `AgentEvent::Done/Failed(_, Vec<ChatMessage>)`; `poll_agent_rx` destructures (files:
   src/app/agent_worker.rs, src/agent/bridge.rs, src/app/agent_poll.rs)
-- [ ] T12 [AC1] [AC5] [AC6] [AC7] [AC9] [AC10] [AC11] Test (integration, `arm_turn` + events):
+- [x] T12 [AC1] [AC5] [AC6] [AC7] [AC9] [AC10] [AC11] Test (integration, `arm_turn` + events):
   Done with batches → memory = user, batches, assistant; Failed → `Turn stopped: <error>.`;
   `cancel_turn` → user + `CANCELLED_TEXT`; lost exit → user + stopped text; next turn's
   `turn.user` is prefixed after a commit, undo, redo, File > New or Open, and not prefixed when
@@ -54,3 +54,6 @@
 - T9: `tests/it/lcv144_drawing_batch.rs` (added by LCV-144 after the plan) also migrated.
 - T10: so the tests compile, this commit already adds `TurnConfig::memory` (ignored) and the
   tuple return (empty batches), with `agent_turn.rs` taking `.0`; T11 makes both real.
+- T12: so the tests compile, this commit already adds the inert fields `AgentState::memory`,
+  `AgentState::memory_mark`, `TurnState::user` and `config_for` (plain `turn_config`); T13–T14
+  make them real.
