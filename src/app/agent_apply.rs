@@ -34,7 +34,7 @@ use crate::agent::{AgentAction, AgentOutcome, DrawingItem};
 use crate::app::agent_narrate::{
     batch_created, describe, list_entities, list_selection, pt, sweep,
 };
-use crate::app::App;
+use crate::app::{agent_capture, App};
 use crate::document::commands::CreateEntities;
 use crate::document::{
     Command, CreateArc, CreateCircle, CreateLine, DeleteEntities, Document, Entity, MoveEntities,
@@ -62,7 +62,12 @@ enum Planned {
 /// and leave `revision()` untouched. Either way the outcome is transcribed
 /// before it is returned (AC 23).
 pub fn apply(app: &mut App, action: &AgentAction) -> AgentOutcome {
-    let outcome = match plan(action, &app.document) {
+    // LCV-145: a capture reads the camera, which `plan` cannot see.
+    let planned = match action {
+        AgentAction::CaptureCanvas => Planned::Answer(agent_capture::capture(app)),
+        _ => plan(action, &app.document),
+    };
+    let outcome = match planned {
         Planned::Answer(outcome) => outcome,
         Planned::Commit(command, sentence) => {
             // Into the turn's flat group (ADR 0007 §D12); `App::commit` seals.

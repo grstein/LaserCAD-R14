@@ -144,6 +144,9 @@ fn png_with(setup: impl FnOnce(&egui::Context, &mut App)) -> Vec<u8> {
     }
 }
 
+/// A UI state applied before the settle frame.
+type Setup = dyn FnOnce(&egui::Context, &mut App);
+
 /// AC 6 — the image is a function of the document and the camera only: the
 /// agent panel, the settings window, a pointer resting on the toolbar, a
 /// selection, a hover snap and a tool preview change no byte of it.
@@ -154,7 +157,7 @@ fn ui_state_never_reaches_the_png() {
     assert!(decoded.contains(&0), "positive control: entities are inked");
     assert!(decoded.contains(&128), "positive control: the bed is drawn");
 
-    let variants: [(&str, Box<dyn FnOnce(&egui::Context, &mut App)>); 6] = [
+    let variants: [(&str, Box<Setup>); 6] = [
         (
             "agent panel",
             Box::new(|_, app| app.agent.panel_open = true),

@@ -42,7 +42,7 @@
 //! asked to check a flag.
 
 use crate::agent::{AgentAction, AgentEvent, AgentOutcome};
-use crate::app::{agent_apply, App};
+use crate::app::{agent_apply, agent_capture, App};
 use std::sync::mpsc::TryRecvError;
 
 /// Text shown in the chat when the worker thread ended without a verdict.
@@ -72,7 +72,14 @@ pub fn poll_agent_rx(app: &mut App) {
     loop {
         match rx.try_recv() {
             Ok(AgentEvent::Act { action, reply }) => {
-                let outcome = apply_fenced(app, &action);
+                // LCV-145: the pre-upload check is a rendezvous, not a step —
+                // no count, no fence, no `tool` row (ADR 0011 item 10).
+                let outcome = match &action {
+                    AgentAction::AuthorizeUpload { endpoint, model } => {
+                        agent_capture::authorize(app, endpoint, model)
+                    }
+                    _ => apply_fenced(app, &action),
+                };
                 if reply.send(outcome).is_err() {
                     // The fourth turn exit: the worker panicked or returned
                     // between sending this `Act` and reading its answer. It
