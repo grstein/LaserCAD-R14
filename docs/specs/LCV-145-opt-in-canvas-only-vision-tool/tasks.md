@@ -1,6 +1,6 @@
 # LCV-145 — Tasks
 
-- [ ] T1 [P] [AC7] Add `png = "0.18"` and `base64 = "0.22"` to `[dependencies]`, then `cargo build`. Check that the `Cargo.lock` diff adds no `[[package]]`. (files: Cargo.toml, Cargo.lock)
+- [x] T1 [P] [AC7] Add `png = "0.18"` and `base64 = "0.22"` to `[dependencies]`, then `cargo build`. Check that the `Cargo.lock` diff adds no `[[package]]`. (files: Cargo.toml, Cargo.lock)
 - [ ] T2 [AC1, AC5] Test first: create a `src/render/raster.rs` stub with failing unit tests, decoding with `png`:
   - A corner-to-corner line is black on the diagonal and white elsewhere.
   - Pixel values are 255 / 128 / 0 at known points.

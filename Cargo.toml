@@ -9,9 +9,11 @@ authors = ["LaserCAD contributors"]
 repository = "https://github.com/grstein/LaserCAD-R14-V2"
 
 [dependencies]
+base64 = "0.22"
 directories = "5"
 eframe = "0.29"
 egui = "0.29"
+png = "0.18"
 reqwest = { version = "0.12", features = ["json", "blocking"] }
 rfd = { version = "0.14", default-features = true }
 roxmltree = "0.20"
