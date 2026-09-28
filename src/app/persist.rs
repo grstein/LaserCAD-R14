@@ -295,7 +295,10 @@ mod tests {
             .collect();
         assert_eq!(
             resolvers,
-            vec!["io/autosave.rs".to_owned(), "io/settings.rs".to_owned()],
+            vec![
+                "io/autosave.rs".to_owned(),
+                "io/settings_store.rs".to_owned()
+            ],
             "only the two boot resolvers may construct ProjectDirs (AC 1)"
         );
     }
@@ -324,12 +327,23 @@ mod tests {
             }
         }
 
-        // Definition-level: the wrappers themselves, in the two io modules.
+        // Definition-level: the wrappers themselves, in the io modules. The
+        // settings file I/O moved to `settings_store.rs` (LCV-143, ADR 0007
+        // §D8); `settings.rs` keeps the struct and must not regrow them.
         for (file, src, present, absent) in [
+            (
+                "io/settings_store.rs",
+                include_str!("../io/settings_store.rs"),
+                concat!("pub(crate) fn ", "save_to("),
+                vec![
+                    concat!("pub fn ", "save(&self)"),
+                    concat!("pub fn ", "load()"),
+                ],
+            ),
             (
                 "io/settings.rs",
                 include_str!("../io/settings.rs"),
-                concat!("pub(crate) fn ", "save_to("),
+                concat!("pub struct ", "Settings"),
                 vec![
                     concat!("pub fn ", "save(&self)"),
                     concat!("pub fn ", "load()"),
