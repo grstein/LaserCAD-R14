@@ -9,6 +9,7 @@ pub mod dialogs;
 pub mod file_actions;
 pub mod recent;
 pub mod settings;
+mod settings_store;
 pub mod svg;
 
 pub use dialogs::{arm_native_dialogs, open_file_dialog, pick_folder_dialog, save_file_dialog};
