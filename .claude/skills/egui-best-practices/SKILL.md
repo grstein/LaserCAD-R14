@@ -1,6 +1,12 @@
 ---
 name: egui-best-practices
-description: Guides Rust + egui work in LaserCAD v2 — eframe app shell, Painter for CAD viewport, native dialogs via rfd, settings persistence via directories + serde_json, async HTTP via reqwest + tokio. Use when touching `src/app.rs`, `src/render/`, `src/ui/`, `src/io/`, or `src/agent/transport.rs`, or when adding a Cargo dependency.
+description: Guides Rust + egui work in LaserCAD v2 — eframe app shell, Painter for CAD viewport, native dialogs via rfd, settings persistence via directories + serde_json, blocking HTTP via reqwest on a std::thread (no tokio). Use when touching `src/app/`, `src/render/`, `src/ui/`, `src/io/`, or `src/agent/transport.rs`, or when adding a Cargo dependency.
+paths:
+  - "src/app/**"
+  - "src/render/**"
+  - "src/ui/**"
+  - "src/io/**"
+  - "src/agent/transport.rs"
 ---
 
 # egui Best Practices — LaserCAD v2
@@ -28,7 +34,7 @@ This skill is a thin index, not an essay. The implementer agent reads the real d
 
 ## egui patterns we use
 
-- **eframe app shell** (`src/app.rs`): `impl eframe::App for App { fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) { ... } }`.
+- **eframe app shell** (`src/app/mod.rs`): `impl eframe::App for App { fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) { ... } }`.
 - **Central panel for the CAD viewport** (`src/render/viewport.rs`): `egui::CentralPanel::default().show(ctx, |ui| { ... })`, then `ui.painter()` for primitives.
 - **Top/bottom/side panels** for menubar / toolbar / command line / statusbar.
 - **Custom painting**: `Painter::line_segment`, `Painter::circle_stroke`, `Painter::add(egui::Shape::path(...))` for arcs.
@@ -39,7 +45,7 @@ This skill is a thin index, not an essay. The implementer agent reads the real d
 ## Async patterns
 
 - egui's `update` runs on the main thread; never block it.
-- Long IO (HTTP for the agent): spawn on a `tokio::runtime` owned by the app, channel results back, `ctx.request_repaint()` on receipt.
+- Long IO (HTTP for the agent): blocking `reqwest` on a plain `std::thread`, results over `std::sync::mpsc` polled per frame; repaint only while `agent.busy` (see `.claude/rules/repaint-ui.md`). No `tokio`.
 - File dialogs via `rfd::AsyncFileDialog` for non-blocking open/save; or `rfd::FileDialog::new()` for blocking modal (acceptable on a manual user action like File→Save As).
 
 ## Persistence patterns
