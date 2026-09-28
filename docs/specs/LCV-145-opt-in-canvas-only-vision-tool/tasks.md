@@ -20,7 +20,7 @@
   - Authorize is asked exactly once before an image send and never for text-only sends, and its fields carry no key. A "no" answer gives the withheld placeholder and a text-only request. Cancel means `send_fn` is not called again.
   
   Then implement `Dispatch`, batch capture collection, `send_images` and the `drive_turn` mapping. (files: src/agent/loop_.rs, src/app/agent_worker.rs)
-- [ ] T9 [AC2, AC4, AC5, AC6] Test first in `agent_capture` unit tests:
+- [x] T9 [AC2, AC4, AC5, AC6] Test first in `agent_capture` unit tests:
   - `pixel_size`: 1600×900 → 1024×576, and 800×600 → 800×600.
   - A 0×600 viewport gets the pinned refusal.
   - `check_size` with an injected limit.
