@@ -1420,6 +1420,28 @@ mod tests {
         assert_eq!(requests[0], expected);
     }
 
+    /// AC 1 — only this turn's batches come back, never memory's own.
+    #[test]
+    fn batches_already_in_memory_are_not_returned_again() {
+        let old = vec![
+            ChatMessage::user("before"),
+            ChatMessage::assistant_with_tool_calls(
+                None,
+                vec![crate::agent::ToolCall::function(
+                    "m",
+                    "query_entities",
+                    "{}",
+                )],
+            ),
+            ChatMessage::tool_result("m", "old"),
+            ChatMessage::assistant("reply"),
+        ];
+        let replies = vec![Some(batch(&[("query_selection", "")])), Some(text("t"))];
+        let (_, batches, requests) = scripted("now", &with_memory(old), replies);
+        assert_eq!(batches, requests[1][6..].to_vec());
+        assert_eq!(batches.len(), 2, "this turn's call and its result");
+    }
+
     /// AC 1 / AC 3 — the batches after the user message come back, and every
     /// request of turn 1 is a byte-identical prefix of turn 2's first
     /// request once turn 1 is recorded. A request that carried an image is

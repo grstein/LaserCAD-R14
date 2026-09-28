@@ -413,6 +413,36 @@ mod tests {
         assert_eq!(m, memory(turns[3..].to_vec()));
     }
 
+    /// AC 9 phase 1 — a result as short as the placeholder is kept verbatim:
+    /// replacing it would lose its text and shrink nothing.
+    #[test]
+    fn phase_one_keeps_a_result_no_longer_than_the_placeholder() {
+        let short = "x".repeat(ELIDED_TOOL_RESULT.len());
+        let turns = vec![
+            turn("u", &short),
+            turn("u", &"r".repeat(2000)),
+            turn("u", "r"),
+        ];
+        let mut m = memory(turns);
+        m.trim(1000);
+        assert_eq!(m.turns().len(), 3);
+        assert_eq!(tool_text(&m, 0), short);
+        assert_eq!(tool_text(&m, 1), ELIDED_TOOL_RESULT);
+    }
+
+    /// AC 9 phase 2 — memory exactly at half the cap is done: no extra turn goes.
+    #[test]
+    fn phase_two_stops_exactly_at_the_target() {
+        // 5 turns of 400 bytes: 500 tokens > cap 400; two turns are 200 = target.
+        let turns: Vec<_> = (0..5)
+            .map(|n| turn(&format!("{n}{}", "u".repeat(394)), "r"))
+            .collect();
+        let mut m = memory(turns.clone());
+        m.trim(800);
+        assert_eq!(estimate_tokens(&m.flatten()), 200);
+        assert_eq!(m, memory(turns[3..].to_vec()));
+    }
+
     /// AC 9 — both phases, and the newest turn's results stay whole even
     /// when that leaves memory over the target.
     #[test]

@@ -59,3 +59,24 @@
   make them real.
 - T14: the T12 trim test's sizes were wrong (both turns over the target, so the oldest was
   dropped, as the trim should); this commit resizes them so eliding alone lands under the target.
+
+## Mutation run
+
+`cargo mutants --in-diff` over `git diff 2d4a9d7 -- src`, each job in its own scratch target:
+108 mutants, 90 caught, 16 unviable, 2 missed, then fixed or justified. A first run with
+`-j 3` and a single shared `CARGO_TARGET_DIR` gave jobs each other's binaries; it was discarded.
+
+- `memory.rs` `Memory::trim` `before > ELIDED_TOOL_RESULT.len()` → `>=`: killed by
+  `phase_one_keeps_a_result_no_longer_than_the_placeholder`.
+- `memory.rs` `Memory::trim` phase-2 `bytes / 4 > target` → `>=`: killed by
+  `phase_two_stops_exactly_at_the_target`.
+- `settings_ui.rs` `tokens.changed() || value != before` → `&&`: equivalent. egui's `DragValue`
+  reports `changed()` exactly when it writes a different value, clamp write-back included
+  (`the_context_field_clamps_and_reports` sees `true` for 5 → 8000), so both terms agree. The
+  comparison mirrors the step-budget field.
+- Manual (no operator for cargo-mutants to mutate): `drive_turn`'s `first_batch = messages.len()`
+  → `0` is killed by `batches_already_in_memory_are_not_returned_again`; → `+ 1` is killed
+  (panics on the slice). → `- 1` is equivalent: `messages[len - 1]` is the user message, and
+  `whole_batches` drops anything before the first assistant message. `agent_memory::record`'s
+  Done-only mark, replaced by `true`, `false` or `Stopped`: killed (lib and `ac7_only_done_advances_the_mark`).
+- `agent_memory::begin`'s mark comparison (`!`, `&&`, `!=`) and `History::id` (`0`, `1`): caught.
