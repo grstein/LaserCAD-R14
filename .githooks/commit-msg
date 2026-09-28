@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# The human author is the sole author of record: reject AI co-author trailers.
+if grep -qiE '^(co-authored-by|generated-by|assisted-by):|🤖 Generated with|noreply@anthropic\.com' "$1"; then
+  echo "commit-msg: AI/co-author trailer is not allowed in this repository (AGENTS.md §Commits)." >&2
+  exit 1
+fi
