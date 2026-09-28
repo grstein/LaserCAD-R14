@@ -1,8 +1,8 @@
 # LCV-144 - Create a drawing from declarative JSON
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-122, LCV-123, LCV-142, LCV-143
-- **Implementation**: -
+- **Implementation**: 81a7145..6727b8e
 
 ## Problem
 
