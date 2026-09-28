@@ -54,6 +54,7 @@ mod lcv142_turn_group;
 mod lcv143_prompt_editor;
 mod lcv143_source_scans;
 mod lcv143_system_prompt;
+mod lcv144_drawing_batch;
 mod lcv148_changelog_unreleased_clause;
 mod lcv151_default_prompt;
 mod lcv152_single_test_binary;

@@ -1,6 +1,6 @@
 # LCV-144 — Tasks
 
-- [ ] T1 [AC11] Test: source scan. The eight helper `fn`s (`pt`, `sweep`, `kind`, `geometry`, `describe`, `bed_line`, `list_entities`, `list_selection`) are defined in `src/app/agent_narrate.rs` and not in `src/app/agent_apply.rs`. Include a positive control. (files: tests/it/lcv144_drawing_batch.rs, tests/it/main.rs)
+- [x] T1 [AC11] Test: source scan. The eight helper `fn`s (`pt`, `sweep`, `kind`, `geometry`, `describe`, `bed_line`, `list_entities`, `list_selection`) are defined in `src/app/agent_narrate.rs` and not in `src/app/agent_apply.rs`. Include a positive control. (files: tests/it/lcv144_drawing_batch.rs, tests/it/main.rs)
 - [ ] T2 [AC11] Move the eight helpers verbatim into new `src/app/agent_narrate.rs`, with no behaviour change. Existing `agent_apply` narration tests stay green and unchanged. Run `scripts/loc-cap.sh`. (files: src/app/agent_narrate.rs, src/app/agent_apply.rs, src/app/mod.rs)
 - [ ] T3 [AC2, AC3, AC4] Test first: create `src/agent/drawing.rs` with a `parse` stub and failing unit tests:
   - 0 / 1 / 1000 / 1001 entities; missing and extra root keys; `version` 2 and `"1"`.
