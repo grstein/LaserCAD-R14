@@ -1,6 +1,6 @@
 # LCV-143 - Editable harness-aware system prompt
 
-- **Status**: Planned
+- **Status**: In Progress
 - **Depends on**: LCV-125, LCV-141, LCV-142
 - **Implementation**: -
 
