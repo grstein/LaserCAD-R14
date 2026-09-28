@@ -70,4 +70,49 @@ mod tests {
         assert_eq!(state.turn.applied, 0);
         assert!(state.turn.label.is_empty());
     }
+
+    /// Three transcript rows and two remembered turns.
+    fn talked() -> AgentState {
+        use crate::agent::wire::ChatMessage;
+        let mut state = AgentState::default();
+        for role in ["user", "tool", "assistant"] {
+            state.chat.push((role.to_owned(), "text".to_owned()));
+        }
+        for prompt in ["one", "two"] {
+            state.memory.push_turn(vec![
+                ChatMessage::user(prompt),
+                ChatMessage::assistant("ok"),
+            ]);
+        }
+        state.input_draft = "half typed".to_owned();
+        state.panel_open = true;
+        state
+    }
+
+    /// LCV-150 AC 2 — the clear empties the transcript and the memory and
+    /// leaves every other field where it was.
+    #[test]
+    fn clear_conversation_empties_the_transcript_and_the_memory() {
+        let mut state = talked();
+        state.memory_mark = Some((1, 7));
+        state.clear_conversation();
+        assert!(state.chat.is_empty());
+        assert!(state.memory.is_empty());
+        assert_eq!(state.input_draft, "half typed");
+        assert!(state.panel_open);
+        assert!(!state.busy);
+        assert!(state.rx.is_none());
+        assert_eq!(state.memory_mark, Some((1, 7)));
+    }
+
+    /// LCV-150 AC 3 — while a turn is in flight the clear does nothing.
+    #[test]
+    fn clear_conversation_is_a_no_op_while_busy() {
+        let mut state = talked();
+        state.busy = true;
+        state.clear_conversation();
+        assert_eq!(state.chat.len(), 3);
+        assert_eq!(state.memory.turns().len(), 2);
+        assert!(state.busy);
+    }
 }
