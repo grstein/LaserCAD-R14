@@ -39,7 +39,7 @@
 //! `agent_worker::run_agent_turn`, which asks the UI thread through `ask_ui`.
 
 use super::agent_worker::{ask_ui, run_agent_turn, TurnConfig};
-use crate::agent::{AgentError, AgentEvent};
+use crate::agent::{prompt, AgentError, AgentEvent};
 use crate::app::App;
 use crate::io::settings::Settings;
 use std::sync::mpsc::{channel, Sender};
@@ -197,12 +197,15 @@ pub fn start_turn(app: &mut App, prompt: &str) {
 
 /// The turn-start snapshot of `settings` that crosses into the worker (ADR
 /// 0007 §D13): cloned once, so a mid-turn edit reaches the next turn only.
+/// The system prompt is resolved here too (LCV-143 AC 5), so the worker never
+/// sees the override/default distinction.
 fn turn_config(settings: &Settings) -> TurnConfig {
     TurnConfig {
         endpoint: settings.agent_endpoint.clone(),
         api_key: settings.agent_api_key.clone(),
         model: settings.agent_model.clone(),
         step_limit: effective_step_limit(settings),
+        system_prompt: prompt::resolve(settings.agent_system_prompt.as_deref()).to_owned(),
     }
 }
 

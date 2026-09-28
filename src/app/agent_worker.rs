@@ -11,7 +11,6 @@
 
 use crate::agent::{
     agent_loop, AgentAction, AgentError, AgentEvent, AgentOutcome, AssistantMessage, ChatMessage,
-    AGENT_SYSTEM_PROMPT,
 };
 use std::sync::mpsc::{channel, Sender};
 
@@ -19,8 +18,9 @@ use std::sync::mpsc::{channel, Sender};
 /// 0007 §D13). Built once, in `start_turn`, from `Settings`: that is the
 /// turn-start snapshot, so settings edited mid-turn affect the next turn only.
 ///
-/// Carries the API key, so its `Debug` is written by hand and prints
-/// `api_key: "<redacted>"` instead (ADR 0007 §D10).
+/// Carries the API key and the prompt, so its `Debug` is written by hand: it
+/// prints `api_key: "<redacted>"` (ADR 0007 §D10) and the prompt's length
+/// only (LCV-143 AC 7).
 #[derive(Clone, PartialEq, Eq)]
 pub struct TurnConfig {
     /// OpenAI-compatible base URL.
@@ -31,6 +31,9 @@ pub struct TurnConfig {
     pub model: String,
     /// The turn's effective step limit, already clamped at the read site.
     pub step_limit: u32,
+    /// The turn's system message, resolved from `Settings` when the turn was
+    /// armed (LCV-143). Never printed.
+    pub system_prompt: String,
 }
 
 impl std::fmt::Debug for TurnConfig {
@@ -40,6 +43,7 @@ impl std::fmt::Debug for TurnConfig {
             .field("api_key", &"<redacted>")
             .field("model", &self.model)
             .field("step_limit", &self.step_limit)
+            .field("system_prompt_len", &self.system_prompt.len())
             .finish()
     }
 }
@@ -89,14 +93,22 @@ where
         crate::agent::chat_completion(endpoint, api_key, model, msgs, &tools)
             .map_err(|e| AgentError::Transport(e.to_string()))
     };
-    drive_turn(prompt, config.step_limit, &mut send_fn, ask)
+    drive_turn(
+        prompt,
+        &config.system_prompt,
+        config.step_limit,
+        &mut send_fn,
+        ask,
+    )
 }
 
 /// [`run_agent_turn`] minus the network: the conversation, the parse and the
 /// `ask`, with `send_fn` injected so the worker's own rules — the fence stop
 /// (§D14) and malformed calls (§D15) — are testable without an endpoint.
+/// `system` is the turn's system message, verbatim.
 fn drive_turn<F, A>(
     prompt: &str,
+    system: &str,
     step_limit: u32,
     send_fn: &mut F,
     ask: &mut A,
@@ -105,10 +117,7 @@ where
     F: FnMut(&[ChatMessage]) -> Result<AssistantMessage, AgentError>,
     A: FnMut(AgentAction) -> Result<AgentOutcome, AgentError>,
 {
-    let mut messages = vec![
-        ChatMessage::system(AGENT_SYSTEM_PROMPT),
-        ChatMessage::user(prompt),
-    ];
+    let mut messages = vec![ChatMessage::system(system), ChatMessage::user(prompt)];
     // A refusal is a tool result, not a failure (ADR 0007 §D2a), and so is a
     // malformed call (§D15); a `Fenced` answer is read by `agent_loop` (§D14).
     let mut dispatch_fn = |name: &str, args: &str| ask(to_action(name, args));
@@ -899,7 +908,13 @@ mod tests {
                 crate::app::AGENT_FENCE_REFUSAL.to_owned(),
             ))
         };
-        let result = drive_turn("go", AGENT_STEP_BUDGET_DEFAULT, &mut send_fn, &mut ask);
+        let result = drive_turn(
+            "go",
+            "sys",
+            AGENT_STEP_BUDGET_DEFAULT,
+            &mut send_fn,
+            &mut ask,
+        );
         (result, asks, sends, seen)
     }
 
@@ -975,7 +990,13 @@ mod tests {
                 other => panic!("expected Malformed, got {other:?}"),
             }
         };
-        let result = drive_turn("go", AGENT_STEP_BUDGET_DEFAULT, &mut send_fn, &mut ask);
+        let result = drive_turn(
+            "go",
+            "sys",
+            AGENT_STEP_BUDGET_DEFAULT,
+            &mut send_fn,
+            &mut ask,
+        );
         assert_eq!(result.expect("the turn continues"), "fixed");
 
         let reasons: Vec<(String, String)> = asked
@@ -1024,7 +1045,7 @@ mod tests {
             asks += 1;
             Ok(AgentOutcome::Refused("bad".into()))
         };
-        let result = drive_turn("go", 2, &mut send_fn, &mut ask);
+        let result = drive_turn("go", "sys", 2, &mut send_fn, &mut ask);
         assert!(
             matches!(result, Err(AgentError::IterationLimitExceeded(2))),
             "got {result:?}"
