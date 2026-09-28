@@ -26,3 +26,19 @@
   (files: tests/it/lcv144_drawing_batch.rs)
 - [x] T9 [AC10] Describe `create_drawing` (name, `version`, `entities`, per-type keys) in the built-in system prompt so LCV-151's tool-enumeration test stays green. Update the golden text test wherever LCV-143/151 left it. (files: src/agent/prompt.rs, tests/it/lcv143_system_prompt.rs)
 - [x] T10 CHANGELOG line: the agent can draw many lines, circles and arcs in one validated, atomic `create_drawing` call. (files: CHANGELOG.md)
+
+## Notes
+
+- Mutation testing (cargo-mutants 27.1.0, `src/agent/drawing.rs` + `agent_worker.rs::to_action`,
+  own `CARGO_TARGET_DIR`): 27 mutants, 24 caught, 3 unviable (`Default::default()` on types
+  without `Default`), 0 survivors.
+- Deviation (T5): adding `AgentAction::CreateDrawing` needed a temporary refusing arm in
+  `agent_apply.rs` until T7, and the tool-count fixtures in `transport.rs` / `agent_worker.rs`
+  tests moved from 7 to 8.
+- Deviation (T4, wording not pinned by the spec): root failures without a key use
+  `create_drawing arguments: must be a JSON object`; a non-object item uses
+  `create_drawing entities[{i}]: must be a JSON object` (the `DrawingRoot` form, since there is no
+  field). Other reasons: `missing`, `unknown key`, `must be a finite number`, `must be a boolean`,
+  `must be the integer 1`, `must hold 1..=1000 items, got {n}`.
+- Deviation (T9): the UNITS paragraph now says angles appear in `create_arc` and `create_drawing`
+  arcs; the placeholder "If create_drawing is advertised" paragraph became the tool's own paragraph.
