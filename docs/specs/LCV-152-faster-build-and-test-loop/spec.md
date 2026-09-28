@@ -1,6 +1,6 @@
 # LCV-152 — Faster build and test loop
 
-- **Status**: Planned
+- **Status**: In Progress
 - **Depends on**: none
 - **Implementation**: -
 
