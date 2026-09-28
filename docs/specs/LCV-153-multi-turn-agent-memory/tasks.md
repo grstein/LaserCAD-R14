@@ -15,7 +15,7 @@
 - [x] T6 [P] [AC8] Test then implement `Settings::agent_context_tokens` (serde default 128 000, old
   file without the key loads) and the Agent Settings integer field (harness edit persists via the
   LCV-141 Done path) (files: src/io/settings.rs, src/agent/settings_ui.rs)
-- [ ] T7 [AC10] Add `AgentEvent::done(text)` / `failed(err)` constructors (old shape still) and
+- [x] T7 [AC10] Add `AgentEvent::done(text)` / `failed(err)` constructors (old shape still) and
   migrate src test sites (files: src/agent/bridge.rs, src/agent/panel.rs, src/app/agent_turn.rs)
 - [ ] T8 [AC10] Migrate integration-test sites to the constructors (files:
   tests/it/lcv123_agent_turn.rs, tests/it/lcv124_command_line_routing.rs, tests/it/lcv125_agent_panel_and_settings.rs)

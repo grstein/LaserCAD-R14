@@ -203,6 +203,18 @@ pub enum AgentEvent {
     Failed(String),
 }
 
+impl AgentEvent {
+    /// A [`AgentEvent::Done`] carrying `text`.
+    pub fn done(text: impl Into<String>) -> Self {
+        Self::Done(text.into())
+    }
+
+    /// A [`AgentEvent::Failed`] carrying `error`.
+    pub fn failed(error: impl Into<String>) -> Self {
+        Self::Failed(error.into())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -219,8 +231,8 @@ mod tests {
                 action: AgentAction::QueryEntities,
                 reply,
             },
-            AgentEvent::Done("done".into()),
-            AgentEvent::Failed("failed".into()),
+            AgentEvent::done("done"),
+            AgentEvent::failed("failed"),
         ];
         assert_eq!(events.len(), 3);
 

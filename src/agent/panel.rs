@@ -310,8 +310,8 @@ mod tests {
     /// test's sibling scan in `tests/lcv122_source_scans.rs` catches.
     #[test]
     fn the_two_terminal_events_are_distinct() {
-        let done = AgentEvent::Done("x".into());
-        let failed = AgentEvent::Failed("e".into());
+        let done = AgentEvent::done("x");
+        let failed = AgentEvent::failed("e");
         assert_ne!(
             std::mem::discriminant(&done),
             std::mem::discriminant(&failed),

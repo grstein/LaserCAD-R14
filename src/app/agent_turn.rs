@@ -318,7 +318,7 @@ mod tests {
         assert_eq!(app.agent.turn.label, "Agent: draw a 20 mm square");
         assert!(app.history.group_open(), "the turn's group is open");
 
-        tx.send(AgentEvent::Done("hi".to_owned()))
+        tx.send(AgentEvent::done("hi"))
             .expect("the returned Sender must reach the Receiver on App");
         match app
             .agent
