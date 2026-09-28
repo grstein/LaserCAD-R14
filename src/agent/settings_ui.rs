@@ -47,6 +47,10 @@ const STEP_BUDGET_HELP: &str = "How many tool calls one prompt may make. More st
 /// different semantics: the dialog stays live-edit, persist-on-close.
 const LIVE_EDIT_NOTE: &str = "Changes apply immediately and are saved when this window closes.";
 
+/// What the two canvas opt-ins together allow (LCV-145 AC 2, ADR 0011).
+const CANVAS_DISCLOSURE: &str = "When both are on, the agent may send a picture of the drawing \
+                                 (not the window) to the configured provider and model.";
+
 /// Rows the system-prompt editor asks for before its own scroll area.
 const PROMPT_ROWS: usize = 6;
 
@@ -56,7 +60,7 @@ const PROMPT_MAX_HEIGHT: f32 = 110.0;
 
 /// What one frame of the form reported.
 pub struct AgentSettingsFrame {
-    /// `true` if **any** of the five fields changed this frame — the flag
+    /// `true` if **any** of the seven fields changed this frame — the flag
     /// [`draw_agent_settings`] always reported, now carried on a named field
     /// instead of being the whole return value.
     pub changed: bool,
@@ -71,7 +75,7 @@ pub struct AgentSettingsFrame {
 
 /// Draw the agent-settings form into `ui`.
 ///
-/// Five labelled rows, in the order the operator meets them:
+/// Labelled rows, in the order the operator meets them:
 /// - **Endpoint URL** — plain single-line field editing `settings.agent_endpoint`.
 /// - **Model** — plain single-line field editing `settings.agent_model`. Free
 ///   text, hinted with the default: the endpoint is the authority on which ids
@@ -82,6 +86,8 @@ pub struct AgentSettingsFrame {
 /// - **Steps per turn** — a slider over
 ///   `AGENT_STEP_BUDGET_MIN..=AGENT_STEP_BUDGET_MAX` (the range lives with the
 ///   loop that enforces it, ADR 0007 §D7) editing `settings.agent_step_budget`.
+/// - **Allow canvas capture** / **Model supports images** — the two LCV-145
+///   opt-ins, followed by [`CANVAS_DISCLOSURE`].
 /// - **System prompt** — a multiline editor over the *effective* prompt
 ///   (`prompt::resolve`), with a **Restore default** button (LCV-143). The
 ///   text is copied into a per-frame buffer, so only a real edit writes
@@ -91,7 +97,7 @@ pub struct AgentSettingsFrame {
 ///
 /// Every text field has a minimum width of [`FIELD_MIN_WIDTH`] logical pixels.
 ///
-/// [`AgentSettingsFrame::changed`] is `true` if **any** of the five fields
+/// [`AgentSettingsFrame::changed`] is `true` if **any** of the seven fields
 /// changed this frame, `false` otherwise — `agent_settings_dialog` persists on
 /// close, so the flag is what tells the operator's edit apart from an idle
 /// frame. [`AgentSettingsFrame::done_clicked`] is `true` the one frame the new
@@ -152,6 +158,21 @@ pub fn draw_agent_settings(ui: &mut egui::Ui, settings: &mut Settings) -> AgentS
         ui.end_row();
     });
     ui.add(egui::Label::new(egui::RichText::new(STEP_BUDGET_HELP).small()).wrap());
+
+    // LCV-145: both off by default; read live at every capture.
+    changed |= ui
+        .checkbox(
+            &mut settings.agent_allow_canvas_capture,
+            "Allow canvas capture",
+        )
+        .changed();
+    changed |= ui
+        .checkbox(
+            &mut settings.agent_model_supports_vision,
+            "Model supports images",
+        )
+        .changed();
+    ui.add(egui::Label::new(egui::RichText::new(CANVAS_DISCLOSURE).small()).wrap());
 
     changed |= prompt_editor(ui, settings);
 

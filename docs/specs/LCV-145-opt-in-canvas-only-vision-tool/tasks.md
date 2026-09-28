@@ -36,7 +36,7 @@
   
   (files: tests/it/lcv145_canvas_capture.rs, tests/it/main.rs)
 - [x] T11 [AC2, AC6, AC11] Route `CaptureCanvas` in `agent_apply::apply` (fenced, counted, transcribed), and route `AuthorizeUpload` in `poll_agent_rx` before `apply_fenced` (no step, no fence). T10 goes green. (files: src/app/agent_apply.rs, src/app/agent_poll.rs)
-- [ ] T12 [AC2] Harness paint test at 800×600: both checkbox labels and the exact disclosure sentence are painted in Agent Settings. Then add the checkboxes and sentence above the prompt editor. (files: src/agent/settings_ui.rs, tests/it/lcv145_canvas_capture.rs)
+- [x] T12 [AC2] Harness paint test at 800×600: both checkbox labels and the exact disclosure sentence are painted in Agent Settings. Then add the checkboxes and sentence above the prompt editor. (files: src/agent/settings_ui.rs, tests/it/lcv145_canvas_capture.rs)
 - [ ] T13 [AC1, AC7, AC8, AC12] Scans, each with a positive control:
   - `raster.rs` imports no `egui`/`eframe`/`rfd`.
   - `src/` has no `ViewportCommand::Screenshot` or `Event::Screenshot`.

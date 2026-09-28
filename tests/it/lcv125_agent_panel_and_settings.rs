@@ -332,6 +332,9 @@ fn ac8_ac9_ac10_the_settings_dialog_draws_headless_frame() {
 /// **LCV-143 note**: two more lines, for the same reason — the System prompt
 /// row with its Restore default button, and the editor, which paints the whole
 /// built-in prompt as one multi-line galley.
+///
+/// **LCV-145 note**: three more lines — the two canvas opt-in checkboxes and
+/// their disclosure sentence, drawn above the System prompt row.
 #[test]
 fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
     let (ctx, mut app) = ctx_and_app();
@@ -358,6 +361,12 @@ fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
             vec![concat!(
                 "How many tool calls one prompt may make. More steps means a ",
                 "bigger drawing per prompt, and more API calls."
+            )],
+            vec!["Allow canvas capture"],
+            vec!["Model supports images"],
+            vec![concat!(
+                "When both are on, the agent may send a picture of the drawing ",
+                "(not the window) to the configured provider and model."
             )],
             vec!["System prompt", "Restore default"],
             vec![lasercad::agent::DEFAULT_PROMPT],

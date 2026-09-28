@@ -302,3 +302,27 @@ fn a_live_model_change_refuses_the_upload() {
     assert!(answer.try_recv().unwrap().is_refused());
     assert_eq!(app.agent.chat.len(), rows, "a no leaves no row");
 }
+
+/// AC 2 — at 800×600 the Agent Settings dialog paints both opt-in checkboxes
+/// and the exact disclosure sentence.
+#[test]
+fn agent_settings_paints_both_opt_ins_and_the_disclosure() {
+    let (ctx, mut app) = ctx_and_app();
+    app.agent_settings_open = true;
+    let small = [800.0, 600.0];
+    let _ = harness::paint::painted_runs_at(&ctx, &mut app, small, Vec::new());
+    let runs = harness::paint::painted_runs_at(&ctx, &mut app, small, Vec::new());
+    let painted = |text: &str| runs.iter().any(|r| r.text.trim() == text);
+    assert!(
+        painted("Endpoint URL"),
+        "positive control: the dialog is open"
+    );
+    for text in [
+        "Allow canvas capture",
+        "Model supports images",
+        "When both are on, the agent may send a picture of the drawing (not the window) \
+         to the configured provider and model.",
+    ] {
+        assert!(painted(text), "{text:?} is not painted");
+    }
+}
