@@ -4,7 +4,7 @@
 - [x] T2 [AC1, AC3, AC4, AC6, AC7] Test in the same file: ASCII-only English; section needles present in order (LaserCAD/LaserGRBL/SVG, millimeters, degrees, Y-up + bottom-left origin, zero-based positional index + renumbering + `query_entities`, `:` and `/ai` routing, `AGENT_STEP_BUDGET_DEFAULT`/`AGENT_STEP_BUDGET_MAX` as numbers, turn ends with no message to the model, reply-style "do not ask for confirmation" clause) (files: tests/it/lcv151_default_prompt.rs)
 - [x] T3 [AC1, AC5, AC6] Test: `DEFAULT_PROMPT` contains `AGENT_FENCE_REFUSAL`, `FENCE_STOP_PLACEHOLDER` and the `IterationLimitExceeded` display prefix `step budget exceeded`; `drive_turn` with a fake `send_fn` and a `TurnConfig` whose `system_prompt` is `resolve(None)` — serialize the captured request with `serde_json`, parse it back, assert `messages[0]` is `{"role":"system","content":DEFAULT_PROMPT}` (files: src/app/agent_worker.rs)
 - [x] T4 [AC1–AC7] Rewrite `DEFAULT_PROMPT` per plan §Content decisions and update the golden `assert_eq!` from LCV-143 (files: src/agent/prompt.rs)
-- [ ] T5 CHANGELOG line: the built-in agent prompt now describes every tool, the fence and the step budget (files: CHANGELOG.md)
+- [x] T5 CHANGELOG line: the built-in agent prompt now describes every tool, the fence and the step budget (files: CHANGELOG.md)
 - [ ] T6 [AC8] Present the exact `DEFAULT_PROMPT` text to the user for word-for-word review; apply requested edits (golden test follows); record the approval here before the spec is marked Done (files: src/agent/prompt.rs, docs/specs/LCV-151-complete-built-in-system-prompt/tasks.md)
 
 Deviation (team-lead relay, 2026-09-27): AC 1 (ASCII-only) and AC 5 (quote `AGENT_FENCE_REFUSAL`
