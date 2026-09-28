@@ -57,6 +57,7 @@ mod lcv143_system_prompt;
 mod lcv144_drawing_batch;
 mod lcv145_canvas_capture;
 mod lcv148_changelog_unreleased_clause;
+mod lcv150_new_conversation;
 mod lcv151_default_prompt;
 mod lcv152_single_test_binary;
 mod lcv153_agent_memory;
