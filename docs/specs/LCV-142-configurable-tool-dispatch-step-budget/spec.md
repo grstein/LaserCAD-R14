@@ -1,8 +1,8 @@
 # LCV-142 - Larger tool budgets without losing turn undo
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-123, LCV-125, LCV-129
-- **Implementation**: -
+- **Implementation**: 6a17e69, 608e974, 7027979, a5dd5e9, d7c6368, 29dbd15
 
 ## Problem
 
