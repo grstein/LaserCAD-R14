@@ -70,6 +70,7 @@ No version of LaserCAD v2 has been tagged or released yet. Everything below is u
 - Hover hints were added on every toolbar button, the SNAP/GRID/ORTHO mode indicators, the agent toggle and the preset badge, each naming its keyboard shortcut where one exists (or the preset's export semantics). See LCV-140.
 - The agent's system prompt is now shown and editable in `Help > Agent settings`, with a Restore default button that brings back the built-in text. An edited prompt, even a blank one, is used exactly as written from the next agent turn on; tools, the step budget and the drawing-change fence stay enforced whatever the prompt says. See LCV-143.
 - The agent can draw many lines, circles and arcs in one `create_drawing` call (up to 1000 entities): the whole batch is validated first, so either every entity is drawn or none is, and it counts as one step and undoes with the rest of the turn. Any tool call whose arguments exceed 1 MiB is refused. See LCV-144.
+- The agent can look at the drawing with vision-capable models: two `Help > Agent settings` checkboxes, Allow canvas capture and Model supports images, both off by default. When both are on, the agent may send a grayscale picture of the drawing — bed outline and entities only, never the window, grid, selection or UI — to the configured provider and model, and each upload is noted in the chat. See LCV-145.
 
 ### Changed
 

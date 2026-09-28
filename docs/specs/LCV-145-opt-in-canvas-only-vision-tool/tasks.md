@@ -46,7 +46,7 @@
   
   Every transport test added uses the unparseable or owned-socket pattern. (files: tests/it/lcv145_canvas_capture.rs)
 - [x] T14 [AC2] Name `capture_canvas` in the built-in system prompt so LCV-151's tool-enumeration test (over `tool_definitions(true)`) stays green. Change LCV-151's coverage loop to iterate `[false, true]` and update the pinned-text test. (files: src/agent/prompt.rs, tests/it/lcv151_default_prompt.rs)
-- [ ] T15 CHANGELOG line: opt-in canvas pictures for vision models. Two Agent Settings checkboxes, off by default; the drawing only, never the window. (files: CHANGELOG.md)
+- [x] T15 CHANGELOG line: opt-in canvas pictures for vision models. Two Agent Settings checkboxes, off by default; the drawing only, never the window. (files: CHANGELOG.md)
 
 ## Deviations and notes
 
