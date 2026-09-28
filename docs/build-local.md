@@ -166,3 +166,31 @@ Building the AppImage and `.deb` is not the same as publishing a release.
 That flow — version bump, `CHANGELOG.md`, the annotated git tag, and the
 GitHub release with these two files attached — lives in `scripts/release.sh`
 (see LCV-089) and is out of scope for this document.
+
+## 8. Faster local linking with `mold` (optional)
+
+The dev profile in `Cargo.toml` and the single integration-test binary
+(`tests/it/`) already keep the edit-build-test loop short (LCV-152). Linking
+can be shortened further with [`mold`](https://github.com/rui314/mold), but the
+repository does **not** enable it: `.cargo/config.toml` has no way to say "use
+mold only if it is installed", and naming a missing linker there breaks every
+build. Without `mold` the default system linker is used and nothing changes.
+
+To opt in on your own machine, install it and enable it in your **per-user**
+`~/.cargo/config.toml`, never in the repository's:
+
+```bash
+sudo dnf install -y mold clang    # Fedora
+sudo apt install -y mold clang    # Debian / Ubuntu
+```
+
+```toml
+# ~/.cargo/config.toml
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+```
+
+Undo it by deleting those three lines. Not measured on the reference host
+(`mold` is not installed there); the timings in LCV-152's `plan.md` are with the
+default linker.

@@ -1,3 +1,8 @@
+# LCV-152 — no linker override here on purpose. `mold` is opt-in per developer
+# in `~/.cargo/config.toml` (see `docs/build-local.md` §8): this file cannot
+# make it conditional on `mold` being installed, and a missing linker named
+# here would break every build.
+#
 # LCV-130 — keep the suite's loopback fixtures off the ambient proxy.
 #
 # `reqwest::blocking::Client::new()` sets `auto_sys_proxy: true`, and reqwest
