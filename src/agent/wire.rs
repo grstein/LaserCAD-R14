@@ -104,6 +104,12 @@ impl ChatMessage {
         Self::text("user", content)
     }
 
+    /// A plain-text `"assistant"` turn: a final reply, as memory replays it
+    /// (LCV-153).
+    pub fn assistant(content: impl Into<String>) -> Self {
+        Self::text("assistant", content)
+    }
+
     /// An `"assistant"` turn carrying tool-call requests, with the optional
     /// text the model sent alongside them.
     pub fn assistant_with_tool_calls(content: Option<String>, tool_calls: Vec<ToolCall>) -> Self {

@@ -8,7 +8,7 @@
   (sum then `/4`, arguments counted), `clamp_context_tokens` bounds/default, `trim` phase 1 (oldest
   first, newest turn untouched), phase 2, stops at ≤ cap/2, keeps a single oversized turn, no
   system message; list `memory.rs` in AGENTS.md §Purity (files: src/agent/memory.rs, src/agent/mod.rs, AGENTS.md)
-- [ ] T3 [AC1] [AC5] [AC6] [AC8] [AC9] Implement `memory.rs`; `ChatMessage::assistant` (files: src/agent/memory.rs, src/agent/wire.rs)
+- [x] T3 [AC1] [AC5] [AC6] [AC8] [AC9] Implement `memory.rs`; `ChatMessage::assistant` (files: src/agent/memory.rs, src/agent/wire.rs)
 - [ ] T4 [P] [AC7] Test: two fresh `History` values differ in `id()`; `id()` is stable across
   commit/undo/redo/`end_group` (files: src/document/history.rs)
 - [ ] T5 [AC7] Implement `History::id` (static `AtomicU64`, set in `with_depth`) (files: src/document/history.rs)

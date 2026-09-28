@@ -37,12 +37,12 @@ pub const DRAWING_CHANGED_PREFIX: &str =
 /// `CONTEXT_TOKENS_MIN..=CONTEXT_TOKENS_MAX`; the settings file is
 /// hand-editable, so every reader clamps.
 pub fn clamp_context_tokens(value: u32) -> u32 {
-    value
+    value.clamp(CONTEXT_TOKENS_MIN, CONTEXT_TOKENS_MAX)
 }
 
 /// `prompt` with [`DRAWING_CHANGED_PREFIX`] on its own line before it.
 pub fn with_changed_prefix(prompt: &str) -> String {
-    prompt.to_owned()
+    format!("{DRAWING_CHANGED_PREFIX}\n{prompt}")
 }
 
 /// How a turn ended, as far as memory cares.
@@ -64,9 +64,20 @@ pub enum TurnEnd {
 
 /// One turn's memory entry: `user`, then `batches`, then the closing
 /// assistant text `end` dictates. A cancelled turn keeps no batches (AC 6).
+/// A stopped turn's error loses a trailing full stop, so the sentence that
+/// wraps it ends in exactly one.
 pub fn turn_record(user: &str, batches: Vec<ChatMessage>, end: &TurnEnd) -> Vec<ChatMessage> {
-    let _ = (user, batches, end);
-    Vec::new()
+    let mut record = vec![ChatMessage::user(user)];
+    let closing = match end {
+        TurnEnd::Done { text } => text.clone(),
+        TurnEnd::Stopped { error } => format!("Turn stopped: {}.", error.trim_end_matches('.')),
+        TurnEnd::Cancelled => CANCELLED_TEXT.to_owned(),
+    };
+    if *end != TurnEnd::Cancelled {
+        record.extend(batches);
+    }
+    record.push(ChatMessage::assistant(closing));
+    record
 }
 
 /// The whole tool-call batches of `messages`: each assistant `tool_calls`
@@ -74,15 +85,56 @@ pub fn turn_record(user: &str, batches: Vec<ChatMessage>, end: &TurnEnd) -> Vec<
 /// every call it made has its `tool` result. A batch missing a result is
 /// dropped whole (AC 5), so the model never reads an unanswered call.
 pub fn whole_batches(messages: &[ChatMessage]) -> Vec<ChatMessage> {
-    let _ = messages;
-    Vec::new()
+    let mut kept = Vec::new();
+    let mut start = 0;
+    while start < messages.len() {
+        let end = messages[start + 1..]
+            .iter()
+            .position(|m| m.role == "assistant")
+            .map_or(messages.len(), |at| start + 1 + at);
+        let batch = &messages[start..end];
+        let answered = |id: &String| {
+            batch
+                .iter()
+                .any(|m| m.role == "tool" && m.tool_call_id.as_ref() == Some(id))
+        };
+        if let Some(calls) = &batch[0].tool_calls {
+            if calls.iter().all(|call| answered(&call.id)) {
+                kept.extend_from_slice(batch);
+            }
+        }
+        start = end;
+    }
+    kept
 }
 
 /// The token estimate of AC 8: UTF-8 bytes of every text and tool-call
 /// argument string, summed, then divided by four once.
 pub fn estimate_tokens(messages: &[ChatMessage]) -> usize {
-    let _ = messages;
-    0
+    messages.iter().map(message_bytes).sum::<usize>() / 4
+}
+
+/// The bytes one message adds to the estimate: its text (every text part of
+/// a parts message) and the arguments of every tool call it carries.
+fn message_bytes(message: &ChatMessage) -> usize {
+    let text = match &message.content {
+        Some(Content::Text(text)) => text.len(),
+        Some(Content::Parts(parts)) => parts
+            .iter()
+            .map(|part| match part {
+                ContentPart::Text { text } => text.len(),
+                ContentPart::ImageUrl { .. } => 0,
+            })
+            .sum(),
+        None => 0,
+    };
+    let arguments: usize = message
+        .tool_calls
+        .iter()
+        .flatten()
+        .map(|call| call.function.arguments.len())
+        .sum();
+    text + arguments
 }
 
 /// The conversation so far, one entry per turn, oldest first.
@@ -121,9 +173,35 @@ impl Memory {
     /// AC 9: when the estimate exceeds `context_tokens / 2`, shrink memory to
     /// at most half that — first eliding tool results outside the newest
     /// turn, oldest first, then dropping the oldest whole turns. The newest
-    /// turn is always kept whole.
+    /// turn is always kept whole. A result no longer than
+    /// [`ELIDED_TOOL_RESULT`] is left as it is: replacing it would not shrink
+    /// anything.
     pub fn trim(&mut self, context_tokens: u32) {
-        let _ = context_tokens;
+        let cap = usize::try_from(context_tokens / 2).unwrap_or(usize::MAX);
+        let target = cap / 2;
+        let mut bytes: usize = self.turns.iter().flatten().map(message_bytes).sum();
+        if bytes / 4 <= cap {
+            return;
+        }
+        let newest = self.turns.len().saturating_sub(1);
+        let old_results = self.turns[..newest]
+            .iter_mut()
+            .flatten()
+            .filter(|m| m.role == "tool");
+        for message in old_results {
+            if bytes / 4 <= target {
+                break;
+            }
+            let before = message_bytes(message);
+            if before > ELIDED_TOOL_RESULT.len() {
+                message.content = Some(Content::Text(ELIDED_TOOL_RESULT.to_owned()));
+                bytes = bytes - before + ELIDED_TOOL_RESULT.len();
+            }
+        }
+        while bytes / 4 > target && self.turns.len() > 1 {
+            let dropped = self.turns.remove(0);
+            bytes -= dropped.iter().map(message_bytes).sum::<usize>();
+        }
     }
 }
 
