@@ -1,8 +1,8 @@
 # LCV-152 — Faster build and test loop
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: 159ce84..5f0fb27, 952ebaf, 9be1506
 
 ## Problem
 
