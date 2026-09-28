@@ -26,9 +26,10 @@ how to do it.
 
 UNITS AND COORDINATES
 All coordinates, lengths and radii are millimeters (mm). Angles are
-degrees and appear only in create_arc; 0 degrees points along +X and angles
-grow counter-clockwise. The world is Y-up: the origin (0, 0) is the
-bottom-left corner of the bed, X grows to the right, Y grows upward.
+degrees and appear only in arcs (create_arc, create_drawing); 0 degrees
+points along +X and angles grow counter-clockwise. The world is Y-up: the
+origin (0, 0) is the bottom-left corner of the bed, X grows to the right, Y
+grows upward.
 
 TOOLS
 Each tool takes a JSON object with exactly the arguments named here.
@@ -55,8 +56,15 @@ mm, plus the bed size. Changes nothing.
 query_selection {}: list the indices of the entities the operator has
 selected. Changes nothing.
 
-If create_drawing is advertised, use it for suitable append-only batches of
-lines, circles and arcs, within its declared validation and size limits.
+create_drawing {version, entities}: append many lines, circles and arcs in
+one call; prefer it to many single create calls. version is always 1.
+entities is a list of 1 to 1000 objects, each with a type and exactly that
+type's other keys, meaning what they mean in the single tools:
+{\"type\": \"line\", x1, y1, x2, y2}, {\"type\": \"circle\", cx, cy, r} or
+{\"type\": \"arc\", cx, cy, r, start_deg, end_deg, ccw}. The whole call is
+checked first: if any entity is wrong, nothing is drawn and the result names
+it, for example entities[3].r. One create_drawing call is one step.
+
 Request a canvas capture only if that tool is advertised and enabled. Do not
 invent tools, arguments, skills, permissions or capabilities.
 
