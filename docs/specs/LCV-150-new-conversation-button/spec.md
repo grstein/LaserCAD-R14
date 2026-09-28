@@ -1,23 +1,21 @@
 # LCV-150 - New conversation button in the agent panel
 
 - **Status**: Specified
-- **Depends on**: LCV-125, LCV-141, LCV-142
+- **Depends on**: LCV-125, LCV-141, LCV-142, LCV-153
 - **Implementation**: -
 
 ## Problem
 
-The agent maintains a multi-turn conversation history in the chat panel
-(`src/agent/panel.rs`). When the operator wants to start a fresh conversation
-without the accumulated context — to reset the agent's understanding or clear a
-confusing chain of exchanges — they must close and reopen the application.
-There is no in-app way to clear the transcript and restart with a clean slate
-and the current system prompt.
+With LCV-153 the agent remembers earlier turns of the conversation shown in the chat panel
+(`src/agent/panel.rs`). When the operator wants a fresh start — to reset the agent's
+understanding or drop a confusing chain of exchanges — the only way today is to restart
+the application. There is no in-app way to clear the transcript and the agent's memory.
 
 ## Scope
 
 A **New Conversation** button in the agent panel that:
-- Clears all prior messages from the chat history (the `agent.chat` vector)
-- Starts the next turn fresh with only the system prompt and no prior context
+- Clears the visible transcript (`agent.chat`) and the conversation memory (LCV-153)
+- Makes the next turn start with only the system prompt and the new prompt
 - Disables itself while a turn is in progress (`agent.busy == true`)
 - Never touches the drawing, undo history, or any document state
 - Is always reachable in the panel (not hidden by scroll or overflow)
@@ -31,35 +29,29 @@ A **New Conversation** button in the agent panel that:
 
 ## Acceptance criteria
 
-1. A button labelled "New Conversation" appears in the agent panel
-   (`src/agent/panel.rs`) alongside or adjacent to the existing UI controls
-2. Clicking the button clears `agent.chat` by calling a new method on
-   `AgentState` (or equivalent) that removes all prior messages, leaving an
-   empty vector
-3. The button is disabled when `agent.busy == true` (a turn is in progress)
-   and enabled when `agent.busy == false`
-4. After the button is clicked, the panel shows an empty transcript and the
-   next turn starts with only the system prompt as context
-5. Clicking the button does not trigger a turn, make any API call, or modify
-   the document
-6. The button's enabled/disabled state updates immediately when a turn
-   starts or ends
-7. At 800×600 application size, the button is visible and clickable without
-   scrolling the panel
+1. THE SYSTEM SHALL show a button labelled "New Conversation" in the agent panel
+   (`src/agent/panel.rs`) next to the existing header controls.
+2. WHEN the button is clicked THE SYSTEM SHALL empty `agent.chat` and the LCV-153
+   conversation memory through one new `AgentState` method.
+3. WHILE `agent.busy == true` THE SYSTEM SHALL show the button disabled and ignore clicks;
+   WHILE `agent.busy == false` it SHALL be enabled.
+4. WHEN the button has been clicked THE SYSTEM SHALL show an empty transcript, and the next
+   turn's first request SHALL carry exactly `[system, user]`.
+5. WHEN the button is clicked THE SYSTEM SHALL NOT start a turn, make any API call, or
+   modify the document or its undo history.
+6. WHEN a turn starts or ends THE SYSTEM SHALL update the button's enabled state in the
+   same frame.
+7. WHILE the application is 800×600 THE SYSTEM SHALL keep the button visible and
+   clickable without scrolling the panel.
 
 ## Expected tests
 
-- Unit: `AgentState` has a method to clear the chat history; calling it
-  produces an empty vector
-- Integration: a harness paint test or pointer test confirms the button
-  label is visible in the agent panel
-- Pointer test: simulate a click on the painted button and verify the
-  transcript clears
-- State test: button is clickable when `agent.busy == false`, greyed out
-  when `agent.busy == true`
+- Unit: the `AgentState` clear method empties the transcript and the memory; no-op while busy.
+- Paint: the button label is inside the agent panel.
+- Pointer: a click on the painted button clears both; greyed out and inert while busy.
+- Worker: after a clear, the next turn's first request carries exactly `[system, user]`.
 
 ## Notes
 
-Primary files: `src/agent/panel.rs` and `src/agent/wire.rs` (or equivalent
-agent state holder). Depends on LCV-141 (panel layout) and requires the panel
-to remain reachable during any new work.
+Primary files: `src/agent/panel.rs` and `src/app/agent_state.rs`. Depends on LCV-141 (panel
+layout) and LCV-153 (the memory this button resets).
