@@ -6,7 +6,10 @@
 //! `tests/lcv124_command_line_routing.rs` — this file only checks the words
 //! that describe it in `CHANGELOG.md`.
 //!
-//! **Bounded, not whole-file.** The haystack is the `## [Unreleased]` section:
+//! **Release v0.2.0 (LCV-089):** the entries this test guards moved from
+//! `## [Unreleased]` into `## [0.2.0]`, so the haystack is now that section.
+//!
+//! **Bounded, not whole-file.** The haystack was the `## [Unreleased]` section:
 //! from that heading to the next bare `\n## ` at column 0, or to end of file
 //! when there is none. Today there is exactly **one** column-0 `## ` heading
 //! in the whole file (`## [Unreleased]`), so the section runs to EOF — a
@@ -34,7 +37,7 @@ fn changelog() -> String {
         .unwrap_or_else(|e| panic!("must be able to read {}: {e}", path.display()))
 }
 
-/// The `## [Unreleased]` section: from that heading to the next bare
+/// The `## [0.2.0]` section (formerly `## [Unreleased]`): from that heading to the next bare
 /// `"\n## "` at column 0, or to the end of the file when there is none.
 ///
 /// A line reading `### Added` can never satisfy `"\n## "`: the third
@@ -42,8 +45,8 @@ fn changelog() -> String {
 /// cannot be mistaken for the level-2 boundary this function is looking for.
 fn unreleased_section(changelog: &str) -> &str {
     let start = changelog
-        .find("## [Unreleased]")
-        .expect("CHANGELOG.md must have an `## [Unreleased]` heading");
+        .find("## [0.2.0]")
+        .expect("CHANGELOG.md must have an `## [0.2.0]` heading");
     let rest = &changelog[start..];
     let end = rest.find("\n## ").unwrap_or(rest.len());
     &rest[..end]
