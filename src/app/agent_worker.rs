@@ -124,6 +124,10 @@ where
     agent_loop(send_fn, &mut dispatch_fn, &mut messages, step_limit)
 }
 
+/// The raw argument string of any tool call is refused above this many bytes,
+/// before `serde_json` parses it (ADR 0010 §3.1).
+const MAX_TOOL_ARGUMENT_BYTES: usize = 1_048_576;
+
 /// Shape-check one tool call. Anything that fails — JSON syntax, unknown tool,
 /// any `ToolCallError` — becomes [`AgentAction::Malformed`] and still goes to
 /// the UI as an ordinary `Act` (ADR 0007 §D15). The reason never quotes `args`.
@@ -132,6 +136,11 @@ fn to_action(name: &str, args: &str) -> AgentAction {
         tool: name.to_owned(),
         reason,
     };
+    if args.len() > MAX_TOOL_ARGUMENT_BYTES {
+        return malformed(format!(
+            "tool `{name}` arguments exceed {MAX_TOOL_ARGUMENT_BYTES} bytes"
+        ));
+    }
     // The argument-free queries are routinely called with `""` rather than
     // `"{}"`, which is not JSON; both mean the same empty object here.
     let value = if args.trim().is_empty() {
@@ -1183,5 +1192,42 @@ mod tests {
             );
             assert_eq!(sent["messages"][0]["content"], system);
         }
+    }
+
+    // ── LCV-144 AC 2: the universal argument byte cap ────────────────────────
+
+    /// `valid` padded with trailing spaces to exactly `len` bytes.
+    fn padded(valid: &str, len: usize) -> String {
+        format!("{valid}{}", " ".repeat(len - valid.len()))
+    }
+
+    /// AC 2 — exactly `MAX_TOOL_ARGUMENT_BYTES` passes; one byte more is
+    /// refused before parsing, with the pinned message, for every tool.
+    #[test]
+    fn the_argument_cap_is_inclusive_and_applies_to_every_tool() {
+        let cases = [
+            ("create_line", r#"{"x1":0,"y1":0,"x2":1,"y2":1}"#),
+            (
+                "create_drawing",
+                r#"{"version":1,"entities":[{"type":"circle","cx":0,"cy":0,"r":1}]}"#,
+            ),
+        ];
+        for (tool, valid) in cases {
+            let at_cap = to_action(tool, &padded(valid, MAX_TOOL_ARGUMENT_BYTES));
+            assert!(
+                !matches!(at_cap, AgentAction::Malformed { .. }),
+                "{tool} at the cap: {at_cap:?}"
+            );
+            let over = to_action(tool, &padded(valid, MAX_TOOL_ARGUMENT_BYTES + 1));
+            assert_eq!(
+                over,
+                AgentAction::Malformed {
+                    tool: tool.to_owned(),
+                    reason: format!("tool `{tool}` arguments exceed 1048576 bytes"),
+                },
+                "{tool} one byte over"
+            );
+        }
+        assert_eq!(MAX_TOOL_ARGUMENT_BYTES, 1_048_576);
     }
 }
