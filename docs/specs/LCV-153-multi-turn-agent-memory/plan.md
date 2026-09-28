@@ -78,3 +78,5 @@ batches, because no event arrives. No thread, channel, dependency or `Document` 
   not a prefix of the next turn. The AC 3 test covers text-only turns and asserts that the
   elided form is the prefix (open question to the user).
 - The 38 `AgentEvent::Done/Failed(` sites move to `done()`/`failed()` first (T7–T9); every commit compiles.
+
+**Post-implementation seam note (review, 2026-09-28):** `src/document/history.rs` is at 272 impl LOC. The next growth splits the group logic (`begin_group`/`commit_grouped`/`end_group`) into `src/document/history_group.rs`.

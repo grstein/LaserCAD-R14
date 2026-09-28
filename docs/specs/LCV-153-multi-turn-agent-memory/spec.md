@@ -1,8 +1,8 @@
 # LCV-153 - Agent remembers earlier turns of the conversation
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-142, LCV-143, LCV-145
-- **Implementation**: -
+- **Implementation**: b47b9b6, 2d4a9d7..2ff6a96
 
 ## Problem
 
