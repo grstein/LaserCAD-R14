@@ -1,8 +1,8 @@
 # LCV-151 - Built-in system prompt describes every tool
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-143
-- **Implementation**: -
+- **Implementation**: 06f60c8..0a67e72 (excluding b47b9b6)
 
 ## Problem
 
