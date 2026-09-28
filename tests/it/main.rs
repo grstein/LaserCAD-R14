@@ -51,6 +51,7 @@ mod lcv141_agent_panel_width_and_settings;
 mod lcv142_progress_row;
 mod lcv142_source_scans;
 mod lcv142_turn_group;
+mod lcv143_prompt_editor;
 mod lcv143_source_scans;
 mod lcv143_system_prompt;
 mod lcv148_changelog_unreleased_clause;
