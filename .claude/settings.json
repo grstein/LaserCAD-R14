@@ -1,10 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "attribution": { "commit": "", "pr": "" },
+  "enabledPlugins": { "rust-analyzer-lsp@claude-plugins-official": true },
   "permissions": {
     "allow": [
       "Bash(cargo build:*)", "Bash(cargo test:*)", "Bash(cargo clippy:*)", "Bash(cargo fmt:*)",
       "Bash(cargo run:*)", "Bash(cargo check:*)", "Bash(scripts/gate.sh:*)", "Bash(scripts/backlog.sh:*)",
+      "Bash(scripts/check.sh:*)", "Bash(scripts/mutants.sh:*)",
       "Bash(scripts/loc-cap.sh:*)", "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)",
       "Bash(git show:*)", "Bash(git add:*)", "Bash(git commit:*)", "Bash(git mv:*)",
       "Bash(git push origin main)"

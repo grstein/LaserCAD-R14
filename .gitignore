@@ -31,3 +31,6 @@ build/
 *.msi
 *.exe
 *.dmg
+
+# cargo-mutants output (scripts/mutants.sh)
+mutants.out*/

@@ -12,7 +12,7 @@ LaserCAD v2 pins its Rust toolchain in [`rust-toolchain.toml`](../rust-toolchain
 ```toml
 [toolchain]
 channel = "1.98"
-components = ["rustfmt", "clippy"]
+components = ["rustfmt", "clippy", "rust-analyzer"]
 profile = "minimal"
 ```
 
