@@ -93,7 +93,7 @@ The tree is orientation; `ls` is the inventory.
 - **User paths** resolved once in `App::new()` and injected; `App::default()` persists nothing (ADR 0006).
 - **≤300 implementation LOC per `.rs`** (lines before the column-0 `#[cfg(test)]`), checked by `scripts/loc-cap.sh` (ADR 0004). At 270+, note the seam in `plan.md`.
 - **Repaint** only on the three guarded sites (`.claude/rules/repaint-ui.md`).
-- No `unwrap`/`expect` in library code without a documented invariant; no `unsafe` without an ADR; no `tokio`.
+- No `unwrap`/`expect` in library code without a documented invariant; no `unsafe` without an ADR; no `tokio`. (enforced by `[lints]` in `Cargo.toml`; exceptions need `#[expect(.., reason)]`)
 - `pub` on `mod.rs` re-exports only; doc comments on `pub` items.
 - One test per acceptance criterion. Rendering ACs are proven on painted shapes (`tests/harness/paint.rs`), not source scans.
 - Cite symbols (`file.rs::fn`), never line numbers, in this file and in `.claude/rules/`.

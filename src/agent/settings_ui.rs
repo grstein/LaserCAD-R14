@@ -60,6 +60,7 @@ const PROMPT_ROWS: usize = 6;
 const PROMPT_MAX_HEIGHT: f32 = 110.0;
 
 /// What one frame of the form reported.
+#[derive(Debug)]
 pub struct AgentSettingsFrame {
     /// `true` if **any** of the eight fields changed this frame — the flag
     /// [`draw_agent_settings`] always reported, now carried on a named field

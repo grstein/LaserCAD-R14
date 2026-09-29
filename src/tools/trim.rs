@@ -154,7 +154,10 @@ mod tests {
 
     /// AC#1 — Default derive compiles.
     #[test]
-    #[allow(clippy::default_constructed_unit_structs)]
+    #[expect(
+        clippy::default_constructed_unit_structs,
+        reason = "AC#1 checks that `Default` exists on the unit struct"
+    )]
     fn trim_tool_struct_constructs() {
         let _a = TrimTool::default();
         let _b: TrimTool = Default::default();

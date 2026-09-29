@@ -109,7 +109,10 @@ pub(crate) fn draw_entity_with_stroke(
 /// pairs. Out-of-range indices are silently skipped.
 ///
 /// Exposed as `pub(crate)` for testability (AC#4).
-#[allow(dead_code)]
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "only the AC#4 unit tests call it")
+)]
 pub(crate) fn selected_entity_indices<'a>(
     entities: &'a [Entity],
     selection: &'a Selection,

@@ -52,6 +52,10 @@ pub fn arm_native_dialogs() {
 /// go green. Panicking is an ordinary libtest failure: it names the test,
 /// prints this message, and the rest of the run continues. See ADR 0005
 /// §Decision, LCV-118.
+#[expect(
+    clippy::panic,
+    reason = "ADR 0005: a disarmed dialog call must fail loudly, never look like a cancel"
+)]
 fn require_armed(fn_name: &str) {
     if !NATIVE_DIALOGS_ARMED.load(Ordering::Relaxed) {
         panic!(

@@ -28,7 +28,7 @@ use crate::app::TurnState;
 /// `Default` matches what `App::default()` used to spell out field by field:
 /// an empty transcript, no receiver, `busy == false`, and a default
 /// [`TurnState`] whose fence equals `TurnFence::new(0)`.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct AgentState {
     /// Whether the AI assistant side panel is visible (LCV-080).
     /// Toggled by the 🤖 toolbar button.

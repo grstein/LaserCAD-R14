@@ -87,6 +87,7 @@ use crate::tools::ToolManager;
 
 /// Live application state. Owned by the eframe runtime via
 /// [`crate::run`] and ticked once per frame in [`App::update_ui`].
+#[derive(Debug)]
 pub struct App {
     /// The CAD document — entities, schema, bounds.
     pub document: Document,

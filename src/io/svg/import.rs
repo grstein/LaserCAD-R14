@@ -41,8 +41,11 @@ pub enum SvgImportError {
     /// A required numeric attribute could not be parsed, or `r ≤ 0` on `<circle>`.
     #[error("<{element}> attribute {attr}={value:?} is not a valid number")]
     MalformedAttribute {
+        /// The element name, e.g. `circle`.
         element: &'static str,
+        /// The attribute name, e.g. `r`.
         attr: &'static str,
+        /// The raw attribute text that failed to parse.
         value: String,
     },
     /// A `<path>` whose `d` begins with `M … A …` but contains a non-numeric token.

@@ -24,6 +24,26 @@ thiserror = "2"
 [dev-dependencies]
 mockito = "1"
 
+# Written invariants from AGENTS.md, enforced as lints. They warn here; the
+# gate's `-D warnings` turns them into errors. Exceptions carry
+# `#[expect(.., reason = "..")]`; test code is exempted via `clippy.toml`.
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+
+[lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+dbg_macro = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+float_cmp = "warn"
+
 # LCV-152: faster edit-build-test loop. Line tables keep panic backtraces
 # useful at a fraction of the full debuginfo; dependencies are built once with
 # light optimisation so egui-heavy tests run faster, while this crate stays at

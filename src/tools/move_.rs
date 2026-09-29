@@ -29,6 +29,7 @@ use crate::tools::{SelectTool, Tool};
 // ---------------------------------------------------------------------------
 
 /// Internal state of [`MoveTool`].
+#[derive(Debug)]
 enum MoveState {
     /// Waiting for the user to click the base point.
     Idle,
@@ -53,6 +54,7 @@ enum MoveState {
 ///
 /// Entities to move must be selected **before** the tool activates. The
 /// selection is not cleared after a successful move (AutoCAD R14 behavior).
+#[derive(Debug)]
 pub struct MoveTool {
     state: MoveState,
     /// `true` after a successful commit; consumed (cleared) by the first call

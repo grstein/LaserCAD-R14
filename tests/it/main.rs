@@ -5,6 +5,14 @@
 //! The shared harness stays at `tests/harness/` and is compiled here exactly
 //! once; each module that needs it says `use crate::harness;`.
 
+#![expect(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::float_cmp,
+    reason = "test code: helpers outside #[test] fns fail loudly and compare exact values"
+)]
+
 #[path = "../harness/mod.rs"]
 mod harness;
 

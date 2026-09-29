@@ -215,6 +215,7 @@ impl AgentOutcome {
 /// Dropping the reply `Sender` without answering is the documented
 /// cancellation signal: the thread's `recv()` fails and the turn ends cleanly
 /// (ADR 0007 §D2).
+#[derive(Debug)]
 pub enum AgentEvent {
     /// Apply `action` to the live document and answer down `reply`.
     Act {

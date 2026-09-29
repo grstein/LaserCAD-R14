@@ -17,7 +17,7 @@ use super::PendingAction;
 
 /// The unsaved-changes guard's state — grouped the way `AgentState` and
 /// `DocumentTitleState` are, so `App` gains one field instead of three.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct UnsavedGuard {
     /// The `history.revision()` at which the document was last known safe to
     /// discard: just written to a file, just loaded from one, or just reset

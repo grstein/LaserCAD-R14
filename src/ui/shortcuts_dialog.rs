@@ -23,6 +23,7 @@ use crate::ui::toolbar::TOOLS;
 
 /// One group of bindings in the keyboard-shortcuts dialog. `pub` (not
 /// `pub(crate)`) so `tests/it/ui/shortcuts_dialog_fits.rs` can derive counts.
+#[derive(Debug)]
 pub struct ShortcutGroup {
     /// Heading rendered above the group.
     pub heading: &'static str,

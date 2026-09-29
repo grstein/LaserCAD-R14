@@ -11,7 +11,7 @@ fn run_menubar(app: &mut App) {
 
 #[test] // AC#1, AC#2
 fn menubar_module_compiles() {
-    #[allow(unused_imports)]
+    #[expect(unused_imports, reason = "the import itself is the compile check")]
     use crate::ui::draw_menubar as _;
 }
 

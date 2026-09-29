@@ -1,9 +1,7 @@
-# LaserCAD v2 clippy config.
-#
-# This file is intentionally empty of key/value pairs.
-# Project-wide warning denial is delivered by `-D warnings` on the cargo clippy
-# command line (see AGENTS.md "Commands" and CI in LCV-004), not by file-level
-# clippy configuration.
-#
-# File-size / function-complexity caps are enforced at review time, not by clippy.
-# Add tunables here only when a real demand justifies them.
+# LaserCAD v2 clippy config. Lint levels live in `[lints]` in Cargo.toml;
+# this file only tunes them: the MSRV, and test code may unwrap/expect/panic/print.
+msrv = "1.98"
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-print-in-tests = true

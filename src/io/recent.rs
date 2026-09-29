@@ -31,7 +31,12 @@ use crate::io::settings::Settings;
 pub enum OpenRecentError {
     /// The requested index exceeds the length of the recent-files list.
     #[error("index {index} is out of range (list has {len} entries)")]
-    IndexOutOfRange { index: usize, len: usize },
+    IndexOutOfRange {
+        /// The index that was asked for.
+        index: usize,
+        /// How many entries the list holds.
+        len: usize,
+    },
 }
 
 // ---------------------------------------------------------------------------

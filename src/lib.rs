@@ -4,6 +4,14 @@
 //! root. Kernel modules ([`geometry`], [`document`], [`io::svg`], [`text`],
 //! [`cmdline`]) MUST NOT import `egui`, `eframe`, or `rfd`.
 
+#![cfg_attr(
+    test,
+    expect(
+        clippy::float_cmp,
+        reason = "unit tests assert exact values; the non-test build still enforces it"
+    )
+)]
+
 pub mod agent;
 pub mod app;
 pub mod cmdline;

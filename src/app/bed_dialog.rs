@@ -96,7 +96,12 @@ pub fn apply_bed_dialog_result(app: &mut App, result: DialogResult) -> bool {
         return false;
     }
     let bed = [clamp_bed_mm(draft[0]), clamp_bed_mm(draft[1])];
-    if bed == app.document.bed_mm {
+    #[expect(
+        clippy::float_cmp,
+        reason = "exact: re-confirming the unchanged draft must not commit"
+    )]
+    let unchanged = bed == app.document.bed_mm;
+    if unchanged {
         return false;
     }
     app.commit(Box::new(SetBedSize::new(bed)));

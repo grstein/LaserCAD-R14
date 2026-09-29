@@ -25,7 +25,7 @@ use super::App;
 /// State this file owns (see the module doc for why the two fields are
 /// grouped): the last title string sent to the OS, and whether this
 /// session's document was recovered from the crash-safety autosave at boot.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct DocumentTitleState {
     /// The title string most recently sent via `ViewportCommand::Title`, or
     /// `None` before the first frame computes one. Compared every frame in

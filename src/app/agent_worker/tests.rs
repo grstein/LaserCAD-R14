@@ -1175,7 +1175,6 @@ fn with_memory(memory: Vec<ChatMessage>) -> TurnConfig {
 /// transport error); `ask` answers `Ok` to steps, and a canvas capture
 /// with a PNG. Returns the result, the batches and every request's
 /// messages.
-#[allow(clippy::type_complexity)]
 fn scripted(
     prompt: &str,
     config: &TurnConfig,

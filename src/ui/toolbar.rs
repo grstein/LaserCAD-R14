@@ -127,8 +127,7 @@ pub(crate) const TOOLS: &[ToolEntry] = &[
 ];
 
 /// Compile-time guarantee that the toolbar has at least one entry.
-#[allow(clippy::len_zero)]
-const _: () = assert!(TOOLS.len() >= 1);
+const _: () = assert!(!TOOLS.is_empty());
 
 /// The AI assistant toggle's visible label (LCV-140 AC 3): a short text
 /// button replacing the old icon-only `"🤖"`, which depended on emoji-font

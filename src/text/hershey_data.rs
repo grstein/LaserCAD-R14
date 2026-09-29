@@ -36,7 +36,6 @@ pub type Stroke = &'static [(i8, i8)];
 /// `GLYPHS[ch as usize - 32]`.
 ///
 /// Tuple: `(advance_width, strokes)`.
-#[allow(clippy::type_complexity)]
 pub static GLYPHS: &[(i8, &[Stroke])] = &[
     // 32 ' '
     (8, &[]),

@@ -25,6 +25,14 @@ pub struct ToolManager {
     active: Box<dyn Tool>,
 }
 
+impl std::fmt::Debug for ToolManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ToolManager")
+            .field("active", &self.active.name())
+            .finish()
+    }
+}
+
 impl ToolManager {
     /// Construct a `ToolManager` with the given initial tool.
     ///
