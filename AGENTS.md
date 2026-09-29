@@ -42,6 +42,11 @@ Draft ─/specify→ Specified ─/design→ Planned ─/implement→ Done      
   `plan.md` flags high risk (`src/agent/`, `src/io/svg/export.rs`, `History`).
 - **Parallel work**: independent `Planned` specs may run in git worktrees, each with its own
   `CARGO_TARGET_DIR`.
+- **Fast lane**: a change with no user-visible behavior change (refactor, test-only, docs, tooling,
+  or a bug fix of ≤3 files with a regression test) skips the spec folder: commit
+  `fix|refactor|test|docs|chore: …` without an LCV id, `scripts/gate.sh` green, CHANGELOG only if
+  user-visible. ACs of a Done spec, the SVG export contract, ADRs and module boundaries still go
+  through SDD.
 
 ## Commits
 

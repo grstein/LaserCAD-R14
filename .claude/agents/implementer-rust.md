@@ -18,6 +18,10 @@ You implement one spec folder `docs/specs/LCV-NNN-*/` for LaserCAD v2. The rules
    met as written, a new module/trait/dependency seems needed, or a file would exceed the LOC cap
    and the plan names no seam. Don't touch `spec.md` or `plan.md` content.
 
+**Fast-lane brief** (AGENTS.md §Workflow, no spec folder): the brief replaces `tasks.md`; commit
+`fix|refactor|test|docs|chore: …` without an LCV id, then step 3. Stop and report if the change
+turns out to be user-visible or to touch what the fast lane excludes.
+
 UI changes: say whether you ran `cargo run`; if you could not, say so.
 
 Final report, ≤10 lines: commit range, tasks done, gate result (last line of output), any
