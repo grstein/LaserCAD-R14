@@ -314,32 +314,6 @@ fn help_agent_settings_sets_flag() {
     assert!(app.agent_settings_open);
 }
 
-/// LCV-115 AC#6 — the Export preset submenu sits directly above `Save`, so
-/// it reads as a property of saving. Bounded to `fn file_menu`, which ends
-/// before `fn preset_submenu`, so this test's own body is out of scope.
-#[test]
-fn file_menu_has_export_preset_directly_above_save() {
-    let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/ui/menubar.rs"));
-    let start = src.find("fn file_menu(").expect("file_menu must exist");
-    let end = src[start..]
-        .find("\n/// Three radio items")
-        .expect("file_menu must be followed by preset_submenu")
-        + start;
-    let body = &src[start..end];
-    let recent = body.find("\"Open Recent").expect("Open Recent present");
-    let preset = body.find("\"Export preset").expect("Export preset present");
-    let save = body.find("\"Save\\tCtrl+S").expect("Save present");
-    let save_as = body.find("\"Save As\u{2026}").expect("Save As present");
-    assert!(
-        recent < preset && preset < save && save < save_as,
-        "order: Open Recent, Export preset, Save, Save As…"
-    );
-    assert!(
-        !body[preset..save].contains("ui.separator();"),
-        "the preset submenu groups with the save entries, not apart from them"
-    );
-}
-
 // ── LCV-116 (d) — the View menu, and Help > Keyboard shortcuts… ───────
 
 /// LCV-116 AC 19 — the View menu's contents are pinned: the three actions
@@ -440,33 +414,4 @@ fn view_menu_body() -> &'static str {
         .expect("view_menu is followed by tools_menu")
         + start;
     &src[start..end]
-}
-
-/// LCV-115 AC#6 — picking a preset touches `app.export_preset` and nothing
-/// else: no document mutation, no history entry, no dirty flag. Bounded to
-/// `fn preset_submenu`; the positive controls fail loudly if the bounds
-/// ever select an empty or wrong slice.
-#[test]
-fn preset_submenu_mutates_only_the_preset_field() {
-    let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/ui/menubar.rs"));
-    let start = src
-        .find("fn preset_submenu(")
-        .expect("preset_submenu must exist");
-    let end = src[start..]
-        .find("\nfn recent_submenu(")
-        .expect("preset_submenu must be followed by recent_submenu")
-        + start;
-    let body = &src[start..end];
-    assert!(body.contains("Preset::ALL"), "items come from Preset::ALL");
-    assert!(body.contains("preset.label()"), "labels come from label()");
-    assert!(
-        body.contains("radio_value(&mut app.export_preset"),
-        "radio items are bound to app.export_preset"
-    );
-    for forbidden in ["app.document", "app.history", "mark_dirty", "action_"] {
-        assert!(
-            !body.contains(forbidden),
-            "preset_submenu must not touch {forbidden}"
-        );
-    }
 }

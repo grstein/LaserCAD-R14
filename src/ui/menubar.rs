@@ -11,7 +11,6 @@
 use crate::app::App;
 use crate::document::SelectionCommand;
 use crate::geometry::Vec2;
-use crate::io::Preset;
 use crate::render::Camera;
 use crate::tools;
 use crate::ui::toolbar::TOOLS;
@@ -42,11 +41,6 @@ fn file_menu(ui: &mut egui::Ui, app: &mut App) {
             app.request_open();
         }
         ui.menu_button("Open Recent ▶", |ui| recent_submenu(ui, app));
-        // LCV-115: the export preset sits directly above the save entries so
-        // it reads as a property of saving. Radio items are generated from
-        // `Preset::ALL` — a second hand-written list of names would be free to
-        // drift from the ids the exporter actually writes.
-        ui.menu_button("Export preset ▸", |ui| preset_submenu(ui, app));
         if ui.button("Save\tCtrl+S").clicked() {
             ui.close_menu();
             app.action_save();
@@ -71,21 +65,6 @@ fn file_menu(ui: &mut egui::Ui, app: &mut App) {
             }
         }
     });
-}
-
-/// Three radio items bound directly to `app.export_preset`.
-///
-/// Picking one mutates nothing but that field: no document change, no history
-/// entry, no dirty flag — the preset is not drawing data (LCV-115 AC 6).
-fn preset_submenu(ui: &mut egui::Ui, app: &mut App) {
-    for preset in Preset::ALL {
-        if ui
-            .radio_value(&mut app.export_preset, preset, preset.label())
-            .clicked()
-        {
-            ui.close_menu();
-        }
-    }
 }
 
 fn recent_submenu(ui: &mut egui::Ui, app: &mut App) {

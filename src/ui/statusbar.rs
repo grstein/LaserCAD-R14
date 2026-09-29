@@ -5,7 +5,7 @@
 //! - [`draw_statusbar`] — egui widget that reads live state from [`App`] and
 //!   renders the bar.
 //!
-//! The badge formatters ([`format_preset`], [`format_autosave`]) and the mode
+//! The badge formatters ([`format_autosave`]) and the mode
 //! toggle ([`apply_toggle`]) are crate-private pure functions: the bar itself
 //! cannot be scraped for text, so they are what the tests assert on.
 //!
@@ -19,7 +19,6 @@
 
 use crate::app::App;
 use crate::geometry::Vec2;
-use crate::io::Preset;
 
 /// Format cursor world-space coordinates for display in the status bar.
 ///
@@ -65,7 +64,7 @@ impl Mode {
     /// The three modes, in the order the bar renders them.
     pub(crate) const ALL: [Mode; 3] = [Mode::Snap, Mode::Grid, Mode::Ortho];
 
-    /// The indicator's label. Uppercase, matching the tool and preset badges.
+    /// The indicator's label. Uppercase, matching the tool badge.
     pub(crate) fn label(self) -> &'static str {
         match self {
             Mode::Snap => "SNAP",
@@ -113,40 +112,6 @@ pub(crate) fn apply_toggle(app: &mut App, mode: Mode) {
     }
 }
 
-/// Return the status-bar label for an export preset.
-///
-/// `"CUT"` / `"MARK"` / `"ENGRAVE"`, uppercase to match the tool and mode
-/// segments. Unconditional — there is no "off" state, because every save
-/// writes into exactly one preset and an operator who cannot see which one can
-/// burn through the workpiece (LCV-115 AC 7).
-pub(crate) fn format_preset(preset: Preset) -> &'static str {
-    match preset {
-        Preset::Cut => "CUT",
-        Preset::Mark => "MARK",
-        Preset::Engrave => "ENGRAVE",
-    }
-}
-
-/// The preset badge's hover text (LCV-140 AC 4): spells out, for an operator
-/// who has never opened `src/io/svg/export.rs`, the whole-document fact LCV-115
-/// AC 7 already encodes there — every exported entity goes into the *shown*
-/// preset's group, and the other two groups are written empty. Built from
-/// [`Preset::ALL`] and [`Preset::label`] (the same single name list LCV-115
-/// AC 6 already uses for the `Export preset ▸` menu), never a second,
-/// hand-typed name for a preset.
-pub(crate) fn preset_hover_text(preset: Preset) -> String {
-    let others: Vec<&str> = Preset::ALL
-        .into_iter()
-        .filter(|p| *p != preset)
-        .map(Preset::label)
-        .collect();
-    format!(
-        "Every exported entity goes into the {} group; {} stay empty.",
-        preset.label(),
-        others.join(" and "),
-    )
-}
-
 /// Return the autosave indicator string (LCV-116 AC 8).
 ///
 /// Three permanent states, no timer and no animation — a relative
@@ -189,9 +154,8 @@ pub(crate) const RECOVERY_HOVER_TEXT: &str = "This drawing was restored from a c
 /// Render the status bar into `ui`.
 ///
 /// Displays — left to right — cursor coordinates, the active tool name
-/// (uppercased), the document entity count, the active export preset
-/// (LCV-115), the three clickable mode indicators `SNAP` / `GRID` / `ORTHO`
-/// (LCV-116, always visible, selected iff their flag is on), the autosave
+/// (uppercased), the document entity count, the three clickable mode
+/// indicators `SNAP` / `GRID` / `ORTHO` (LCV-116, always visible, selected iff their flag is on), the autosave
 /// indicator, and — only while [`App::title`]'s
 /// `recovered_from_autosave` is set (LCV-138) — a recovery label with an
 /// explanatory tooltip, all separated in the existing style.
@@ -219,8 +183,6 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
         ui.separator();
         ui.label(format!("Entities: {count}"));
         ui.separator();
-        ui.label(format_preset(app.export_preset))
-            .on_hover_text(preset_hover_text(app.export_preset));
         for mode in Mode::ALL {
             ui.separator();
             let hint = format!("{} ({})", mode.label(), mode.key_hint());

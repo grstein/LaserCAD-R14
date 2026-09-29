@@ -23,7 +23,6 @@ use super::{AgentState, App, DocumentTitleState, UnsavedGuard};
 use crate::cmdline::CommandHistory;
 use crate::document::{Document, History};
 use crate::io::settings::Settings;
-use crate::io::Preset;
 use crate::render::Camera;
 use crate::tools::ToolManager;
 
@@ -55,7 +54,6 @@ impl Default for App {
             shortcuts_open: false,
             agent_settings_open: false,
             bed_dialog: None,
-            export_preset: Preset::Cut,
             command_line_input: String::new(),
             command_history: CommandHistory::default(),
             command_feedback: String::new(),

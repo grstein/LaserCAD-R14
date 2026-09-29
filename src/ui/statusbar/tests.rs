@@ -48,23 +48,6 @@ fn format_coords_six_digit_signed_pair_keeps_its_mm_unit() {
     assert_eq!(s, "X: -1234.56mm  Y: -1234.56mm");
 }
 
-/// LCV-115 AC#7 — all three presets have an uppercase badge, and it is the
-/// preset's `id()` uppercased, so the label can never name a different
-/// group than the one the exporter writes.
-#[test]
-fn format_preset_covers_all_three_variants() {
-    assert_eq!(format_preset(Preset::Cut), "CUT");
-    assert_eq!(format_preset(Preset::Mark), "MARK");
-    assert_eq!(format_preset(Preset::Engrave), "ENGRAVE");
-    for preset in Preset::ALL {
-        assert_eq!(
-            format_preset(preset),
-            preset.id().to_uppercase(),
-            "badge must be the group id, uppercased"
-        );
-    }
-}
-
 // ── LCV-116 (a) — clickable mode indicators ───────────────────────────
 
 /// LCV-116 AC 2 — the three modes, their labels and their render order.
@@ -269,7 +252,7 @@ fn harness_texts(shapes: &[egui::epaint::ClippedShape]) -> Vec<String> {
 // ── LCV-116 static checks ─────────────────────────────────────────────
 
 /// LCV-116 AC 2 / AC 8 — the segment order is pinned: entity count, then
-/// LCV-115's preset badge (unmoved), then the three indicators, then the
+/// the three indicators, then the
 /// autosave indicator **last**. Bounded to `draw_statusbar`, so this
 /// test's own body cannot satisfy the scan.
 #[test]
@@ -278,9 +261,6 @@ fn status_bar_segment_order_is_pinned() {
     let count = body
         .find("Entities: {count}")
         .expect("entity count present");
-    let preset = body
-        .find("format_preset(app.export_preset)")
-        .expect("preset badge present");
     let modes = body
         .find("for mode in Mode::ALL {")
         .expect("mode indicators present");
@@ -288,12 +268,12 @@ fn status_bar_segment_order_is_pinned() {
         .find("ui.label(autosave_str);")
         .expect("autosave indicator present");
     assert!(
-        count < preset && preset < modes && modes < autosave,
-        "order: entity count, preset, SNAP/GRID/ORTHO, autosave last"
+        count < modes && modes < autosave,
+        "order: entity count, SNAP/GRID/ORTHO, autosave last"
     );
     assert!(
-        !body[..preset].contains("if "),
-        "the preset badge must not sit behind a conditional"
+        !body[..modes].contains("if "),
+        "the mode indicators must not sit behind a conditional"
     );
     assert!(
         !body[modes..autosave].contains("ui.label("),
@@ -338,7 +318,7 @@ fn the_retired_ortho_badge_formatter_is_gone() {
             "{} still references the retired badge formatter",
             path.display()
         );
-        control |= src.contains("fn format_preset(");
+        control |= src.contains("fn format_autosave(");
         scanned += 1;
     }
     assert!(

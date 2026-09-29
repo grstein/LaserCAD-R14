@@ -9,7 +9,7 @@
 - [x] T7 [AC4] [AC6] [AC7] [AC8] Test then implement `commands/layer.rs` (Add/Edit/Delete/SetCurrent/SetEntityLayers, undo each) (files: src/document/commands/layer.rs, src/document/commands/mod.rs, tests/it/document/layers.rs)
 - [x] T8 [AC9] Test: mother SVG round-trip (names, colors, Output, order, membership, current, escaping, stray geometry, `MalformedLayer`) (files: tests/it/io_svg/layers_roundtrip.rs, tests/it/io_svg/mod.rs)
 - [x] T9 [AC9] Implement `svg/layers.rs`, `export_svg(doc)`, import of layers; remove `Preset` (files: src/io/svg/layers.rs, src/io/svg/export.rs, src/io/svg/import.rs)
-- [ ] T10 [AC15] Remove preset state/UI and its tests; drop `tests/it/app/preset_ui.rs`, rewrite `io_svg/preset_roundtrip.rs` (files: src/app/mod.rs, src/ui/menubar.rs, src/ui/statusbar.rs)
+- [x] T10 [AC15] Remove preset state/UI and its tests; drop `tests/it/app/preset_ui.rs`, rewrite `io_svg/preset_roundtrip.rs` (files: src/app/mod.rs, src/ui/menubar.rs, src/ui/statusbar.rs)
 - [ ] T11 [AC13] Test then implement autosave envelope v2 (files: src/io/autosave.rs, src/document/entity.rs)
 - [ ] T12 [P] [AC3] Test (paint harness) then implement layer-colored strokes, selection/preview unchanged (files: src/render/entities.rs, tests/it/app/layer_colors.rs, tests/it/app/mod.rs)
 - [ ] T13 [AC10] [AC11] [AC12] Test then implement pure `layer_exports` + writes (per-layer file = header + one `<g>`, overwrite, status list, unsaved → ask to save, nothing to export) (files: src/io/export_layers.rs, src/io/mod.rs, tests/it/io_svg/export_layers.rs)

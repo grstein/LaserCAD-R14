@@ -10,7 +10,8 @@
 //!   does not); the rail's outer-width cap and full-label rendering, proven
 //!   by a real `PanelState` read plus a painted-text line table; a real
 //!   click per mode plus the agent toggle.
-//! - AC 4-6: the `mm` unit and the preset tooltip, painted; layout-bounds
+//! - AC 4-6: the `mm` unit, painted (the preset badge retired with
+//!   LCV-156); layout-bounds
 //!   measurements at 800x600 / 1024x600 / 1280x800, agent panel both closed
 //!   and open, plus large signed-coordinate / four-digit-count fixtures.
 //! - AC 7: hover-only frames touch no document/history/dirty state.
@@ -412,7 +413,7 @@ fn ac3_ac7_clicking_the_agent_toggle_opens_the_panel_once() {
 }
 
 // ---------------------------------------------------------------------------
-// AC 4 — the mm unit and the preset tooltip
+// AC 4 — the mm unit
 // ---------------------------------------------------------------------------
 
 /// AC 4 — the coordinate readout carries an explicit `mm` unit on both axes.
@@ -426,29 +427,6 @@ fn ac4_coordinate_readout_carries_an_explicit_mm_unit() {
             .any(|r| r.text.trim() == "X: 123.45mm  Y:  67.89mm"),
         "the coordinate readout must show an explicit mm unit: {:?}",
         runs.iter().map(|r| &r.text).collect::<Vec<_>>()
-    );
-}
-
-/// AC 4 — hovering the preset badge paints its explanation: the shown preset
-/// receives every exported entity, the other two are written empty.
-#[test]
-fn ac4_preset_badge_hover_text_explains_the_whole_document_choice() {
-    let (ctx, mut app) = ctx_and_app();
-    assert_eq!(
-        app.export_preset,
-        lasercad::io::Preset::Cut,
-        "positive control: default preset"
-    );
-    let runs = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
-    let pos = locate(&runs, "CUT");
-    let hover = hover_runs_at(&ctx, &mut app, SCREEN, pos);
-    assert!(
-        hover.iter().any(|r| {
-            let t = r.text.trim();
-            t.contains("Cut") && t.contains("Mark") && t.contains("Engrave") && t.contains("empty")
-        }),
-        "the preset badge's tooltip must name the receiving group and the two empty ones: {:?}",
-        hover.iter().map(|r| &r.text).collect::<Vec<_>>()
     );
 }
 
@@ -472,7 +450,7 @@ fn assert_status_bar_fits(screen: [f32; 2]) {
         rect.height()
     );
 
-    let expected = ["SELECT", "Entities: 0", "CUT", "SNAP", "GRID", "ORTHO"];
+    let expected = ["SELECT", "Entities: 0", "SNAP", "GRID", "ORTHO"];
     let found: Vec<&Run> = expected
         .iter()
         .map(|label| {
@@ -510,7 +488,7 @@ fn ac5_status_segments_fit_at_three_sizes() {
 /// toolbar, status bar, command dock and agent panel together still leave at
 /// least 320x300pt of canvas, and a six-digit signed coordinate pair plus a
 /// four-digit entity count neither clip nor hide any mode indicator, tool
-/// button or the preset badge.
+/// button.
 #[test]
 fn ac6_canvas_stays_usable_with_the_agent_panel_open_and_large_fixtures() {
     let (ctx, mut app) = ctx_and_app();
@@ -538,7 +516,7 @@ fn ac6_canvas_stays_usable_with_the_agent_panel_open_and_large_fixtures() {
         "the six-digit signed coordinate pair must paint intact: {:?}",
         runs.iter().map(|r| &r.text).collect::<Vec<_>>()
     );
-    let expected = ["SELECT", "Entities: 1234", "CUT", "SNAP", "GRID", "ORTHO"];
+    let expected = ["SELECT", "Entities: 1234", "SNAP", "GRID", "ORTHO"];
     let found: Vec<&Run> = expected
         .iter()
         .map(|label| {
@@ -560,7 +538,7 @@ fn ac6_canvas_stays_usable_with_the_agent_panel_open_and_large_fixtures() {
 // ---------------------------------------------------------------------------
 
 /// AC 7 — hovering every new hint (toolbar buttons, mode indicators, the
-/// agent toggle, the preset badge) — with no click at all — leaves the
+/// agent toggle) — with no click at all — leaves the
 /// document, the history and the dirty signal exactly as they were.
 #[test]
 fn ac7_hover_only_frames_leave_document_history_and_dirty_state_untouched() {
@@ -573,9 +551,7 @@ fn ac7_hover_only_frames_leave_document_history_and_dirty_state_untouched() {
     let panel_open_before = app.agent.panel_open;
     let snap_before = app.snap_enabled;
 
-    for label in [
-        "Select", "Line", "Delete", "Agent", "SNAP", "GRID", "ORTHO", "CUT",
-    ] {
+    for label in ["Select", "Line", "Delete", "Agent", "SNAP", "GRID", "ORTHO"] {
         let pos = locate(&runs, label);
         let _ = hover_runs_at(&ctx, &mut app, SCREEN, pos);
     }
