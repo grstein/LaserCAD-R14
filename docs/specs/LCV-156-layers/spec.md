@@ -1,8 +1,8 @@
 # LCV-156 — Layers with one export file per layer
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: f20e263..efb8796
 
 ## Problem
 
@@ -41,7 +41,7 @@ The user chose LightBurn-style layers on 2026-09-29.
     `<mother>-<layer>.svg` in the mother file's folder for every layer that has Output on and
     has entities. Each file holds only that layer's geometry and follows the LaserGRBL rules
     (bed header, Y flip, `fill="none"`, arcs as `A`, stroke width 0.1 mm). Existing files are
-    overwritten, and the status bar lists the files written.
+    overwritten, and the command-line feedback lists the files written.
 11. IF the drawing has never been saved THEN `Export layers` SHALL ask the operator to save first
     and write nothing.
 12. IF no layer has both Output on and entities THEN THE SYSTEM SHALL write nothing and say so.

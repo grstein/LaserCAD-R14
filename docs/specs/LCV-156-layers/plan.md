@@ -41,6 +41,7 @@ writes one LaserGRBL file per layer with Output on and entities. The global `Pre
   create/delete/undo/redo sequences and checks `entities.len() == entity_layers.len()` and memberships.
 - Churn: private fields break every outside `Document {..}` literal and `doc.entities.push` in
   tests — a mechanical first task moves them onto constructors/mutators.
+- LOC seams at close (≥270): `document/state.rs` 276, `io/svg/import.rs` 270, `app/cmdline.rs` 271 — next demand touching them splits first.
 - Mutation testing: yes, on `src/io/svg/export.rs`, `src/io/svg/layers.rs` and `commands/layer.rs`.
 - Interpretations (from ADR 0012): deleting the current layer makes the first remaining layer
   current; stray geometry goes to the first layer; Export layers does not save the mother;
