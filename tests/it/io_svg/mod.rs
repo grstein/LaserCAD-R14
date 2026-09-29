@@ -1,6 +1,7 @@
-//! SVG import/export: orientation, presets, checked-in examples.
+//! SVG import/export: orientation, layers, checked-in examples.
 
 mod docs_examples_roundtrip;
+mod export_layers;
 mod import;
 mod layers_roundtrip;
 mod orientation;

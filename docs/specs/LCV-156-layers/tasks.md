@@ -12,7 +12,7 @@
 - [x] T10 [AC15] Remove preset state/UI and its tests; drop `tests/it/app/preset_ui.rs`, rewrite `io_svg/preset_roundtrip.rs` (files: src/app/mod.rs, src/ui/menubar.rs, src/ui/statusbar.rs)
 - [x] T11 [AC13] Test then implement autosave envelope v2 (files: src/io/autosave.rs, src/document/entity.rs)
 - [x] T12 [P] [AC3] Test (paint harness) then implement layer-colored strokes, selection/preview unchanged (files: src/render/entities.rs, tests/it/app/layer_colors.rs, tests/it/app/mod.rs)
-- [ ] T13 [AC10] [AC11] [AC12] Test then implement pure `layer_exports` + writes (per-layer file = header + one `<g>`, overwrite, status list, unsaved → ask to save, nothing to export) (files: src/io/export_layers.rs, src/io/mod.rs, tests/it/io_svg/export_layers.rs)
+- [x] T13 [AC10] [AC11] [AC12] Test then implement pure `layer_exports` + writes (per-layer file = header + one `<g>`, overwrite, status list, unsaved → ask to save, nothing to export) (files: src/io/export_layers.rs, src/io/mod.rs, tests/it/io_svg/export_layers.rs)
 - [ ] T14 [AC10] [AC11] Wire `File > Export layers` (files: src/ui/menubar.rs, src/io/file_actions.rs)
 - [ ] T15 [AC4] [AC6] [AC7] Test then implement `app/layers.rs` dialog state + validation messages (files: src/app/layers.rs, src/app/mod.rs, tests/it/app/layers_dialog.rs)
 - [ ] T16 [AC4] Layers dialog UI (files: src/ui/layers_dialog.rs, src/ui/mod.rs, src/ui/menubar.rs)
