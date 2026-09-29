@@ -2,7 +2,7 @@
 
 - [x] T1 Docs: ADR 0012, ADR 0010/0003 amendments, AGENTS.md §SVG export, product README non-goal (files: docs/adr/0012-document-layers-and-per-layer-export.md, AGENTS.md, docs/product/README.md)
 - [x] T2 [AC1] Test then implement `layer.rs` (`LayerId`, `Layer`, `LayerError`, `file_key` sanitising) (files: src/document/layer.rs, src/document/mod.rs)
-- [ ] T3 [AC1] [AC6] [AC7] `Document` private layer fields, mutators, `from_parts`, `check_*` with unit tests (files: src/document/state.rs)
+- [x] T3 [AC1] [AC6] [AC7] `Document` private layer fields, mutators, `from_parts`, `check_*` with unit tests (files: src/document/state.rs)
 - [ ] T4 [AC2] Move `Document {..}` literals and `entities.push/insert/remove` call sites onto mutators (src) (files: src/document/commands/create.rs, src/document/commands/edit.rs, src/io/svg/import.rs)
 - [ ] T5 [AC2] Same migration for remaining src and test sites, ≤3 files per commit (files: as found by `cargo build --tests`)
 - [ ] T6 [AC2] [AC8] Test then implement: create commands use the current layer; `DeleteEntities` restores membership; membership property test (files: src/document/commands/create.rs, src/document/commands/edit.rs, tests/it/document/layers.rs)

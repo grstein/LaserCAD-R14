@@ -117,6 +117,29 @@ pub fn parse_color_hex(text: &str) -> Option<[u8; 3]> {
     Some([byte(0)?, byte(2)?, byte(4)?])
 }
 
+/// Refuse `name`/`color` for a layer when it is unusable or clashes with any
+/// layer in `layers` other than `skip` (LCV-156 AC 6).
+pub fn check_fields(
+    layers: &[Layer],
+    skip: Option<LayerId>,
+    name: &str,
+    color: [u8; 3],
+) -> Result<(), LayerError> {
+    let key = name_key(name);
+    if key.is_empty() {
+        return Err(LayerError::EmptyName);
+    }
+    for other in layers.iter().filter(|l| Some(l.id) != skip) {
+        if name_key(&other.name) == key {
+            return Err(LayerError::DuplicateName(other.name.clone()));
+        }
+        if other.color == color {
+            return Err(LayerError::DuplicateColor(color_hex(color)));
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
