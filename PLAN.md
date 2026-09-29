@@ -24,8 +24,16 @@ Rust (toolchain pinned) · `egui`/`eframe` · `rfd` dialogs · blocking `reqwest
 - **1.0 scope** (user decisions 2026-09-27/28): LCV-142..145, 149..153 — all Done.
   LCV-146 is deferred past 1.0.
 - **Release**: v0.2.0 (LCV-089) tagged and published on 2026-09-28 with the user's authorization; the user smoke-tests it.
-- **Next**: LCV-146 (skills) and LCV-154 (replay `reasoning_content`) are Draft for 1.x.
-- **Tooling**: LCV-152 makes build and test faster.
+- **Next — v0.3 "workshop-ready"** (proposal approved by the user 2026-09-29), in order:
+  0. close v0.2 — the user's smoke-test findings (fast lane) and CI green once billing resumes;
+  1. LCV-156 layers, LightBurn-style, one export file per layer (changes the SVG export
+     contract; ADR at /design);
+  2. LCV-157 COPY; 3. LCV-158 ROTATE / MIRROR / SCALE; 4. LCV-159 polar input `@d<a` + DIST;
+  5. LCV-160 TRIM/EXTEND with arcs; 6. LCV-161 more object snaps; 7. LCV-154.
+  v0.3.0 when 0–4 are Done; 5–7 may slip to 0.3.x. Each new command also reaches the agent
+  (tool entry + built-in prompt line).
+- **Not in 0.3**: DXF, blocks/xref, fillet/chamfer/offset, G-code, LCV-146 skills.
+- **Tooling**: LCV-152 and LCV-155 made build and test faster.
 
 ## Later
 
