@@ -1,5 +1,5 @@
-//! Menubar — File / Edit / View / Tools / Help (LCV-065, Tools added by
-//! LCV-104).
+//! Menubar — File / Edit / View / Format / Tools / Help (LCV-065, Tools
+//! added by LCV-104, Format by LCV-156).
 //!
 //! One public entry point: [`draw_menubar`].  Shortcut text is label-only;
 //! dispatch lives in `crate::ui::shortcuts` (LCV-070).  No `rfd`/`eframe`.
@@ -21,6 +21,7 @@ pub fn draw_menubar(ui: &mut egui::Ui, app: &mut App) {
         file_menu(ui, app);
         edit_menu(ui, app);
         view_menu(ui, app);
+        format_menu(ui, app);
         tools_menu(ui, app);
         help_menu(ui, app);
     });
@@ -199,6 +200,16 @@ fn view_menu(ui: &mut egui::Ui, app: &mut App) {
 /// labelled `"<label>\t<shortcut>"` when a shortcut exists and `"<label>"`
 /// otherwise. Clicking closes the menu and activates the tool the same way
 /// the toolbar button does.
+/// R14's Format menu (LCV-156): `Layers…` opens the layer dialog.
+fn format_menu(ui: &mut egui::Ui, app: &mut App) {
+    ui.menu_button("Format", |ui| {
+        if ui.button("Layers…").clicked() {
+            ui.close_menu();
+            app.open_layers_dialog();
+        }
+    });
+}
+
 fn tools_menu(ui: &mut egui::Ui, app: &mut App) {
     ui.menu_button("Tools", |ui| {
         for entry in TOOLS {

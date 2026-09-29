@@ -6,6 +6,7 @@
 pub mod command_destination;
 pub mod command_line;
 pub mod dialogs;
+pub mod layers_dialog;
 pub mod menubar;
 pub mod shortcuts;
 pub mod shortcuts_dialog;
@@ -18,6 +19,7 @@ pub use command_destination::{
 };
 pub use command_line::draw_command_line;
 pub use dialogs::{about_dialog, confirm_dialog, error_dialog, DialogResult};
+pub use layers_dialog::draw_layers_dialog;
 pub use menubar::draw_menubar;
 pub use shortcuts::process_shortcuts;
 pub use shortcuts_dialog::{shortcuts_dialog, tool_rows, ShortcutGroup, SHORTCUT_GROUPS};

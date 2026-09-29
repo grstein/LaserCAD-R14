@@ -211,25 +211,26 @@ fn recent_labels_disambiguates_only_the_colliding_subset() {
 // LCV-104 — Tools menu, Help > Agent settings
 // -----------------------------------------------------------------------
 
-/// LCV-104 AC#5 — the bar renders five top-level menus (File, Edit, View,
-/// Tools, Help) without panicking; the Tools menu is new here.
+/// LCV-104 AC#5 — the bar renders its top-level menus (File, Edit, View,
+/// Format, Tools, Help) without panicking.
 #[test]
-fn menubar_renders_five_menus_without_panic() {
+fn menubar_renders_its_menus_without_panic() {
     let mut app = App::default();
     run_menubar(&mut app);
 }
 
-/// LCV-104 AC#5 — structural check: the five `*_menu` helpers are called,
-/// in order, from `draw_menubar`. Reading the function's own source is
+/// LCV-104 AC#5 — structural check: the `*_menu` helpers are called,
+/// in R14 order (Format added by LCV-156), from `draw_menubar`. Reading the function's own source is
 /// deliberate: it proves the call order without needing pixels or a
 /// side-channel recorder.
 #[test]
-fn menubar_has_five_menus_in_order() {
+fn menubar_has_six_menus_in_order() {
     let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/ui/menubar.rs"));
     let calls = [
         "file_menu(ui, app)",
         "edit_menu(ui, app)",
         "view_menu(ui, app)",
+        "format_menu(ui, app)",
         "tools_menu(ui, app)",
         "help_menu(ui, app)",
     ];

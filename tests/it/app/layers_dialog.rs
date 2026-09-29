@@ -2,6 +2,9 @@
 //! headless through the `App` methods its buttons call
 //! (`src/app/layers.rs`). The egui half is `src/ui/layers_dialog.rs`.
 
+use crate::harness;
+
+use harness::paint;
 use lasercad::app::{App, LayersDialog};
 use lasercad::document::{Entity, LayerId};
 use lasercad::geometry::{Line, Vec2};
@@ -166,4 +169,101 @@ fn delete_refuses_non_empty_and_last_layer() {
     lone.layers_delete();
     assert_eq!(lone.document.layers().len(), 1);
     assert!(dialog(&lone).message.contains("at least one layer"));
+}
+
+// ---------------------------------------------------------------------------
+// The painted window (src/ui/layers_dialog.rs)
+// ---------------------------------------------------------------------------
+
+fn locate(runs: &[paint::Run], label: &str) -> egui::Pos2 {
+    let hits: Vec<_> = runs.iter().filter(|r| r.text.trim() == label).collect();
+    assert_eq!(hits.len(), 1, "`{label}` painted once, saw {}", hits.len());
+    egui::pos2(hits[0].pos.x + 2.0, hits[0].pos.y + hits[0].height / 2.0)
+}
+
+fn click(ctx: &egui::Context, app: &mut App, label: &str) {
+    let pos = locate(&paint::painted_runs(ctx, app), label);
+    let press = |pressed| egui::Event::PointerButton {
+        pos,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: egui::Modifiers::NONE,
+    };
+    harness::frame(ctx, app, vec![egui::Event::PointerMoved(pos)]);
+    harness::frame(ctx, app, vec![press(true), press(false)]);
+}
+
+/// AC 4 — `Format > Layers…` opens the window; it paints every layer (the
+/// current one marked in words, not by hue), the edit fields and the
+/// buttons, and a click on `New` adds a layer through the same `App` method.
+#[test]
+fn format_layers_opens_a_window_listing_every_layer() {
+    let ctx = egui::Context::default();
+    ctx.set_pixels_per_point(1.0);
+    let mut app = app_with_lines(2);
+    app.document.selection.set([0]);
+
+    click(&ctx, &mut app, "Format");
+    click(&ctx, &mut app, "Layers…");
+    assert!(
+        app.layers_dialog.is_some(),
+        "the menu item opens the dialog"
+    );
+
+    let runs = paint::painted_runs(&ctx, &mut app);
+    let texts: Vec<&str> = runs.iter().map(|r| r.text.trim()).collect();
+    for want in [
+        "Layers",
+        "current",
+        "Entities: 2",
+        "Name",
+        "Color",
+        "Apply",
+        "New",
+        "Delete",
+        "Set Current",
+        "Move Selection Here (1)",
+        "Close",
+    ] {
+        assert!(texts.contains(&want), "`{want}` not painted: {texts:?}");
+    }
+
+    let r0 = app.history.revision();
+    click(&ctx, &mut app, "New");
+    assert_eq!(names(&app), vec!["Cut", "Layer1"]);
+    assert_eq!(app.history.revision(), r0 + 1);
+    let runs = paint::painted_runs(&ctx, &mut app);
+    assert!(runs.iter().any(|r| r.text.trim() == "Layer1"));
+
+    click(&ctx, &mut app, "Close");
+    assert!(app.layers_dialog.is_none());
+}
+
+/// ADR 0009 — with many layers the list scrolls and the controls below it
+/// stay painted inside the window at 800×600.
+#[test]
+fn many_layers_keep_the_controls_inside_the_capped_body() {
+    let ctx = egui::Context::default();
+    ctx.set_pixels_per_point(1.0);
+    let mut app = app_with_lines(0);
+    app.open_layers_dialog();
+    for _ in 0..20 {
+        app.layers_add();
+    }
+    assert_eq!(app.document.layers().len(), 21, "positive control");
+    let screen = [800.0, 600.0];
+    let _ = paint::painted_runs_at(&ctx, &mut app, screen, Vec::new());
+    let runs = paint::painted_runs_at(&ctx, &mut app, screen, Vec::new());
+    for label in ["Name", "Apply", "Set Current", "Close"] {
+        let run = runs
+            .iter()
+            .find(|r| r.text.trim() == label)
+            .unwrap_or_else(|| panic!("`{label}` not painted"));
+        assert!(
+            run.pos.y + run.height <= run.clip.max.y && run.pos.y >= run.clip.min.y,
+            "`{label}` clipped: {:?} in {:?}",
+            run.pos,
+            run.clip
+        );
+    }
 }

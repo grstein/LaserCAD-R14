@@ -15,7 +15,7 @@
 - [x] T13 [AC10] [AC11] [AC12] Test then implement pure `layer_exports` + writes (per-layer file = header + one `<g>`, overwrite, status list, unsaved → ask to save, nothing to export) (files: src/io/export_layers.rs, src/io/mod.rs, tests/it/io_svg/export_layers.rs)
 - [x] T14 [AC10] [AC11] Wire `File > Export layers` (files: src/ui/menubar.rs, src/io/file_actions.rs)
 - [x] T15 [AC4] [AC6] [AC7] Test then implement `app/layers.rs` dialog state + validation messages (files: src/app/layers.rs, src/app/mod.rs, tests/it/app/layers_dialog.rs)
-- [ ] T16 [AC4] Layers dialog UI (files: src/ui/layers_dialog.rs, src/ui/mod.rs, src/ui/menubar.rs)
+- [x] T16 [AC4] Layers dialog UI (files: src/ui/layers_dialog.rs, src/ui/mod.rs, src/ui/menubar.rs)
 - [ ] T17 [AC5] Test then implement status-bar layer dropdown (files: src/ui/layer_combo.rs, src/ui/statusbar.rs, tests/it/ui/layer_combo.rs)
 - [ ] T18 [AC4] Test then implement `LAYER`/`LA` command (files: src/cmdline/parse.rs, src/app/cmdline.rs, tests/it/cmdline/command_words.rs)
 - [ ] T19 [AC14] Test then implement agent `layer` argument and `query_entities` layers (files: src/agent/tools.rs, src/agent/drawing.rs, src/app/agent_apply.rs)

@@ -141,7 +141,7 @@ pub fn draw_agent_side_panel(ctx: &egui::Context, app: &mut App) {
 }
 
 /// Render the modal dialogs (LCV-069, LCV-076, LCV-062, LCV-113, LCV-114,
-/// LCV-116).
+/// LCV-116, LCV-156).
 ///
 /// Called after the `CentralPanel` so the windows float above the canvas.
 pub fn draw_dialogs(ctx: &egui::Context, app: &mut App) {
@@ -151,6 +151,7 @@ pub fn draw_dialogs(ctx: &egui::Context, app: &mut App) {
     error_modal(ctx, app);
     draw_discard_dialog(ctx, app);
     draw_bed_dialog(ctx, app);
+    crate::ui::draw_layers_dialog(ctx, app);
 }
 
 /// The Agent Settings window (LCV-076). Persists the settings when the window
