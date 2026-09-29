@@ -1,4 +1,5 @@
 use super::*;
+use crate::document::{Layer, LayerId};
 use core::f64::consts::{FRAC_PI_2, PI};
 
 // Golden fixtures below are in the LCV-100 convention: SVG Y-down with the
@@ -225,7 +226,7 @@ fn round_trip_line_circle_arc() {
     doc.push_current(Entity::Circle(cir));
     let arc = Arc::new(Vec2::default(), 10.0, 0.0, FRAC_PI_2, true);
     doc.push_current(Entity::Arc(arc));
-    let imp = import_svg(&export_svg(&doc, Preset::Cut)).unwrap().entities;
+    let imp = import_svg(&export_svg(&doc)).unwrap().entities;
     assert_eq!(imp.len(), 3);
     if let (Entity::Line(l), Entity::Circle(c), Entity::Arc(a)) = (imp[0], imp[1], imp[2]) {
         assert!((l.p1.x - 1.0).abs() < EPSILON && (l.p1.y - 2.0).abs() < EPSILON);
@@ -331,74 +332,49 @@ fn import_svg_reachable_via_module_path() {
     let _f: fn(&str) -> Result<ImportedSvg, SvgImportError> = import_svg;
 }
 
-// ── LCV-115 — the file carries its export preset ──────────────────────
+// ── LCV-156 — layers ──────────────────────────────────────────────────
 
-/// Wrap `inner` in a `<g id="…">` the way this crate's exporter does.
+/// Wrap `inner` in a `<g id="…">` the way the v0.2 exporter did.
 fn grouped(id: &str, inner: &str) -> String {
     svg(&format!(r#"<g id="{id}" fill="none">{inner}</g>"#))
 }
 
 const A_LINE: &str = r#"<line x1="0" y1="0" x2="10" y2="10"/>"#;
 
-/// LCV-115 AC#8 — each recognised group id maps to its preset, and the
-/// geometry still lands in `entities` either way.
+/// A v0.2 file (preset groups, no layer group), bare geometry and an empty
+/// file all open on the single default `Cut` layer.
 #[test]
-fn import_detects_preset_from_group_id() {
-    for preset in Preset::ALL {
-        let imported = import_svg(&grouped(preset.id(), A_LINE)).unwrap();
-        assert_eq!(imported.preset, preset, "id={}", preset.id());
-        assert_eq!(imported.entities.len(), 1, "id={}", preset.id());
+fn files_without_layer_groups_open_on_the_default_layer() {
+    for src in [
+        grouped("mark", A_LINE),
+        LINE_SVG.to_owned(),
+        svg(""),
+        G_GROUPS_SVG.to_owned(),
+    ] {
+        let imported = import_svg(&src).unwrap();
+        assert_eq!(imported.layers, vec![Layer::default_cut()], "{src}");
+        assert_eq!(imported.current_layer, LayerId(0));
+        assert_eq!(imported.entity_layers.len(), imported.entities.len());
+        assert!(imported.entity_layers.iter().all(|&id| id == LayerId(0)));
     }
 }
 
-/// LCV-115 AC#8 — geometry outside any group, and an empty file, are
-/// `Cut`: the safe reading is the one the operator already expects.
+/// The innermost enclosing layer group owns the geometry; a plain `<g>`
+/// inside a layer group inherits it.
 #[test]
-fn import_defaults_to_cut_for_bare_geometry() {
-    assert_eq!(import_svg(LINE_SVG).unwrap().preset, Preset::Cut);
-    assert_eq!(import_svg(&svg("")).unwrap().preset, Preset::Cut);
-    assert_eq!(import_svg(G_GROUPS_SVG).unwrap().preset, Preset::Cut);
-}
-
-/// LCV-115 AC#8 — an empty `cut` group followed by a populated `mark` one
-/// reports `Mark`. This is exactly the file this crate's exporter writes
-/// for a marking job, so it is the real-world case, not an edge case.
-#[test]
-fn import_ignores_empty_groups_and_takes_the_first_group_with_geometry() {
+fn innermost_layer_group_owns_the_geometry() {
     let src = svg(&format!(
-        r#"<g id="cut"></g><g id="mark">{A_LINE}</g><g id="engrave"></g>"#
+        r##"<g data-layer="A" stroke="#010101"><g>{A_LINE}</g><g data-layer="B" stroke="#020202">{A_LINE}</g>{A_LINE}</g>"##
     ));
     let imported = import_svg(&src).unwrap();
-    assert_eq!(imported.preset, Preset::Mark);
-    assert_eq!(imported.entities.len(), 1);
-
-    // …and the first *populated* group wins when two are populated.
-    let both = svg(&format!(
-        r#"<g id="engrave">{A_LINE}</g><g id="mark">{A_LINE}</g>"#
-    ));
-    assert_eq!(import_svg(&both).unwrap().preset, Preset::Engrave);
+    assert_eq!(imported.entity_layers, [LayerId(0), LayerId(1), LayerId(0)]);
+    let doc = imported.into_document().unwrap();
+    assert_eq!(doc.layers().len(), 2);
 }
 
-/// LCV-115 AC#8 — an id this crate does not know is not a preset; nested
-/// geometry inherits the nearest *recognised* enclosing group instead.
+/// Attribute values are XML-unescaped on the way in.
 #[test]
-fn import_defaults_to_cut_for_unknown_group_id() {
-    let unknown = grouped("layer1", A_LINE);
-    assert_eq!(import_svg(&unknown).unwrap().preset, Preset::Cut);
-
-    let nested = svg(&format!(r#"<g id="mark"><g id="layer1">{A_LINE}</g></g>"#));
-    assert_eq!(import_svg(&nested).unwrap().preset, Preset::Mark);
-}
-
-/// LCV-115 AC#8 — matching is on the exact id, not a prefix or a
-/// case-insensitive fold: `Preset::from_group_id` is the single decoder
-/// and it is exact.
-#[test]
-fn preset_group_ids_match_exactly() {
-    for id in ["CUT", "cut-1", "marks", " mark", ""] {
-        assert_eq!(Preset::from_group_id(id), None, "id={id:?}");
-    }
-    for preset in Preset::ALL {
-        assert_eq!(Preset::from_group_id(preset.id()), Some(preset));
-    }
+fn layer_names_are_unescaped() {
+    let src = svg(r##"<g data-layer="A &amp; &quot;B&quot;" stroke="#010101"/>"##);
+    assert_eq!(import_svg(&src).unwrap().layers[0].name, "A & \"B\"");
 }

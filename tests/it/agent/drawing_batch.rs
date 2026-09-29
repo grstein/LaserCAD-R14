@@ -59,7 +59,7 @@ use lasercad::agent::{parse_tool_call, AgentAction, AgentEvent, AgentOutcome};
 use lasercad::app::{arm_turn, cancel_turn, App, AGENT_FENCE_REFUSAL};
 use lasercad::document::{CreateLine, Entity, SelectionCommand};
 use lasercad::geometry::{Line, Vec2};
-use lasercad::io::svg::{export_svg, import_svg, Preset};
+use lasercad::io::svg::{export_svg, import_svg};
 use serde_json::{json, Value};
 use std::sync::mpsc::{channel, Receiver, Sender};
 
@@ -172,7 +172,7 @@ fn ac3_an_entity_far_off_the_bed_is_accepted() {
 }
 
 /// AC 5 — a mixed batch on a 2-entity drawing with a selection and a
-/// non-default bed and preset appends in order and touches nothing else.
+/// non-default bed appends in order and touches nothing else.
 #[test]
 fn ac5_a_mixed_batch_appends_in_order_and_touches_nothing_else() {
     let (ctx, mut app) = ctx_and_app();
@@ -180,7 +180,6 @@ fn ac5_a_mixed_batch_appends_in_order_and_touches_nothing_else() {
     human_line(&mut app, 1.0);
     app.commit(Box::new(SelectionCommand::new(vec![1])));
     app.document.bed_mm = [300.0, 180.0];
-    app.export_preset = Preset::Mark;
     let before = app.document.entities.clone();
 
     let tx = arm_turn(&mut app, "draw");
@@ -198,7 +197,7 @@ fn ac5_a_mixed_batch_appends_in_order_and_touches_nothing_else() {
     assert!(matches!(app.document.entities[4], Entity::Arc(a) if a.ccw && a.r == 10.0));
     assert_eq!(app.document.selection.iter().collect::<Vec<_>>(), [1]);
     assert_eq!(app.document.bed_mm, [300.0, 180.0]);
-    assert_eq!(app.export_preset, Preset::Mark);
+    assert_eq!(app.document.layers().len(), 1);
 }
 
 /// AC 6 — a fenced batch and a cancelled one with its `Act` still queued
@@ -295,7 +294,7 @@ fn ac9_undo_redo_and_svg_round_trip() {
         "redo restores identical geometry"
     );
 
-    let svg = export_svg(&app.document, Preset::Cut);
+    let svg = export_svg(&app.document);
     assert!(svg.contains(r#"viewBox="0 0 300 180""#), "{svg}");
     assert!(
         svg.contains(r#"fill="none""#) && svg.contains(" A 10.0000 10.0000 0 0 0 "),

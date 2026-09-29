@@ -288,7 +288,7 @@ fn ac7_navigation_preserves_the_document_and_keeps_hover_snap_and_click_in_agree
     app.tool_manager.set_tool(Box::new(SelectTool::default()));
 
     let revision_before = app.history.revision();
-    let svg_before = export_svg(&app.document, app.export_preset);
+    let svg_before = export_svg(&app.document);
 
     // Gesture 1: wheel zoom.
     wheel_zoom_at(&ctx, &mut app, p1, 5.0);
@@ -298,7 +298,7 @@ fn ac7_navigation_preserves_the_document_and_keeps_hover_snap_and_click_in_agree
         "AC 7: wheel zoom must not mutate history"
     );
     assert_eq!(
-        export_svg(&app.document, app.export_preset),
+        export_svg(&app.document),
         svg_before,
         "AC 7: wheel zoom must not change the exported SVG"
     );
@@ -312,7 +312,7 @@ fn ac7_navigation_preserves_the_document_and_keeps_hover_snap_and_click_in_agree
         "AC 7: middle-drag pan must not mutate history"
     );
     assert_eq!(
-        export_svg(&app.document, app.export_preset),
+        export_svg(&app.document),
         svg_before,
         "AC 7: middle-drag pan must not change the exported SVG"
     );
@@ -326,7 +326,7 @@ fn ac7_navigation_preserves_the_document_and_keeps_hover_snap_and_click_in_agree
         "AC 7: F fit-extents must not mutate history"
     );
     assert_eq!(
-        export_svg(&app.document, app.export_preset),
+        export_svg(&app.document),
         svg_before,
         "AC 7: F fit-extents must not change the exported SVG"
     );

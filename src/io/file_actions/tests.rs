@@ -1,7 +1,6 @@
 use super::*;
 use crate::document::{CreateLine, Entity};
 use crate::geometry::{Line, Vec2};
-use crate::io::Preset;
 use std::path::Path;
 use std::time::Instant;
 
@@ -30,16 +29,16 @@ fn app_with_tempdir(dir: &Path) -> App {
 }
 
 /// Write a real SVG into `dir` carrying `bed_mm` in its header and one
-/// line in `preset`'s colour group, through the production exporter, so
+/// line on the default layer, through the production exporter, so
 /// the test reads back exactly what the app would have written.
-fn svg_file(dir: &Path, name: &str, bed_mm: [f64; 2], preset: Preset) -> PathBuf {
+fn svg_file(dir: &Path, name: &str, bed_mm: [f64; 2]) -> PathBuf {
     let mut doc = Document::with_bed(bed_mm);
     doc.push_current(Entity::Line(Line::new(
         Vec2::new(10.0, 10.0),
         Vec2::new(40.0, 25.0),
     )));
     let path = dir.join(name);
-    fs::write(&path, export_svg(&doc, preset)).unwrap();
+    fs::write(&path, export_svg(&doc)).unwrap();
     path
 }
 
@@ -139,7 +138,7 @@ fn both_open_paths_adopt_the_file_bed_and_leave_the_seed_alone() {
     // A bed that is neither the 400 mm default nor the settings seed, so
     // neither fallback can accidentally satisfy the assertion.
     let file_bed = [265.0, 185.0];
-    let svg = svg_file(&dir, "bed.svg", file_bed, Preset::Cut);
+    let svg = svg_file(&dir, "bed.svg", file_bed);
     let autosave = seeded_autosave(&dir);
 
     let mut app = app_with_tempdir(&dir);
@@ -192,12 +191,12 @@ fn open_via_the_dialog_adopts_the_file_bed_and_leaves_the_seed_alone() {
         "positive control: action_open must import the file"
     );
     assert!(
-        body.contains("in imported.entities"),
-        "positive control: the entities come from the import"
+        body.contains(".and_then(ImportedSvg::into_document)"),
+        "action_open must adopt the file's bed and layers (AC 10, LCV-156 AC 9)"
     );
     assert!(
-        body.contains("Document::with_bed(imported.bed_mm)"),
-        "action_open must adopt the file's bed (AC 10)"
+        body.contains("app.document = document;"),
+        "positive control: the opened document is installed"
     );
     assert!(
         !body.contains("default_bed_mm"),
@@ -205,54 +204,39 @@ fn open_via_the_dialog_adopts_the_file_bed_and_leaves_the_seed_alone() {
     );
 }
 
-/// LCV-115 AC 9, repaid behaviourally by LCV-119 AC 13 — `action_open_path`
-/// adopts the *file's* preset, so Ctrl+S on a marking file returns its
-/// geometry to the `mark` group instead of cutting through the workpiece.
-/// The session starts on `Preset::Cut`, so a no-op implementation cannot
-/// pass. Tempdir-injected paths (ADR 0006); the dialog half is
-/// [`open_via_the_dialog_adopts_the_file_preset`].
+/// LCV-156 AC 9 — `action_open_path` adopts the file's layers and current
+/// layer. The dialog half (`action_open`) shares the same
+/// `ImportedSvg::into_document` call, scanned above.
 #[test]
-fn both_open_paths_adopt_the_file_preset() {
-    let dir = tempdir("open_path_preset");
-    let svg = svg_file(&dir, "mark.svg", [400.0, 400.0], Preset::Mark);
+fn open_path_adopts_the_file_layers() {
+    let dir = tempdir("open_path_layers");
+    let mut doc = Document::with_bed([400.0, 400.0]);
+    let mut add = crate::document::AddLayer::new("Mark", [0, 0, 255], false);
+    crate::document::Command::do_(&mut add, &mut doc);
+    let mark = add.id().unwrap();
+    crate::document::Command::do_(&mut crate::document::SetCurrentLayer::new(mark), &mut doc);
+    doc.push_current(Entity::Line(Line::new(
+        Vec2::new(1.0, 1.0),
+        Vec2::new(2.0, 2.0),
+    )));
+    let path = dir.join("layers.svg");
+    fs::write(&path, export_svg(&doc)).unwrap();
 
     let mut app = app_with_tempdir(&dir);
-    assert_eq!(
-        app.export_preset,
-        Preset::Cut,
-        "positive control: the session starts on Cut"
-    );
-
-    action_open_path(&mut app, svg);
+    assert_eq!(app.document.layers().len(), 1, "positive control");
+    action_open_path(&mut app, path);
 
     assert_eq!(app.error_message, None, "the open must succeed");
-    assert_eq!(
-        app.export_preset,
-        Preset::Mark,
-        "the session adopts the file's preset (LCV-115 AC 9)"
-    );
-}
-
-/// LCV-115 AC 9, dialog half — a source scan for the ADR 0005 reason and
-/// that reason alone: `action_open` opens a native dialog no test may
-/// reach.
-#[test]
-fn open_via_the_dialog_adopts_the_file_preset() {
-    let body = action_open_body();
-    assert!(
-        body.contains("import_svg(&content)"),
-        "positive control: action_open must import the file"
-    );
-    assert!(
-        body.contains("app.export_preset = imported.preset;"),
-        "action_open must adopt the file's preset (AC 9)"
-    );
-    for literal in ["Preset::Cut", "Preset::Mark", "Preset::Engrave"] {
-        assert!(
-            !body.contains(literal),
-            "action_open must not hard-code {literal}"
-        );
-    }
+    let names: Vec<_> = app
+        .document
+        .layers()
+        .iter()
+        .map(|l| l.name.as_str())
+        .collect();
+    assert_eq!(names, ["Cut", "Mark"]);
+    let current = app.document.layer(app.document.current_layer()).unwrap();
+    assert_eq!((current.name.as_str(), current.output), ("Mark", false));
+    assert_eq!(app.document.entity_layer(0), Some(current.id));
 }
 
 /// LCV-119 AC 11 — `action_new` removes the autosave file it was *given*
@@ -287,10 +271,10 @@ fn action_new_clears_only_the_injected_autosave_file() {
     );
 }
 
-/// LCV-115 AC 5 — both save paths export in the *session's* preset. Same
-/// reason as above for the scan: `action_save_as` opens a native dialog.
+/// LCV-156 AC 9 — both save paths write the mother SVG. Same reason as
+/// above for the scan: `action_save_as` opens a native dialog.
 #[test]
-fn both_save_paths_export_in_the_session_preset() {
+fn both_save_paths_export_the_mother_svg() {
     let src = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/src/io/file_actions.rs"
@@ -315,14 +299,11 @@ fn both_save_paths_export_in_the_session_preset() {
             "positive control: {start_marker} must write the file"
         );
         assert!(
-            body.contains("export_svg(&app.document, app.export_preset)"),
-            "{start_marker} must export in the session preset (AC 5)"
+            body.contains("export_svg(&app.document)"),
+            "{start_marker} must export the mother SVG (LCV-156 AC 9)"
         );
     }
 }
-
-// `action_new` keeping the preset (LCV-115 AC 5) is covered in
-// `tests/it/app/preset_ui.rs`, where the demand places it.
 
 /// AC 3 — action_new clears current_file.
 #[test]

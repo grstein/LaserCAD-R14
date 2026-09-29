@@ -14,16 +14,18 @@
 //! at 300 × 180 must land back on the world coordinates it was exported from,
 //! whatever bed the open document happens to be on.
 //!
-//! The enclosing `<g id="…">` is read too (LCV-115): the file's export preset
-//! is the one whose group first produced geometry, so an open / edit / re-save
-//! round trip cannot silently demote a marking job to a cutting job.
+//! Layer groups are read too (LCV-156, ADR 0012 §4, see [`super::layers`]):
+//! each entity belongs to its innermost enclosing `<g data-layer>`; geometry
+//! outside any layer group goes to the file's first layer, and a file with no
+//! layer group (a v0.2 file) gets the default `Cut` layer.
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`. — LCV-057,
-//! Y mirror by LCV-100, bed by LCV-114, preset by LCV-115.
+//! Y mirror by LCV-100, bed by LCV-114, layers by LCV-156.
 
-use super::export::Preset;
 use super::header::parse_bed;
+use super::layers::{LayerReader, STRAY_LAYER};
 use crate::document::entity::Entity;
+use crate::document::{Document, Layer, LayerId};
 use crate::geometry::{Arc, Circle, Line, Vec2, EPSILON};
 use crate::util::flip_y;
 
@@ -61,16 +63,23 @@ pub enum SvgImportError {
         /// Its raw, unmodified attribute value.
         value: String,
     },
+    /// A `<g data-layer>` whose attributes are unusable, or that repeats
+    /// another layer's name or color (LCV-156).
+    #[error("layer {name:?}: {reason}")]
+    MalformedLayer {
+        /// The layer name as written in the file.
+        name: String,
+        /// Why it was refused.
+        reason: String,
+    },
 }
 
-/// The result of a successful [`import_svg`]: the geometry, plus the two
-/// file-level properties the opened document adopts — the bed size it declares
-/// (LCV-114 AC 7) and its export preset (LCV-115 AC 8).
+/// The result of a successful [`import_svg`]: the geometry, its layers, and
+/// the bed size the file declares (LCV-114 AC 7).
 ///
 /// `bed_mm` is `[width, height]` in millimetres and is the axis pair the
-/// entities were un-mirrored with, so installing both together —
-/// `document.bed_mm = imported.bed_mm` **before** the entities — is what makes
-/// an open / edit / re-save round-trip byte-stable.
+/// entities were un-mirrored with. [`ImportedSvg::into_document`] installs
+/// everything at once.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImportedSvg {
     /// Recognised geometry, in document order.
@@ -78,20 +87,38 @@ pub struct ImportedSvg {
     /// The bed size declared by the file's root `<svg>`, or the default bed
     /// when it declares none.
     pub bed_mm: [f64; 2],
-    /// The preset of the first recognised `<g>` whose subtree produced an
-    /// entity, or [`Preset::Cut`] when the file has no recognised group.
-    /// `App::export_preset` adopts it on open, so re-saving a marking file
-    /// returns its geometry to the `mark` group instead of demoting it to a
-    /// cut (LCV-115 AC 9).
-    pub preset: Preset,
+    /// The file's layers in document order (the default `Cut` layer when it
+    /// declares none).
+    pub layers: Vec<Layer>,
+    /// The layer marked `data-current="1"`, else the first layer.
+    pub current_layer: LayerId,
+    /// One layer id per entity.
+    pub entity_layers: Vec<LayerId>,
 }
 
-/// Parse an SVG string and return its geometry together with its bed size.
+impl ImportedSvg {
+    /// The opened document: bed, layers, current layer and membership.
+    pub fn into_document(self) -> Result<Document, SvgImportError> {
+        let current = self.current_layer;
+        Document::from_parts(
+            self.bed_mm,
+            self.layers,
+            current,
+            self.entities,
+            self.entity_layers,
+        )
+        .map_err(|e| SvgImportError::MalformedLayer {
+            name: format!("#{}", current.0),
+            reason: e.to_string(),
+        })
+    }
+}
+
+/// Parse an SVG string and return its geometry, layers and bed size.
 ///
 /// Depth-first traversal; `<line>`, `<circle>`, `<path d="M…A…"/>` → entities.
 /// Everything else is silently skipped. The bed comes from the root header
-/// (see [`parse_bed`]) and is the axis every Y is un-mirrored around; the
-/// preset comes from the enclosing `<g id="…">` (see [`collect`]).
+/// (see [`parse_bed`]) and is the axis every Y is un-mirrored around.
 /// Returns the first error encountered, having mutated nothing: the caller's
 /// document is untouched on `Err` (LCV-114 AC 9).
 pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
@@ -101,62 +128,58 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
         return Err(SvgImportError::NoSvgRoot);
     }
     let bed_mm = parse_bed(root)?;
-    let mut entities = Vec::new();
-    let mut preset = None;
-    collect(root, &mut entities, bed_mm[1], None, &mut preset)?;
+    let mut walk = Walk {
+        entities: Vec::new(),
+        entity_layers: Vec::new(),
+        layers: LayerReader::default(),
+        bed_h: bed_mm[1],
+    };
+    walk.collect(root, None)?;
+    let (layers, current_layer) = walk.layers.finish();
     Ok(ImportedSvg {
-        entities,
+        entities: walk.entities,
         bed_mm,
-        // No recognised group produced geometry: bare geometry, an empty file
-        // or an unknown group id all mean "cut" (LCV-115 AC 8).
-        preset: preset.unwrap_or(Preset::Cut),
+        layers,
+        current_layer,
+        entity_layers: walk.entity_layers,
     })
 }
 
-/// Walk `node`'s element subtree, appending recognised geometry to `out`.
-///
-/// `group` is the preset of the nearest enclosing recognised `<g>`, and
-/// `found` is the detection result: the first `group` that was `Some` when an
-/// entity was appended wins, and it is never overwritten afterwards
-/// (LCV-115 AC 8). Geometry outside any recognised group leaves `found`
-/// untouched, so a file whose only `cut` group is empty still reports the
-/// populated `mark` group that follows it — which is exactly the shape this
-/// crate's own exporter writes.
-fn collect(
-    node: roxmltree::Node<'_, '_>,
-    out: &mut Vec<Entity>,
+/// Traversal state: geometry and membership so far, layers so far.
+struct Walk {
+    entities: Vec<Entity>,
+    entity_layers: Vec<LayerId>,
+    layers: LayerReader,
     bed_h: f64,
-    group: Option<Preset>,
-    found: &mut Option<Preset>,
-) -> Result<(), SvgImportError> {
-    for child in node.children().filter(|n| n.is_element()) {
-        let before = out.len();
-        match child.tag_name().name() {
-            "line" => out.push(parse_line(child, bed_h)?),
-            "circle" => out.push(parse_circle(child, bed_h)?),
-            "path" => {
-                if let Some(e) = parse_path(child, bed_h)? {
-                    out.push(e);
-                }
-            }
-            _ => collect(child, out, bed_h, group_of(child, group), found)?,
-        }
-        if found.is_none() && out.len() > before {
-            *found = group;
-        }
-    }
-    Ok(())
 }
 
-/// The preset in force inside `node`: its own `id` when `node` is a `<g>`
-/// carrying a recognised one, otherwise the enclosing `group` unchanged.
-fn group_of(node: roxmltree::Node<'_, '_>, group: Option<Preset>) -> Option<Preset> {
-    if node.tag_name().name() != "g" {
-        return group;
+impl Walk {
+    /// Append `node`'s recognised geometry on `layer` (the innermost enclosing
+    /// layer group; `None` = outside any, which means the first layer).
+    fn collect(
+        &mut self,
+        node: roxmltree::Node<'_, '_>,
+        layer: Option<LayerId>,
+    ) -> Result<(), SvgImportError> {
+        let bed_h = self.bed_h;
+        for child in node.children().filter(|n| n.is_element()) {
+            let entity = match child.tag_name().name() {
+                "line" => Some(parse_line(child, bed_h)?),
+                "circle" => Some(parse_circle(child, bed_h)?),
+                "path" => parse_path(child, bed_h)?,
+                _ => {
+                    let inner = self.layers.enter(child)?.or(layer);
+                    self.collect(child, inner)?;
+                    None
+                }
+            };
+            if let Some(entity) = entity {
+                self.entities.push(entity);
+                self.entity_layers.push(layer.unwrap_or(STRAY_LAYER));
+            }
+        }
+        Ok(())
     }
-    node.attribute("id")
-        .and_then(Preset::from_group_id)
-        .or(group)
 }
 
 fn parse_line(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Entity, SvgImportError> {

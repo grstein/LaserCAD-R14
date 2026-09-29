@@ -8,6 +8,7 @@
 pub mod export;
 pub mod header;
 pub mod import;
+mod layers;
 
-pub use export::{export_svg, Preset};
+pub use export::{export_layer_svg, export_svg, Preset};
 pub use import::{import_svg, ImportedSvg, SvgImportError};

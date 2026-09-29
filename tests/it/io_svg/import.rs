@@ -7,7 +7,7 @@
 
 use lasercad::document::{Document, Entity};
 use lasercad::geometry::{Arc, Circle, Line, Vec2, EPSILON};
-use lasercad::io::svg::{export_svg, import_svg, Preset, SvgImportError};
+use lasercad::io::svg::{export_svg, import_svg, SvgImportError};
 use std::f64::consts::{FRAC_PI_2, PI};
 
 fn svg_wrap(inner: &str) -> String {
@@ -188,7 +188,7 @@ fn round_trip_line_circle_arc() {
         true,
     )));
 
-    let svg = export_svg(&doc, Preset::Cut);
+    let svg = export_svg(&doc);
     let imported = import_svg(&svg).unwrap().entities;
     assert_eq!(imported.len(), 3);
 

@@ -20,7 +20,7 @@ use std::path::PathBuf;
 
 use crate::app::App;
 use crate::document::{Document, History};
-use crate::io::svg::{export_svg, import_svg};
+use crate::io::svg::{export_svg, import_svg, ImportedSvg};
 use crate::io::{open_file_dialog, save_file_dialog};
 
 // ---------------------------------------------------------------------------
@@ -38,10 +38,6 @@ use crate::io::{open_file_dialog, save_file_dialog};
 ///
 /// The blank document is seeded with the operator's configured default bed
 /// (LCV-114 AC 11) so `File > New` lands on their machine, not on 400 × 400.
-///
-/// `app.export_preset` is deliberately **not** reset (LCV-115 AC 5): the
-/// export profile is a property of the session's job, not of the document,
-/// and an operator doing three mark jobs in a row picks it once.
 pub fn action_new(app: &mut App) {
     app.document = Document::with_bed(app.settings.clamped_default_bed_mm());
     app.history = History::default();
@@ -55,8 +51,8 @@ pub fn action_new(app: &mut App) {
 /// If the user cancels the dialog this function returns immediately without
 /// modifying any `App` field.  On I/O or parse failure `app.error_message` is
 /// set to a descriptive string and the existing document is left unchanged.
-/// On success the document, history, current-file path, export preset, and
-/// recent-files list are all updated and the autosave file is cleared.
+/// On success the document, history, current-file path and recent-files
+/// list are all updated and the autosave file is cleared.
 pub fn action_open(app: &mut App) {
     let path = match open_file_dialog() {
         Some(p) => p,
@@ -71,7 +67,7 @@ pub fn action_open(app: &mut App) {
         }
     };
 
-    let imported = match import_svg(&content) {
+    let document = match import_svg(&content).and_then(ImportedSvg::into_document) {
         Ok(v) => v,
         Err(e) => {
             app.error_message = Some(format!("SVG import failed: {e}"));
@@ -83,14 +79,8 @@ pub fn action_open(app: &mut App) {
     // the *file's* bed (LCV-114 AC 10): re-saving it must not re-mirror every
     // Y around a different height. The settings seed is deliberately left
     // alone — opening a file does not re-home the operator's machine.
-    //
-    // The session adopts the *file's* preset too (LCV-115 AC 9), so Ctrl+S on
-    // a marking file returns its geometry to the `mark` group.
-    app.export_preset = imported.preset;
-    app.document = Document::with_bed(imported.bed_mm);
-    for entity in imported.entities {
-        app.document.push_current(entity);
-    }
+    // Its layers, membership and current layer come with it (LCV-156 AC 9).
+    app.document = document;
     app.history = History::default();
     app.current_file = Some(path.clone());
     app.mark_saved();
@@ -100,8 +90,8 @@ pub fn action_open(app: &mut App) {
     app.clear_autosave();
 }
 
-/// Save the document to the current file path, in `app.export_preset`'s
-/// colour group (LCV-115 AC 5).
+/// Save the document to the current file path as the mother SVG, one group
+/// per layer (LCV-156 AC 9).
 ///
 /// If no file path is known (`app.current_file` is `None`) this function
 /// delegates to [`action_save_as`].  On success `app.mark_saved()` marks the
@@ -117,7 +107,7 @@ pub fn action_save(app: &mut App) {
         }
     };
 
-    let svg = export_svg(&app.document, app.export_preset);
+    let svg = export_svg(&app.document);
     if let Err(e) = fs::write(&path, svg.as_bytes()) {
         app.error_message = Some(format!("Could not write '{}': {e}", path.display()));
         return;
@@ -131,7 +121,7 @@ pub fn action_save(app: &mut App) {
 ///
 /// Called by the File → Open Recent menu to load a path that was already
 /// chosen by the operator. On success the document, history, current-file
-/// path, export preset, and recent-files list are updated and the autosave
+/// path and recent-files list are updated and the autosave
 /// file is cleared.
 /// On I/O or parse failure `app.error_message` is set; the existing document
 /// is left unchanged.
@@ -144,7 +134,7 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
         }
     };
 
-    let imported = match import_svg(&content) {
+    let document = match import_svg(&content).and_then(ImportedSvg::into_document) {
         Ok(v) => v,
         Err(e) => {
             app.error_message = Some(format!("SVG import failed: {e}"));
@@ -152,13 +142,9 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
         }
     };
 
-    // Adopts the file's bed and preset, same as `action_open` (LCV-114 AC 10,
-    // LCV-115 AC 9).
-    app.export_preset = imported.preset;
-    app.document = Document::with_bed(imported.bed_mm);
-    for entity in imported.entities {
-        app.document.push_current(entity);
-    }
+    // Adopts the file's bed and layers, same as `action_open` (LCV-114 AC 10,
+    // LCV-156 AC 9).
+    app.document = document;
     app.history = History::default();
     app.current_file = Some(path.clone());
     app.mark_saved();
@@ -168,8 +154,8 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
     app.clear_autosave();
 }
 
-/// Present a save dialog and write the document to the chosen path, in
-/// `app.export_preset`'s colour group (LCV-115 AC 5).
+/// Present a save dialog and write the document to the chosen path as the
+/// mother SVG (LCV-156 AC 9).
 ///
 /// The default filename is the current file's name component, or
 /// `"untitled.svg"` when no file is open.  A `.svg` extension is appended if
@@ -195,7 +181,7 @@ pub fn action_save_as(app: &mut App) {
         path.set_extension("svg");
     }
 
-    let svg = export_svg(&app.document, app.export_preset);
+    let svg = export_svg(&app.document);
     if let Err(e) = fs::write(&path, svg.as_bytes()) {
         app.error_message = Some(format!("Could not write '{}': {e}", path.display()));
         return;

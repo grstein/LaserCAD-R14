@@ -58,8 +58,9 @@
 
 use core::f64::consts::FRAC_PI_2;
 use lasercad::document::Entity;
+use lasercad::document::Layer;
 use lasercad::geometry::{Vec2, EPSILON};
-use lasercad::io::svg::{import_svg, Preset};
+use lasercad::io::svg::import_svg;
 use lasercad::text::layout_text;
 
 /// See the module doc's §Tolerance.
@@ -97,10 +98,10 @@ fn assert_line_eq(entity: &Entity, p1: Vec2, p2: Vec2, tol: f64, ctx: &str) {
 // ── bed-128mm.svg — header ──────────────────────────────────────────────
 
 #[test]
-fn bed128_fixture_declares_its_own_bed_and_cut_preset() {
+fn bed128_fixture_declares_its_own_bed_and_default_layer() {
     let imported = import_svg(BED128_SRC).unwrap();
     assert_eq!(imported.bed_mm, [128.0, 128.0]);
-    assert_eq!(imported.preset, Preset::Cut);
+    assert_eq!(imported.layers, vec![Layer::default_cut()]);
     // 4 non-text primitives + every Hershey stroke for "128".
     let text = layout_text("128", Vec2::new(80.0, 78.0), 11.0, 1.0);
     assert_eq!(imported.entities.len(), 3 + text.len());
@@ -175,10 +176,10 @@ fn bed128_text_strokes_round_trip_against_a_fresh_layout_text_call() {
 // ── bed-400mm.svg — the default-bed fixture ─────────────────────────────
 
 #[test]
-fn bed400_fixture_declares_its_own_bed_and_cut_preset() {
+fn bed400_fixture_declares_its_own_bed_and_default_layer() {
     let imported = import_svg(BED400_SRC).unwrap();
     assert_eq!(imported.bed_mm, [400.0, 400.0]);
-    assert_eq!(imported.preset, Preset::Cut);
+    assert_eq!(imported.layers, vec![Layer::default_cut()]);
     let text = layout_text("400", Vec2::new(250.0, 245.0), 35.0, 1.0);
     assert_eq!(imported.entities.len(), 3 + text.len());
 }
