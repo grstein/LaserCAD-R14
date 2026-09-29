@@ -38,3 +38,4 @@ Rust (toolchain pinned) · `egui`/`eframe` · `rfd` dialogs · blocking `reqwest
 ## Later
 
 - Windows MSI/NSIS, macOS dmg + notarization, CI matrix.
+- UI roadmap Drafts LCV-162..169 (the gaps in `DESIGN.md`); scheduling is the user's call.
