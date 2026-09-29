@@ -27,8 +27,8 @@
 
 ## Direction
 
-- Casing per DESIGN.md §9: Title Case for menus, buttons, window titles and the toolbar;
-  sentence case for everything else.
+- Casing per DESIGN.md §9: Title Case for menus, buttons, window titles and the toolbar (so
+  LCV-156's `Export layers` becomes `Export Layers`); sentence case for everything else.
 - One AI name: **AI Assistant** for the feature (panel heading, window title prefix), **AI** as
   the short form (toolbar toggle, dock destination, `/ai`), and **AI Settings** for the
   settings window and its menu item. Messages point to "Help > AI Settings…".

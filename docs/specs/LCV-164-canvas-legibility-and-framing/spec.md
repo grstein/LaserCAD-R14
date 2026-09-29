@@ -47,14 +47,14 @@ To be written by /specify.
 
 - A UCS icon that follows a user coordinate system (no UCS in LaserCAD).
 - Grid settings dialog, and adaptive grid density beyond `render/grid.rs::pick_minor_spacing_mm`.
-- Layer colours (LCV-156). This spec only checks that they stay readable.
+- Choosing layer colours (LCV-156). This spec only keeps the displayed colour readable.
 
 ## Open questions
 
 - ✱ LCV-035 AC 2 pins `arc_segments == 64`. The chord-tolerance change replaces that AC.
 - ✱ The LCV-137 paint-order test treats grid lines as `LineSegment` shapes. Drawing the grid or
   overlays as paths amends that test.
-- LCV-156 AC 3 draws entities in their layer colour. Should a layer colour under 3:1 on the bed
-  (e.g. `#0000ff`, 1.7:1) be lightened for display, or should layers only offer a curated
-  palette? DESIGN.md §3 sets the ≥3:1 rule. LCV-156 decides the mechanism.
+- LCV-156 paints the raw layer colour (ADR 0012 §9). Should a layer colour under 3:1 on the bed
+  (e.g. `#0000ff`, 1.7:1) be lightened for display, or should layers offer a curated palette?
+  DESIGN.md §3 sets the ≥3:1 target.
 - Should the snap label be on by default, or only after the glyph has been still for a moment?

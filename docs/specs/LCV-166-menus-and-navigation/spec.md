@@ -47,7 +47,7 @@ To be written by /specify.
 
 - Menu mnemonics (Alt+letter underlines). egui 0.29 has no support for them.
 - A customisable shortcut table.
-- New menus or menu reordering (order stays File Edit View Tools Help).
+- New menus or reordering (R14 order; LCV-156 adds `Format` after View).
 
 ## Open questions
 

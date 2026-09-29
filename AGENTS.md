@@ -119,6 +119,7 @@ Contract of `src/io/svg/export.rs`; changing it needs explicit user confirmation
 
 Command line and keyboard first · plain inspectable SVG · small composable tools ·
 deterministic geometry over visual convenience · reject features rather than carry accidental complexity.
+UI directives: `DESIGN.md`.
 
 ## ADRs (`docs/adr/`)
 

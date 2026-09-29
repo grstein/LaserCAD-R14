@@ -53,8 +53,8 @@ To be written by /specify.
 
 ## Open questions
 
-- ✱ ADR 0003 §B5 routes an empty Enter to the active tool. Repeating the last command at Select
-  idle amends it. Does it need a new ADR, or an amendment note?
+- ✱ ADR 0003 §B5 routes an empty Enter to the tool, and §C keeps `status_text` `&'static str`.
+  Repeat and runtime prompts amend both: an amendment note, or a new ADR?
 - ✱ LCV-041 AC 4 makes `Secondary` a no-op. Right-click = Enter reverses it.
 - Does an agent prompt (`:`/`/ai`) repeat? Proposal: no, only CAD command words.
 - Should the prompt text change for the Done specs' tests (LCV-111 AC 17 prompt table)?
