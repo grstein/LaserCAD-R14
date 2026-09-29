@@ -54,13 +54,13 @@ impl CreateLine {
 
 impl Command for CreateLine {
     fn do_(&mut self, doc: &mut Document) {
-        doc.entities.push(Entity::Line(self.line));
+        doc.push_current(Entity::Line(self.line));
         self.captured_index = Some(doc.entities.len() - 1);
     }
 
     fn undo(&mut self, doc: &mut Document) {
         if let Some(i) = self.captured_index.take() {
-            doc.entities.remove(i);
+            doc.remove_entity(i);
         }
     }
 
@@ -91,13 +91,13 @@ impl CreateCircle {
 
 impl Command for CreateCircle {
     fn do_(&mut self, doc: &mut Document) {
-        doc.entities.push(Entity::Circle(self.circle));
+        doc.push_current(Entity::Circle(self.circle));
         self.captured_index = Some(doc.entities.len() - 1);
     }
 
     fn undo(&mut self, doc: &mut Document) {
         if let Some(i) = self.captured_index.take() {
-            doc.entities.remove(i);
+            doc.remove_entity(i);
         }
     }
 
@@ -128,13 +128,13 @@ impl CreateArc {
 
 impl Command for CreateArc {
     fn do_(&mut self, doc: &mut Document) {
-        doc.entities.push(Entity::Arc(self.arc));
+        doc.push_current(Entity::Arc(self.arc));
         self.captured_index = Some(doc.entities.len() - 1);
     }
 
     fn undo(&mut self, doc: &mut Document) {
         if let Some(i) = self.captured_index.take() {
-            doc.entities.remove(i);
+            doc.remove_entity(i);
         }
     }
 
@@ -183,13 +183,13 @@ impl Command for CreateEntities {
         // Re-capture on redo: clear any prior start so LIFO truncate is safe.
         self.captured_start = Some(doc.entities.len());
         for &entity in &self.entities {
-            doc.entities.push(entity);
+            doc.push_current(entity);
         }
     }
 
     fn undo(&mut self, doc: &mut Document) {
         if let Some(start) = self.captured_start.take() {
-            doc.entities.truncate(start);
+            doc.truncate_entities(start);
         }
     }
 
@@ -221,7 +221,7 @@ mod tests {
     fn create_constructors_capture_index_none() {
         let mut doc = Document::default();
         let seed = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 1.0));
-        doc.entities.push(Entity::Line(seed));
+        doc.push_current(Entity::Line(seed));
 
         let mut cmd_line = CreateLine::new(Line::new(Vec2::default(), Vec2::new(1.0, 0.0)));
         let mut cmd_circle = CreateCircle::new(Circle::new(Vec2::default(), 1.0));
@@ -332,7 +332,7 @@ mod tests {
     fn double_undo_is_a_noop() {
         let mut doc = Document::default();
         let seed = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 1.0));
-        doc.entities.push(Entity::Line(seed));
+        doc.push_current(Entity::Line(seed));
         let line = Line::new(Vec2::new(2.0, 0.0), Vec2::new(3.0, 0.0));
         let mut cmd = CreateLine::new(line);
 
@@ -380,7 +380,7 @@ mod tests {
     fn create_entities_preserves_prior_entities_on_undo() {
         let mut doc = Document::default();
         let seed = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 0.0));
-        doc.entities.push(Entity::Line(seed));
+        doc.push_current(Entity::Line(seed));
 
         let new_line = Line::new(Vec2::new(5.0, 0.0), Vec2::new(6.0, 0.0));
         let mut cmd = CreateEntities::new(vec![Entity::Line(new_line)]);
@@ -398,7 +398,7 @@ mod tests {
     fn create_entities_double_undo_is_noop() {
         let mut doc = Document::default();
         let seed = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 0.0));
-        doc.entities.push(Entity::Line(seed));
+        doc.push_current(Entity::Line(seed));
 
         let extra = Line::new(Vec2::new(2.0, 0.0), Vec2::new(3.0, 0.0));
         let mut cmd = CreateEntities::new(vec![Entity::Line(extra)]);
@@ -458,7 +458,7 @@ mod tests {
     fn create_entities_undo_does_not_remove_preexisting() {
         let mut doc = Document::default();
         let seed = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 0.0));
-        doc.entities.push(Entity::Line(seed));
+        doc.push_current(Entity::Line(seed));
         let l1 = Line::new(Vec2::new(2.0, 0.0), Vec2::new(3.0, 0.0));
         let l2 = Line::new(Vec2::new(4.0, 0.0), Vec2::new(5.0, 0.0));
         let mut cmd = CreateEntities::new(vec![Entity::Line(l1), Entity::Line(l2)]);

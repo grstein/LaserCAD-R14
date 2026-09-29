@@ -19,7 +19,7 @@
 //! MUST NOT import `egui`, `eframe`, or `rfd`. Introduced by demand LCV-024.
 
 use super::Command;
-use crate::document::{Document, Entity};
+use crate::document::{Document, Entity, LayerId};
 use crate::geometry::Vec2;
 
 /// Remove a set of entities from a [`Document`] and remember them for undo.
@@ -29,9 +29,9 @@ pub struct DeleteEntities {
     /// Indices into [`Document::entities`] to remove. Caller ensures each
     /// index is in range and unique.
     pub indices: Vec<usize>,
-    /// Captured `(original_index, entity)` pairs in removal order (descending
+    /// Captured `(original_index, entity, layer)` triples in removal order (descending
     /// by original index). `undo` drains via `pop`, yielding ascending order.
-    captured_entities: Vec<(usize, Entity)>,
+    captured_entities: Vec<(usize, Entity, LayerId)>,
 }
 
 impl DeleteEntities {
@@ -53,16 +53,16 @@ impl Command for DeleteEntities {
         sorted.sort_unstable_by(|a, b| b.cmp(a));
         for i in sorted {
             debug_assert!(i < doc.entities.len(), "DeleteEntities: index OOR");
-            let removed = doc.entities.remove(i);
-            self.captured_entities.push((i, removed));
+            let (removed, layer) = doc.remove_entity(i);
+            self.captured_entities.push((i, removed, layer));
         }
     }
 
     fn undo(&mut self, doc: &mut Document) {
         // `pop` yields ascending original-index order — the right order for
         // `Vec::insert(i, e)`. After the loop the capture is empty.
-        while let Some((i, entity)) = self.captured_entities.pop() {
-            doc.entities.insert(i, entity);
+        while let Some((i, entity, layer)) = self.captured_entities.pop() {
+            doc.insert_entity(i, entity, layer);
         }
     }
 
@@ -138,10 +138,9 @@ mod tests {
         }
     }
     fn doc_with(entities: Vec<Entity>) -> Document {
-        Document {
-            entities,
-            ..Document::default()
-        }
+        let mut doc = Document::default();
+        entities.into_iter().for_each(|e| doc.push_current(e));
+        doc
     }
     fn unit_line() -> Line {
         Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 0.0))
