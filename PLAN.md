@@ -39,3 +39,7 @@ Rust (toolchain pinned) · `egui`/`eframe` · `rfd` dialogs · blocking `reqwest
 
 - Windows MSI/NSIS, macOS dmg + notarization, CI matrix.
 - UI roadmap Drafts LCV-162..169 (the gaps in `DESIGN.md`); scheduling is the user's call.
+- **SVG 2 conformance track** (user decision 2026-09-29): export a Conforming SVG Generator, import
+  a secure-static Conforming SVG Interpreter; native ellipse/elliptical-arc and Bézier entities;
+  `<text>` imported as outlines. Drafts LCV-170..179 in that order; coverage map in
+  `docs/research/svg-spec-coverage.md`. Scheduling against v0.3 is the user's call.
