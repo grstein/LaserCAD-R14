@@ -13,6 +13,9 @@
 //! `use eframe`, or `use rfd` statements. Dialog access goes through the
 //! wrappers in `crate::io`.
 //!
+//! `File > Export layers` writes per-layer files without saving the mother
+//! and lives in [`crate::io::export_layers`] (LCV-156).
+//!
 //! Introduced by demand LCV-062.
 
 use std::fs;

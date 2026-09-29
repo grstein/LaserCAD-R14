@@ -292,6 +292,31 @@ fn file_menu_has_bed_size_directly_above_exit() {
     );
 }
 
+/// LCV-156 AC 10 — `Export layers` sits with the save entries, directly
+/// below `Save As…` and above the separator before `Bed size…`, and runs
+/// the per-layer export. Bounded to `file_menu`'s body.
+#[test]
+fn file_menu_has_export_layers_below_save_as() {
+    let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/ui/menubar.rs"));
+    let start = src.find("fn file_menu(").expect("file_menu must exist");
+    let end = src[start..]
+        .find("\nfn recent_submenu(")
+        .expect("file_menu must be followed by recent_submenu")
+        + start;
+    let body = &src[start..end];
+    let save_as = body.find("\"Save As…").expect("Save As… present");
+    let export = body
+        .find("\"Export layers\"")
+        .expect("Export layers present");
+    let bed = body.find("\"Bed size…").expect("Bed size… present");
+    assert!(
+        save_as < export && export < bed,
+        "order: Save As…, Export layers, Bed size…"
+    );
+    assert!(!body[save_as..export].contains("ui.separator();"));
+    assert!(body[export..bed].contains("crate::io::action_export_layers(app)"));
+}
+
 /// LCV-104 AC#7 — activating each Tools-menu entry sets the active tool:
 /// `tools::make(entry.kind)` followed by `set_tool` leaves
 /// `active_tool_name() == entry.tool_name`, for every table entry.

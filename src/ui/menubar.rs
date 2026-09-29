@@ -49,6 +49,12 @@ fn file_menu(ui: &mut egui::Ui, app: &mut App) {
             ui.close_menu();
             app.action_save_as();
         }
+        // LCV-156 AC 10: one LaserGRBL file per Output layer, beside the
+        // saved drawing; no dialog, the file names go to the feedback line.
+        if ui.button("Export layers").clicked() {
+            ui.close_menu();
+            crate::io::action_export_layers(app);
+        }
         ui.separator();
         // LCV-114: the bed belongs to the document, so its dialog belongs to
         // the File menu. Opening it only parks a draft; nothing is committed
