@@ -9,6 +9,7 @@
 pub mod commands;
 pub mod entity;
 pub mod history;
+pub mod layer;
 pub mod schema;
 pub mod selection;
 pub mod state;
@@ -19,5 +20,6 @@ pub use commands::{
 };
 pub use entity::{Entity, SCHEMA_VERSION};
 pub use history::{History, HISTORY_DEPTH};
+pub use layer::{file_key, name_key, Layer, LayerError, LayerId};
 pub use selection::Selection;
 pub use state::Document;
