@@ -6,6 +6,8 @@ paths:
 # Test rules
 
 - Gate is `scripts/gate.sh`; `cargo test` always with `--no-fail-fast` (ADR 0008).
+- Inner loop: `scripts/check.sh <filter>` (clippy + matching lib/integration tests, no doctests),
+  e.g. `check.sh agent` runs `agent::*` and `it::agent::*`. It never replaces the gate.
 - One test per acceptance criterion, named after what it proves.
 - **Paths in scans**: rebuild from `components()` joined with `/`; never compare `display()` /
   `to_string_lossy()` of a whole path (breaks on Windows CI). Sort on the rendered string.

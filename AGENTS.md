@@ -12,6 +12,7 @@ Linux first. All versioned artifacts are English; conversation may be any langua
 
 ```bash
 scripts/gate.sh                    # THE gate: fmt check, clippy -D warnings, tests --no-fail-fast, LOC cap, backlog check
+scripts/check.sh [filter...]       # inner loop: clippy + lib/integration tests matching filter, no doctests
 cargo run                          # run the app (debug)
 cargo test <substring>             # one test while iterating
 scripts/backlog.sh                 # regenerate docs/product/backlog.md from spec headers
