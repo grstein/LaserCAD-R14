@@ -1,6 +1,6 @@
 # LCV-155 — Test layout by area and a faster inner loop
 
-- **Status**: Planned
+- **Status**: In Progress
 - **Depends on**: none
 - **Implementation**: -
 
