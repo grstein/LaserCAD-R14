@@ -154,7 +154,8 @@ pub(crate) const RECOVERY_HOVER_TEXT: &str = "This drawing was restored from a c
 /// Render the status bar into `ui`.
 ///
 /// Displays — left to right — cursor coordinates, the active tool name
-/// (uppercased), the document entity count, the three clickable mode
+/// (uppercased), the document entity count, the current-layer dropdown
+/// (LCV-156, `src/ui/layer_combo.rs`), the three clickable mode
 /// indicators `SNAP` / `GRID` / `ORTHO` (LCV-116, always visible, selected iff their flag is on), the autosave
 /// indicator, and — only while [`App::title`]'s
 /// `recovered_from_autosave` is set (LCV-138) — a recovery label with an
@@ -175,6 +176,7 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
     // At most one indicator can be clicked per frame; the flip is applied
     // after the loop so the borrow of `app` inside it stays shared.
     let mut toggled: Option<Mode> = None;
+    let mut picked_layer = None;
 
     ui.horizontal(|ui| {
         ui.label(&coord_str);
@@ -183,6 +185,7 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
         ui.separator();
         ui.label(format!("Entities: {count}"));
         ui.separator();
+        picked_layer = super::layer_combo::layer_combo(ui, app);
         for mode in Mode::ALL {
             ui.separator();
             let hint = format!("{} ({})", mode.label(), mode.key_hint());
@@ -209,6 +212,9 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
 
     if let Some(mode) = toggled {
         apply_toggle(app, mode);
+    }
+    if let Some(id) = picked_layer {
+        app.commit(Box::new(crate::document::SetCurrentLayer::new(id)));
     }
 }
 

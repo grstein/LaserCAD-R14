@@ -6,6 +6,7 @@
 pub mod command_destination;
 pub mod command_line;
 pub mod dialogs;
+mod layer_combo;
 pub mod layers_dialog;
 pub mod menubar;
 pub mod shortcuts;

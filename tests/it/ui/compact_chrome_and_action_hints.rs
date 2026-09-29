@@ -450,7 +450,7 @@ fn assert_status_bar_fits(screen: [f32; 2]) {
         rect.height()
     );
 
-    let expected = ["SELECT", "Entities: 0", "SNAP", "GRID", "ORTHO"];
+    let expected = ["SELECT", "Entities: 0", "Cut", "SNAP", "GRID", "ORTHO"];
     let found: Vec<&Run> = expected
         .iter()
         .map(|label| {
@@ -516,7 +516,7 @@ fn ac6_canvas_stays_usable_with_the_agent_panel_open_and_large_fixtures() {
         "the six-digit signed coordinate pair must paint intact: {:?}",
         runs.iter().map(|r| &r.text).collect::<Vec<_>>()
     );
-    let expected = ["SELECT", "Entities: 1234", "SNAP", "GRID", "ORTHO"];
+    let expected = ["SELECT", "Entities: 1234", "Cut", "SNAP", "GRID", "ORTHO"];
     let found: Vec<&Run> = expected
         .iter()
         .map(|label| {

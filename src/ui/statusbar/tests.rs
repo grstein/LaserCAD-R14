@@ -252,7 +252,7 @@ fn harness_texts(shapes: &[egui::epaint::ClippedShape]) -> Vec<String> {
 // ── LCV-116 static checks ─────────────────────────────────────────────
 
 /// LCV-116 AC 2 / AC 8 — the segment order is pinned: entity count, then
-/// the three indicators, then the
+/// the LCV-156 layer dropdown (where the preset badge was), then the three indicators, then the
 /// autosave indicator **last**. Bounded to `draw_statusbar`, so this
 /// test's own body cannot satisfy the scan.
 #[test]
@@ -261,6 +261,9 @@ fn status_bar_segment_order_is_pinned() {
     let count = body
         .find("Entities: {count}")
         .expect("entity count present");
+    let layer = body
+        .find("layer_combo::layer_combo(ui, app)")
+        .expect("layer dropdown present");
     let modes = body
         .find("for mode in Mode::ALL {")
         .expect("mode indicators present");
@@ -268,8 +271,8 @@ fn status_bar_segment_order_is_pinned() {
         .find("ui.label(autosave_str);")
         .expect("autosave indicator present");
     assert!(
-        count < modes && modes < autosave,
-        "order: entity count, SNAP/GRID/ORTHO, autosave last"
+        count < layer && layer < modes && modes < autosave,
+        "order: entity count, layer, SNAP/GRID/ORTHO, autosave last"
     );
     assert!(
         !body[..modes].contains("if "),
