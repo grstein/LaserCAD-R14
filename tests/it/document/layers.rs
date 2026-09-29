@@ -1,6 +1,7 @@
 //! LCV-156 — layer membership through the document commands (AC 2, AC 8).
 
 use lasercad::document::commands::CreateEntities;
+use lasercad::document::{AddLayer, DeleteLayer, EditLayer, SetCurrentLayer, SetEntityLayers};
 use lasercad::document::{
     CreateArc, CreateCircle, CreateLine, DeleteEntities, Document, Entity, History, Layer, LayerId,
 };
@@ -145,4 +146,139 @@ fn random_command_sequences_keep_membership() {
             );
         }
     }
+}
+
+// ── T7: layer commands, one undo step each (AC 4, AC 6, AC 7, AC 8) ──────
+
+fn names(doc: &Document) -> Vec<&str> {
+    doc.layers().iter().map(|l| l.name.as_str()).collect()
+}
+
+/// AC 4 / AC 8 — adding a layer appends it; undo removes it; redo brings it
+/// back with the same id.
+#[test]
+fn add_layer_is_one_undo_step_and_redo_keeps_the_id() {
+    let mut doc = Document::default();
+    let mut history = History::new();
+    history.commit(
+        Box::new(AddLayer::new("Engrave", [0, 170, 0], false)),
+        &mut doc,
+    );
+    assert_eq!(names(&doc), ["Cut", "Engrave"]);
+    let added = doc.layers()[1].clone();
+    assert_eq!((added.color, added.output), ([0, 170, 0], false));
+    assert_ne!(added.id, doc.layers()[0].id);
+    assert!(history.undo(&mut doc));
+    assert_eq!(names(&doc), ["Cut"]);
+    assert!(history.redo(&mut doc));
+    assert_eq!(doc.layers()[1], added);
+}
+
+/// AC 4 / AC 8 — rename, recolor and Output toggle are one step.
+#[test]
+fn edit_layer_is_one_undo_step() {
+    let mut doc = two_layer_doc(CUT);
+    let mut history = History::new();
+    let before = doc.layers()[1].clone();
+    let edited = Layer {
+        name: "Fine mark".into(),
+        color: [1, 2, 3],
+        output: false,
+        ..before.clone()
+    };
+    history.commit(Box::new(EditLayer::new(edited.clone())), &mut doc);
+    assert_eq!(doc.layers()[1], edited);
+    assert!(history.undo(&mut doc));
+    assert_eq!(doc.layers()[1], before);
+}
+
+/// AC 4 / AC 8 — deleting a layer, current or not, is undone in place; a
+/// deleted current layer hands "current" to the first remaining layer.
+#[test]
+fn delete_layer_restores_position_and_current() {
+    let mut doc = two_layer_doc(CUT);
+    let mut history = History::new();
+    history.commit(
+        Box::new(AddLayer::new("Engrave", [0, 170, 0], true)),
+        &mut doc,
+    );
+    history.commit(Box::new(DeleteLayer::new(MARK)), &mut doc);
+    assert_eq!(names(&doc), ["Cut", "Engrave"]);
+    assert!(history.undo(&mut doc));
+    assert_eq!(names(&doc), ["Cut", "Mark", "Engrave"]);
+    history.commit(Box::new(DeleteLayer::new(CUT)), &mut doc);
+    assert_eq!(names(&doc), ["Mark", "Engrave"]);
+    assert_eq!(doc.current_layer(), MARK);
+    assert!(history.undo(&mut doc));
+    assert_eq!(
+        (names(&doc), doc.current_layer()),
+        (vec!["Cut", "Mark", "Engrave"], CUT)
+    );
+}
+
+/// AC 7 — the checks the app runs before committing refuse a non-empty
+/// layer and the last layer.
+#[test]
+fn delete_checks_refuse_non_empty_and_last_layer() {
+    let mut doc = two_layer_doc(CUT);
+    doc.push_entity(Entity::Line(line(0.0)), MARK);
+    assert!(doc
+        .check_delete_layer(MARK)
+        .unwrap_err()
+        .to_string()
+        .contains("Mark"));
+    let lone = Document::default();
+    let only = lone.layers()[0].id;
+    assert!(lone.check_delete_layer(only).is_err());
+}
+
+/// AC 6 — the checks refuse a duplicate name (sanitised, any case) or color.
+#[test]
+fn add_and_rename_checks_refuse_duplicates() {
+    let doc = two_layer_doc(CUT);
+    assert!(doc
+        .check_new_layer("MARK!", [9, 9, 9])
+        .unwrap_err()
+        .to_string()
+        .contains("Mark"));
+    assert!(doc
+        .check_new_layer("Engrave", [0, 0, 255])
+        .unwrap_err()
+        .to_string()
+        .contains("#0000ff"));
+    assert!(doc.check_edit_layer(MARK, "cut", [0, 0, 255]).is_err());
+    assert!(doc.check_edit_layer(MARK, "Mark", [255, 0, 0]).is_err());
+    assert!(doc.check_edit_layer(MARK, "mark", [0, 0, 255]).is_ok());
+}
+
+/// AC 4 / AC 8 — changing the current layer is one step.
+#[test]
+fn set_current_layer_is_one_undo_step() {
+    let mut doc = two_layer_doc(CUT);
+    let mut history = History::new();
+    history.commit(Box::new(SetCurrentLayer::new(MARK)), &mut doc);
+    assert_eq!(doc.current_layer(), MARK);
+    let before = history.revision();
+    assert!(history.undo(&mut doc));
+    assert_ne!(history.revision(), before);
+    assert_eq!(doc.current_layer(), CUT);
+}
+
+/// AC 4 / AC 8 — moving the selection to a layer is one step.
+#[test]
+fn set_entity_layers_is_one_undo_step() {
+    let mut doc = two_layer_doc(CUT);
+    let mut history = History::new();
+    for (i, id) in [CUT, MARK, CUT].into_iter().enumerate() {
+        doc.push_entity(Entity::Line(line(i as f64)), id);
+    }
+    history.commit(
+        Box::new(SetEntityLayers::new(vec![0, 1, 2], MARK)),
+        &mut doc,
+    );
+    assert_eq!(memberships(&doc), vec![MARK; 3]);
+    assert!(history.undo(&mut doc));
+    assert_eq!(memberships(&doc), vec![CUT, MARK, CUT]);
+    assert!(history.redo(&mut doc));
+    assert_eq!(memberships(&doc), vec![MARK; 3]);
 }

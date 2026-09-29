@@ -6,7 +6,7 @@
 - [x] T4 [AC2] Move `Document {..}` literals and `entities.push/insert/remove` call sites onto mutators (src) (files: src/document/commands/create.rs, src/document/commands/edit.rs, src/io/svg/import.rs)
 - [x] T5 [AC2] Same migration for remaining src and test sites, ≤3 files per commit (files: as found by `cargo build --tests`)
 - [x] T6 [AC2] [AC8] Test then implement: create commands use the current layer; `DeleteEntities` restores membership; membership property test (files: src/document/commands/create.rs, src/document/commands/edit.rs, tests/it/document/layers.rs)
-- [ ] T7 [AC4] [AC6] [AC7] [AC8] Test then implement `commands/layer.rs` (Add/Edit/Delete/SetCurrent/SetEntityLayers, undo each) (files: src/document/commands/layer.rs, src/document/commands/mod.rs, tests/it/document/layers.rs)
+- [x] T7 [AC4] [AC6] [AC7] [AC8] Test then implement `commands/layer.rs` (Add/Edit/Delete/SetCurrent/SetEntityLayers, undo each) (files: src/document/commands/layer.rs, src/document/commands/mod.rs, tests/it/document/layers.rs)
 - [ ] T8 [AC9] Test: mother SVG round-trip (names, colors, Output, order, membership, current, escaping, stray geometry, `MalformedLayer`) (files: tests/it/io_svg/layers_roundtrip.rs, tests/it/io_svg/mod.rs)
 - [ ] T9 [AC9] Implement `svg/layers.rs`, `export_svg(doc)`, import of layers; remove `Preset` (files: src/io/svg/layers.rs, src/io/svg/export.rs, src/io/svg/import.rs)
 - [ ] T10 [AC15] Remove preset state/UI and its tests; drop `tests/it/app/preset_ui.rs`, rewrite `io_svg/preset_roundtrip.rs` (files: src/app/mod.rs, src/ui/menubar.rs, src/ui/statusbar.rs)

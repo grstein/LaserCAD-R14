@@ -15,8 +15,9 @@ pub mod selection;
 pub mod state;
 
 pub use commands::{
-    Command, CompositeCommand, CreateArc, CreateCircle, CreateLine, DeleteEntities, ExtendEntity,
-    MoveEntities, NoOpCommand, SelectionCommand, SetBedSize, TrimEntity,
+    AddLayer, Command, CompositeCommand, CreateArc, CreateCircle, CreateLine, DeleteEntities,
+    DeleteLayer, EditLayer, ExtendEntity, MoveEntities, NoOpCommand, SelectionCommand, SetBedSize,
+    SetCurrentLayer, SetEntityLayers, TrimEntity,
 };
 pub use entity::{Entity, SCHEMA_VERSION};
 pub use history::{History, HISTORY_DEPTH};
