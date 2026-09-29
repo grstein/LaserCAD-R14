@@ -24,4 +24,8 @@ paths:
   in `tests/it/<area>/` (agent, app, cmdline, ui, io_svg, document, geometry, repo; LCV-155) with
   descriptive names and the LCV id in the `//!` header. A new file gets a `mod` line in its area's
   `mod.rs` and `use crate::harness;` if it needs the harness. Never add `tests/<name>.rs`.
+- A test module over ~300 lines lives in a sibling `<file>/tests.rs` (`mod.rs` → `tests.rs`
+  beside it), declared at the end of the file by a column-0 `#[cfg(test)]` + `mod tests;`
+  (ADR 0004 amendment 5); `include_str!` there uses `concat!(env!("CARGO_MANIFEST_DIR"), "/…")`.
+  A scan bounded at `#[cfg(test)]` skips `tests.rs` files (`harness::scan::is_test_file`).
 - `tests/harness/` is shared implementation and obeys the 300-LOC cap; `tests/it/` modules are exempt.

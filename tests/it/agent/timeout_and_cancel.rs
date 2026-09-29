@@ -38,7 +38,7 @@ use crate::harness;
 
 use harness::paint::{lines_on_surface_of, painted_runs, texts, Run};
 use harness::raw_input;
-use harness::scan::{occurrences, rs_files};
+use harness::scan::{is_test_file, occurrences, rs_files};
 use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome, TransportError};
 use lasercad::app::{arm_turn, cancel_turn, poll_agent_rx, App, AGENT_CANCELLED_MESSAGE};
 use std::path::Path;
@@ -167,6 +167,7 @@ fn implementation_sections() -> Vec<(String, String)> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut files = Vec::new();
     rs_files(&root, &mut files);
+    files.retain(|path| !is_test_file(path));
     assert!(
         files.len() > 30,
         "positive control: the walk must see the whole tree, saw {}",

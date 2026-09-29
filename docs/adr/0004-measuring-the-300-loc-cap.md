@@ -25,6 +25,13 @@
   `agent_apply.rs` destination named under §"The rest of the band" is
   superseded by ADR 0007 amendment (7)'s `agent_narrate.rs`. Rule 4 is applied,
   not changed; nothing in rules 1..4 is reversed.
+- **Amended (5)**: 2026-09-29 — LCV-155. A test module over ~300 lines lives in a
+  sibling `tests.rs` (`<file>/tests.rs`; beside a `mod.rs`), declared by a
+  column-0 `#[cfg(test)]` then `mod tests;` at the end of the file, as
+  `src/geometry/snap/tests.rs` already was. Rule 3's `tests.rs` exemption covers
+  it; source scans bounded at `#[cfg(test)]` skip a `tests.rs` file. Never
+  `src/agent/tests.rs` (LCV-128 AC 2 names every file directly there). Nothing
+  in rules 1..4 is reversed.
 - **Date**: 2026-09-13
 - **Deciders**: architect
 

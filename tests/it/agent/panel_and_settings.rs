@@ -34,7 +34,7 @@ use crate::harness;
 
 use harness::frame;
 use harness::paint::{lines_on_surface_of, painted_runs, texts};
-use harness::scan::rs_files;
+use harness::scan::{is_test_file, rs_files};
 use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome};
 use lasercad::app::{arm_turn, App};
 use std::path::{Path, PathBuf};
@@ -484,6 +484,7 @@ fn agent_sections() -> Vec<(String, String)> {
         .join("agent");
     let mut files = Vec::new();
     rs_files(&root, &mut files);
+    files.retain(|path| !is_test_file(path));
     assert!(
         files.len() >= 9,
         "positive control: the walk over src/agent must see the whole module, saw {}",

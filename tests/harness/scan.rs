@@ -69,6 +69,15 @@ pub fn rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
+/// Whether `path` is a sibling test module, `<file>/tests.rs` (LCV-155).
+///
+/// Such a file is all test code with no column-0 `#[cfg(test)]` to cut at, so
+/// a scan bounded by rule 1 must drop it rather than read it whole as
+/// implementation.
+pub fn is_test_file(path: &Path) -> bool {
+    path.file_name().is_some_and(|name| name == "tests.rs")
+}
+
 /// Every `(path, count)` whose section contains `needle` on a **code** line,
 /// in the order `sections` was given.
 ///

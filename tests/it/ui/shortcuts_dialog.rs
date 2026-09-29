@@ -138,6 +138,9 @@ fn f1_has_exactly_one_reader() {
     let mut scanned = 0usize;
 
     for path in walk(&root.join("src")) {
+        if crate::harness::scan::is_test_file(&path) {
+            continue;
+        }
         let src = std::fs::read_to_string(&path).expect("source file");
         scanned += 1;
         if implementation(&src).contains(needle) {

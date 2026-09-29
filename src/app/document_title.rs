@@ -75,7 +75,7 @@ impl App {
 /// computes [`App::display_title`], but only a differing result calls
 /// `ctx.send_viewport_cmd`. This adds no `ctx.request_repaint*` call: it is a
 /// plain comparison against already-live state, not a new wake-up source, so
-/// `src/app/viewport.rs`'s `every_repaint_request_in_src_is_conditional`
+/// `src/app/viewport/tests.rs`'s `every_repaint_request_in_src_is_conditional`
 /// three-site count is unaffected.
 pub fn update_title(ctx: &egui::Context, app: &mut App) {
     let title = app.display_title();
@@ -207,7 +207,7 @@ mod tests {
 
     /// AC 2 — this file adds no `ctx.request_repaint*` **call**: the title
     /// update is a plain per-frame comparison, not a new wake-up source, so
-    /// `src/app/viewport.rs`'s `every_repaint_request_in_src_is_conditional`
+    /// `src/app/viewport/tests.rs`'s `every_repaint_request_in_src_is_conditional`
     /// three-site count stays unaffected by this demand. Comment lines are
     /// skipped (mirroring that same test's own `implementation_or_all`
     /// convention) so this file's own doc prose about *not* calling it does

@@ -760,7 +760,7 @@ fn run_until_idle(ctx: &egui::Context, app: &mut App, message: &str) {
 /// loop calls `update_ui` on its own schedule, so it keeps running frames
 /// whether or not anything asked for a repaint. Deleting the guard leaves this
 /// test green. What catches that is a source scan —
-/// `every_repaint_request_in_src_is_conditional` in `src/app/viewport.rs` for
+/// `every_repaint_request_in_src_is_conditional` in `src/app/viewport/tests.rs` for
 /// the call site, and `the_agent_repaint_is_guarded_on_the_busy_flag` below
 /// for the condition it is guarded on.
 #[test]

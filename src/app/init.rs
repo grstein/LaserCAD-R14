@@ -366,7 +366,7 @@ mod tests {
     }
 
     /// Every `.rs` file under `dir`, recursively — mirrors
-    /// `src/ui/statusbar.rs`'s own `walk_src` helper (each file that needs a
+    /// `src/ui/statusbar/tests.rs`'s own `walk_src` helper (each file that needs a
     /// whole-tree scan keeps its own private copy; nothing under `src/` may
     /// import `#[cfg(test)]` plumbing from a sibling module).
     fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
@@ -374,7 +374,7 @@ mod tests {
             let path = entry.expect("readable entry").path();
             if path.is_dir() {
                 walk(&path, out);
-            } else if path.extension().is_some_and(|e| e == "rs") {
+            } else if path.extension().is_some_and(|e| e == "rs") && !path.ends_with("tests.rs") {
                 out.push(path);
             }
         }

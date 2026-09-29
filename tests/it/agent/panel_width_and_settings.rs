@@ -32,7 +32,7 @@
 //!
 //! Covered by re-running `tests/it/agent/panel_and_settings.rs`,
 //! `tests/it/agent/timeout_and_cancel.rs`, `tests/it/app/idle_repaint.rs`
-//! and `src/app/viewport.rs::every_repaint_request_in_src_is_conditional`
+//! and `src/app/viewport/tests.rs::every_repaint_request_in_src_is_conditional`
 //! (unmodified, save for the one now-incomplete literal table in LCV-125's
 //! own settings-paint test — see the note on that test).
 

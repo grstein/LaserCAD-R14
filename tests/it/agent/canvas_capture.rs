@@ -334,6 +334,9 @@ fn src_sections(bounded: bool) -> Vec<(String, String)> {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut files = Vec::new();
     harness::scan::rs_files(&root.join("src"), &mut files);
+    if bounded {
+        files.retain(|path| !harness::scan::is_test_file(path));
+    }
     let mut sections: Vec<(String, String)> = files
         .iter()
         .map(|path| {

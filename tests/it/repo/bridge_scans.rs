@@ -31,7 +31,7 @@
 
 use crate::harness;
 
-use harness::scan::{files_containing, rs_files};
+use harness::scan::{files_containing, is_test_file, rs_files};
 use std::path::Path;
 
 /// The implementation half of a source file: everything before the bare
@@ -50,6 +50,9 @@ fn sections(dir: &str, bound: bool, minimum: usize) -> Vec<(String, String)> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join(dir);
     let mut files = Vec::new();
     rs_files(&root, &mut files);
+    if bound {
+        files.retain(|path| !is_test_file(path));
+    }
     assert!(
         files.len() >= minimum,
         "positive control: the walk over {dir} must see at least {minimum} files, saw {}",

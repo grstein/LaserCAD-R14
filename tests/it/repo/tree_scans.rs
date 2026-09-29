@@ -23,7 +23,7 @@
 
 use crate::harness;
 
-use harness::scan::{files_containing, rs_files};
+use harness::scan::{files_containing, is_test_file, rs_files};
 use std::path::{Path, PathBuf};
 
 /// The implementation half of a source file: everything before the bare
@@ -41,6 +41,7 @@ fn implementation_sections() -> (PathBuf, Vec<(String, String)>) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut files = Vec::new();
     rs_files(&root, &mut files);
+    files.retain(|path| !is_test_file(path));
     assert!(
         files.len() > 30,
         "positive control: the walk must see the whole tree, saw {}",
