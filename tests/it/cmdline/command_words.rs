@@ -68,3 +68,28 @@ fn every_command_word_activates_its_tool() {
         );
     }
 }
+
+/// LCV-156 AC 4 — `LAYER` and its R14 alias `LA` (any case) open the
+/// Layers… dialog on the current layer, leave the active tool alone and
+/// answer no `Unknown command`.
+#[test]
+fn layer_and_la_open_the_layers_dialog() {
+    for word in ["LAYER", "layer", "LA", "la"] {
+        let (ctx, mut app) = boot();
+        assert!(app.layers_dialog.is_none(), "positive control");
+        let tool = app.tool_manager.active_tool_name();
+        submit_command(&ctx, &mut app, word);
+        let dialog = app.layers_dialog.as_ref();
+        assert_eq!(
+            dialog.map(|d| d.selected),
+            Some(app.document.current_layer()),
+            "{word:?} must open the Layers dialog on the current layer"
+        );
+        assert_eq!(app.tool_manager.active_tool_name(), tool, "{word:?}");
+        assert!(
+            !app.command_feedback.contains("Unknown command"),
+            "{word:?} answered {:?}",
+            app.command_feedback
+        );
+    }
+}

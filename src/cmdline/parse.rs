@@ -55,6 +55,10 @@ pub fn parse(raw: &str) -> CommandInput {
     if let Some(kind) = zoom_form(&lower) {
         return CommandInput::Zoom(kind);
     }
+    // R14's word and alias (ADR 0012 §7); not a letter-axis entry.
+    if lower == "layer" || lower == "la" {
+        return CommandInput::Layers;
+    }
     if let Some(rest) = trimmed.strip_prefix('@') {
         return match parse_pair(rest.trim()) {
             Some(v) => CommandInput::Relative(v),
@@ -312,6 +316,18 @@ mod tests {
                 CommandInput::Tool(kind),
                 "word {word:?} must resolve to {kind:?}"
             );
+        }
+    }
+
+    /// LCV-156 AC 4 — `layer` and `la` (any case) are the Layers command;
+    /// `lay` and `layers` are not words.
+    #[test]
+    fn parses_layer_words() {
+        for raw in ["layer", "LAYER", " La "] {
+            assert_eq!(parse(raw), CommandInput::Layers, "{raw:?}");
+        }
+        for raw in ["lay", "layers"] {
+            assert_eq!(parse(raw), CommandInput::Unknown(raw.into()), "{raw:?}");
         }
     }
 

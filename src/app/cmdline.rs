@@ -125,6 +125,7 @@ pub fn submit(app: &mut App, raw: &str) {
         CommandInput::Tool(kind) => app.tool_manager.set_tool(tools::make(kind)),
         CommandInput::Toggle(kind) => toggle(app, kind),
         CommandInput::Zoom(kind) => zoom(app, kind),
+        CommandInput::Layers => app.open_layers_dialog(),
         CommandInput::Point(p) => send(app, ToolInput::Point(p)),
         CommandInput::Relative(delta) => match app.tool_manager.anchor() {
             Some(anchor) => send(app, ToolInput::Point(anchor + delta)),

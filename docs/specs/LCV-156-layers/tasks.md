@@ -17,7 +17,7 @@
 - [x] T15 [AC4] [AC6] [AC7] Test then implement `app/layers.rs` dialog state + validation messages (files: src/app/layers.rs, src/app/mod.rs, tests/it/app/layers_dialog.rs)
 - [x] T16 [AC4] Layers dialog UI (files: src/ui/layers_dialog.rs, src/ui/mod.rs, src/ui/menubar.rs)
 - [x] T17 [AC5] Test then implement status-bar layer dropdown (files: src/ui/layer_combo.rs, src/ui/statusbar.rs, tests/it/ui/layer_combo.rs)
-- [ ] T18 [AC4] Test then implement `LAYER`/`LA` command (files: src/cmdline/parse.rs, src/app/cmdline.rs, tests/it/cmdline/command_words.rs)
+- [x] T18 [AC4] Test then implement `LAYER`/`LA` command (files: src/cmdline/parse.rs, src/app/cmdline.rs, tests/it/cmdline/command_words.rs)
 - [ ] T19 [AC14] Test then implement agent `layer` argument and `query_entities` layers (files: src/agent/tools.rs, src/agent/drawing.rs, src/app/agent_apply.rs)
 - [ ] T20 [AC14] Built-in prompt describes layers; prompt test (files: src/agent/prompt.rs, tests/it/agent/default_prompt.rs)
 - [ ] T21 Mutation testing on export.rs, svg/layers.rs, commands/layer.rs; kill survivors (files: tests as needed)

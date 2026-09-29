@@ -42,6 +42,8 @@ pub enum CommandInput {
     Toggle(ToggleKind),
     /// A zoom command, e.g. `"zoom in"`, `"ze"`.
     Zoom(ZoomKind),
+    /// `"layer"` / `"la"`: open the Layers… dialog (LCV-156, ADR 0012 §7).
+    Layers,
     /// The field was blank (empty or whitespace-only).
     ///
     /// Distinct from `Unknown(String::new())`: pressing Enter on a blank
