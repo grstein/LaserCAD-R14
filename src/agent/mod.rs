@@ -11,7 +11,7 @@
 //! one — `panel.rs`, which built a throwaway `Document`/`History` pair for
 //! every turn — and LCV-123 deleted it: the turn now runs against the
 //! operator's real document on the UI thread (`src/app/agent_turn.rs`), and
-//! this directory never names one. `tests/lcv122_source_scans.rs` enforces
+//! this directory never names one. `tests/it/repo/bridge_scans.rs` enforces
 //! that, and asserts its exception list **empty**; re-opening it needs an ADR.
 
 pub mod wire;

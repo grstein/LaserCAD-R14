@@ -177,9 +177,9 @@ mod tests {
     //      src/tools/manager.rs — active_status_text + delegation   (AC#5, AC#6)
     //      src/app/cmdline.rs — the submit contract                 (LCV-111)
     //      src/ui/command_destination.rs — the destination table    (LCV-139)
-    //      tests/it/lcv111.rs — focus, recall, Enter and Escape driven
+    //      tests/it/cmdline/drives_tools.rs — focus, recall, Enter and Escape driven
     //                           through the real frame body
-    //      tests/it/lcv112.rs — raw-input focus-holding and the TEXT flow
-    //      tests/it/lcv139_command_line_context_row.rs — the two-row layout,
+    //      tests/it/cmdline/text_command.rs — raw-input focus-holding and the TEXT flow
+    //      tests/it/cmdline/context_row.rs — the two-row layout,
     //                           its bounds and the destination label's paint
 }

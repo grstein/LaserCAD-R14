@@ -174,7 +174,7 @@ pub(crate) fn tool_hover_text(entry: &ToolEntry) -> String {
 /// overflows its own assigned rect with no way back, so anything left
 /// outside the one scrolling mechanism on an extremely cramped window would
 /// be unreachable, not merely hidden (LCV-140 review, mutation testing:
-/// `tests/lcv140_compact_r14_chrome_and_action_hints.rs::ac2_a_real_wheel_scroll_reaches_a_row_hidden_by_the_cramped_rail`
+/// `tests/it/ui/compact_chrome_and_action_hints.rs::ac2_a_real_wheel_scroll_reaches_a_row_hidden_by_the_cramped_rail`
 /// is the regression guard).
 pub fn draw_toolbar(ui: &mut egui::Ui, app: &mut App) {
     // `active_tool_name` returns `&'static str` — the borrow on `app` ends
@@ -234,7 +234,7 @@ mod tests {
     /// matching the same `active == entry.tool_name` comparison
     /// `draw_toolbar` uses to decide which button paints highlighted. The
     /// real click-through-the-UI case (one entry, "Circle") lives in
-    /// `tests/lcv140_compact_r14_chrome_and_action_hints.rs`; this covers the
+    /// `tests/it/ui/compact_chrome_and_action_hints.rs`; this covers the
     /// same comparison for all eleven, which a single UI click cannot afford.
     #[test]
     fn activating_each_tool_highlights_only_itself() {

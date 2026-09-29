@@ -369,7 +369,7 @@ mod tests {
 
     /// LCV-141 AC 7 — **source scan**: the dialog's body is wrapped in a
     /// bounded `ScrollArea`, matching `src/ui/shortcuts_dialog.rs`'s own
-    /// pattern (ADR 0009). `tests/lcv141_agent_panel_width_and_settings.rs`
+    /// pattern (ADR 0009). `tests/it/agent/panel_width_and_settings.rs`
     /// proves the *mechanism* — a `Window` + `ScrollArea` absorbs an
     /// overflowing body instead of the window growing — against a
     /// hand-built harness, because nothing outside this private function can

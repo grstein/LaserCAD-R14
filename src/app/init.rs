@@ -78,7 +78,7 @@ impl Default for App {
         // `context.rs::request_repaint_after`'s "each request results in two
         // repaints" `outstanding` counter) — without this, a freshly
         // constructed, untouched `App::default()` would fail
-        // `tests/lcv120_idle_repaint.rs::an_idle_app_asks_for_no_repaint` on
+        // `tests/it/app/idle_repaint.rs::an_idle_app_asks_for_no_repaint` on
         // its first two supposedly-idle frames, purely from the title cache
         // starting `None`. `App::new()` deliberately does **not** do this:
         // the real native window was already told the static `APP_TITLE` by

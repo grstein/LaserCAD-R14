@@ -12,7 +12,7 @@
 //! returns *before* `classify` is reached while the active tool wants the
 //! command line as a free-text field. Moving the call above that early return
 //! posts the string an operator is typing into a TEXT entity to a language
-//! model; `tests/lcv124_command_line_routing.rs` guards it by name.
+//! model; `tests/it/cmdline/agent_routing.rs` guards it by name.
 //!
 //! Purity: this file's implementation imports nothing but `std`. `crate::cmdline`
 //! is a permitted import (ADR 0003 §A2a) that, since LCV-148, lives only in
@@ -123,7 +123,7 @@ mod tests {
 
     /// Does any **code** line of `haystack` contain `needle`?
     ///
-    /// Comment lines are skipped, exactly as `tests/lcv122_source_scans.rs`
+    /// Comment lines are skipped, exactly as `tests/it/repo/bridge_scans.rs`
     /// does it and for the same reason: this file's header names the crates it
     /// may not import precisely in order to forbid them, and a scan that read
     /// prose as an import would force the rule to go undocumented to stay true.

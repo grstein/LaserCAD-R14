@@ -541,7 +541,7 @@ mod tests {
     }
 
     // `action_new` keeping the preset (LCV-115 AC 5) is covered in
-    // `tests/lcv115_preset_ui.rs`, where the demand places it.
+    // `tests/it/app/preset_ui.rs`, where the demand places it.
 
     /// AC 3 — action_new clears current_file.
     #[test]

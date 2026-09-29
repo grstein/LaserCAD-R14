@@ -5,7 +5,7 @@ paths:
 ---
 # Agent area rules (ADR 0007)
 
-- Containment is in AGENTS.md §Purity rule and is scanned by `tests/it/lcv128_normative_enumerations.rs`:
+- Containment is in AGENTS.md §Purity rule and is scanned by `tests/it/repo/normative_enumerations.rs`:
   a new file under `src/agent/` must be named in that section or the gate fails.
 - A turn runs on a plain `std::thread` (`src/app/agent_turn.rs::start_turn`) calling blocking
   `reqwest` in `src/agent/transport.rs::chat_completion`; results return over `std::sync::mpsc`,

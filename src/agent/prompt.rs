@@ -14,7 +14,7 @@
 ///
 /// Static and ASCII-only (LCV-151): one section per concern, in the order the
 /// spec lists them. The tool paragraphs are written by hand and kept honest by
-/// `tests/it/lcv151_default_prompt.rs`, which fails when a tool or argument of
+/// `tests/it/agent/default_prompt.rs`, which fails when a tool or argument of
 /// `tool_definitions()` is missing from its paragraph. The fence and budget
 /// messages are quoted from the constants the code emits, pinned by
 /// `app::agent_worker` tests; the index section is ADR 0007 §D5.

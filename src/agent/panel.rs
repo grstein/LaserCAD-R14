@@ -12,7 +12,7 @@
 //! constructs no `Document` and no `History` — until LCV-123 it did all three,
 //! against a throwaway document whose geometry went nowhere, and it was the one
 //! documented exception to ADR 0007 §D1. That exception is now empty:
-//! `tests/lcv122_source_scans.rs` asserts no file under `src/agent/` names a
+//! `tests/it/repo/bridge_scans.rs` asserts no file under `src/agent/` names a
 //! document, and this file's own `the_panel_renders_and_reports` asserts it
 //! here by name. Submitting a prompt is one call into [`crate::app::start_turn`],
 //! which owns the fence, the thread and the settings reads.
@@ -317,7 +317,7 @@ mod tests {
     /// LCV-080 AC#3, retargeted by LCV-122 — the terminal events the spawned
     /// thread sends are distinct, and they are now the bridge's, not the
     /// panel's. `panel.rs` declaring its own payload type again is what this
-    /// test's sibling scan in `tests/lcv122_source_scans.rs` catches.
+    /// test's sibling scan in `tests/it/repo/bridge_scans.rs` catches.
     #[test]
     fn the_two_terminal_events_are_distinct() {
         let done = AgentEvent::done("x");
@@ -396,7 +396,7 @@ mod tests {
 
     /// AC 6 — **source scan**: the panel never reads the API key. The key's
     /// absence from the transcript is proven at runtime in
-    /// `tests/lcv125_agent_panel_and_settings.rs`; this pins that the panel
+    /// `tests/it/agent/panel_and_settings.rs`; this pins that the panel
     /// does not even have the field in hand.
     #[test]
     fn ac6_the_panel_never_reads_the_api_key_source_scan() {
@@ -543,7 +543,7 @@ mod tests {
     /// block, and its body is one call into the app.
     ///
     /// What it is painted like, and that it is painted at all, is asserted at
-    /// runtime in `tests/lcv129_agent_timeout_and_cancel.rs`. What only a scan
+    /// runtime in `tests/it/agent/timeout_and_cancel.rs`. What only a scan
     /// can say is the second half: that the click handler does *nothing else* —
     /// no `agent.busy` assignment here, no `agent.rx` cleared here, because
     /// ending a turn is `agent_poll`'s alone (ADR 0007 §D11).

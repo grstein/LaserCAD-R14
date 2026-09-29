@@ -258,7 +258,7 @@ impl App {
             // loop drives `update_ui` on its own schedule and never asks egui
             // whether a repaint was requested — so what pins it is a scan of
             // this *condition*: `the_agent_repaint_is_guarded_on_the_busy_flag`
-            // in `tests/lcv123_agent_turn.rs`.
+            // in `tests/it/agent/turn.rs`.
             ctx.request_repaint();
         }
         panels::draw_agent_side_panel(ctx, self);

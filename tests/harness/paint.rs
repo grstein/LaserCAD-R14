@@ -41,7 +41,7 @@
 //!    column **before** grouping by `y`, or a left-column run joins a
 //!    right-column line whenever their `y` falls within [`SAME_LINE`] and an
 //!    ordered assertion quietly turns into noise. That bucketing stays at the
-//!    one call site needing it (`tests/lcv126_command_line_group.rs`); it is
+//!    one call site needing it (`tests/it/ui/shortcuts_command_line_group.rs`); it is
 //!    deliberately not a parameter here.
 //! 4. **Runs on one visual row do not share a `y`.** A `Grid` row's label and
 //!    its widget's text sit on baselines a point apart — `402` and `401` for
@@ -90,7 +90,7 @@
 //! strict inequality between two of them, never as a value.
 //!
 //! `marker` is a string the test injected into its own fixture
-//! (`tests/lcv125_agent_panel_and_settings.rs` uses `LCV125ROW-{role}`) or a
+//! (`tests/it/agent/panel_and_settings.rs` uses `LCV125ROW-{role}`) or a
 //! shipped label it pinned elsewhere, and [`scoped_runs`] asserts it is painted
 //! **exactly once**. Never a substring: a test controls its fixture text, not
 //! the product's copy.

@@ -80,7 +80,7 @@ pub fn key_events(key: egui::Key, modifiers: egui::Modifiers) -> Vec<egui::Event
 /// from the first key event so `ctx.input(|i| i.modifiers)` agrees with it.
 ///
 /// The screen is a parameter because a layout claim is only true at a size:
-/// `tests/lcv133_shortcuts_dialog_fits.rs` makes the same claim at three of
+/// `tests/it/ui/shortcuts_dialog_fits.rs` makes the same claim at three of
 /// them, and a fixed `SCREEN` forced it to carry a second copy of this.
 pub fn raw_input_at(screen: [f32; 2], events: Vec<egui::Event>) -> egui::RawInput {
     let modifiers = events

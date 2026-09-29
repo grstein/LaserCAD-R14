@@ -22,7 +22,7 @@ use egui::{Align2, Context, Window};
 use crate::ui::toolbar::TOOLS;
 
 /// One group of bindings in the keyboard-shortcuts dialog. `pub` (not
-/// `pub(crate)`) so `tests/lcv133_shortcuts_dialog_fits.rs` can derive counts.
+/// `pub(crate)`) so `tests/it/ui/shortcuts_dialog_fits.rs` can derive counts.
 pub struct ShortcutGroup {
     /// Heading rendered above the group.
     pub heading: &'static str,
@@ -41,7 +41,7 @@ pub struct ShortcutGroup {
 ///
 /// The tool letters are deliberately absent: they are generated from
 /// [`TOOLS`] by [`tool_rows`], so adding or removing a tool changes the dialog
-/// with no edit here (AC 14). `pub` (not `pub(crate)`) so `tests/lcv133_shortcuts_dialog_fits.rs` can derive this table's counts too.
+/// with no edit here (AC 14). `pub` (not `pub(crate)`) so `tests/it/ui/shortcuts_dialog_fits.rs` can derive this table's counts too.
 pub const SHORTCUT_GROUPS: &[ShortcutGroup] = &[
     ShortcutGroup {
         heading: "File",
@@ -91,7 +91,7 @@ pub const SHORTCUT_GROUPS: &[ShortcutGroup] = &[
 /// One row per entry that has a `shortcut`; `Select` has no binding and is
 /// skipped. `TOOLS` is already the single source of truth for the toolbar and
 /// the Tools menu (LCV-104) — a hand-typed third copy would drift on the first
-/// tool change. `pub` so `tests/lcv133_shortcuts_dialog_fits.rs` can derive these rows too.
+/// tool change. `pub` so `tests/it/ui/shortcuts_dialog_fits.rs` can derive these rows too.
 pub fn tool_rows() -> Vec<(&'static str, &'static str)> {
     TOOLS
         .iter()
@@ -171,7 +171,7 @@ fn render_column(ui: &mut egui::Ui, sections: &[Section]) {
 /// so the two columns have headroom above today's content instead of the
 /// 8.00pt they had without it, against a 21.00pt row pitch (LCV-134, ADR 0009
 /// decision 5). What proves it is still working is
-/// `tests/lcv133_shortcuts_dialog_fits.rs`'s `MIN_SLACK_PT` floor: delete this
+/// `tests/it/ui/shortcuts_dialog_fits.rs`'s `MIN_SLACK_PT` floor: delete this
 /// call and that test goes red at all three screen sizes.
 ///
 /// Read-only: no widget changes application state, and it reads no key. `F1`
@@ -232,7 +232,7 @@ mod tests {
     /// LCV-133 AC 5 — the column split is computed from `sections()`, not
     /// hand-typed: this pins today's derived boundary (`Tools`/`File`/`Edit`
     /// left, the rest right) as a regression, while the function under test
-    /// takes no group name as input at all. `tests/lcv133_shortcuts_dialog_fits.rs`
+    /// takes no group name as input at all. `tests/it/ui/shortcuts_dialog_fits.rs`
     /// carries the corresponding rendered-frame proof at three screen sizes;
     /// this is the cheaper, non-rendering half.
     #[test]

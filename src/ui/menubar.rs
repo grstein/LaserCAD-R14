@@ -495,7 +495,7 @@ mod tests {
     // is *written*, not that the tooltip actually paints (AGENTS.md "a
     // rendering acceptance criterion is not satisfied by a source scan
     // alone") — see
-    // `tests/lcv138_document_title_and_file_feedback.rs::open_recent_entry_hover_text_paints_the_full_path`.
+    // `tests/it/app/document_title_and_file_feedback.rs::open_recent_entry_hover_text_paints_the_full_path`.
 
     // -----------------------------------------------------------------------
     // LCV-104 — Tools menu, Help > Agent settings

@@ -793,7 +793,7 @@ mod tests {
 
     /// AC 7 — without a key, unprefixed nonsense answers exactly as it did
     /// before the agent existed. The literal is not copied: it is taken from
-    /// the word `tests/lcv111.rs` already pins and re-spelt for `lien`.
+    /// the word `tests/it/cmdline/drives_tools.rs` already pins and re-spelt for `lien`.
     #[test]
     fn without_a_key_unknown_text_is_unchanged() {
         let mut app = App::default();
