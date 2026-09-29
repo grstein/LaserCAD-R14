@@ -103,11 +103,15 @@ The tree is orientation; `ls` is the inventory.
 Contract of `src/io/svg/export.rs`; changing it needs explicit user confirmation.
 
 - `xmlns` on root `<svg>`; `width`/`height` are the document's bed size in mm (`Document::bed_mm`);
-  `viewBox="0 0 <bed_width> <bed_height>"` without units. Import reads the header back.
+  `viewBox="0 0 <bed_width> <bed_height>"` without units. Import reads the header and layers back.
 - Y mirrored: `y_svg = flip_y(y_world, bed_height)` via `crate::util::flip_y`, using the document's
   own bed height, never a constant. X, radii and stroke widths untouched.
 - `fill="none"`; no live text; no `filter`/`mask`/`clipPath`.
-- One `<g>` per preset: cut `#ff0000`, mark `#0000ff`, engrave `#00aa00`; `stroke-width="0.1"` mm.
+- One `<g>` per layer, in layer order, empty layers included:
+  `<g data-layer="<name>" stroke="#rrggbb" stroke-width="0.1" data-output="1|0">`, plus
+  `data-current="1"` on the current layer only; name XML-escaped; no `id` (ADR 0012).
+- `File > Export layers` writes `<mother>-<file_key>.svg` beside the mother for each layer with
+  Output on and entities: the same header and only that layer's `<g>` (no `data-current`).
 - Arcs as `<path d="M sx sy A r r 0 large sweep ex ey"/>`, never béziers; the mirror inverts
   `sweep` (`sweep = 0` for a CCW world arc), `large` unchanged.
 
@@ -122,6 +126,7 @@ deterministic geometry over visual convenience · reject features rather than ca
 - 0004 measuring the 300-LOC cap · 0005 native dialogs disarmed by default · 0006 user paths injected
 - 0007 agent turn mutates the live document (fence, flat group, budgets) · 0008 tests run `--no-fail-fast`
 - 0009 dialog body capped at 426pt · 0010 declarative drawing batch tool · 0011 canvas observation raster
+- 0012 document layers, mother SVG with one `<g>` per layer, one export file per layer
 
 A reversed ADR gets a `**Superseded**` header; ADR text keeps its original line citations.
 Product principles: `docs/product/README.md`. Roadmap: `PLAN.md`. User-visible changes: `CHANGELOG.md`.

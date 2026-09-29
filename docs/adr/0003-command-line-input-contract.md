@@ -24,6 +24,9 @@
   post-LCV-148 tree; until that commit lands, the file still shows the
   amendment (2) mechanism. No decision in §A1..§A4 is reversed; nothing in
   §B..§F changes.
+- **Amended (4)**: 2026-09-29 — [ADR 0012](0012-document-layers-and-per-layer-export.md) §7
+  (LCV-156) adds the fieldless variant `CommandInput::Layers` (words `layer`, `la`), the
+  variant-level change §A2a reserves for an ADR. The letter axis is unchanged.
 - **Date**: 2026-09-12
 - **Deciders**: architect (Marco 1 / LCV-110, LCV-111, LCV-112)
 

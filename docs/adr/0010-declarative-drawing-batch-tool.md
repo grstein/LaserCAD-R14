@@ -1,6 +1,10 @@
 # ADR 0010 — `create_drawing`: one validated JSON batch is one dispatch, one command, one revision
 
 - **Status**: Accepted
+- **Amended (1)**: 2026-09-29 — [ADR 0012](0012-document-layers-and-per-layer-export.md) §6
+  (LCV-156): the root key set is `{version, entities}` plus an optional `layer` string naming an
+  existing layer; the whole batch lands on it (else on the current layer). §5's "export preset"
+  no longer exists. Nothing else changes.
 - **Date**: 2026-09-27
 - **Deciders**: architect (LCV-144; in the 1.0 scope by the 2026-09-27 scope
   decision recorded in `PLAN.md`)

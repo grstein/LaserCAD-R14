@@ -36,7 +36,7 @@ Parity with v1.0.0 + the unreleased TEXT command + Agent Harness MVP:
 - No fillet / chamfer / offset.
 - No SVG transforms or live text on import.
 - No mobile / touch.
-- No layers, no blocks, no xref.
+- No blocks, no xref. (Layers were lifted from this list by LCV-156.)
 - No DXF (planned but not in v0.1.0 scope).
 - No G-code emission.
 - No multi-document MDI.
