@@ -1,6 +1,6 @@
 # LCV-156 — Layers with one export file per layer
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: none
 - **Implementation**: -
 
