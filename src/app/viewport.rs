@@ -31,11 +31,10 @@ pub fn draw(ctx: &egui::Context, app: &mut App) {
         paint(ui, rect, app);
 
         // --- pointer / camera interaction (LCV-032 / LCV-041) ---
-        if response.hovered() {
-            if let Some(hover_pos) = response.hover_pos() {
+        if response.hovered()
+            && let Some(hover_pos) = response.hover_pos() {
                 handle_hover(ctx, app, rect, hover_pos);
             }
-        }
 
         // Middle-button pan.
         if response.dragged_by(egui::PointerButton::Middle) {
@@ -84,7 +83,7 @@ fn paint(ui: &egui::Ui, rect: egui::Rect, app: &mut App) {
     painter.rect_stroke(
         rect,
         0.0,
-        egui::Stroke::new(1.0, egui::Color32::from_gray(64)),
+        egui::Stroke::new(1.0_f32, egui::Color32::from_gray(64)),
     );
 
     // The bed is the document's, rebuilt every frame (LCV-114 AC 4/AC 15):

@@ -123,7 +123,7 @@ pub fn draw_bed(painter: &egui::Painter, rect: egui::Rect, camera: &Camera, bed:
     painter.rect_stroke(
         bed_screen_rect,
         0.0,
-        egui::Stroke::new(1.5, egui::Color32::from_gray(160)),
+        egui::Stroke::new(1.5_f32, egui::Color32::from_gray(160)),
     );
 
     // Draw a dark translucent overlay outside the bed area.

@@ -11,16 +11,14 @@ use crate::document::{commands::CreateLine, Document, Entity, History};
 use crate::geometry::{Line, Vec2, EPSILON};
 use crate::tools::Tool;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 enum State {
+    #[default]
     Idle,
-    WaitingSecondPoint { p1: Vec2, cursor: Vec2 },
-}
-
-impl Default for State {
-    fn default() -> Self {
-        Self::Idle
-    }
+    WaitingSecondPoint {
+        p1: Vec2,
+        cursor: Vec2,
+    },
 }
 
 /// Click-click line drawing tool (LCV-043).

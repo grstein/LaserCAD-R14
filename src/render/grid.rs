@@ -72,8 +72,8 @@ pub fn draw_grid(painter: &egui::Painter, rect: egui::Rect, camera: &Camera) {
     let world_top = world_tl.y.max(world_br.y);
 
     let offset = rect.min.to_vec2();
-    let minor_stroke = egui::Stroke::new(0.5, egui::Color32::from_gray(48));
-    let major_stroke = egui::Stroke::new(1.0, egui::Color32::from_gray(96));
+    let minor_stroke = egui::Stroke::new(0.5_f32, egui::Color32::from_gray(48));
+    let major_stroke = egui::Stroke::new(1.0_f32, egui::Color32::from_gray(96));
 
     // Vertical lines (constant world X).
     let mut x = (world_left / minor_mm).floor() * minor_mm;

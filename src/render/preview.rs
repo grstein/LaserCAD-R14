@@ -46,7 +46,7 @@ use crate::render::Camera;
 /// Exposed as `pub(crate)` for testability (AC#4).
 pub(crate) fn preview_stroke() -> egui::Stroke {
     egui::Stroke::new(
-        1.0,
+        1.0_f32,
         egui::Color32::from_rgba_unmultiplied(255, 220, 100, 160),
     )
 }

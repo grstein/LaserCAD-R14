@@ -61,7 +61,7 @@ impl Applier {
 struct Bodies(Arc<Mutex<Vec<String>>>);
 
 impl Bodies {
-    fn matcher(&self) -> impl Fn(&mockito::Request) -> bool + Send + Sync + 'static {
+    fn matcher(&self) -> impl Fn(&mockito::Request) -> bool + Send + Sync + 'static + use<> {
         let sink = self.0.clone();
         move |request| {
             let body = request

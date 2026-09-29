@@ -30,7 +30,7 @@ use crate::render::Camera;
 /// Exposed as `pub(crate)` for testability (AC#5, AC#6).
 pub(crate) fn halo_stroke() -> egui::Stroke {
     egui::Stroke::new(
-        3.0,
+        3.0_f32,
         egui::Color32::from_rgba_unmultiplied(64, 160, 255, 180),
     )
 }

@@ -143,11 +143,11 @@ pub fn draw_snap_marker(
         }
         MarkerShape::Circle => {
             let radius = center_marker_radius(size);
-            painter.circle_stroke(screen_pos, radius, egui::Stroke::new(1.5, color));
+            painter.circle_stroke(screen_pos, radius, egui::Stroke::new(1.5_f32, color));
         }
         MarkerShape::X => {
             let segments = intersection_marker_segments(screen_pos, size);
-            let stroke = egui::Stroke::new(1.5, color);
+            let stroke = egui::Stroke::new(1.5_f32, color);
             painter.line_segment(segments[0], stroke);
             painter.line_segment(segments[1], stroke);
         }

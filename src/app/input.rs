@@ -111,11 +111,10 @@ pub fn process_input(ctx: &egui::Context, app: &mut App, shortcut_fired: bool) {
 /// and when no recall is in progress, and clearing an already-empty field in
 /// the second case is indistinguishable to the operator.
 fn recall(ctx: &egui::Context, app: &mut App) {
-    if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
-        if let Some(entry) = app.command_history.older() {
+    if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp))
+        && let Some(entry) = app.command_history.older() {
             app.command_line_input = entry;
         }
-    }
     if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
         app.command_line_input = app.command_history.newer().unwrap_or_default();
     }

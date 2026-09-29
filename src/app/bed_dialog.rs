@@ -63,11 +63,10 @@ pub fn draw_bed_dialog(ctx: &egui::Context, app: &mut App) {
         });
 
     app.bed_dialog = Some(draft);
-    if let Some(result) = result {
-        if apply_bed_dialog_result(app, result) {
+    if let Some(result) = result
+        && apply_bed_dialog_result(app, result) {
             app.persist_settings();
         }
-    }
 }
 
 /// One bed axis as a `DragValue`, held inside the configurable range.

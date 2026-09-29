@@ -16,7 +16,7 @@ const DUMMY_KEY: &str = concat!("sk-test-", "DO-NOT-LEAK");
 struct Bodies(Arc<Mutex<Vec<String>>>);
 
 impl Bodies {
-    fn matcher(&self) -> impl Fn(&mockito::Request) -> bool + Send + Sync + 'static {
+    fn matcher(&self) -> impl Fn(&mockito::Request) -> bool + Send + Sync + 'static + use<> {
         let sink = self.0.clone();
         move |request| {
             let body = request
@@ -652,7 +652,7 @@ fn ac2_a_timeout_says_exactly_what_the_operator_must_read() {
     assert!(
         TransportError::Timeout { secs: 10 }
             .to_string()
-            .starts_with(concat!("The endpoint did not answer within 10 s.")),
+            .starts_with("The endpoint did not answer within 10 s."),
         "the number in the sentence is the window that really elapsed"
     );
 }

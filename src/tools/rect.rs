@@ -16,18 +16,13 @@ use crate::geometry::{Line, Vec2, EPSILON};
 use crate::tools::Tool;
 
 /// Internal FSM state of [`RectTool`].
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 enum RectState {
     /// Awaiting the first click to anchor corner1.
+    #[default]
     Idle,
     /// corner1 anchored; awaiting the diagonally-opposite corner.
     WaitingSecondCorner { corner1: Vec2, cursor: Vec2 },
-}
-
-impl Default for RectState {
-    fn default() -> Self {
-        Self::Idle
-    }
 }
 
 /// Two-click rectangle drawing tool (LCV-045).

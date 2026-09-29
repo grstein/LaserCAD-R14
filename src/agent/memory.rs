@@ -98,11 +98,10 @@ pub fn whole_batches(messages: &[ChatMessage]) -> Vec<ChatMessage> {
                 .iter()
                 .any(|m| m.role == "tool" && m.tool_call_id.as_ref() == Some(id))
         };
-        if let Some(calls) = &batch[0].tool_calls {
-            if calls.iter().all(|call| answered(&call.id)) {
+        if let Some(calls) = &batch[0].tool_calls
+            && calls.iter().all(|call| answered(&call.id)) {
                 kept.extend_from_slice(batch);
             }
-        }
         start = end;
     }
     kept

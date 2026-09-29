@@ -13,18 +13,13 @@ use crate::geometry::{Circle, Vec2, EPSILON};
 use crate::tools::Tool;
 
 /// Internal FSM state of [`CircleTool`].
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 enum CircleState {
     /// Awaiting first click to anchor the center.
+    #[default]
     Idle,
     /// Center anchored; awaiting radius click.
     WaitingRadius { center: Vec2 },
-}
-
-impl Default for CircleState {
-    fn default() -> Self {
-        Self::Idle
-    }
 }
 
 /// Two-click circle drawing tool: first click → center, second click → radius.

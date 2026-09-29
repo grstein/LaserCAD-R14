@@ -47,7 +47,7 @@ fn make_line_app() -> App {
 #[test]
 fn shortcuts_module_compiles() {
     use lasercad::ui::process_shortcuts as _ps;
-    let _ = _ps as usize; // force monomorphisation check
+    let _ = _ps as *const () as usize; // force monomorphisation check
 }
 
 // ---------------------------------------------------------------------------
