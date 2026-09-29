@@ -101,7 +101,7 @@ fn paint(ui: &egui::Ui, rect: egui::Rect, app: &mut App) {
         &painter,
         rect,
         &app.camera,
-        &app.document.entities,
+        &app.document,
         crate::render::PaintOptions::default(),
     );
     crate::render::draw_selection_highlight(

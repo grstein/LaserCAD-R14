@@ -9,7 +9,7 @@
 //!
 //! Drawing order: caller invokes [`draw_selection_highlight`] AFTER
 //! [`crate::render::draw_entities`] so the halo overlays the normal entity
-//! stroke. The semi-transparent halo lets the underlying light-gray stroke
+//! stroke. The semi-transparent halo lets the underlying layer-colored stroke
 //! show through, producing a "double-stroke" visual that reads clearly as
 //! "selected".
 //!
@@ -23,7 +23,7 @@ use crate::render::Camera;
 
 /// Halo stroke: 3-px cyan-blue at ~70% alpha.
 ///
-/// Thicker than the normal entity stroke (1 px, light gray) and translucent
+/// Thicker than the normal entity stroke (1 px, layer color) and translucent
 /// so the underlying stroke remains visible through the halo, producing a
 /// "double-stroke" visual.
 ///
@@ -237,13 +237,12 @@ mod tests {
     #[test]
     fn halo_stroke_is_thicker_than_entity_stroke() {
         let halo = halo_stroke();
-        let entity_stroke = crate::render::PaintOptions::default().stroke;
+        let entity_width = crate::render::PaintOptions::default().stroke_width;
 
         assert!(
-            halo.width > entity_stroke.width,
-            "halo.width={}, entity_stroke.width={}",
+            halo.width > entity_width,
+            "halo.width={}, entity_width={entity_width}",
             halo.width,
-            entity_stroke.width
         );
         assert!(halo.width > 1.0);
     }

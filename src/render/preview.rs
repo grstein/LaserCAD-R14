@@ -34,8 +34,8 @@ use crate::render::Camera;
 /// Preview stroke: 1-px translucent amber/yellow.
 ///
 /// Choice rationale:
-/// - **Amber** distinguishes from light-gray committed stroke (LCV-035) and
-///   cyan-blue selection halo (LCV-036). Three visual channels: gray =
+/// - **Amber** distinguishes from the committed layer-colored stroke and
+///   cyan-blue selection halo (LCV-036). Three visual channels: layer color =
 ///   committed, cyan = selected, amber = preview.
 /// - **Translucent (160/255 alpha)** signals "this isn't real yet". The
 ///   semi-transparency mimics dashed lines without requiring dash-pattern

@@ -4,29 +4,26 @@
 //! variant: lines as line segments, circles via `Painter::circle_stroke`,
 //! arcs tessellated to polylines.
 //!
-//! The painter uses a single configurable stroke style (width, color) via
-//! [`PaintOptions`]; color-by-layer happens at SVG-export time (LCV-056),
-//! not here. The default stroke is 1-px light gray (contrasts with the dark
-//! canvas).
+//! Every entity is stroked in its layer's color (LCV-156 AC 3) at the width
+//! in [`PaintOptions`]; selection and preview paint their own overlays.
 //!
 //! Introduced by demand LCV-035.
 
-use crate::document::Entity;
+use crate::document::{Document, Entity};
 use crate::geometry::{Arc, Vec2};
 use crate::render::Camera;
 
 /// Rendering options for the entity painter.
 ///
-/// - `stroke`: line width and color applied to all entities.
+/// - `stroke_width`: line width in pixels applied to all entities.
 /// - `arc_segments`: number of polyline segments per full circle for arc
 ///   tessellation (clamped to `>= 2` by [`arc_polyline`]).
 ///
-/// Default: 1-px light-gray stroke (`Color32::from_gray(220)`) and 64
-/// segments (same as v1; ~5.6° per segment, visually crisp at 1 mm/px).
+/// Default: 1-px stroke and 64 segments (same as v1; ~5.6° per segment, visually crisp at 1 mm/px).
 #[derive(Debug, Clone, Copy)]
 pub struct PaintOptions {
-    /// Stroke style (width, color) applied to all entities.
-    pub stroke: egui::Stroke,
+    /// Stroke width in pixels applied to all entities.
+    pub stroke_width: f32,
     /// Arc tessellation segment count (for a full circle).
     pub arc_segments: usize,
 }
@@ -34,13 +31,13 @@ pub struct PaintOptions {
 impl Default for PaintOptions {
     fn default() -> Self {
         Self {
-            stroke: egui::Stroke::new(1.0, egui::Color32::from_gray(220)),
+            stroke_width: 1.0,
             arc_segments: 64,
         }
     }
 }
 
-/// Draw all entities in the slice onto the viewport.
+/// Draw all of `doc`'s entities onto the viewport, each in its layer's color.
 ///
 /// `rect` is the viewport's screen-space rectangle; its origin is added to
 /// every projected point so shapes land in the correct painter clip rect.
@@ -56,27 +53,29 @@ pub fn draw_entities(
     painter: &egui::Painter,
     rect: egui::Rect,
     camera: &Camera,
-    entities: &[Entity],
+    doc: &Document,
     options: PaintOptions,
 ) {
-    for entity in entities {
+    for (i, entity) in doc.entities.iter().enumerate() {
+        let [r, g, b] = doc.layer_color(i);
+        let stroke = egui::Stroke::new(options.stroke_width, egui::Color32::from_rgb(r, g, b));
         match entity {
             Entity::Line(line) => {
                 let p1 = world_to_screen_offset(rect, camera, line.p1);
                 let p2 = world_to_screen_offset(rect, camera, line.p2);
-                painter.line_segment([p1, p2], options.stroke);
+                painter.line_segment([p1, p2], stroke);
             }
             Entity::Circle(circle) => {
                 let center = world_to_screen_offset(rect, camera, circle.center);
                 let radius_px = (circle.r / camera.mm_per_px) as f32;
-                painter.circle_stroke(center, radius_px, options.stroke);
+                painter.circle_stroke(center, radius_px, stroke);
             }
             Entity::Arc(arc) => {
                 let points = arc_polyline(arc, options.arc_segments);
                 for i in 0..points.len().saturating_sub(1) {
                     let p1 = world_to_screen_offset(rect, camera, points[i]);
                     let p2 = world_to_screen_offset(rect, camera, points[i + 1]);
-                    painter.line_segment([p1, p2], options.stroke);
+                    painter.line_segment([p1, p2], stroke);
                 }
             }
         }
@@ -136,7 +135,7 @@ mod tests {
     fn paint_options_default_is_sensible() {
         let opts = PaintOptions::default();
         assert_eq!(opts.arc_segments, 64);
-        assert!(opts.stroke.width > 0.0);
+        assert!(opts.stroke_width > 0.0);
     }
 
     /// AC#5 — `arc_polyline` returns `n + 1` points for `n >= 2`.
@@ -238,15 +237,21 @@ mod tests {
             let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::Vec2::new(800.0, 600.0));
             let opts = PaintOptions::default();
 
-            // Empty slice.
-            draw_entities(&painter, rect, &Camera::default(), &[], opts);
+            let doc_of = |entities: Vec<Entity>| {
+                let mut doc = Document::default();
+                entities.into_iter().for_each(|e| doc.push_current(e));
+                doc
+            };
+
+            // Empty document.
+            draw_entities(&painter, rect, &Camera::default(), &doc_of(vec![]), opts);
 
             // One of each variant.
-            let entities = vec![
+            let entities = doc_of(vec![
                 Entity::Line(Line::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, 10.0))),
                 Entity::Circle(Circle::new(Vec2::new(50.0, 50.0), 20.0)),
                 Entity::Arc(Arc::new(Vec2::default(), 10.0, 0.0, FRAC_PI_2, true)),
-            ];
+            ]);
             draw_entities(&painter, rect, &Camera::default(), &entities, opts);
 
             // Degenerate cameras.
@@ -265,11 +270,17 @@ mod tests {
             draw_entities(&painter, rect, &cam_extreme_out, &entities, opts);
 
             // Zero-radius circle.
-            let zero_circle = vec![Entity::Circle(Circle::new(Vec2::default(), 0.0))];
+            let zero_circle = doc_of(vec![Entity::Circle(Circle::new(Vec2::default(), 0.0))]);
             draw_entities(&painter, rect, &Camera::default(), &zero_circle, opts);
 
             // Zero-sweep arc (start == end).
-            let zero_arc = vec![Entity::Arc(Arc::new(Vec2::default(), 1.0, 0.0, 0.0, true))];
+            let zero_arc = doc_of(vec![Entity::Arc(Arc::new(
+                Vec2::default(),
+                1.0,
+                0.0,
+                0.0,
+                true,
+            ))]);
             draw_entities(&painter, rect, &Camera::default(), &zero_arc, opts);
         });
     }
