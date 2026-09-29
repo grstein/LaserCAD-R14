@@ -116,6 +116,7 @@ fn run_turn(app: &mut App, prompt: &str, event: AgentEvent) {
 fn act_line(app: &mut App, tx: &Sender<AgentEvent>) {
     let (reply, answer) = channel::<AgentOutcome>();
     let action = AgentAction::CreateLine {
+        layer: None,
         x1: 0.0,
         y1: 0.0,
         x2: 5.0,

@@ -388,6 +388,7 @@ fn a_turn_started_from_the_command_line_draws_on_the_real_bed() {
     let (reply, answer) = channel();
     tx.send(AgentEvent::Act {
         action: AgentAction::CreateLine {
+            layer: None,
             x1: 0.0,
             y1: 0.0,
             x2: 20.0,

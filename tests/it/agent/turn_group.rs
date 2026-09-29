@@ -44,6 +44,7 @@ fn push_act(tx: &Sender<AgentEvent>, action: AgentAction) -> Receiver<AgentOutco
 
 fn agent_line(x2: f64) -> AgentAction {
     AgentAction::CreateLine {
+        layer: None,
         x1: 0.0,
         y1: 0.0,
         x2,

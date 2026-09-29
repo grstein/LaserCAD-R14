@@ -3,6 +3,7 @@
 mod canvas_capture;
 mod default_prompt;
 mod drawing_batch;
+mod layers;
 mod memory;
 mod new_conversation;
 mod panel_and_settings;

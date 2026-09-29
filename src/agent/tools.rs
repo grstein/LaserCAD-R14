@@ -33,7 +33,7 @@ use serde_json::{json, Value};
 use thiserror::Error;
 
 use crate::agent::bridge::AgentAction;
-use crate::agent::drawing;
+use crate::agent::drawing::{self, layer_schema};
 
 /// Why a tool call could not be turned into an [`AgentAction`].
 ///
@@ -112,25 +112,27 @@ fn capture_canvas_definition() -> Value {
 }
 
 fn base_definitions() -> Value {
+    let layer = layer_schema();
     json!([
       {"type":"function","function":{"name":"create_line",
         "description":"Create a straight line segment between two endpoints in mm.",
         "parameters":{"type":"object",
           "properties":{"x1":{"type":"number"},"y1":{"type":"number"},
-                        "x2":{"type":"number"},"y2":{"type":"number"}},
+                        "x2":{"type":"number"},"y2":{"type":"number"},"layer":layer},
           "required":["x1","y1","x2","y2"]}}},
       {"type":"function","function":{"name":"create_circle",
         "description":"Create a full circle with a given center and radius in mm.",
         "parameters":{"type":"object",
           "properties":{"cx":{"type":"number"},"cy":{"type":"number"},
-                        "r":{"type":"number"}},
+                        "r":{"type":"number"},"layer":layer},
           "required":["cx","cy","r"]}}},
       {"type":"function","function":{"name":"create_arc",
         "description":"Create a circular arc. start_deg and end_deg are in degrees (0 = +X axis). ccw=true means counter-clockwise sweep.",
         "parameters":{"type":"object",
           "properties":{"cx":{"type":"number"},"cy":{"type":"number"},
                         "r":{"type":"number"},"start_deg":{"type":"number"},
-                        "end_deg":{"type":"number"},"ccw":{"type":"boolean"}},
+                        "end_deg":{"type":"number"},"ccw":{"type":"boolean"},
+                        "layer":layer},
           "required":["cx","cy","r","start_deg","end_deg","ccw"]}}},
       {"type":"function","function":{"name":"delete_entity",
         "description":"Delete the entity at the given zero-based document index.",
@@ -144,7 +146,7 @@ fn base_definitions() -> Value {
                         "dy":{"type":"number"}},
           "required":["index","dx","dy"]}}},
       {"type":"function","function":{"name":"query_entities",
-        "description":"List every entity in the drawing with its zero-based index, kind and mm geometry, plus the bed size. Call this before deleting or moving an entity you did not create in this turn.",
+        "description":"List every entity in the drawing with its zero-based index, kind, mm geometry and layer, plus the bed size and the layers. Call this before deleting or moving an entity you did not create in this turn.",
         "parameters":{"type":"object","properties":{},"required":[]}}},
       {"type":"function","function":{"name":"query_selection",
         "description":"List the zero-based indices of the entities the operator currently has selected.",
@@ -187,6 +189,15 @@ pub(crate) fn validate_r(tool: &'static str, r: f64) -> Result<(), ToolCallError
         tool, field: "r", reason: format!("{r} is not a positive finite number") }) }
 }
 
+/// The optional `layer` argument of a scalar creation tool (LCV-156).
+fn get_layer(args: &Value, tool: &'static str) -> Result<Option<String>, ToolCallError> {
+    drawing::layer_arg(args).map_err(|reason| ToolCallError::InvalidArg {
+        tool,
+        field: "layer",
+        reason,
+    })
+}
+
 /// Turn one LLM `tool_call` into the [`AgentAction`] it asks for.
 ///
 /// Pure: no document, no history, no side effect. The caller sends the action
@@ -204,13 +215,14 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
             y1: get_f64(args, "create_line", "y1")?,
             x2: get_f64(args, "create_line", "x2")?,
             y2: get_f64(args, "create_line", "y2")?,
+            layer: get_layer(args, "create_line")?,
         }),
         "create_circle" => {
             let cx = get_f64(args, "create_circle", "cx")?;
             let cy = get_f64(args, "create_circle", "cy")?;
             let r = get_f64(args, "create_circle", "r")?;
             validate_r("create_circle", r)?;
-            Ok(AgentAction::CreateCircle { cx, cy, r })
+            Ok(AgentAction::CreateCircle { cx, cy, r, layer: get_layer(args, "create_circle")? })
         }
         "create_arc" => {
             let cx = get_f64(args, "create_arc", "cx")?;
@@ -223,6 +235,7 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
             // The one unit boundary in this file: degrees in, radians out.
             Ok(AgentAction::CreateArc {
                 cx, cy, r, start: start_deg.to_radians(), end: end_deg.to_radians(), ccw,
+                layer: get_layer(args, "create_arc")?,
             })
         }
         "delete_entity" => Ok(AgentAction::Delete {
@@ -244,7 +257,11 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
         // Argument-free like the queries; permission is checked live at the
         // apply site, never here (LCV-145 AC 2).
         "capture_canvas" => Ok(AgentAction::CaptureCanvas),
-        "create_drawing" => Ok(AgentAction::CreateDrawing { items: drawing::parse(args)? }),
+        "create_drawing" => Ok(AgentAction::CreateDrawing {
+            items: drawing::parse(args)?,
+            layer: drawing::layer_arg(args).map_err(|reason| ToolCallError::DrawingRoot {
+                field: "layer".to_owned(), reason })?,
+        }),
         _ => Err(ToolCallError::UnknownTool(name.to_owned())),
     }
 }

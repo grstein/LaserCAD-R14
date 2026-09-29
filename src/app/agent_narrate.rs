@@ -61,6 +61,26 @@ pub(super) fn bed_line(doc: &Document) -> String {
     format!("Bed {:.3} × {:.3} mm.", doc.bed_mm[0], doc.bed_mm[1])
 }
 
+/// Every layer in order, the current one marked (LCV-156, ADR 0012 §6).
+pub(super) fn layers_line(doc: &Document) -> String {
+    let names: Vec<String> = doc
+        .layers()
+        .iter()
+        .map(|l| match l.id == doc.current_layer() {
+            true => format!("{} (current)", l.name),
+            false => l.name.clone(),
+        })
+        .collect();
+    format!("Layers: {}.", names.join(", "))
+}
+
+/// The name of the layer entity `index` sits on.
+fn layer_name(doc: &Document, index: usize) -> &str {
+    doc.entity_layer(index)
+        .and_then(|id| doc.layer(id))
+        .map_or("?", |l| l.name.as_str())
+}
+
 /// `QueryEntities`: the whole drawing, one entity per line, indices first.
 ///
 /// The header says the count even when it is zero — the model needs to know
@@ -68,15 +88,22 @@ pub(super) fn bed_line(doc: &Document) -> String {
 /// failed to answer.
 pub(super) fn list_entities(doc: &Document) -> String {
     if doc.entities.is_empty() {
-        return format!("The drawing is empty (0 entities). {}", bed_line(doc));
+        let (bed, layers) = (bed_line(doc), layers_line(doc));
+        return format!("The drawing is empty (0 entities). {bed}\n{layers}");
     }
     let mut out = format!(
-        "The drawing has {} entities. {}",
+        "The drawing has {} entities. {}\n{}",
         doc.entity_count(),
-        bed_line(doc)
+        bed_line(doc),
+        layers_line(doc)
     );
     for (i, entity) in doc.entities.iter().enumerate() {
-        out.push_str(&format!("\n{i}: {} {}", kind(entity), geometry(entity)));
+        let layer = layer_name(doc, i);
+        out.push_str(&format!(
+            "\n{i}: {} {} layer {layer}",
+            kind(entity),
+            geometry(entity)
+        ));
     }
     out
 }

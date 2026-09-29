@@ -89,6 +89,7 @@ fn every_create_commits_exactly_one_undoable_command() {
     let cases = [
         (
             AgentAction::CreateLine {
+                layer: None,
                 x1: 0.0,
                 y1: 0.0,
                 x2: 20.0,
@@ -98,6 +99,7 @@ fn every_create_commits_exactly_one_undoable_command() {
         ),
         (
             AgentAction::CreateCircle {
+                layer: None,
                 cx: 5.0,
                 cy: 6.0,
                 r: 3.0,
@@ -106,6 +108,7 @@ fn every_create_commits_exactly_one_undoable_command() {
         ),
         (
             AgentAction::CreateArc {
+                layer: None,
                 cx: 0.0,
                 cy: 0.0,
                 r: 4.0,
@@ -209,9 +212,10 @@ fn query_entities_lists_the_live_drawing() {
     assert_eq!(
         apply(&mut app, &AgentAction::QueryEntities).into_text(),
         "The drawing has 3 entities. Bed 400.000 × 400.000 mm.\n\
-             0: line (0.000, 0.000) → (10.000, 0.000) mm\n\
-             1: circle center (10.000, 10.000) mm, r = 5.000 mm\n\
-             2: arc center (0.000, 0.000) mm, r = 8.000 mm, 0.0°→90.0° ccw"
+             Layers: Cut (current).\n\
+             0: line (0.000, 0.000) → (10.000, 0.000) mm layer Cut\n\
+             1: circle center (10.000, 10.000) mm, r = 5.000 mm layer Cut\n\
+             2: arc center (0.000, 0.000) mm, r = 8.000 mm, 0.0°→90.0° ccw layer Cut"
     );
 }
 
@@ -222,7 +226,8 @@ fn query_entities_on_an_empty_drawing_still_reports_a_count_and_a_bed() {
     let mut app = App::default();
     assert_eq!(
         apply(&mut app, &AgentAction::QueryEntities).into_text(),
-        "The drawing is empty (0 entities). Bed 400.000 × 400.000 mm."
+        "The drawing is empty (0 entities). Bed 400.000 × 400.000 mm.\n\
+         Layers: Cut (current)."
     );
 }
 
@@ -240,7 +245,8 @@ fn the_bed_line_follows_the_documents_own_bed() {
         let mut app = App::default();
         app.document.bed_mm = bed;
         let empty = apply(&mut app, &AgentAction::QueryEntities).into_text();
-        assert!(empty.ends_with(expected), "{empty}");
+        let first = empty.lines().next().unwrap_or_default();
+        assert!(first.ends_with(expected), "{empty}");
 
         let mut app = app_with(vec![line(0.0)]);
         app.document.bed_mm = bed;
@@ -322,6 +328,7 @@ fn an_applied_action_appends_its_outcome_verbatim() {
     let outcome = apply(
         &mut app,
         &AgentAction::CreateLine {
+            layer: None,
             x1: 0.0,
             y1: 0.0,
             x2: 20.0,
@@ -402,6 +409,7 @@ fn a_query_appends_a_row_like_any_other_action() {
 #[test]
 fn every_mutating_outcome_reports_the_resulting_count() {
     let create = AgentAction::CreateCircle {
+        layer: None,
         cx: 0.0,
         cy: 0.0,
         r: 1.0,
@@ -443,6 +451,7 @@ fn the_create_sentences_are_unchanged_apart_from_the_suffix() {
         apply(
             &mut app,
             &AgentAction::CreateLine {
+                layer: None,
                 x1: 0.0,
                 y1: 0.0,
                 x2: 20.0,
@@ -458,6 +467,7 @@ fn the_create_sentences_are_unchanged_apart_from_the_suffix() {
         apply(
             &mut app,
             &AgentAction::CreateCircle {
+                layer: None,
                 cx: 5.0,
                 cy: 5.0,
                 r: 3.0
@@ -472,6 +482,7 @@ fn the_create_sentences_are_unchanged_apart_from_the_suffix() {
         apply(
             &mut app,
             &AgentAction::CreateArc {
+                layer: None,
                 cx: 0.0,
                 cy: 0.0,
                 r: 1.0,
@@ -493,6 +504,7 @@ fn a_clockwise_arc_says_cw() {
     let text = apply(
         &mut app,
         &AgentAction::CreateArc {
+            layer: None,
             cx: 0.0,
             cy: 0.0,
             r: 1.0,
@@ -591,7 +603,7 @@ fn describe_covers_every_entity_kind() {
 // ── LCV-144 AC 5, 7, 8: one batch, one command, one sentence ─────────────
 
 fn drawing(items: Vec<DrawingItem>) -> AgentAction {
-    AgentAction::CreateDrawing { items }
+    AgentAction::CreateDrawing { layer: None, items }
 }
 
 /// LCV-144 AC 8 — both outcome sentences, character for character, on a

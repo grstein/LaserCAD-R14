@@ -236,6 +236,7 @@ fn ac7_a_thousand_items_are_one_revision_one_step_and_one_undo() {
     let revision = app.history.revision();
     let tx = arm_turn(&mut app, "draw");
     let line = AgentAction::CreateLine {
+        layer: None,
         x1: 0.0,
         y1: 0.0,
         x2: 1.0,

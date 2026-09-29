@@ -289,6 +289,7 @@ fn multi_step_turn_sends_the_whole_conversation_back() {
     assert_eq!(
         applier.seen,
         [AgentAction::CreateLine {
+            layer: None,
             x1: 0.0,
             y1: 0.0,
             x2: 20.0,
@@ -527,12 +528,14 @@ fn every_tool_call_becomes_one_ask_in_order() {
         applier.seen,
         [
             AgentAction::CreateLine {
+                layer: None,
                 x1: 0.0,
                 y1: 0.0,
                 x2: 20.0,
                 y2: 0.0
             },
             AgentAction::CreateCircle {
+                layer: None,
                 cx: 5.0,
                 cy: 6.0,
                 r: 3.0
@@ -609,6 +612,7 @@ fn a_cancelled_ask_returns_at_once_and_sends_nothing_more() {
 #[test]
 fn the_ask_seam_sends_the_action_and_waits_for_the_answer() {
     let action = AgentAction::CreateLine {
+        layer: None,
         x1: 1.0,
         y1: 2.0,
         x2: 3.0,

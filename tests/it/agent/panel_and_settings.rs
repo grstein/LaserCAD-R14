@@ -245,6 +245,7 @@ fn ac6_the_api_key_reaches_no_transcript_row() {
     let answer = push_act(
         &tx,
         AgentAction::CreateLine {
+            layer: None,
             x1: 0.0,
             y1: 0.0,
             x2: 20.0,

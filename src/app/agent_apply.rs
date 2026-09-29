@@ -37,7 +37,8 @@ use crate::app::agent_narrate::{
 use crate::app::{agent_capture, App};
 use crate::document::commands::CreateEntities;
 use crate::document::{
-    Command, CreateArc, CreateCircle, CreateLine, DeleteEntities, Document, Entity, MoveEntities,
+    Command, CreateArc, CreateCircle, CreateLine, DeleteEntities, Document, Entity, LayerId,
+    MoveEntities,
 };
 use crate::geometry::{Arc as GeoArc, Circle, Line, Vec2};
 
@@ -111,16 +112,20 @@ pub(crate) fn transcribe(app: &mut App, outcome: &AgentOutcome) {
 /// about to remove, the indices it is about to renumber — is captured here,
 /// because afterwards it is gone.
 fn plan(action: &AgentAction, doc: &Document) -> Planned {
+    // LCV-156: a named layer must exist; no name means the current layer.
+    let layer = match target_layer(action.layer(), doc) {
+        Ok(id) => id,
+        Err(refusal) => return Planned::Answer(refusal),
+    };
     match *action {
-        AgentAction::CreateLine { x1, y1, x2, y2 } => Planned::Commit(
-            Box::new(CreateLine::new(Line::new(
-                Vec2::new(x1, y1),
-                Vec2::new(x2, y2),
-            ))),
+        AgentAction::CreateLine { x1, y1, x2, y2, .. } => Planned::Commit(
+            Box::new(
+                CreateLine::new(Line::new(Vec2::new(x1, y1), Vec2::new(x2, y2))).on_layer(layer),
+            ),
             format!("Line created: {} → {} mm.", pt(x1, y1), pt(x2, y2)),
         ),
-        AgentAction::CreateCircle { cx, cy, r } => Planned::Commit(
-            Box::new(CreateCircle::new(Circle::new(Vec2::new(cx, cy), r))),
+        AgentAction::CreateCircle { cx, cy, r, .. } => Planned::Commit(
+            Box::new(CreateCircle::new(Circle::new(Vec2::new(cx, cy), r)).on_layer(layer)),
             format!("Circle created: center {} mm, r = {r:.3} mm.", pt(cx, cy)),
         ),
         AgentAction::CreateArc {
@@ -130,14 +135,11 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
             start,
             end,
             ccw,
+            ..
         } => Planned::Commit(
-            Box::new(CreateArc::new(GeoArc::new(
-                Vec2::new(cx, cy),
-                r,
-                start,
-                end,
-                ccw,
-            ))),
+            Box::new(
+                CreateArc::new(GeoArc::new(Vec2::new(cx, cy), r, start, end, ccw)).on_layer(layer),
+            ),
             format!(
                 "Arc created: center {} mm, r = {r:.3} mm, {}.",
                 pt(cx, cy),
@@ -169,8 +171,8 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
         AgentAction::QueryEntities => Planned::Answer(AgentOutcome::Ok(list_entities(doc))),
         AgentAction::QuerySelection => Planned::Answer(AgentOutcome::Ok(list_selection(doc))),
         // One command for the whole batch (ADR 0010 §1, §5).
-        AgentAction::CreateDrawing { ref items } => Planned::Batch(
-            Box::new(CreateEntities::new(items.iter().map(entity_of).collect())),
+        AgentAction::CreateDrawing { ref items, .. } => Planned::Batch(
+            Box::new(CreateEntities::new(items.iter().map(entity_of).collect()).on_layer(layer)),
             items.len(),
         ),
         // Never planned against the document: `apply` answers a capture from
@@ -185,6 +187,21 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
             Planned::Answer(AgentOutcome::Refused(reason.clone()))
         }
     }
+}
+
+/// The layer a creation lands on: the named one, resolved by key, else the
+/// current one. An unknown name is refused naming the layers (ADR 0012 §6).
+fn target_layer(name: Option<&str>, doc: &Document) -> Result<LayerId, AgentOutcome> {
+    let Some(name) = name else {
+        return Ok(doc.current_layer());
+    };
+    doc.layer_by_name(name).map(|l| l.id).ok_or_else(|| {
+        let names: Vec<&str> = doc.layers().iter().map(|l| l.name.as_str()).collect();
+        AgentOutcome::Refused(format!(
+            "unknown layer \"{name}\" (the layers are: {}); nothing was drawn",
+            names.join(", ")
+        ))
+    })
 }
 
 /// One batch item as the entity the matching scalar arm would build.

@@ -58,6 +58,7 @@ fn ac4_the_thinking_row_counts_every_act_against_the_limit() {
         push_act(
             &tx,
             AgentAction::CreateLine {
+                layer: None,
                 x1: 0.0,
                 y1: 0.0,
                 x2: 10.0,

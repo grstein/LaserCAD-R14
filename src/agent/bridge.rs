@@ -51,6 +51,9 @@ pub enum AgentAction {
         x2: f64,
         /// Second endpoint Y, mm.
         y2: f64,
+        /// Existing layer name to draw on; `None` = the current layer
+        /// (LCV-156). Shape-checked only; resolved at the apply site.
+        layer: Option<String>,
     },
     /// Append a full circle, centre in mm and radius in mm.
     CreateCircle {
@@ -60,6 +63,9 @@ pub enum AgentAction {
         cy: f64,
         /// Radius, mm. Positive and finite — checked at parse time.
         r: f64,
+        /// Existing layer name to draw on; `None` = the current layer
+        /// (LCV-156). Shape-checked only; resolved at the apply site.
+        layer: Option<String>,
     },
     /// Append a circular arc. Angles are **radians** (`0` = +X axis).
     CreateArc {
@@ -75,6 +81,9 @@ pub enum AgentAction {
         end: f64,
         /// `true` for a counter-clockwise sweep.
         ccw: bool,
+        /// Existing layer name to draw on; `None` = the current layer
+        /// (LCV-156). Shape-checked only; resolved at the apply site.
+        layer: Option<String>,
     },
     /// Delete the entity at this positional index.
     Delete {
@@ -110,6 +119,9 @@ pub enum AgentAction {
     CreateDrawing {
         /// The entities, in order; 1..=1000, already shape-checked.
         items: Vec<DrawingItem>,
+        /// Existing layer name for the whole batch; `None` = the current
+        /// layer (LCV-156, ADR 0012 §6).
+        layer: Option<String>,
     },
     /// A tool call that failed its shape check in the worker — JSON syntax,
     /// unknown tool, or any `ToolCallError` (ADR 0007 §D15). The UI answers
@@ -120,6 +132,19 @@ pub enum AgentAction {
         /// Names the tool and the field; never echoes the raw arguments.
         reason: String,
     },
+}
+
+impl AgentAction {
+    /// The layer name a creation action asks for, if any (LCV-156).
+    pub fn layer(&self) -> Option<&str> {
+        match self {
+            Self::CreateLine { layer, .. }
+            | Self::CreateCircle { layer, .. }
+            | Self::CreateArc { layer, .. }
+            | Self::CreateDrawing { layer, .. } => layer.as_deref(),
+            _ => None,
+        }
+    }
 }
 
 /// What the UI thread answers for one [`AgentAction`].
@@ -259,17 +284,20 @@ mod tests {
     fn the_seven_action_variants_are_distinct() {
         let actions = [
             AgentAction::CreateLine {
+                layer: None,
                 x1: 0.0,
                 y1: 0.0,
                 x2: 20.0,
                 y2: 0.0,
             },
             AgentAction::CreateCircle {
+                layer: None,
                 cx: 1.0,
                 cy: 2.0,
                 r: 3.0,
             },
             AgentAction::CreateArc {
+                layer: None,
                 cx: 0.0,
                 cy: 0.0,
                 r: 5.0,

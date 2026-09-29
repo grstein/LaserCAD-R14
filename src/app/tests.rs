@@ -285,6 +285,7 @@ fn an_act_is_applied_answered_and_followed_by_the_terminal_event() {
     let before = app.history.revision();
     tx.send(AgentEvent::Act {
         action: AgentAction::CreateCircle {
+            layer: None,
             cx: 1.0,
             cy: 2.0,
             r: 3.0,
@@ -345,6 +346,7 @@ fn a_lone_act_leaves_the_turn_running() {
     app.history.begin_group("Agent: test");
     tx.send(AgentEvent::Act {
         action: AgentAction::CreateCircle {
+            layer: None,
             cx: 0.0,
             cy: 0.0,
             r: 1.0,
@@ -420,6 +422,7 @@ fn a_worker_that_stops_listening_mid_act_still_ends_the_turn() {
     app.history.begin_group("Agent: test");
     tx.send(AgentEvent::Act {
         action: AgentAction::CreateCircle {
+            layer: None,
             cx: 0.0,
             cy: 0.0,
             r: 1.0,

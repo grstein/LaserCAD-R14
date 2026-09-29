@@ -59,6 +59,9 @@ pub enum DrawingItem {
 /// Most entities one `create_drawing` call may carry (ADR 0010 §3).
 pub const MAX_DRAWING_ENTITIES: usize = 1000;
 
+/// Longest layer name a creation tool accepts, in characters (ADR 0012 §6).
+pub const MAX_LAYER_NAME_CHARS: usize = 64;
+
 /// Longest unknown-key name echoed back in an error, in characters.
 const KEY_ECHO_CHARS: usize = 64;
 
@@ -88,14 +91,42 @@ pub fn schema() -> Value {
               "cx": num, "cy": num, "r": num,
               "start_deg": num, "end_deg": num,
               "ccw": {"type": "boolean"}},
-            "required": ["type"]}}},
+            "required": ["type"]}},
+        "layer": layer_schema()},
       "required": ["version", "entities"]})
+}
+
+/// The optional `layer` property every creation tool takes (LCV-156).
+pub fn layer_schema() -> Value {
+    json!({"type": "string",
+      "description": "Optional: the name of an existing layer to draw on (see query_entities). Omit to use the current layer."})
+}
+
+/// Shape check of the optional `layer` argument (ADR 0012 §6): absent is
+/// `None`; present must be a string of 1..=[`MAX_LAYER_NAME_CHARS`]
+/// characters. Whether the layer exists is the apply site's question.
+///
+/// # Errors
+///
+/// The reason, without the tool or field framing.
+pub fn layer_arg(args: &Value) -> Result<Option<String>, String> {
+    let Some(value) = args.get("layer") else {
+        return Ok(None);
+    };
+    let name = value.as_str().ok_or("must be a string")?;
+    let chars = name.chars().count();
+    if chars == 0 || chars > MAX_LAYER_NAME_CHARS {
+        return Err(format!(
+            "must hold 1..={MAX_LAYER_NAME_CHARS} characters, got {chars}"
+        ));
+    }
+    Ok(Some(name.to_owned()))
 }
 
 /// Parse the arguments of one `create_drawing` call into its items.
 ///
-/// Pure. Checks, in order: the root is an object whose keys are exactly
-/// `version` and `entities`; `version` is the integer 1; `entities` holds
+/// Pure. Checks, in order: the root is an object whose keys are `version`,
+/// `entities` and optionally `layer` (checked by [`layer_arg`]); `version` is the integer 1; `entities` holds
 /// 1..=[`MAX_DRAWING_ENTITIES`] items; then each item in turn.
 ///
 /// # Errors
@@ -112,7 +143,7 @@ pub fn parse(args: &Value) -> Result<Vec<DrawingItem>, ToolCallError> {
         .ok_or_else(|| root("arguments", "must be a JSON object"))?;
     if let Some(key) = obj
         .keys()
-        .find(|k| !["version", "entities"].contains(&k.as_str()))
+        .find(|k| !["version", "entities", "layer"].contains(&k.as_str()))
     {
         return Err(root(&cut(key), "unknown key"));
     }
@@ -453,8 +484,19 @@ mod tests {
     /// The scalar action a one-item batch must reproduce, field for field.
     fn as_action(item: &DrawingItem) -> AgentAction {
         match *item {
-            DrawingItem::Line { x1, y1, x2, y2 } => AgentAction::CreateLine { x1, y1, x2, y2 },
-            DrawingItem::Circle { cx, cy, r } => AgentAction::CreateCircle { cx, cy, r },
+            DrawingItem::Line { x1, y1, x2, y2 } => AgentAction::CreateLine {
+                x1,
+                y1,
+                x2,
+                y2,
+                layer: None,
+            },
+            DrawingItem::Circle { cx, cy, r } => AgentAction::CreateCircle {
+                cx,
+                cy,
+                r,
+                layer: None,
+            },
             DrawingItem::Arc {
                 cx,
                 cy,
@@ -463,6 +505,7 @@ mod tests {
                 end,
                 ccw,
             } => AgentAction::CreateArc {
+                layer: None,
                 cx,
                 cy,
                 r,

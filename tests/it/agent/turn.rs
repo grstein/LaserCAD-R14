@@ -67,6 +67,7 @@ fn push_act(tx: &Sender<AgentEvent>, action: AgentAction) -> Receiver<AgentOutco
 
 fn line(x2: f64) -> AgentAction {
     AgentAction::CreateLine {
+        layer: None,
         x1: 0.0,
         y1: 0.0,
         x2,
@@ -130,6 +131,7 @@ fn one_act_creates_the_exact_entity_on_the_live_document() {
     let answer = push_act(
         &tx,
         AgentAction::CreateLine {
+            layer: None,
             x1: 1.5,
             y1: 2.5,
             x2: 21.5,

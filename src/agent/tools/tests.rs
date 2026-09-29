@@ -129,7 +129,7 @@
     fn parse_create_drawing_delegates_to_the_drawing_parser() {
         let a = ok("create_drawing", json!({"version":1,"entities":[
             {"type":"circle","cx":1.0,"cy":2.0,"r":3.0}]}));
-        assert_eq!(a, AgentAction::CreateDrawing { items: vec![
+        assert_eq!(a, AgentAction::CreateDrawing { layer: None, items: vec![
             crate::agent::DrawingItem::Circle { cx: 1.0, cy: 2.0, r: 3.0 }] });
         let e = err("create_drawing", json!({"version":2,"entities":[]}));
         assert_eq!(e.to_string(), "create_drawing version: must be the integer 1");
@@ -146,12 +146,12 @@
     #[test]
     fn parse_create_line_happy_path() {
         assert_eq!(ok("create_line", json!({"x1":1.0,"y1":2.0,"x2":3.0,"y2":4.0})),
-            AgentAction::CreateLine { x1: 1.0, y1: 2.0, x2: 3.0, y2: 4.0 });
+            AgentAction::CreateLine { layer: None, x1: 1.0, y1: 2.0, x2: 3.0, y2: 4.0 });
     }
     #[test]
     fn parse_create_circle_happy_path() {
         assert_eq!(ok("create_circle", json!({"cx":5.0,"cy":6.0,"r":3.0})),
-            AgentAction::CreateCircle { cx: 5.0, cy: 6.0, r: 3.0 });
+            AgentAction::CreateCircle { layer: None, cx: 5.0, cy: 6.0, r: 3.0 });
     }
     #[test]
     fn parse_create_circle_negative_radius() {
