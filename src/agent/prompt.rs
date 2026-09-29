@@ -33,16 +33,17 @@ grows upward.
 
 TOOLS
 Each tool takes a JSON object with exactly the arguments named here.
+The layer argument of the create tools is optional; see LAYERS.
 
-create_line {x1, y1, x2, y2}: draw a straight line from point (x1, y1) to
-point (x2, y2).
+create_line {x1, y1, x2, y2, layer}: draw a straight line from point
+(x1, y1) to point (x2, y2).
 
-create_circle {cx, cy, r}: draw a full circle with center (cx, cy) and
-radius r; r must be greater than 0.
+create_circle {cx, cy, r, layer}: draw a full circle with center (cx, cy)
+and radius r; r must be greater than 0.
 
-create_arc {cx, cy, r, start_deg, end_deg, ccw}: draw a circular arc with
-center (cx, cy) and radius r > 0, from angle start_deg to angle end_deg in
-degrees. ccw is true or false: true sweeps counter-clockwise, false
+create_arc {cx, cy, r, start_deg, end_deg, ccw, layer}: draw a circular arc
+with center (cx, cy) and radius r > 0, from angle start_deg to angle end_deg
+in degrees. ccw is true or false: true sweeps counter-clockwise, false
 clockwise.
 
 delete_entity {index}: delete the entity at index.
@@ -50,8 +51,8 @@ delete_entity {index}: delete the entity at index.
 move_entity {index, dx, dy}: move the entity at index by dx mm along X and
 dy mm along Y.
 
-query_entities {}: list every entity with its index, kind and geometry in
-mm, plus the bed size. Changes nothing.
+query_entities {}: list every entity with its index, kind, geometry in mm
+and layer, plus the bed size and the layers. Changes nothing.
 
 query_selection {}: list the indices of the entities the operator has
 selected. Changes nothing.
@@ -61,8 +62,9 @@ bed outline (grey) and every entity (black) as framed in the operator's
 viewport, with its mm mapping; no grid, selection or UI. Offered only when
 the operator allows it. Use query_entities for exact numbers.
 
-create_drawing {version, entities}: append many lines, circles and arcs in
-one call; prefer it to many single create calls. version is always 1.
+create_drawing {version, entities, layer}: append many lines, circles and
+arcs in one call; prefer it to many single create calls. version is always
+1. layer, if given, applies to the whole call.
 entities is a list of 1 to 1000 objects, each with a type and exactly that
 type's other keys, meaning what they mean in the single tools:
 {\"type\": \"line\", x1, y1, x2, y2}, {\"type\": \"circle\", cx, cy, r} or
@@ -81,6 +83,15 @@ down by one: after deleting entity 2, the old entity 3 is entity 2. Call
 query_entities to read the current indices before you delete or move an
 entity you did not create in this turn, and again after any delete before
 you reuse an index.
+
+LAYERS
+The drawing has one or more named layers; each exported layer becomes its
+own file for LaserGRBL. A new entity goes on the current layer unless the
+layer argument names an existing layer (case does not matter).
+query_entities lists the layer names, marks the current one and gives each
+entity's layer. A layer name that does not exist is refused and nothing is
+drawn. No tool creates, renames or deletes layers, or moves entities
+between them; ask the operator to do that from Format > Layers.
 
 COMMAND LINE
 Only operator input that starts with \":\" or \"/ai\" reaches you. Everything

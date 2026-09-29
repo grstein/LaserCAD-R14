@@ -187,3 +187,36 @@ fn the_sections_appear_in_order() {
         from += at + needle.len();
     }
 }
+
+/// LCV-156 AC 14 — a LAYERS section, after the index section, says that a
+/// creation lands on the current layer unless `layer` names an existing one,
+/// where to read the names, that an unknown name is refused, and that no
+/// tool edits layers.
+#[test]
+fn the_prompt_describes_layers() {
+    let folded = DEFAULT_PROMPT
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    let section = folded
+        .split_once("LAYERS ")
+        .map(|(_, rest)| rest)
+        .expect("a LAYERS section");
+    assert!(
+        folded.find("ENTITY INDICES") < folded.find("LAYERS "),
+        "LAYERS follows ENTITY INDICES"
+    );
+    let section = section.split_once("COMMAND LINE").map_or(section, |s| s.0);
+    for needle in [
+        "current layer",
+        "layer argument",
+        "existing layer",
+        "query_entities",
+        "refused",
+        "nothing is drawn",
+        "no tool creates, renames or deletes layers",
+    ] {
+        let lower = section.to_lowercase();
+        assert!(lower.contains(needle), "`{needle}` missing: {section}");
+    }
+}
