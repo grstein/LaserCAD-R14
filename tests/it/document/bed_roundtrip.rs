@@ -21,11 +21,9 @@ use lasercad::util::{DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
 const TOL_MM: f64 = 1e-9;
 
 fn doc_with(bed_mm: [f64; 2], entities: Vec<Entity>) -> Document {
-    Document {
-        entities,
-        bed_mm,
-        ..Document::default()
-    }
+    let mut doc = Document::with_bed(bed_mm);
+    entities.into_iter().for_each(|e| doc.push_current(e));
+    doc
 }
 
 fn line(y: f64) -> Entity {

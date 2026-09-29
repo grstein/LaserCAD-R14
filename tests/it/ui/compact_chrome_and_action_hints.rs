@@ -517,7 +517,7 @@ fn ac6_canvas_stays_usable_with_the_agent_panel_open_and_large_fixtures() {
     app.agent.panel_open = true;
     app.last_cursor_world = Some(Vec2::new(-1234.56, -1234.56));
     for _ in 0..1234 {
-        app.document.entities.push(Entity::Line(Line::new(
+        app.document.push_current(Entity::Line(Line::new(
             Vec2::new(0.0, 0.0),
             Vec2::new(1.0, 0.0),
         )));

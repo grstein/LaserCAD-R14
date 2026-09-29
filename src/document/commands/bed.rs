@@ -71,7 +71,7 @@ mod tests {
 
     fn doc_with_a_line() -> Document {
         let mut doc = Document::default();
-        doc.entities.push(Entity::Line(Line::new(
+        doc.push_current(Entity::Line(Line::new(
             Vec2::new(0.0, 0.0),
             Vec2::new(10.0, 0.0),
         )));

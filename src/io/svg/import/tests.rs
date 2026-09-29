@@ -220,11 +220,11 @@ fn round_trip_line_circle_arc() {
     let p1 = Vec2::new(1.0, 2.0);
     let p2 = Vec2::new(11.0, 7.0);
     let lin = Line::new(p1, p2);
-    doc.entities.push(Entity::Line(lin));
+    doc.push_current(Entity::Line(lin));
     let cir = Circle::new(Vec2::new(5.0, 5.0), 3.0);
-    doc.entities.push(Entity::Circle(cir));
+    doc.push_current(Entity::Circle(cir));
     let arc = Arc::new(Vec2::default(), 10.0, 0.0, FRAC_PI_2, true);
-    doc.entities.push(Entity::Arc(arc));
+    doc.push_current(Entity::Arc(arc));
     let imp = import_svg(&export_svg(&doc, Preset::Cut)).unwrap().entities;
     assert_eq!(imp.len(), 3);
     if let (Entity::Line(l), Entity::Circle(c), Entity::Arc(a)) = (imp[0], imp[1], imp[2]) {

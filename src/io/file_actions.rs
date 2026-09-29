@@ -43,10 +43,7 @@ use crate::io::{open_file_dialog, save_file_dialog};
 /// export profile is a property of the session's job, not of the document,
 /// and an operator doing three mark jobs in a row picks it once.
 pub fn action_new(app: &mut App) {
-    app.document = Document {
-        bed_mm: app.settings.clamped_default_bed_mm(),
-        ..Document::default()
-    };
+    app.document = Document::with_bed(app.settings.clamped_default_bed_mm());
     app.history = History::default();
     app.current_file = None;
     app.mark_saved();
@@ -90,11 +87,10 @@ pub fn action_open(app: &mut App) {
     // The session adopts the *file's* preset too (LCV-115 AC 9), so Ctrl+S on
     // a marking file returns its geometry to the `mark` group.
     app.export_preset = imported.preset;
-    app.document = Document {
-        entities: imported.entities,
-        bed_mm: imported.bed_mm,
-        ..Document::default()
-    };
+    app.document = Document::with_bed(imported.bed_mm);
+    for entity in imported.entities {
+        app.document.push_current(entity);
+    }
     app.history = History::default();
     app.current_file = Some(path.clone());
     app.mark_saved();
@@ -159,11 +155,10 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
     // Adopts the file's bed and preset, same as `action_open` (LCV-114 AC 10,
     // LCV-115 AC 9).
     app.export_preset = imported.preset;
-    app.document = Document {
-        entities: imported.entities,
-        bed_mm: imported.bed_mm,
-        ..Document::default()
-    };
+    app.document = Document::with_bed(imported.bed_mm);
+    for entity in imported.entities {
+        app.document.push_current(entity);
+    }
     app.history = History::default();
     app.current_file = Some(path.clone());
     app.mark_saved();

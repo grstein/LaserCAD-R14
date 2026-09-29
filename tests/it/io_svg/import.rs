@@ -175,13 +175,12 @@ fn entities_inside_g_groups_collected() {
 #[test]
 fn round_trip_line_circle_arc() {
     let mut doc = Document::default();
-    doc.entities.push(Entity::Line(Line::new(
+    doc.push_current(Entity::Line(Line::new(
         Vec2::new(0.0, 0.0),
         Vec2::new(10.0, 5.0),
     )));
-    doc.entities
-        .push(Entity::Circle(Circle::new(Vec2::new(20.0, 20.0), 3.0)));
-    doc.entities.push(Entity::Arc(Arc::new(
+    doc.push_current(Entity::Circle(Circle::new(Vec2::new(20.0, 20.0), 3.0)));
+    doc.push_current(Entity::Arc(Arc::new(
         Vec2::new(0.0, 0.0),
         10.0,
         0.0,

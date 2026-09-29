@@ -236,7 +236,7 @@ mod tests {
     /// Build a doc with one line (0,0)→(10,0) and select entity 0.
     fn doc_with_line_selected() -> (Document, History) {
         let mut doc = Document::default();
-        doc.entities.push(Entity::Line(Line::new(
+        doc.push_current(Entity::Line(Line::new(
             Vec2::new(0.0, 0.0),
             Vec2::new(10.0, 0.0),
         )));

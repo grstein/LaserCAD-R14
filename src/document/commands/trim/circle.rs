@@ -76,10 +76,9 @@ mod tests {
     use core::f64::consts::PI;
 
     fn doc_with(entities: Vec<Entity>) -> Document {
-        Document {
-            entities,
-            ..Document::default()
-        }
+        let mut doc = Document::default();
+        entities.into_iter().for_each(|e| doc.push_current(e));
+        doc
     }
 
     fn as_arc(e: &Entity) -> Arc {

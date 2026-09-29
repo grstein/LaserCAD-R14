@@ -135,10 +135,9 @@ mod tests {
         Entity::Line(Line::new(Vec2::new(x1, y1), Vec2::new(x2, y2)))
     }
     fn doc_with(entities: Vec<Entity>) -> Document {
-        Document {
-            entities,
-            ..Document::default()
-        }
+        let mut doc = Document::default();
+        entities.into_iter().for_each(|e| doc.push_current(e));
+        doc
     }
     fn do_trim(doc: &mut Document, hist: &mut History, x: f64, y: f64) {
         TrimTool.on_pointer_down(Vec2::new(x, y), false, doc, hist);

@@ -104,7 +104,7 @@ mod tests {
     fn doc_with_line() -> Document {
         let mut doc = Document::default();
         let line = Line::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0));
-        doc.entities.push(Entity::Line(line));
+        doc.push_current(Entity::Line(line));
         doc
     }
 
@@ -198,8 +198,8 @@ mod tests {
     fn pointer_down_deletes_multiple_entities() {
         let mut doc = Document::default();
         let line = Line::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 0.0));
-        doc.entities.push(Entity::Line(line));
-        doc.entities.push(Entity::Line(line));
+        doc.push_current(Entity::Line(line));
+        doc.push_current(Entity::Line(line));
         let mut hist = History::default();
         hist.commit(Box::new(SelectionCommand::new([0usize, 1])), &mut doc);
 

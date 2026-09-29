@@ -129,11 +129,11 @@ pub(crate) fn load_autosave_from(path: &Path) -> Option<Document> {
         return None;
     }
 
-    Some(Document {
-        entities: envelope.entities,
-        bed_mm: envelope.bed_mm,
-        ..Document::default()
-    })
+    let mut doc = Document::with_bed(envelope.bed_mm);
+    for entity in envelope.entities {
+        doc.push_current(entity);
+    }
+    Some(doc)
 }
 
 /// Delete the autosave file at `path` if it exists.
@@ -178,13 +178,12 @@ mod tests {
 
     fn sample_doc() -> Document {
         let mut doc = Document::default();
-        doc.entities.push(Entity::Line(Line::new(
+        doc.push_current(Entity::Line(Line::new(
             Vec2::new(0.0, 0.0),
             Vec2::new(10.0, 5.0),
         )));
-        doc.entities
-            .push(Entity::Circle(Circle::new(Vec2::new(20.0, 20.0), 3.0)));
-        doc.entities.push(Entity::Arc(Arc::new(
+        doc.push_current(Entity::Circle(Circle::new(Vec2::new(20.0, 20.0), 3.0)));
+        doc.push_current(Entity::Arc(Arc::new(
             Vec2::new(5.0, 5.0),
             2.0,
             0.0,

@@ -18,7 +18,7 @@ fn tempdir(name: &str) -> PathBuf {
 
 fn doc_with_a_line() -> Document {
     let mut doc = Document::default();
-    doc.entities.push(Entity::Line(Line::new(
+    doc.push_current(Entity::Line(Line::new(
         Vec2::new(1.0, 2.0),
         Vec2::new(30.0, 40.0),
     )));

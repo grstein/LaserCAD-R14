@@ -76,7 +76,7 @@ fn help_about_sets_about_open() {
 fn app_with_three_lines() -> App {
     let mut app = App::default();
     for _ in 0..3 {
-        app.document.entities.push(Entity::Line(Line::new(
+        app.document.push_current(Entity::Line(Line::new(
             Vec2::new(0.0, 0.0),
             Vec2::new(1.0, 0.0),
         )));

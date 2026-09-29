@@ -33,11 +33,8 @@ fn app_with_tempdir(dir: &Path) -> App {
 /// line in `preset`'s colour group, through the production exporter, so
 /// the test reads back exactly what the app would have written.
 fn svg_file(dir: &Path, name: &str, bed_mm: [f64; 2], preset: Preset) -> PathBuf {
-    let mut doc = Document {
-        bed_mm,
-        ..Document::default()
-    };
-    doc.entities.push(Entity::Line(Line::new(
+    let mut doc = Document::with_bed(bed_mm);
+    doc.push_current(Entity::Line(Line::new(
         Vec2::new(10.0, 10.0),
         Vec2::new(40.0, 25.0),
     )));
@@ -93,7 +90,7 @@ fn file_actions_fn_signatures() {
 fn action_new_clears_document_and_history() {
     let mut app = App::default();
     // Push an entity and commit a command so undo stack is non-empty.
-    app.document.entities.push(Entity::Line(Line::new(
+    app.document.push_current(Entity::Line(Line::new(
         Vec2::new(0.0, 0.0),
         Vec2::new(1.0, 0.0),
     )));
@@ -195,11 +192,11 @@ fn open_via_the_dialog_adopts_the_file_bed_and_leaves_the_seed_alone() {
         "positive control: action_open must import the file"
     );
     assert!(
-        body.contains("entities: imported.entities,"),
+        body.contains("in imported.entities"),
         "positive control: the entities come from the import"
     );
     assert!(
-        body.contains("bed_mm: imported.bed_mm,"),
+        body.contains("Document::with_bed(imported.bed_mm)"),
         "action_open must adopt the file's bed (AC 10)"
     );
     assert!(
@@ -382,7 +379,7 @@ fn action_save_writes_svg_to_current_path() {
         current_file: Some(tmp.clone()),
         ..App::default()
     };
-    app.document.entities.push(Entity::Line(Line::new(
+    app.document.push_current(Entity::Line(Line::new(
         Vec2::new(0.0, 0.0),
         Vec2::new(5.0, 5.0),
     )));

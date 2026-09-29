@@ -132,7 +132,11 @@ mod tests {
     #[rustfmt::skip] fn v(x: f64, y: f64) -> Vec2 { Vec2::new(x, y) }
     #[rustfmt::skip] fn le(ax: f64, ay: f64, bx: f64, by: f64) -> Entity { Entity::Line(Line::new(v(ax,ay),v(bx,by))) }
     #[rustfmt::skip] fn ce(cx: f64, cy: f64, r: f64) -> Entity { Entity::Circle(Circle::new(v(cx,cy),r)) }
-    #[rustfmt::skip] fn mk(es: Vec<Entity>) -> Document { Document { entities: es, ..Document::default() } }
+    #[rustfmt::skip] fn mk(es: Vec<Entity>) -> Document {
+     let mut doc = Document::default();
+     es.into_iter().for_each(|e| doc.push_current(e));
+     doc
+ }
     #[rustfmt::skip] fn li(e: Entity) -> Line { if let Entity::Line(l) = e { l } else { panic!("expected Line") } }
     #[rustfmt::skip]
     fn hd() -> (ExtendTool, Document, History) {

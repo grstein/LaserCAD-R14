@@ -96,7 +96,7 @@ fn has_unsaved_changes_truth_table() {
     // autosave-recovery simulation (App::new() cannot be called from a
     // test, ADR 0002 §A2).
     let mut app = App::default();
-    app.document.entities.push(Entity::Line(some_line()));
+    app.document.push_current(Entity::Line(some_line()));
     assert!(
         app.has_unsaved_changes(),
         "row 8: a recovered document with entities and no saved_revision is unsaved"

@@ -210,7 +210,7 @@ mod tests {
     fn noop_roundtrip_preserves_existing_entity() {
         let mut doc = Document::default();
         let line = Line::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0));
-        doc.entities.push(Entity::Line(line));
+        doc.push_current(Entity::Line(line));
 
         let mut cmd = NoOpCommand;
         cmd.do_(&mut doc);
@@ -233,7 +233,7 @@ mod tests {
     fn noop_roundtrip_via_dyn_dispatch() {
         let mut doc = Document::default();
         let line = Line::new(Vec2::new(1.0, 2.0), Vec2::new(3.0, 4.0));
-        doc.entities.push(Entity::Line(line));
+        doc.push_current(Entity::Line(line));
 
         let mut cmd: Box<dyn Command> = Box::new(NoOpCommand);
         cmd.do_(&mut doc);

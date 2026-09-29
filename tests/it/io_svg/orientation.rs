@@ -21,10 +21,9 @@ use std::f64::consts::{FRAC_PI_2, PI};
 const EXPORT_QUANTISATION_TOL: f64 = 1e-3;
 
 fn doc_of(entities: Vec<Entity>) -> Document {
-    Document {
-        entities,
-        ..Document::default()
-    }
+    let mut doc = Document::default();
+    entities.into_iter().for_each(|e| doc.push_current(e));
+    doc
 }
 
 /// AC 15 — the asymmetry gate.

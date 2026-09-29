@@ -102,7 +102,7 @@ fn redo_replays_and_re_enables_undo() {
 #[test]
 fn undo_and_redo_on_empty_return_false() {
     let mut doc = Document::default();
-    doc.entities.push(Entity::Line(line_a()));
+    doc.push_current(Entity::Line(line_a()));
     let snapshot = doc.entities.clone();
     let mut h = History::new();
     assert!(!h.undo(&mut doc));

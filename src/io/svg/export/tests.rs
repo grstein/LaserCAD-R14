@@ -5,7 +5,7 @@ use core::f64::consts::{FRAC_PI_2, PI};
 
 fn doc_with(entity: Entity) -> Document {
     let mut doc = Document::default();
-    doc.entities.push(entity);
+    doc.push_current(entity);
     doc
 }
 
@@ -222,7 +222,7 @@ fn out_of_bed_geometry_is_emitted_verbatim() {
         Vec2::new(0.0, 500.0),
         Vec2::new(10.0, 500.0),
     )));
-    doc.entities.push(Entity::Line(Line::new(
+    doc.push_current(Entity::Line(Line::new(
         Vec2::new(0.0, 0.0),
         Vec2::new(1.0, 1.0),
     )));
@@ -239,13 +239,12 @@ fn out_of_bed_geometry_is_emitted_verbatim() {
 #[test]
 fn no_forbidden_svg_elements() {
     let mut doc = Document::default();
-    doc.entities.push(Entity::Line(Line::new(
+    doc.push_current(Entity::Line(Line::new(
         Vec2::new(0.0, 0.0),
         Vec2::new(10.0, 0.0),
     )));
-    doc.entities
-        .push(Entity::Circle(Circle::new(Vec2::new(5.0, 5.0), 2.0)));
-    doc.entities.push(Entity::Arc(Arc::new(
+    doc.push_current(Entity::Circle(Circle::new(Vec2::new(5.0, 5.0), 2.0)));
+    doc.push_current(Entity::Arc(Arc::new(
         Vec2::new(0.0, 0.0),
         5.0,
         0.0,
@@ -274,10 +273,7 @@ fn export_svg_reachable_via_module_path() {
 /// a matching `viewBox`, and with no trailing `.0` on a whole number.
 #[test]
 fn export_header_uses_document_bed() {
-    let doc = Document {
-        bed_mm: [300.0, 200.0],
-        ..Document::default()
-    };
+    let doc = Document::with_bed([300.0, 200.0]);
     let svg = export_svg(&doc, Preset::Cut);
     assert!(svg.contains("width=\"300mm\""), "{svg}");
     assert!(svg.contains("height=\"200mm\""), "{svg}");
@@ -289,10 +285,7 @@ fn export_header_uses_document_bed() {
 /// no `{:.4}` padding.
 #[test]
 fn export_header_keeps_fractional_bed_dimensions() {
-    let doc = Document {
-        bed_mm: [300.5, 180.25],
-        ..Document::default()
-    };
+    let doc = Document::with_bed([300.5, 180.25]);
     let svg = export_svg(&doc, Preset::Cut);
     assert!(svg.contains("width=\"300.5mm\""), "{svg}");
     assert!(svg.contains("height=\"180.25mm\""), "{svg}");
@@ -321,7 +314,7 @@ fn export_mirrors_around_document_bed_height() {
 #[test]
 fn export_mirrors_circles_and_arcs_around_document_bed_height() {
     let mut doc = doc_with(Entity::Circle(Circle::new(Vec2::new(40.0, 30.0), 5.0)));
-    doc.entities.push(Entity::Arc(Arc::new(
+    doc.push_current(Entity::Arc(Arc::new(
         Vec2::new(0.0, 0.0),
         10.0,
         0.0,

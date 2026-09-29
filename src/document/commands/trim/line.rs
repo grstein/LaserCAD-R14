@@ -145,10 +145,9 @@ mod tests {
     use crate::geometry::{Circle, Line, Vec2, EPSILON};
 
     fn doc_with(entities: Vec<Entity>) -> Document {
-        Document {
-            entities,
-            ..Document::default()
-        }
+        let mut doc = Document::default();
+        entities.into_iter().for_each(|e| doc.push_current(e));
+        doc
     }
 
     fn as_line(e: &Entity) -> Line {

@@ -97,7 +97,7 @@ mod tests {
     /// around itself is visible.
     fn doc_with_one_line() -> Document {
         let mut doc = Document::default();
-        doc.entities.push(Entity::Line(line(99.0)));
+        doc.push_current(Entity::Line(line(99.0)));
         doc
     }
 
@@ -205,7 +205,7 @@ mod tests {
     #[test]
     fn empty_composite_is_a_noop() {
         let mut doc = Document::default();
-        doc.entities.push(Entity::Line(line(0.0)));
+        doc.push_current(Entity::Line(line(0.0)));
         let mut composite = CompositeCommand::new(vec![], "none");
         composite.do_(&mut doc);
         composite.undo(&mut doc);
