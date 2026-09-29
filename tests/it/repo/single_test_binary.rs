@@ -78,7 +78,11 @@ fn ac1_every_file_in_tests_it_is_a_declared_module() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/it");
     let (areas, _) = entries(&dir);
     let (mut undeclared, mut total) = undeclared_in(&dir, "main.rs");
+    let main = std::fs::read_to_string(dir.join("main.rs")).expect("tests/it/main.rs");
     for area in &areas {
+        if !main.lines().any(|l| l == format!("mod {area};")) {
+            undeclared.push(format!("{area}/"));
+        }
         let area_dir = dir.join(area);
         assert_eq!(
             entries(&area_dir).0,
