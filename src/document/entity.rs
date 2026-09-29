@@ -99,14 +99,14 @@ impl Entity {
 /// Canonical document-format schema version.
 ///
 /// Stamps the on-disk envelope shape (informational sketch:
-/// `{ "schema_version": 1, "entities": [...] }`). The integer is bumped only
+/// `{ "schema_version": 2, "layers": [...], "entities": [...], ... }`). The integer is bumped only
 /// on a serialization change that would prevent an older build from cleanly
 /// loading a newer file — adding a new optional field does NOT bump; renaming
 /// or removing a field DOES. See [`crate::document::schema`] for the full
 /// rationale and bump policy.
 ///
 /// The type is `u32` for headroom and to match typical JSON integer ranges.
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 
 #[cfg(test)]
 mod tests {
@@ -136,10 +136,10 @@ mod tests {
         assert_eq!(Entity::Line(line), Entity::Line(line));
     }
 
-    /// AC#2 — the schema version constant is pinned at `1`.
+    /// AC#2 — the schema version constant is pinned (2 since LCV-156 layers).
     #[test]
-    fn schema_version_is_one() {
-        assert_eq!(SCHEMA_VERSION, 1);
+    fn schema_version_is_pinned() {
+        assert_eq!(SCHEMA_VERSION, 2);
     }
 
     /// AC#3 — `Entity::Line(_).bbox()` matches `Line::bbox()` component-wise.

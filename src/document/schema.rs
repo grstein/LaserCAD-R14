@@ -9,7 +9,7 @@
 //! ## Envelope sketch (informational, not binding code)
 //!
 //! ```json
-//! { "schema_version": 1, "entities": [ ... ] }
+//! { "schema_version": 2, "layers": [ ... ], "entities": [ ... ], ... }
 //! ```
 //!
 //! ## Bump policy
