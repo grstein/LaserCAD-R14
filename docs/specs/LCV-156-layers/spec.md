@@ -1,51 +1,60 @@
 # LCV-156 — Layers with one export file per layer
 
-- **Status**: Draft
+- **Status**: Specified
 - **Depends on**: none
 - **Implementation**: -
 
 ## Problem
 
-A laser job mixes operations (cut the outline, engrave the text), and LaserGRBL applies one
-speed and power per imported file. Today the export preset (`File > Export preset`) is global to
-the document, so every entity lands in the same cut/mark/engrave group and a mixed job needs the
-drawing split by hand. Direction set by the user on 2026-09-29: LightBurn-style layers.
+LaserGRBL applies one speed and power setting to each imported file. Today the export preset is
+set once for the whole document (`File > Export preset`), so all entities end up in a single
+cut/mark/engrave group. A job that mixes cutting and engraving has to be split by hand.
+The user chose LightBurn-style layers on 2026-09-29.
 
 ## Stories
 
-- As an operator, I want to create layers with a name and a color and put each entity on one of
-  them so that I can see which parts are cut and which are engraved.
-- As an operator, I want export to write one LaserGRBL-ready file per layer so that each file
-  gets its own speed and power in LaserGRBL.
-- As an operator, I want my saved drawing to keep all its layers so that it reopens as I left it.
-
-## Direction (user decisions 2026-09-29)
-
-- A layer is a name and a color, owned by the document; the color identifies the layer.
-- A new document starts with one default layer; the user adds, renames, recolors and deletes
-  layers.
-- Every entity belongs to exactly one layer and is drawn in its color. New entities go to the
-  current layer; moving the selection to another layer is an undoable `Command`.
-- Save writes the "mother" SVG with every layer (one `<g>` per layer, carrying name and color)
-  and Open reads it back.
-- Export writes one file per layer that has entities, named `<mother>-<layer>.svg`, each keeping
-  the LaserGRBL rules (header, Y flip, `fill="none"`, arcs as `A`).
-- Replaces `File > Export preset` and the fixed cut/mark/engrave colors of the SVG export
-  contract in `AGENTS.md`; needs an ADR at /design. Lifts the "no layers" non-goal in
-  `docs/product/README.md`.
+- As an operator, I want named, colored layers with each entity on one of them, so that I can see
+  which parts are cut and which are engraved.
+- As an operator, I want one LaserGRBL-ready file per layer, so that each file gets its own speed
+  and power setting in LaserGRBL.
 
 ## Acceptance criteria
 
-To be written by /specify.
+1. WHEN a new document is created THE SYSTEM SHALL give it exactly one layer, named `Cut`, colored
+   `#ff0000`, with Output on, and make it the current layer.
+2. WHEN a tool or the agent creates an entity THE SYSTEM SHALL put it on the current layer.
+3. THE SYSTEM SHALL draw every entity in its layer's color; selection and preview keep their own colors.
+4. WHEN the operator runs `LAYER`/`LA` or opens `Layers…` THE SYSTEM SHALL show a dialog that lists
+   every layer and can add, rename and recolor layers, toggle Output, set the current layer and
+   move the selection to a layer.
+5. THE SYSTEM SHALL show the current layer in a status-bar dropdown that can also change it.
+6. IF a rename or new layer would duplicate a name (compared case-insensitively after sanitising
+   it for file names) or another layer's color THEN THE SYSTEM SHALL refuse the change and say why.
+7. IF the operator deletes a layer that still has entities, or deletes the last layer, THEN THE
+   SYSTEM SHALL refuse and say why.
+8. WHEN layers or entity membership change THE SYSTEM SHALL record the change as a `Command`, so
+   one Ctrl+Z undoes it.
+9. WHEN the drawing is saved THE SYSTEM SHALL write one `<g>` per layer, in layer order, carrying
+   the layer's name, color and Output flag; opening the file SHALL restore the layers, their order,
+   the entity membership and the current layer.
+10. WHEN the operator runs `File > Export layers` on a saved drawing THE SYSTEM SHALL write
+    `<mother>-<layer>.svg` in the mother file's folder for every layer that has Output on and
+    has entities. Each file holds only that layer's geometry and follows the LaserGRBL rules
+    (bed header, Y flip, `fill="none"`, arcs as `A`, stroke width 0.1 mm). Existing files are
+    overwritten, and the status bar lists the files written.
+11. IF the drawing has never been saved THEN `Export layers` SHALL ask the operator to save first
+    and write nothing.
+12. IF no layer has both Output on and entities THEN THE SYSTEM SHALL write nothing and say so.
+13. THE SYSTEM SHALL keep layers across autosave and restore.
+14. WHEN the agent lists entities THE SYSTEM SHALL report each entity's layer; creation tools
+    SHALL accept an optional existing layer name, and an unknown name SHALL be refused.
+15. THE SYSTEM SHALL remove `File > Export preset` and the preset badge in the status bar.
 
 ## Out of scope
 
-- Speed, power or passes per layer (LaserGRBL owns those).
-- Blocks, xref, nested layers.
+- Speed, power and passes per layer (LaserGRBL owns these).
+- Show/hide per layer, nested layers, blocks.
+- Migrating v0.2 files. Geometry outside a layer group loads onto the default layer.
+- Agent tools that create, rename or delete layers.
 
 ## Open questions
-
-- Per-layer Output and Show toggles, as in LightBurn?
-- Sanitising layer names for file names; export of empty layers.
-- Reading v0.2 files: fixed-color groups become layers?
-- Which agent tools choose or create a layer?
