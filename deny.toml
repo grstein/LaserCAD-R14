@@ -1,0 +1,55 @@
+# cargo-deny: supply-chain policy. Run `cargo deny check`; CI job `deny`.
+# Not part of scripts/gate.sh (the gate needs no extra tools).
+
+[graph]
+all-features = false
+
+[advisories]
+version = 2
+# Vulnerabilities are always errors in v2. v2 has no "warn" level for
+# unmaintained crates, so only direct deps fail; transitive ones (paste,
+# ttf-parser via egui/eframe, 2026-09) are not ours to swap and pass.
+unmaintained = "workspace"
+yanked = "warn"
+# quick-xml 0.30 (zbus_xml, via eframe's accesskit AT-SPI bridge) and 0.39
+# (wayland-scanner, a build-time proc-macro) are pinned upstream by eframe 0.29;
+# the fix needs quick-xml >= 0.41. Neither parses user files: 0.39 reads the
+# vendored Wayland protocol XML at compile time, 0.30 reads D-Bus introspection
+# data from the local session bus. SVG import uses roxmltree. Revisit in LCV-180.
+ignore = [
+    { id = "RUSTSEC-2026-0194", reason = "quick-xml pinned by eframe 0.29 (zbus_xml, wayland-scanner); no user XML reaches it" },
+    { id = "RUSTSEC-2026-0195", reason = "quick-xml pinned by eframe 0.29 (zbus_xml, wayland-scanner); no user XML reaches it" },
+]
+
+[licenses]
+version = 2
+# Every license below is compatible with shipping the binary under
+# `MIT OR Apache-2.0`. Derived from the actual dependency tree
+# (`cargo metadata`); add a license only when a new dependency needs it.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "BSL-1.0",
+    "Unicode-3.0",
+    # File-level copyleft: dirs-sys -> option-ext, mockito (dev) -> colored.
+    "MPL-2.0",
+    # egui's bundled fonts (epaint_default_fonts).
+    "OFL-1.1",
+    "LicenseRef-UFL-1.0",
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

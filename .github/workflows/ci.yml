@@ -70,6 +70,28 @@ jobs:
       - name: Gate 3 — cargo test --all --no-fail-fast
         run: cargo test --all --no-fail-fast
 
+      # Repo rules from scripts/gate.sh; platform-independent, so Linux only.
+      - name: Gate 4 — 300-LOC cap (Linux)
+        if: runner.os == 'Linux'
+        run: scripts/loc-cap.sh
+
+      - name: Gate 5 — backlog in sync with spec headers (Linux)
+        if: runner.os == 'Linux'
+        run: scripts/backlog.sh --check
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # deny: supply chain — advisories, licenses, bans, sources (deny.toml).
+  # ──────────────────────────────────────────────────────────────────────────
+  deny:
+    name: cargo-deny
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: cargo deny check
+        uses: EmbarkStudios/cargo-deny-action@v2
+
   # ──────────────────────────────────────────────────────────────────────────
   # build: release binary, uploaded as a named artifact per platform.
   # Gated the same way as test's matrix; starts only after all test legs pass.

@@ -1,0 +1,16 @@
+# Weekly dependency updates. Cargo semver-major bumps are ignored: majors go
+# through spec LCV-180 (dependency refresh), since egui/eframe majors break UI.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
