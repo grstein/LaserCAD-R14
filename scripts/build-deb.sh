@@ -4,7 +4,7 @@ set -euo pipefail
 # scripts/build-deb.sh — Build a Debian .deb package for LaserCAD.
 #
 # Usage: ./scripts/build-deb.sh
-# Run from the repository root on an x86_64 Ubuntu 24.04 host with Rust 1.88
+# Run from the repository root on an x86_64 Ubuntu 24.04 host with Rust 1.98
 # and dpkg-deb installed (part of the default dpkg package).
 #
 # Outputs: dist/lasercad_VERSION_amd64.deb

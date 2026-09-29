@@ -4,7 +4,7 @@ set -euo pipefail
 # scripts/build-appimage.sh — Build a Linux AppImage for LaserCAD.
 #
 # Usage: ./scripts/build-appimage.sh
-# Run from the repository root on an x86_64 Ubuntu 24.04 host with Rust 1.88
+# Run from the repository root on an x86_64 Ubuntu 24.04 host with Rust 1.98
 # and curl installed.  libfuse2 is NOT required on the build host because
 # appimagetool is invoked with --appimage-extract-and-run.
 #

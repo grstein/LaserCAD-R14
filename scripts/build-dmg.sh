@@ -5,7 +5,7 @@ set -euo pipefail
 #
 # Usage: ./scripts/build-dmg.sh
 # Run from the repository root on a macOS 12.0+ host (Intel or Apple Silicon)
-# with Rust 1.88 (via rust-toolchain.toml) and Xcode Command Line Tools installed
+# with Rust 1.98 (via rust-toolchain.toml) and Xcode Command Line Tools installed
 # (xcode-select --install).  No third-party tools are required.
 #
 # Outputs:

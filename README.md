@@ -13,7 +13,7 @@ Beta (v0.2.0). The core draw-to-SVG workflow works today: drawing and modify too
 
 ## Build
 
-Requires Rust ≥ 1.88 (pinned in `rust-toolchain.toml`; `rustup` will fetch it automatically).
+Requires Rust ≥ 1.98 (pinned in `rust-toolchain.toml`; `rustup` will fetch it automatically).
 
 ```bash
 cargo run                    # debug build, opens the app

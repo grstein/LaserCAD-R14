@@ -11,16 +11,16 @@ LaserCAD v2 pins its Rust toolchain in [`rust-toolchain.toml`](../rust-toolchain
 
 ```toml
 [toolchain]
-channel = "1.88"
+channel = "1.98"
 components = ["rustfmt", "clippy"]
 profile = "minimal"
 ```
 
 Install [`rustup`](https://rustup.rs/) if you don't already have it; `cd` into
-the repository and any `cargo`/`rustc` invocation will fetch and use 1.88
-automatically (verified: `rustup show` reports `1.88-x86_64-unknown-linux-gnu
-(active)` inside the checkout). `rustc >= 1.88` is required by transitive
-dependencies (`image`, `idna_adapter`); older toolchains will fail to compile.
+the repository and any `cargo`/`rustc` invocation will fetch and use 1.98
+automatically (verified: `rustup show` reports `1.98-x86_64-unknown-linux-gnu
+(active)` inside the checkout). `Cargo.toml` declares `rust-version = "1.98"`;
+older toolchains will fail to compile.
 
 ## 2. System packages
 
