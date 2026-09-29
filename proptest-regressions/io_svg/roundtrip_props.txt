@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 2f1945335b2199eeac2dc14c9f0443a5067900928fe9a8b030568ce3a3e2cc57 # shrinks to doc = Document { entities: [Arc(Arc { center: Vec2 { x: 0.0, y: 0.0 }, r: 0.01, start_angle: 3.6836644204662843, end_angle: 0.5420717668764912, ccw: false })], selection: Selection { indices: {} }, bed_mm: [1.0, 1.0], layers: [Layer { id: LayerId(1500), name: "&_Z<_0", color: [120, 23, 59], output: true }, Layer { id: LayerId(3631), name: ".>'1", color: [7, 187, 48], output: false }, Layer { id: LayerId(4962), name: "'>>Z>\".2", color: [174, 187, 255], output: true }], current_layer: LayerId(3631), entity_layers: [LayerId(1500)] }
