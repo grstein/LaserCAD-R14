@@ -59,7 +59,7 @@
 use core::f64::consts::FRAC_PI_2;
 use lasercad::document::Entity;
 use lasercad::document::Layer;
-use lasercad::geometry::{Vec2, EPSILON};
+use lasercad::geometry::{EPSILON, Vec2};
 use lasercad::io::svg::import_svg;
 use lasercad::text::layout_text;
 

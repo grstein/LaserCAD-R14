@@ -8,8 +8,8 @@
 //! picture is a function of the document and the camera only.
 
 use crate::agent::AgentOutcome;
-use crate::app::agent_apply::CAPTURE_DISABLED;
 use crate::app::App;
+use crate::app::agent_apply::CAPTURE_DISABLED;
 use crate::render::raster::{encode_png_gray, rasterize};
 
 /// Longest edge of a canvas image, in pixels. Never upscaled to reach it.

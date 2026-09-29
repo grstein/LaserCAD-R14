@@ -54,7 +54,9 @@ pub fn arm_native_dialogs() {
 /// §Decision, LCV-118.
 fn require_armed(fn_name: &str) {
     if !NATIVE_DIALOGS_ARMED.load(Ordering::Relaxed) {
-        panic!("native file dialog `{fn_name}` was called while dialogs are disarmed — this process is not the LaserCAD app binary. Only `crate::run()` arms them (`arm_native_dialogs`, src/io/dialogs.rs); tests never do. A code path under test reached a real OS dialog, which would block the process forever with no output; the usual cause is an inverted or missing guard predicate upstream of a file action. Fix that caller — do not arm dialogs from a test. See docs/adr/0005-native-dialogs-disarmed-by-default.md");
+        panic!(
+            "native file dialog `{fn_name}` was called while dialogs are disarmed — this process is not the LaserCAD app binary. Only `crate::run()` arms them (`arm_native_dialogs`, src/io/dialogs.rs); tests never do. A code path under test reached a real OS dialog, which would block the process forever with no output; the usual cause is an inverted or missing guard predicate upstream of a file action. Fix that caller — do not arm dialogs from a test. See docs/adr/0005-native-dialogs-disarmed-by-default.md"
+        );
     }
 }
 

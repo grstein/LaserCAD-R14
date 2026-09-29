@@ -11,8 +11,8 @@
 
 use crate::app::App;
 use crate::cmdline::ToolInput;
-use crate::document::{commands::CreateEntities, Document, Entity, History};
-use crate::geometry::{Line, Vec2, EPSILON};
+use crate::document::{Document, Entity, History, commands::CreateEntities};
+use crate::geometry::{EPSILON, Line, Vec2};
 use crate::tools::Tool;
 
 /// Internal FSM state of [`RectTool`].

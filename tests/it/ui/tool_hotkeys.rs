@@ -4,7 +4,7 @@
 //! they do not require a running egui frame (no `egui::Context` needed).
 
 use egui::{Key, Modifiers};
-use lasercad::app::{suppress_snap_if_disabled, App};
+use lasercad::app::{App, suppress_snap_if_disabled};
 use lasercad::document::CreateLine;
 use lasercad::geometry::{Line, SnapKind, SnapResult, Vec2};
 use lasercad::ui::shortcuts::dispatch_shortcuts;

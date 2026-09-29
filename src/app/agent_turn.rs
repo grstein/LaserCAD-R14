@@ -38,11 +38,11 @@
 //! no `History`, no `App`, nothing borrowed (ADR 0007 §D1). What runs there is
 //! `agent_worker::run_agent_turn`, which asks the UI thread through `ask_ui`.
 
-use super::agent_worker::{ask_ui, run_agent_turn, TurnConfig};
-use crate::agent::{prompt, AgentError, AgentEvent};
-use crate::app::{agent_memory, App};
+use super::agent_worker::{TurnConfig, ask_ui, run_agent_turn};
+use crate::agent::{AgentError, AgentEvent, prompt};
+use crate::app::{App, agent_memory};
 use crate::io::settings::Settings;
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc::{Sender, channel};
 
 /// What the model is told when a foreign commit landed mid-turn (ADR 0007 §D4).
 ///

@@ -6,8 +6,8 @@
 //! **clockwise** world arc.
 
 use lasercad::document::{Document, Entity};
-use lasercad::geometry::{Arc, Circle, Line, Vec2, EPSILON};
-use lasercad::io::svg::{export_svg, import_svg, SvgImportError};
+use lasercad::geometry::{Arc, Circle, EPSILON, Line, Vec2};
+use lasercad::io::svg::{SvgImportError, export_svg, import_svg};
 use std::f64::consts::{FRAC_PI_2, PI};
 
 fn svg_wrap(inner: &str) -> String {

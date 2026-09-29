@@ -6,7 +6,7 @@
 
 use super::parametric_t;
 use crate::document::Entity;
-use crate::geometry::{line_circle, line_line, line_line_infinite, Circle, Line, Vec2, EPSILON};
+use crate::geometry::{Circle, EPSILON, Line, Vec2, line_circle, line_line, line_line_infinite};
 
 /// Trim a [`Line`] target by a [`Line`] cutter. The cutter's strict-segment
 /// intersection point `X` splits the target into `[p1, X]` and `[X, p2]`.
@@ -142,7 +142,7 @@ mod tests {
     use super::super::{ExtendEntity, TrimEntity};
     use crate::document::commands::Command;
     use crate::document::{Document, Entity};
-    use crate::geometry::{Circle, Line, Vec2, EPSILON};
+    use crate::geometry::{Circle, EPSILON, Line, Vec2};
 
     fn doc_with(entities: Vec<Entity>) -> Document {
         let mut doc = Document::default();

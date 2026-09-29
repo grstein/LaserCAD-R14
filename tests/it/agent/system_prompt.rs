@@ -6,7 +6,7 @@
 //! and blank, multiline and Unicode overrides, all used verbatim. AC 6: the
 //! shipped default is pinned by an exact `assert_eq!` against the spec text.
 
-use lasercad::agent::prompt::{resolve, DEFAULT_PROMPT};
+use lasercad::agent::prompt::{DEFAULT_PROMPT, resolve};
 use lasercad::io::settings::Settings;
 
 /// The built-in system prompt, line by line (LCV-143 AC 6, text of LCV-151, layers of LCV-156).

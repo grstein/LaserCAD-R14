@@ -126,7 +126,7 @@ fn world_to_screen_offset(rect: egui::Rect, camera: &Camera, w: Vec2) -> egui::P
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::{Circle, Line, EPSILON};
+    use crate::geometry::{Circle, EPSILON, Line};
     use core::f64::consts::FRAC_PI_2;
 
     /// AC#2 — `PaintOptions::default()` returns `arc_segments == 64` and a

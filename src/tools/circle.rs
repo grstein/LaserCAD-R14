@@ -8,8 +8,8 @@
 
 use crate::app::App;
 use crate::cmdline::ToolInput;
-use crate::document::{commands::CreateCircle, Document, Entity, History};
-use crate::geometry::{Circle, Vec2, EPSILON};
+use crate::document::{Document, Entity, History, commands::CreateCircle};
+use crate::geometry::{Circle, EPSILON, Vec2};
 use crate::tools::Tool;
 
 /// Internal FSM state of [`CircleTool`].

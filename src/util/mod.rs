@@ -7,5 +7,5 @@
 pub mod units;
 
 pub use units::{
-    clamp_bed_mm, flip_y, BED_MAX_MM, BED_MIN_MM, DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM,
+    BED_MAX_MM, BED_MIN_MM, DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM, clamp_bed_mm, flip_y,
 };

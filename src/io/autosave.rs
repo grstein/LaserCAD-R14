@@ -36,7 +36,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::document::{entity::SCHEMA_VERSION, Document, Entity, Layer, LayerId};
+use crate::document::{Document, Entity, Layer, LayerId, entity::SCHEMA_VERSION};
 
 // ---------------------------------------------------------------------------
 // Error type

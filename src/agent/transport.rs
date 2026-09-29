@@ -49,18 +49,24 @@ pub enum TransportError {
 
     /// The call ran out of the window it was given, at the connect or at any
     /// later point up to the last byte of the body.
-    #[error("The endpoint did not answer within {secs} s. It may be slow, unreachable, or the endpoint URL may be wrong — check Help > Agent settings, or press Cancel and try a shorter prompt.")]
+    #[error(
+        "The endpoint did not answer within {secs} s. It may be slow, unreachable, or the endpoint URL may be wrong — check Help > Agent settings, or press Cancel and try a shorter prompt."
+    )]
     Timeout {
         /// The window that elapsed, in whole seconds.
         secs: u64,
     },
 
     /// HTTP 401: the key is missing, wrong, or refused by this endpoint.
-    #[error("Authentication failed (HTTP 401): the API key is missing, invalid, or not accepted by this endpoint. Check Help > Agent settings.")]
+    #[error(
+        "Authentication failed (HTTP 401): the API key is missing, invalid, or not accepted by this endpoint. Check Help > Agent settings."
+    )]
     Unauthorized,
 
     /// HTTP 429: the endpoint is asking the caller to slow down.
-    #[error("Rate limited (HTTP 429): the endpoint asked you to slow down. Wait a moment and try again.")]
+    #[error(
+        "Rate limited (HTTP 429): the endpoint asked you to slow down. Wait a moment and try again."
+    )]
     RateLimited,
 
     /// HTTP 5xx: the endpoint itself failed.

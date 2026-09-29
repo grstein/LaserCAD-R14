@@ -1,6 +1,6 @@
 use super::*;
 use crate::cmdline::CommandHistory;
-use crate::document::{commands::CreateLine, Entity};
+use crate::document::{Entity, commands::CreateLine};
 use crate::geometry::Line;
 use crate::tools::{CircleTool, LineTool, SelectTool};
 

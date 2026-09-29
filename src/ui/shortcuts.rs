@@ -161,7 +161,7 @@ pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cmdline::{parse, CommandInput};
+    use crate::cmdline::{CommandInput, parse};
     use crate::ui::toolbar::TOOLS;
     use std::collections::HashSet;
 

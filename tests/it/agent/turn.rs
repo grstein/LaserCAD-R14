@@ -24,10 +24,10 @@ use crate::harness;
 
 use harness::{frame, tap};
 use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome};
-use lasercad::app::{arm_turn, start_turn, App, AGENT_FENCE_REFUSAL, AGENT_LOST_MESSAGE};
+use lasercad::app::{AGENT_FENCE_REFUSAL, AGENT_LOST_MESSAGE, App, arm_turn, start_turn};
 use lasercad::document::{CreateCircle, SelectionCommand};
 use lasercad::geometry::{Circle, Vec2};
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender, channel};
 
 /// A recognisable key that must never appear anywhere the operator can read.
 /// Built with `concat!` so a grep for the whole string finds no copy of it.

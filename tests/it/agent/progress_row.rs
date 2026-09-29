@@ -12,8 +12,8 @@ use crate::harness;
 
 use harness::paint::{lines_on_surface_of, painted_runs, texts};
 use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome};
-use lasercad::app::{arm_turn, App};
-use std::sync::mpsc::{channel, Receiver, Sender};
+use lasercad::app::{App, arm_turn};
+use std::sync::mpsc::{Receiver, Sender, channel};
 
 fn ctx_and_app() -> (egui::Context, App) {
     let ctx = egui::Context::default();

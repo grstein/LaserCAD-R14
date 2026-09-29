@@ -12,9 +12,9 @@
 //!
 //! Names no drawing-state type; MUST NOT import `egui`, `eframe`, or `rfd`.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
-use crate::agent::tools::{validate_r, ToolCallError};
+use crate::agent::tools::{ToolCallError, validate_r};
 
 /// One entity of a `create_drawing` batch, in mm; arc angles in radians.
 #[derive(Debug, Clone, PartialEq)]

@@ -8,8 +8,8 @@
 
 use crate::app::App;
 use crate::cmdline::ToolInput;
-use crate::document::{commands::CreateArc, Document, Entity, History};
-use crate::geometry::{Arc, Line, Vec2, EPSILON};
+use crate::document::{Document, Entity, History, commands::CreateArc};
+use crate::geometry::{Arc, EPSILON, Line, Vec2};
 use crate::tools::Tool;
 
 /// Internal state for [`ArcTool`].
@@ -226,12 +226,14 @@ mod tests {
     /// Collinear inputs return `None`.
     #[test]
     fn collinear_returns_none() {
-        assert!(arc_from_3_points(
-            Vec2::new(0.0, 0.0),
-            Vec2::new(1.0, 0.0),
-            Vec2::new(2.0, 0.0)
-        )
-        .is_none());
+        assert!(
+            arc_from_3_points(
+                Vec2::new(0.0, 0.0),
+                Vec2::new(1.0, 0.0),
+                Vec2::new(2.0, 0.0)
+            )
+            .is_none()
+        );
     }
 
     /// CW triangle sets ccw=false; circumcenter is equidistant from all three.

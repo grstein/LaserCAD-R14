@@ -21,7 +21,7 @@
 use crate::harness;
 
 use harness::frame;
-use lasercad::app::{apply_bed_dialog_result, App};
+use lasercad::app::{App, apply_bed_dialog_result};
 use lasercad::document::CreateLine;
 use lasercad::geometry::{Line, Vec2};
 use lasercad::ui::DialogResult;

@@ -36,9 +36,9 @@ use harness::frame;
 use harness::paint::{lines_on_surface_of, painted_runs, texts};
 use harness::scan::{is_test_file, rs_files};
 use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome};
-use lasercad::app::{arm_turn, App};
+use lasercad::app::{App, arm_turn};
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender, channel};
 
 /// A recognisable key that must never appear anywhere the operator can read.
 /// Built with `concat!` so a grep for the whole string finds no copy of it.

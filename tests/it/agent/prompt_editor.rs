@@ -6,7 +6,7 @@
 use crate::harness;
 
 use harness::key_events;
-use harness::paint::{painted_runs_at, Run};
+use harness::paint::{Run, painted_runs_at};
 use lasercad::agent::DEFAULT_PROMPT;
 use lasercad::app::App;
 use lasercad::io::settings::Settings;
@@ -138,9 +138,11 @@ fn ac3_typed_text_persists_verbatim_through_done() {
 
     let runs = open(&ctx, &mut app);
     assert!(runs.iter().any(|r| r.text == typed), "the editor shows it");
-    assert!(!runs
-        .iter()
-        .any(|r| r.text.trim().starts_with(DEFAULT_FIRST_LINE)));
+    assert!(
+        !runs
+            .iter()
+            .any(|r| r.text.trim().starts_with(DEFAULT_FIRST_LINE))
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
 

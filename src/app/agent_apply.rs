@@ -34,7 +34,7 @@ use crate::agent::{AgentAction, AgentOutcome, DrawingItem};
 use crate::app::agent_narrate::{
     batch_created, describe, list_entities, list_selection, pt, sweep,
 };
-use crate::app::{agent_capture, App};
+use crate::app::{App, agent_capture};
 use crate::document::commands::CreateEntities;
 use crate::document::{
     Command, CreateArc, CreateCircle, CreateLine, DeleteEntities, Document, Entity, LayerId,

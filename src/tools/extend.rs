@@ -7,7 +7,7 @@
 
 use crate::app::App;
 use crate::document::{Document, Entity, ExtendEntity, History};
-use crate::geometry::{line_circle, line_line_infinite, Circle, Line, Vec2, EPSILON};
+use crate::geometry::{Circle, EPSILON, Line, Vec2, line_circle, line_line_infinite};
 use crate::tools::Tool;
 
 /// World-space pick radius (mm) for nearest-endpoint detection.
@@ -127,7 +127,7 @@ impl Tool for ExtendTool {
 mod tests {
     use super::*;
     use crate::document::History;
-    use crate::geometry::{Circle, Line, Vec2, EPSILON};
+    use crate::geometry::{Circle, EPSILON, Line, Vec2};
 
     #[rustfmt::skip] fn v(x: f64, y: f64) -> Vec2 { Vec2::new(x, y) }
     #[rustfmt::skip] fn le(ax: f64, ay: f64, bx: f64, by: f64) -> Entity { Entity::Line(Line::new(v(ax,ay),v(bx,by))) }

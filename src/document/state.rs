@@ -277,7 +277,7 @@ impl Document {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::{Circle, Line, EPSILON};
+    use crate::geometry::{Circle, EPSILON, Line};
 
     fn bbox_approx_eq(a: (Vec2, Vec2), b: (Vec2, Vec2)) -> bool {
         a.0.approx_eq(b.0, EPSILON) && a.1.approx_eq(b.1, EPSILON)
@@ -474,9 +474,10 @@ mod tests {
             doc.check_edit_layer(LayerId(3), "MARK", [0, 0, 255]),
             Ok(())
         );
-        assert!(doc
-            .check_edit_layer(LayerId(3), "cut", [0, 0, 255])
-            .is_err());
+        assert!(
+            doc.check_edit_layer(LayerId(3), "cut", [0, 0, 255])
+                .is_err()
+        );
         assert!(doc.check_edit_layer(LayerId(9), "X", [9, 9, 9]).is_err());
     }
 

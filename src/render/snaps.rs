@@ -244,10 +244,11 @@ mod tests {
         let c = midpoint_marker_corners(extreme, 1e-9);
         assert!(c.iter().all(|p| p.x.is_finite() && p.y.is_finite()));
         let s = intersection_marker_segments(extreme, 1e9);
-        assert!(s
-            .iter()
-            .flat_map(|a| a.iter())
-            .all(|p| p.x.is_finite() && p.y.is_finite()));
+        assert!(
+            s.iter()
+                .flat_map(|a| a.iter())
+                .all(|p| p.x.is_finite() && p.y.is_finite())
+        );
         assert!(center_marker_radius(1e-9).is_finite());
     }
 

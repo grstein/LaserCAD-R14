@@ -222,11 +222,12 @@ fn delete_layer_restores_position_and_current() {
 fn delete_checks_refuse_non_empty_and_last_layer() {
     let mut doc = two_layer_doc(CUT);
     doc.push_entity(Entity::Line(line(0.0)), MARK);
-    assert!(doc
-        .check_delete_layer(MARK)
-        .unwrap_err()
-        .to_string()
-        .contains("Mark"));
+    assert!(
+        doc.check_delete_layer(MARK)
+            .unwrap_err()
+            .to_string()
+            .contains("Mark")
+    );
     let lone = Document::default();
     let only = lone.layers()[0].id;
     assert!(lone.check_delete_layer(only).is_err());
@@ -236,16 +237,18 @@ fn delete_checks_refuse_non_empty_and_last_layer() {
 #[test]
 fn add_and_rename_checks_refuse_duplicates() {
     let doc = two_layer_doc(CUT);
-    assert!(doc
-        .check_new_layer("MARK!", [9, 9, 9])
-        .unwrap_err()
-        .to_string()
-        .contains("Mark"));
-    assert!(doc
-        .check_new_layer("Engrave", [0, 0, 255])
-        .unwrap_err()
-        .to_string()
-        .contains("#0000ff"));
+    assert!(
+        doc.check_new_layer("MARK!", [9, 9, 9])
+            .unwrap_err()
+            .to_string()
+            .contains("Mark")
+    );
+    assert!(
+        doc.check_new_layer("Engrave", [0, 0, 255])
+            .unwrap_err()
+            .to_string()
+            .contains("#0000ff")
+    );
     assert!(doc.check_edit_layer(MARK, "cut", [0, 0, 255]).is_err());
     assert!(doc.check_edit_layer(MARK, "Mark", [255, 0, 0]).is_err());
     assert!(doc.check_edit_layer(MARK, "mark", [0, 0, 255]).is_ok());

@@ -11,7 +11,7 @@
 //!
 //! MUST NOT import `eframe` or `rfd`.
 
-use super::{apply_ortho, resolve_snap, App};
+use super::{App, apply_ortho, resolve_snap};
 use crate::document::Document;
 use crate::render::Camera;
 use crate::tools::{PointerButton, PointerEvent};
@@ -32,9 +32,10 @@ pub fn draw(ctx: &egui::Context, app: &mut App) {
 
         // --- pointer / camera interaction (LCV-032 / LCV-041) ---
         if response.hovered()
-            && let Some(hover_pos) = response.hover_pos() {
-                handle_hover(ctx, app, rect, hover_pos);
-            }
+            && let Some(hover_pos) = response.hover_pos()
+        {
+            handle_hover(ctx, app, rect, hover_pos);
+        }
 
         // Middle-button pan.
         if response.dragged_by(egui::PointerButton::Middle) {

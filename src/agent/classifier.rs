@@ -108,7 +108,7 @@ mod tests {
     // 0003 §A2a, amendment (3)). This import survives here, and only here,
     // for `z_is_not_a_zoom_word`, which records what the grammar does with
     // `z`, `ze` and `zoom in` independently of how `classify` routes them.
-    use crate::cmdline::{parse, CommandInput};
+    use crate::cmdline::{CommandInput, parse};
 
     /// The implementation section of this file: everything before the bare
     /// `#[cfg(test)]` at column 0. Scanning the whole file would let this test

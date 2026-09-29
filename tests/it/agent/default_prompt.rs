@@ -6,7 +6,7 @@
 //! doctored prompt. AC 1, 3, 4, 6, 7: ASCII-only, section needles in order.
 
 use lasercad::agent::{
-    tool_definitions, AGENT_STEP_BUDGET_DEFAULT, AGENT_STEP_BUDGET_MAX, DEFAULT_PROMPT,
+    AGENT_STEP_BUDGET_DEFAULT, AGENT_STEP_BUDGET_MAX, DEFAULT_PROMPT, tool_definitions,
 };
 
 /// The whole words of `text`: runs of ASCII letters, digits and `_`.

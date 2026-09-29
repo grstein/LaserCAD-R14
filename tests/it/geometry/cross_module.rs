@@ -7,7 +7,7 @@
 
 use core::f64::consts::FRAC_PI_2;
 use lasercad::geometry::{
-    circle_circle, line_circle, snap, Arc, Circle, Line, Rect, SnapEntity, SnapKind, Vec2, EPSILON,
+    Arc, Circle, EPSILON, Line, Rect, SnapEntity, SnapKind, Vec2, circle_circle, line_circle, snap,
 };
 
 /// Scenario 1 — Line + Circle + intersect + snap.

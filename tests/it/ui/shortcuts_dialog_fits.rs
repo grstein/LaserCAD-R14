@@ -44,9 +44,9 @@
 
 use crate::harness;
 
-use harness::paint::{painted_runs_at, scoped_runs, Run};
+use harness::paint::{Run, painted_runs_at, scoped_runs};
 use lasercad::app::App;
-use lasercad::ui::{tool_rows, SHORTCUT_GROUPS};
+use lasercad::ui::{SHORTCUT_GROUPS, tool_rows};
 
 /// The eight headings the operator must see without scrolling.
 const HEADINGS: [&str; 8] = [

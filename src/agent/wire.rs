@@ -15,8 +15,8 @@
 //! so a plain user message has to reach the wire as
 //! `{"role":"user","content":"…"}` and nothing else.
 
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD;
 use serde::{Deserialize, Serialize};
 
 /// The only tool-call `type` the API defines today.

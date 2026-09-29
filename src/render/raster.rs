@@ -87,11 +87,7 @@ impl Canvas {
         let [x0, y0, x1, y1] = world;
         let scale = |px: u32, span: f64| {
             let s = f64::from(px.saturating_sub(1)) / span;
-            if s.is_finite() {
-                s
-            } else {
-                0.0
-            }
+            if s.is_finite() { s } else { 0.0 }
         };
         let (w, h) = (w as usize, h as usize);
         Self {

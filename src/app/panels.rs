@@ -17,7 +17,7 @@
 //!
 //! MUST NOT import `eframe` or `rfd`.
 
-use super::{draw_bed_dialog, draw_discard_dialog, App};
+use super::{App, draw_bed_dialog, draw_discard_dialog};
 
 /// Render the four fixed panels that frame the viewport.
 pub fn draw_chrome(ctx: &egui::Context, app: &mut App) {
@@ -202,9 +202,10 @@ fn agent_settings_dialog(ctx: &egui::Context, app: &mut App) {
 /// The error modal (LCV-062) — rendered last so it floats above everything.
 fn error_modal(ctx: &egui::Context, app: &mut App) {
     if let Some(msg) = app.error_message.clone()
-        && crate::ui::error_dialog(ctx, "Error", &msg) {
-            app.error_message = None;
-        }
+        && crate::ui::error_dialog(ctx, "Error", &msg)
+    {
+        app.error_message = None;
+    }
 }
 
 #[cfg(test)]

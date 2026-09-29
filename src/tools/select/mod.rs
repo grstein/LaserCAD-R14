@@ -94,9 +94,10 @@ impl Tool for SelectTool {
     fn on_pointer_move(&mut self, pos: Vec2, _doc: &mut Document) {
         self.cursor_pos = pos;
         if let SelectState::MaybeDragging { press_pos } = self.state
-            && (pos - press_pos).length() > DRAG_THRESHOLD_MM {
-                self.state = SelectState::Dragging { press_pos };
-            }
+            && (pos - press_pos).length() > DRAG_THRESHOLD_MM
+        {
+            self.state = SelectState::Dragging { press_pos };
+        }
     }
 
     fn on_pointer_up(&mut self, pos: Vec2, shift: bool, doc: &mut Document, history: &mut History) {
@@ -146,18 +147,17 @@ impl Tool for SelectTool {
                     );
                 }
             }
-            egui::Key::Delete | egui::Key::Backspace
-                if !app.document.selection.is_empty() => {
-                    let indices: Vec<usize> = app.document.selection.iter().collect();
-                    app.history.commit(
-                        Box::new(crate::document::DeleteEntities::new(indices)),
-                        &mut app.document,
-                    );
-                    app.history.commit(
-                        Box::new(SelectionCommand::new(Vec::<usize>::new())),
-                        &mut app.document,
-                    );
-                }
+            egui::Key::Delete | egui::Key::Backspace if !app.document.selection.is_empty() => {
+                let indices: Vec<usize> = app.document.selection.iter().collect();
+                app.history.commit(
+                    Box::new(crate::document::DeleteEntities::new(indices)),
+                    &mut app.document,
+                );
+                app.history.commit(
+                    Box::new(SelectionCommand::new(Vec::<usize>::new())),
+                    &mut app.document,
+                );
+            }
             _ => {}
         }
     }

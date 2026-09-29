@@ -13,7 +13,7 @@
 //! `lasercad::app::…`.
 
 use crate::document::Entity;
-use crate::geometry::{snap, SnapEntity, SnapResult};
+use crate::geometry::{SnapEntity, SnapResult, snap};
 use crate::render::Camera;
 
 /// Pixel radius within which a snap candidate beats the raw cursor position.
@@ -65,7 +65,7 @@ fn to_snap_entity(e: &Entity) -> SnapEntity {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::{Circle, Line, Vec2, EPSILON};
+    use crate::geometry::{Circle, EPSILON, Line, Vec2};
     use crate::render::Camera;
 
     fn cam_1px() -> Camera {

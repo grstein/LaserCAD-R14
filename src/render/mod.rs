@@ -14,9 +14,9 @@ pub mod raster;
 pub mod selection;
 pub mod snaps;
 
-pub use bed::{draw_bed, draw_bed_fill, Bed};
+pub use bed::{Bed, draw_bed, draw_bed_fill};
 pub use camera::Camera;
-pub use entities::{arc_polyline, draw_entities, PaintOptions};
+pub use entities::{PaintOptions, arc_polyline, draw_entities};
 pub use grid::draw_grid;
 pub use preview::draw_preview;
 pub use selection::draw_selection_highlight;

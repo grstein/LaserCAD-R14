@@ -39,7 +39,7 @@
 
 use crate::harness;
 
-use harness::paint::{collect_text, runs_in, Run};
+use harness::paint::{Run, collect_text, runs_in};
 use harness::scan::{files_containing, occurrences, rs_files};
 use std::path::{Path, PathBuf};
 

@@ -20,7 +20,7 @@ pub use commands::{
     SetCurrentLayer, SetEntityLayers, TrimEntity,
 };
 pub use entity::{Entity, SCHEMA_VERSION};
-pub use history::{History, HISTORY_DEPTH};
-pub use layer::{file_key, name_key, Layer, LayerError, LayerId};
+pub use history::{HISTORY_DEPTH, History};
+pub use layer::{Layer, LayerError, LayerId, file_key, name_key};
 pub use selection::Selection;
 pub use state::Document;

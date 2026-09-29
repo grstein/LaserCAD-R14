@@ -16,8 +16,8 @@ pub mod svg;
 pub use dialogs::{arm_native_dialogs, open_file_dialog, pick_folder_dialog, save_file_dialog};
 pub use export_layers::{action_export_layers, layer_exports};
 pub use file_actions::{action_new, action_open, action_open_path, action_save, action_save_as};
-pub use recent::{open_recent, recent_files, OpenRecentError};
-pub use svg::{export_svg, import_svg, ImportedSvg, SvgImportError};
+pub use recent::{OpenRecentError, open_recent, recent_files};
+pub use svg::{ImportedSvg, SvgImportError, export_svg, import_svg};
 
 #[cfg(test)]
 mod tests {

@@ -129,7 +129,7 @@ impl Tool for TrimTool {
 mod tests {
     use super::*;
     use crate::document::{Document, Entity, History};
-    use crate::geometry::{Circle, Line, Vec2, EPSILON};
+    use crate::geometry::{Circle, EPSILON, Line, Vec2};
 
     fn ln(x1: f64, y1: f64, x2: f64, y2: f64) -> Entity {
         Entity::Line(Line::new(Vec2::new(x1, y1), Vec2::new(x2, y2)))

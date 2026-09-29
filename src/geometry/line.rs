@@ -128,9 +128,11 @@ mod tests {
     /// expected unit vector on an axis-aligned segment.
     #[test]
     fn direction_none_for_degenerate_and_unit_for_axis_aligned() {
-        assert!(Line::new(Vec2::default(), Vec2::default())
-            .direction()
-            .is_none());
+        assert!(
+            Line::new(Vec2::default(), Vec2::default())
+                .direction()
+                .is_none()
+        );
         let dir = Line::new(Vec2::new(0.0, 0.0), Vec2::new(2.0, 0.0))
             .direction()
             .expect("non-degenerate direction");
@@ -177,12 +179,14 @@ mod tests {
     #[test]
     fn closest_point_clamps_to_endpoints() {
         let l = Line::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0));
-        assert!(l
-            .closest_point(Vec2::new(-2.0, 1.0))
-            .approx_eq(Vec2::new(0.0, 0.0), EPSILON));
-        assert!(l
-            .closest_point(Vec2::new(15.0, -1.0))
-            .approx_eq(Vec2::new(10.0, 0.0), EPSILON));
+        assert!(
+            l.closest_point(Vec2::new(-2.0, 1.0))
+                .approx_eq(Vec2::new(0.0, 0.0), EPSILON)
+        );
+        assert!(
+            l.closest_point(Vec2::new(15.0, -1.0))
+                .approx_eq(Vec2::new(10.0, 0.0), EPSILON)
+        );
     }
 
     /// AC#9 — `closest_point` on a degenerate segment returns `p1`

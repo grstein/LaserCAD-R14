@@ -38,7 +38,7 @@
 
 use crate::harness;
 
-use harness::paint::{self, lines_on_surface_of, painted_runs_at, texts, Run};
+use harness::paint::{self, Run, lines_on_surface_of, painted_runs_at, texts};
 use harness::raw_input_at;
 use lasercad::app::App;
 use std::path::PathBuf;

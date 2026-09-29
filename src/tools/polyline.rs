@@ -7,8 +7,8 @@
 
 use crate::app::App;
 use crate::cmdline::ToolInput;
-use crate::document::{commands::CreateLine, Document, Entity, History};
-use crate::geometry::{Line, Vec2, EPSILON};
+use crate::document::{Document, Entity, History, commands::CreateLine};
+use crate::geometry::{EPSILON, Line, Vec2};
 use crate::tools::Tool;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]

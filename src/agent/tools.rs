@@ -29,7 +29,7 @@
 //! [`Document`]: crate::document::Document
 //! [`History`]: crate::document::History
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use thiserror::Error;
 
 use crate::agent::bridge::AgentAction;

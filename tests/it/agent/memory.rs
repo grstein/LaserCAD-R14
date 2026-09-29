@@ -7,13 +7,13 @@ use crate::harness;
 use harness::paint::{self, Run};
 use harness::raw_input_at;
 use lasercad::agent::memory::{
-    estimate_tokens, CANCELLED_TEXT, DRAWING_CHANGED_PREFIX, ELIDED_TOOL_RESULT,
+    CANCELLED_TEXT, DRAWING_CHANGED_PREFIX, ELIDED_TOOL_RESULT, estimate_tokens,
 };
 use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome, ChatMessage, ToolCall};
-use lasercad::app::{arm_turn, cancel_turn, config_for, poll_agent_rx, App, AGENT_LOST_MESSAGE};
+use lasercad::app::{AGENT_LOST_MESSAGE, App, arm_turn, cancel_turn, config_for, poll_agent_rx};
 use lasercad::document::CreateLine;
 use lasercad::geometry::{Line, Vec2};
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc::{Sender, channel};
 
 const SCREEN: [f32; 2] = [1280.0, 800.0];
 

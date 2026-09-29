@@ -8,10 +8,10 @@
 //! tells us the file a laser actually reads is the right way up.
 
 use lasercad::document::{Document, Entity};
-use lasercad::geometry::{Arc, Circle, Line, Vec2, EPSILON};
+use lasercad::geometry::{Arc, Circle, EPSILON, Line, Vec2};
 use lasercad::io::svg::{export_svg, import_svg};
 use lasercad::text::layout_text;
-use lasercad::util::{flip_y, DEFAULT_BED_HEIGHT_MM};
+use lasercad::util::{DEFAULT_BED_HEIGHT_MM, flip_y};
 use std::f64::consts::{FRAC_PI_2, PI};
 
 /// Round-trip tolerance for coordinates that are not exactly representable in

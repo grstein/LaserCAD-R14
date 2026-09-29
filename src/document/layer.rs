@@ -199,11 +199,15 @@ mod tests {
     fn errors_say_why() {
         let msg = LayerError::DuplicateName("Cut".into()).to_string();
         assert!(msg.contains("Cut") && msg.contains("already"));
-        assert!(LayerError::LastLayer
-            .to_string()
-            .contains("at least one layer"));
-        assert!(LayerError::NotEmpty("Mark".into())
-            .to_string()
-            .contains("entities"));
+        assert!(
+            LayerError::LastLayer
+                .to_string()
+                .contains("at least one layer")
+        );
+        assert!(
+            LayerError::NotEmpty("Mark".into())
+                .to_string()
+                .contains("entities")
+        );
     }
 }

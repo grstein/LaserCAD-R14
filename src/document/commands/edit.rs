@@ -113,7 +113,7 @@ impl Command for MoveEntities {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::{Arc, Circle, Line, EPSILON};
+    use crate::geometry::{Arc, Circle, EPSILON, Line};
     use core::f64::consts::FRAC_PI_2;
 
     fn three_entity_doc() -> (Document, Line, Circle, Arc) {

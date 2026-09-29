@@ -23,7 +23,7 @@ use crate::harness;
 
 use harness::{frame, raw_input, submit_command, tap, type_command};
 use lasercad::agent::{AgentAction, AgentEvent};
-use lasercad::app::{arm_turn, submit, App};
+use lasercad::app::{App, arm_turn, submit};
 use lasercad::document::Entity;
 use lasercad::geometry::Vec2;
 use lasercad::text::layout_text;

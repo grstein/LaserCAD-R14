@@ -101,8 +101,8 @@ mod tests {
     #[test]
     fn units_module_exports_constants_and_helpers() {
         use crate::util::{
-            clamp_bed_mm as reexported_clamp, flip_y as reexported_flip, BED_MAX_MM as MAX,
-            BED_MIN_MM as MIN, DEFAULT_BED_HEIGHT_MM as H, DEFAULT_BED_WIDTH_MM as W,
+            BED_MAX_MM as MAX, BED_MIN_MM as MIN, DEFAULT_BED_HEIGHT_MM as H,
+            DEFAULT_BED_WIDTH_MM as W, clamp_bed_mm as reexported_clamp, flip_y as reexported_flip,
         };
         assert_eq!(W, 400.0);
         assert_eq!(H, 400.0);

@@ -20,7 +20,7 @@ use crate::harness;
 
 use harness::paint::{painted_runs_at, runs_in};
 use harness::{frame, raw_input_at, submit_command, tap, type_command};
-use lasercad::app::{arm_turn, App};
+use lasercad::app::{App, arm_turn};
 use lasercad::document::Entity;
 use lasercad::ui::{
     LABEL_AI, LABEL_AI_BUSY, LABEL_AI_PROMPT_EMPTY, LABEL_AI_UNAVAILABLE, LABEL_CAD,

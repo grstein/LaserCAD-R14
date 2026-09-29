@@ -5,10 +5,10 @@
 //! button with real clicks (ADR 0002 §A4 rule 3).
 
 use crate::harness;
-use harness::paint::{painted_runs_at, Run};
+use harness::paint::{Run, painted_runs_at};
 use harness::raw_input_at;
 use lasercad::agent::{AgentEvent, ChatMessage};
-use lasercad::app::{arm_turn, App};
+use lasercad::app::{App, arm_turn};
 use lasercad::document::CreateLine;
 use lasercad::geometry::{Line, Vec2};
 

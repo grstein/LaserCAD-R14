@@ -26,7 +26,7 @@
 //!
 //! MUST NOT import `eframe` or `rfd`.
 
-use crate::app::{handle_zoom_extents, App};
+use crate::app::{App, handle_zoom_extents};
 
 /// Keys forwarded to the active tool once the gate lets them through.
 ///
@@ -112,9 +112,10 @@ pub fn process_input(ctx: &egui::Context, app: &mut App, shortcut_fired: bool) {
 /// the second case is indistinguishable to the operator.
 fn recall(ctx: &egui::Context, app: &mut App) {
     if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp))
-        && let Some(entry) = app.command_history.older() {
-            app.command_line_input = entry;
-        }
+        && let Some(entry) = app.command_history.older()
+    {
+        app.command_line_input = entry;
+    }
     if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
         app.command_line_input = app.command_history.newer().unwrap_or_default();
     }

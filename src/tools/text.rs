@@ -16,7 +16,7 @@
 
 use crate::app::App;
 use crate::cmdline::parse_number;
-use crate::document::{commands::CreateEntities, Document, Entity, History};
+use crate::document::{Document, Entity, History, commands::CreateEntities};
 use crate::geometry::Vec2;
 use crate::text::layout_text;
 use crate::tools::Tool;

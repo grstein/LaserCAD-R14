@@ -36,13 +36,13 @@
 
 use crate::harness;
 
-use harness::paint::{lines_on_surface_of, painted_runs, texts, Run};
+use harness::paint::{Run, lines_on_surface_of, painted_runs, texts};
 use harness::raw_input;
 use harness::scan::{is_test_file, occurrences, rs_files};
 use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome, TransportError};
-use lasercad::app::{arm_turn, cancel_turn, poll_agent_rx, App, AGENT_CANCELLED_MESSAGE};
+use lasercad::app::{AGENT_CANCELLED_MESSAGE, App, arm_turn, cancel_turn, poll_agent_rx};
 use std::path::Path;
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::Duration;
 
 /// A recognisable key that must never reach a wire or a transcript. Built with

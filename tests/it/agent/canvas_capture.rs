@@ -12,10 +12,10 @@ use crate::harness;
 
 use harness::frame;
 use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome};
-use lasercad::app::{arm_turn, App, AGENT_FENCE_REFUSAL};
+use lasercad::app::{AGENT_FENCE_REFUSAL, App, arm_turn};
 use lasercad::document::{CreateCircle, CreateLine};
 use lasercad::geometry::{Circle, Line, Vec2};
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender, channel};
 
 const DISABLED: &str = "canvas capture is disabled in Agent settings";
 

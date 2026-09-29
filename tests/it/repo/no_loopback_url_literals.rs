@@ -83,9 +83,10 @@ fn is_loopback_or_unspecified_url(candidate: &str) -> bool {
     }
     // `Url::host_str` returns an IPv6 host wrapped in its literal brackets.
     if let Some(bracketed) = host.strip_prefix('[').and_then(|s| s.strip_suffix(']'))
-        && let Ok(v6) = bracketed.parse::<Ipv6Addr>() {
-            return v6.is_loopback() || v6.is_unspecified();
-        }
+        && let Ok(v6) = bracketed.parse::<Ipv6Addr>()
+    {
+        return v6.is_loopback() || v6.is_unspecified();
+    }
     false
 }
 

@@ -415,31 +415,39 @@ fn every_mutating_outcome_reports_the_resulting_count() {
         r: 1.0,
     };
     let mut empty = App::default();
-    assert!(apply(&mut empty, &create)
-        .text()
-        .ends_with(" The drawing now has 1 entities."));
+    assert!(
+        apply(&mut empty, &create)
+            .text()
+            .ends_with(" The drawing now has 1 entities.")
+    );
 
     let mut two = app_with(vec![line(0.0), line(1.0)]);
-    assert!(apply(&mut two, &create)
-        .text()
-        .ends_with(" The drawing now has 3 entities."));
+    assert!(
+        apply(&mut two, &create)
+            .text()
+            .ends_with(" The drawing now has 3 entities.")
+    );
 
     let mut two = app_with(vec![line(0.0), line(1.0)]);
-    assert!(apply(&mut two, &AgentAction::Delete { index: 0 })
-        .text()
-        .ends_with(" The drawing now has 1 entities."));
+    assert!(
+        apply(&mut two, &AgentAction::Delete { index: 0 })
+            .text()
+            .ends_with(" The drawing now has 1 entities.")
+    );
 
     let mut four = app_with(vec![line(0.0), line(1.0), line(2.0), line(3.0)]);
-    assert!(apply(
-        &mut four,
-        &AgentAction::Move {
-            index: 0,
-            dx: 1.0,
-            dy: 0.0
-        }
-    )
-    .text()
-    .ends_with(" The drawing now has 4 entities."));
+    assert!(
+        apply(
+            &mut four,
+            &AgentAction::Move {
+                index: 0,
+                dx: 1.0,
+                dy: 0.0
+            }
+        )
+        .text()
+        .ends_with(" The drawing now has 4 entities.")
+    );
 }
 
 /// AC 9 — the create sentences keep the wording and the precision they had

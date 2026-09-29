@@ -21,7 +21,7 @@
 use crate::app::App;
 use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History, MoveEntities};
-use crate::geometry::{Vec2, EPSILON};
+use crate::geometry::{EPSILON, Vec2};
 use crate::tools::{SelectTool, Tool};
 
 // ---------------------------------------------------------------------------
@@ -227,7 +227,7 @@ impl Tool for MoveTool {
 mod tests {
     use super::*;
     use crate::document::{Document, History};
-    use crate::geometry::{Line, Vec2, EPSILON};
+    use crate::geometry::{EPSILON, Line, Vec2};
 
     // -----------------------------------------------------------------------
     // Helpers

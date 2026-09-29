@@ -7,8 +7,8 @@
 
 use crate::harness;
 
-use egui::epaint::{ColorMode, Shape};
 use egui::Color32;
+use egui::epaint::{ColorMode, Shape};
 use lasercad::app::App;
 use lasercad::document::{Document, Entity, Layer, LayerId};
 use lasercad::geometry::{Circle, Line, Vec2};

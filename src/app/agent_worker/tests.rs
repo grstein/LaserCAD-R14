@@ -1,7 +1,7 @@
 use super::*;
 use crate::agent::AGENT_STEP_BUDGET_DEFAULT;
-use crate::app::{agent_apply, App};
-use serde_json::{json, Value};
+use crate::app::{App, agent_apply};
+use serde_json::{Value, json};
 use std::sync::{Arc, Mutex};
 /// The `ask` seam, wired to a real `App`, recording what it was asked.
 ///
@@ -434,9 +434,11 @@ fn a_relentless_endpoint_stops_at_the_budget() {
     match result {
         Err(AgentError::IterationLimitExceeded(budget)) => {
             assert_eq!(budget, 2);
-            assert!(AgentError::IterationLimitExceeded(budget)
-                .to_string()
-                .contains('2'));
+            assert!(
+                AgentError::IterationLimitExceeded(budget)
+                    .to_string()
+                    .contains('2')
+            );
         }
         other => panic!("expected the budget to stop the turn, got {other:?}"),
     }
@@ -1153,7 +1155,7 @@ fn the_upload_check_names_endpoint_and_model_never_the_key() {
 
 // ── LCV-153: memory in, whole batches out (ADR 0007 §D16) ───────────────
 
-use crate::agent::memory::{turn_record, TurnEnd};
+use crate::agent::memory::{TurnEnd, turn_record};
 
 /// Each message as the bytes it goes on the wire as.
 fn wire(msgs: &[ChatMessage]) -> Vec<String> {
@@ -1379,7 +1381,9 @@ fn a_cut_batch_is_dropped_and_an_unsent_image_is_elided() {
     assert!(matches!(result, Err(AgentError::Cancelled)));
     assert_eq!(batches.len(), 3, "the capture batch and its image message");
     assert!(batches.iter().all(|m| !m.has_image()));
-    assert!(wire(&batches)
-        .concat()
-        .contains(crate::agent::loop_::IMAGE_ELIDED));
+    assert!(
+        wire(&batches)
+            .concat()
+            .contains(crate::agent::loop_::IMAGE_ELIDED)
+    );
 }

@@ -18,7 +18,7 @@
 //! Purity: no `egui` import. This file is testable as a table of pure
 //! function calls, with no `App` and no UI context.
 
-use crate::agent::{classify, Route};
+use crate::agent::{Route, classify};
 
 /// [`Route::Cad`] — the grammar owns the line, whatever it is: a blank line,
 /// a recognised word, or `Unknown command: "…"` waiting to happen (AC 4/5).

@@ -15,15 +15,15 @@ pub mod statusbar;
 pub mod theme;
 pub mod toolbar;
 pub use command_destination::{
-    destination_label, LABEL_AI, LABEL_AI_BUSY, LABEL_AI_PROMPT_EMPTY, LABEL_AI_UNAVAILABLE,
-    LABEL_CAD, LABEL_TOOL_INPUT,
+    LABEL_AI, LABEL_AI_BUSY, LABEL_AI_PROMPT_EMPTY, LABEL_AI_UNAVAILABLE, LABEL_CAD,
+    LABEL_TOOL_INPUT, destination_label,
 };
 pub use command_line::draw_command_line;
-pub use dialogs::{about_dialog, confirm_dialog, error_dialog, DialogResult};
+pub use dialogs::{DialogResult, about_dialog, confirm_dialog, error_dialog};
 pub use layers_dialog::draw_layers_dialog;
 pub use menubar::draw_menubar;
 pub use shortcuts::process_shortcuts;
-pub use shortcuts_dialog::{shortcuts_dialog, tool_rows, ShortcutGroup, SHORTCUT_GROUPS};
+pub use shortcuts_dialog::{SHORTCUT_GROUPS, ShortcutGroup, shortcuts_dialog, tool_rows};
 pub use statusbar::{draw_statusbar, format_coords};
-pub use theme::{apply_theme, CANVAS_BG};
+pub use theme::{CANVAS_BG, apply_theme};
 pub use toolbar::draw_toolbar;

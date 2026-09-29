@@ -11,7 +11,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::util::{clamp_bed_mm, DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
+use crate::util::{DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM, clamp_bed_mm};
 
 pub(crate) use crate::io::settings_store::{load_from, platform_path, save_to};
 

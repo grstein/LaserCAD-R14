@@ -140,9 +140,11 @@ mod tests {
             0,
             "action_new must have run exactly once"
         );
-        assert!(!out.viewport_output[&egui::ViewportId::ROOT]
-            .commands
-            .contains(&egui::ViewportCommand::Close));
+        assert!(
+            !out.viewport_output[&egui::ViewportId::ROOT]
+                .commands
+                .contains(&egui::ViewportCommand::Close)
+        );
 
         let mut exit_app = App {
             guard: UnsavedGuard {

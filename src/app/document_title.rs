@@ -200,9 +200,11 @@ mod tests {
 
         // And another idle frame after that change sends nothing again.
         let out = ctx.run(egui::RawInput::default(), |ctx| update_title(ctx, &mut app));
-        assert!(out.viewport_output[&egui::ViewportId::ROOT]
-            .commands
-            .is_empty());
+        assert!(
+            out.viewport_output[&egui::ViewportId::ROOT]
+                .commands
+                .is_empty()
+        );
     }
 
     /// AC 2 — this file adds no `ctx.request_repaint*` **call**: the title

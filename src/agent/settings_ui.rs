@@ -12,7 +12,7 @@
 use egui;
 
 use crate::agent::memory::{CONTEXT_TOKENS_MAX, CONTEXT_TOKENS_MIN};
-use crate::agent::{prompt, AGENT_STEP_BUDGET_MAX, AGENT_STEP_BUDGET_MIN};
+use crate::agent::{AGENT_STEP_BUDGET_MAX, AGENT_STEP_BUDGET_MIN, prompt};
 use crate::io::settings::Settings;
 
 /// Minimum width of every text field, in logical pixels.

@@ -81,9 +81,10 @@ impl EditLayer {
 
 impl Command for EditLayer {
     fn do_(&mut self, doc: &mut Document) {
-        debug_assert!(doc
-            .check_edit_layer(self.new.id, &self.new.name, self.new.color)
-            .is_ok());
+        debug_assert!(
+            doc.check_edit_layer(self.new.id, &self.new.name, self.new.color)
+                .is_ok()
+        );
         self.old = doc.replace_layer(self.new.clone());
     }
 

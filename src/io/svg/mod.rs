@@ -12,4 +12,4 @@ pub mod import;
 mod layers;
 
 pub use export::{export_layer_svg, export_svg};
-pub use import::{import_svg, ImportedSvg, SvgImportError};
+pub use import::{ImportedSvg, SvgImportError, import_svg};

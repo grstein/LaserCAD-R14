@@ -23,7 +23,7 @@ use std::path::PathBuf;
 
 use crate::app::App;
 use crate::document::{Document, History};
-use crate::io::svg::{export_svg, import_svg, ImportedSvg};
+use crate::io::svg::{ImportedSvg, export_svg, import_svg};
 use crate::io::{open_file_dialog, save_file_dialog};
 
 // ---------------------------------------------------------------------------

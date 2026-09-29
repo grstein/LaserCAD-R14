@@ -13,8 +13,8 @@ use crate::app::App;
 use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History};
 use crate::geometry::Vec2;
-use crate::tools::pointer_event::{PointerButton, PointerEvent};
 use crate::tools::Tool;
+use crate::tools::pointer_event::{PointerButton, PointerEvent};
 
 /// Owner of the active tool, routes pointer and key events.
 ///
@@ -212,8 +212,8 @@ impl Default for ToolManager {
 mod tests {
     use super::*;
     use crate::app::App;
-    use crate::tools::pointer_event::{PointerButton, PointerEvent};
     use crate::tools::SelectTool;
+    use crate::tools::pointer_event::{PointerButton, PointerEvent};
     use std::cell::RefCell;
     use std::rc::Rc;
 

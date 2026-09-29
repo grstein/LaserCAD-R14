@@ -11,7 +11,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::app::App;
-use crate::document::{file_key, Document};
+use crate::document::{Document, file_key};
 use crate::io::svg::export_layer_svg;
 
 /// The per-layer files for `doc` saved as `mother`: `<stem>-<file_key>.svg`

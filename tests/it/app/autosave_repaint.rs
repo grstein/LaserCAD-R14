@@ -50,7 +50,7 @@ use crate::harness;
 use std::time::{Duration, Instant};
 
 use harness::raw_input;
-use lasercad::app::{schedule_flush_repaint, AgentState, App};
+use lasercad::app::{AgentState, App, schedule_flush_repaint};
 
 /// The debounce, mirrored. `AUTOSAVE_DEBOUNCE` is private to
 /// `src/app/autosave.rs`; the value is pinned there by a unit test, so a drift

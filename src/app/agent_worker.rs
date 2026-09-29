@@ -13,9 +13,9 @@ use crate::agent::loop_::{Dispatch, IMAGE_ELIDED};
 use crate::agent::memory::whole_batches;
 use crate::agent::wire::replace_images;
 use crate::agent::{
-    agent_loop, AgentAction, AgentError, AgentEvent, AgentOutcome, AssistantMessage, ChatMessage,
+    AgentAction, AgentError, AgentEvent, AgentOutcome, AssistantMessage, ChatMessage, agent_loop,
 };
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc::{Sender, channel};
 
 /// Everything that crosses into the worker thread, as one owned value (ADR
 /// 0007 §D13). Built once, in `start_turn`, from `Settings`: that is the

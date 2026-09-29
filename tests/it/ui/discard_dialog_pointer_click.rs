@@ -372,9 +372,11 @@ fn discard_confirms_exit_exactly_once_and_does_not_reopen() {
     with_lines(&mut app, 1);
 
     let out = ctx.run(close_request_input(), |c| app.update_ui(c));
-    assert!(out.viewport_output[&egui::ViewportId::ROOT]
-        .commands
-        .contains(&egui::ViewportCommand::CancelClose));
+    assert!(
+        out.viewport_output[&egui::ViewportId::ROOT]
+            .commands
+            .contains(&egui::ViewportCommand::CancelClose)
+    );
     assert_eq!(app.guard.pending_action, Some(PendingAction::Exit));
 
     let runs = settle(&ctx, &mut app);
@@ -583,9 +585,11 @@ fn cancel_preserves_state_for_exit() {
     let before = snapshot(&app);
 
     let out = ctx.run(close_request_input(), |c| app.update_ui(c));
-    assert!(out.viewport_output[&egui::ViewportId::ROOT]
-        .commands
-        .contains(&egui::ViewportCommand::CancelClose));
+    assert!(
+        out.viewport_output[&egui::ViewportId::ROOT]
+            .commands
+            .contains(&egui::ViewportCommand::CancelClose)
+    );
     assert_eq!(app.guard.pending_action, Some(PendingAction::Exit));
 
     let runs = settle(&ctx, &mut app);
@@ -846,15 +850,19 @@ fn repeated_close_requests_do_not_replace_the_parked_action_or_consume_the_next_
     with_lines(&mut app, 1);
 
     let out1 = ctx.run(close_request_input(), |c| app.update_ui(c));
-    assert!(out1.viewport_output[&egui::ViewportId::ROOT]
-        .commands
-        .contains(&egui::ViewportCommand::CancelClose));
+    assert!(
+        out1.viewport_output[&egui::ViewportId::ROOT]
+            .commands
+            .contains(&egui::ViewportCommand::CancelClose)
+    );
     assert_eq!(app.guard.pending_action, Some(PendingAction::Exit));
 
     let out2 = ctx.run(close_request_input(), |c| app.update_ui(c));
-    assert!(out2.viewport_output[&egui::ViewportId::ROOT]
-        .commands
-        .contains(&egui::ViewportCommand::CancelClose));
+    assert!(
+        out2.viewport_output[&egui::ViewportId::ROOT]
+            .commands
+            .contains(&egui::ViewportCommand::CancelClose)
+    );
     assert_eq!(
         app.guard.pending_action,
         Some(PendingAction::Exit),

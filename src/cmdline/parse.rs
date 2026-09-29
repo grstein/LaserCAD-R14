@@ -24,11 +24,7 @@ use crate::geometry::Vec2;
 /// goes through this function (LCV-110 demand, AC 5).
 pub fn parse_number(raw: &str) -> Option<f64> {
     let value: f64 = raw.trim().parse().ok()?;
-    if value.is_finite() {
-        Some(value)
-    } else {
-        None
-    }
+    if value.is_finite() { Some(value) } else { None }
 }
 
 /// Parse one line of command-line input. Total: never panics, never

@@ -23,8 +23,8 @@
 
 use crate::harness;
 
-use harness::paint::{self, group_into_lines, painted_runs_at, scoped_runs, texts, Run};
-use harness::{raw_input_at, SCREEN};
+use harness::paint::{self, Run, group_into_lines, painted_runs_at, scoped_runs, texts};
+use harness::{SCREEN, raw_input_at};
 use lasercad::app::App;
 use lasercad::document::Entity;
 use lasercad::geometry::{Line, Vec2};

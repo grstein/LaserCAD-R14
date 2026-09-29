@@ -55,13 +55,13 @@ fn ac11_the_narration_helpers_live_in_agent_narrate() {
 // `App::default()` only; ADR 0005: no dialog, no `Ctrl+O` / `Ctrl+S`.
 
 use crate::harness::{frame, tap};
-use lasercad::agent::{parse_tool_call, AgentAction, AgentEvent, AgentOutcome};
-use lasercad::app::{arm_turn, cancel_turn, App, AGENT_FENCE_REFUSAL};
+use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome, parse_tool_call};
+use lasercad::app::{AGENT_FENCE_REFUSAL, App, arm_turn, cancel_turn};
 use lasercad::document::{CreateLine, Entity, SelectionCommand};
 use lasercad::geometry::{Line, Vec2};
 use lasercad::io::svg::{export_svg, import_svg};
-use serde_json::{json, Value};
-use std::sync::mpsc::{channel, Receiver, Sender};
+use serde_json::{Value, json};
+use std::sync::mpsc::{Receiver, Sender, channel};
 
 /// The existing SVG round-trip tolerance, mm
 /// (`tests/it/io_svg/orientation.rs::EXPORT_QUANTISATION_TOL`).

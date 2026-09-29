@@ -12,7 +12,7 @@
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use crate::agent::bridge::AgentOutcome;
-use crate::agent::wire::{replace_images, AssistantMessage, ChatMessage, ContentPart};
+use crate::agent::wire::{AssistantMessage, ChatMessage, ContentPart, replace_images};
 
 // ── Step budget ──────────────────────────────────────────────────────────────
 

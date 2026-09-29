@@ -10,7 +10,7 @@
 //! routine.
 
 use crate::document::Entity;
-use crate::geometry::{line_circle, Arc, Circle, Line, Vec2, EPSILON};
+use crate::geometry::{Arc, Circle, EPSILON, Line, Vec2, line_circle};
 
 /// Trim a [`Circle`] target by a [`Line`] cutter. Requires two intersection
 /// points; returns an [`Entity::Arc`] spanning the side containing `keep`.
@@ -72,7 +72,7 @@ mod tests {
     use super::super::TrimEntity;
     use crate::document::commands::Command;
     use crate::document::{Document, Entity};
-    use crate::geometry::{Arc, Circle, Line, Vec2, EPSILON};
+    use crate::geometry::{Arc, Circle, EPSILON, Line, Vec2};
     use core::f64::consts::PI;
 
     fn doc_with(entities: Vec<Entity>) -> Document {

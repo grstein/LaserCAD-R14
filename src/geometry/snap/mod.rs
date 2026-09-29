@@ -30,7 +30,7 @@ use crate::geometry::epsilon::EPSILON;
 use crate::geometry::line::Line;
 use crate::geometry::vec2::Vec2;
 
-use candidates::{collect_intersection_candidates, collect_single_entity_candidates, Candidate};
+use candidates::{Candidate, collect_intersection_candidates, collect_single_entity_candidates};
 
 /// Discrete classification of a snap candidate.
 ///

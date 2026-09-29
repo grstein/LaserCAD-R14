@@ -26,7 +26,7 @@ use super::header::parse_bed;
 use super::layers::{LayerReader, STRAY_LAYER};
 use crate::document::entity::Entity;
 use crate::document::{Document, Layer, LayerId};
-use crate::geometry::{Arc, Circle, Line, Vec2, EPSILON};
+use crate::geometry::{Arc, Circle, EPSILON, Line, Vec2};
 use crate::util::flip_y;
 
 /// Errors returned by [`import_svg`].

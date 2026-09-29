@@ -18,30 +18,30 @@ pub mod wire;
 pub use wire::{AssistantMessage, ChatMessage, ChatResponse, Choice, ToolCall, ToolCallFunction};
 
 pub mod settings_ui;
-pub use settings_ui::{draw_agent_settings, AgentSettingsFrame};
+pub use settings_ui::{AgentSettingsFrame, draw_agent_settings};
 
 pub mod transport;
-pub use transport::{chat_completion, TransportError};
+pub use transport::{TransportError, chat_completion};
 
 pub mod bridge;
 pub use bridge::{AgentAction, AgentEvent, AgentOutcome};
 
 pub mod classifier;
-pub use classifier::{classify, Route};
+pub use classifier::{Route, classify};
 
 pub mod drawing;
 pub use drawing::DrawingItem;
 
 pub mod tools;
-pub use tools::{parse_tool_call, tool_definitions, ToolCallError};
+pub use tools::{ToolCallError, parse_tool_call, tool_definitions};
 
 pub mod prompt;
 pub use prompt::DEFAULT_PROMPT;
 
 pub mod loop_;
 pub use loop_::{
-    clamp_step_budget, AgentError, AGENT_STEP_BUDGET_DEFAULT, AGENT_STEP_BUDGET_MAX,
-    AGENT_STEP_BUDGET_MIN,
+    AGENT_STEP_BUDGET_DEFAULT, AGENT_STEP_BUDGET_MAX, AGENT_STEP_BUDGET_MIN, AgentError,
+    clamp_step_budget,
 };
 // The loop is driven from `src/app/agent_worker.rs`, which owns the turn
 // (ADR 0007 §D8). Re-exported here so that file needs no deep path.

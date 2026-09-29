@@ -25,7 +25,7 @@
 
 use crate::document::entity::Entity;
 use crate::geometry::{Line, Vec2};
-use crate::text::hershey::{advance_width, glyph_strokes, CAP_HEIGHT_HERSHEY};
+use crate::text::hershey::{CAP_HEIGHT_HERSHEY, advance_width, glyph_strokes};
 
 /// Lay out `text` as a sequence of [`Entity::Line`] strokes in mm-space.
 ///

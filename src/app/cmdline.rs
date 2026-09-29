@@ -25,10 +25,10 @@
 //!
 //! MUST NOT import `eframe`, `rfd` or `crate::ui`.
 
-use super::{apply_ortho, handle_zoom_extents, App};
-use crate::agent::{classify, Route};
-use crate::cmdline::{parse, CommandInput, ToggleKind, ToolInput, ZoomKind};
-use crate::geometry::{Vec2, EPSILON};
+use super::{App, apply_ortho, handle_zoom_extents};
+use crate::agent::{Route, classify};
+use crate::cmdline::{CommandInput, ToggleKind, ToolInput, ZoomKind, parse};
+use crate::geometry::{EPSILON, Vec2};
 use crate::render::Camera;
 use crate::tools;
 

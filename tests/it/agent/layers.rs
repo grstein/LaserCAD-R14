@@ -2,8 +2,8 @@
 //! layer by name, and an unknown name is refused with nothing committed
 //! (ADR 0012 §6).
 
-use lasercad::agent::{parse_tool_call, AgentAction, AgentOutcome, DrawingItem, ToolCallError};
-use lasercad::app::{apply, App};
+use lasercad::agent::{AgentAction, AgentOutcome, DrawingItem, ToolCallError, parse_tool_call};
+use lasercad::app::{App, apply};
 use lasercad::document::{AddLayer, Command, LayerId};
 use serde_json::json;
 

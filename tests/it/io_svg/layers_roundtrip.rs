@@ -6,7 +6,7 @@ use lasercad::document::{
     AddLayer, Command, Document, EditLayer, Entity, Layer, LayerId, SetCurrentLayer,
 };
 use lasercad::geometry::{Arc, Circle, Line, Vec2};
-use lasercad::io::svg::{export_svg, import_svg, SvgImportError};
+use lasercad::io::svg::{SvgImportError, export_svg, import_svg};
 
 fn line(x: f64) -> Entity {
     Entity::Line(Line::new(Vec2::new(x, 10.0), Vec2::new(x + 5.0, 20.0)))

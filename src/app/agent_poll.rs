@@ -42,7 +42,7 @@
 //! asked to check a flag.
 
 use crate::agent::{AgentAction, AgentEvent, AgentOutcome, ChatMessage, TurnEnd};
-use crate::app::{agent_apply, agent_capture, agent_memory, App};
+use crate::app::{App, agent_apply, agent_capture, agent_memory};
 use std::sync::mpsc::TryRecvError;
 
 /// Text shown in the chat when the worker thread ended without a verdict.
@@ -53,8 +53,7 @@ pub const AGENT_LOST_MESSAGE: &str = "Agent turn ended without a reply.";
 /// It says the one thing a cancel leaves ambiguous: a turn stopped halfway
 /// still *drew* half of something, and that half is real, on the bed, and
 /// undoable. The row that follows it says in how many steps.
-pub const AGENT_CANCELLED_MESSAGE: &str =
-    "Turn cancelled. The agent stopped; anything it already applied stays applied and stays undoable.";
+pub const AGENT_CANCELLED_MESSAGE: &str = "Turn cancelled. The agent stopped; anything it already applied stays applied and stays undoable.";
 
 /// Drain `app.agent.rx` and update `agent.chat`, `agent.busy` and `agent.rx`.
 ///

@@ -15,11 +15,11 @@ use crate::harness;
 
 use harness::{frame, tap};
 use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome};
-use lasercad::app::{arm_turn, cancel_turn, App, AGENT_FENCE_REFUSAL};
+use lasercad::app::{AGENT_FENCE_REFUSAL, App, arm_turn, cancel_turn};
 use lasercad::document::{CreateCircle, CreateLine, DeleteEntities, SelectionCommand};
 use lasercad::geometry::{Circle, Line, Vec2};
 use std::path::PathBuf;
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender, channel};
 
 // ── Plumbing ────────────────────────────────────────────────────────────────
 

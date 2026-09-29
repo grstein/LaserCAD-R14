@@ -127,19 +127,23 @@ mod tests {
     #[test]
     fn point_at_angle_cardinals() {
         let c = Circle::new(Vec2::default(), 5.0);
-        assert!(c
-            .point_at_angle(0.0)
-            .approx_eq(Vec2::new(5.0, 0.0), EPSILON));
-        assert!(c
-            .point_at_angle(FRAC_PI_2)
-            .approx_eq(Vec2::new(0.0, 5.0), EPSILON));
-        assert!(c
-            .point_at_angle(PI)
-            .approx_eq(Vec2::new(-5.0, 0.0), EPSILON));
+        assert!(
+            c.point_at_angle(0.0)
+                .approx_eq(Vec2::new(5.0, 0.0), EPSILON)
+        );
+        assert!(
+            c.point_at_angle(FRAC_PI_2)
+                .approx_eq(Vec2::new(0.0, 5.0), EPSILON)
+        );
+        assert!(
+            c.point_at_angle(PI)
+                .approx_eq(Vec2::new(-5.0, 0.0), EPSILON)
+        );
         // Bonus: 3π/2 sits at (0, -5).
-        assert!(c
-            .point_at_angle(3.0 * FRAC_PI_2)
-            .approx_eq(Vec2::new(0.0, -5.0), EPSILON));
+        assert!(
+            c.point_at_angle(3.0 * FRAC_PI_2)
+                .approx_eq(Vec2::new(0.0, -5.0), EPSILON)
+        );
     }
 
     /// AC#7 — the center is inside the circle.

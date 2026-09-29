@@ -17,7 +17,7 @@
 use super::App;
 use crate::document::SetBedSize;
 use crate::ui::DialogResult;
-use crate::util::{clamp_bed_mm, BED_MAX_MM, BED_MIN_MM};
+use crate::util::{BED_MAX_MM, BED_MIN_MM, clamp_bed_mm};
 
 /// Render the Bed size… window when `App::bed_dialog` holds a draft.
 ///
@@ -64,9 +64,10 @@ pub fn draw_bed_dialog(ctx: &egui::Context, app: &mut App) {
 
     app.bed_dialog = Some(draft);
     if let Some(result) = result
-        && apply_bed_dialog_result(app, result) {
-            app.persist_settings();
-        }
+        && apply_bed_dialog_result(app, result)
+    {
+        app.persist_settings();
+    }
 }
 
 /// One bed axis as a `DragValue`, held inside the configurable range.
