@@ -41,6 +41,7 @@ mod document_title;
 mod file_ops;
 mod init;
 mod input;
+mod layers;
 mod ortho;
 mod panels;
 mod persist;
@@ -69,6 +70,7 @@ pub use discard::{apply_dialog_result, draw_discard_dialog, poll_close_request};
 pub use document_title::DocumentTitleState;
 pub use file_ops::PendingAction;
 pub use input::process_input;
+pub use layers::LayersDialog;
 pub use ortho::apply_ortho;
 pub use snap::{resolve_snap, suppress_snap_if_disabled};
 pub use unsaved_guard::UnsavedGuard;
@@ -145,6 +147,8 @@ pub struct App {
     /// closed (LCV-114). The document's bed is only touched when OK is
     /// pressed, through a `SetBedSize` command; see `src/app/bed_dialog.rs`.
     pub bed_dialog: Option<[f64; 2]>,
+    /// The open Layers… dialog, `None` when closed (LCV-156, `src/app/layers.rs`).
+    pub layers_dialog: Option<LayersDialog>,
     /// Text buffer for the command-line widget (LCV-068).
     pub command_line_input: String,
     /// The 50-entry command recall ring walked by ArrowUp / ArrowDown while
