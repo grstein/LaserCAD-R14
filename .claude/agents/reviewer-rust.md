@@ -16,8 +16,8 @@ Check, reading `git diff <range>` and only the code it needs:
 2. Invariants from AGENTS.md: purity, Command+History mutation, `Document` `!Clone`, repaint
    sites, `rfd` placement, no `unwrap` in library code, no AI trailer in `git log <range>`.
 3. KISS: a trait with one impl, a speculative `pub`, a dependency or scope not in `plan.md`.
-4. Only if `plan.md` says mutation testing: mutate the key branch in a scratch copy with its own
-   `CARGO_TARGET_DIR` and confirm a test fails; revert.
+4. Only if `plan.md` says mutation testing: run `scripts/mutants.sh <base>`; a MISSED mutant in
+   changed code is BLOCKING unless provably equivalent.
 
 Report nothing that is style, taste or a nit. Output exactly one of:
 

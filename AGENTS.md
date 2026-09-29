@@ -13,6 +13,7 @@ Linux first. All versioned artifacts are English; conversation may be any langua
 ```bash
 scripts/gate.sh                    # THE gate: fmt check, clippy -D warnings, tests --no-fail-fast, LOC cap, backlog check
 scripts/check.sh [filter...]       # inner loop: clippy + lib/integration tests matching filter, no doctests
+scripts/mutants.sh [base=main]     # cargo-mutants on src/ lines changed since base (review, high-risk specs)
 cargo run                          # run the app (debug)
 cargo test <substring>             # one test while iterating
 scripts/backlog.sh                 # regenerate docs/product/backlog.md from spec headers
@@ -39,8 +40,9 @@ Draft ─/specify→ Specified ─/design→ Planned ─/implement→ Done      
   (fable) reviews the diff against the ACs once, blocking findings only; `architect` (opus) only
   when `/design` finds a module-boundary change or an ADR is needed. Everything else runs in the
   main session via the skills `/specify`, `/design`, `/implement`, `/next`.
-- **Review budget**: one review round, one fix round, then ask the user. Mutation testing only when
-  `plan.md` flags high risk (`src/agent/`, `src/io/svg/export.rs`, `History`).
+- **Review budget**: one review round, one fix round, then ask the user. Mutation testing
+  (`scripts/mutants.sh`) only when `plan.md` flags high risk (`src/agent/`, `src/io/svg/export.rs`,
+  `History`).
 - **Parallel work**: independent `Planned` specs may run in git worktrees, each with its own
   `CARGO_TARGET_DIR`.
 - **Fast lane**: a change with no user-visible behavior change (refactor, test-only, docs, tooling,
