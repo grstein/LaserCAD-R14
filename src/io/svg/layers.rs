@@ -2,15 +2,18 @@
 //!
 //! Written: `<g data-layer="<name>" stroke="#rrggbb" stroke-width="0.1"
 //! data-output="1|0"[ data-current="1"]>`, the name XML-escaped, no `id`.
-//! Read: a `<g>` with `data-layer` defines a layer in document order; `stroke`
-//! must be `#rrggbb` (either case), `data-output` `0`/`1` (absent = `1`);
+//! Read: a `<g>` with `data-layer` defines a layer in document order; its
+//! stroke is any CSS color (`super::css_color`), from `style="stroke:…"` over
+//! the `stroke` attribute, else inherited from the nearest `<g>`/`<svg>`
+//! ancestor (AC 16); `data-output` is `0`/`1` (absent = `1`);
 //! duplicate name keys or colors are refused. Anything else is
 //! [`SvgImportError::MalformedLayer`].
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
+use super::css_color::parse_css_color;
 use super::import::SvgImportError;
-use crate::document::layer::{check_fields, color_hex, parse_color_hex};
+use crate::document::layer::{check_fields, color_hex};
 use crate::document::{Layer, LayerId};
 
 /// Stroke width of every layer group, in mm.
@@ -33,6 +36,29 @@ pub(super) fn open_group(out: &mut String, layer: &Layer, current: bool) {
         out.push_str(" data-current=\"1\"");
     }
     out.push_str(">\n");
+}
+
+/// A layer group's stroke value: its own, else the nearest `<g>`/`<svg>`
+/// ancestor's (ADR 0012 §4).
+fn layer_stroke<'a>(node: roxmltree::Node<'a, '_>) -> Option<&'a str> {
+    node.ancestors()
+        .filter(|n| matches!(n.tag_name().name(), "g" | "svg"))
+        .find_map(own_stroke)
+}
+
+/// The stroke `node` declares itself: the last `stroke` in `style` wins over
+/// the `stroke` attribute; `inherit` or no declaration is `None`.
+fn own_stroke<'a>(node: roxmltree::Node<'a, '_>) -> Option<&'a str> {
+    let styled = node.attribute("style").and_then(|style| {
+        style
+            .split(';')
+            .filter_map(|decl| decl.split_once(':'))
+            .rfind(|(prop, _)| prop.trim().eq_ignore_ascii_case("stroke"))
+            .map(|(_, value)| value.trim().trim_end_matches("!important").trim())
+    });
+    styled
+        .or_else(|| node.attribute("stroke"))
+        .filter(|value| !value.trim().eq_ignore_ascii_case("inherit"))
 }
 
 /// Escape the four characters that can break a double-quoted attribute.
@@ -74,9 +100,9 @@ impl LayerReader {
             name: name.to_owned(),
             reason,
         };
-        let stroke = node.attribute("stroke").unwrap_or("");
-        let color = parse_color_hex(stroke)
-            .ok_or_else(|| bad(format!("stroke {stroke:?} is not #rrggbb")))?;
+        let stroke = layer_stroke(node).ok_or_else(|| bad("no stroke color".to_owned()))?;
+        let color = parse_css_color(stroke)
+            .ok_or_else(|| bad(format!("stroke {stroke:?} is not a supported CSS color")))?;
         let output = match node.attribute("data-output") {
             None | Some("1") => true,
             Some("0") => false,

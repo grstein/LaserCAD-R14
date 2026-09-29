@@ -169,7 +169,7 @@ fn first_layer_is_current_without_data_current() {
 #[test]
 fn malformed_layers_are_refused() {
     let bad = [
-        r##"<g data-layer="A" stroke="red"/>"##,
+        r##"<g data-layer="A" stroke="reddish"/>"##,
         r##"<g data-layer="A"/>"##,
         r##"<g data-layer="A" stroke="#ff0000" data-output="yes"/>"##,
         r##"<g data-layer="A" stroke="#ff0000"/><g data-layer="a" stroke="#00ff00"/>"##,
@@ -184,4 +184,118 @@ fn malformed_layers_are_refused() {
         );
         assert!(!err.to_string().is_empty());
     }
+}
+
+/// The color of the only layer of a file whose body is `body`, or the error.
+fn layer_color(header: &str, body: &str) -> Result<[u8; 3], SvgImportError> {
+    let svg = format!("{header}\n{body}\n</svg>");
+    let doc = import_svg(&svg)?.into_document().expect("valid layers");
+    Ok(doc.layers()[0].color)
+}
+
+/// AC 16 — a layer's stroke is read from any CSS color: named keywords,
+/// `#rgb`, `#rrggbb` in any case, `rgb()`, `hsl()`; `style="stroke:…"` wins
+/// over the attribute. Export stays lowercase `#rrggbb`.
+#[test]
+fn layer_stroke_accepts_any_css_color() {
+    let cases: [(&str, [u8; 3]); 15] = [
+        (r##"stroke="red""##, [255, 0, 0]),
+        (r##"stroke="RebeccaPurple""##, [102, 51, 153]),
+        (r##"stroke=" navy ""##, [0, 0, 128]),
+        (r##"stroke="#0F0""##, [0, 255, 0]),
+        (r##"stroke="#00AAff""##, [0, 170, 255]),
+        (r##"stroke="rgb(255, 128, 0)""##, [255, 128, 0]),
+        (r##"stroke="RGB(0 0 255 / 50%)""##, [0, 0, 255]),
+        (r##"stroke="rgba(100%, 0%, 50%, 0.5)""##, [255, 0, 128]),
+        (r##"stroke="rgb(300, -5, 12.6)""##, [255, 0, 13]),
+        (r##"stroke="hsl(120, 100%, 25%)""##, [0, 128, 0]),
+        (r##"stroke="hsl(0.5turn 100% 50%)""##, [0, 255, 255]),
+        (r##"stroke="hsla(-120deg, 100%, 50%, 1)""##, [0, 0, 255]),
+        (
+            r##"style="fill:none; stroke: #123456" stroke="#ffffff""##,
+            [0x12, 0x34, 0x56],
+        ),
+        (
+            r##"style="fill:none;STROKE:teal !important;" "##,
+            [0, 128, 128],
+        ),
+        (r##"style="stroke:red; stroke:blue""##, [0, 0, 255]),
+    ];
+    for (attrs, want) in cases {
+        let body = format!(r##"<g data-layer="A" {attrs}/>"##);
+        let got = layer_color(HEADER, &body).unwrap_or_else(|e| panic!("{attrs}: {e}"));
+        assert_eq!(got, want, "{attrs}");
+    }
+    let doc = reopen(&file(r##"<g data-layer="A" stroke="#00AAff"/>"##));
+    assert!(
+        export_svg(&doc).contains(r##"stroke="#00aaff""##),
+        "lowercase on export"
+    );
+}
+
+/// AC 16 — a layer group with no stroke of its own inherits the nearest
+/// ancestor `<g>`/`<svg>` stroke (style still winning there); its own stroke
+/// beats any ancestor's.
+#[test]
+fn layer_stroke_inherits_from_an_ancestor() {
+    let svg_stroke = HEADER.replace(r##"fill="none">"##, r##"fill="none" stroke="navy">"##);
+    assert_ne!(svg_stroke, HEADER, "control: the header was rewritten");
+    let cases: [(&str, &str, [u8; 3]); 5] = [
+        (
+            HEADER,
+            r##"<g stroke="lime"><g data-layer="A"/></g>"##,
+            [0, 255, 0],
+        ),
+        (
+            HEADER,
+            r##"<g stroke="red" style="stroke:blue"><g><g data-layer="A"/></g></g>"##,
+            [0, 0, 255],
+        ),
+        (
+            HEADER,
+            r##"<g stroke="red"><g stroke="lime"><g data-layer="A"/></g></g>"##,
+            [0, 255, 0],
+        ),
+        (
+            HEADER,
+            r##"<g stroke="lime"><g data-layer="A" stroke="#0000ff"/></g>"##,
+            [0, 0, 255],
+        ),
+        (&svg_stroke, r##"<g data-layer="A"/>"##, [0, 0, 128]),
+    ];
+    for (header, body, want) in cases {
+        let got = layer_color(header, body).unwrap_or_else(|e| panic!("{body}: {e}"));
+        assert_eq!(got, want, "{body}");
+    }
+}
+
+/// AC 16 — an invalid or unsupported stroke color is a malformed layer,
+/// including an invalid `style` stroke over a valid attribute.
+#[test]
+fn unsupported_layer_colors_are_refused() {
+    let bad = [
+        r##"<g data-layer="A" stroke="none"/>"##,
+        r##"<g data-layer="A" stroke="currentColor"/>"##,
+        r##"<g data-layer="A" stroke="transparent"/>"##,
+        r##"<g data-layer="A" stroke="url(#grad)"/>"##,
+        r##"<g data-layer="A" stroke="#ff00"/>"##,
+        r##"<g data-layer="A" stroke="#ff0000cc"/>"##,
+        r##"<g data-layer="A" stroke="#gg0000"/>"##,
+        r##"<g data-layer="A" stroke="rgb(1, 2)"/>"##,
+        r##"<g data-layer="A" stroke="rgb (1, 2, 3)"/>"##,
+        r##"<g data-layer="A" stroke="rgb(1, 2, x)"/>"##,
+        r##"<g data-layer="A" stroke="hsl(1, 2%, 3%, 4, 5)"/>"##,
+        r##"<g data-layer="A" stroke="cmyk(1, 2, 3)"/>"##,
+        r##"<g data-layer="A" style="stroke:#zzz" stroke="red"/>"##,
+        r##"<g data-layer="A" style="stroke:" stroke="red"/>"##,
+    ];
+    for body in bad {
+        let err = layer_color(HEADER, body).expect_err(body);
+        assert!(
+            matches!(err, SvgImportError::MalformedLayer { .. }),
+            "{body}: {err:?}"
+        );
+    }
+    let ok = r##"<g data-layer="A" style="fill:none" stroke="red"/>"##;
+    assert_eq!(layer_color(HEADER, ok).expect("control"), [255, 0, 0]);
 }
