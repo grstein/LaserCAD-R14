@@ -198,7 +198,12 @@ fn layer_color(header: &str, body: &str) -> Result<[u8; 3], SvgImportError> {
 /// over the attribute. Export stays lowercase `#rrggbb`.
 #[test]
 fn layer_stroke_accepts_any_css_color() {
-    let cases: [(&str, [u8; 3]); 15] = [
+    let cases: [(&str, [u8; 3]); 20] = [
+        (r##"stroke="#1F8""##, [0x11, 0xff, 0x88]),
+        (r##"stroke="hsl(3.14159265rad 100% 50%)""##, [0, 255, 255]),
+        (r##"stroke="hsl(200grad 100% 50%)""##, [0, 255, 255]),
+        (r##"stroke="hsl(0, 100%, 75%)""##, [255, 128, 128]),
+        (r##"stroke="hsl(30, 100%, 50%)""##, [255, 128, 0]),
         (r##"stroke="red""##, [255, 0, 0]),
         (r##"stroke="RebeccaPurple""##, [102, 51, 153]),
         (r##"stroke=" navy ""##, [0, 0, 128]),
@@ -298,4 +303,24 @@ fn unsupported_layer_colors_are_refused() {
     }
     let ok = r##"<g data-layer="A" style="fill:none" stroke="red"/>"##;
     assert_eq!(layer_color(HEADER, ok).expect("control"), [255, 0, 0]);
+}
+
+/// ADR 0012 §4 — the first `data-current="1"` layer is current; a later
+/// one does not take over.
+#[test]
+fn the_first_data_current_layer_wins() {
+    let body = r##"<g data-layer="A" stroke="#010101"/><g data-layer="B" stroke="#020202" data-current="1"/><g data-layer="C" stroke="#030303" data-current="1"/>"##;
+    let doc = reopen(&file(body));
+    assert_eq!(doc.layer(doc.current_layer()).expect("current").name, "B");
+}
+
+/// ADR 0012 §3 — a double quote in a layer name is escaped in the attribute,
+/// so the file stays well-formed and the name round-trips.
+#[test]
+fn a_quote_in_a_layer_name_is_escaped() {
+    let mut doc = Document::default();
+    add(&mut doc, r#"Say "hi""#, [0, 0, 255], true);
+    let svg = export_svg(&doc);
+    assert!(svg.contains(r#"data-layer="Say &quot;hi&quot;""#), "{svg}");
+    assert_eq!(reopen(&svg).layers()[1].name, r#"Say "hi""#);
 }

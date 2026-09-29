@@ -282,3 +282,28 @@ fn set_entity_layers_is_one_undo_step() {
     assert!(history.redo(&mut doc));
     assert_eq!(memberships(&doc), vec![MARK; 3]);
 }
+
+/// AC 8 — each layer change is a named undo step.
+#[test]
+fn layer_commands_carry_their_undo_labels() {
+    use lasercad::document::Command;
+    let labels = [
+        AddLayer::new("X", [1, 2, 3], true).label().to_owned(),
+        EditLayer::new(layer(MARK, "M", [0, 0, 1]))
+            .label()
+            .to_owned(),
+        DeleteLayer::new(MARK).label().to_owned(),
+        SetCurrentLayer::new(MARK).label().to_owned(),
+        SetEntityLayers::new(vec![0], MARK).label().to_owned(),
+    ];
+    assert_eq!(
+        labels,
+        [
+            "Add Layer",
+            "Edit Layer",
+            "Delete Layer",
+            "Set Current Layer",
+            "Move to Layer"
+        ]
+    );
+}
