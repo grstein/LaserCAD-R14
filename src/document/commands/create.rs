@@ -21,11 +21,14 @@
 //! bit-equivalent (`PartialEq`-equal entities, same order, same selection) to
 //! the pre-`do_` state.
 //!
+//! Each command lands its entities on one layer (LCV-156): the one given to
+//! `on_layer`, else the current layer at the first `do_`, kept for redo.
+//!
 //! MUST NOT import `egui`, `eframe`, or `rfd`. Introduced by demand LCV-023.
 //! [`CreateEntities`] introduced by demand LCV-045.
 
 use super::Command;
-use crate::document::{Document, Entity};
+use crate::document::{Document, Entity, LayerId};
 use crate::geometry::{Arc, Circle, Line};
 
 /// Append a [`Line`] to a [`Document`].
@@ -40,6 +43,8 @@ pub struct CreateLine {
     /// Index at which `do_` placed the entity; `None` before the first `do_`
     /// or after `undo`. Module-private to prevent caller tampering.
     captured_index: Option<usize>,
+    /// Layer the entity lands on; `None` = the current layer at first `do_`.
+    layer: Option<LayerId>,
 }
 
 impl CreateLine {
@@ -48,13 +53,21 @@ impl CreateLine {
         Self {
             line,
             captured_index: None,
+            layer: None,
         }
+    }
+
+    /// Put the entity on `layer` instead of the current layer.
+    pub fn on_layer(mut self, layer: LayerId) -> Self {
+        self.layer = Some(layer);
+        self
     }
 }
 
 impl Command for CreateLine {
     fn do_(&mut self, doc: &mut Document) {
-        doc.push_current(Entity::Line(self.line));
+        let layer = *self.layer.get_or_insert(doc.current_layer());
+        doc.push_entity(Entity::Line(self.line), layer);
         self.captured_index = Some(doc.entities.len() - 1);
     }
 
@@ -77,6 +90,8 @@ pub struct CreateCircle {
     pub circle: Circle,
     /// Index at which `do_` placed the entity; cleared on `undo`.
     captured_index: Option<usize>,
+    /// Layer the entity lands on; `None` = the current layer at first `do_`.
+    layer: Option<LayerId>,
 }
 
 impl CreateCircle {
@@ -85,13 +100,21 @@ impl CreateCircle {
         Self {
             circle,
             captured_index: None,
+            layer: None,
         }
+    }
+
+    /// Put the entity on `layer` instead of the current layer.
+    pub fn on_layer(mut self, layer: LayerId) -> Self {
+        self.layer = Some(layer);
+        self
     }
 }
 
 impl Command for CreateCircle {
     fn do_(&mut self, doc: &mut Document) {
-        doc.push_current(Entity::Circle(self.circle));
+        let layer = *self.layer.get_or_insert(doc.current_layer());
+        doc.push_entity(Entity::Circle(self.circle), layer);
         self.captured_index = Some(doc.entities.len() - 1);
     }
 
@@ -114,6 +137,8 @@ pub struct CreateArc {
     pub arc: Arc,
     /// Index at which `do_` placed the entity; cleared on `undo`.
     captured_index: Option<usize>,
+    /// Layer the entity lands on; `None` = the current layer at first `do_`.
+    layer: Option<LayerId>,
 }
 
 impl CreateArc {
@@ -122,13 +147,21 @@ impl CreateArc {
         Self {
             arc,
             captured_index: None,
+            layer: None,
         }
+    }
+
+    /// Put the entity on `layer` instead of the current layer.
+    pub fn on_layer(mut self, layer: LayerId) -> Self {
+        self.layer = Some(layer);
+        self
     }
 }
 
 impl Command for CreateArc {
     fn do_(&mut self, doc: &mut Document) {
-        doc.push_current(Entity::Arc(self.arc));
+        let layer = *self.layer.get_or_insert(doc.current_layer());
+        doc.push_entity(Entity::Arc(self.arc), layer);
         self.captured_index = Some(doc.entities.len() - 1);
     }
 
@@ -165,6 +198,8 @@ pub struct CreateEntities {
     /// Vector length before `do_` pushed; `None` before the first `do_`
     /// or after `undo`. Module-private to prevent caller tampering.
     captured_start: Option<usize>,
+    /// Layer the batch lands on; `None` = the current layer at first `do_`.
+    layer: Option<LayerId>,
 }
 
 impl CreateEntities {
@@ -174,7 +209,14 @@ impl CreateEntities {
         Self {
             entities,
             captured_start: None,
+            layer: None,
         }
+    }
+
+    /// Put the whole batch on `layer` instead of the current layer.
+    pub fn on_layer(mut self, layer: LayerId) -> Self {
+        self.layer = Some(layer);
+        self
     }
 }
 
@@ -182,8 +224,9 @@ impl Command for CreateEntities {
     fn do_(&mut self, doc: &mut Document) {
         // Re-capture on redo: clear any prior start so LIFO truncate is safe.
         self.captured_start = Some(doc.entities.len());
+        let layer = *self.layer.get_or_insert(doc.current_layer());
         for &entity in &self.entities {
-            doc.push_current(entity);
+            doc.push_entity(entity, layer);
         }
     }
 
