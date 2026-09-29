@@ -84,7 +84,8 @@ one named constant per token in `ui/theme.rs` (chrome) or a new `render/palette.
 | `bed.outside` | black α 96 | dims off-bed area | — | `render/bed.rs::draw_bed` |
 | `grid.minor` | gray 48, 0.5 pt | minor grid | 1.12:1 (target ≈1.4:1 @1 pt, gap → LCV-164) | `render/grid.rs::draw_grid` |
 | `grid.major` | gray 96, 1 pt | major grid | 2.3:1 | `render/grid.rs::draw_grid` |
-| `entity` | gray 220, 1 pt | geometry (layer colour after LCV-156) | 10.8:1 | `render/entities.rs::PaintOptions` |
+| `entity` | its layer's colour, 1 pt | geometry | per layer (§3 rules) | `render/entities.rs::draw_entities` |
+| `layer.new` | #0000ff, #00aa00, #ff00ff, #00aaaa, #ff8000, #8000ff | colours offered to new layers, in order | per layer | `app/layers.rs::NEW_LAYER_COLORS` |
 | `selection` | rgba(64,160,255,180), 3 pt | selection halo | 3.4:1 blended (floor) | `render/selection.rs` |
 | `preview` | rgba(255,220,100,160) | rubber-band geometry | 5.3:1 blended | `render/preview.rs` |
 | `snap` | #ffa000, 8 pt glyph | object snap marker | 7.2:1 | `render/snaps.rs::marker_color` |
@@ -136,7 +137,7 @@ bed border and outside overlay → entities → selection halo → preview → s
 
 | Element | Form | Status |
 |---|---|---|
-| Entity | 1 pt, `entity` (layer colour after LCV-156) | shipped |
+| Entity | 1 pt, `entity` (its layer's colour, LCV-156) | shipped |
 | Selected | 3 pt `selection` halo over the entity | shipped |
 | Hover / pick target | thicker stroke, own colour | gap → LCV-163 |
 | Preview | `preview` stroke | shipped |
@@ -168,7 +169,7 @@ dark edge and a kind label are planned (gap → LCV-164).
 
 ## 7. Chrome components
 
-- **Menubar**: R14 order — File Edit View Format Tools Help (`Format` arrives with LCV-156).
+- **Menubar**: R14 order — File Edit View Format Tools Help (`Format > Layers…`, LCV-156).
   Title Case labels (§9); `…` only when a dialog
   follows. Shortcuts in an aligned column: gap → LCV-166 (today `"\t"` in `ui/menubar.rs`).
 - **Tool rail** (`ui/toolbar.rs::TOOLS`): text labels. One table drives the rail, the Tools
@@ -182,10 +183,10 @@ dark edge and a kind label are planned (gap → LCV-164).
     gap → LCV-165.
   - Messages state a fact and the next step. Severity is error / warning / info (gap → LCV-165;
     today everything is `status.warning`). Query results such as DIST are info.
-- **Status bar** (`ui/statusbar.rs::draw_statusbar`): coords · tool · `Entities: n` · preset ·
-  SNAP GRID ORTHO · autosave. Mode toggles are always-visible `selectable_label`s (LCV-116). New
-  segments are appended. LCV-156 swaps the preset badge for the layer dropdown.
-- **Dialogs** (`ui/dialogs.rs`, `app/bed_dialog.rs`, `app/discard.rs`): Title Case titles,
+- **Status bar** (`ui/statusbar.rs::draw_statusbar`): coords · tool · `Entities: n` · current
+  layer dropdown (`ui/layer_combo.rs`, LCV-156) · SNAP GRID ORTHO · autosave. Mode toggles are
+  always-visible `selectable_label`s (LCV-116). New segments are appended.
+- **Dialogs** (`ui/dialogs.rs`, `app/bed_dialog.rs`, `app/discard.rs`, `ui/layers_dialog.rs`): Title Case titles,
   buttons ordered primary → Cancel. Non-modal, no keyboard handling (LCV-069, LCV-113, ADR 0002
   §A6). Enter/Esc, destructive styling and one close pattern: gap → LCV-169.
 - **AI Assistant panel** (`agent/panel.rs`): transcript roles per LCV-125 — user, assistant,
@@ -214,7 +215,7 @@ Canonical bindings live in ADR 0002 §A6 (gate table), ADR 0003 (command line) a
   (`Save As…`, `Fit to Bed`, `Select All`).
 - **Sentence case**: prompts, messages, hints, tooltips, field labels.
 - **UPPER**: command words (`LINE`, `PLINE`, `ERASE`), mode toggles (`SNAP`, `GRID`,
-  `ORTHO`), preset badge.
+  `ORTHO`).
 - `…` only when more input follows (a dialog or a file picker).
 - Units are always shown (`mm`, `°`). Keys are written `Ctrl+Shift+S`, `F3`.
 - A message states the fact, then the next step: `Could not write 'x.svg': … — choose another
@@ -226,7 +227,7 @@ Canonical bindings live in ADR 0002 §A6 (gate table), ADR 0003 (command line) a
 | Remove entities | Delete (`ERASE`) | remove, erase in labels |
 | Machine work area | Bed | table, sheet, canvas |
 | Frame the bed / frame the geometry | Fit to Bed / Zoom Extents | zoom fit |
-| Cut group | Layer (`Format > Layers…`, LCV-156); presets until then | pen, colour |
+| Cut group | Layer (`Format > Layers…`, `LAYER`, LCV-156) | pen, colour, preset |
 | The LLM feature | AI Assistant; short form AI; settings AI Settings | Agent, bot |
 
 Existing labels that break these rules, including LCV-156's `File > Export layers`: gap →
