@@ -20,5 +20,6 @@
 - [x] T18 [AC4] Test then implement `LAYER`/`LA` command (files: src/cmdline/parse.rs, src/app/cmdline.rs, tests/it/cmdline/command_words.rs)
 - [x] T19 [AC14] Test then implement agent `layer` argument and `query_entities` layers (files: src/agent/tools.rs, src/agent/drawing.rs, src/app/agent_apply.rs)
 - [x] T20 [AC14] Built-in prompt describes layers; prompt test (files: src/agent/prompt.rs, tests/it/agent/default_prompt.rs)
+- [ ] T23 [AC16] Test then implement CSS color parsing + style/inheritance for layer stroke on import (files: src/io/svg/layers.rs, tests/it/io_svg/layers_roundtrip.rs)
 - [ ] T21 Mutation testing on export.rs, svg/layers.rs, commands/layer.rs; kill survivors (files: tests as needed)
 - [ ] T22 CHANGELOG line (files: CHANGELOG.md)

@@ -49,6 +49,11 @@ The user chose LightBurn-style layers on 2026-09-29.
 14. WHEN the agent lists entities THE SYSTEM SHALL report each entity's layer; creation tools
     SHALL accept an optional existing layer name, and an unknown name SHALL be refused.
 15. THE SYSTEM SHALL remove `File > Export preset` and the preset badge in the status bar.
+16. WHEN a file is opened THE SYSTEM SHALL read a layer `<g>`'s stroke color from any CSS `<color>`
+    (named keywords, `#rgb`, `#rrggbb` in any case, `rgb()`, `hsl()`), given as the `stroke`
+    presentation attribute or inside `style="stroke:…"` (style wins), and inherited from an
+    ancestor `<g>`/`<svg>` when absent; an invalid or unsupported color SHALL be refused as a
+    malformed layer. Export stays lowercase `#rrggbb`.
 
 ## Out of scope
 

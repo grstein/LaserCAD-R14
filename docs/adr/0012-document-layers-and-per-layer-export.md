@@ -59,8 +59,11 @@ layer, in layer order, **including empty layers**:
 ID). The name is XML-escaped (`& < > "`). Entities are written inside their layer's group in index
 order. Import (`src/io/svg/layers.rs` reads/writes these attributes; `import.rs` keeps geometry): a
 `<g>` with `data-layer` defines a layer in document order; the innermost one encloses its geometry;
-`stroke` must be `#rrggbb` and `data-output` `0`/`1` (absent = `1`), else a new
-`SvgImportError::MalformedLayer`, document untouched; duplicate keys or colors are errors too. The
+the layer color is read from any CSS `<color>` (named keywords, `#rgb`, `#rrggbb` in any case,
+`rgb()`, `hsl()`), given as the `stroke` attribute or inside `style="stroke:…"` (style wins), and
+inherited from an ancestor `<g>`/`<svg>` when absent (LCV-156 AC 16; export stays lowercase
+`#rrggbb`); `data-output` must be `0`/`1` (absent = `1`); an invalid or unsupported color or
+output is a new `SvgImportError::MalformedLayer`, document untouched; duplicate keys or colors are errors too. The
 first `data-current="1"` layer is current, else the first layer. **Geometry outside any layer group
 goes to the first layer of the file; a file with no layer group gets the default `Cut` layer.**
 v0.2 files (`<g id="cut|mark|engrave">`) therefore load entirely onto `Cut` (migration out of scope).
