@@ -1,5 +1,6 @@
 //! The edit arms of `agent_apply.rs::plan`: actions that address an existing
-//! entity by index (LCV-078; `copy_entity` LCV-157; `rotate_entity` LCV-158). Split out for the LOC
+//! entity by index (LCV-078; `copy_entity` LCV-157; `rotate_entity` LCV-158;
+//! `mirror_entity` LCV-181). Split out for the LOC
 //! cap (LCV-157); the range check lives here because only these arms need it
 //! (ADR 0007 §D2a).
 //!
@@ -84,6 +85,36 @@ pub(super) fn rotate(index: usize, x: f64, y: f64, angle: f64, doc: &Document) -
             pt(x, y)
         ),
     )
+}
+
+/// `mirror_entity`: refuse an out-of-range index or a mirror line whose two
+/// points coincide; else mirror across it, replacing the entity when
+/// `erase_source`, else appending the image on its layer (LCV-181 AC10).
+pub(super) fn mirror(index: usize, line: (Vec2, Vec2), erase: bool, doc: &Document) -> Planned {
+    let entity = match in_range(index, doc) {
+        Err(refusal) => return Planned::Answer(refusal),
+        Ok(entity) => entity,
+    };
+    let (a, b) = line;
+    let transform = Transform::Mirror { a, b };
+    if transform.is_identity() {
+        return Planned::Answer(AgentOutcome::Refused(format!(
+            "the mirror line needs two distinct points, got {} mm twice",
+            pt(a.x, a.y)
+        )));
+    }
+    let what = format!("entity {index} ({})", describe(entity));
+    let across = format!("the line {}–{} mm", pt(a.x, a.y), pt(b.x, b.y));
+    let cmd = TransformEntities::new(vec![index], transform).with_keep_source(!erase);
+    let summary = if erase {
+        format!("Mirrored {what} across {across}.")
+    } else {
+        format!(
+            "Mirrored {what} across {across} as entity {}.",
+            doc.entity_count()
+        )
+    };
+    Planned::Commit(Box::new(cmd), summary)
 }
 
 /// The check the worker thread cannot make: is `index` a real entity?

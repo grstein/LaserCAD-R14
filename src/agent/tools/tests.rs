@@ -12,8 +12,8 @@
     /// `..._is_five` asserting `7` is a lie a reader has to read the body to
     /// catch.
     #[test]
-    fn tool_definitions_array_length_is_ten() {
-        assert_eq!(tool_definitions(false).as_array().unwrap().len(), 10);
+    fn tool_definitions_array_length_is_eleven() {
+        assert_eq!(tool_definitions(false).as_array().unwrap().len(), 11);
     }
     /// AC 13 — the order is part of the contract: every other schema test and
     /// `transport.rs`'s wire assertions index into this array.
@@ -21,15 +21,15 @@
     fn tool_definitions_names_in_order() {
         let d = tool_definitions(false);
         let n = ["create_line","create_circle","create_arc","delete_entity","move_entity",
-                 "copy_entity","rotate_entity","query_entities","query_selection",
-                 "create_drawing"];
+                 "copy_entity","rotate_entity","mirror_entity","query_entities",
+                 "query_selection","create_drawing"];
         for (i, nm) in n.iter().enumerate() { assert_eq!(d[i]["function"]["name"], *nm); }
         assert_eq!(d[n.len()], Value::Null, "and nothing after them");
     }
     #[test]
     fn tool_definitions_types_are_function() {
         let d = tool_definitions(false);
-        for i in 0..10 { assert_eq!(d[i]["type"], "function"); }
+        for i in 0..11 { assert_eq!(d[i]["type"], "function"); }
     }
     #[test]
     fn tool_definitions_required_fields() {
@@ -41,13 +41,14 @@
         assert_eq!(req(&d,4), json!(["index","dx","dy"]));
         assert_eq!(req(&d,5), json!(["index","dx","dy"]));
         assert_eq!(req(&d,6), json!(["index","x","y","degrees"]));
+        assert_eq!(req(&d,7), json!(["index","x1","y1","x2","y2","erase_source"]));
     }
     /// AC 13 — both queries declare an **empty** object, not a missing one:
     /// `properties` is `{}` and `required` is `[]`, both present.
     #[test]
     fn the_two_query_schemas_take_no_parameters() {
         let d = tool_definitions(false);
-        for i in [7, 8] {
+        for i in [8, 9] {
             let params = &d[i]["function"]["parameters"];
             assert_eq!(params["type"], "object", "schema {i}");
             assert_eq!(params["properties"], json!({}), "schema {i}");
@@ -110,13 +111,13 @@
         assert!(!names(&off).contains(&"capture_canvas".to_owned()));
         let on = tool_definitions(true);
         let mut expected = names(&off);
-        expected.insert(9, "capture_canvas".to_owned());
+        expected.insert(10, "capture_canvas".to_owned());
         assert_eq!(names(&on), expected);
-        let params = &on[9]["function"]["parameters"];
+        let params = &on[10]["function"]["parameters"];
         assert_eq!(*params, json!({"type":"object","properties":{},"required":[]}));
-        assert_eq!(on[10]["function"]["name"], "create_drawing");
+        assert_eq!(on[11]["function"]["name"], "create_drawing");
         for (i, tool) in off.as_array().unwrap().iter().enumerate() {
-            let j = if i < 9 { i } else { i + 1 };
+            let j = if i < 10 { i } else { i + 1 };
             assert_eq!(on[j], *tool, "tool {i} unchanged");
         }
     }
@@ -227,6 +228,22 @@
         assert!(matches!(e, ToolCallError::MissingField { tool: "rotate_entity", field: "degrees" }), "{e:?}");
         let e = err("rotate_entity", json!({"index":-1,"x":0.0,"y":0.0,"degrees":1.0}));
         assert!(matches!(e, ToolCallError::InvalidArg { tool: "rotate_entity", field: "index", .. }), "{e:?}");
+    }
+    /// LCV-181 AC10 — `mirror_entity` takes two line points and
+    /// `erase_source`; the range and distinct-points checks are the apply site's.
+    #[test]
+    fn parse_mirror_entity() {
+        let args = json!({"index":1,"x1":0.0,"y1":-1.0,"x2":2.0,"y2":3.0,"erase_source":true});
+        assert_eq!(ok("mirror_entity", args),
+            AgentAction::Mirror { index: 1, x1: 0.0, y1: -1.0, x2: 2.0, y2: 3.0, erase_source: true });
+        let e = err("mirror_entity", json!({"index":0,"x1":0.0,"y1":0.0,"x2":1.0,"y2":1.0}));
+        assert!(matches!(e, ToolCallError::MissingField { tool: "mirror_entity", field: "erase_source" }), "{e:?}");
+        let e = err("mirror_entity",
+            json!({"index":0,"x1":0.0,"y1":0.0,"x2":1.0,"y2":1.0,"erase_source":"no"}));
+        assert!(matches!(e, ToolCallError::MissingField { tool: "mirror_entity", field: "erase_source" }), "{e:?}");
+        let e = err("mirror_entity",
+            json!({"index":-1,"x1":0.0,"y1":0.0,"x2":1.0,"y2":1.0,"erase_source":false}));
+        assert!(matches!(e, ToolCallError::InvalidArg { tool: "mirror_entity", field: "index", .. }), "{e:?}");
     }
     #[test]
     fn parse_unknown_tool() {

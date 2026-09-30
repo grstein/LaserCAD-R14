@@ -89,7 +89,8 @@ pub enum ToolCallError {
 
 /// OpenAI function-calling schemas. Order: create_line(0) create_circle(1)
 /// create_arc(2) delete_entity(3) move_entity(4) copy_entity(5)
-/// rotate_entity(6) query_entities(7) query_selection(8) create_drawing(9).
+/// rotate_entity(6) mirror_entity(7) query_entities(8) query_selection(9)
+/// create_drawing(10).
 ///
 /// The two queries take no arguments at all — an explicitly empty
 /// `properties` / `required` pair rather than an absent `parameters`, because
@@ -218,6 +219,15 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
             let y = get_f64(args, "rotate_entity", "y")?;
             let degrees = get_f64(args, "rotate_entity", "degrees")?;
             Ok(AgentAction::Rotate { index, x, y, angle: degrees.to_radians() })
+        }
+        "mirror_entity" => {
+            let index = get_index(args, "mirror_entity")?;
+            let x1 = get_f64(args, "mirror_entity", "x1")?;
+            let y1 = get_f64(args, "mirror_entity", "y1")?;
+            let x2 = get_f64(args, "mirror_entity", "x2")?;
+            let y2 = get_f64(args, "mirror_entity", "y2")?;
+            let erase_source = get_bool(args, "mirror_entity", "erase_source")?;
+            Ok(AgentAction::Mirror { index, x1, y1, x2, y2, erase_source })
         }
         // Read-only, argument-free: whatever the model sends as arguments —
         // `{}`, a stray field, or nothing at all — the answer is the same, so

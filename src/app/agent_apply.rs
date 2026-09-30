@@ -147,6 +147,17 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
         AgentAction::Move { index, dx, dy } => edit::move_(index, dx, dy, doc),
         AgentAction::Copy { index, dx, dy } => edit::copy(index, dx, dy, doc),
         AgentAction::Rotate { index, x, y, angle } => edit::rotate(index, x, y, angle, doc),
+        AgentAction::Mirror {
+            index,
+            x1,
+            y1,
+            x2,
+            y2,
+            erase_source,
+        } => {
+            let line = (Vec2::new(x1, y1), Vec2::new(x2, y2));
+            edit::mirror(index, line, erase_source, doc)
+        }
         AgentAction::QueryEntities => Planned::Answer(AgentOutcome::Ok(list_entities(doc))),
         AgentAction::QuerySelection => Planned::Answer(AgentOutcome::Ok(list_selection(doc))),
         // One command for the whole batch (ADR 0010 §1, §5).

@@ -121,6 +121,22 @@ pub enum AgentAction {
         /// Rotation angle, radians, CCW positive.
         angle: f64,
     },
+    /// Mirror one entity across the line `(x1, y1)`–`(x2, y2)` mm, replacing
+    /// it or appending the image on its layer (LCV-181).
+    Mirror {
+        /// Zero-based index into `Document::entities`.
+        index: usize,
+        /// Mirror line points, mm.
+        x1: f64,
+        /// See `x1`.
+        y1: f64,
+        /// See `x1`.
+        x2: f64,
+        /// See `x1`.
+        y2: f64,
+        /// `true` replaces the source; `false` keeps it.
+        erase_source: bool,
+    },
     /// Read back every entity in the drawing. Commits nothing.
     QueryEntities,
     /// Read back the current selection. Commits nothing.
@@ -345,10 +361,18 @@ mod tests {
                 y: 2.0,
                 angle: 0.5,
             },
+            AgentAction::Mirror {
+                index: 0,
+                x1: 0.0,
+                y1: 0.0,
+                x2: 0.0,
+                y2: 1.0,
+                erase_source: false,
+            },
             AgentAction::QueryEntities,
             AgentAction::QuerySelection,
         ];
-        assert_eq!(actions.len(), 9);
+        assert_eq!(actions.len(), 10);
         for (i, a) in actions.iter().enumerate() {
             for (j, b) in actions.iter().enumerate() {
                 assert_eq!(
