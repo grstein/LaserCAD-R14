@@ -218,3 +218,110 @@ fn audit_exports_use_only_contract_elements_and_attributes() {
         );
     }
 }
+
+/// SVG 2 `number` (CSS syntax): `[+-]? (digits ('.' digits)? | '.' digits)
+/// ([eE] [+-]? digits)?`, scanned by hand, and finite.
+fn is_svg_number(s: &str) -> bool {
+    fn digits(b: &[u8], i: &mut usize) -> usize {
+        let start = *i;
+        while b.get(*i).is_some_and(u8::is_ascii_digit) {
+            *i += 1;
+        }
+        *i - start
+    }
+    let b = s.as_bytes();
+    let mut i = 0;
+    if matches!(b.first(), Some(b'+' | b'-')) {
+        i += 1;
+    }
+    let int = digits(b, &mut i);
+    if b.get(i) == Some(&b'.') {
+        i += 1;
+        if digits(b, &mut i) == 0 {
+            return false;
+        }
+    } else if int == 0 {
+        return false;
+    }
+    if matches!(b.get(i), Some(b'e' | b'E')) {
+        i += 1;
+        if matches!(b.get(i), Some(b'+' | b'-')) {
+            i += 1;
+        }
+        if digits(b, &mut i) == 0 {
+            return false;
+        }
+    }
+    i == b.len() && s.parse::<f64>().is_ok_and(f64::is_finite)
+}
+
+#[test]
+fn number_scanner_follows_svg_2() {
+    for ok in [
+        "0", "-0.0000", "12.3456", "+4", ".5", "1e3", "2.5E-4", "400",
+    ] {
+        assert!(is_svg_number(ok), "{ok}");
+    }
+    for bad in [
+        "", "-", ".", "5.", "1e", "1e+", "NaN", "inf", "1,5", " 1", "1mm", "0x1", "--1", "1e999",
+    ] {
+        assert!(!is_svg_number(bad), "{bad}");
+    }
+}
+
+/// `d` is exactly `M x y A r r 0 f f x y`: numbers, `r > 0` twice the same,
+/// rotation `0`, flags `0|1`.
+fn check_path(label: &str, d: &str) {
+    let tok: Vec<&str> = d.split(' ').collect();
+    assert_eq!(tok.len(), 11, "{label}: d={d:?}");
+    assert_eq!(
+        (tok[0], tok[3], tok[6]),
+        ("M", "A", "0"),
+        "{label}: d={d:?}"
+    );
+    for i in [1, 2, 4, 5, 9, 10] {
+        assert!(is_svg_number(tok[i]), "{label}: d token {:?}", tok[i]);
+    }
+    for i in [7, 8] {
+        assert!(matches!(tok[i], "0" | "1"), "{label}: flag {:?}", tok[i]);
+    }
+    assert_eq!(tok[4], tok[5], "{label}: rx = ry");
+    assert!(
+        tok[4].parse::<f64>().is_ok_and(|r| r > 0.0),
+        "{label}: r {d:?}"
+    );
+}
+
+/// AC 7 — every numeric value is a finite SVG 2 `number` and every `d` is a
+/// single circular arc `M x y A r r 0 f f x y` with `r > 0`.
+#[test]
+fn audit_exports_write_svg_numbers_and_arc_paths() {
+    for (label, text) in audit_exports() {
+        let xml = roxmltree::Document::parse(&text).expect("AC 5");
+        let num = |v: &str, what: &str| assert!(is_svg_number(v), "{label}: {what}={v:?}");
+        for node in xml.descendants().filter(|n| n.is_element()) {
+            let attr = |a: &str| node.attribute(a).unwrap_or("");
+            match node.tag_name().name() {
+                "svg" => {
+                    for a in ["width", "height"] {
+                        let v = attr(a).strip_suffix("mm").expect("mm unit");
+                        num(v, a);
+                    }
+                    let vb: Vec<&str> = attr("viewBox").split(' ').collect();
+                    assert_eq!(vb.len(), 4, "{label}: viewBox");
+                    vb.iter().for_each(|v| num(v, "viewBox"));
+                }
+                "g" => num(attr("stroke-width"), "stroke-width"),
+                "line" => ["x1", "y1", "x2", "y2"]
+                    .iter()
+                    .for_each(|a| num(attr(a), a)),
+                "circle" => {
+                    ["cx", "cy", "r"].iter().for_each(|a| num(attr(a), a));
+                    assert!(attr("r").parse::<f64>().is_ok_and(|r| r > 0.0), "{label}");
+                }
+                "path" => check_path(&label, attr("d")),
+                _ => {}
+            }
+        }
+    }
+}

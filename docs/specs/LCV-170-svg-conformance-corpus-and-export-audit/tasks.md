@@ -42,7 +42,7 @@
       its contract attributes (svg: xmlns width height viewBox fill; g: data-layer stroke
       stroke-width data-output data-current; line: x1 y1 x2 y2; circle: cx cy r; path: d) (files:
       tests/it/io_svg/export_audit.rs)
-- [ ] T12 [AC7] Test: every numeric value (coordinates, `r`, `stroke-width`, `width`/`height`
+- [x] T12 [AC7] Test: every numeric value (coordinates, `r`, `stroke-width`, `width`/`height`
       without `mm`, the four `viewBox` numbers, `d` tokens) is finite and matches SVG 2 `number`,
       checked by a hand-written scanner; every `d` is `M x y A r r 0 f f x y` with `f ∈ {0,1}` and
       `r > 0` (files: tests/it/io_svg/export_audit.rs)
