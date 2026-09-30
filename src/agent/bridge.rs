@@ -214,10 +214,16 @@ mod tests {
                 y2: 1.0,
                 erase_source: false,
             },
+            AgentAction::Scale {
+                index: 0,
+                x: 1.0,
+                y: 2.0,
+                factor: 3.0,
+            },
             AgentAction::QueryEntities,
             AgentAction::QuerySelection,
         ];
-        assert_eq!(actions.len(), 10);
+        assert_eq!(actions.len(), 11);
         for (i, a) in actions.iter().enumerate() {
             for (j, b) in actions.iter().enumerate() {
                 assert_eq!(

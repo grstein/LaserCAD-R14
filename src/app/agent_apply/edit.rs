@@ -1,6 +1,6 @@
 //! The edit arms of `agent_apply.rs::plan`: actions that address an existing
 //! entity by index (LCV-078; `copy_entity` LCV-157; `rotate_entity` LCV-158;
-//! `mirror_entity` LCV-181). Split out for the LOC
+//! `mirror_entity` LCV-181; `scale_entity` LCV-182). Split out for the LOC
 //! cap (LCV-157); the range check lives here because only these arms need it
 //! (ADR 0007 §D2a).
 //!
@@ -115,6 +115,30 @@ pub(super) fn mirror(index: usize, line: (Vec2, Vec2), erase: bool, doc: &Docume
         )
     };
     Planned::Commit(Box::new(cmd), summary)
+}
+
+/// `scale_entity`: refuse an out-of-range index; a factor of 1 commits
+/// nothing (LCV-182 AC6); else scale about `base` by `factor`, already
+/// checked positive at parse time.
+pub(super) fn scale(index: usize, base: Vec2, factor: f64, doc: &Document) -> Planned {
+    let entity = match in_range(index, doc) {
+        Err(refusal) => return Planned::Answer(refusal),
+        Ok(entity) => entity,
+    };
+    let transform = Transform::Scale { base, factor };
+    let what = format!("entity {index} ({})", describe(entity));
+    if transform.is_identity() {
+        return Planned::Answer(AgentOutcome::Ok(format!(
+            "A factor of 1 leaves {what} unchanged; nothing committed."
+        )));
+    }
+    Planned::Commit(
+        Box::new(TransformEntities::new(vec![index], transform)),
+        format!(
+            "Scaled {what} by {factor:.3} about {} mm.",
+            pt(base.x, base.y)
+        ),
+    )
 }
 
 /// The check the worker thread cannot make: is `index` a real entity?

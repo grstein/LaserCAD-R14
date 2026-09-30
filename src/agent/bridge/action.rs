@@ -113,6 +113,17 @@ pub enum AgentAction {
         /// `true` replaces the source; `false` keeps it.
         erase_source: bool,
     },
+    /// Scale one entity about `(x, y)` mm by `factor` (LCV-182).
+    Scale {
+        /// Zero-based index into `Document::entities`.
+        index: usize,
+        /// Base point X, mm.
+        x: f64,
+        /// Base point Y, mm.
+        y: f64,
+        /// Uniform scale factor. Positive and finite — checked at parse time.
+        factor: f64,
+    },
     /// Read back every entity in the drawing. Commits nothing.
     QueryEntities,
     /// Read back the current selection. Commits nothing.

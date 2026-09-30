@@ -158,6 +158,12 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
             let line = (Vec2::new(x1, y1), Vec2::new(x2, y2));
             edit::mirror(index, line, erase_source, doc)
         }
+        AgentAction::Scale {
+            index,
+            x,
+            y,
+            factor,
+        } => edit::scale(index, Vec2::new(x, y), factor, doc),
         AgentAction::QueryEntities => Planned::Answer(AgentOutcome::Ok(list_entities(doc))),
         AgentAction::QuerySelection => Planned::Answer(AgentOutcome::Ok(list_selection(doc))),
         // One command for the whole batch (ADR 0010 §1, §5).

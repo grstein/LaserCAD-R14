@@ -89,8 +89,8 @@ pub enum ToolCallError {
 
 /// OpenAI function-calling schemas. Order: create_line(0) create_circle(1)
 /// create_arc(2) delete_entity(3) move_entity(4) copy_entity(5)
-/// rotate_entity(6) mirror_entity(7) query_entities(8) query_selection(9)
-/// create_drawing(10).
+/// rotate_entity(6) mirror_entity(7) scale_entity(8) query_entities(9)
+/// query_selection(10) create_drawing(11).
 ///
 /// The two queries take no arguments at all — an explicitly empty
 /// `properties` / `required` pair rather than an absent `parameters`, because
@@ -141,10 +141,17 @@ fn get_index(args: &Value, tool: &'static str) -> Result<usize, ToolCallError> {
 
 /// The one radius rule, shared by `create_circle`, `create_arc` and
 /// `create_drawing` (ADR 0010 §3).
-#[rustfmt::skip]
 pub(crate) fn validate_r(tool: &'static str, r: f64) -> Result<(), ToolCallError> {
-    if r > 0.0 && r.is_finite() { Ok(()) } else { Err(ToolCallError::InvalidArg {
-        tool, field: "r", reason: format!("{r} is not a positive finite number") }) }
+    validate_positive(tool, "r", r)
+}
+
+/// `value` must be positive and finite: a radius, or a scale factor
+/// (LCV-182).
+#[rustfmt::skip]
+fn validate_positive(tool: &'static str, field: &'static str, value: f64)
+    -> Result<(), ToolCallError> {
+    if value > 0.0 && value.is_finite() { Ok(()) } else { Err(ToolCallError::InvalidArg {
+        tool, field, reason: format!("{value} is not a positive finite number") }) }
 }
 
 /// The optional `layer` argument of a scalar creation tool (LCV-156).
@@ -228,6 +235,14 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
             let y2 = get_f64(args, "mirror_entity", "y2")?;
             let erase_source = get_bool(args, "mirror_entity", "erase_source")?;
             Ok(AgentAction::Mirror { index, x1, y1, x2, y2, erase_source })
+        }
+        "scale_entity" => {
+            let index = get_index(args, "scale_entity")?;
+            let x = get_f64(args, "scale_entity", "x")?;
+            let y = get_f64(args, "scale_entity", "y")?;
+            let factor = get_f64(args, "scale_entity", "factor")?;
+            validate_positive("scale_entity", "factor", factor)?;
+            Ok(AgentAction::Scale { index, x, y, factor })
         }
         // Read-only, argument-free: whatever the model sends as arguments —
         // `{}`, a stray field, or nothing at all — the answer is the same, so
