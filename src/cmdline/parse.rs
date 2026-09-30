@@ -55,6 +55,19 @@ pub fn parse(raw: &str) -> CommandInput {
     if lower == "layer" || lower == "la" {
         return CommandInput::Layers;
     }
+    // Polar entry (LCV-159, ADR 0003 amendment (5)): `@d<a` is an offset from
+    // the anchor, `d<a` a point from the origin. No new variant.
+    if trimmed.contains('<') {
+        let (relative, body) = match trimmed.strip_prefix('@') {
+            Some(rest) => (true, rest),
+            None => (false, trimmed),
+        };
+        return match parse_polar(body) {
+            Some(v) if relative => CommandInput::Relative(v),
+            Some(v) => CommandInput::Point(v),
+            None => CommandInput::Unknown(trimmed.to_owned()),
+        };
+    }
     if let Some(rest) = trimmed.strip_prefix('@') {
         return match parse_pair(rest.trim()) {
             Some(v) => CommandInput::Relative(v),
@@ -185,6 +198,31 @@ fn parse_pair(s: &str) -> Option<Vec2> {
     let x = parse_number(x_str.trim())?;
     let y = parse_number(y_str.trim())?;
     Some(Vec2::new(x, y))
+}
+
+/// Split `s` on one `<` into a distance and an angle in degrees, CCW from +X,
+/// both via [`parse_number`], and return the offset `d·(cos a, sin a)` in mm.
+///
+/// Degrees exist only here, at the text boundary. A multiple of 90° uses an
+/// exact unit vector, so `10<90` is (0, 10), not (6e-16, 10). `None` when
+/// either side is missing or does not parse, so `<30`, `10<` and `10<<5` are
+/// rejected.
+fn parse_polar(s: &str) -> Option<Vec2> {
+    let (d_str, a_str) = s.split_once('<')?;
+    let distance = parse_number(d_str)?;
+    let degrees = parse_number(a_str)?.rem_euclid(360.0);
+    let unit = if degrees % 90.0 == 0.0 {
+        match (degrees / 90.0) as u8 % 4 {
+            0 => Vec2::new(1.0, 0.0),
+            1 => Vec2::new(0.0, 1.0),
+            2 => Vec2::new(-1.0, 0.0),
+            _ => Vec2::new(0.0, -1.0),
+        }
+    } else {
+        let radians = degrees.to_radians();
+        Vec2::new(radians.cos(), radians.sin())
+    };
+    Some(unit * distance)
 }
 
 #[cfg(test)]
