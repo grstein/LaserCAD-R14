@@ -32,7 +32,7 @@
   `egui::Context` emits shapes in `marker_color()` of the expected form: a 4-vertex diamond, a
   right-angle mark, a circle plus a tangent bar, and an hourglass. Existing kinds keep their
   shapes (files: src/render/snaps.rs)
-- [ ] T10 [AC7] Implement the four `MarkerShape` variants and their pure shape helpers
+- [x] T10 [AC7] Implement the four `MarkerShape` variants and their pure shape helpers
   (files: src/render/snaps.rs)
 - [ ] T11 [AC8] Test: with the View menu and its `Object snap` submenu opened through the
   harness, the painted text shows one checkbox label per kind (8). Toggling a kind through

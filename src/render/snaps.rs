@@ -2,8 +2,10 @@
 //!
 //! [`draw_snap_marker`] dispatches on [`SnapResult::kind`] and draws a
 //! high-contrast orange marker — square for endpoint, triangle for midpoint,
-//! unfilled circle for center, X for intersection. The visual language
-//! matches AutoCAD R14's default OSNAP markers; muscle memory carries over.
+//! unfilled circle for center, X for intersection, and (LCV-161) diamond for
+//! quadrant, right-angle mark for perpendicular, circle with a tangent bar for
+//! tangent, hourglass for nearest. The visual language matches AutoCAD R14's
+//! default OSNAP markers; muscle memory carries over.
 //!
 //! **Shape helpers are purely numeric** and testable as plain math; the main
 //! `draw_snap_marker` orchestrator is covered by manual smoke testing (the
@@ -37,6 +39,14 @@ pub(crate) enum MarkerShape {
     Circle,
     /// X (two crossed diagonals) — intersection snap.
     X,
+    /// Hollow diamond — quadrant snap.
+    Diamond,
+    /// L with a corner box — perpendicular snap.
+    RightAngle,
+    /// Unfilled circle with a bar across its top — tangent snap.
+    Tangent,
+    /// Closed hourglass — nearest snap.
+    Hourglass,
 }
 
 /// Map snap kind to marker shape.
@@ -46,10 +56,10 @@ pub(crate) fn marker_shape_for(kind: SnapKind) -> MarkerShape {
         SnapKind::Midpoint => MarkerShape::Triangle,
         SnapKind::Center => MarkerShape::Circle,
         SnapKind::Intersection => MarkerShape::X,
-        // LCV-161: dedicated glyphs arrive with T10.
-        SnapKind::Quadrant | SnapKind::Perpendicular | SnapKind::Tangent | SnapKind::Nearest => {
-            MarkerShape::X
-        }
+        SnapKind::Quadrant => MarkerShape::Diamond,
+        SnapKind::Perpendicular => MarkerShape::RightAngle,
+        SnapKind::Tangent => MarkerShape::Tangent,
+        SnapKind::Nearest => MarkerShape::Hourglass,
     }
 }
 
@@ -108,6 +118,59 @@ pub(crate) fn center_marker_radius(size_px: f32) -> f32 {
     size_px / 2.0
 }
 
+/// Quadrant diamond vertices: `[top, right, bottom, left]`.
+pub(crate) fn quadrant_marker_corners(center: egui::Pos2, size_px: f32) -> [egui::Pos2; 4] {
+    let h = size_px / 2.0;
+    [
+        egui::Pos2::new(center.x, center.y - h),
+        egui::Pos2::new(center.x + h, center.y),
+        egui::Pos2::new(center.x, center.y + h),
+        egui::Pos2::new(center.x - h, center.y),
+    ]
+}
+
+/// Perpendicular mark: the L `[top_left, bottom_left, bottom_right]` and the
+/// corner box `[left_mid, center, bottom_mid]` closing on its two legs.
+pub(crate) fn perpendicular_marker_paths(center: egui::Pos2, size_px: f32) -> [[egui::Pos2; 3]; 2] {
+    let h = size_px / 2.0;
+    let (l, r, t, b) = (center.x - h, center.x + h, center.y - h, center.y + h);
+    [
+        [
+            egui::Pos2::new(l, t),
+            egui::Pos2::new(l, b),
+            egui::Pos2::new(r, b),
+        ],
+        [
+            egui::Pos2::new(l, center.y),
+            center,
+            egui::Pos2::new(center.x, b),
+        ],
+    ]
+}
+
+/// Tangent bar: a horizontal segment touching the top of the
+/// [`center_marker_radius`] circle, `size_px` long.
+pub(crate) fn tangent_marker_bar(center: egui::Pos2, size_px: f32) -> [egui::Pos2; 2] {
+    let h = size_px / 2.0;
+    let y = center.y - center_marker_radius(size_px);
+    [
+        egui::Pos2::new(center.x - h, y),
+        egui::Pos2::new(center.x + h, y),
+    ]
+}
+
+/// Hourglass vertices in path order: `[top_left, top_right, bottom_left,
+/// bottom_right]`; closing the path draws both diagonals.
+pub(crate) fn nearest_marker_corners(center: egui::Pos2, size_px: f32) -> [egui::Pos2; 4] {
+    let h = size_px / 2.0;
+    [
+        egui::Pos2::new(center.x - h, center.y - h),
+        egui::Pos2::new(center.x + h, center.y - h),
+        egui::Pos2::new(center.x - h, center.y + h),
+        egui::Pos2::new(center.x + h, center.y + h),
+    ]
+}
+
 /// Draw a snap marker at the given [`SnapResult`] location.
 ///
 /// Converts `snap.point` (world space) to screen space, then dispatches on
@@ -117,6 +180,8 @@ pub(crate) fn center_marker_radius(size_px: f32) -> f32 {
 /// - `Midpoint` → filled orange upward-pointing triangle.
 /// - `Center` → unfilled orange circle (stroke only).
 /// - `Intersection` → orange X (two crossed line segments).
+/// - `Quadrant` → diamond; `Perpendicular` → right-angle mark; `Tangent` →
+///   circle with a tangent bar; `Nearest` → hourglass (all stroked).
 ///
 /// Markers are sized in screen pixels (constant size regardless of zoom).
 pub fn draw_snap_marker(
@@ -129,6 +194,7 @@ pub fn draw_snap_marker(
     let screen_pos = camera.world_to_screen(snap.point) + rect.min.to_vec2();
     let color = marker_color();
     let size = MARKER_SIZE_PX;
+    let stroke = egui::Stroke::new(1.5_f32, color);
 
     match marker_shape_for(snap.kind) {
         MarkerShape::Square => {
@@ -147,13 +213,29 @@ pub fn draw_snap_marker(
         }
         MarkerShape::Circle => {
             let radius = center_marker_radius(size);
-            painter.circle_stroke(screen_pos, radius, egui::Stroke::new(1.5_f32, color));
+            painter.circle_stroke(screen_pos, radius, stroke);
         }
         MarkerShape::X => {
             let segments = intersection_marker_segments(screen_pos, size);
-            let stroke = egui::Stroke::new(1.5_f32, color);
             painter.line_segment(segments[0], stroke);
             painter.line_segment(segments[1], stroke);
+        }
+        MarkerShape::Diamond => {
+            let corners = quadrant_marker_corners(screen_pos, size).to_vec();
+            painter.add(egui::Shape::closed_line(corners, stroke));
+        }
+        MarkerShape::RightAngle => {
+            for path in perpendicular_marker_paths(screen_pos, size) {
+                painter.add(egui::Shape::line(path.to_vec(), stroke));
+            }
+        }
+        MarkerShape::Tangent => {
+            painter.circle_stroke(screen_pos, center_marker_radius(size), stroke);
+            painter.line_segment(tangent_marker_bar(screen_pos, size), stroke);
+        }
+        MarkerShape::Hourglass => {
+            let corners = nearest_marker_corners(screen_pos, size).to_vec();
+            painter.add(egui::Shape::closed_line(corners, stroke));
         }
     }
 }
@@ -263,6 +345,13 @@ mod tests {
         assert_eq!(marker_shape_for(SnapKind::Midpoint), MarkerShape::Triangle);
         assert_eq!(marker_shape_for(SnapKind::Center), MarkerShape::Circle);
         assert_eq!(marker_shape_for(SnapKind::Intersection), MarkerShape::X);
+        assert_eq!(marker_shape_for(SnapKind::Quadrant), MarkerShape::Diamond);
+        assert_eq!(
+            marker_shape_for(SnapKind::Perpendicular),
+            MarkerShape::RightAngle
+        );
+        assert_eq!(marker_shape_for(SnapKind::Tangent), MarkerShape::Tangent);
+        assert_eq!(marker_shape_for(SnapKind::Nearest), MarkerShape::Hourglass);
     }
 
     // ── LCV-161 AC7: painted glyphs per kind ─────────────────────────────
