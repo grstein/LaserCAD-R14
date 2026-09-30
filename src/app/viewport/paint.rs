@@ -11,7 +11,8 @@ use crate::tools::Mark;
 /// Paint the canvas background and the whole render pipeline into `rect`.
 ///
 /// Paint order (LCV-137 AC 1): canvas background, bed background fill, the
-/// grid (when enabled), the bed border and exterior overlay, entities,
+/// grid (when enabled), the bed border and exterior overlay, the origin
+/// marker (LCV-164 AC 4), entities,
 /// selection halo, the tool's feedback marks (LCV-163 AC 7, ADR 0013: every
 /// `Hover` first, then `Preview`/`Dashed`/`Danger` in the tool's order), snap
 /// marker, then the cursor (LCV-162): the pickbox
@@ -41,6 +42,7 @@ pub(super) fn paint(ui: &egui::Ui, rect: egui::Rect, app: &mut App, cursor: Opti
     }
 
     crate::render::draw_bed(&painter, rect, &app.camera, &bed);
+    crate::render::draw_origin(&painter, rect, &app.camera);
     crate::render::draw_entities(
         &painter,
         rect,
