@@ -19,6 +19,7 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ### Fixed
 
+- COPY, ROTATE, MIRROR, SCALE and DIST are now on the tool rail and in the Tools menu, not only on the command line.
 - Undoing past the start of a MOVE or COPY run and then picking the next point no longer crashes; the command goes back to its base-point prompt.
 - COPY places multi-entity copies in source order, so saved and exported files list entities deterministically.
 - A drawing whose half-turn arc was rounded on export (chord slightly longer than the diameter) reopens instead of being rejected.

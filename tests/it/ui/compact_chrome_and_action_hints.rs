@@ -149,12 +149,12 @@ fn assert_contained_and_non_overlapping(runs: &[&Run]) {
     }
 }
 
-/// The eleven `TOOLS` labels, in the acceptance-criteria order — the same
-/// fixed v0.1.0 tool set `src/ui/toolbar.rs::tests::toolbar_table_is_the_v010_tool_set`
-/// pins from the other side of the crate boundary.
-const TOOL_LABELS: [&str; 11] = [
-    "Select", "Line", "Polyline", "Rect", "Circle", "Arc", "Text", "Move", "Trim", "Extend",
-    "Delete",
+/// The sixteen `TOOLS` labels, in display order — the same tool set
+/// `src/ui/toolbar.rs::tests::toolbar_table_is_the_v030_tool_set` pins from the
+/// other side of the crate boundary.
+const TOOL_LABELS: [&str; 16] = [
+    "Select", "Line", "Polyline", "Rect", "Circle", "Arc", "Text", "Move", "Copy", "Rotate",
+    "Mirror", "Scale", "Trim", "Extend", "Delete", "Dist",
 ];
 
 // ---------------------------------------------------------------------------
@@ -226,7 +226,7 @@ fn ac3_agent_toggle_shows_a_visible_label_and_keeps_its_hover_text() {
 // ---------------------------------------------------------------------------
 
 /// AC 1 / AC 2 — the toolbar `SidePanel`'s own persisted outer rect never
-/// exceeds 120pt, and every one of the eleven `TOOLS` labels plus the agent
+/// exceeds 120pt, and every one of the sixteen `TOOLS` labels plus the agent
 /// toggle paints in full, in order, one per visual line — proof that nothing
 /// wrapped, elided or fell back to an icon.
 #[test]
@@ -249,14 +249,14 @@ fn ac1_ac2_toolbar_width_is_capped_and_every_label_renders_whole_in_order() {
     expected.push(vec!["Agent".to_owned()]);
     assert_eq!(
         lines, expected,
-        "the rail must show all eleven tools, in order, then the agent toggle, none truncated"
+        "the rail must show all sixteen tools, in order, then the agent toggle, none truncated"
     );
 }
 
 /// AC 2 — a normal-height window shows every entry with nothing scrolled out
 /// of view; a cramped one scrolls instead of squeezing or clipping content
 /// away — the first row stays visible at the default (top) scroll offset,
-/// and strictly fewer than twelve rows paint.
+/// and strictly fewer rows than the tools plus the agent toggle paint.
 #[test]
 fn ac2_scrolling_activates_only_when_the_rail_has_no_room() {
     let (ctx, mut app) = ctx_and_app();
@@ -265,8 +265,8 @@ fn ac2_scrolling_activates_only_when_the_rail_has_no_room() {
     let ample = texts(&group_into_lines(&scoped));
     assert_eq!(
         ample.len(),
-        12,
-        "at ample height all eleven tools plus the agent toggle must be visible: {ample:?}"
+        TOOL_LABELS.len() + 1,
+        "at ample height all sixteen tools plus the agent toggle must be visible: {ample:?}"
     );
 
     let (ctx2, mut app2) = ctx_and_app();
@@ -274,7 +274,7 @@ fn ac2_scrolling_activates_only_when_the_rail_has_no_room() {
     let (scoped2, _) = scoped_runs(&runs2, "Select");
     let cramped = texts(&group_into_lines(&scoped2));
     assert!(
-        cramped.len() < 12,
+        cramped.len() < TOOL_LABELS.len() + 1,
         "a cramped window must scroll some rows out of view rather than squeeze them all in: {cramped:?}"
     );
     assert_eq!(

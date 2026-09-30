@@ -270,7 +270,7 @@ mod tests {
         assert_eq!(rows.len(), with_shortcut.len());
         assert_eq!(
             TOOLS.len(),
-            11,
+            16,
             "the tool table changed — re-check the shortcuts dialog"
         );
         assert_eq!(rows.len(), 10, "ten tools carry a keyboard shortcut");

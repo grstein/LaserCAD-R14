@@ -173,9 +173,9 @@ dark edge and a kind label are planned (gap → LCV-164).
   Title Case labels (§9); `…` only when a dialog
   follows. Shortcuts in an aligned column: gap → LCV-166 (today `"\t"` in `ui/menubar.rs`).
 - **Tool rail** (`ui/toolbar.rs::TOOLS`): text labels. One table drives the rail, the Tools
-  menu and the shortcuts dialog. Groups: draw (Select … Text) | modify (Move … Delete) | AI
-  toggle. New v0.3 tools (COPY, ROTATE, MIRROR, SCALE) join modify. Key letter in the label:
-  gap → LCV-167.
+  menu and the shortcuts dialog. Groups: draw (Select … Text) | modify (Move, Copy, Rotate,
+  Mirror, Scale, Trim, Extend, Delete, Dist) | AI toggle. The v0.3 tools have no bare-letter
+  key (ADR 0003 amendment 5). Key letter in the label: gap → LCV-167.
 - **Command dock** (`ui/command_line.rs`, ADR 0003)
   - Prompt row, then editor row with its destination label (`ui/command_destination.rs`).
   - New prompts follow `VERB  Specify <thing> [Opt/Opt]:`. A `<default>` needs a runtime

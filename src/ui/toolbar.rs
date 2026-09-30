@@ -5,7 +5,7 @@
 //! button activates the corresponding tool via
 //! [`crate::tools::ToolManager::set_tool`].
 //!
-//! [`TOOLS`] is the single source of truth for every v0.1.0 tool: it drives
+//! [`TOOLS`] is the single source of truth for every rail tool: it drives
 //! this toolbar *and* the Tools menu in `crate::ui::menubar` — there is no
 //! second list. One drawing tool that exists in `src/tools/` is deliberately
 //! not in this table; LCV-106 decides its fate.
@@ -52,11 +52,13 @@ pub(crate) struct ToolEntry {
 
 /// Index of the first "modify group" entry (`Move`). The toolbar draws a
 /// separator immediately before it, splitting the draw tools (Select …
-/// Text) from the modify tools (Move … Delete).
+/// Text) from the modify tools (Move … Dist).
 const MODIFY_GROUP_START: usize = 7;
 
 /// Toolbar / Tools-menu entries, in display order (LCV-104 acceptance
-/// table). This is the eleven-tool v0.1.0 set.
+/// table): the eleven v0.1.0 tools plus the v0.3 edit commands (COPY, ROTATE,
+/// MIRROR, SCALE) after MOVE and the DIST query last. The v0.3 entries have
+/// no bare-letter shortcut (ADR 0003 amendment 5).
 pub(crate) const TOOLS: &[ToolEntry] = &[
     ToolEntry {
         label: "Select",
@@ -107,6 +109,30 @@ pub(crate) const TOOLS: &[ToolEntry] = &[
         kind: ToolKind::Move,
     },
     ToolEntry {
+        label: "Copy",
+        tool_name: "COPY",
+        shortcut: None,
+        kind: ToolKind::Copy,
+    },
+    ToolEntry {
+        label: "Rotate",
+        tool_name: "ROTATE",
+        shortcut: None,
+        kind: ToolKind::Rotate,
+    },
+    ToolEntry {
+        label: "Mirror",
+        tool_name: "MIRROR",
+        shortcut: None,
+        kind: ToolKind::Mirror,
+    },
+    ToolEntry {
+        label: "Scale",
+        tool_name: "SCALE",
+        shortcut: None,
+        kind: ToolKind::Scale,
+    },
+    ToolEntry {
         label: "Trim",
         tool_name: "TRIM",
         shortcut: Some("T"),
@@ -123,6 +149,12 @@ pub(crate) const TOOLS: &[ToolEntry] = &[
         tool_name: "ERASE",
         shortcut: Some("E"),
         kind: ToolKind::Delete,
+    },
+    ToolEntry {
+        label: "Dist",
+        tool_name: "DIST",
+        shortcut: None,
+        kind: ToolKind::Dist,
     },
 ];
 
@@ -152,7 +184,7 @@ pub(crate) fn tool_hover_text(entry: &ToolEntry) -> String {
 /// Render the left-side toolbar into `ui`.
 ///
 /// Draws one [`egui::SelectableLabel`] per tool, with a separator between the
-/// draw group (Select … Text) and the modify group (Move … Delete). The
+/// draw group (Select … Text) and the modify group (Move … Dist). The
 /// currently active tool button is rendered in its selected/highlighted
 /// state. Clicking an inactive button calls
 /// [`ToolManager::set_tool`](crate::tools::ToolManager::set_tool), which
@@ -355,17 +387,17 @@ mod tests {
         }
     }
 
-    /// LCV-104 AC#1, AC#4 — the table is exactly the eleven v0.1.0 tools, in
-    /// the acceptance-criteria order.
+    /// LCV-104 AC#1, AC#4 — the eleven v0.1.0 tools in the acceptance-criteria
+    /// order, with the v0.3 edit commands after Move and DIST last.
     #[test]
-    fn toolbar_table_is_the_v010_tool_set() {
-        assert_eq!(TOOLS.len(), 11, "TOOLS must have exactly eleven entries");
+    fn toolbar_table_is_the_v030_tool_set() {
+        assert_eq!(TOOLS.len(), 16, "TOOLS must have exactly sixteen entries");
         let labels: Vec<&str> = TOOLS.iter().map(|e| e.label).collect();
         assert_eq!(
             labels,
             vec![
-                "Select", "Line", "Polyline", "Rect", "Circle", "Arc", "Text", "Move", "Trim",
-                "Extend", "Delete",
+                "Select", "Line", "Polyline", "Rect", "Circle", "Arc", "Text", "Move", "Copy",
+                "Rotate", "Mirror", "Scale", "Trim", "Extend", "Delete", "Dist",
             ]
         );
     }
