@@ -21,7 +21,7 @@
   with a selection paints each selected entity dashed in `DANGER`; order halo < hover < preview/
   danger < snap < pickbox < crosshair; after Esc and after `PointerGone` no hover and no danger
   (files: tests/it/ui/selection_and_edit_feedback.rs, tests/it/ui/mod.rs)
-- [ ] T6 [AC6] Test: hover-then-click agreement through `App`: Select picks the hovered index;
+- [x] T6 [AC6] Test: hover-then-click agreement through `App`: Select picks the hovered index;
   TRIM removes exactly the danger pieces (document before minus after equals the painted pieces,
   line and arc targets); ERASE removes exactly the danger set (files:
   tests/it/app/feedback_agreement.rs, tests/it/app/mod.rs)
