@@ -25,7 +25,7 @@
   TRIM removes exactly the danger pieces (document before minus after equals the painted pieces,
   line and arc targets); ERASE removes exactly the danger set (files:
   tests/it/app/feedback_agreement.rs, tests/it/app/mod.rs)
-- [ ] T7 [AC2] [AC3] [AC5] Render primitives: `draw_dashed(painter, rect, camera, entity, color)`
+- [x] T7 [AC2] [AC3] [AC5] Render primitives: `draw_dashed(painter, rect, camera, entity, color)`
   via `Shape::dashed_line` (arcs/circles through `arc_polyline`), fix the stale module doc;
   `draw_hover(painter, rect, camera, doc, index)` in the layer colour at `HOVER_WIDTH_PT`,
   out-of-range index skipped; unit tests (files: src/render/preview.rs, src/render/selection.rs,

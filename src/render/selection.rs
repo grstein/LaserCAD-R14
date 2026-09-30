@@ -18,7 +18,7 @@
 //!
 //! Introduced by demand LCV-036.
 
-use crate::document::{Entity, Selection};
+use crate::document::{Document, Entity, Selection};
 use crate::render::Camera;
 
 /// Halo stroke: 3-px cyan-blue at ~70% alpha.
@@ -65,6 +65,25 @@ pub fn draw_selection_highlight(
         if let Some(entity) = entities.get(idx) {
             draw_entity_with_stroke(painter, rect, camera, entity, stroke);
         }
+    }
+}
+
+/// Repaint `doc.entities[index]` in its own layer colour at the `hover`
+/// width (LCV-163 AC 3): the entity a click would pick. Painted after the
+/// selection halo so a hovered, selected entity still reads as hovered. An
+/// out-of-range index paints nothing.
+pub fn draw_hover(
+    painter: &egui::Painter,
+    rect: egui::Rect,
+    camera: &Camera,
+    doc: &Document,
+    index: usize,
+) {
+    if let Some(entity) = doc.entities.get(index) {
+        let [r, g, b] = doc.layer_color(index);
+        let color = egui::Color32::from_rgb(r, g, b);
+        let stroke = egui::Stroke::new(crate::render::palette::HOVER_WIDTH_PT, color);
+        draw_entity_with_stroke(painter, rect, camera, entity, stroke);
     }
 }
 
@@ -234,6 +253,55 @@ mod tests {
         } else {
             panic!("Expected Arc at index 2");
         }
+    }
+
+    /// Every `LineSegment` painted by `draw_hover(index)` over a one-line
+    /// document, as (width, colour).
+    fn hover_segments(index: usize) -> (Vec<(f32, egui::Color32)>, [u8; 3]) {
+        let mut doc = Document::default();
+        doc.push_current(Entity::Line(Line::new(
+            Vec2::new(0.0, 0.0),
+            Vec2::new(10.0, 0.0),
+        )));
+        let ctx = egui::Context::default();
+        let out = ctx.run(egui::RawInput::default(), |ctx| {
+            let painter = ctx.layer_painter(egui::LayerId::new(
+                egui::Order::Background,
+                egui::Id::new("test_hover"),
+            ));
+            let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::Vec2::new(800.0, 600.0));
+            draw_hover(&painter, rect, &Camera::default(), &doc, index);
+        });
+        let segs = out
+            .shapes
+            .iter()
+            .filter_map(|c| match &c.shape {
+                egui::Shape::LineSegment { stroke, .. } => match stroke.color {
+                    egui::epaint::ColorMode::Solid(k) => Some((stroke.width, k)),
+                    egui::epaint::ColorMode::UV(_) => None,
+                },
+                _ => None,
+            })
+            .collect();
+        (segs, doc.layer_color(0))
+    }
+
+    /// LCV-163 AC 3 — the hovered entity is painted once, in its layer
+    /// colour, at the `hover` width.
+    #[test]
+    fn draw_hover_paints_the_entity_in_its_layer_colour_and_hover_width() {
+        let (segs, [r, g, b]) = hover_segments(0);
+        let expected = (
+            crate::render::palette::HOVER_WIDTH_PT,
+            egui::Color32::from_rgb(r, g, b),
+        );
+        assert_eq!(segs, vec![expected]);
+    }
+
+    /// LCV-163 AC 3 — an out-of-range index paints nothing.
+    #[test]
+    fn draw_hover_skips_an_out_of_range_index() {
+        assert!(hover_segments(1).0.is_empty());
     }
 
     /// AC#5 — halo stroke is thicker than entity stroke.

@@ -1,4 +1,6 @@
-//! Preview overlay: translucent amber stroke for in-progress tool geometry.
+//! Preview overlay: translucent amber stroke for in-progress tool geometry,
+//! and dashed strokes for the crossing box and the TRIM / ERASE removal
+//! preview (LCV-163).
 //!
 //! Drawing a line in AutoCAD R14 works like this: the operator clicks the first
 //! point, then a "rubber-band" preview follows the cursor showing what the line
@@ -7,17 +9,15 @@
 //! constructs a `Vec<Entity>` each frame representing the in-progress preview,
 //! and [`draw_preview`] paints those entities with a distinct style.
 //!
-//! **Three visual channels**: gray = committed entities, cyan = selected,
-//! amber = preview. The operator can tell what is real and what is provisional
-//! at a glance.
+//! **Three visual channels**: layer colour = committed entities, cyan =
+//! selected, amber = preview. The operator can tell what is real and what is
+//! provisional at a glance.
 //!
-//! **Translucent stroke instead of dashes**: AutoCAD R14 uses dashed previews;
-//! v2 uses translucency (160/255 alpha). Emulating dashed lines in egui's
-//! immediate-mode `Painter` requires either `Shape::dashed_line` (if available
-//! in the pinned version — it is not in egui 0.29) or hand-built polyline
-//! segmentation. Both are more LOC than a single alpha-blended stroke. v2 picks
-//! translucency for KISS; if a user complains the preview is too subtle, a
-//! future demand can swap to dashes.
+//! **Dashes are a state form** (LCV-163, ADR 0013): the rubber band stays a
+//! solid translucent stroke (LCV-037), while [`draw_dashed`] strokes an entity
+//! with egui 0.29's `Shape::dashed_line` over its projected polyline (circles
+//! and arcs sampled like `arc_polyline`). The crossing box is dashed in
+//! `preview`; what TRIM or ERASE will remove is dashed in `danger`.
 //!
 //! **Drawing order**: caller invokes [`draw_preview`] AFTER
 //! [`crate::render::draw_entities`] and [`crate::render::draw_selection_highlight`]
@@ -29,7 +29,15 @@
 //! Introduced by demand LCV-037.
 
 use crate::document::Entity;
+use crate::geometry::Vec2;
 use crate::render::Camera;
+
+/// Dash and gap lengths of [`draw_dashed`], in screen points.
+const DASH_PT: f32 = 6.0;
+const GAP_PT: f32 = 4.0;
+
+/// Polyline samples of a full circle or an arc in [`draw_dashed`].
+const CURVE_SEGMENTS: usize = 64;
 
 /// Preview stroke: 1-px translucent amber/yellow.
 ///
@@ -85,11 +93,109 @@ pub fn draw_preview(
     }
 }
 
+/// Stroke `entity` dashed in `color` (1 pt): the crossing selection box in
+/// `preview`, the TRIM / ERASE removal preview in `danger` (LCV-163 AC 2,
+/// AC 4, AC 5). Lines are one dashed segment; circles and arcs are dashed
+/// along a [`CURVE_SEGMENTS`] polyline, so the dash pattern runs on around
+/// the curve.
+pub fn draw_dashed(
+    painter: &egui::Painter,
+    rect: egui::Rect,
+    camera: &Camera,
+    entity: &Entity,
+    color: egui::Color32,
+) {
+    let world: Vec<Vec2> = match entity {
+        Entity::Line(l) => vec![l.p1, l.p2],
+        Entity::Circle(c) => (0..=CURVE_SEGMENTS)
+            .map(|i| {
+                let t = i as f64 / CURVE_SEGMENTS as f64;
+                c.point_at_angle(t * core::f64::consts::TAU)
+            })
+            .collect(),
+        Entity::Arc(a) => crate::render::arc_polyline(a, CURVE_SEGMENTS),
+    };
+    let offset = rect.min.to_vec2();
+    let points: Vec<egui::Pos2> = world
+        .into_iter()
+        .map(|w| camera.world_to_screen(w) + offset)
+        .collect();
+    let stroke = egui::Stroke::new(1.0_f32, color);
+    painter.extend(egui::Shape::dashed_line(&points, stroke, DASH_PT, GAP_PT));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::{Arc, Circle, Line, Vec2};
+    use crate::geometry::{Arc, Circle, Line};
     use core::f64::consts::FRAC_PI_2;
+
+    /// Every `LineSegment` `paint` emits, as (ends, width, colour).
+    fn painted_segments(
+        mut paint: impl FnMut(&egui::Painter, egui::Rect, &Camera),
+    ) -> Vec<([egui::Pos2; 2], f32, egui::Color32)> {
+        let ctx = egui::Context::default();
+        let out = ctx.run(egui::RawInput::default(), |ctx| {
+            let painter = ctx.layer_painter(egui::LayerId::new(
+                egui::Order::Background,
+                egui::Id::new("test_dashed"),
+            ));
+            let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::Vec2::new(800.0, 600.0));
+            let camera = Camera {
+                viewport_size_px: [800.0, 600.0],
+                ..Camera::default()
+            };
+            paint(&painter, rect, &camera);
+        });
+        out.shapes
+            .iter()
+            .filter_map(|c| match &c.shape {
+                egui::Shape::LineSegment { points, stroke } => match stroke.color {
+                    egui::epaint::ColorMode::Solid(k) => Some((*points, stroke.width, k)),
+                    egui::epaint::ColorMode::UV(_) => None,
+                },
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// LCV-163 AC 2 — a 100 pt line is painted as several dashes in the
+    /// colour asked for, none as long as the line.
+    #[test]
+    fn draw_dashed_breaks_a_line_into_dashes() {
+        let color = egui::Color32::from_rgb(1, 2, 3);
+        let line = Entity::Line(Line::new(Vec2::new(0.0, 0.0), Vec2::new(100.0, 0.0)));
+        let segs = painted_segments(|p, r, c| draw_dashed(p, r, c, &line, color));
+        assert!(segs.len() > 5, "dashes: {}", segs.len());
+        for ([a, b], _, k) in segs {
+            assert_eq!(k, color);
+            assert!((a - b).length() < 99.0);
+        }
+    }
+
+    /// LCV-163 AC 4 — circles and arcs are dashed along their curve: every
+    /// dash end lies on the circle.
+    #[test]
+    fn draw_dashed_follows_circles_and_arcs() {
+        let color = egui::Color32::from_rgb(1, 2, 3);
+        for entity in [
+            Entity::Circle(Circle::new(Vec2::new(0.0, 0.0), 50.0)),
+            Entity::Arc(Arc::new(Vec2::new(0.0, 0.0), 50.0, 0.0, FRAC_PI_2, true)),
+        ] {
+            let mut centre = egui::Pos2::ZERO;
+            let segs = painted_segments(|p, r, c| {
+                centre = c.world_to_screen(Vec2::new(0.0, 0.0)) + r.min.to_vec2();
+                draw_dashed(p, r, c, &entity, color);
+            });
+            assert!(segs.len() > 5, "{entity:?}: {} dashes", segs.len());
+            for ([a, b], ..) in segs {
+                for q in [a, b] {
+                    let d = (q - centre).length();
+                    assert!((d - 50.0).abs() < 0.5, "{entity:?}: off the curve by {d}");
+                }
+            }
+        }
+    }
 
     /// AC#1 — `draw_preview` exists and type-checks with empty inputs.
     #[test]

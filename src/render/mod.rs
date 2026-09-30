@@ -21,6 +21,6 @@ pub use camera::Camera;
 pub use cursor::{cursor_color, draw_crosshair, draw_pickbox};
 pub use entities::{PaintOptions, arc_polyline, draw_entities};
 pub use grid::draw_grid;
-pub use preview::draw_preview;
-pub use selection::draw_selection_highlight;
+pub use preview::{draw_dashed, draw_preview};
+pub use selection::{draw_hover, draw_selection_highlight};
 pub use snaps::draw_snap_marker;
