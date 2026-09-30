@@ -208,19 +208,30 @@ fn path_with_non_numeric_a_command_returns_malformed_path() {
     assert!(matches!(r, Err(SvgImportError::MalformedPath(_))));
 }
 
+/// LCV-171 AC 6 — a path that is not an arc, or has no `d`, is reported,
+/// not skipped silently (was `non_arc_path_silently_skipped`).
 #[test]
-fn non_arc_path_silently_skipped() {
-    let es = import_svg(&svg(r#"<path d="M 0 0 L 10 10"/>"#))
-        .unwrap()
-        .entities;
-    assert!(es.is_empty());
+fn non_arc_path_is_reported() {
+    for path in [r#"<path d="M 0 0 L 10 10"/>"#, "<path/>"] {
+        let imported = import_svg(&svg(path)).unwrap();
+        assert!(imported.entities.is_empty(), "{path}");
+        assert_eq!(
+            imported.report,
+            [("path (unsupported data)".to_owned(), 1)],
+            "{path}"
+        );
+    }
 }
 
+/// LCV-171 AC 5 — an unsupported element is skipped and reported (was
+/// `unknown_elements_silently_skipped`).
 #[test]
-fn unknown_elements_silently_skipped() {
-    let es = import_svg(MIXED_SVG).unwrap().entities;
+fn unknown_elements_are_skipped_and_reported() {
+    let imported = import_svg(MIXED_SVG).unwrap();
+    let es = imported.entities;
     assert_eq!(es.len(), 2);
     assert!(matches!(es[0], Entity::Line(_)) && matches!(es[1], Entity::Circle(_)));
+    assert_eq!(imported.report, [("rect".to_owned(), 1)]);
 }
 
 #[test]
@@ -497,4 +508,26 @@ fn never_rendered_elements_without_element_children_are_not_reported() {
     assert!(report_of(&svg("<clipPath> text </clipPath>")).is_empty());
     let gradient = svg("<linearGradient><stop/></linearGradient>");
     assert_eq!(report_of(&gradient), [entry("linearGradient", 1)]);
+}
+
+/// AC 5 — every other SVG element is skipped with its subtree and reported
+/// by name, repeats counted under one entry in first-occurrence order.
+#[test]
+fn other_svg_elements_are_skipped_and_reported_with_counts() {
+    let inner = format!(
+        r##"<image href="x.png"/><text>{A_LINE}</text><use href="#l"/><switch>{A_LINE}</switch><image/><rect width="1" height="1"/><style>line {{}}</style><script/><foreignObject>{A_LINE}</foreignObject><text/>"##
+    );
+    let imported = import_svg(&svg(&inner)).unwrap();
+    assert!(imported.entities.is_empty());
+    let want = [
+        entry("image", 2),
+        entry("text", 2),
+        entry("use", 1),
+        entry("switch", 1),
+        entry("rect", 1),
+        entry("style", 1),
+        entry("script", 1),
+        entry("foreignObject", 1),
+    ];
+    assert_eq!(imported.report, want);
 }

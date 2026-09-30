@@ -22,7 +22,7 @@
       nothing and reports that element's name; `<defs/>` and `<clipPath></clipPath>` (no element
       child) report nothing; `<linearGradient><stop/></linearGradient>` reports
       `linearGradient` (files: src/io/svg/import/tests.rs)
-- [ ] T8 [AC5] [AC6] Test: `image`, `text` (with a `line` child), `use`, `switch`, `rect`, `style`,
+- [x] T8 [AC5] [AC6] Test: `image`, `text` (with a `line` child), `use`, `switch`, `rect`, `style`,
       `script`, `foreignObject` are skipped and reported by name with counts; rewrite
       `unknown_elements_silently_skipped` (`<rect/>` → `[("rect", 1)]`) and
       `non_arc_path_silently_skipped` (→ `path (unsupported data)`), plus a `<path>` without `d`
