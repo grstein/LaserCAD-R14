@@ -291,3 +291,30 @@ fn ac7_no_pure_red_in_src_outside_tests() {
     let hits = occurrences(&sections, needle);
     assert!(hits.is_empty(), "{hits:?}");
 }
+
+// ── AC 8 — egui's selection fill, accent foreground-only ────────────────
+
+/// AC 8 — after `apply_theme` the selection fill is egui's `#005c80` and no
+/// widget fill is the `#4fa3e0` accent, which stays a foreground (the
+/// selection stroke is the positive control).
+#[test]
+fn ac8_selection_fill_is_default_and_accent_is_foreground_only() {
+    const FILL_SELECTED: egui::Color32 = egui::Color32::from_rgb(0x00, 0x5c, 0x80);
+    const ACCENT: egui::Color32 = egui::Color32::from_rgb(0x4f, 0xa3, 0xe0);
+    let ctx = egui::Context::default();
+    lasercad::ui::apply_theme(&ctx);
+    let v = ctx.style().visuals.clone();
+    assert_eq!(v.selection.bg_fill, FILL_SELECTED);
+    assert_eq!(v.selection.stroke.color, ACCENT, "control: accent is used");
+    let w = &v.widgets;
+    for state in [
+        &w.noninteractive,
+        &w.inactive,
+        &w.hovered,
+        &w.active,
+        &w.open,
+    ] {
+        assert_ne!(state.bg_fill, ACCENT, "{state:?}");
+        assert_ne!(state.weak_bg_fill, ACCENT, "{state:?}");
+    }
+}

@@ -47,7 +47,7 @@
   `src/` outside tests (files: tests/it/ui/wording_and_status.rs)
 - [x] T16 [AC7] `draw_chat_row` error rows and `! ` dock feedback read `error_fg_color`; T15
   green (files: src/agent/panel.rs, src/ui/command_line.rs)
-- [ ] T17 [AC8] Test only (holds since LCV-184): after `apply_theme`, `selection.bg_fill` is
+- [x] T17 [AC8] Test only (holds since LCV-184): after `apply_theme`, `selection.bg_fill` is
   #005c80 and no widget fill is `ACCENT` (files: tests/it/ui/wording_and_status.rs)
 - [ ] T18 [AC9] Test first: `format_autosave` four states and precedence (failed > pending >
   autosaved > none); `record_autosave_outcome(false)` sets `autosave_failed` only with a path,
