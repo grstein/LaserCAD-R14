@@ -108,14 +108,16 @@ pub fn whole_batches(messages: &[ChatMessage]) -> Vec<ChatMessage> {
     kept
 }
 
-/// The token estimate of AC 8: UTF-8 bytes of every text and tool-call
-/// argument string, summed, then divided by four once.
+/// The token estimate of AC 8: UTF-8 bytes of every text, tool-call
+/// argument string and `reasoning_content` (LCV-154), summed, then divided
+/// by four once.
 pub fn estimate_tokens(messages: &[ChatMessage]) -> usize {
     messages.iter().map(message_bytes).sum::<usize>() / 4
 }
 
 /// The bytes one message adds to the estimate: its text (every text part of
-/// a parts message) and the arguments of every tool call it carries.
+/// a parts message), the arguments of every tool call it carries and its
+/// `reasoning_content`.
 fn message_bytes(message: &ChatMessage) -> usize {
     let text = match &message.content {
         Some(Content::Text(text)) => text.len(),
@@ -134,7 +136,8 @@ fn message_bytes(message: &ChatMessage) -> usize {
         .flatten()
         .map(|call| call.function.arguments.len())
         .sum();
-    text + arguments
+    let reasoning = message.reasoning_content.as_ref().map_or(0, String::len);
+    text + arguments + reasoning
 }
 
 /// The conversation so far, one entry per turn, oldest first.

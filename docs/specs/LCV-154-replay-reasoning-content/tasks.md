@@ -24,7 +24,7 @@
 - [x] T6 [AC6] Test: `estimate_tokens` of a tool-call message with 8 bytes of arguments and
   8 bytes of `reasoning_content` is 4; `Memory::trim` counts the field toward the cap
   (files: src/agent/memory.rs)
-- [ ] T7 [AC6] `message_bytes` adds `reasoning_content` bytes; `estimate_tokens` doc names it
+- [x] T7 [AC6] `message_bytes` adds `reasoning_content` bytes; `estimate_tokens` doc names it
   (files: src/agent/memory.rs)
 - [ ] T8 Mutation: `MUTANTS_TARGET_DIR=/tmp/mutants-agent scripts/mutants.sh <base>`; a test
   for every missed mutant (files: the test file of the survivor)
