@@ -31,14 +31,18 @@ use walk::Walk;
 
 mod walk;
 
+/// The SVG namespace URI; only elements in it are SVG (LCV-171 AC 1).
+pub const SVG_NS: &str = "http://www.w3.org/2000/svg";
+
 /// Errors returned by [`import_svg`].
 #[derive(Debug, thiserror::Error)]
 pub enum SvgImportError {
     /// The input was not valid XML.
     #[error("XML parse error: {0}")]
     XmlParse(#[from] roxmltree::Error),
-    /// The document root element was not `<svg>`.
-    #[error("no <svg> root element found")]
+    /// The document root element was not `svg` in the [`SVG_NS`] namespace
+    /// (a root without `xmlns` included).
+    #[error("no <svg> root element in the SVG namespace found")]
     NoSvgRoot,
     /// A required numeric attribute could not be parsed, or `r ≤ 0` on `<circle>`.
     #[error("<{element}> attribute {attr}={value:?} is not a valid number")]
@@ -129,7 +133,7 @@ impl ImportedSvg {
 pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
     let doc = roxmltree::Document::parse(src)?;
     let root = doc.root_element();
-    if root.tag_name().name() != "svg" {
+    if root.tag_name().name() != "svg" || root.tag_name().namespace() != Some(SVG_NS) {
         return Err(SvgImportError::NoSvgRoot);
     }
     let bed_mm = parse_bed(root)?;

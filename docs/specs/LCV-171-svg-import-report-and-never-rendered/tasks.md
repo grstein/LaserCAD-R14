@@ -6,7 +6,7 @@
 - [x] T2 [AC1] Test: `no_svg_root_returns_error` also refuses `<svg/>` without `xmlns` and
       `<svg xmlns="http://example.com/x"/>` with `NoSvgRoot`, and accepts a prefixed
       `<s:svg xmlns:s="http://www.w3.org/2000/svg">` (files: src/io/svg/import/tests.rs)
-- [ ] T3 [AC1] `SVG_NS` const and the namespace check in `import_svg`; `NoSvgRoot` doc names the
+- [x] T3 [AC1] `SVG_NS` const and the namespace check in `import_svg`; `NoSvgRoot` doc names the
       namespace (files: src/io/svg/import.rs)
 - [ ] T4 [AC8] Test: `Report::note` keeps first-occurrence order and merges repeats
       (`a, b, a` → `[(a, 2), (b, 1)]`); `import_svg` of an empty `<svg>` has `report == []`
