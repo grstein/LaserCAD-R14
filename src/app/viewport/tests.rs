@@ -132,8 +132,15 @@ fn the_canvas_repaint_is_guarded_by_the_predicate() {
     );
 
     let paint = draw
-        .find("paint(ui, rect, app);")
+        .find("paint(ui, rect, app, cursor);")
         .expect("positive control: draw must paint");
+    let hover = draw
+        .find("handle_hover(ctx, app, rect, hover_pos)")
+        .expect("positive control: draw must route the pointer");
+    assert!(
+        hover < paint,
+        "LCV-162 AC 4: input is handled before painting (DESIGN.md F1)"
+    );
     let pan = draw
         .find("handle_pan(&mut app.camera, response.drag_delta());")
         .expect("positive control: draw must handle the middle-drag pan");
@@ -435,7 +442,7 @@ fn ac1_ac2_grid_paints_between_bed_fill_and_bed_border_and_toggles_off() {
         let ctx = egui::Context::default();
         ctx.set_pixels_per_point(1.0);
         let out = ctx.run(egui::RawInput::default(), |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| paint(ui, rect, &mut app));
+            egui::CentralPanel::default().show(ctx, |ui| paint(ui, rect, &mut app, None));
         });
 
         let mut kinds: Vec<Kind> = Vec::new();
@@ -531,7 +538,12 @@ fn ac3_wheel_zoom_call_site_subtracts_the_viewport_origin_source_scan() {
         env!("CARGO_MANIFEST_DIR"),
         "/src/app/viewport.rs"
     )));
-    let signature = "fn handle_hover(ctx: &egui::Context, app: &mut App, rect: egui::Rect, hover_pos: egui::Pos2) {";
+    let signature = "fn handle_hover(
+    ctx: &egui::Context,
+    app: &mut App,
+    rect: egui::Rect,
+    hover_pos: egui::Pos2,
+) -> Vec2 {";
     let body = implementation
         .split_once(signature)
         .expect("AC 3: handle_hover must exist with that exact signature")

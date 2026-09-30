@@ -13,6 +13,7 @@
 
 use super::{App, apply_ortho, resolve_snap};
 use crate::document::Document;
+use crate::geometry::Vec2;
 use crate::render::Camera;
 use crate::tools::{PointerButton, PointerEvent};
 
@@ -28,19 +29,20 @@ pub fn draw(ctx: &egui::Context, app: &mut App) {
         // Sync the camera's viewport size before any draw call consumes it.
         app.camera.viewport_size_px = [rect.width(), rect.height()];
 
-        paint(ui, rect, app);
-
-        // --- pointer / camera interaction (LCV-032 / LCV-041) ---
-        if response.hovered()
-            && let Some(hover_pos) = response.hover_pos()
-        {
-            handle_hover(ctx, app, rect, hover_pos);
-        }
-
         // Middle-button pan.
         if response.dragged_by(egui::PointerButton::Middle) {
             handle_pan(&mut app.camera, response.drag_delta());
         }
+
+        // Input before painting (DESIGN.md F1, LCV-162 AC 4): the snap glyph
+        // and the crosshair come from this frame's pointer, not the last.
+        // `cursor` is the resolved world point, `None` off the canvas.
+        let cursor = response
+            .hover_pos()
+            .filter(|_| response.hovered())
+            .map(|hover_pos| handle_hover(ctx, app, rect, hover_pos));
+
+        paint(ui, rect, app, cursor);
 
         // Ask for a follow-up frame only while the canvas is live — see
         // `viewport_is_live` and AGENTS.md §Event flow → Repaint policy. The
@@ -78,7 +80,7 @@ fn viewport_is_live(response: &egui::Response, app: &App) -> bool {
 /// fill and are visible inside the bed rather than painted over by it — the
 /// two halves of what used to be one `draw_bed` call, split for this order
 /// (LCV-137 AC 2, `src/render/bed.rs`).
-fn paint(ui: &egui::Ui, rect: egui::Rect, app: &mut App) {
+fn paint(ui: &egui::Ui, rect: egui::Rect, app: &mut App, _cursor: Option<Vec2>) {
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, 0.0, crate::ui::CANVAS_BG);
     painter.rect_stroke(
@@ -124,7 +126,13 @@ fn paint(ui: &egui::Ui, rect: egui::Rect, app: &mut App) {
 
 /// Resolve the cursor position and route pointer events while the viewport is
 /// hovered: snap, ortho lock, press / move / release, and wheel zoom.
-fn handle_hover(ctx: &egui::Context, app: &mut App, rect: egui::Rect, hover_pos: egui::Pos2) {
+/// Returns the resolved world point, after snap and Ortho.
+fn handle_hover(
+    ctx: &egui::Context,
+    app: &mut App,
+    rect: egui::Rect,
+    hover_pos: egui::Pos2,
+) -> Vec2 {
     // `hover_pos` is global (the whole window); `rect.min` is the viewport's
     // own origin, which is nonzero whenever a panel claims space before the
     // `CentralPanel` — always, since the menubar and toolbar always do, and
@@ -199,6 +207,7 @@ fn handle_hover(ctx: &egui::Context, app: &mut App, rect: egui::Rect, hover_pos:
         };
         handle_wheel_zoom(&mut app.camera, local_pos, factor);
     }
+    world_pos
 }
 
 /// Hand one pointer event to the active tool.

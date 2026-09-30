@@ -81,12 +81,7 @@ fn boot(tool: Box<dyn Tool>) -> Canvas {
     let [w, h] = app.camera.viewport_size_px;
     let rect = egui::Rect::from_min_size(min, egui::vec2(w, h));
     assert!(rect.contains(pos), "setup: the pointer is on the canvas");
-    Canvas {
-        ctx,
-        app,
-        rect,
-        w0,
-    }
+    Canvas { ctx, app, rect, w0 }
 }
 
 fn flatten(shape: &egui::Shape, out: &mut Vec<egui::Shape>) {
