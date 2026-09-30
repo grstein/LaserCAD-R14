@@ -1,6 +1,6 @@
 # LCV-192 — Agent refusal guidance
 
-- **Status**: Draft
+- **Status**: Specified
 - **Depends on**: LCV-185
 - **Implementation**: -
 

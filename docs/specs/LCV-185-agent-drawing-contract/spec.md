@@ -1,6 +1,6 @@
 # LCV-185 — Batch drawing schema matches its validator
 
-- **Status**: Draft
+- **Status**: Specified
 - **Depends on**: none
 - **Implementation**: -
 
@@ -48,5 +48,4 @@ A *foreign key* is a key the schema publishes for another entity type (e.g. `r` 
 
 ## Open questions
 
-- Proposed: tolerate `null` only, not `0` or other values, so a mistyped item is never silently
-  reinterpreted. Confirm at /specify.
+- None. Only `null` is tolerated (proposed option; self-approved per user goal 2026-09-30).

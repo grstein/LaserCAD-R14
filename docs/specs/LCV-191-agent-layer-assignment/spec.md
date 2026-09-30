@@ -1,6 +1,6 @@
 # LCV-191 — Agent moves entities between layers
 
-- **Status**: Draft
+- **Status**: Specified
 - **Depends on**: LCV-186
 - **Implementation**: -
 

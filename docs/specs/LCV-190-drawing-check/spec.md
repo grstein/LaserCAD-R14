@@ -1,6 +1,6 @@
 # LCV-190 — Drawing check
 
-- **Status**: Draft
+- **Status**: Specified
 - **Depends on**: none
 - **Implementation**: -
 

@@ -1,6 +1,6 @@
 # LCV-188 — Stable entity ids for agent edits
 
-- **Status**: Draft
+- **Status**: Specified
 - **Depends on**: LCV-186, LCV-191
 - **Implementation**: -
 
@@ -40,5 +40,5 @@ fragile. The turn fence against outside changes (ADR 0007 §D14) is a good safeg
 
 ## Open questions
 
-- Needs an ADR amending ADR 0007 (id lives in `Document`, kernel-pure). Ids restart per session
-  (not persisted) — confirm at /specify.
+- None. Ids live in `Document` (ADR amending ADR 0007 at /design) and restart per session,
+  not persisted (proposed option; self-approved per user goal 2026-09-30).
