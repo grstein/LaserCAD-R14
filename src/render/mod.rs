@@ -17,7 +17,7 @@ pub mod selection;
 pub mod snaps;
 pub mod tessellate;
 
-pub use bed::{Bed, draw_bed, draw_bed_fill};
+pub use bed::{Bed, draw_bed, draw_bed_fill, draw_origin};
 pub use camera::Camera;
 pub use cursor::{cursor_color, draw_crosshair, draw_pickbox};
 pub use entities::{PaintOptions, arc_polyline, draw_entities};

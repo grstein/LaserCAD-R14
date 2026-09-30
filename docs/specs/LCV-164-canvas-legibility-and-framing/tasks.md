@@ -17,7 +17,7 @@
 - [x] T9 [AC3] `snaps/label.rs`: `snap_label`, `LABEL_OFFSET_PT`, label painted after the glyph (files: src/render/snaps.rs, src/render/snaps/label.rs)
 - [x] T10 [AC4] Test: one origin path, (12 pt +X) → (0,0) → (12 pt +Y), after the bed border and
   before entities; the LCV-137 order test learns `Path` shapes (files: src/app/viewport/tests.rs, tests/it/ui/canvas_legibility.rs)
-- [ ] T11 [AC4] `ORIGIN` tokens and `bed.rs::draw_origin`, exported (files: src/render/palette.rs, src/render/bed.rs, src/render/mod.rs)
+- [x] T11 [AC4] `ORIGIN` tokens and `bed.rs::draw_origin`, exported (files: src/render/palette.rs, src/render/bed.rs, src/render/mod.rs)
 - [ ] T12 [AC4] `paint` calls `draw_origin` after `draw_bed` (files: src/app/viewport/paint.rs)
 - [ ] T13 [AC7] Test: pending flag frames on the first frame with area; Open (`action_open_path`
   on a temp SVG) and Bed dialog OK frame; `App::new` sets the flag (source scan), `App::default`

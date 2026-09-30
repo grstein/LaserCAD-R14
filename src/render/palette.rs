@@ -1,5 +1,5 @@
 //! Canvas tokens (DESIGN.md §3): the single home of `preview`, `danger` and
-//! `hover` (LCV-163 AC 8) and of the grid and snap-edge colours (LCV-164).
+//! `hover` (LCV-163 AC 8) and of the grid, origin and snap-edge tokens (LCV-164).
 //!
 //! State on the canvas is shown by form first (dash, width) and hue second,
 //! because entity colour belongs to the layer (LCV-156).
@@ -37,6 +37,17 @@ pub const GRID_MAJOR: egui::Color32 = egui::Color32::from_gray(96);
 /// glyph shape 2 pt wider, so the glyph reads over bright geometry
 /// (LCV-164 AC 2). The one colour `render/` takes from `ui/`.
 pub const SNAP_EDGE: egui::Color32 = crate::ui::CANVAS_BG;
+
+/// The `origin` token: gray 220, the machine origin (0,0) where LaserGRBL
+/// starts (LCV-164 AC 4). Its arms lie on the bed's lower-left border, so
+/// width and brightness, not hue, set them apart.
+pub const ORIGIN: egui::Color32 = egui::Color32::from_gray(220);
+
+/// Length, in points, of each origin arm, along +X and +Y.
+pub const ORIGIN_ARM_PT: f32 = 12.0;
+
+/// Stroke width, in points, of the origin arms.
+pub const ORIGIN_WIDTH_PT: f32 = 2.0;
 
 #[cfg(test)]
 mod tests {
