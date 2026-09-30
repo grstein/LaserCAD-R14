@@ -1,6 +1,6 @@
 # LCV-160 — TRIM and EXTEND with arcs
 
-- **Status**: Planned
+- **Status**: In Progress
 - **Depends on**: none
 - **Implementation**: -
 
