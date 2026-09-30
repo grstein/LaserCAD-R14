@@ -7,7 +7,7 @@
 - [x] T2 [AC1] `.expected` parser with its own tests: `bed`, `layer`, `line`/`circle`/`arc`
       (layer index, degrees, `ccw|cw`), `error <Variant>`, `#` comments; a malformed line is an
       `Err` naming line number (files: tests/it/io_svg/corpus/expected.rs, tests/it/io_svg/corpus.rs)
-- [ ] T3 [AC2] [AC3] Corpus runner `check_corpus(dir) -> Vec<String>`: import each `.svg`, compare
+- [x] T3 [AC2] [AC3] Corpus runner `check_corpus(dir) -> Vec<String>`: import each `.svg`, compare
       bed, layers (name, color, output, current, order) and entities (kind, layer, 1e-6 mm, 1e-9 rad
       modulo 2π) or the error variant; report orphan `.svg`/`.expected` and unparseable
       `.expected`. Tests: `corpus_matches_expected` over `tests/fixtures/svg/`, and

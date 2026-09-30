@@ -6,7 +6,8 @@
 //!
 //! ```text
 //! bed 300 180
-//! layer "Cut" #ff0000 output=1 current=1   # document order; index = position
+//! layer "Cut" #ff0000 output=1 current=1   # document order; index = position;
+//!                                            # exactly one layer has current=1
 //! line 0 x1 y1 x2 y2                        # first field = layer index
 //! circle 0 cx cy r
 //! arc 1 cx cy r start_deg end_deg ccw|cw
@@ -124,8 +125,8 @@ pub fn parse(text: &str) -> Result<Expected, String> {
     if layers.is_empty() {
         return Err("no `layer` record".to_owned());
     }
-    if layers.iter().filter(|l| l.current).count() > 1 {
-        return Err("more than one layer has current=1".to_owned());
+    if layers.iter().filter(|l| l.current).count() != 1 {
+        return Err("exactly one layer must have current=1".to_owned());
     }
     let layer_of = |e: &ExpEntity| match e {
         ExpEntity::Line { layer, .. }
@@ -330,7 +331,7 @@ fn parses_a_lone_error_record() {
 
 #[test]
 fn malformed_lines_are_errors_naming_the_line() {
-    let base = "bed 300 180\nlayer \"Cut\" #ff0000 output=1\n";
+    let base = "bed 300 180\nlayer \"Cut\" #ff0000 output=1 current=1\n";
     for (bad, line) in [
         ("bed 300\n", 1),
         ("layer Cut #ff0000 output=1\n", 3),
@@ -364,7 +365,8 @@ fn incomplete_files_are_errors() {
         "# only a comment\n",
         "layer \"Cut\" #ff0000 output=1\n",
         "bed 300 180\n",
-        "bed 300 180\nlayer \"Cut\" #ff0000 output=1\nline 1 0 0 1 1\n",
+        "bed 300 180\nlayer \"Cut\" #ff0000 output=1\n",
+        "bed 300 180\nlayer \"Cut\" #ff0000 output=1 current=1\nline 1 0 0 1 1\n",
         "bed 300 180\nerror MalformedLayer\n",
     ] {
         assert!(parse(bad).is_err(), "{bad:?}");
