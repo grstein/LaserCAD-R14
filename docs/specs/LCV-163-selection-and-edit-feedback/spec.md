@@ -1,6 +1,6 @@
 # LCV-163 — Selection and edit feedback
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-156, LCV-162, LCV-160
 - **Implementation**: -
 
@@ -26,18 +26,19 @@ layer, so state must be shown by form (dash, thickness, halo) first and by hue s
 3. WHILE a tool waits for an entity pick (Select idle, TRIM, EXTEND) and an entity lies within
    the pickbox (LCV-162) THE SYSTEM SHALL paint that entity with a stroke thicker than 1 pt in
    its own layer colour; WHEN no entity is in the pickbox THE SYSTEM SHALL paint no highlight.
-4. WHILE TRIM is active and the pickbox is over a trimmable piece of a line, circle or arc THE
-   SYSTEM SHALL paint exactly that piece dashed in the `danger` token.
+4. WHILE TRIM is active and the pickbox is over a line, circle or arc a click would trim THE
+   SYSTEM SHALL paint the piece(s) the click will remove (all but the kept piece, LCV-160)
+   dashed in the `danger` token.
 5. WHILE ERASE is active with a non-empty selection and the pointer is over the canvas THE SYSTEM
    SHALL paint every selected entity dashed in the `danger` token.
-6. WHEN the click follows a hover of AC 3–5 THE SYSTEM SHALL affect exactly the highlighted
-   entity or piece (preview and result agree).
+6. WHEN the click follows a hover of AC 3–5 THE SYSTEM SHALL act on exactly the highlighted
+   entity and remove exactly what was painted in `danger` (preview and result agree).
 7. THE SYSTEM SHALL paint the canvas in this order: background, bed fill, grid, bed border and
    outside overlay, entities, selection halo, hover highlight, preview (boxes, danger pieces,
    rubber-band), snap glyph, crosshair (amends LCV-137 AC 1).
-8. THE SYSTEM SHALL give `danger` and `hover` a single home each in `render/palette.rs`, with
-   ≥3:1 contrast on the bed and a hue distinct from `preview`, `snap` and `status.warning`
-   (DESIGN.md §3 rules).
+8. THE SYSTEM SHALL give `danger` (a colour with ≥3:1 contrast on the bed and a hue distinct
+   from `preview`, `snap` and `status.warning`) and `hover` (a stroke width; its colour is the
+   layer's) a single home each in `render/palette.rs` (DESIGN.md §3 rules).
 9. WHEN the operator presses Esc or the pointer leaves the canvas THE SYSTEM SHALL paint no hover
    highlight and no danger preview on the next frame.
 10. THE SYSTEM SHALL record the new canvas elements in DESIGN.md §3 (tokens) and §6 (paint order
@@ -48,8 +49,7 @@ layer, so state must be shown by form (dash, thickness, halo) first and by hue s
 - Grips and grip editing (rejected in DESIGN.md §12).
 - Selection cycling between overlapping entities.
 - Changing the selection halo (`render/selection.rs`) beyond keeping it readable on layer colours.
-- The seam for styled preview (styled preview items vs. a separate highlight query): /design,
-  with the `architect`.
+- Any seam other than ADR 0013 (`Tool::feedback` returning styled marks).
 - A fill tint on selection boxes (outline form only).
 - EXTEND's added-segment preview keeps the `preview` amber; only its picked entity gets AC 3.
 
