@@ -10,7 +10,7 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ### Changed
 
-- A layer name with a control character (a tab, a bell, …) is refused with the reason, in the Layers dialog and when a drawing or SVG is opened (the SVG import reports a malformed layer). Such a name used to be written raw into the SVG, giving a file no program could reopen. See LCV-170.
+- A layer name with a control character (a tab, a bell, …) is refused with the reason: in the Layers dialog, by the agent, and when a drawing or SVG is opened (the SVG import reports a malformed layer). Such a name used to be written raw into the SVG, giving a file no program could reopen. See LCV-170.
 
 ### Added
 

@@ -158,7 +158,6 @@ fn query_entities_reports_each_entity_layer() {
 /// refused (at parse or apply) and adds no entity, even though the name's
 /// file key matches `Cut`. The refusal text is not pinned (LCV-192 rewords it).
 #[test]
-#[ignore = "LCV-170: agent resolves \"Cut\\u{7}\" to Cut via Document::layer_by_name (name_key match); refusing it needs a change in src/app/agent_apply.rs, outside the plan"]
 fn a_control_character_layer_name_is_refused() {
     let (mut app, _) = app_with_mark();
     let r0 = app.history.revision();

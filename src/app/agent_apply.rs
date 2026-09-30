@@ -34,7 +34,9 @@ use crate::agent::{AgentAction, AgentOutcome, DrawingItem};
 use crate::app::agent_narrate::{batch_created, list_entities, list_selection, pt, sweep};
 use crate::app::{App, agent_capture};
 use crate::document::commands::CreateEntities;
-use crate::document::{Command, CreateArc, CreateCircle, CreateLine, Document, Entity, LayerId};
+use crate::document::{
+    Command, CreateArc, CreateCircle, CreateLine, Document, Entity, LayerError, LayerId,
+};
 use crate::geometry::{Arc as GeoArc, Circle, Line, Vec2};
 
 mod edit;
@@ -186,11 +188,16 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
 }
 
 /// The layer a creation lands on: the named one, resolved by key, else the
-/// current one. An unknown name is refused naming the layers (ADR 0012 §6).
+/// current one. An unknown name is refused naming the layers (ADR 0012 §6);
+/// a name with a control character is refused before lookup (LCV-170 AC 9).
 fn target_layer(name: Option<&str>, doc: &Document) -> Result<LayerId, AgentOutcome> {
     let Some(name) = name else {
         return Ok(doc.current_layer());
     };
+    if name.chars().any(char::is_control) {
+        let why = LayerError::ControlChar(name.to_owned());
+        return Err(AgentOutcome::Refused(format!("{why} Nothing was drawn.")));
+    }
     doc.layer_by_name(name).map(|l| l.id).ok_or_else(|| {
         let names: Vec<&str> = doc.layers().iter().map(|l| l.name.as_str()).collect();
         AgentOutcome::Refused(format!(

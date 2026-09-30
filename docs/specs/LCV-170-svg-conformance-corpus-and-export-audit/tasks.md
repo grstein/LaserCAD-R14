@@ -32,7 +32,7 @@
 - [x] T8 [AC9] Tests: the Layers dialog, opened by typing `layer`, refuses the rename to `"A\tB"`
       with the ControlChar message, and the document is unchanged; `AddLayer`/`from_parts` refuse
       it (files: tests/it/app/layers_dialog.rs, tests/it/document/layers.rs)
-- [ ] T9 [AC9] Test: an agent `create_line` naming layer `"Cut\u{7}"` is refused and adds no
+- [x] T9 [AC9] Test: an agent `create_line` naming layer `"Cut\u{7}"` is refused and adds no
       entity; no message-text assertion (files: tests/it/agent/layers.rs)
 - [x] T10 [AC5] Audit-set builder: an empty doc, each entity kind, layers with Output on and off
       plus a current layer, and names with `& < > " '` and non-ASCII. For every mother and layer
