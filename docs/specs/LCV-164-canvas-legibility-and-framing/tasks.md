@@ -9,7 +9,7 @@
   unit tests; `draw_entities` uses it; drop `PaintOptions::arc_segments` (files: src/render/tessellate.rs, src/render/mod.rs, src/render/entities.rs)
 - [x] T5 [AC6] Test: selection halo, hover and preview of an arc and a circle paint one shape per
   entity (files: tests/it/ui/canvas_legibility.rs)
-- [ ] T6 [AC6] Halo/hover/preview through `stroke_entity`, `draw_dashed` through `screen_points`;
+- [x] T6 [AC6] Halo/hover/preview through `stroke_entity`, `draw_dashed` through `screen_points`;
   `layer_colors.rs` reads circles as paths (files: src/render/selection.rs, src/render/preview.rs, tests/it/app/layer_colors.rs)
 - [ ] T7 [AC2, AC3] Test: for all 8 kinds, an edge shape in `SNAP_EDGE` ≥1 pt wider precedes the
   glyph, and a text shape with the lower-case name sits clear of the point (files: src/render/snaps.rs)

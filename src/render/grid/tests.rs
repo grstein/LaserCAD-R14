@@ -336,14 +336,16 @@ fn ac1_grid_lines_are_one_point_tokens_on_pixel_centres() {
             mm_per_px: 0.37,
             viewport_size_px: [800.0, 600.0],
         };
-        let rect = egui::Rect::from_min_size(
-            egui::Pos2::new(37.3, 52.1),
-            egui::Vec2::new(800.0, 600.0),
-        );
+        let rect =
+            egui::Rect::from_min_size(egui::Pos2::new(37.3, 52.1), egui::Vec2::new(800.0, 600.0));
         let ctx = egui::Context::default();
         ctx.set_pixels_per_point(ppp);
         let out = ctx.run(egui::RawInput::default(), |ctx| {
-            assert_eq!(ctx.pixels_per_point(), ppp, "control: the frame runs at {ppp} ppp");
+            assert_eq!(
+                ctx.pixels_per_point(),
+                ppp,
+                "control: the frame runs at {ppp} ppp"
+            );
             let painter = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Background,
                 egui::Id::new("lcv164-ac1"),
@@ -363,7 +365,10 @@ fn ac1_grid_lines_are_one_point_tokens_on_pixel_centres() {
             } else if stroke.color == solid(GRID_MAJOR) {
                 major += 1;
             } else {
-                panic!("ppp={ppp}: grid line in {:?}, not a grid token", stroke.color);
+                panic!(
+                    "ppp={ppp}: grid line in {:?}, not a grid token",
+                    stroke.color
+                );
             }
             let [a, b] = *points;
             let fixed = if a.x == b.x {
@@ -379,6 +384,9 @@ fn ac1_grid_lines_are_one_point_tokens_on_pixel_centres() {
                 "ppp={ppp}: line at {fixed} pt = {physical} px is not on a pixel centre"
             );
         }
-        assert!(minor > 0 && major > 0, "ppp={ppp}: minor={minor}, major={major}");
+        assert!(
+            minor > 0 && major > 0,
+            "ppp={ppp}: minor={minor}, major={major}"
+        );
     }
 }
