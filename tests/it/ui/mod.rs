@@ -16,3 +16,4 @@ mod statusbar_modes;
 mod tool_hotkeys;
 mod viewport_grid_and_coordinates;
 mod visual_refresh;
+mod wording_and_status;

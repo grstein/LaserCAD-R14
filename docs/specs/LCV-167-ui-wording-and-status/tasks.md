@@ -1,6 +1,6 @@
 # LCV-167 — Tasks
 
-- [ ] T1 [AC1] [AC2] Test first: open File, Edit, View (+ Object Snap), Format, Tools, Help by
+- [x] T1 [AC1] [AC2] Test first: open File, Edit, View (+ Object Snap), Format, Tools, Help by
   painted clicks; every item run passes the Title Case check (plan §Test approach) and the rows
   `Export Layers`, `Bed Size…`, `Keyboard Shortcuts…`, `AI Settings…`, `Object Snap` exist; the
   Bed Size, Keyboard Shortcuts (F1) and AI Settings windows paint those titles; AI Settings
