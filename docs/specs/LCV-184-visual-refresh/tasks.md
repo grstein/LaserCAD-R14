@@ -42,7 +42,7 @@
 - [x] T13 [AC8] Test: active rail button rect filled `FILL_SELECTED`, rounding 3, icon stroke
   `ACCENT`; a hovered button filled `FILL_HOVER`, rounding 3; fix `square_button` only if it
   fails (files: tests/it/ui/visual_refresh.rs, src/ui/icons.rs)
-- [ ] T14 [AC9] Test: at 800×600, 1024×600, 1280×800 with the modes all on and all off, menubar
+- [x] T14 [AC9] Test: at 800×600, 1024×600, 1280×800 with the modes all on and all off, menubar
   titles inside the window, status segments contained and bar ≤56 pt, dock ≤64 pt, 17 rail
   centres inside the unscrolled rail; tune `PILL_PADDING` if it fails (files:
   tests/it/ui/visual_refresh.rs, src/ui/statusbar/pill.rs)

@@ -648,3 +648,74 @@ fn ac8_rail_buttons_use_the_theme_state_fills() {
         "hover does not click"
     );
 }
+
+// ── AC 9 — DESIGN.md §2 budgets at three sizes ────────────────────────
+
+/// AC 9 — at 800×600, 1024×600 and 1280×800, with the modes all on and all
+/// off: every menu title inside the window, every status segment inside the
+/// bar and the bar ≤ 56 pt, the dock ≤ 64 pt, and all 17 rail buttons
+/// inside the unscrolled rail.
+#[test]
+fn ac9_chrome_fits_at_three_sizes_in_both_mode_states() {
+    for screen in [[800.0, 600.0], [1024.0, 600.0], [1280.0, 800.0]] {
+        for on in [true, false] {
+            let (ctx, mut app) = ctx_and_app();
+            (app.snap_enabled, app.grid_enabled, app.ortho_enabled) = (on, on, on);
+            for _ in 0..2 {
+                let _ = paint_at(&ctx, &mut app, screen, Vec::new());
+            }
+            let painted = paint_at(&ctx, &mut app, screen, Vec::new());
+            let case = format!("{screen:?} modes {on}");
+            let right_edge = |t: &egui::epaint::TextShape| t.pos.x + t.galley.size().x;
+
+            let menubar = panel_rect(&ctx, "menubar");
+            let titles = texts_in(&painted.shapes, menubar);
+            let names: Vec<&str> = titles.iter().map(|t| t.galley.text()).collect();
+            assert_eq!(
+                names,
+                ["File", "Edit", "View", "Format", "Tools", "Help"],
+                "{case}"
+            );
+            for t in &titles {
+                assert!(
+                    right_edge(t) <= screen[0],
+                    "{case}: menu {:?}",
+                    t.galley.text()
+                );
+            }
+
+            let bar = panel_rect(&ctx, "statusbar");
+            assert!(bar.height() <= 56.0, "{case}: bar {}", bar.height());
+            let segments = texts_in(&painted.shapes, bar);
+            assert!(segments.len() >= 8, "{case}: {} segments", segments.len());
+            for t in segments {
+                assert!(
+                    t.pos.x >= bar.left() && right_edge(t) <= bar.right(),
+                    "{case}: segment {:?} clipped",
+                    t.galley.text()
+                );
+                assert!(!t.galley.elided, "{case}: {:?} elided", t.galley.text());
+            }
+
+            let dock = panel_rect(&ctx, "command_line");
+            assert!(dock.height() <= 64.0, "{case}: dock {}", dock.height());
+
+            let rail = panel_rect(&ctx, "toolbar");
+            let mut buttons: Vec<egui::Pos2> = (0..7).map(|r| rail_centre(rail, 0, r)).collect();
+            buttons.extend((0..9).map(|r| rail_centre(rail, 1, r)));
+            let ai = texts_in(&painted.shapes, rail)
+                .into_iter()
+                .find(|t| t.galley.text() == "AI")
+                .expect("the AI toggle paints");
+            buttons.push(egui::Rect::from_min_size(ai.pos, ai.galley.size()).center());
+            assert_eq!(buttons.len(), 17);
+            for c in buttons {
+                let button = egui::Rect::from_center_size(c, egui::Vec2::splat(32.0));
+                assert!(
+                    rail.contains_rect(button),
+                    "{case}: button at {c:?} outside {rail:?}"
+                );
+            }
+        }
+    }
+}
