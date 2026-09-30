@@ -17,7 +17,7 @@
 - [x] T4 [AC2, AC3, AC4] Implement `collect_perpendicular` and `collect_tangent` in the
   anchored helpers and wire them into `snap_query` (files: src/geometry/snap/anchored.rs,
   src/geometry/snap/mod.rs, src/geometry/mod.rs)
-- [ ] T5 [P] [AC8, AC10] Test: `Settings` without `object_snaps` in JSON loads
+- [x] T5 [P] [AC8, AC10] Test: `Settings` without `object_snaps` in JSON loads
   `SnapKinds::default()`; a round-trip keeps a toggled kind (files: src/io/settings/tests.rs)
 - [ ] T6 [AC8, AC10] Add `Settings::object_snaps` with `#[serde(default)]` (files:
   src/io/settings.rs)
