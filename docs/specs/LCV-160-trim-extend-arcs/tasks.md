@@ -15,7 +15,7 @@
 - [x] T5 [AC1–3] [AC5–8] Dispatch: `cut_points`, `trim_step`, `extend_reach`. `TrimEntity` and
   `ExtendEntity` delegate to them, and `ExtendEntity` takes Arc targets. Update the module docs
   (files: src/document/commands/trim/mod.rs)
-- [ ] T6 [AC1–4] [AC9] `TrimTool`: pick and cutters via `cut_points`. Fold over a copy and commit
+- [x] T6 [AC1–4] [AC9] `TrimTool`: pick and cutters via `cut_points`. Fold over a copy and commit
   nothing, a bare `TrimEntity`, or one `CompositeCommand` "Trim". Update the unit test
   `trim_two_cutters_undo_step_by_step` so it cites LCV-160 AC 9 (files: src/tools/trim.rs)
 - [ ] T7 [AC5] [AC6] [AC7] `ExtendTool`: Line and Arc endpoints, and the boundary with the least

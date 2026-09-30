@@ -1,14 +1,18 @@
 //! TrimTool — click to remove a segment at every intersection with other entities.
 //!
-//! Single-click: pick nearest entity, find all real intersecting cutters, commit
-//! one [`TrimEntity`] per cutter. Stateless — remains active after each trim.
+//! Single-click: pick the nearest Line, Circle or Arc, fold every cutter that
+//! has a cut point on it ([`cut_points`], [`trim_step`]) over a copy, and
+//! commit only the steps that change it: nothing, one bare [`TrimEntity`], or
+//! one [`CompositeCommand`] labelled `Trim` — one undo step per click
+//! (LCV-160 AC 9). Stateless — remains active after each trim.
 //!
 //! MUST NOT import `eframe` or `rfd`. `egui` is allowed (for [`egui::Key`]).
 //! Introduced by demand LCV-050.
 
 use crate::app::App;
+use crate::document::commands::trim::{cut_points, trim_step};
+use crate::document::commands::{Command, CompositeCommand};
 use crate::document::{Document, Entity, History, TrimEntity};
-use crate::geometry::intersect::{circle_circle, line_circle, line_line};
 use crate::geometry::{Arc, Vec2};
 use crate::tools::Tool;
 
@@ -55,17 +59,31 @@ fn pick_entity(pos: Vec2, entities: &[Entity]) -> Option<usize> {
         .map(|(i, _)| i)
 }
 
-/// `true` when `a` and `b` share at least one segment-level intersection point.
-/// Any pair involving [`Entity::Arc`] returns `false` (out of scope, LCV-050).
-fn entities_intersect(a: Entity, b: Entity) -> bool {
-    match (a, b) {
-        (Entity::Line(l1), Entity::Line(l2)) => line_line(&l1, &l2).is_some(),
-        (Entity::Line(l), Entity::Circle(c)) | (Entity::Circle(c), Entity::Line(l)) => {
-            !line_circle(&l, &c).is_empty()
+/// The trim steps of one click: each cutter that changes the target, folded
+/// in document order over a copy. A Circle target gets a second pass, since
+/// once it is an Arc a cutter with a single cut point can trim it too.
+fn trim_steps(doc: &Document, target_idx: usize, pos: Vec2) -> Vec<Box<dyn Command>> {
+    let original = doc.entities[target_idx];
+    let cutters: Vec<usize> = (0..doc.entities.len())
+        .filter(|&i| i != target_idx && !cut_points(&original, &doc.entities[i]).is_empty())
+        .collect();
+    let passes = if matches!(original, Entity::Circle(_)) {
+        2
+    } else {
+        1
+    };
+    let mut current = original;
+    let mut steps: Vec<Box<dyn Command>> = Vec::new();
+    for &cutter_idx in cutters.iter().cycle().take(cutters.len() * passes) {
+        match trim_step(&current, &doc.entities[cutter_idx], pos) {
+            Some(next) if next != current => {
+                current = next;
+                steps.push(Box::new(TrimEntity::new(target_idx, cutter_idx, pos)));
+            }
+            _ => {}
         }
-        (Entity::Circle(c1), Entity::Circle(c2)) => !circle_circle(&c1, &c2).is_empty(),
-        _ => false,
     }
+    steps
 }
 
 impl Tool for TrimTool {
@@ -77,8 +95,8 @@ impl Tool for TrimTool {
         "TRIM: Click on a segment to trim"
     }
 
-    /// Pick the nearest entity and trim it at every intersecting cutter.
-    /// Silent no-op when the click misses or the target has no cutters.
+    /// Pick the nearest entity and trim it at every cutter, as one undo step.
+    /// Silent no-op (no undo entry) when the click misses or nothing changes.
     fn on_pointer_down(
         &mut self,
         pos: Vec2,
@@ -89,16 +107,13 @@ impl Tool for TrimTool {
         let Some(target_idx) = pick_entity(pos, &doc.entities) else {
             return;
         };
-        let target = doc.entities[target_idx];
-        let cutters: Vec<usize> = (0..doc.entities.len())
-            .filter(|&i| i != target_idx && entities_intersect(target, doc.entities[i]))
-            .collect();
-        if cutters.is_empty() {
-            return;
-        }
-        for cutter_idx in cutters {
-            history.commit(Box::new(TrimEntity::new(target_idx, cutter_idx, pos)), doc);
-        }
+        let mut steps = trim_steps(doc, target_idx, pos);
+        let command = match steps.len() {
+            0 => return,
+            1 => steps.remove(0),
+            _ => Box::new(CompositeCommand::new(steps, "Trim")),
+        };
+        history.commit(command, doc);
     }
 
     fn on_pointer_move(&mut self, _pos: Vec2, _doc: &mut Document) {}
@@ -232,7 +247,8 @@ mod tests {
         assert_eq!(doc.entities[2], ln(15.0, -5.0, 15.0, 5.0));
     }
 
-    /// AC#9 — two undos restore step-by-step.
+    /// LCV-160 AC 9 (supersedes LCV-050 AC#9) — one click over two cutters
+    /// is one undo step: a single undo restores the original line.
     #[test]
     fn trim_two_cutters_undo_step_by_step() {
         let mut doc = doc_with(vec![
@@ -242,14 +258,10 @@ mod tests {
         ]);
         let mut hist = History::default();
         do_trim(&mut doc, &mut hist, 10.0, 0.0);
+        assert_eq!(hist.len(), 1);
         hist.undo(&mut doc);
-        let mid = line_at(&doc, 0);
-        let at_5 = approx(mid.p1, Vec2::new(5.0, 0.0)) || approx(mid.p2, Vec2::new(5.0, 0.0));
-        let at_15 = approx(mid.p1, Vec2::new(15.0, 0.0)) || approx(mid.p2, Vec2::new(15.0, 0.0));
-        assert!(at_5 || at_15, "intermediate: {mid:?}");
-        hist.undo(&mut doc);
-        let l = line_at(&doc, 0);
-        assert!(approx(l.p1, Vec2::new(0.0, 0.0)) && approx(l.p2, Vec2::new(20.0, 0.0)));
+        assert_eq!(doc.entities[0], ln(0.0, 0.0, 20.0, 0.0));
+        assert!(!hist.can_undo());
     }
 
     /// AC#10 — circle trimmed by crossing line yields an Arc.
@@ -292,5 +304,24 @@ mod tests {
     #[test]
     fn object_safe() {
         let _: Box<dyn Tool> = Box::new(TrimTool);
+    }
+
+    /// LCV-160 — a Circle target's second pass: a one-point cutter listed
+    /// before the two-point one still trims the arc the latter leaves.
+    #[test]
+    fn trim_circle_second_pass_uses_one_point_cutter() {
+        let mut doc = doc_with(vec![
+            Entity::Circle(Circle::new(Vec2::new(0.0, 0.0), 10.0)),
+            ln(0.0, 0.0, 0.0, 20.0),
+            ln(-20.0, 0.0, 20.0, 0.0),
+        ]);
+        let mut hist = History::default();
+        do_trim(&mut doc, &mut hist, 7.0, 7.1);
+        let Entity::Arc(a) = doc.entities[0] else {
+            panic!("expected Arc, got {:?}", doc.entities[0]);
+        };
+        assert!(approx(a.start_point(), Vec2::new(10.0, 0.0)), "{a:?}");
+        assert!(approx(a.end_point(), Vec2::new(0.0, 10.0)), "{a:?}");
+        assert_eq!(hist.len(), 1);
     }
 }
