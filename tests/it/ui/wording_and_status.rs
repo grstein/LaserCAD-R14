@@ -318,3 +318,44 @@ fn ac8_selection_fill_is_default_and_accent_is_foreground_only() {
         assert_ne!(state.weak_bg_fill, ACCENT, "{state:?}");
     }
 }
+
+// ── AC 9 — the failed autosave badge ────────────────────────────────────
+
+/// AC 9 — an autosave path that is a directory fails the write: the bar
+/// shows `× autosave failed` in `status.error`. Pointed at a writable file
+/// and dirtied again, the next write restores `○ autosaved`.
+#[test]
+fn ac9_a_failed_autosave_shows_until_the_next_write_succeeds() {
+    let dir = std::env::temp_dir().join("lcv167_autosave_failed");
+    let _ = std::fs::remove_dir_all(&dir);
+    let blocked = dir.join("autosave.json");
+    std::fs::create_dir_all(&blocked).expect("temp dir is writable");
+    let (ctx, mut app) = ctx_and_app();
+    app.autosave_path = Some(blocked);
+    let due = || std::time::Instant::now().checked_sub(std::time::Duration::from_secs(5));
+
+    app.dirty_since = due();
+    let shapes = text_shapes(&ctx, &mut app);
+    assert!(app.autosave_failed, "the write into a directory fails");
+    assert_eq!(
+        colours_of(&shapes, "\u{d7} autosave failed"),
+        vec![STATUS_ERROR]
+    );
+
+    app.autosave_path = Some(dir.join("ok.json"));
+    app.dirty_since = due();
+    let runs = settle(&ctx, &mut app);
+    let _ = locate(&runs, "\u{25cb} autosaved");
+    assert!(!runs.iter().any(|r| r.text.contains("autosave failed")));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// AC 9 — with no autosave path a due flush never shows the failed badge.
+#[test]
+fn ac9_a_pathless_flush_never_shows_failed() {
+    let (ctx, mut app) = ctx_and_app();
+    app.dirty_since = std::time::Instant::now().checked_sub(std::time::Duration::from_secs(5));
+    let runs = settle(&ctx, &mut app);
+    assert!(app.dirty_since.is_none(), "control: the flush ran");
+    let _ = locate(&runs, "\u{25cb} no autosave yet");
+}

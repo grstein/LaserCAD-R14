@@ -228,6 +228,29 @@ mod tests {
         );
     }
 
+    /// LCV-167 AC 9 — a failed write with an autosave path marks the badge
+    /// failed; the next successful write clears it.
+    #[test]
+    fn a_failed_write_with_a_path_is_flagged_until_a_success() {
+        let mut app = App {
+            autosave_path: Some(std::path::PathBuf::from("autosave.json")),
+            ..App::default()
+        };
+        assert!(!app.autosave_failed);
+        record_autosave_outcome(&mut app, false);
+        assert!(app.autosave_failed, "a real write failed");
+        record_autosave_outcome(&mut app, true);
+        assert!(!app.autosave_failed, "a success clears it");
+    }
+
+    /// LCV-167 AC 9 — a process that persists nothing is never "failed".
+    #[test]
+    fn a_pathless_flush_is_never_flagged_failed() {
+        let mut app = App::default();
+        record_autosave_outcome(&mut app, false);
+        assert!(!app.autosave_failed);
+    }
+
     /// LCV-116 AC 7 — a second successful write moves the timestamp forward,
     /// so the indicator reflects the latest write and not the first one.
     #[test]

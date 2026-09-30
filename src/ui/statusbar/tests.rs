@@ -194,14 +194,33 @@ fn a_click_and_its_function_key_agree() {
 
 // ── LCV-116 (b) — autosave indicator ──────────────────────────────────
 
-/// LCV-116 AC 8 — all four input combinations map to the three exact
-/// strings, and "pending" wins over "ever saved".
+/// LCV-116 AC 8 / LCV-167 AC 9 — every input combination maps to one of
+/// the four exact strings, with precedence failed > pending > autosaved >
+/// none.
 #[test]
 fn format_autosave_states() {
-    assert_eq!(format_autosave(true, false), "\u{25cf} autosave pending");
-    assert_eq!(format_autosave(true, true), "\u{25cf} autosave pending");
-    assert_eq!(format_autosave(false, true), "\u{25cb} autosaved");
-    assert_eq!(format_autosave(false, false), "\u{25cb} no autosave yet");
+    for pending in [false, true] {
+        for ever in [false, true] {
+            assert_eq!(
+                format_autosave(true, pending, ever),
+                "\u{d7} autosave failed",
+                "failed wins ({pending}, {ever})"
+            );
+        }
+    }
+    assert_eq!(
+        format_autosave(false, true, false),
+        "\u{25cf} autosave pending"
+    );
+    assert_eq!(
+        format_autosave(false, true, true),
+        "\u{25cf} autosave pending"
+    );
+    assert_eq!(format_autosave(false, false, true), "\u{25cb} autosaved");
+    assert_eq!(
+        format_autosave(false, false, false),
+        "\u{25cb} no autosave yet"
+    );
 }
 
 /// LCV-116 AC 8 — a default app has never autosaved and has nothing
@@ -210,7 +229,11 @@ fn format_autosave_states() {
 fn a_fresh_app_reads_no_autosave_yet() {
     let app = App::default();
     assert_eq!(
-        format_autosave(app.dirty_since.is_some(), app.last_autosave_at.is_some()),
+        format_autosave(
+            app.autosave_failed,
+            app.dirty_since.is_some(),
+            app.last_autosave_at.is_some()
+        ),
         "\u{25cb} no autosave yet"
     );
 }

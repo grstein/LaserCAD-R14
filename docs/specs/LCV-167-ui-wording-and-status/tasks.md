@@ -49,7 +49,7 @@
   green (files: src/agent/panel.rs, src/ui/command_line.rs)
 - [x] T17 [AC8] Test only (holds since LCV-184): after `apply_theme`, `selection.bg_fill` is
   #005c80 and no widget fill is `ACCENT` (files: tests/it/ui/wording_and_status.rs)
-- [ ] T18 [AC9] Test first: `format_autosave` four states and precedence (failed > pending >
+- [x] T18 [AC9] Test first: `format_autosave` four states and precedence (failed > pending >
   autosaved > none); `record_autosave_outcome(false)` sets `autosave_failed` only with a path,
   `true` clears it; painted flow: path = a directory → `× autosave failed` in #ff6b6b, then a
   writable path → `○ autosaved` (files: src/ui/statusbar/tests.rs, src/app/autosave.rs,
