@@ -1,6 +1,6 @@
 # LCV-183 — Icon tool rail in two columns
 
-- **Status**: Specified
+- **Status**: In Progress
 - **Depends on**: none
 - **Implementation**: -
 
