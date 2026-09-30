@@ -23,7 +23,7 @@ use std::path::PathBuf;
 
 use crate::app::App;
 use crate::document::{Document, History};
-use crate::io::svg::{ImportedSvg, export_svg, import_svg};
+use crate::io::svg::{export_svg, import_svg};
 use crate::io::{open_file_dialog, save_file_dialog};
 
 // ---------------------------------------------------------------------------
@@ -55,7 +55,8 @@ pub fn action_new(app: &mut App) {
 /// modifying any `App` field.  On I/O or parse failure `app.error_message` is
 /// set to a descriptive string and the existing document is left unchanged.
 /// On success the document, history, current-file path and recent-files
-/// list are all updated and the autosave file is cleared.
+/// list are all updated, the autosave file is cleared, and the command-line
+/// feedback says what the import ignored (LCV-171).
 pub fn action_open(app: &mut App) {
     let path = match open_file_dialog() {
         Some(p) => p,
@@ -69,28 +70,7 @@ pub fn action_open(app: &mut App) {
             return;
         }
     };
-
-    let document = match import_svg(&content).and_then(ImportedSvg::into_document) {
-        Ok(v) => v,
-        Err(e) => {
-            app.error_message = Some(format!("SVG import failed: {e}"));
-            return;
-        }
-    };
-
-    // All steps below are only reached on full success. The document adopts
-    // the *file's* bed (LCV-114 AC 10): re-saving it must not re-mirror every
-    // Y around a different height. The settings seed is deliberately left
-    // alone — opening a file does not re-home the operator's machine.
-    // Its layers, membership and current layer come with it (LCV-156 AC 9).
-    app.document = document;
-    app.history = History::default();
-    app.current_file = Some(path.clone());
-    app.mark_saved();
-    app.settings
-        .push_recent_file(path.to_string_lossy().into_owned());
-    app.persist_settings();
-    app.clear_autosave();
+    open_content(app, path, &content);
 }
 
 /// Save the document to the current file path as the mother SVG, one group
@@ -124,8 +104,8 @@ pub fn action_save(app: &mut App) {
 ///
 /// Called by the File → Open Recent menu to load a path that was already
 /// chosen by the operator. On success the document, history, current-file
-/// path and recent-files list are updated and the autosave
-/// file is cleared.
+/// path and recent-files list are updated, the autosave file is cleared, and
+/// the command-line feedback says what the import ignored (LCV-171).
 /// On I/O or parse failure `app.error_message` is set; the existing document
 /// is left unchanged.
 pub fn action_open_path(app: &mut App, path: PathBuf) {
@@ -136,8 +116,20 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
             return;
         }
     };
+    open_content(app, path, &content);
+}
 
-    let document = match import_svg(&content).and_then(ImportedSvg::into_document) {
+/// Import `content` read from `path` and, only on full success, install it
+/// and say what the import ignored (LCV-171 AC 9). On failure
+/// `app.error_message` is set and nothing else changes.
+fn open_content(app: &mut App, path: PathBuf, content: &str) {
+    let opened = import_svg(content).and_then(|imported| {
+        let feedback = ignored_feedback(&imported.report);
+        imported
+            .into_document()
+            .map(|document| (document, feedback))
+    });
+    let (document, feedback) = match opened {
         Ok(v) => v,
         Err(e) => {
             app.error_message = Some(format!("SVG import failed: {e}"));
@@ -145,8 +137,11 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
         }
     };
 
-    // Adopts the file's bed and layers, same as `action_open` (LCV-114 AC 10,
-    // LCV-156 AC 9).
+    // The document adopts the *file's* bed (LCV-114 AC 10): re-saving it
+    // must not re-mirror every Y around a different height. The settings
+    // seed is deliberately left alone — opening a file does not re-home the
+    // operator's machine. Its layers, membership and current layer come
+    // with it (LCV-156 AC 9).
     app.document = document;
     app.history = History::default();
     app.current_file = Some(path.clone());
@@ -155,6 +150,19 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
         .push_recent_file(path.to_string_lossy().into_owned());
     app.persist_settings();
     app.clear_autosave();
+    app.command_feedback = feedback;
+}
+
+/// `Ignored: <count> <label>, …` in report order; empty for an empty report.
+fn ignored_feedback(report: &[(String, usize)]) -> String {
+    if report.is_empty() {
+        return String::new();
+    }
+    let entries: Vec<String> = report
+        .iter()
+        .map(|(label, count)| format!("{count} {label}"))
+        .collect();
+    format!("Ignored: {}", entries.join(", "))
 }
 
 /// Present a save dialog and write the document to the chosen path as the

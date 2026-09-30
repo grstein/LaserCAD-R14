@@ -45,7 +45,7 @@
       sets `command_feedback` to `Ignored: 2 image, 1 transform`; on a clean export it clears a
       pre-set feedback; a failed open leaves the feedback unchanged (files:
       src/io/file_actions/tests.rs)
-- [ ] T14 [AC9] `open_content(app, path, &content)` shared by `action_open` and
+- [x] T14 [AC9] `open_content(app, path, &content)` shared by `action_open` and
       `action_open_path`; rewrite the `action_open` source scan to assert the `open_content(` call
       and `None => return,` (files: src/io/file_actions.rs, src/io/file_actions/tests.rs)
 - [ ] T15 [AC11] `.expected` gains `ignored <count> <label…>` lines (count first, label to end of

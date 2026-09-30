@@ -187,16 +187,13 @@ fn both_open_paths_adopt_the_file_bed_and_leave_the_seed_alone() {
 fn open_via_the_dialog_adopts_the_file_bed_and_leaves_the_seed_alone() {
     let body = action_open_body();
     assert!(
-        body.contains("import_svg(&content)"),
-        "positive control: action_open must import the file"
+        body.contains("None => return,"),
+        "positive control: a cancelled dialog changes nothing"
     );
     assert!(
-        body.contains(".and_then(ImportedSvg::into_document)"),
-        "action_open must adopt the file's bed and layers (AC 10, LCV-156 AC 9)"
-    );
-    assert!(
-        body.contains("app.document = document;"),
-        "positive control: the opened document is installed"
+        body.contains("open_content(app, path, &content);"),
+        "action_open must open through open_content, whose behaviour \
+         (bed, layers, report) is tested through action_open_path"
     );
     assert!(
         !body.contains("default_bed_mm"),
@@ -205,8 +202,8 @@ fn open_via_the_dialog_adopts_the_file_bed_and_leaves_the_seed_alone() {
 }
 
 /// LCV-156 AC 9 — `action_open_path` adopts the file's layers and current
-/// layer. The dialog half (`action_open`) shares the same
-/// `ImportedSvg::into_document` call, scanned above.
+/// layer. The dialog half (`action_open`) shares `open_content`, scanned
+/// above.
 #[test]
 fn open_path_adopts_the_file_layers() {
     let dir = tempdir("open_path_layers");
