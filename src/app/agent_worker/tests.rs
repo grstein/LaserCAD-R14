@@ -1135,7 +1135,7 @@ fn the_upload_check_names_endpoint_and_model_never_the_key() {
     let mut ask = |action: AgentAction| {
         asked.push(action.clone());
         Ok(match action {
-            AgentAction::CaptureCanvas => AgentOutcome::Observed {
+            AgentAction::CaptureCanvas(_) => AgentOutcome::Observed {
                 text: "Canvas".into(),
                 png: vec![1, 2, 3],
             },
@@ -1147,7 +1147,7 @@ fn the_upload_check_names_endpoint_and_model_never_the_key() {
     assert_eq!(
         asked,
         vec![
-            AgentAction::CaptureCanvas,
+            AgentAction::CaptureCanvas(crate::agent::CaptureFrame::View),
             AgentAction::AuthorizeUpload {
                 endpoint: "https://example.invalid/v1".into(),
                 model: "vision/model".into(),
@@ -1200,7 +1200,7 @@ fn scripted(
     };
     let mut ask = |action: AgentAction| {
         Ok(match action {
-            AgentAction::CaptureCanvas => AgentOutcome::Observed {
+            AgentAction::CaptureCanvas(_) => AgentOutcome::Observed {
                 text: "Canvas".into(),
                 png: vec![1, 2, 3],
             },
@@ -1405,7 +1405,7 @@ fn a_cut_batch_is_dropped_and_an_unsent_image_is_elided() {
     let mut ask = |action: AgentAction| {
         asks += 1;
         match action {
-            AgentAction::CaptureCanvas => Ok(AgentOutcome::Observed {
+            AgentAction::CaptureCanvas(_) => Ok(AgentOutcome::Observed {
                 text: "Canvas".into(),
                 png: vec![9],
             }),

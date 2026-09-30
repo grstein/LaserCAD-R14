@@ -15,10 +15,10 @@ use harness::frame;
 use lasercad::agent::{
     AgentAction, AgentEvent, AgentOutcome, CaptureFrame, parse_tool_call, tool_definitions,
 };
-use serde_json::{Value, json};
 use lasercad::app::{AGENT_FENCE_REFUSAL, App, arm_turn};
 use lasercad::document::{CreateCircle, CreateLine};
 use lasercad::geometry::{Circle, Line, Vec2};
+use serde_json::{Value, json};
 use std::sync::mpsc::{Receiver, Sender, channel};
 
 const DISABLED: &str = "canvas capture is disabled in Agent settings";
@@ -575,7 +575,8 @@ fn a_bad_frame_or_corner_is_refused_naming_the_field() {
         assert_eq!(
             parse(json!({"frame": name, "y1": 5})),
             Err("tool `capture_canvas` argument `y1` is invalid: \
-                 only used with frame \"region\"".to_owned()),
+                 only used with frame \"region\""
+                .to_owned()),
             "{name}"
         );
     }
@@ -598,7 +599,11 @@ fn opt_ins_off_leave_every_frame_unadvertised_and_refused() {
     };
     assert!(named(true), "positive control: advertised with vision");
     assert!(!named(false));
-    for frame in [CaptureFrame::View, CaptureFrame::Drawing, region(0.0, 0.0, 9.0, 9.0)] {
+    for frame in [
+        CaptureFrame::View,
+        CaptureFrame::Drawing,
+        region(0.0, 0.0, 9.0, 9.0),
+    ] {
         let (ctx, mut app) = ctx_and_app();
         draw_something(&mut app);
         idle(&ctx, &mut app);

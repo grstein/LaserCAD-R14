@@ -29,12 +29,13 @@
 //! [`Document`]: crate::document::Document
 //! [`History`]: crate::document::History
 
-use serde_json::{Value, json};
+use serde_json::Value;
 use thiserror::Error;
 
 use crate::agent::bridge::AgentAction;
 use crate::agent::drawing;
 
+mod capture;
 mod schema;
 use schema::base_definitions;
 mod transform;
@@ -104,16 +105,9 @@ pub fn tool_definitions(vision: bool) -> Value {
     let mut tools = base_definitions();
     if let (true, Some(list)) = (vision, tools.as_array_mut()) {
         let at = list.len().saturating_sub(1);
-        list.insert(at, capture_canvas_definition());
+        list.insert(at, capture::definition());
     }
     tools
-}
-
-/// `capture_canvas`: no arguments, the empty-properties form.
-fn capture_canvas_definition() -> Value {
-    json!({"type":"function","function":{"name":"capture_canvas",
-      "description":"Look at the drawing: returns a grayscale picture of the bed outline (grey) and every entity (black) as framed in the operator's viewport, with its mm mapping. No grid, selection or UI. Use query_entities for exact numbers.",
-      "parameters":{"type":"object","properties":{},"required":[]}}})
 }
 
 fn get_f64(args: &Value, tool: &'static str, field: &'static str) -> Result<f64, ToolCallError> {
@@ -252,9 +246,9 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
         // there is no shape to check and nothing to refuse (AC 14, AC 15).
         "query_entities" => Ok(AgentAction::QueryEntities),
         "query_selection" => Ok(AgentAction::QuerySelection),
-        // Argument-free like the queries; permission is checked live at the
-        // apply site, never here (LCV-145 AC 2).
-        "capture_canvas" => Ok(AgentAction::CaptureCanvas),
+        // Shape only (LCV-187); permission and the frame's area are checked
+        // live at the apply site, never here (LCV-145 AC 2).
+        "capture_canvas" => Ok(AgentAction::CaptureCanvas(capture::parse(args)?)),
         "create_drawing" => Ok(AgentAction::CreateDrawing {
             items: drawing::parse(args)?,
             layer: drawing::layer_arg(args).map_err(|reason| ToolCallError::DrawingRoot {

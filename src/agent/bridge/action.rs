@@ -138,9 +138,9 @@ pub enum AgentAction {
     QueryEntities,
     /// Read back the current selection. Commits nothing.
     QuerySelection,
-    /// Render the drawing as framed in the viewport into a grayscale PNG
-    /// (LCV-145, ADR 0011). Commits nothing; one step like any action.
-    CaptureCanvas,
+    /// Render the drawing, framed as asked, into a grayscale PNG (LCV-145,
+    /// LCV-187, ADR 0011). Commits nothing; one step like any action.
+    CaptureCanvas(CaptureFrame),
     /// Ask whether a request carrying canvas images may go to `endpoint` /
     /// `model` (ADR 0011 item 10). **Not a step**: it bypasses the fence and
     /// the step counter. Never carries the API key.
@@ -166,6 +166,28 @@ pub enum AgentAction {
         tool: String,
         /// Names the tool and the field; never echoes the raw arguments.
         reason: String,
+    },
+}
+
+/// What a [`AgentAction::CaptureCanvas`] frames (LCV-187). Shape-checked
+/// at parse time; finiteness and area are checked at the apply site.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CaptureFrame {
+    /// The operator's viewport, sized as it is (LCV-145).
+    View,
+    /// Every entity's extents plus a 5 % margin, longest edge 1024 px.
+    Drawing,
+    /// The world rectangle between two corners in mm, in any order,
+    /// longest edge 1024 px.
+    Region {
+        /// First corner X, mm.
+        x0: f64,
+        /// First corner Y, mm.
+        y0: f64,
+        /// Opposite corner X, mm.
+        x1: f64,
+        /// Opposite corner Y, mm.
+        y1: f64,
     },
 }
 

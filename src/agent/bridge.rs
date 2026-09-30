@@ -28,7 +28,7 @@ use crate::agent::wire::ChatMessage;
 use std::sync::mpsc::Sender;
 
 mod action;
-pub use action::{AgentAction, SetOp};
+pub use action::{AgentAction, CaptureFrame, SetOp};
 
 /// What the UI thread answers for one [`AgentAction`].
 ///
@@ -315,6 +315,6 @@ mod tests {
             endpoint: "https://e".into(),
             model: "m".into(),
         };
-        assert_ne!(auth, AgentAction::CaptureCanvas);
+        assert_ne!(auth, AgentAction::CaptureCanvas(CaptureFrame::View));
     }
 }

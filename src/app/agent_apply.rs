@@ -63,7 +63,7 @@ enum Planned {
 pub fn apply(app: &mut App, action: &AgentAction) -> AgentOutcome {
     // LCV-145: a capture reads the camera, which `plan` cannot see.
     let planned = match action {
-        AgentAction::CaptureCanvas => Planned::Answer(agent_capture::capture(app)),
+        AgentAction::CaptureCanvas(_) => Planned::Answer(agent_capture::capture(app)),
         _ => plan(action, &app.document),
     };
     let outcome = match planned {
@@ -180,7 +180,7 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
         // the live app, and `agent_poll` answers an upload check before the
         // fence. Reaching here is a routing slip, so the answer is the safe
         // one — nothing is rendered and nothing is authorised (LCV-145).
-        AgentAction::CaptureCanvas | AgentAction::AuthorizeUpload { .. } => {
+        AgentAction::CaptureCanvas(_) | AgentAction::AuthorizeUpload { .. } => {
             Planned::Answer(AgentOutcome::Refused(CAPTURE_DISABLED.to_owned()))
         }
         // §D15: answered from the reason alone; the document is not read.

@@ -103,8 +103,9 @@
         assert_eq!(params["required"], json!(["version","entities"]));
     }
     /// LCV-145 AC 2 — `capture_canvas` is advertised only when the turn-start
-    /// vision flag is on, with the empty-parameters form, right before
-    /// `create_drawing` so that stays last; the rest is unchanged.
+    /// vision flag is on, right before `create_drawing` so that stays last;
+    /// the rest is unchanged. LCV-187 — its parameters are the optional
+    /// `frame` enum and four corner numbers, nothing required.
     #[test]
     fn capture_canvas_is_advertised_only_with_vision() {
         let names = |d: &Value| -> Vec<String> { d.as_array().unwrap().iter()
@@ -116,18 +117,14 @@
         expected.insert(11, "capture_canvas".to_owned());
         assert_eq!(names(&on), expected);
         let params = &on[11]["function"]["parameters"];
-        assert_eq!(*params, json!({"type":"object","properties":{},"required":[]}));
+        let mm = json!({"type":"number"});
+        assert_eq!(*params, json!({"type":"object","properties":{
+            "frame":{"type":"string","enum":["view","drawing","region"]},
+            "x0":mm,"y0":mm,"x1":mm,"y1":mm},"required":[]}));
         assert_eq!(on[12]["function"]["name"], "create_drawing");
         for (i, tool) in off.as_array().unwrap().iter().enumerate() {
             let j = if i < 11 { i } else { i + 1 };
             assert_eq!(on[j], *tool, "tool {i} unchanged");
-        }
-    }
-    /// LCV-145 AC 3 — `capture_canvas` takes no arguments: any object parses.
-    #[test]
-    fn capture_canvas_parses_with_any_arguments() {
-        for args in [json!({}), json!({"frame":"bed"}), Value::Null] {
-            assert_eq!(ok("capture_canvas", args.clone()), AgentAction::CaptureCanvas, "{args}");
         }
     }
     /// LCV-144 — the parse arm delegates to `drawing::parse`.
