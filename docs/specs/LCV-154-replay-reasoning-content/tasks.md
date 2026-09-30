@@ -26,7 +26,7 @@
   (files: src/agent/memory.rs)
 - [x] T7 [AC6] `message_bytes` adds `reasoning_content` bytes; `estimate_tokens` doc names it
   (files: src/agent/memory.rs)
-- [ ] T8 Mutation: `MUTANTS_TARGET_DIR=/tmp/mutants-agent scripts/mutants.sh <base>`; a test
+- [x] T8 Mutation: `MUTANTS_TARGET_DIR=/tmp/mutants-agent scripts/mutants.sh <base>`; a test
   for every missed mutant (files: the test file of the survivor)
 - [ ] T9 Docs: LCV-153 AC 4 "Amended by LCV-154" note; ADR 0007 §D16 amendment (next free
   number) (files: docs/specs/LCV-153-multi-turn-agent-memory/spec.md,
