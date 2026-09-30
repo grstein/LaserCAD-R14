@@ -1,6 +1,6 @@
 # LCV-184 — Tasks
 
-- [ ] T1 [AC1] [AC2] [AC3] Test first: `theme.rs` unit tests — `TOKENS` names/values match the
+- [x] T1 [AC1] [AC2] [AC3] Test first: `theme.rs` unit tests — `TOKENS` names/values match the
   DESIGN.md §3 rows (`include_str!`); after `apply_theme`, `ctx.style().visuals` has no window
   or popup shadow, `window_stroke` 1 pt `BORDER`, widget rounding 3, window/menu rounding 4,
   inactive/hovered/active fills and `selection.bg_fill` from tokens, `selection.stroke` 1 pt
