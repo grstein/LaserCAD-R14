@@ -8,7 +8,7 @@ use crate::app::App;
 use crate::geometry::SnapKind;
 
 /// Every snap kind with its menu label, in menu order.
-pub(crate) const SNAP_KIND_LABELS: [(SnapKind, &str); 8] = [
+const SNAP_KIND_LABELS: [(SnapKind, &str); 8] = [
     (SnapKind::Endpoint, "Endpoint"),
     (SnapKind::Midpoint, "Midpoint"),
     (SnapKind::Center, "Center"),

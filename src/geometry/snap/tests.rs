@@ -334,6 +334,22 @@ fn nearest_on_circle_and_arc_picks_closest_entity() {
     assert_eq!(r.primary_idx, 0);
 }
 
+/// LCV-161 AC5 — outside an arc's sweep, Nearest takes the arc's nearer end.
+#[test]
+fn nearest_on_arc_outside_sweep_is_nearer_endpoint() {
+    let entities = [SnapEntity::Arc(Arc::new(
+        Vec2::default(),
+        10.0,
+        0.0,
+        FRAC_PI_2,
+        true,
+    ))];
+    let kinds = only(SnapKind::Nearest);
+    let r = snap_query(Vec2::new(10.3, -0.4), 1.0, &entities, None, kinds).expect("nearest");
+    assert_eq!(r.kind, SnapKind::Nearest);
+    assert!(r.point.approx_eq(Vec2::new(10.0, 0.0), 1e-9));
+}
+
 /// LCV-161 AC5 — Nearest never shadows a real candidate within the aperture.
 #[test]
 fn nearest_does_not_shadow_endpoint_in_range() {

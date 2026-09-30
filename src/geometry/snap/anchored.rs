@@ -136,7 +136,16 @@ pub(super) fn collect_nearest(
         let point = match e {
             SnapEntity::Line(l) => Some(l.closest_point(world)),
             SnapEntity::Circle(c) => radial_point(c, world, None),
-            SnapEntity::Arc(a) => radial_point(&Circle::new(a.center, a.r), world, Some(a)),
+            SnapEntity::Arc(a) => radial_point(&Circle::new(a.center, a.r), world, Some(a))
+                .or_else(|| {
+                    // Outside the sweep the arc's closest point is its nearer end.
+                    let (s, e) = (a.start_point(), a.end_point());
+                    Some(if (s - world).length() <= (e - world).length() {
+                        s
+                    } else {
+                        e
+                    })
+                }),
         };
         let Some(point) = point else { continue };
         let d = (point - world).length();

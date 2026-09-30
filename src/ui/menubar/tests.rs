@@ -383,7 +383,10 @@ fn ortho_checkbox_flips_the_same_flag_as_f8() {
     let ortho = body
         .find("ui.checkbox(&mut app.ortho_enabled, \"Ortho\\tF8\");")
         .expect("the Ortho checkbox must be bound to app.ortho_enabled");
-    assert!(snap < ortho, "Ortho sits immediately below Snap");
+    assert!(
+        snap < ortho,
+        "Ortho sits below Snap (the Object snap submenu is between them)"
+    );
     let after_snap = snap + "ui.checkbox(&mut app.snap_enabled, \"Snap\\tF3\");".len();
     assert!(
         !body[after_snap..ortho].contains("ui.checkbox("),
