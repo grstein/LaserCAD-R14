@@ -25,7 +25,7 @@
   tangent point sets `active_snap.kind == Tangent`, and near a segment's foot sets
   `Perpendicular`; with that kind off in `settings.object_snaps` it does not; F3 off gives no
   snap at all (files: tests/it/app/object_snaps.rs, tests/it/app/mod.rs)
-- [ ] T8 [AC2, AC3, AC9] `resolve_snap` takes `anchor` and `kinds`; `handle_hover` passes
+- [x] T8 [AC2, AC3, AC9] `resolve_snap` takes `anchor` and `kinds`; `handle_hover` passes
   `tool_manager.anchor()` and `settings.object_snaps`; update the in-file `resolve_snap`
   tests (files: src/app/snap.rs, src/app/viewport.rs)
 - [ ] T9 [P] [AC7] Test: painting each new kind with `draw_snap_marker` in a test

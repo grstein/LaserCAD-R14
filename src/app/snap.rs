@@ -13,7 +13,7 @@
 //! `lasercad::app::…`.
 
 use crate::document::Entity;
-use crate::geometry::{SnapEntity, SnapResult, snap};
+use crate::geometry::{SnapEntity, SnapKinds, SnapResult, Vec2, snap_query};
 use crate::render::Camera;
 
 /// Pixel radius within which a snap candidate beats the raw cursor position.
@@ -25,7 +25,8 @@ const SNAP_TOLERANCE_PX: f64 = 12.0;
 ///   coordinates by subtracting `rect.min`, then unprojects via
 ///   [`Camera::screen_to_world`].
 /// - Converts `SNAP_TOLERANCE_PX` to mm using `camera.mm_per_px`.
-/// - Delegates to the geometry snap engine.
+/// - Delegates to the geometry snap engine with the active tool's `anchor`
+///   (Perpendicular / Tangent) and the enabled `kinds` (LCV-161).
 ///
 /// Returns `None` when `entities` is empty or no candidate lies within the
 /// tolerance.
@@ -34,12 +35,14 @@ pub fn resolve_snap(
     rect: egui::Rect,
     camera: &Camera,
     entities: &[Entity],
+    anchor: Option<Vec2>,
+    kinds: SnapKinds,
 ) -> Option<SnapResult> {
     let local = cursor_screen - rect.min.to_vec2();
     let world_pos = camera.screen_to_world(local);
     let tolerance_mm = SNAP_TOLERANCE_PX * camera.mm_per_px;
     let snappables: Vec<SnapEntity> = entities.iter().map(to_snap_entity).collect();
-    snap(world_pos, tolerance_mm, &snappables)
+    snap_query(world_pos, tolerance_mm, &snappables, anchor, kinds)
 }
 
 /// Clear `active_snap` when snap is disabled.
@@ -65,7 +68,7 @@ fn to_snap_entity(e: &Entity) -> SnapEntity {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::{Circle, EPSILON, Line, Vec2};
+    use crate::geometry::{Circle, EPSILON, Line};
     use crate::render::Camera;
 
     fn cam_1px() -> Camera {
@@ -83,7 +86,14 @@ mod tests {
     /// Empty entity slice → None.
     #[test]
     fn resolve_snap_empty_returns_none() {
-        let result = resolve_snap(egui::Pos2::new(400.0, 300.0), full_rect(), &cam_1px(), &[]);
+        let result = resolve_snap(
+            egui::Pos2::new(400.0, 300.0),
+            full_rect(),
+            &cam_1px(),
+            &[],
+            None,
+            SnapKinds::default(),
+        );
         assert!(result.is_none());
     }
 
@@ -99,6 +109,8 @@ mod tests {
             full_rect(),
             &cam_1px(),
             &[line],
+            None,
+            SnapKinds::default(),
         );
         let snap = result.expect("should find endpoint at origin");
         assert!(
@@ -119,6 +131,8 @@ mod tests {
             full_rect(),
             &cam_1px(),
             &[circle],
+            None,
+            SnapKinds::default(),
         );
         assert!(result.is_none());
     }
@@ -152,7 +166,14 @@ mod tests {
             egui::Rect::from_min_size(egui::Pos2::new(50.0, 30.0), egui::Vec2::new(800.0, 600.0));
         let line = Entity::Line(Line::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0)));
         // World (0,0) maps to viewport-local (400, 300), absolute screen (450, 330).
-        let result = resolve_snap(egui::Pos2::new(450.0, 330.0), rect, &cam_1px(), &[line]);
+        let result = resolve_snap(
+            egui::Pos2::new(450.0, 330.0),
+            rect,
+            &cam_1px(),
+            &[line],
+            None,
+            SnapKinds::default(),
+        );
         let snap = result.expect("should find endpoint with rect offset");
         assert!(
             snap.point.approx_eq(Vec2::new(0.0, 0.0), EPSILON),

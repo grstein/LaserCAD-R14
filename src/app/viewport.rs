@@ -137,7 +137,9 @@ fn handle_hover(ctx: &egui::Context, app: &mut App, rect: egui::Rect, hover_pos:
     // `resolve_snap` takes the global `hover_pos` plus `rect` and does this
     // same subtraction internally.
     if app.snap_enabled {
-        app.active_snap = resolve_snap(hover_pos, rect, &app.camera, &app.document.entities);
+        let (anchor, kinds) = (app.tool_manager.anchor(), app.settings.object_snaps);
+        let entities = &app.document.entities;
+        app.active_snap = resolve_snap(hover_pos, rect, &app.camera, entities, anchor, kinds);
     }
     let world_pos = app
         .active_snap
