@@ -16,21 +16,94 @@ pub(crate) const ICON_SIZE: f32 = 20.0;
 pub(crate) const ICON_STROKE: f32 = 1.5;
 
 /// Draw-group icons (Select … Text).
-pub(crate) mod draw {
-    /// Stub.
-    pub(crate) fn select(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
-    /// Stub.
-    pub(crate) fn line(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
-    /// Stub.
-    pub(crate) fn polyline(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
-    /// Stub.
-    pub(crate) fn rect(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
-    /// Stub.
-    pub(crate) fn circle(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
-    /// Stub.
-    pub(crate) fn arc(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
-    /// Stub.
-    pub(crate) fn text(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
+pub(crate) mod draw;
+
+/// A point on the 20-unit authoring grid, `[x, y]` with `y` down.
+pub(crate) type P = [f32; 2];
+
+/// Side of a vertex marker, in grid units (2.5 pt at the 20 pt size).
+const MARKER: f32 = 2.5;
+
+/// Dash and gap lengths of [`dashed`], in grid units.
+const DASH: [f32; 2] = [2.5, 1.5];
+
+/// Length and half-angle (radians) of an [`arrow_head`]'s two barbs.
+const ARROW: (f32, f32) = (3.0, 0.55);
+
+/// Map grid point `p` into `rect`.
+pub(crate) fn at(rect: egui::Rect, p: P) -> egui::Pos2 {
+    rect.min + egui::vec2(p[0], p[1]) * (rect.width() / ICON_SIZE)
+}
+
+/// An open (or `closed`) stroked path through `pts`.
+pub(crate) fn path(
+    painter: &egui::Painter,
+    rect: egui::Rect,
+    pts: &[P],
+    closed: bool,
+    stroke: egui::Stroke,
+) {
+    let points: Vec<egui::Pos2> = pts.iter().map(|p| at(rect, *p)).collect();
+    if closed {
+        painter.add(egui::Shape::closed_line(points, stroke));
+    } else {
+        painter.add(egui::Shape::line(points, stroke));
+    }
+}
+
+/// A filled square vertex marker centred on `p`, in the stroke's colour.
+pub(crate) fn marker(painter: &egui::Painter, rect: egui::Rect, p: P, stroke: egui::Stroke) {
+    let side = MARKER * rect.width() / ICON_SIZE;
+    let square = egui::Rect::from_center_size(at(rect, p), egui::Vec2::splat(side));
+    painter.rect_filled(square, 0.0, stroke.color);
+}
+
+/// Two barbs at `tip`, pointing away from `from`.
+pub(crate) fn arrow_head(
+    painter: &egui::Painter,
+    rect: egui::Rect,
+    tip: P,
+    from: P,
+    stroke: egui::Stroke,
+) {
+    let back = egui::vec2(from[0] - tip[0], from[1] - tip[1]).normalized();
+    let (len, half) = ARROW;
+    let barb = |angle: f32| {
+        let v = egui::Vec2::angled(back.angle() + angle) * len;
+        [tip[0] + v.x, tip[1] + v.y]
+    };
+    path(
+        painter,
+        rect,
+        &[barb(half), tip, barb(-half)],
+        false,
+        stroke,
+    );
+}
+
+/// A dashed line from `a` to `b`, starting with a dash.
+pub(crate) fn dashed(painter: &egui::Painter, rect: egui::Rect, a: P, b: P, stroke: egui::Stroke) {
+    let d = egui::vec2(b[0] - a[0], b[1] - a[1]);
+    let total = d.length();
+    let dir = d / total;
+    let mut t = 0.0;
+    while t < total {
+        let end = (t + DASH[0]).min(total);
+        let p = |s: f32| at(rect, [a[0] + dir.x * s, a[1] + dir.y * s]);
+        painter.line_segment([p(t), p(end)], stroke);
+        t = end + DASH[1];
+    }
+}
+
+/// Points of a circular arc about `c` with radius `r`, from angle `a0` to
+/// `a1` (radians, screen orientation), in sixteen steps.
+pub(crate) fn arc_points(c: P, r: f32, a0: f32, a1: f32) -> Vec<P> {
+    (0..=16)
+        .map(|i| {
+            let a = a0 + (a1 - a0) * i as f32 / 16.0;
+            [c[0] + r * a.cos(), c[1] + r * a.sin()]
+        })
+        .collect()
 }
 
 /// Modify-group icons (Move … Dist).
