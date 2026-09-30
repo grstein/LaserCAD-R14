@@ -2,7 +2,7 @@
 
 ADR 0003 amendment (5) (commit `868bb01`) admits `ToolKind::Mirror`; no ADR task here.
 
-- [ ] T1 [AC8] Test: mirror point/line/circle/arc, mirror∘mirror = id, arc endpoints reflect, export `sweep` inverted and `large` kept (files: tests/it/geometry/transform_props.rs, tests/it/io_svg/mirror_arc.rs, tests/it/io_svg/mod.rs)
+- [x] T1 [AC8] Test: mirror point/line/circle/arc, mirror∘mirror = id, arc endpoints reflect, export `sweep` inverted and `large` kept (files: tests/it/geometry/transform_props.rs, tests/it/io_svg/mirror_arc.rs, tests/it/io_svg/mod.rs)
 - [ ] T2 [AC8] Implement `Transform::Mirror` (files: src/geometry/transform.rs)
 - [ ] T3 [AC6] [AC7] [AC9] Test then implement `TransformEntities` `keep_source` (append on source layers, undo/redo) (files: src/document/commands/transform.rs)
 - [ ] T4 [P] [AC1] Test then add `ToolKind::Mirror`, aliases `mirror`/`mi`, `make` arm (files: src/cmdline/mod.rs, src/cmdline/parse.rs, src/tools/mod.rs)
