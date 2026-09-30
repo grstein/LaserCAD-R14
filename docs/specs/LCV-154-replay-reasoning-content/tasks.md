@@ -28,7 +28,7 @@
   (files: src/agent/memory.rs)
 - [x] T8 Mutation: `MUTANTS_TARGET_DIR=/tmp/mutants-agent scripts/mutants.sh <base>`; a test
   for every missed mutant (files: the test file of the survivor)
-- [ ] T9 Docs: LCV-153 AC 4 "Amended by LCV-154" note; ADR 0007 §D16 amendment (next free
+- [x] T9 Docs: LCV-153 AC 4 "Amended by LCV-154" note; ADR 0007 §D16 amendment (next free
   number) (files: docs/specs/LCV-153-multi-turn-agent-memory/spec.md,
   docs/adr/0007-agent-turn-mutates-the-live-document.md)
 - [ ] T10 CHANGELOG line: thinking models keep their reasoning across tool calls and turns

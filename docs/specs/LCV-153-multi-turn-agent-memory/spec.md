@@ -26,6 +26,8 @@ append-only list so provider prefix caches hit (DeepSeek bills cached input ~50x
    each request's messages as a byte-identical prefix of the next turn's first request.
 4. THE SYSTEM SHALL never store `reasoning_content` or an image part; an image appears only
    as LCV-145's elision text.
+   *Amended by LCV-154:* a tool-call assistant turn now stores its `reasoning_content`
+   and memory replays it verbatim; plain-text assistant turns and image parts are unchanged.
 5. IF a turn fails (transport, step budget, `FenceStopped`, no content) THEN THE SYSTEM SHALL
    append its user message, every whole tool-call batch that completed, and an assistant
    text `Turn stopped: <error>.`; a batch missing any result is dropped whole.

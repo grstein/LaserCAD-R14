@@ -82,6 +82,10 @@
   before the turn ends; a batch that runs tells the model the steps left. The
   whole-batch preflight, the step definition, the range and the clamp stand.
   Nothing else changes.
+- **Amended (11)**: 2026-09-30 — LCV-154 (replay `reasoning_content`).
+  §D16's memory now keeps a tool-call assistant turn's `reasoning_content`
+  and replays it verbatim with its batch; plain-text assistant turns and
+  image parts are stored as before. Nothing else changes.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
@@ -906,6 +910,13 @@ a missing one lets the model reuse shifted indices.
 is built; recording happens in `end_turn` after `finish_turn` (§D11). Policy
 (record, whole batches, estimate, trim) is in kernel-pure `agent/memory.rs`;
 `app/agent_memory.rs` is glue.
+
+> **Amended (11), 2026-09-30 (LCV-154).** A thinking model's
+> `reasoning_content` rides verbatim on the tool-call assistant message it
+> came with — within the turn and, through the whole batch, in every later
+> turn memory replays — and counts toward the token estimate. It never rides
+> on plain text: a final reply, live or recorded, is `ChatMessage::assistant`
+> without it. The trim never edits it; dropping a turn drops it.
 
 ## Consequences
 
