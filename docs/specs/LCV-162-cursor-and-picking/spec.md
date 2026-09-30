@@ -1,8 +1,8 @@
 # LCV-162 — Crosshair cursor and screen-space picking
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: 86b52b0..5804bdb
 
 ## Problem
 
