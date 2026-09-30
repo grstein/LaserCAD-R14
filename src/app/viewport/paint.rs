@@ -5,12 +5,16 @@
 
 use super::App;
 use crate::geometry::Vec2;
+use crate::render::palette;
+use crate::tools::Mark;
 
 /// Paint the canvas background and the whole render pipeline into `rect`.
 ///
 /// Paint order (LCV-137 AC 1): canvas background, bed background fill, the
 /// grid (when enabled), the bed border and exterior overlay, entities,
-/// selection, preview, snap marker, then the cursor (LCV-162): the pickbox
+/// selection halo, the tool's feedback marks (LCV-163 AC 7, ADR 0013: every
+/// `Hover` first, then `Preview`/`Dashed`/`Danger` in the tool's order), snap
+/// marker, then the cursor (LCV-162): the pickbox
 /// while the tool waits for an entity pick, and the crosshair through the
 /// resolved `cursor` point as the very last shapes. `cursor` is `None` off
 /// the canvas, which paints neither. The bed's fill is painted BEFORE the
@@ -52,10 +56,9 @@ pub(super) fn paint(ui: &egui::Ui, rect: egui::Rect, app: &mut App, cursor: Opti
         &app.document.selection,
     );
 
-    // Update preview from tool (LCV-040 AC#9).
+    // The preview still drives `viewport_is_live` (LCV-040 AC#9).
     app.preview_entities = app.tool_manager.preview();
-
-    crate::render::draw_preview(&painter, rect, &app.camera, &app.preview_entities);
+    paint_marks(&painter, rect, app, cursor);
 
     if let Some(snap) = &app.active_snap {
         crate::render::draw_snap_marker(&painter, rect, &app.camera, snap);
@@ -67,5 +70,28 @@ pub(super) fn paint(ui: &egui::Ui, rect: egui::Rect, app: &mut App, cursor: Opti
             crate::render::draw_pickbox(&painter, rect, &app.camera, cursor, aperture);
         }
         crate::render::draw_crosshair(&painter, rect, &app.camera, cursor);
+    }
+}
+
+/// Map the active tool's [`Mark`]s to render calls (ADR 0013 §2): every
+/// `Hover` right after the selection halo, then the other marks in the order
+/// the tool returned them.
+fn paint_marks(painter: &egui::Painter, rect: egui::Rect, app: &App, cursor: Option<Vec2>) {
+    let (cam, doc) = (&app.camera, &app.document);
+    let marks = app.tool_manager.feedback(doc, cursor);
+    for mark in &marks {
+        if let Mark::Hover(i) = mark {
+            crate::render::draw_hover(painter, rect, cam, doc, *i);
+        }
+    }
+    for mark in &marks {
+        match mark {
+            Mark::Hover(_) => {}
+            Mark::Preview(e) => crate::render::draw_preview(painter, rect, cam, &[*e]),
+            Mark::Dashed(e) => {
+                crate::render::draw_dashed(painter, rect, cam, e, palette::preview())
+            }
+            Mark::Danger(e) => crate::render::draw_dashed(painter, rect, cam, e, palette::DANGER),
+        }
     }
 }

@@ -34,7 +34,7 @@
   `handle_key(Escape)`, passes `None` while muted, clears on a different `Move`; unit tests. If
   the file passes 270 LOC, move the gate into `tools/feedback.rs` as `FeedbackGate` (files:
   src/tools/manager.rs, src/tools/feedback.rs)
-- [ ] T9 [AC7] Paint: replace `draw_preview` with the mark dispatch — `Hover` after the halo,
+- [x] T9 [AC7] Paint: replace `draw_preview` with the mark dispatch — `Hover` after the halo,
   the rest in tool order (`Preview` → `draw_preview`-style solid, `Dashed` → `draw_dashed` in
   `PREVIEW`, `Danger` → `draw_dashed` in `DANGER`), then snap, pickbox, crosshair; update the
   doc comment and the LCV-137 AC 1 scan/order tests (files: src/app/viewport/paint.rs,
