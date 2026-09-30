@@ -610,3 +610,72 @@ fn a_set_that_cannot_apply_to_every_entity_changes_nothing() {
     }
     assert_eq!(app.document.entities, untouched);
 }
+
+/// LCV-186 AC8 — every edit tool called with `index` gives today's result
+/// text and document, and commits one command.
+#[test]
+fn a_single_index_call_behaves_as_before() {
+    let cases: [(&str, serde_json::Value, Vec<Entity>, &str); 7] = [
+        (
+            "delete_entity",
+            json!({"index":1}),
+            expected(DeleteEntities::new(vec![1])),
+            "Deleted entity 1 (circle, center (20.000, 20.000) mm, r = 5.000 mm). Indices 2..3 are now 1..2. The drawing now has 3 entities.",
+        ),
+        (
+            "move_entity",
+            json!({"index":1,"dx":1,"dy":2}),
+            expected(MoveEntities::new(vec![1], Vec2::new(1.0, 2.0))),
+            "Moved entity 1 (circle, center (20.000, 20.000) mm, r = 5.000 mm) by (1.000, 2.000) mm. The drawing now has 4 entities.",
+        ),
+        (
+            "copy_entity",
+            json!({"index":1,"dx":1,"dy":2}),
+            expected(CopyEntities::new(vec![1], Vec2::new(1.0, 2.0))),
+            "Copied entity 1 (circle, center (20.000, 20.000) mm, r = 5.000 mm) by (1.000, 2.000) mm as entity 4. The drawing now has 5 entities.",
+        ),
+        (
+            "rotate_entity",
+            json!({"index":2,"x":5,"y":5,"degrees":90}),
+            expected(TransformEntities::new(
+                vec![2],
+                Transform::Rotate {
+                    base: Vec2::new(5.0, 5.0),
+                    angle: FRAC_PI_2,
+                },
+            )),
+            "Rotated entity 2 (arc, center (30.000, 0.000) mm, r = 3.000 mm, 0.0°→90.0° ccw) by 90.000° about (5.000, 5.000) mm. The drawing now has 4 entities.",
+        ),
+        (
+            "mirror_entity",
+            json!({"index":0,"x1":0,"y1":0,"x2":0,"y2":5,"erase_source":true}),
+            expected(TransformEntities::new(vec![0], across_y())),
+            "Mirrored entity 0 (line, (0.000, 0.000) → (10.000, 0.000) mm) across the line (0.000, 0.000)–(0.000, 5.000) mm. The drawing now has 4 entities.",
+        ),
+        (
+            "mirror_entity",
+            json!({"index":3,"x1":0,"y1":0,"x2":0,"y2":5,"erase_source":false}),
+            expected(TransformEntities::new(vec![3], across_y()).with_keep_source(true)),
+            "Mirrored entity 3 (line, (0.000, 10.000) → (10.000, 10.000) mm) across the line (0.000, 0.000)–(0.000, 5.000) mm as entity 4. The drawing now has 5 entities.",
+        ),
+        (
+            "scale_entity",
+            json!({"index":1,"x":1,"y":2,"factor":2}),
+            expected(TransformEntities::new(
+                vec![1],
+                Transform::Scale {
+                    base: Vec2::new(1.0, 2.0),
+                    factor: 2.0,
+                },
+            )),
+            "Scaled entity 1 (circle, center (20.000, 20.000) mm, r = 5.000 mm) by 2.000 about (1.000, 2.000) mm. The drawing now has 4 entities.",
+        ),
+    ];
+    for (tool, args, entities, text) in cases {
+        let mut app = set_app();
+        let (outcome, steps) = run(&mut app, tool, args);
+        assert_eq!(outcome.text(), text, "{tool}");
+        assert_eq!(steps, 1, "{tool}");
+        assert_eq!(app.document.entities, entities, "{tool}");
+    }
+}
