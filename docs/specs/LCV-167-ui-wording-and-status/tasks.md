@@ -29,7 +29,7 @@
   src/app/agent_capture.rs)
 - [x] T9 [AC5] Test first: `turn_label` gives `AI: <prompt>` (plain, trimmed, truncated cases);
   a committed turn's undo label starts `AI: ` (files: src/app/agent_turn/tests.rs)
-- [ ] T10 [AC5] `turn_label` prefix `AI: ` and its doc; composite doc example (files:
+- [x] T10 [AC5] `turn_label` prefix `AI: ` and its doc; composite doc example (files:
   src/app/agent_turn.rs, src/document/commands/composite.rs)
 - [ ] T11 [AC6] Test first: `(1, -1)` and `(-1234.5, 9999.99)` give equal char counts; padding is
   U+2007, never U+0020, inside a number; `None` unchanged; painted expectations follow (files:
