@@ -90,13 +90,15 @@ one named constant per token in `ui/theme.rs` (chrome, done by LCV-184) or a new
 | `bed.fill` | gray 40 | work area | — | `render/bed.rs::draw_bed_fill` |
 | `bed.border` | gray 160, 1.5 pt | bed edge | 5.6:1 | `render/bed.rs::draw_bed` |
 | `bed.outside` | black α 96 | dims off-bed area | — | `render/bed.rs::draw_bed` |
-| `grid.minor` | gray 48, 0.5 pt | minor grid | 1.12:1 (target ≈1.4:1 @1 pt, gap → LCV-164) | `render/grid.rs::draw_grid` |
-| `grid.major` | gray 96, 1 pt | major grid | 2.3:1 | `render/grid.rs::draw_grid` |
+| `grid.minor` | gray 62, 1 pt on a pixel centre | minor grid | 1.38:1 | `render/palette.rs::GRID_MINOR` |
+| `grid.major` | gray 96, 1 pt on a pixel centre | major grid, every tenth line | 2.34:1 | `render/palette.rs::GRID_MAJOR` |
+| `origin` | gray 220, 2 pt, two 12 pt arms | machine origin (0,0) | 10.8:1 | `render/palette.rs::ORIGIN` |
 | `entity` | its layer's colour, 1 pt | geometry | per layer (§3 rules) | `render/entities.rs::draw_entities` |
 | `layer.new` | #0000ff, #00aa00, #ff00ff, #00aaaa, #ff8000, #8000ff | colours offered to new layers, in order | per layer | `app/layers.rs::NEW_LAYER_COLORS` |
 | `selection` | rgba(64,160,255,180), 3 pt | selection halo | 3.4:1 blended (floor) | `render/selection.rs` |
 | `preview` | rgba(255,220,100,160) | rubber-band geometry, window/crossing box | 5.3:1 blended | `render/palette.rs::preview` |
-| `snap` | #ffa000, 8 pt glyph | object snap marker | 7.2:1 | `render/snaps.rs::marker_color` |
+| `snap` | #ffa000, 8 pt glyph and its kind label | object snap marker | 7.2:1 | `render/snaps.rs::marker_color` |
+| `snap.edge` | `bg.canvas`, glyph stroke + 2 pt | dark edge under each snap glyph shape | — | `render/palette.rs::SNAP_EDGE` |
 | `cursor` | gray 220, 1 pt | crosshair and pickbox | 10.8:1 | `render/cursor.rs::cursor_color` |
 | `hover` | its layer's colour, 2.5 pt | entity a click would pick | per layer (§3 rules) | `render/palette.rs::HOVER_WIDTH_PT` |
 | `danger` | #ff4d6a, 1 pt dashed | what TRIM or ERASE will remove | 4.6:1 | `render/palette.rs::DANGER` |
@@ -106,7 +108,7 @@ Rules:
 - Text ≥4.5:1 on its surface. State graphics (halo, glyph, box, preview) ≥3:1 on the bed.
 - Every layer colour shown on the canvas should reach ≥3:1 on the bed. LCV-156 paints the
   layer colour as it is (ADR 0012 §9): the default Cut `#ff0000` gives 3.7:1, but `#0000ff`
-  gives 1.7:1. Display lightening or a curated palette: gap → LCV-164.
+  gives 1.7:1. LCV-164 keeps them raw: no display lightening, no curated palette.
 - The grid stays visible but below the geometry.
 - Colour is never the only cue (§1.5).
 - **No new colour literal outside the token homes.** A new colour is a new token, in this table,
@@ -135,20 +137,24 @@ Rules:
   (`WIDGET_ROUNDING`) and 4 pt on windows and menus; no shadows. Mode pill padding 6×1 pt
   (`ui/statusbar/pill.rs::PILL_PADDING`); editor-row frame margin 4×2 pt
   (`ui/command_line.rs::EDITOR_FRAME_MARGIN`).
-- Canvas strokes: hairline 1 pt · bed border 1.5 pt · selection halo 3 pt · hover 2.5 pt · snap glyph 8 pt ·
+- Canvas strokes: hairline 1 pt · grid 1 pt on pixel centres · bed border 1.5 pt · origin 2 pt with
+  12 pt arms · selection halo 3 pt · hover 2.5 pt · snap glyph 8 pt, its edge 2 pt wider ·
   snap aperture 12 pt (`app/snap.rs::SNAP_TOLERANCE_PX`) · crosshair and pickbox 1 pt.
 - **Pointer tolerances are in screen points**, turned into mm with the live zoom: entity pick
   aperture 5 pt for Select, TRIM and EXTEND (`tools/tool.rs::PICK_APERTURE_PT`; the pickbox
   side is twice it) and box-drag threshold 2 pt (`tools/tool.rs::DRAG_THRESHOLD_PT`). New
   tolerances are in points.
-- Curves are tessellated to a chord tolerance in points. Today it is 64 segments
-  (`render/entities.rs::PaintOptions`, LCV-035 AC 2) (gap → LCV-164).
+- Curves are tessellated so each chord's sagitta is ≤0.25 pt on screen:
+  `n = ⌈2π / (2·acos(1 − 0.25/r_pt))⌉` chords per full turn, clamped to [8, 1024] (8 when
+  r ≤ 0.25 pt); an arc gets `⌈n·sweep/2π⌉`, at least 2 (`render/tessellate.rs`, LCV-164). Each
+  entity, and each overlay of it (halo, hover, preview), is one shape: a segment or one path.
 
 ## 6. Canvas visual language
 
 Paint order (LCV-137 AC 1, `app/viewport/paint.rs::paint`): canvas background → bed fill → grid →
-bed border and outside overlay → entities → selection halo → hover → preview and danger marks in
-the tool's order (ADR 0013, LCV-163) → snap glyph → pickbox → crosshair (LCV-162).
+bed border and outside overlay → origin marker (LCV-164) → entities → selection halo → hover →
+preview and danger marks in the tool's order (ADR 0013, LCV-163) → snap edge, glyph and label →
+pickbox → crosshair (LCV-162).
 
 | Element | Form | Status |
 |---|---|---|
@@ -159,10 +165,13 @@ the tool's order (ADR 0013, LCV-163) → snap glyph → pickbox → crosshair (L
 | Window box / crossing box | solid / dashed `preview` outline | shipped |
 | Trim / Delete preview | dashed, `danger` | shipped |
 | Crosshair + pickbox | full canvas, `cursor`; pickbox only while an entity pick is pending; OS cursor hidden | shipped |
-| Origin (0,0) | small X/Y marker under geometry | gap → LCV-164 |
+| Origin (0,0) | one `origin` path: 12 pt along +X → (0,0) → 12 pt along +Y, on the bed's lower-left border, under geometry (`render/bed.rs::draw_origin`) | shipped |
 
-Snap glyphs are R14 shapes at a fixed 8 pt in `snap` (`render/snaps.rs::marker_shape_for`). A
-dark edge and a kind label are planned (gap → LCV-164).
+Snap glyphs are R14 shapes at a fixed 8 pt in `snap` (`render/snaps.rs::marker_shape_for`). Each
+glyph is painted twice from one shape list (`render/snaps.rs::glyph_shapes`): first 2 pt wider in
+`snap.edge`, then in `snap`. The kind's lower-case name (`endpoint`, `midpoint`, …) follows in the
+body font and `snap`, no backing, shown at once, its left-top 8 × 6 pt below-right of the point,
+clear of the point and the crosshair (`render/snaps/label.rs`, LCV-164).
 
 | Kind | Glyph | Status |
 |---|---|---|
@@ -181,7 +190,9 @@ dark edge and a kind label are planned (gap → LCV-164).
   pointer leaves (gap → F2).
 - Navigation: the wheel zooms about the cursor (gap → F3), middle-drag pans, `F` / `Ctrl+0`
   zoom to extents, `View > Fit to Bed` frames the bed. Zoom All and Zoom Extents in the menu:
-  gap → LCV-166. Framing the bed on startup and Open: gap → LCV-164.
+  gap → LCV-166. Startup (autosave recovery included), Open and a Bed dialog OK that changes the
+  size frame the bed as `View > Fit to Bed` does, on the first frame whose viewport has a size
+  (`App::frame_bed_pending`, LCV-164). Undo of a bed change and `File > New` do not reframe.
 
 ## 7. Chrome components
 
@@ -286,7 +297,7 @@ LCV-167. The rules already apply to every new label, including the v0.3 commands
   - **F3**: make the wheel zoom factor proportional to the scroll delta, and clamp zoom in
     `render/camera.rs::Camera`.
   - **F4**: move colour literals into token homes, values unchanged (`refactor:`). `render/`
-    never imports `ui/`. Keep the `TOOL_COLOR`/`warn_fg_color` names that LCV-125 tests scan.
+    never imports `ui/`, except `render/palette.rs::SNAP_EDGE` = `CANVAS_BG` (LCV-164). Keep the `TOOL_COLOR`/`warn_fg_color` names that LCV-125 tests scan.
   - **F5**: fix stale comments: the frame order in `.claude/rules/repaint-ui.md`, the claim in
     `render/preview.rs` that egui 0.29 has no `Shape::dashed_line`, and the icon notes in
     `ui/toolbar.rs` and `app/agent_state.rs`.
