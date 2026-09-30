@@ -1,8 +1,8 @@
 # LCV-157 — COPY command
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: a3a92ce..2aca9c8
 
 ## Problem
 
