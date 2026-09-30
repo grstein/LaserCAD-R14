@@ -61,6 +61,7 @@ pub mod create;
 pub mod edit;
 pub mod layer;
 pub mod select;
+pub mod transform;
 pub mod trim;
 
 pub use bed::SetBedSize;
@@ -69,6 +70,7 @@ pub use create::{CreateArc, CreateCircle, CreateEntities, CreateLine};
 pub use edit::{CopyEntities, DeleteEntities, MoveEntities};
 pub use layer::{AddLayer, DeleteLayer, EditLayer, SetCurrentLayer, SetEntityLayers};
 pub use select::SelectionCommand;
+pub use transform::TransformEntities;
 pub use trim::{ExtendEntity, TrimEntity};
 
 /// The single mutation contract for a [`Document`].
