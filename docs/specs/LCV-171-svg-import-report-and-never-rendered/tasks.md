@@ -30,7 +30,7 @@
 - [x] T9 [AC2]–[AC6] Classification in `collect` per the plan's table; `LayerReader::enter` is
       called only for descended elements; module doc of `import.rs` replaces "silently skips"
       with the table (files: src/io/svg/import/walk.rs, src/io/svg/import.rs)
-- [ ] T10 [AC7] Test: each of the eleven properties is reported as an attribute and as a `style`
+- [x] T10 [AC7] Test: each of the eleven properties is reported as an attribute and as a `style`
       declaration on `svg`, `g`, `a`, `line`, `circle` and an imported `path`; `fill="none"` and
       `style="fill: NONE"` are not reported, `fill="red"` is; `!important` and case are ignored; a
       `transform` on a skipped `<image>` or inside `<defs>` is not reported; a repeat counts twice

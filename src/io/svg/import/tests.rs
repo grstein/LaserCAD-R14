@@ -465,8 +465,7 @@ fn silent_elements_and_foreign_namespaces_import_nothing_unreported() {
         format!(
             r#"<sodipodi:namedview xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd">{A_LINE}</sodipodi:namedview>"#
         ),
-        r#"<foo:line xmlns:foo="http://example.com/foo" x1="0" y1="0" x2="1" y2="1"/>"#
-            .to_owned(),
+        r#"<foo:line xmlns:foo="http://example.com/foo" x1="0" y1="0" x2="1" y2="1"/>"#.to_owned(),
         format!(r#"<foo:g xmlns:foo="http://example.com/foo">{A_LINE}</foo:g>"#),
     ] {
         let imported = import_svg(&svg(&inner)).unwrap();
@@ -530,4 +529,86 @@ fn other_svg_elements_are_skipped_and_reported_with_counts() {
         entry("foreignObject", 1),
     ];
     assert_eq!(imported.report, want);
+}
+
+const REPORTED: [&str; 12] = [
+    "transform",
+    "fill",
+    "clip-path",
+    "mask",
+    "filter",
+    "marker-start",
+    "marker-mid",
+    "marker-end",
+    "stroke-dasharray",
+    "opacity",
+    "display",
+    "visibility",
+];
+
+/// `{p}` is where the property goes on each imported or descended host;
+/// the second value is how many entities the host imports.
+const HOSTS: [(&str, usize); 6] = [
+    ("<svg {p}/>", 0),
+    ("<g {p}/>", 0),
+    ("<a {p}/>", 0),
+    (r#"<line {p} x1="0" y1="0" x2="1" y2="1"/>"#, 1),
+    (r#"<circle {p} cx="1" cy="1" r="1"/>"#, 1),
+    (r#"<path {p} d="M 10 400 A 10 10 0 0 0 0 390"/>"#, 1),
+];
+
+/// AC 7 — every property is reported, as an attribute or a `style`
+/// declaration, on every element that is imported or descended into.
+#[test]
+fn unapplied_properties_are_reported_on_imported_and_descended_elements() {
+    for prop in REPORTED {
+        for form in [
+            format!(r#"{prop}="red""#),
+            format!(r#"style="{prop}: red""#),
+        ] {
+            let root = format!(r#"<svg xmlns="http://www.w3.org/2000/svg" {form}/>"#);
+            assert_eq!(report_of(&root), [entry(prop, 1)], "{root}");
+            for (host, count) in HOSTS {
+                let src = svg(&host.replace("{p}", &form));
+                let imported = import_svg(&src).unwrap();
+                assert_eq!(imported.entities.len(), count, "{src}");
+                assert_eq!(imported.report, [entry(prop, 1)], "{src}");
+            }
+        }
+    }
+}
+
+/// AC 7 / AC 10 — `fill` is exempt only when `none`; `style` declarations
+/// ignore case and `!important`.
+#[test]
+fn fill_none_is_exempt_and_style_ignores_case_and_important() {
+    for quiet in [
+        r#"<g fill="none"/>"#,
+        r#"<g style="fill: NONE"/>"#,
+        r#"<g style="stroke:#000; FILL:none !important"/>"#,
+    ] {
+        assert!(report_of(&svg(quiet)).is_empty(), "{quiet}");
+    }
+    assert_eq!(report_of(&svg(r#"<g fill="red"/>"#)), [entry("fill", 1)]);
+    let styled = svg(r#"<g style="TRANSFORM: none !important; Opacity:1"/>"#);
+    assert_eq!(
+        report_of(&styled),
+        [entry("transform", 1), entry("opacity", 1)]
+    );
+}
+
+/// AC 7 — properties on skipped elements are not read; a repeat counts twice
+/// under one label.
+#[test]
+fn properties_on_skipped_elements_are_not_reported_and_repeats_count() {
+    let image = svg(r#"<image transform="scale(2)"/>"#);
+    assert_eq!(report_of(&image), [entry("image", 1)]);
+    let defs = svg(&format!(
+        r#"<defs><g transform="scale(2)">{A_LINE}</g></defs>"#
+    ));
+    assert_eq!(report_of(&defs), [entry("defs", 1)]);
+    let twice = svg(
+        r#"<g transform="scale(2)"><line transform="scale(2)" x1="0" y1="0" x2="1" y2="1"/></g>"#,
+    );
+    assert_eq!(report_of(&twice), [entry("transform", 2)]);
 }
