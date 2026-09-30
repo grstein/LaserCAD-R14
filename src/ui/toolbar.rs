@@ -46,15 +46,16 @@ const MODIFY_GROUP_START: usize = 7;
 /// click behaviour.
 pub(crate) const AGENT_TOGGLE_LABEL: &str = "Agent";
 
-/// Hover-tooltip text for one `TOOLS` entry (LCV-140 AC 1 / AC 3): the
-/// label, plus its keyboard shortcut in parentheses when
-/// [`ToolEntry::shortcut`] names one. Derived entirely from `entry`'s own
-/// two fields — never a second, hand-typed table — and never inventing a
-/// key for `Select`, whose `shortcut` is `None`.
+/// Hover-tooltip text for one `TOOLS` entry (LCV-183 AC 6):
+/// `<Label> — <key> · <WORD>`, or `<Label> — <WORD>` when the entry has no
+/// key, where `WORD` is the command word — the entry's `tool_name`
+/// uppercased. Derived entirely from `entry` — never a second, hand-typed
+/// table — and never inventing a key for an entry whose `shortcut` is `None`.
 pub(crate) fn tool_hover_text(entry: &ToolEntry) -> String {
+    let word = entry.tool_name.to_uppercase();
     match entry.shortcut {
-        Some(key) => format!("{} (shortcut: {key})", entry.label),
-        None => format!("{} (no keyboard shortcut)", entry.label),
+        Some(key) => format!("{} — {key} · {word}", entry.label),
+        None => format!("{} — {word}", entry.label),
     }
 }
 
@@ -163,44 +164,40 @@ mod tests {
         }
     }
 
-    // ── LCV-140 AC 1 / AC 3 — hover-hint inventory ─────────────────────────
+    // ── LCV-183 AC 6 — tooltip format ───────────────────────────────────
 
-    /// AC 1 — every hover hint traces back to *that entry's own* `label` and
-    /// `shortcut` field: it always starts with the label, it names the
-    /// shortcut when one exists, and — the `Select` case — it invents no key
-    /// when `shortcut` is `None`. The expected string is rebuilt from the
-    /// entry's own fields, never from a second, per-tool hand-typed table.
-    #[test]
-    fn tool_hover_text_traces_to_its_own_entry() {
-        for entry in TOOLS {
-            let hint = tool_hover_text(entry);
-            let expected = match entry.shortcut {
-                Some(key) => format!("{} (shortcut: {key})", entry.label),
-                None => format!("{} (no keyboard shortcut)", entry.label),
-            };
-            assert_eq!(hint, expected, "entry {}", entry.label);
-            assert!(
-                hint.starts_with(entry.label),
-                "hint for {} must start with its own label: {hint:?}",
-                entry.label
-            );
-            if let Some(key) = entry.shortcut {
-                assert!(
-                    hint.contains(key),
-                    "{}'s hint must name its shortcut {key}: {hint:?}",
-                    entry.label
-                );
-            }
-        }
+    /// The `TOOLS` entry labelled `label`.
+    fn entry(label: &str) -> &'static ToolEntry {
+        TOOLS
+            .iter()
+            .find(|e| e.label == label)
+            .unwrap_or_else(|| panic!("{label} is a TOOLS entry"))
     }
 
-    /// AC 1 — `Select` (the one entry with `shortcut: None`) gets a hint that
-    /// says so in plain words, never a fabricated key.
+    /// AC 6 — the spec's own examples, plus `Select` (no key, mixed-case
+    /// `tool_name`).
     #[test]
-    fn select_hover_text_names_no_key() {
-        let select = TOOLS.iter().find(|e| e.label == "Select").unwrap();
-        assert_eq!(select.shortcut, None, "positive control");
-        assert_eq!(tool_hover_text(select), "Select (no keyboard shortcut)");
+    fn ac6_tooltip_names_label_key_and_command_word() {
+        assert_eq!(tool_hover_text(entry("Select")), "Select — SELECT");
+        assert_eq!(tool_hover_text(entry("Line")), "Line — L · LINE");
+        assert_eq!(tool_hover_text(entry("Rotate")), "Rotate — ROTATE");
+        assert_eq!(tool_hover_text(entry("Delete")), "Delete — E · ERASE");
+    }
+
+    /// AC 6 — every tooltip traces back to *that entry's own* fields, with no
+    /// invented key for an entry whose `shortcut` is `None`.
+    #[test]
+    fn ac6_every_tooltip_traces_to_its_own_entry() {
+        for e in TOOLS {
+            let hint = tool_hover_text(e);
+            let word = e.tool_name.to_uppercase();
+            let expected = match e.shortcut {
+                Some(key) => format!("{} — {key} · {word}", e.label),
+                None => format!("{} — {word}", e.label),
+            };
+            assert_eq!(hint, expected, "entry {}", e.label);
+            assert_eq!(hint.contains('·'), e.shortcut.is_some(), "{hint:?}");
+        }
     }
 
     /// LCV-110 AC 12 — every `TOOLS` entry's `kind` resolves through

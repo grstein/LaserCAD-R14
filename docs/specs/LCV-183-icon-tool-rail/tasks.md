@@ -15,7 +15,7 @@
   the active button only, `AI` toggle text/tooltip/fill/click, width ≤80 pt, no scroll at the
   three sizes, wheel scroll reaches `AI` at 220 pt (files: tests/it/ui/icon_tool_rail.rs,
   tests/it/ui/mod.rs)
-- [ ] T7 [AC6] Tooltip format `<Label> — <key> · <WORD>` / `<Label> — <WORD>` with unit tests
+- [x] T7 [AC6] Tooltip format `<Label> — <key> · <WORD>` / `<Label> — <WORD>` with unit tests
   (Select, Line, Rotate, Delete) (files: src/ui/toolbar.rs)
 - [ ] T8 [AC1] [AC3] [AC4] [AC5] [AC7] [AC9] `icon_button` + two-column rail + `AI` toggle in
   `draw_toolbar`; rewrite the LCV-140 rail tests from labels to tooltips (files:
