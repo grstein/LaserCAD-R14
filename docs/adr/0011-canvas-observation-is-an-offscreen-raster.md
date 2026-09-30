@@ -1,6 +1,11 @@
 # ADR 0011 — A canvas observation is an offscreen raster of the live document, never a framebuffer read
 
 - **Status**: Accepted
+- **Amended (1)**: 2026-09-30 — LCV-187 (framed capture). Items 1 and 2:
+  `capture_canvas` takes an optional `frame` (`view` | `drawing` | `region`
+  with corners); `drawing` and `region` render the long edge at exactly
+  1024 px. Item 10: every image's fate is a post-send `note`. Nothing else
+  changes.
 - **Date**: 2026-09-27
 - **Deciders**: architect (LCV-145; in the 1.0 scope by the 2026-09-27 scope
   decision recorded in `PLAN.md`)
@@ -39,11 +44,28 @@ in it — by construction, not by a crop.
    `tool_definitions` takes that flag. Executed only if both are **still** on
    live at the apply site; otherwise `Refused` ("canvas capture is disabled in
    Agent settings"). Behind the fence like every action.
+
+   > **Amended (1), 2026-09-30 (LCV-187).** Not argument-free any more: an
+   > optional `frame` — `"view"` (the default, and what no argument means),
+   > `"drawing"` or `"region"` — plus `x0, y0, x1, y1` in mm, used only by
+   > `"region"` (a corner with another frame is refused; `null` counts as
+   > absent). The schema stays flat (ADR 0010 §2) and is parsed in
+   > `agent/tools/capture.rs` into `AgentAction::CaptureCanvas(CaptureFrame)`.
 2. **Frame** = the world rectangle currently visible in the CAD viewport,
    derived from `App::camera` (its `viewport_size_px` and `screen_to_world`) —
    the operator and the model look at the same region. Pixel size = the
    viewport's size, scaled down uniformly so the longest edge is ≤ 1024;
    never upscaled; aspect preserved. A zero-area viewport is `Refused`.
+
+   > **Amended (1), 2026-09-30 (LCV-187).** That is the `"view"` frame. The
+   > `"drawing"` frame is `Document::bounds()` over every entity on every
+   > layer, plus a margin on each side of 5 % of the longest extent (so a
+   > lone straight line still frames an area); the `"region"` frame is the
+   > given rectangle, corners in any order. Both render the longest edge at
+   > **exactly** 1024 px, the other in proportion (at least 1 px) — they may
+   > upscale. An empty drawing, a frame with no area or a non-finite corner
+   > is `Refused` naming the cause. Content, the 2 MiB cap and the outcome
+   > text (with the actual frame) are unchanged.
 3. **Content**: 8-bit grayscale; white background; bed outline mid-grey; every
    entity black, 1 px; circles and arcs tessellated with chord error ≤ 0.25 px.
    No grid, snaps, cursor, preview or selection tint (`query_selection` answers
@@ -98,6 +120,15 @@ in it — by construction, not by a crop.
     and the request goes out text-only. Cancel fails the rendezvous and nothing
     is sent (§D2). Bytes already handed to `reqwest` cannot be recalled; the
     settings disclosure says so.
+
+    > **Amended (1), 2026-09-30 (LCV-187).** The pre-send note stays, and
+    > once the request returns every image gets one more `note`, by its
+    > call id: `Canvas image for call <id> sent.`, `… withheld (permission
+    > changed).` or `… not delivered (request failed).` The loop dispatches
+    > it as `Dispatch::Note` (`agent/loop_/images.rs::send_images`), which the
+    > worker sends as `AgentAction::Note` — **not a step**, fence bypassed,
+    > like `AuthorizeUpload` — and `agent_poll` pushes as the row. A failed
+    > send notes before its error returns.
 11. **Settings**: `agent_allow_canvas_capture: bool` and
     `agent_model_supports_vision: bool`, both `serde` default `false`; two
     checkboxes in `settings_ui.rs` with a disclosure sentence that canvas
@@ -127,6 +158,8 @@ fallback: no framebuffer or desktop path is to be built.
 - Viewport framing means a model working off-screen sees an empty frame. The
   outcome's mapping text makes that legible. A framing argument
   (`"bed"` / `"drawing"`) is deferred until someone needs it.
+  *(Resolved by amendment (1): LCV-187 adds `"drawing"` and `"region"`;
+  `"bed"` stays out — a region of the bed's size frames it.)*
 - Draft LCV-145 AC 1 and AC 3–8 are replaced, not narrowed; `product-owner`
   rewrites them against this ADR.
 

@@ -7,5 +7,5 @@
 - [x] T5 [AC6] Test: sent / withheld / not-delivered note per image call id, after the pre-send note; a `Note` is not a step (files: src/agent/loop_/tests.rs, tests/it/agent/canvas_capture.rs)
 - [x] T6 [AC6] `Dispatch::Note` from `send_images`; worker + poll push the row (files: src/agent/loop_.rs, src/app/agent_worker.rs, src/app/agent_poll.rs)
 - [x] T7 Prompt: capture_canvas paragraph names `frame`, `x0`, `y0`, `x1`, `y1` (files: src/agent/prompt.rs, tests/it/agent/default_prompt.rs)
-- [ ] T8 Amend ADR 0011 items 1–2 and 10 (files: docs/adr/0011-canvas-observation-is-an-offscreen-raster.md)
+- [x] T8 Amend ADR 0011 items 1–2 and 10 (files: docs/adr/0011-canvas-observation-is-an-offscreen-raster.md)
 - [ ] T9 CHANGELOG line (files: CHANGELOG.md)
