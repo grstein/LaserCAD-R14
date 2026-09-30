@@ -18,7 +18,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::geometry::{Arc, Circle, Line, Vec2};
+use crate::geometry::{Arc, Circle, Line, Transform, Vec2};
 
 /// A document-level entity: a tagged union over the kernel's geometry
 /// primitives.
@@ -92,6 +92,18 @@ impl Entity {
             Entity::Arc(arc) => {
                 arc.center = arc.center + delta;
             }
+        }
+    }
+
+    /// The entity mapped through `transform`, same variant.
+    ///
+    /// Dispatches to [`Transform::line`], [`Transform::circle`] and
+    /// [`Transform::arc`]; adds no geometry of its own (LCV-158).
+    pub fn transformed(&self, transform: &Transform) -> Entity {
+        match *self {
+            Entity::Line(line) => Entity::Line(transform.line(line)),
+            Entity::Circle(circle) => Entity::Circle(transform.circle(circle)),
+            Entity::Arc(arc) => Entity::Arc(transform.arc(arc)),
         }
     }
 }
@@ -236,6 +248,32 @@ mod tests {
             assert!(o.p2.approx_eq(m.p2, EPSILON));
         } else {
             panic!("variant changed under translate");
+        }
+    }
+
+    /// LCV-158 AC6 — `transformed` keeps the variant and delegates to the
+    /// matching `Transform` method.
+    #[test]
+    fn entity_transformed_dispatches_per_variant() {
+        let t = Transform::Rotate {
+            base: Vec2::new(1.0, 0.0),
+            angle: FRAC_PI_2,
+        };
+        let line = Line::new(Vec2::new(2.0, 0.0), Vec2::new(3.0, 1.0));
+        let circle = Circle::new(Vec2::new(4.0, 4.0), 2.0);
+        let arc = Arc::new(Vec2::new(0.0, 2.0), 1.0, 0.0, FRAC_PI_2, true);
+        assert_eq!(
+            Entity::Line(line).transformed(&t),
+            Entity::Line(t.line(line))
+        );
+        assert_eq!(
+            Entity::Circle(circle).transformed(&t),
+            Entity::Circle(t.circle(circle))
+        );
+        assert_eq!(Entity::Arc(arc).transformed(&t), Entity::Arc(t.arc(arc)));
+        match Entity::Line(line).transformed(&t) {
+            Entity::Line(l) => assert!(l.p1.approx_eq(Vec2::new(1.0, 1.0), EPSILON)),
+            other => panic!("variant changed: {other:?}"),
         }
     }
 }
