@@ -36,7 +36,7 @@
 //!
 //! MUST NOT import `eframe` or `rfd`. Introduced by demand LCV-068.
 
-use crate::app::App;
+use crate::app::{App, Severity};
 use crate::ui::command_destination::destination_label;
 
 /// Prompt verb / request / option split (LCV-184).
@@ -79,14 +79,15 @@ fn draw_context_row(ui: &mut egui::Ui, app: &mut App) {
         let prompt = app.tool_manager.active_status_text();
         bounded_label(ui, prompt_job(ui, prompt));
 
-        // Feedback: the last submit's result, in a colour the prompt never
-        // uses. A display string only — nothing reads it back (LCV-111 AC 24).
-        // A line starting `! ` is an error, painted `status.error` (LCV-167).
+        // Feedback: the last submit's result. A display string only — nothing
+        // reads it back (LCV-111 AC 24). Its colour is its severity (LCV-165
+        // AC 1): error `status.error`, refusal `status.warning`, result
+        // `text.primary`.
         if !app.command_feedback.is_empty() {
-            let colour = if app.command_feedback.starts_with("! ") {
-                ui.visuals().error_fg_color
-            } else {
-                ui.visuals().warn_fg_color
+            let colour = match app.command_feedback_severity {
+                Severity::Error => ui.visuals().error_fg_color,
+                Severity::Warning => ui.visuals().warn_fg_color,
+                Severity::Info => crate::ui::theme::TEXT_PRIMARY,
             };
             let feedback = egui::RichText::new(app.command_feedback.as_str()).color(colour);
             bounded_label(ui, feedback);
