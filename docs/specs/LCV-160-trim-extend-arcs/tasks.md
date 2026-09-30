@@ -9,7 +9,7 @@
   tests/it/document/mod.rs)
 - [x] T3 [AC2] [AC6] Line-target helpers: `trim_line_at_points` and `extend_line_to_points`
   (Circle and Arc boundaries), with unit tests (files: src/document/commands/trim/line.rs)
-- [ ] T4 [AC1] [AC3] [AC5] [AC7] `trim_circle_at_points`, plus the new `trim_arc_at_points` and
+- [x] T4 [AC1] [AC3] [AC5] [AC7] `trim_circle_at_points`, plus the new `trim_arc_at_points` and
   `extend_arc` with the full-turn guard, with unit tests (files: src/document/commands/trim/circle.rs,
   src/document/commands/trim/arc.rs)
 - [ ] T5 [AC1–3] [AC5–8] Dispatch: `cut_points`, `trim_step`, `extend_reach`. `TrimEntity` and

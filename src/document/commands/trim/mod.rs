@@ -26,6 +26,7 @@ use super::Command;
 use crate::document::{Document, Entity};
 use crate::geometry::{EPSILON, Line, Vec2};
 
+pub(crate) mod arc;
 pub(crate) mod circle;
 pub(crate) mod line;
 
