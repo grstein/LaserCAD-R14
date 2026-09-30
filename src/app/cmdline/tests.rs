@@ -458,7 +458,7 @@ fn an_empty_prompt_refuses_without_arming_a_turn() {
     app.settings.agent_api_key = "sk-test".to_owned();
     for line in [":", ":   ", "/ai", "/ai   "] {
         submit(&mut app, line);
-        assert_eq!(app.command_feedback, "Agent prompt is empty.", "{line}");
+        assert_eq!(app.command_feedback, "AI prompt is empty.", "{line}");
         assert!(!app.agent.busy, "{line} must arm no turn");
         assert!(app.agent.rx.is_none(), "{line}");
         assert!(app.agent.chat.is_empty(), "{line}");
@@ -483,7 +483,7 @@ fn a_second_turn_is_refused_while_one_is_in_flight() {
 
     assert_eq!(
         app.command_feedback,
-        "Agent is busy — wait for the current turn to finish."
+        "AI is busy — wait for the current turn to finish."
     );
     assert!(app.agent.busy, "the in-flight turn is left alone");
     assert!(app.agent.rx.is_some(), "and keeps its receiver");
@@ -551,7 +551,7 @@ fn a_prefixed_tool_alias_does_not_reach_the_tool() {
     let mut app = App::default();
     submit(&mut app, ":l");
     assert_eq!(app.tool_manager.active_tool_name(), "Select");
-    assert!(app.command_feedback.starts_with("! Agent unavailable"));
+    assert!(app.command_feedback.starts_with("! AI unavailable"));
 }
 
 /// AC 2 rule 3 — with a key configured, every line the grammar recognises

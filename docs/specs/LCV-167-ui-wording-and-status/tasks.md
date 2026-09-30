@@ -21,7 +21,7 @@
   key sets the dock line `! AI unavailable: set the API key in Help > AI Settings…`; a capture
   with capture off is refused with `CAPTURE_DISABLED` naming `Help > AI Settings…` (files:
   src/agent/transport/tests.rs, src/app/cmdline/tests.rs, tests/it/agent/canvas_capture.rs)
-- [ ] T7 [AC4] Transport texts and the dock's AI lines (`! AI unavailable: …`, `AI prompt is
+- [x] T7 [AC4] Transport texts and the dock's AI lines (`! AI unavailable: …`, `AI prompt is
   empty.`, `AI is busy — …`, echo `→ AI: "…"`); `cmdline/agent_routing.rs` follows (files:
   src/agent/transport.rs, src/app/cmdline.rs, tests/it/cmdline/agent_routing.rs)
 - [ ] T8 [AC4] `CAPTURE_DISABLED` = `canvas capture is disabled in Help > AI Settings…`;

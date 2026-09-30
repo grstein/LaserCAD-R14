@@ -43,14 +43,14 @@ const NO_DIRECTION: &str = "No direction for distance input — move the cursor 
 /// The leading `! ` is part of the message: it is the one command-line answer
 /// that reports a missing *configuration* rather than a rejected input, and it
 /// names where to fix it.
-const AGENT_UNAVAILABLE: &str = "! Agent unavailable: set the API key in Help > Agent settings";
+const AGENT_UNAVAILABLE: &str = "! AI unavailable: set the API key in Help > AI Settings…";
 
 /// Feedback for a prefix with no prompt behind it (AC 4). Nothing is sent.
-const AGENT_EMPTY_PROMPT: &str = "Agent prompt is empty.";
+const AGENT_EMPTY_PROMPT: &str = "AI prompt is empty.";
 
 /// Feedback for a second turn while one is in flight (AC 10). One turn at a
 /// time (ADR 0007 §Revisit criteria): this refuses, it does not queue.
-const AGENT_BUSY: &str = "Agent is busy — wait for the current turn to finish.";
+const AGENT_BUSY: &str = "AI is busy — wait for the current turn to finish.";
 
 /// How much of the prompt the command line echoes back before cutting it.
 const ECHO_CHARS: usize = 60;
@@ -181,7 +181,7 @@ fn to_agent(app: &mut App, prompt: &str) {
         app.command_feedback = AGENT_BUSY.to_owned();
         return;
     }
-    app.command_feedback = format!("→ agent: \"{}\"", echo(prompt));
+    app.command_feedback = format!("→ AI: \"{}\"", echo(prompt));
     app.agent.panel_open = true;
     super::start_turn(app, prompt);
 }

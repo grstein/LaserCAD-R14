@@ -416,7 +416,7 @@ fn ac4_the_remaining_labels_and_busy_never_touches_a_cad_line() {
     );
     app.command_line_input.clear();
     submit_command(&ctx, &mut app, ":");
-    assert_eq!(app.command_feedback, "Agent prompt is empty.");
+    assert_eq!(app.command_feedback, "AI prompt is empty.");
     assert!(!app.agent.busy);
 
     // A real prompt with the key configured: reachable.

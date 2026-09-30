@@ -384,7 +384,7 @@ fn ac9_after_a_cancel_the_app_idles_and_takes_a_new_turn() {
     // And the command line takes a second prompt.
     harness::submit_command(&ctx, &mut app, ": draw a circle");
     assert!(
-        app.command_feedback.starts_with("→ agent:"),
+        app.command_feedback.starts_with("→ AI:"),
         "AC 9: a cancelled turn does not hold the busy gate shut: {}",
         app.command_feedback
     );
