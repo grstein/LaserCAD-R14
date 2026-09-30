@@ -12,13 +12,15 @@ use crate::harness;
 use lasercad::app::App;
 use lasercad::document::CreateLine;
 use lasercad::geometry::{Line, Vec2};
-use lasercad::tools::{LineTool, Tool};
+use lasercad::tools::{LineTool, SelectTool, Tool};
 
 /// A booted app with its canvas rect and one known (screen, world) pair.
 struct Canvas {
     ctx: egui::Context,
     app: App,
     rect: egui::Rect,
+    /// The pointer position `boot` hovered, over world point `w0`.
+    p: egui::Pos2,
     w0: Vec2,
 }
 
@@ -81,7 +83,13 @@ fn boot(tool: Box<dyn Tool>) -> Canvas {
     let [w, h] = app.camera.viewport_size_px;
     let rect = egui::Rect::from_min_size(min, egui::vec2(w, h));
     assert!(rect.contains(pos), "setup: the pointer is on the canvas");
-    Canvas { ctx, app, rect, w0 }
+    Canvas {
+        ctx,
+        app,
+        rect,
+        p: pos,
+        w0,
+    }
 }
 
 fn flatten(shape: &egui::Shape, out: &mut Vec<egui::Shape>) {
@@ -156,4 +164,185 @@ fn the_snap_glyph_follows_this_frames_pointer() {
         0,
         "AC 4: no glyph may linger at the previous frame's snap"
     );
+}
+
+/// A painted straight segment: its two ends, stroke width and solid colour.
+fn segment(shape: &egui::Shape) -> Option<([egui::Pos2; 2], f32, egui::Color32)> {
+    match shape {
+        egui::Shape::LineSegment { points, stroke } => match stroke.color {
+            egui::epaint::ColorMode::Solid(c) => Some((*points, stroke.width, c)),
+            egui::epaint::ColorMode::UV(_) => None,
+        },
+        _ => None,
+    }
+}
+
+/// A 1 pt segment spanning the whole canvas: `Some(true)` horizontal,
+/// `Some(false)` vertical.
+fn full_span(rect: egui::Rect, shape: &egui::Shape) -> Option<(bool, f32, egui::Color32)> {
+    let ([a, b], width, color) = segment(shape)?;
+    let (lo, hi) = (a.min(b), a.max(b));
+    if !close(width, 1.0) {
+        None
+    } else if close(a.y, b.y) && close(lo.x, rect.min.x) && close(hi.x, rect.max.x) {
+        Some((true, a.y, color))
+    } else if close(a.x, b.x) && close(lo.y, rect.min.y) && close(hi.y, rect.max.y) {
+        Some((false, a.x, color))
+    } else {
+        None
+    }
+}
+
+/// The crosshair: the last two canvas shapes are one horizontal and one
+/// vertical 1 pt full-span line in one colour. Returns its point and colour.
+fn crosshair(c: &Canvas, out: &egui::FullOutput) -> (egui::Pos2, egui::Color32) {
+    let shapes = c.canvas_shapes(out);
+    assert!(shapes.len() >= 2, "the canvas paints shapes");
+    let last: Vec<_> = shapes[shapes.len() - 2..]
+        .iter()
+        .map(|s| full_span(c.rect, s).expect("AC 2: the last canvas shapes are the crosshair"))
+        .collect();
+    let (h, v) = match (last[0], last[1]) {
+        (h @ (true, ..), v @ (false, ..)) | (v @ (false, ..), h @ (true, ..)) => (h, v),
+        _ => panic!("AC 2: one horizontal and one vertical line, got {last:?}"),
+    };
+    assert_eq!(h.2, v.2, "AC 2: both lines in the one cursor colour");
+    (egui::pos2(v.1, h.1), h.2)
+}
+
+/// Full-span lines in `color` anywhere on the canvas.
+fn crosshair_lines(c: &Canvas, out: &egui::FullOutput, color: egui::Color32) -> usize {
+    c.canvas_shapes(out)
+        .iter()
+        .filter(|s| full_span(c.rect, s).is_some_and(|(_, _, k)| k == color))
+        .count()
+}
+
+/// WCAG 2 contrast ratio of two opaque colours.
+fn contrast(a: egui::Color32, b: egui::Color32) -> f64 {
+    let lum = |c: egui::Color32| {
+        let ch = |v: u8| {
+            let v = f64::from(v) / 255.0;
+            if v <= 0.03928 {
+                v / 12.92
+            } else {
+                ((v + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * ch(c.r()) + 0.7152 * ch(c.g()) + 0.0722 * ch(c.b())
+    };
+    let (x, y) = (lum(a), lum(b));
+    (x.max(y) + 0.05) / (x.min(y) + 0.05)
+}
+
+/// `bed.fill` (DESIGN.md §3): the surface the cursor colour is measured on.
+const BED_FILL: egui::Color32 = egui::Color32::from_gray(40);
+
+fn near(a: egui::Pos2, b: egui::Pos2) -> bool {
+    (a - b).length() < 0.5
+}
+
+/// AC 1, AC 2, AC 3 — over the canvas the OS cursor is hidden, and the last
+/// canvas shapes are a full-span 1 pt crosshair through the pointer (no snap
+/// on an empty document), in an opaque colour with ≥3:1 on the bed fill.
+#[test]
+fn a_hovered_canvas_hides_the_os_cursor_and_paints_the_crosshair_last() {
+    let mut c = boot(Box::new(LineTool::default()));
+    let p = c.p + egui::vec2(17.0, -9.0);
+    let out = c.hover(p);
+    assert_eq!(
+        out.platform_output.cursor_icon,
+        egui::CursorIcon::None,
+        "AC 1: no OS cursor over the canvas"
+    );
+    let (at, color) = crosshair(&c, &out);
+    assert!(near(at, p), "AC 3: at the pointer, {at:?} vs {p:?}");
+    assert_eq!(color.a(), 255, "AC 2: an opaque cursor colour");
+    assert!(
+        contrast(color, BED_FILL) >= 3.0,
+        "AC 2: cursor colour {color:?} has {:.2}:1 on the bed",
+        contrast(color, BED_FILL)
+    );
+    assert_eq!(
+        crosshair_lines(&c, &out, color),
+        2,
+        "AC 2: exactly two lines"
+    );
+}
+
+/// AC 3 — a resolved snap moves the crosshair onto the snap point.
+#[test]
+fn the_crosshair_sits_on_the_snap_point() {
+    let mut c = boot(Box::new(LineTool::default()));
+    let (e, f) = (c.world(-60.0, 40.0), c.world(60.0, 90.0));
+    add_line(&mut c, e, f);
+    let p = c.screen(e) + egui::vec2(3.0, 2.0);
+    let out = c.hover(p);
+    assert!(c.app.active_snap.is_some(), "positive control: a snap");
+    let (at, _) = crosshair(&c, &out);
+    assert!(near(at, c.screen(e)), "AC 3: at the snap, {at:?}");
+    assert!(!near(at, p), "AC 3: not at the pointer");
+}
+
+/// AC 3 — with Ortho on, LINE's second point is locked to the axis through
+/// its anchor, and the crosshair sits on that locked point.
+#[test]
+fn the_crosshair_sits_on_the_ortho_point() {
+    let mut c = boot(Box::new(LineTool::default()));
+    c.app.ortho_enabled = true;
+    let p = c.p;
+    let press = |pressed| egui::Event::PointerButton {
+        pos: p,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: egui::Modifiers::NONE,
+    };
+    let _ = c.run(vec![
+        egui::Event::PointerMoved(p),
+        press(true),
+        press(false),
+    ]);
+    assert!(c.app.tool_manager.anchor().is_some(), "positive control");
+    let out = c.hover(p + egui::vec2(40.0, 10.0));
+    let (at, _) = crosshair(&c, &out);
+    assert!(
+        near(at, p + egui::vec2(40.0, 0.0)),
+        "AC 3: at Ortho, {at:?}"
+    );
+}
+
+/// AC 10 — after `PointerGone` the canvas paints no crosshair and no
+/// pickbox, and the OS cursor is back to the default arrow.
+#[test]
+fn leaving_the_canvas_clears_the_crosshair_and_the_pickbox() {
+    let mut c = boot(Box::new(SelectTool::default()));
+    let hovered = c.hover(c.p);
+    let (at, color) = crosshair(&c, &hovered);
+    assert_eq!(pickboxes(&c, &hovered, at), 1, "positive control: pickbox");
+
+    let gone = c.run(vec![egui::Event::PointerGone]);
+    assert_eq!(crosshair_lines(&c, &gone, color), 0, "AC 10: no crosshair");
+    assert_eq!(pickboxes(&c, &gone, at), 0, "AC 10: no pickbox");
+    assert_eq!(
+        gone.platform_output.cursor_icon,
+        egui::CursorIcon::Default,
+        "AC 10: the default OS cursor is back"
+    );
+}
+
+/// Hollow squares of side 2 × 5 pt centred within 0.5 pt of `at`.
+fn pickboxes(c: &Canvas, out: &egui::FullOutput, at: egui::Pos2) -> usize {
+    c.canvas_shapes(out)
+        .iter()
+        .filter(|s| match s {
+            egui::Shape::Rect(r) => {
+                r.fill == egui::Color32::TRANSPARENT
+                    && r.stroke.width > 0.0
+                    && close(r.rect.width(), 10.0)
+                    && close(r.rect.height(), 10.0)
+                    && near(r.rect.center(), at)
+            }
+            _ => false,
+        })
+        .count()
 }
