@@ -1,21 +1,24 @@
-//! ExtendTool: hover near a Line endpoint → preview → click to commit.
+//! ExtendTool: hover near a Line or Arc endpoint → preview → click to commit.
 //!
-//! `on_pointer_move` picks the nearest Line endpoint within [`PICK_RADIUS_MM`]
-//! and the nearest valid boundary (Line or Circle) and shows a live preview.
-//! `on_pointer_down` commits [`ExtendEntity`] and resets to `Idle`. Arcs are
-//! silently skipped. MUST NOT import `eframe` or `rfd`. Introduced by LCV-051.
+//! `on_pointer_move` picks the nearest Line or Arc endpoint within
+//! [`PICK_RADIUS_MM`] and the boundary with the least [`extend_reach`] travel
+//! (Line, Circle or Arc), and shows the grown entity as a live preview (a
+//! Line to its boundary; an Arc along its own circle, never into a full
+//! turn — LCV-160). `on_pointer_down` commits [`ExtendEntity`] and resets to
+//! `Idle`. MUST NOT import `eframe` or `rfd`. Introduced by LCV-051.
 
 use crate::app::App;
+use crate::document::commands::trim::extend_reach;
 use crate::document::{Document, Entity, ExtendEntity, History};
-use crate::geometry::{Circle, EPSILON, Line, Vec2, line_circle, line_line_infinite};
+use crate::geometry::Vec2;
 use crate::tools::Tool;
 
 /// World-space pick radius (mm) for nearest-endpoint detection.
 pub(crate) const PICK_RADIUS_MM: f64 = 5.0;
 
-/// Compact hover state: (target_idx, extend_endpoint, boundary_idx, preview_line).
+/// Compact hover state: (target_idx, extend_endpoint, boundary_idx, preview).
 #[derive(Debug, Clone, Copy)]
-struct H(usize, u8, usize, Line);
+struct H(usize, u8, usize, Entity);
 
 #[derive(Debug, Default)]
 enum State {
@@ -24,30 +27,44 @@ enum State {
     Hover(H),
 }
 
-/// Single-click extend-to-nearest-boundary modify tool (LCV-051).
+/// Single-click extend-to-nearest-boundary modify tool (LCV-051, LCV-160).
 #[derive(Debug, Default)]
 pub struct ExtendTool {
     state: State,
 }
 
-// Parametric t of p on infinite line through `line` (0.0 if degenerate).
-#[rustfmt::skip]
-fn pt(line: &Line, p: Vec2) -> f64 {
-    let d = line.p2 - line.p1; let ls = d.length_squared();
-    if ls <= EPSILON * EPSILON { 0.0 } else { (p - line.p1).dot(d) / ls }
+/// The two endpoints (`0` = p1 / start, `1` = p2 / end) of an extendable
+/// entity; `None` for a Circle.
+fn endpoints(e: &Entity) -> Option<[Vec2; 2]> {
+    match e {
+        Entity::Line(l) => Some([l.p1, l.p2]),
+        Entity::Arc(a) => Some([a.start_point(), a.end_point()]),
+        Entity::Circle(_) => None,
+    }
 }
 
-// Valid infinite-line intersections of `tgt` with circle `b` for endpoint `ep`.
-#[rustfmt::skip]
-fn chits(tgt: &Line, b: &Circle, ep: u8) -> Vec<Vec2> {
-    let d = tgt.p2 - tgt.p1; let len = d.length();
-    if len <= EPSILON { return vec![]; }
-    let dir = d / len;
-    let reach = (b.center - tgt.p1).length() + b.r + len + 1.0;
-    let sur = Line::new(tgt.p1 - dir * reach, tgt.p1 + dir * reach);
-    line_circle(&sur, b).into_iter()
-        .filter(|&p| if ep == 0 { pt(tgt, p) < -EPSILON } else { pt(tgt, p) > 1.0 + EPSILON })
-        .collect()
+/// The hover state for `pos`: the nearest endpoint in reach and its
+/// shortest extension, or `None`.
+fn hover(pos: Vec2, entities: &[Entity]) -> Option<H> {
+    let mut best: Option<(usize, u8, f64)> = None;
+    for (i, e) in entities.iter().enumerate() {
+        let Some([p0, p1]) = endpoints(e) else {
+            continue;
+        };
+        let (d0, d1) = ((pos - p0).length(), (pos - p1).length());
+        let (md, ep) = if d0 < d1 { (d0, 0u8) } else { (d1, 1u8) };
+        if md <= PICK_RADIUS_MM && best.is_none_or(|(_, _, bd)| md < bd) {
+            best = Some((i, ep, md));
+        }
+    }
+    let (ti, ep, _) = best?;
+    let (bi, grown, _) = entities
+        .iter()
+        .enumerate()
+        .filter(|&(j, _)| j != ti)
+        .filter_map(|(j, b)| extend_reach(&entities[ti], b, ep).map(|(g, mm)| (j, g, mm)))
+        .min_by(|a, b| a.2.total_cmp(&b.2))?;
+    Some(H(ti, ep, bi, grown))
 }
 
 impl Tool for ExtendTool {
@@ -57,43 +74,13 @@ impl Tool for ExtendTool {
 
     fn status_text(&self) -> &'static str {
         match self.state {
-            State::Idle => "EXTEND: Click near a line endpoint to extend it",
+            State::Idle => "EXTEND: Click near a line or arc endpoint to extend it",
             State::Hover(_) => "EXTEND: Click to extend  |  Esc to cancel",
         }
     }
 
-    #[rustfmt::skip]
     fn on_pointer_move(&mut self, pos: Vec2, doc: &mut Document) {
-        let mut best: Option<(usize, u8, f64)> = None;
-        for (i, e) in doc.entities.iter().enumerate() {
-            let Entity::Line(l) = e else { continue };
-            let d0 = (pos - l.p1).length(); let d1 = (pos - l.p2).length();
-            let (md, ep) = if d0 < d1 { (d0, 0u8) } else { (d1, 1u8) };
-            if md > PICK_RADIUS_MM { continue; }
-            if best.map(|(_, _, bd)| md < bd).unwrap_or(true) { best = Some((i, ep, md)); }
-        }
-        let Some((ti, ep, _)) = best else { self.state = State::Idle; return; };
-        let Entity::Line(tgt) = doc.entities[ti] else { self.state = State::Idle; return; };
-        let ep_pos = if ep == 0 { tgt.p1 } else { tgt.p2 };
-        let mut bnd: Option<(f64, usize, Vec2)> = None;
-        for (j, e) in doc.entities.iter().enumerate() {
-            if j == ti { continue; }
-            let hits: Vec<Vec2> = match e {
-                Entity::Line(b) => match line_line_infinite(&tgt, b) {
-                    Some(x) => { let ok = if ep == 0 { pt(&tgt, x) < -EPSILON } else { pt(&tgt, x) > 1.0 + EPSILON }; if ok { vec![x] } else { vec![] } }
-                    None => vec![],
-                },
-                Entity::Circle(b) => chits(&tgt, b, ep),
-                _ => vec![],
-            };
-            for x in hits {
-                let dist = (x - ep_pos).length();
-                if bnd.map(|(bd, _, _)| dist < bd).unwrap_or(true) { bnd = Some((dist, j, x)); }
-            }
-        }
-        let Some((_, bi, x)) = bnd else { self.state = State::Idle; return; };
-        let pl = if ep == 0 { Line::new(x, tgt.p2) } else { Line::new(tgt.p1, x) };
-        self.state = State::Hover(H(ti, ep, bi, pl));
+        self.state = hover(pos, &doc.entities).map_or(State::Idle, State::Hover);
     }
 
     fn on_pointer_down(&mut self, _: Vec2, _: bool, doc: &mut Document, history: &mut History) {
@@ -114,7 +101,7 @@ impl Tool for ExtendTool {
     fn preview(&self) -> Vec<Entity> {
         match self.state {
             State::Idle => vec![],
-            State::Hover(H(_, _, _, pl)) => vec![Entity::Line(pl)],
+            State::Hover(H(_, _, _, grown)) => vec![grown],
         }
     }
 
@@ -260,5 +247,22 @@ mod tests {
         let mut h = History::default();
         t.on_pointer_down(v(5.1, 0.), false, &mut d, &mut h);
         assert!(!h.can_undo() && d.entity_count() == 1);
+    }
+
+    /// LCV-160 AC 5 — an Arc endpoint previews the grown arc; the idle
+    /// status names both kinds.
+    #[test]
+    fn hover_arc_endpoint_previews_grown_arc() {
+        use crate::geometry::Arc;
+        use core::f64::consts::{FRAC_PI_2, PI};
+        let mut t = ExtendTool::default();
+        assert!(t.status_text().contains("line or arc endpoint"));
+        let quarter = Entity::Arc(Arc::new(v(0., 0.), 10., 0., FRAC_PI_2, true));
+        let mut d = mk(vec![quarter, le(-5., -20., -5., 20.)]);
+        t.on_pointer_move(v(0.5, 10.5), &mut d);
+        let Entity::Arc(a) = t.preview()[0] else {
+            panic!("expected Arc preview")
+        };
+        assert!((a.end_angle - 2. * PI / 3.).abs() < 1e-9 && a.start_angle == 0.);
     }
 }

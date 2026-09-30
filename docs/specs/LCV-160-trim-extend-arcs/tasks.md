@@ -18,7 +18,7 @@
 - [x] T6 [AC1–4] [AC9] `TrimTool`: pick and cutters via `cut_points`. Fold over a copy and commit
   nothing, a bare `TrimEntity`, or one `CompositeCommand` "Trim". Update the unit test
   `trim_two_cutters_undo_step_by_step` so it cites LCV-160 AC 9 (files: src/tools/trim.rs)
-- [ ] T7 [AC5] [AC6] [AC7] `ExtendTool`: Line and Arc endpoints, and the boundary with the least
+- [x] T7 [AC5] [AC6] [AC7] `ExtendTool`: Line and Arc endpoints, and the boundary with the least
   `extend_reach` travel. The preview is an `Entity`, the local geometry copies go, and the status
   text says "line or arc endpoint" (files: src/tools/extend.rs)
 - [ ] T8 CHANGELOG `[Unreleased]` line: TRIM and EXTEND work with arcs, and a trim click is one
