@@ -39,6 +39,9 @@
 use crate::app::App;
 use crate::ui::command_destination::destination_label;
 
+/// Prompt verb / request / option split (LCV-184).
+mod prompt;
+
 /// Bound on either the prompt or the feedback segment's width in the context
 /// row (LCV-139 AC 2): beyond it, egui's own `Label::truncate` elides the
 /// text to one row and attaches a full-text tooltip automatically whenever

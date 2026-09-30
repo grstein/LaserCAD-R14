@@ -452,3 +452,86 @@ fn ac5_coordinates_use_the_monospace_font() {
         "control: other segments stay proportional"
     );
 }
+
+// ── AC 6 — coloured prompt ────────────────────────────────────────────
+
+/// The dock's painted prompt `prompt`, as `(section text, colour)` pairs.
+fn prompt_sections(
+    ctx: &egui::Context,
+    app: &mut App,
+    prompt: &str,
+) -> Vec<(String, egui::Color32)> {
+    assert_eq!(app.tool_manager.active_status_text(), prompt);
+    let _ = paint(ctx, app, Vec::new());
+    let painted = paint(ctx, app, Vec::new());
+    let dock = panel_rect(ctx, "command_line");
+    let shape = texts_in(&painted.shapes, dock)
+        .into_iter()
+        .find(|t| t.galley.text() == prompt)
+        .unwrap_or_else(|| panic!("the dock must paint {prompt:?}"));
+    let colours = text_colours(shape);
+    let text = shape.galley.text();
+    shape
+        .galley
+        .job
+        .sections
+        .iter()
+        .zip(colours)
+        .map(|(s, c)| (text[s.byte_range.clone()].to_owned(), c))
+        .collect()
+}
+
+/// AC 6 — LINE: the verb in `accent`, the request in `text.primary`.
+#[test]
+fn ac6_line_prompt_paints_verb_accent_and_request_primary() {
+    let (ctx, mut app) = ctx_and_app();
+    harness::submit_command(&ctx, &mut app, "line");
+    let sections = prompt_sections(&ctx, &mut app, "LINE Specify first point:");
+    assert_eq!(
+        sections,
+        vec![
+            ("LINE".to_owned(), ACCENT),
+            (" Specify first point:".to_owned(), TEXT_PRIMARY),
+        ]
+    );
+}
+
+/// AC 6 — MIRROR's confirm: `[Yes/No]` and `<N>` in `text.muted`.
+#[test]
+fn ac6_mirror_confirm_paints_options_muted() {
+    let (ctx, mut app) = ctx_and_app();
+    let _ = paint(&ctx, &mut app, Vec::new());
+    let line = lasercad::geometry::Line::new(
+        lasercad::geometry::Vec2::new(10.0, 0.0),
+        lasercad::geometry::Vec2::new(20.0, 5.0),
+    );
+    app.commit(Box::new(lasercad::document::CreateLine::new(line)));
+    app.document.selection.add(0);
+    for step in ["mirror", "0,0", "0,10"] {
+        harness::submit_command(&ctx, &mut app, step);
+    }
+    let prompt = "MIRROR Erase source objects? [Yes/No] <N>:";
+    let sections = prompt_sections(&ctx, &mut app, prompt);
+    let colour_of = |part: &str| {
+        sections
+            .iter()
+            .find(|(t, _)| t == part)
+            .unwrap_or_else(|| panic!("no section {part:?}: {sections:?}"))
+            .1
+    };
+    assert_eq!(colour_of("MIRROR"), ACCENT);
+    assert_eq!(colour_of("[Yes/No]"), TEXT_MUTED);
+    assert_eq!(colour_of("<N>"), TEXT_MUTED);
+    assert_eq!(colour_of(" Erase source objects? "), TEXT_PRIMARY);
+}
+
+/// AC 6 — the idle `Command:` prompt has no verb: all `text.primary`.
+#[test]
+fn ac6_command_prompt_is_all_primary() {
+    let (ctx, mut app) = ctx_and_app();
+    let sections = prompt_sections(&ctx, &mut app, "Command:");
+    assert!(!sections.is_empty());
+    for (text, colour) in sections {
+        assert_eq!(colour, TEXT_PRIMARY, "{text:?}");
+    }
+}

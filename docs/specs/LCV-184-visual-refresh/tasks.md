@@ -26,7 +26,7 @@
   tests/it/ui/visual_refresh.rs)
 - [x] T8 [AC5] Coordinates painted as `RichText::monospace()`; T7 green (files:
   src/ui/statusbar.rs)
-- [ ] T9 [AC6] Test first: `prompt_spans` unit tests (`LINE Specify first point:`, `MIRROR Erase
+- [x] T9 [AC6] Test first: `prompt_spans` unit tests (`LINE Specify first point:`, `MIRROR Erase
   source objects? [Yes/No] <N>:`, `TEXT Specify height <5>:`, `TRIM: Click…`, `Command:`, empty,
   unbalanced `[`), stubbed; painted test: LINE active → verb `ACCENT`, request `TEXT_PRIMARY`;
   MIRROR confirm → `[Yes/No]` and `<N>` `TEXT_MUTED`; Select → `Command:` `TEXT_PRIMARY` (files:
