@@ -9,7 +9,7 @@
   `DANGER` #ff4d6a, `HOVER_WIDTH_PT` 2.5. Unit tests: `DANGER` ≥3:1 WCAG on gray 40 and hue
   ≥30° from `preview`, `snap` (#ffa000) and `status.warning` (#ff8f00); `HOVER_WIDTH_PT` > 1
   (files: src/render/palette.rs, src/render/mod.rs, src/render/preview.rs)
-- [ ] T4 [P] [AC4] Kernel: `removed_pieces(original, kept) -> Vec<Entity>` with unit tests first:
+- [x] T4 [P] [AC4] Kernel: `removed_pieces(original, kept) -> Vec<Entity>` with unit tests first:
   line with 0/1/2 removed ends, circle → complementary arc, CCW and CW arc with 0/1/2 pieces,
   across ±π, degenerate pieces dropped (files: src/document/commands/trim/removed.rs,
   src/document/commands/trim/mod.rs)

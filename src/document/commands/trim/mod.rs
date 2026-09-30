@@ -38,6 +38,7 @@ use crate::geometry::{
 pub(crate) mod arc;
 pub(crate) mod circle;
 pub(crate) mod line;
+pub(crate) mod removed;
 
 /// Trim a single target [`Entity`] at its intersection(s) with a cutter
 /// [`Entity`], keeping the sub-segment / sub-arc that contains
