@@ -1,4 +1,5 @@
 use super::*;
+use crate::document::History;
 use crate::geometry::Vec2;
 
 /// The source above the bare `#[cfg(test)]` at column 0 — the only slice a
@@ -559,4 +560,47 @@ fn ac3_wheel_zoom_call_site_subtracts_the_viewport_origin_source_scan() {
         !body.contains("handle_wheel_zoom(&mut app.camera, hover_pos, factor)"),
         "AC 3: the wheel-zoom anchor must never be the raw global hover_pos"
     );
+}
+
+/// A tool that has finished with one result line and a successor, the shape
+/// DIST takes after its second point (LCV-159).
+struct Reporting {
+    message: Option<String>,
+    done: bool,
+}
+
+impl crate::tools::Tool for Reporting {
+    fn name(&self) -> &'static str {
+        "Reporting"
+    }
+    fn on_pointer_down(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
+    fn on_pointer_move(&mut self, _: Vec2, _: &mut Document) {}
+    fn on_pointer_up(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
+    fn on_key(&mut self, _: egui::Key, _: &mut App) {}
+    fn preview(&self) -> Vec<crate::document::Entity> {
+        vec![]
+    }
+    fn cancel(&mut self) {}
+    fn take_message(&mut self) -> Option<String> {
+        self.message.take()
+    }
+    fn take_successor(&mut self) -> Option<Box<dyn crate::tools::Tool>> {
+        std::mem::take(&mut self.done)
+            .then(|| Box::new(crate::tools::SelectTool::default()) as Box<dyn crate::tools::Tool>)
+    }
+}
+
+/// LCV-159 AC7 — `poll_successor` drains the tool's message into
+/// `command_feedback` before the successor replaces the tool.
+#[test]
+fn poll_successor_drains_the_message_before_the_hand_over() {
+    let mut app = App::default();
+    app.tool_manager.set_tool(Box::new(Reporting {
+        message: Some("Distance = 1.000".to_owned()),
+        done: true,
+    }));
+    poll_successor(&mut app);
+    assert_eq!(app.command_feedback, "Distance = 1.000");
+    assert_eq!(app.tool_manager.active_tool_name(), "Select");
+    assert_eq!(app.tool_manager.take_message(), None, "single-shot");
 }

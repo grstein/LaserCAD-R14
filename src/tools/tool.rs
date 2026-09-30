@@ -174,6 +174,17 @@ pub trait Tool {
     fn take_successor(&mut self) -> Option<Box<dyn Tool>> {
         None
     }
+
+    /// Optionally hand the command line one result line, e.g. DIST's
+    /// `Distance = …` report (LCV-159, ADR 0003 amendment (5)).
+    ///
+    /// Single-shot like [`Self::take_successor`], and drained just before it
+    /// by `src/app/viewport.rs::poll_successor`, so the pointer path and the
+    /// typed path share one body and a hand-over cannot swallow the text. The
+    /// default always returns `None`.
+    fn take_message(&mut self) -> Option<String> {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -242,5 +253,11 @@ mod tests {
     #[test]
     fn tool_default_anchor_is_none() {
         assert_eq!(SelectTool::default().anchor(), None);
+    }
+
+    /// LCV-159 AC7 — `Tool::take_message()` defaults to `None`.
+    #[test]
+    fn tool_default_message_is_none() {
+        assert_eq!(SelectTool::default().take_message(), None);
     }
 }

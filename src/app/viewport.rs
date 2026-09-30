@@ -210,7 +210,13 @@ fn send_pointer(app: &mut App, event: PointerEvent) {
 /// move — and, since LCV-111, after a consumed command-line input, so the
 /// typed path hands over exactly like the pointer path (`pub(super)` for
 /// `super::cmdline`; there is deliberately only one copy of this body).
+///
+/// A tool's result line (LCV-159) is drained first, into `command_feedback`,
+/// so the hand-over below cannot swallow it.
 pub(super) fn poll_successor(app: &mut App) {
+    if let Some(message) = app.tool_manager.take_message() {
+        app.command_feedback = message;
+    }
     if let Some(t) = app.tool_manager.take_successor() {
         app.tool_manager.set_tool(t);
     }

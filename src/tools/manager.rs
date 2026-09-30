@@ -199,6 +199,12 @@ impl ToolManager {
         self.active.take_successor()
     }
 
+    /// Forward `take_message` to the active tool: its single-shot result
+    /// line, if any (LCV-159).
+    pub fn take_message(&mut self) -> Option<String> {
+        self.active.take_message()
+    }
+
     /// The active tool's anchor point for ortho / snap constraints.
     ///
     /// Returns `None` when the active tool has no live anchor (e.g. idle
