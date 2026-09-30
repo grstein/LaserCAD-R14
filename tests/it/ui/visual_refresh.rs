@@ -557,7 +557,11 @@ fn editor_frame_stroke(ctx: &egui::Context, painted: &Painted) -> egui::Stroke {
 #[test]
 fn ac7_editor_frame_turns_accent_with_focus() {
     let (ctx, mut app) = ctx_and_app();
-    let _ = paint(&ctx, &mut app, Vec::new());
+    // The dock settles on the second frame; `read_response` may report the
+    // frame before the one painted, so paint three.
+    for _ in 0..2 {
+        let _ = paint(&ctx, &mut app, Vec::new());
+    }
     let idle = paint(&ctx, &mut app, Vec::new());
     assert!(!app.command_line_focused);
     assert_eq!(

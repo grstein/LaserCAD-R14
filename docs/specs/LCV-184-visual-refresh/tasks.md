@@ -36,7 +36,7 @@
 - [x] T11 [AC7] Test first: the frame rect enclosing the editor response rect has a 1 pt
   `BORDER` stroke while unfocused and `ACCENT` after a typed character focuses the editor
   (files: tests/it/ui/visual_refresh.rs)
-- [ ] T12 [AC7] Editor row in an `egui::Frame` (1 pt stroke, focus read from memory),
+- [x] T12 [AC7] Editor row in an `egui::Frame` (1 pt stroke, focus read from memory),
   `TextEdit::frame(false)`; T11 and `tests/it/cmdline/context_row.rs` green (files:
   src/ui/command_line.rs)
 - [ ] T13 [AC8] Test: active rail button rect filled `FILL_SELECTED`, rounding 3, icon stroke

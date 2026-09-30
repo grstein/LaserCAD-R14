@@ -142,14 +142,43 @@ fn prompt_job(ui: &egui::Ui, text: &str) -> egui::text::LayoutJob {
 /// The editable row: the single-line field alone (LCV-139 AC 1, AC 7) — a
 /// long context row can never squeeze or overlap it, because it never shares
 /// a row with one.
+///
+/// LCV-184 AC 7: the row sits in a 1 pt frame — `border`, or `accent` while
+/// the editor holds keyboard focus. The frame is begun before the row and
+/// coloured after it, so it reads this frame's focus, not last frame's.
 fn draw_editor_row(ui: &mut egui::Ui, app: &mut App) {
+    use crate::ui::theme::{ACCENT, WIDGET_ROUNDING, border_stroke};
+    let mut frame = egui::Frame::none()
+        .rounding(WIDGET_ROUNDING)
+        .inner_margin(EDITOR_FRAME_MARGIN)
+        .begin(ui);
+    draw_editor_contents(&mut frame.content_ui, app);
+    frame.frame.stroke = match app.command_line_focused {
+        true => egui::Stroke::new(border_stroke().width, ACCENT),
+        false => border_stroke(),
+    };
+    frame.end(ui);
+}
+
+/// Inner margin of the editor row's frame, in points.
+const EDITOR_FRAME_MARGIN: egui::Margin = egui::Margin {
+    left: 4.0,
+    right: 4.0,
+    top: 2.0,
+    bottom: 2.0,
+};
+
+/// The editor row's contents: the `▶` marker and the frameless field.
+fn draw_editor_contents(ui: &mut egui::Ui, app: &mut App) {
     ui.horizontal(|ui| {
         ui.label("\u{25b6}");
 
-        // Single-line text input bound to app.command_line_input.
+        // Single-line text input bound to app.command_line_input; the row's
+        // frame above is its border (LCV-184 AC 7).
         let response = ui.add(
             egui::TextEdit::singleline(&mut app.command_line_input)
                 .id(editor_id())
+                .frame(false)
                 .desired_width(f32::INFINITY),
         );
 
