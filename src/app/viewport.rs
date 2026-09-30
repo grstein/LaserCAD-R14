@@ -33,6 +33,13 @@ pub fn draw(ctx: &egui::Context, app: &mut App) {
         // Sync the camera's viewport size before any draw call consumes it.
         app.camera.viewport_size_px = [rect.width(), rect.height()];
 
+        // Boot, Open and a new bed size frame the bed once the viewport has
+        // a size to frame it in (LCV-164 AC 7).
+        if app.frame_bed_pending && rect.width() > 0.0 && rect.height() > 0.0 {
+            app.camera.frame_bed(app.document.bed_mm);
+            app.frame_bed_pending = false;
+        }
+
         // Middle-button pan.
         if response.dragged_by(egui::PointerButton::Middle) {
             handle_pan(&mut app.camera, response.drag_delta());

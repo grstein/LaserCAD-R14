@@ -63,6 +63,7 @@ impl Default for App {
             snap_enabled: true,
             grid_enabled: true,
             ortho_enabled: false,
+            frame_bed_pending: false,
             agent: AgentState::default(),
             current_file: None,
             title: DocumentTitleState::default(),
@@ -105,7 +106,9 @@ impl App {
     ///   envelope's own `bed_mm` wins, and `title.recovered_from_autosave` is
     ///   set (LCV-138 AC 4) — the only place in the tree that sets it;
     /// - otherwise seeds the blank document's bed from
-    ///   `settings.default_bed_mm` (LCV-114 AC 11).
+    ///   `settings.default_bed_mm` (LCV-114 AC 11);
+    /// - asks the first sized frame to frame the bed (`frame_bed_pending`,
+    ///   LCV-164 AC 7), the autosaved one included.
     ///
     /// A platform that supplies no config or data directory degrades to
     /// defaults, never to a panic: an unresolved path is the same `None` the
@@ -136,6 +139,7 @@ impl App {
         } else {
             app.document.bed_mm = app.settings.clamped_default_bed_mm();
         }
+        app.frame_bed_pending = true;
         app
     }
 }

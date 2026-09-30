@@ -324,8 +324,10 @@ fn ac7_opening_a_file_frames_its_bed() {
 /// LCV-164 AC 7 — the Bed dialog's OK on a new size asks to frame it.
 #[test]
 fn ac7_a_bed_size_change_frames_the_new_bed() {
-    let mut app = lasercad::app::App::default();
-    app.bed_dialog = Some([320.0, 210.0]);
+    let mut app = lasercad::app::App {
+        bed_dialog: Some([320.0, 210.0]),
+        ..Default::default()
+    };
     assert!(lasercad::app::apply_bed_dialog_result(
         &mut app,
         lasercad::ui::DialogResult::Confirmed

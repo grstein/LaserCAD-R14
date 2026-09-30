@@ -23,7 +23,7 @@
   on a temp SVG) and Bed dialog OK frame; `App::new` sets the flag (source scan), `App::default`
   does not (files: tests/it/ui/canvas_legibility.rs, src/app/init.rs)
 - [x] T14 [AC7] `Camera::frame_bed`; `do_fit_to_bed` delegates to it (files: src/render/camera.rs, src/ui/menubar.rs)
-- [ ] T15 [AC7] `App::frame_bed_pending`: default false, `App::new` true, consumed in
+- [x] T15 [AC7] `App::frame_bed_pending`: default false, `App::new` true, consumed in
   `viewport::draw` after the size sync (files: src/app/mod.rs, src/app/init.rs, src/app/viewport.rs)
 - [ ] T16 [AC7] Open paths and Bed dialog OK set the flag (files: src/io/file_actions.rs, src/app/bed_dialog.rs)
 - [ ] T17 [AC8] DESIGN.md §3 grid/origin/snap-edge tokens, §5 chord rule, §6 origin, snap label,

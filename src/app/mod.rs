@@ -179,6 +179,9 @@ pub struct App {
     pub grid_enabled: bool,
     /// Whether ortho mode is active. Toggled by F8 (LCV-070/LCV-053). Defaults to false.
     pub ortho_enabled: bool,
+    /// Frame the bed on the next frame whose viewport has area (LCV-164 AC 7): set by
+    /// `App::new`, Open and the Bed dialog's OK; cleared by `viewport::draw`.
+    pub frame_bed_pending: bool,
     /// The agent's UI-side state: chat transcript, panel visibility, the
     /// in-flight turn's channel and fence (ADR 0004 §"The `src/app/mod.rs`
     /// seam", LCV-136). `agent_settings_open` stays here on `App` — it is one
