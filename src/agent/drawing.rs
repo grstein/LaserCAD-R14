@@ -80,20 +80,21 @@ pub const ENTITY_KEYS: [(&str, &[&str]); 3] = [
 /// no provider drops the tool. Which keys each `type` needs is said in words;
 /// [`parse`] is what enforces it.
 pub fn schema() -> Value {
-    let num = json!({"type": "number"});
+    let types: Vec<&str> = ENTITY_KEYS.iter().map(|(t, _)| *t).collect();
+    let mut props = serde_json::Map::new();
+    props.insert("type".into(), json!({"type": "string", "enum": types}));
+    for key in ENTITY_KEYS.iter().flat_map(|(_, keys)| keys.iter()) {
+        let kind = if *key == "ccw" { "boolean" } else { "number" };
+        props.insert((*key).into(), json!({"type": kind}));
+    }
     json!({"type": "object",
       "properties": {
         "version": {"type": "integer", "enum": [1],
           "description": "Format version; always 1."},
         "entities": {"type": "array", "minItems": 1, "maxItems": MAX_DRAWING_ENTITIES,
           "items": {"type": "object",
-            "description": "One entity; exactly the keys of its type. line: x1, y1, x2, y2. circle: cx, cy, r. arc: cx, cy, r, start_deg, end_deg, ccw (degrees, 0 = +X; ccw=true is counter-clockwise).",
-            "properties": {
-              "type": {"type": "string", "enum": ["line", "circle", "arc"]},
-              "x1": num, "y1": num, "x2": num, "y2": num,
-              "cx": num, "cy": num, "r": num,
-              "start_deg": num, "end_deg": num,
-              "ccw": {"type": "boolean"}},
+            "description": "One entity: its type and that type's keys; keys of other types may be omitted or null. line: x1, y1, x2, y2. circle: cx, cy, r. arc: cx, cy, r, start_deg, end_deg, ccw (degrees, 0 = +X; ccw=true is counter-clockwise).",
+            "properties": props,
             "required": ["type"]}},
         "layer": layer_schema()},
       "required": ["version", "entities"]})

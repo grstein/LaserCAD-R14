@@ -467,3 +467,49 @@ fn lcv185_ac4_an_item_with_every_published_property_draws_one_entity() {
         }
     }
 }
+
+/// LCV-185 AC 5 — every published item property belongs to at least one
+/// type, and every type key is published.
+#[test]
+fn lcv185_ac5_the_published_properties_are_the_union_of_the_type_keys() {
+    use lasercad::agent::drawing::ENTITY_KEYS;
+    let mut union: Vec<String> = vec!["type".to_owned()];
+    for (_, keys) in ENTITY_KEYS {
+        union.extend(keys.iter().map(|k| (*k).to_owned()));
+    }
+    union.sort();
+    union.dedup();
+    let mut published = published_keys();
+    published.sort();
+    assert_eq!(published, union);
+    let schema = lasercad::agent::drawing::schema();
+    let types = &schema["properties"]["entities"]["items"]["properties"]["type"]["enum"];
+    let names: Vec<&str> = ENTITY_KEYS.iter().map(|(t, _)| *t).collect();
+    assert_eq!(types, &json!(names));
+}
+
+/// Every object key anywhere in `value`, depth first.
+fn all_keys(value: &Value, out: &mut Vec<String>) {
+    match value {
+        Value::Object(map) => {
+            for (k, v) in map {
+                out.push(k.clone());
+                all_keys(v, out);
+            }
+        }
+        Value::Array(items) => items.iter().for_each(|v| all_keys(v, out)),
+        _ => {}
+    }
+}
+
+/// LCV-185 AC 6 — the published schema carries no union or closed-object
+/// keyword anywhere (ADR 0010 §2).
+#[test]
+fn lcv185_ac6_the_schema_has_no_union_keywords() {
+    let mut keys = Vec::new();
+    all_keys(&lasercad::agent::drawing::schema(), &mut keys);
+    assert!(keys.iter().any(|k| k == "enum"), "control: {keys:?}");
+    for banned in ["oneOf", "anyOf", "allOf", "const", "additionalProperties"] {
+        assert!(!keys.iter().any(|k| k == banned), "{banned} in the schema");
+    }
+}
