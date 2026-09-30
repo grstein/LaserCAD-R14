@@ -33,7 +33,7 @@
   src/ui/command_line/prompt.rs, src/ui/command_line.rs, tests/it/ui/visual_refresh.rs)
 - [x] T10 [AC6] `prompt_spans` + prompt painted from a `LayoutJob` through the truncating
   label; T9 green (files: src/ui/command_line/prompt.rs, src/ui/command_line.rs)
-- [ ] T11 [AC7] Test first: the frame rect enclosing the editor response rect has a 1 pt
+- [x] T11 [AC7] Test first: the frame rect enclosing the editor response rect has a 1 pt
   `BORDER` stroke while unfocused and `ACCENT` after a typed character focuses the editor
   (files: tests/it/ui/visual_refresh.rs)
 - [ ] T12 [AC7] Editor row in an `egui::Frame` (1 pt stroke, focus read from memory),

@@ -535,3 +535,42 @@ fn ac6_command_prompt_is_all_primary() {
         assert_eq!(colour, TEXT_PRIMARY, "{text:?}");
     }
 }
+
+// ── AC 7 — editor frame ───────────────────────────────────────────────
+
+/// The stroke of the smallest stroked rect enclosing the command editor.
+fn editor_frame_stroke(ctx: &egui::Context, painted: &Painted) -> egui::Stroke {
+    let editor = ctx
+        .read_response(egui::Id::new("command_line_editor"))
+        .expect("the editor must have painted")
+        .rect;
+    rects(&painted.shapes)
+        .into_iter()
+        .filter(|r| r.stroke.width > 0.0 && r.rect.contains_rect(editor))
+        .min_by(|a, b| a.rect.area().total_cmp(&b.rect.area()))
+        .expect("a stroked frame must enclose the editor")
+        .stroke
+}
+
+/// AC 7 — 1 pt `border` while unfocused, `accent` once a typed character
+/// has focused the editor.
+#[test]
+fn ac7_editor_frame_turns_accent_with_focus() {
+    let (ctx, mut app) = ctx_and_app();
+    let _ = paint(&ctx, &mut app, Vec::new());
+    let idle = paint(&ctx, &mut app, Vec::new());
+    assert!(!app.command_line_focused);
+    assert_eq!(
+        editor_frame_stroke(&ctx, &idle),
+        egui::Stroke::new(1.0_f32, BORDER)
+    );
+
+    harness::type_command(&ctx, &mut app, "1");
+    let _ = paint(&ctx, &mut app, Vec::new());
+    let focused = paint(&ctx, &mut app, Vec::new());
+    assert!(app.command_line_focused, "the typed character focused it");
+    assert_eq!(
+        editor_frame_stroke(&ctx, &focused),
+        egui::Stroke::new(1.0_f32, ACCENT)
+    );
+}
