@@ -21,11 +21,15 @@
 //!
 //! - [`line`] — `line_line`, `line_line_infinite`, `line_circle`.
 //! - [`circle`] — `circle_circle`.
+//! - [`arc`] — `line_arc`, `circle_arc`, `arc_arc`, filtered by the arc's
+//!   span (LCV-160).
 //!
 //! Frozen by demand LCV-014.
 
+pub mod arc;
 pub mod circle;
 pub mod line;
 
+pub use arc::{arc_arc, circle_arc, line_arc};
 pub use circle::circle_circle;
 pub use line::{line_circle, line_line, line_line_infinite};

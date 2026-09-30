@@ -19,7 +19,9 @@ pub mod vec2;
 pub use arc::Arc;
 pub use circle::Circle;
 pub use epsilon::EPSILON;
-pub use intersect::{circle_circle, line_circle, line_line, line_line_infinite};
+pub use intersect::{
+    arc_arc, circle_arc, circle_circle, line_arc, line_circle, line_line, line_line_infinite,
+};
 pub use line::Line;
 pub use rect::Rect;
 pub use snap::{SnapEntity, SnapKind, SnapResult, snap};

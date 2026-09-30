@@ -1,6 +1,6 @@
 # LCV-160 — Tasks
 
-- [ ] T1 [AC1] [AC2] [AC6] Geometry: `line_arc`, `circle_arc`, `arc_arc`, span-filtered. Unit tests
+- [x] T1 [AC1] [AC2] [AC6] Geometry: `line_arc`, `circle_arc`, `arc_arc`, span-filtered. Unit tests
   first, covering a CW arc, an arc across ±π, a tangent case and endpoint inclusion (files:
   src/geometry/intersect/arc.rs, src/geometry/intersect/mod.rs, src/geometry/mod.rs)
 - [ ] T2 [AC1–9] Test: one failing integration test per AC that drives `TrimTool`/`ExtendTool` on
