@@ -261,3 +261,76 @@ fn ac4_origin_marker_paints_before_the_entities() {
         "AC 4: origin {origin_at} after entity {circle_at}"
     );
 }
+
+/// Where `View > Fit to Bed` puts `camera` for `bed_mm`.
+fn framed(camera: &Camera, bed_mm: [f64; 2]) -> Camera {
+    let mut want = camera.clone();
+    want.frame_bed(bed_mm);
+    want
+}
+
+/// One real `App::update_ui` frame.
+fn frame(app: &mut lasercad::app::App) {
+    let ctx = egui::Context::default();
+    crate::harness::frame(&ctx, app, Vec::new());
+}
+
+/// LCV-164 AC 7 — a pending framing request frames the bed on the first
+/// frame with a viewport, then clears; `App::default` (the test constructor)
+/// never asks, so a fixture keeps its camera.
+#[test]
+fn ac7_a_pending_request_frames_the_bed_once_the_viewport_is_known() {
+    let mut app = lasercad::app::App::default();
+    assert!(!app.frame_bed_pending, "App::default never frames");
+    frame(&mut app);
+    assert_eq!(
+        app.camera.center_world,
+        Vec2::new(0.0, 0.0),
+        "no request, no framing"
+    );
+
+    app.document.bed_mm = [400.0, 250.0];
+    app.frame_bed_pending = true;
+    frame(&mut app);
+    assert!(!app.frame_bed_pending, "the request is consumed");
+    let want = framed(&app.camera, [400.0, 250.0]);
+    assert!(
+        app.camera.viewport_size_px[0] > 0.0,
+        "control: the viewport has area"
+    );
+    assert_eq!(app.camera, want, "the camera frames the bed");
+    assert_eq!(app.camera.center_world, Vec2::new(200.0, 125.0));
+}
+
+/// LCV-164 AC 7 — opening a file (`action_open_path`, the path both Open
+/// and Open Recent share with the dialog one) asks to frame the file's bed.
+#[test]
+fn ac7_opening_a_file_frames_its_bed() {
+    let dir = std::env::temp_dir().join("lcv164_open_frames");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("bed.svg");
+    let doc = Document::with_bed([300.0, 180.0]);
+    std::fs::write(&path, lasercad::io::svg::export_svg(&doc)).unwrap();
+
+    let mut app = lasercad::app::App::default();
+    lasercad::io::action_open_path(&mut app, path);
+    assert_eq!(app.error_message, None);
+    assert!(app.frame_bed_pending, "Open asks to frame the bed");
+    frame(&mut app);
+    assert_eq!(app.camera, framed(&app.camera, [300.0, 180.0]));
+}
+
+/// LCV-164 AC 7 — the Bed dialog's OK on a new size asks to frame it.
+#[test]
+fn ac7_a_bed_size_change_frames_the_new_bed() {
+    let mut app = lasercad::app::App::default();
+    app.bed_dialog = Some([320.0, 210.0]);
+    assert!(lasercad::app::apply_bed_dialog_result(
+        &mut app,
+        lasercad::ui::DialogResult::Confirmed
+    ));
+    assert!(app.frame_bed_pending, "OK asks to frame the new bed");
+    frame(&mut app);
+    assert_eq!(app.camera, framed(&app.camera, [320.0, 210.0]));
+}

@@ -19,7 +19,7 @@
   before entities; the LCV-137 order test learns `Path` shapes (files: src/app/viewport/tests.rs, tests/it/ui/canvas_legibility.rs)
 - [x] T11 [AC4] `ORIGIN` tokens and `bed.rs::draw_origin`, exported (files: src/render/palette.rs, src/render/bed.rs, src/render/mod.rs)
 - [x] T12 [AC4] `paint` calls `draw_origin` after `draw_bed` (files: src/app/viewport/paint.rs)
-- [ ] T13 [AC7] Test: pending flag frames on the first frame with area; Open (`action_open_path`
+- [x] T13 [AC7] Test: pending flag frames on the first frame with area; Open (`action_open_path`
   on a temp SVG) and Bed dialog OK frame; `App::new` sets the flag (source scan), `App::default`
   does not (files: tests/it/ui/canvas_legibility.rs, src/app/init.rs)
 - [ ] T14 [AC7] `Camera::frame_bed`; `do_fit_to_bed` delegates to it (files: src/render/camera.rs, src/ui/menubar.rs)

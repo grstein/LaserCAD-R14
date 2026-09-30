@@ -378,4 +378,16 @@ mod tests {
             }
         }
     }
+
+    /// LCV-164 AC 7 — boot (which is also where an autosave is recovered)
+    /// asks the first frame with a viewport to frame the bed. `App::new`
+    /// cannot run in a test (ADR 0002 §A2), so this is a scan of its body.
+    #[test]
+    fn boot_asks_to_frame_the_bed() {
+        let body = app_new_body();
+        assert!(
+            body.contains(concat!("app.frame_bed", "_pending = true;")),
+            "App::new must set frame_bed_pending (LCV-164 AC 7)"
+        );
+    }
 }
