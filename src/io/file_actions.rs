@@ -85,6 +85,7 @@ pub fn action_open(app: &mut App) {
     // Its layers, membership and current layer come with it (LCV-156 AC 9).
     app.document = document;
     app.history = History::default();
+    app.frame_bed_pending = true; // LCV-164 AC 7
     app.current_file = Some(path.clone());
     app.mark_saved();
     app.settings
@@ -149,6 +150,7 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
     // LCV-156 AC 9).
     app.document = document;
     app.history = History::default();
+    app.frame_bed_pending = true; // LCV-164 AC 7
     app.current_file = Some(path.clone());
     app.mark_saved();
     app.settings

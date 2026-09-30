@@ -111,13 +111,15 @@ fn close_rect(a: egui::Rect, b: egui::Rect) -> bool {
         && close(a.max.y, b.max.y)
 }
 
-/// Filled squares (an Endpoint snap glyph) centred within 0.5 pt of `at`.
+/// Filled squares (an Endpoint snap glyph) centred within 0.5 pt of `at`;
+/// the glyph's dark edge under it (LCV-164 AC 2) is not counted.
 fn filled_squares_at(shapes: &[egui::Shape], at: egui::Pos2) -> usize {
     shapes
         .iter()
         .filter(|s| match s {
             egui::Shape::Rect(r) => {
                 r.fill != egui::Color32::TRANSPARENT
+                    && r.fill != lasercad::render::palette::SNAP_EDGE
                     && close(r.rect.width(), r.rect.height())
                     && r.rect.width() < 20.0
                     && (r.rect.center() - at).length() < 0.5

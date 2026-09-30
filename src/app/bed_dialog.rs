@@ -83,7 +83,8 @@ fn bed_drag(v: &mut f64) -> egui::DragValue<'_> {
 /// Takes `App::bed_dialog` unconditionally, so both branches close the dialog.
 /// On [`DialogResult::Confirmed`] each axis goes through [`clamp_bed_mm`] and,
 /// **only if the result differs from the current bed**, a [`SetBedSize`] is
-/// committed and `Settings::default_bed_mm` is updated in memory — an OK that
+/// committed, `Settings::default_bed_mm` is updated in memory and the next
+/// frame frames the new bed (LCV-164 AC 7) — an OK that
 /// changes nothing must not cost the operator a Ctrl+Z. On
 /// [`DialogResult::Cancelled`] nothing else happens at all.
 ///
@@ -106,6 +107,7 @@ pub fn apply_bed_dialog_result(app: &mut App, result: DialogResult) -> bool {
     }
     app.commit(Box::new(SetBedSize::new(bed)));
     app.settings.default_bed_mm = bed;
+    app.frame_bed_pending = true; // LCV-164 AC 7: frame the new bed
     true
 }
 

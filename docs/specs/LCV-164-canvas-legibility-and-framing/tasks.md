@@ -25,7 +25,7 @@
 - [x] T14 [AC7] `Camera::frame_bed`; `do_fit_to_bed` delegates to it (files: src/render/camera.rs, src/ui/menubar.rs)
 - [x] T15 [AC7] `App::frame_bed_pending`: default false, `App::new` true, consumed in
   `viewport::draw` after the size sync (files: src/app/mod.rs, src/app/init.rs, src/app/viewport.rs)
-- [ ] T16 [AC7] Open paths and Bed dialog OK set the flag (files: src/io/file_actions.rs, src/app/bed_dialog.rs)
+- [x] T16 [AC7] Open paths and Bed dialog OK set the flag (files: src/io/file_actions.rs, src/app/bed_dialog.rs)
 - [ ] T17 [AC8] DESIGN.md §3 grid/origin/snap-edge tokens, §5 chord rule, §6 origin, snap label,
   framing and paint order; gap notes removed (files: DESIGN.md)
 - [ ] T18 CHANGELOG line (files: CHANGELOG.md)
