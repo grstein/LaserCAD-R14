@@ -66,6 +66,12 @@ impl App {
         save_autosave_to(&self.document, path).is_ok()
     }
 
+    /// Whether this process was given an `autosave_path` — a pathless process
+    /// never writes, so it can never report a failed autosave (LCV-167 AC 9).
+    pub fn persists_autosave(&self) -> bool {
+        self.autosave_path.is_some()
+    }
+
     /// Remove the autosave file at `autosave_path`, if this process was given
     /// one.
     ///
