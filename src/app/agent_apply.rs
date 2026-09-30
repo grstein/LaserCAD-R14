@@ -145,6 +145,7 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
         ),
         AgentAction::Delete { index } => edit::delete(index, doc),
         AgentAction::Move { index, dx, dy } => edit::move_(index, dx, dy, doc),
+        AgentAction::Copy { index, dx, dy } => edit::copy(index, dx, dy, doc),
         AgentAction::QueryEntities => Planned::Answer(AgentOutcome::Ok(list_entities(doc))),
         AgentAction::QuerySelection => Planned::Answer(AgentOutcome::Ok(list_selection(doc))),
         // One command for the whole batch (ADR 0010 §1, §5).

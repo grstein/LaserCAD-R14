@@ -725,3 +725,65 @@ fn agent_apply_only_ever_commits() {
         );
     }
 }
+
+// ── LCV-157 AC9: copy_entity ─────────────────────────────────────────────
+
+/// LCV-157 AC9 — an out-of-range copy is refused and changes nothing.
+#[test]
+fn an_out_of_range_copy_is_refused_and_changes_nothing() {
+    let mut app = app_with(vec![line(0.0)]);
+    let before = app.history.revision();
+    let action = AgentAction::Copy {
+        index: 1,
+        dx: 1.0,
+        dy: 0.0,
+    };
+    assert_eq!(
+        apply(&mut app, &action),
+        AgentOutcome::Refused("index 1 is out of range (the drawing has 1 entities)".to_string())
+    );
+    assert_eq!(app.history.revision(), before);
+    assert_eq!(app.document.entities, vec![line(0.0)]);
+}
+
+/// LCV-157 AC9 — a copy lands translated on the source's layer (not the
+/// current one), leaves the source alone, names the new index, and is one
+/// undo step.
+#[test]
+fn a_copy_lands_on_the_source_layer_as_one_undo_step() {
+    let mut app = App::default();
+    app.commit(Box::new(crate::document::AddLayer::new(
+        "Engrave",
+        [0, 0, 255],
+        true,
+    )));
+    let engrave = app.document.layer_by_name("Engrave").unwrap().id;
+    app.commit(Box::new(
+        CreateCircle::new(Circle::new(Vec2::new(10.0, 10.0), 5.0)).on_layer(engrave),
+    ));
+    assert_ne!(app.document.current_layer(), engrave);
+    let before = app.history.revision();
+
+    let outcome = apply(
+        &mut app,
+        &AgentAction::Copy {
+            index: 0,
+            dx: 3.0,
+            dy: 4.0,
+        },
+    );
+    assert_eq!(
+        outcome.text(),
+        "Copied entity 0 (circle, center (10.000, 10.000) mm, r = 5.000 mm) \
+         by (3.000, 4.000) mm as entity 1. The drawing now has 2 entities."
+    );
+    assert_eq!(app.document.entities[0], circle());
+    assert_eq!(
+        app.document.entities[1],
+        Entity::Circle(Circle::new(Vec2::new(13.0, 14.0), 5.0))
+    );
+    assert_eq!(app.document.entity_layer(1), Some(engrave));
+    assert_eq!(app.history.revision(), before + 1);
+    assert!(app.history.undo(&mut app.document));
+    assert_eq!(app.document.entities, vec![circle()]);
+}

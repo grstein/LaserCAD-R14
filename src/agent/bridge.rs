@@ -99,6 +99,16 @@ pub enum AgentAction {
         /// Y translation, mm.
         dy: f64,
     },
+    /// Append a copy of one entity translated by `(dx, dy)` mm, on the
+    /// source's layer (LCV-157).
+    Copy {
+        /// Zero-based index into `Document::entities`.
+        index: usize,
+        /// X translation, mm.
+        dx: f64,
+        /// Y translation, mm.
+        dy: f64,
+    },
     /// Read back every entity in the drawing. Commits nothing.
     QueryEntities,
     /// Read back the current selection. Commits nothing.
@@ -278,11 +288,11 @@ mod tests {
         );
     }
 
-    /// AC 1 — the seven action variants exist with the documented field names
+    /// AC 1 — the action variants exist with the documented field names
     /// and types. Compile proof plus a distinctness check, so a duplicated
     /// variant cannot hide.
     #[test]
-    fn the_seven_action_variants_are_distinct() {
+    fn the_action_variants_are_distinct() {
         let actions = [
             AgentAction::CreateLine {
                 layer: None,
@@ -312,10 +322,15 @@ mod tests {
                 dx: 3.0,
                 dy: 4.0,
             },
+            AgentAction::Copy {
+                index: 0,
+                dx: 3.0,
+                dy: 4.0,
+            },
             AgentAction::QueryEntities,
             AgentAction::QuerySelection,
         ];
-        assert_eq!(actions.len(), 7);
+        assert_eq!(actions.len(), 8);
         for (i, a) in actions.iter().enumerate() {
             for (j, b) in actions.iter().enumerate() {
                 assert_eq!(

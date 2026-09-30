@@ -1,13 +1,14 @@
 //! The edit arms of `agent_apply.rs::plan`: actions that address an existing
-//! entity by index (LCV-078). Split out for the LOC cap (LCV-157); the range
-//! check lives here because only these arms need it (ADR 0007 §D2a).
+//! entity by index (LCV-078; `copy_entity` LCV-157). Split out for the LOC
+//! cap (LCV-157); the range check lives here because only these arms need it
+//! (ADR 0007 §D2a).
 //!
 //! Imports `egui` nowhere, `eframe` nowhere, `rfd` nowhere.
 
 use super::Planned;
 use crate::agent::AgentOutcome;
 use crate::app::agent_narrate::{describe, pt};
-use crate::document::{DeleteEntities, Document, Entity, MoveEntities};
+use crate::document::{CopyEntities, DeleteEntities, Document, Entity, MoveEntities};
 use crate::geometry::Vec2;
 
 /// `delete_entity`: refuse an out-of-range index, else name what goes and
@@ -36,6 +37,23 @@ pub(super) fn move_(index: usize, dx: f64, dy: f64, doc: &Document) -> Planned {
                 "Moved entity {index} ({}) by {} mm.",
                 describe(entity),
                 pt(dx, dy)
+            ),
+        ),
+    }
+}
+
+/// `copy_entity`: refuse an out-of-range index, else append a translated
+/// copy on the source's layer and name its index (LCV-157 AC9).
+pub(super) fn copy(index: usize, dx: f64, dy: f64, doc: &Document) -> Planned {
+    match in_range(index, doc) {
+        Err(refusal) => Planned::Answer(refusal),
+        Ok(entity) => Planned::Commit(
+            Box::new(CopyEntities::new(vec![index], Vec2::new(dx, dy))),
+            format!(
+                "Copied entity {index} ({}) by {} mm as entity {}.",
+                describe(entity),
+                pt(dx, dy),
+                doc.entity_count()
             ),
         ),
     }
