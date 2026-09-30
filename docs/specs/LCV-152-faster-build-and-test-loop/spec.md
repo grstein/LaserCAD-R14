@@ -18,6 +18,9 @@ dominates each demand's wall time and makes every agent iteration slow.
 
 1. WHEN `cargo test --all --no-fail-fast` runs THE SYSTEM SHALL build at most two integration-test
    binaries (`tests/it/` plus any binary that must stay separate, each justified in `plan.md`).
+   *Note 2026-09-30 (LCV-170):* `tests/` may also hold a data-only `fixtures/` directory (the
+   SVG conformance corpus); `repo::single_test_binary` asserts it contains no `.rs` file, so no
+   extra binary can appear.
 2. WHEN the suite runs THE SYSTEM SHALL execute the same set of test functions as before the change
    (same count by name, none skipped or ignored that were not already).
 3. WHEN a single `src/` file changes THE SYSTEM SHALL complete an incremental `scripts/gate.sh`
