@@ -255,7 +255,7 @@ fn enter_commits_text_tool() {
 /// double dispatch would land on a no-op and this test would not move.
 /// `LineTool::on_key` still resets the tool to `Idle` on `Enter`
 /// (`src/tools/line.rs`), so an extra, gate-broken call is visible: the
-/// prompt would read `"LINE Specify first point:"` a beat early instead of
+/// prompt would read `"LINE  Specify first point:"` a beat early instead of
 /// chaining to the next segment.
 #[test]
 fn enter_reaches_the_tool_exactly_once_while_focused() {
@@ -267,7 +267,7 @@ fn enter_reaches_the_tool_exactly_once_while_focused() {
     tap(&ctx, &mut app, egui::Key::Enter, none());
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify next point (Enter to finish):",
+        "LINE  Specify next point <Enter to finish>:",
         "a double-dispatched Enter would also hit LineTool::on_key and cancel back to Idle"
     );
 
@@ -281,7 +281,7 @@ fn enter_reaches_the_tool_exactly_once_while_focused() {
     );
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify next point (Enter to finish):",
+        "LINE  Specify next point <Enter to finish>:",
         "LINE chains after a commit; a double dispatch would cancel it to Idle instead"
     );
 }

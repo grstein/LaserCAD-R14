@@ -486,12 +486,12 @@ fn prompt_sections(
 fn ac6_line_prompt_paints_verb_accent_and_request_primary() {
     let (ctx, mut app) = ctx_and_app();
     harness::submit_command(&ctx, &mut app, "line");
-    let sections = prompt_sections(&ctx, &mut app, "LINE Specify first point:");
+    let sections = prompt_sections(&ctx, &mut app, "LINE  Specify first point:");
     assert_eq!(
         sections,
         vec![
             ("LINE".to_owned(), ACCENT),
-            (" Specify first point:".to_owned(), TEXT_PRIMARY),
+            ("  Specify first point:".to_owned(), TEXT_PRIMARY),
         ]
     );
 }

@@ -115,7 +115,7 @@ fn no_direction_is_a_clean_refusal() {
     assert_eq!(app.history.len(), 1);
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify next point (Enter to finish):",
+        "LINE  Specify next point <Enter to finish>:",
         "the tool's phase must be untouched by a refusal"
     );
     assert_eq!(
@@ -164,7 +164,7 @@ fn typed_polyline_commits_exact_coordinates() {
     submit_command(&ctx, &mut app, "p");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "PLINE Specify start point:"
+        "PLINE  Specify first point:"
     );
     submit_command(&ctx, &mut app, "0,0");
     submit_command(&ctx, &mut app, "100,0");
@@ -184,12 +184,12 @@ fn typed_rect_commits_exact_coordinates() {
     submit_command(&ctx, &mut app, "r");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "RECT Specify first corner:"
+        "RECT  Specify first corner:"
     );
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "RECT Specify opposite corner:"
+        "RECT  Specify opposite corner:"
     );
     submit_command(&ctx, &mut app, "100,50");
 
@@ -362,7 +362,7 @@ fn enter_on_an_empty_field_finishes_the_polyline_exactly_once() {
 
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "PLINE Specify start point:",
+        "PLINE  Specify first point:",
         "Enter must finish the polyline"
     );
     assert_eq!(
@@ -453,7 +453,7 @@ fn escape_clears_the_field_and_the_feedback_and_cancels_the_tool() {
     assert_eq!(app.command_feedback, "", "and the stale message");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify first point:",
+        "LINE  Specify first point:",
         "and cancels the tool, even while the field has focus"
     );
     assert_eq!(app.history.len(), 0, "cancelling commits nothing");
@@ -496,17 +496,17 @@ fn prompt_follows_the_active_phase() {
     submit_command(&ctx, &mut app, "l");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify first point:"
+        "LINE  Specify first point:"
     );
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify next point (Enter to finish):"
+        "LINE  Specify next point <Enter to finish>:"
     );
     submit_command(&ctx, &mut app, "100,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify next point (Enter to finish):",
+        "LINE  Specify next point <Enter to finish>:",
         "LINE chains, so the prompt stays on the next point"
     );
 

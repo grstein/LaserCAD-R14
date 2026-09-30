@@ -64,7 +64,7 @@ fn relative_polar_without_anchor_is_refused() {
     assert_eq!(app.history.len(), 0);
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify first point:"
+        "LINE  Specify first point:"
     );
 }
 

@@ -46,8 +46,10 @@ impl Tool for LineTool {
     /// The R14 prompt table (LCV-111 AC 17).
     fn status_text(&self) -> Cow<'_, str> {
         match self.state {
-            State::Idle => "LINE Specify first point:".into(),
-            State::WaitingSecondPoint { .. } => "LINE Specify next point (Enter to finish):".into(),
+            State::Idle => "LINE  Specify first point:".into(),
+            State::WaitingSecondPoint { .. } => {
+                "LINE  Specify next point <Enter to finish>:".into()
+            }
         }
     }
 
@@ -161,7 +163,7 @@ mod tests {
         let t = LineTool::new();
         assert_eq!(t.name(), "LINE");
         assert!(t.preview().is_empty());
-        assert_eq!(t.status_text(), "LINE Specify first point:");
+        assert_eq!(t.status_text(), "LINE  Specify first point:");
     }
 
     #[test]
@@ -170,7 +172,7 @@ mod tests {
         t.on_pointer_down(Vec2::new(1.0, 2.0), false, &mut doc, &mut h);
         assert_eq!(
             t.status_text(),
-            "LINE Specify next point (Enter to finish):"
+            "LINE  Specify next point <Enter to finish>:"
         );
         assert!(t.preview().is_empty()); // cursor == p1 still
     }
@@ -213,7 +215,7 @@ mod tests {
         // still chaining
         assert_eq!(
             t.status_text(),
-            "LINE Specify next point (Enter to finish):"
+            "LINE  Specify next point <Enter to finish>:"
         );
     }
 
@@ -235,7 +237,7 @@ mod tests {
         let mut app = crate::app::App::default();
         t.on_key(egui::Key::Escape, &mut app);
         assert!(t.preview().is_empty());
-        assert_eq!(t.status_text(), "LINE Specify first point:");
+        assert_eq!(t.status_text(), "LINE  Specify first point:");
         t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
         t.on_key(egui::Key::Enter, &mut app);
         assert!(t.preview().is_empty());

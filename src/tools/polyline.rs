@@ -47,9 +47,9 @@ impl Tool for PolylineTool {
     /// The R14 prompt table (LCV-111 AC 17).
     fn status_text(&self) -> Cow<'_, str> {
         match self.state {
-            State::Idle => "PLINE Specify start point:".into(),
+            State::Idle => "PLINE  Specify first point:".into(),
             State::WaitingSecondPoint { .. } => {
-                "PLINE Specify next point (Enter to finish):".into()
+                "PLINE  Specify next point <Enter to finish>:".into()
             }
         }
     }
@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn idle_status_contains_start() {
         let t = PolylineTool::new();
-        assert_eq!(t.status_text(), "PLINE Specify start point:");
+        assert_eq!(t.status_text(), "PLINE  Specify first point:");
     }
 
     // ── AC: first click ─────────────────────────────────────────────────
@@ -185,7 +185,7 @@ mod tests {
         t.on_pointer_down(Vec2::new(1.0, 2.0), false, &mut doc, &mut h);
         assert_eq!(
             t.status_text(),
-            "PLINE Specify next point (Enter to finish):"
+            "PLINE  Specify next point <Enter to finish>:"
         );
         assert!(t.preview().is_empty()); // cursor == p1 still
     }
@@ -249,7 +249,7 @@ mod tests {
         // Still waiting — chained to p2 as new p1.
         assert_eq!(
             t.status_text(),
-            "PLINE Specify next point (Enter to finish):"
+            "PLINE  Specify next point <Enter to finish>:"
         );
     }
 
@@ -282,7 +282,7 @@ mod tests {
         let mut app = crate::app::App::default();
         t.on_key(egui::Key::Escape, &mut app);
         assert!(t.preview().is_empty());
-        assert_eq!(t.status_text(), "PLINE Specify start point:");
+        assert_eq!(t.status_text(), "PLINE  Specify first point:");
     }
 
     #[test]
@@ -292,7 +292,7 @@ mod tests {
         let mut app = crate::app::App::default();
         t.on_key(egui::Key::Enter, &mut app);
         assert!(t.preview().is_empty());
-        assert_eq!(t.status_text(), "PLINE Specify start point:");
+        assert_eq!(t.status_text(), "PLINE  Specify first point:");
     }
 
     #[test]
@@ -300,7 +300,7 @@ mod tests {
         let mut t = PolylineTool::new();
         t.cancel();
         assert!(t.preview().is_empty());
-        assert_eq!(t.status_text(), "PLINE Specify start point:");
+        assert_eq!(t.status_text(), "PLINE  Specify first point:");
     }
 
     // ── AC: object-safety ───────────────────────────────────────────────

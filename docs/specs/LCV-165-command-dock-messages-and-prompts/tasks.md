@@ -22,7 +22,7 @@
 - [x] T8 [AC3] Test first: `tests/it/cmdline/prompt_grammar.rs` — the plan's prompt table,
   driven by typed input per tool state, plus the grammar check on every non-`Command:` prompt
   (files: tests/it/cmdline/prompt_grammar.rs, tests/it/cmdline/mod.rs)
-- [ ] T9 [AC3] LINE, PLINE, RECT prompts; tests keyed on the old strings follow (files:
+- [x] T9 [AC3] LINE, PLINE, RECT prompts; tests keyed on the old strings follow (files:
   src/tools/line.rs, src/tools/polyline.rs, src/tools/rect.rs)
 - [ ] T10 [AC3] CIRCLE, ARC, TEXT prompts; tests follow (files: src/tools/circle.rs,
   src/tools/arc.rs, src/tools/text.rs)
