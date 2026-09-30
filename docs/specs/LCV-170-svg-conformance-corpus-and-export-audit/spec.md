@@ -1,6 +1,6 @@
 # LCV-170 — SVG conformance corpus and export audit
 
-- **Status**: Planned
+- **Status**: In Progress
 - **Depends on**: LCV-156
 - **Implementation**: -
 

@@ -1,6 +1,6 @@
 # LCV-170 — Tasks
 
-- [ ] T1 [AC10] Test: pin today's `export_svg` bytes for one audit document (two layers, one
+- [x] T1 [AC10] Test: pin today's `export_svg` bytes for one audit document (two layers, one
       Output off, a current layer, a line, a circle, an arc, a name with `& < > " '` and `é`) as a
       `const` golden string; register the module (files: tests/it/io_svg/export_audit.rs,
       tests/it/io_svg/mod.rs)
