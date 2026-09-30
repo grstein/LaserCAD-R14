@@ -1,6 +1,6 @@
 # LCV-183 — Tasks
 
-- [ ] T1 [AC1] [AC2] Test first: unit tests for the icon set — vector shapes only, inside the
+- [x] T1 [AC1] [AC2] Test first: unit tests for the icon set — vector shapes only, inside the
   20 pt square, 1.5 pt stroke in the given colour, 16 pairwise-distinct signatures; stub
   `IconFn`s so the tests compile and fail (files: src/ui/icons.rs, src/ui/mod.rs)
 - [ ] T2 [AC1] [AC2] Draw-group icons: select, line, polyline, rect, circle, arc, text; shared
