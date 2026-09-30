@@ -14,7 +14,7 @@
 use crate::harness;
 
 use harness::{frame, tap};
-use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome};
+use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome, SetOp};
 use lasercad::app::{AGENT_FENCE_REFUSAL, App, arm_turn, cancel_turn};
 use lasercad::document::{CreateCircle, CreateLine, DeleteEntities, SelectionCommand};
 use lasercad::geometry::{Circle, Line, Vec2};
@@ -145,6 +145,92 @@ fn ac6_a_300_step_turn_over_200_human_entries_undoes_as_one() {
         panic!("the survivor must be a line: {:?}", app.document.entities);
     };
     assert_eq!(oldest.p1.y, 0.0, "the evicted entry is the oldest one");
+}
+
+// ── LCV-186 AC 7: a set action is part of the turn's one undo ───────────────
+
+/// Two human lines, then one agent turn of `actions`; the entities after
+/// the turn, the history length, and the entities after one Ctrl+Z.
+fn turn_of(actions: Vec<AgentAction>) -> (Vec<lasercad::document::Entity>, usize, App) {
+    let (ctx, mut app) = ctx_and_app();
+    human_line(&mut app, 100.0);
+    human_line(&mut app, 200.0);
+    let tx = arm_turn(&mut app, "edit a set");
+    let answers: Vec<_> = actions.into_iter().map(|a| push_act(&tx, a)).collect();
+    idle(&ctx, &mut app);
+    for answer in answers {
+        let outcome = answer.try_recv().unwrap();
+        assert!(!outcome.is_refused(), "{outcome:?}");
+    }
+    tx.send(AgentEvent::done("done")).unwrap();
+    idle(&ctx, &mut app);
+    assert!(!app.agent.busy);
+    let after = app.document.entities.clone();
+    let len = app.history.len();
+    tap(&ctx, &mut app, egui::Key::Z, ctrl());
+    (after, len, app)
+}
+
+/// LCV-186 AC 7 — a turn mixing set actions and single calls ends in the
+/// same drawing and the same history as the all-single turn, and one Ctrl+Z
+/// takes all of it back to the two human lines.
+#[test]
+fn lcv186_a_turn_with_set_actions_undoes_as_one() {
+    let set = |indices: Vec<usize>, op| AgentAction::Set { indices, op };
+    let (with_sets, len_sets, undone_sets) = turn_of(vec![
+        agent_line(10.0),
+        set(vec![2, 0, 1], SetOp::Move { dx: 5.0, dy: 1.0 }),
+        set(vec![1, 2], SetOp::Copy { dx: 0.0, dy: 3.0 }),
+        AgentAction::Delete { index: 0 },
+        set(vec![3, 0], SetOp::Delete),
+    ]);
+    let (with_singles, len_singles, undone_singles) = turn_of(vec![
+        agent_line(10.0),
+        AgentAction::Move {
+            index: 0,
+            dx: 5.0,
+            dy: 1.0,
+        },
+        AgentAction::Move {
+            index: 1,
+            dx: 5.0,
+            dy: 1.0,
+        },
+        AgentAction::Move {
+            index: 2,
+            dx: 5.0,
+            dy: 1.0,
+        },
+        AgentAction::Copy {
+            index: 1,
+            dx: 0.0,
+            dy: 3.0,
+        },
+        AgentAction::Copy {
+            index: 2,
+            dx: 0.0,
+            dy: 3.0,
+        },
+        AgentAction::Delete { index: 0 },
+        AgentAction::Delete { index: 3 },
+        AgentAction::Delete { index: 0 },
+    ]);
+    assert_eq!(with_sets.len(), 2, "control: the turn really edited");
+    assert_eq!(with_sets, with_singles);
+    assert_eq!(len_sets, len_singles);
+    assert_eq!(len_sets, 3, "two human lines + the turn");
+    let before = human_line_entities();
+    assert_ne!(with_sets, before, "control: the turn changed the drawing");
+    assert_eq!(undone_sets.document.entities, before);
+    assert_eq!(undone_singles.document.entities, before);
+}
+
+/// The two human lines `turn_of` starts from.
+fn human_line_entities() -> Vec<lasercad::document::Entity> {
+    let mut app = App::default();
+    human_line(&mut app, 100.0);
+    human_line(&mut app, 200.0);
+    app.document.entities
 }
 
 // ── AC 7: sealing and chronology ────────────────────────────────────────────
