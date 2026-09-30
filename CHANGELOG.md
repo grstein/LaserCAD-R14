@@ -11,6 +11,7 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 ### Changed
 
 - The tool rail shows AutoCAD-style line icons instead of words, in two columns: drawing tools on the left, editing tools on the right, and the `AI` toggle (formerly `Agent`) below them. The rail is narrower (76 points) and no longer scrolls at 800×600. Hovering a tool shows its name, key and command word, e.g. `Line — L · LINE`. See LCV-183.
+- A flatter, calmer dark theme: windows and menus have no drop shadow, one thin border and slightly rounded corners. SNAP, GRID and ORTHO in the status bar are pills that are clearly filled when on and outlined when off, segments are separated by thin rules, and the coordinates use a fixed-width font. The command prompt shows the command word in blue and options such as `[Yes/No] <N>` dimmed, and the command field's border turns blue while it has keyboard focus. See LCV-184.
 
 ## [0.4.0] - 2026-09-30
 

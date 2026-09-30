@@ -49,5 +49,5 @@
 - [x] T15 [AC10] DESIGN.md §1.8 and §7 status-bar gaps closed; §5 border 1 pt, rounding 3/4 pt,
   pill padding; §7 pills, separators, monospace coordinates, prompt colours, editor frame;
   `accent` Home `ui/theme.rs` (files: DESIGN.md)
-- [ ] T16 CHANGELOG `[Unreleased]` line: flat dark theme without shadows, on/off mode pills,
+- [x] T16 CHANGELOG `[Unreleased]` line: flat dark theme without shadows, on/off mode pills,
   coloured command prompt, focused editor frame (files: CHANGELOG.md)
