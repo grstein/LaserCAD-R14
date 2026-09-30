@@ -426,7 +426,11 @@ mod tests {
             ("rotate", ToolKind::Rotate),
             ("ro", ToolKind::Rotate),
         ];
-        assert_eq!(words.len(), 22, "the approved word set is exactly twenty-two");
+        assert_eq!(
+            words.len(),
+            22,
+            "the approved word set is exactly twenty-two"
+        );
         for &(word, kind) in words {
             assert_eq!(
                 parse(word),
@@ -449,7 +453,11 @@ mod tests {
     #[test]
     fn rotate_words_are_rotate() {
         for word in ["rotate", "ROTATE", "ro", " Ro "] {
-            assert_eq!(parse(word), CommandInput::Tool(ToolKind::Rotate), "{word:?}");
+            assert_eq!(
+                parse(word),
+                CommandInput::Tool(ToolKind::Rotate),
+                "{word:?}"
+            );
         }
         assert_eq!(parse("r"), CommandInput::Tool(ToolKind::Rect));
     }
