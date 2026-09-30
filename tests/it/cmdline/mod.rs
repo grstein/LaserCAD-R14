@@ -7,3 +7,4 @@ mod copy_command;
 mod drives_tools;
 mod polar_and_dist;
 mod text_command;
+mod transform_commands;
