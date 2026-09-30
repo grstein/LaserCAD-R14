@@ -2,6 +2,7 @@
 
 mod bed_dialog;
 mod compact_chrome_and_action_hints;
+mod cursor_and_picking;
 mod discard_dialog_pointer_click;
 mod layer_combo;
 mod object_snap_menu;
