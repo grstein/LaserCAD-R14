@@ -52,5 +52,5 @@
   `render/palette.rs`), `preview` home moved; §6: paint order with hover, the three rows marked
   shipped; also mark the Quadrant/Perpendicular/Tangent/Nearest glyph rows shipped (LCV-161)
   (files: DESIGN.md)
-- [ ] T14 CHANGELOG `[Unreleased]` line: window/crossing boxes solid/dashed, hover highlight on
+- [x] T14 CHANGELOG `[Unreleased]` line: window/crossing boxes solid/dashed, hover highlight on
   pick, TRIM/ERASE show what they remove (files: CHANGELOG.md)

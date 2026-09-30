@@ -14,6 +14,7 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ### Changed
 
+- Canvas feedback shows what a click will do. A selection box dragged left to right (window) has a solid outline, right to left (crossing) a dashed one. The object Select, `TRIM` or `EXTEND` would pick is drawn thicker in its layer colour. `TRIM` shows the piece it will remove, and `ERASE` the selected objects, dashed in red; the click removes exactly that. Esc or leaving the canvas hides the highlight until the pointer moves. See LCV-163.
 - The canvas cursor is an R14 crosshair: two light-gray lines across the whole canvas that sit on the snapped (or Ortho) point, with the system cursor hidden over the canvas. While a tool waits for you to pick an object (Select, `TRIM`, `EXTEND`) a small square pickbox surrounds the crosshair and object snaps stay off, as in R14's "Select objects". Picking now uses screen distance: an object within 5 points of the cursor is picked and a press must move 2 points to start a selection box, at any zoom (before, 5 mm and 2 mm in the drawing). Canvas feedback no longer lags one frame behind the pointer. See LCV-162.
 - `TRIM` and `EXTEND` work with arcs: an arc can be trimmed and extended, and lines, circles and arcs can be cut or extended against an arc. A circle can be trimmed by another circle or an arc. `EXTEND` grows an arc along its own circle, never into a full turn. A `TRIM` click that meets several cutters is now one undo step. See LCV-160.
 
