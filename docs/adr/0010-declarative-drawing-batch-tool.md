@@ -5,6 +5,11 @@
   (LCV-156): the root key set is `{version, entities}` plus an optional `layer` string naming an
   existing layer; the whole batch lands on it (else on the current layer). §5's "export preset"
   no longer exists. Nothing else changes.
+- **Amended (2)**: 2026-09-30 — LCV-185: an item's key set is that type's fields plus `type`;
+  another type's field (one the flat schema of §2 publishes) is tolerated only when `null`, and
+  refused with `not a <type> key; a <type> takes <keys>` otherwise. A key no type publishes stays
+  `unknown key`. The item properties of §2 are built from the per-type key lists. §2's schema rules
+  are unchanged.
 - **Date**: 2026-09-27
 - **Deciders**: architect (LCV-144; in the 1.0 scope by the 2026-09-27 scope
   decision recorded in `PLAN.md`)
@@ -48,8 +53,8 @@ no document type). Order:
 2. **Root.** An object whose key set is exactly `{version, entities}`;
    `version` is the integer 1; `entities` is an array of 1..=1000.
 3. **Each entity.** An object; `type` ∈ {`line`, `circle`, `arc`}; its key set
-   is **exactly** that type's fields plus `type` — unknown or missing keys are
-   errors; numbers finite; `ccw` boolean; `r` through the **same** positive-
+   is that type's fields plus `type`; another type's field is tolerated only
+   when `null` (Amended (2)) — unknown or missing keys are errors; numbers finite; `ccw` boolean; `r` through the **same** positive-
    finite helper `create_circle` / `create_arc` use (shared with `tools.rs`,
    not copied).
 4. **Units.** mm in, mm out. `start_deg` / `end_deg` are converted to radians
