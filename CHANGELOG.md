@@ -15,6 +15,7 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 - Polar input: `@50<30` places a point 50 mm from the last point at 30° (counter-clockwise from +X); `50<30` measures from the origin. `DIST` (`DI`) reports the distance, angle, ΔX and ΔY between two points on the command line without changing the drawing. See LCV-159.
 - `ROTATE` (`RO`): pick a base point, then type an angle in degrees (counter-clockwise positive) or pick a point to rotate the selection by the angle from the base point to it; the preview follows the cursor. Each entity keeps its layer, the selection stays, and the rotation is one undo step. The agent gets a matching `rotate_entity` tool, in degrees. See LCV-158.
 - `MIRROR` (`MI`): pick two points of a mirror line, then answer `Erase source objects? [Yes/No] <N>`: No (or Enter) adds the mirrored copies on their source layers, Yes replaces the sources. The preview follows the cursor, arcs stay single arcs, and the mirror is one undo step. The agent gets a matching `mirror_entity` tool. See LCV-181.
+- `SCALE` (`SC`): pick a base point, then type a factor or pick a point whose distance from the base point is the factor; positions and radii scale, arc angles stay. The preview follows the cursor. A zero or negative factor is refused, a factor of 1 changes nothing, and the scale is one undo step that keeps layers and the selection. The agent gets a matching `scale_entity` tool. See LCV-182.
 
 ### Removed
 

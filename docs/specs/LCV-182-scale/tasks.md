@@ -9,4 +9,4 @@ ADR 0003 amendment (5) (commit `868bb01`) admits `ToolKind::Scale`; no ADR task 
 - [x] T5 [AC4] [AC5] Integration: `sc` ⏎ `0,0` ⏎ `2` ⏎, and `-1` shows the refusal line, through `App` (files: tests/it/cmdline/transform_commands.rs)
 - [x] T6 [AC8] Test then implement `scale_entity` parse → `AgentAction::Scale` (files: src/agent/bridge.rs, src/agent/tools.rs, src/agent/tools/schema.rs)
 - [x] T7 [AC8] Test then implement apply arm + prompt line (files: src/app/agent_apply/edit.rs, src/agent/prompt.rs, tests/it/agent/transform_tools.rs)
-- [ ] T8 CHANGELOG line (files: CHANGELOG.md)
+- [x] T8 CHANGELOG line (files: CHANGELOG.md)
