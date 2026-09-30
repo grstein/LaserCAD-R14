@@ -161,10 +161,10 @@ where
                 if over && overran {
                     return Err(AgentError::IterationLimitExceeded(step_budget));
                 }
-                messages.push(ChatMessage::assistant_with_tool_calls(
-                    content,
-                    calls.clone(),
-                ));
+                messages.push(
+                    ChatMessage::assistant_with_tool_calls(content, calls.clone())
+                        .with_reasoning(message.reasoning_content),
+                );
                 overran = over;
                 if over {
                     let left = budget - dispatched;

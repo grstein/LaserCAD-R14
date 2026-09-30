@@ -19,7 +19,7 @@
   `R1`; the recorded closing text (a reply that also had `reasoning_content`) has no key;
   turn 2's first request carries `R1` on the replayed message, verbatim
   (files: src/app/agent_worker/tests.rs)
-- [ ] T5 [AC2] [AC3] `agent_loop` pushes the tool-call turn with
+- [x] T5 [AC2] [AC3] `agent_loop` pushes the tool-call turn with
   `.with_reasoning(message.reasoning_content)` (files: src/agent/loop_.rs)
 - [ ] T6 [AC6] Test: `estimate_tokens` of a tool-call message with 8 bytes of arguments and
   8 bytes of `reasoning_content` is 4; `Memory::trim` counts the field toward the cap
