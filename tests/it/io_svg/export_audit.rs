@@ -379,18 +379,18 @@ fn audit_documents_survive_export_and_reopen() {
         for (got, want) in pairs {
             match (got, want) {
                 (Entity::Line(g), Entity::Line(w)) => {
-                    near(&label, "p1", g.p1, w.p1);
-                    near(&label, "p2", g.p2, w.p2);
+                    near(label, "p1", g.p1, w.p1);
+                    near(label, "p2", g.p2, w.p2);
                 }
                 (Entity::Circle(g), Entity::Circle(w)) => {
-                    near(&label, "center", g.center, w.center);
+                    near(label, "center", g.center, w.center);
                     assert!((g.r - w.r).abs() <= TRIP_MM, "{label}: r");
                 }
                 (Entity::Arc(g), Entity::Arc(w)) => {
-                    near(&label, "center", g.center, w.center);
+                    near(label, "center", g.center, w.center);
                     assert!((g.r - w.r).abs() <= TRIP_MM, "{label}: r");
-                    near(&label, "start", g.start_point(), w.start_point());
-                    near(&label, "end", g.end_point(), w.end_point());
+                    near(label, "start", g.start_point(), w.start_point());
+                    near(label, "end", g.end_point(), w.end_point());
                     assert_eq!(g.ccw, w.ccw, "{label}: ccw");
                 }
                 _ => panic!("{label}: kind {got:?} vs {want:?}"),

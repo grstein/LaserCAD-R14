@@ -1,18 +1,16 @@
 //! LCV-170 AC 1..4 — the SVG conformance corpus in `tests/fixtures/svg/`.
 //!
 //! Each `<name>.svg` is paired with a hand-written `<name>.expected` (format:
-//! [`expected`]). The expectation is derived from the SVG text by hand, never
+//! [`super::corpus_expected`]). The expectation is derived from the SVG text by hand, never
 //! by running `import_svg`, so the corpus measures import against SVG 2 rather
 //! than against LaserCAD's own exporter. The directory is listed at run time:
 //! adding a fixture needs no code change.
-
-mod expected;
 
 use std::collections::BTreeSet;
 use std::f64::consts::TAU;
 use std::path::{Path, PathBuf};
 
-use expected::{ExpEntity, ExpLayer, Expected};
+use super::corpus_expected::{self as expected, ExpEntity, ExpLayer, Expected};
 use lasercad::document::{Document, Entity};
 use lasercad::io::svg::{SvgImportError, import_svg};
 
@@ -34,10 +32,10 @@ pub fn check_corpus(dir: &Path) -> Vec<String> {
     let mut stems = BTreeSet::new();
     for entry in read.flatten() {
         let path = entry.path();
-        if let (Some(stem), Some(ext)) = (path.file_stem(), path.extension()) {
-            if ext == "svg" || ext == "expected" {
-                stems.insert(stem.to_string_lossy().into_owned());
-            }
+        if let (Some(stem), Some(ext)) = (path.file_stem(), path.extension())
+            && (ext == "svg" || ext == "expected")
+        {
+            stems.insert(stem.to_string_lossy().into_owned());
         }
     }
     let mut failures = Vec::new();
