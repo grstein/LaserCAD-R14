@@ -39,6 +39,7 @@ several dialects:
 - Enter on an empty line with Select idle repeats the last command word from the recall ring.
 - Right-click on the canvas acts exactly like Enter on an empty line: it finishes, accepts or
   repeats. Middle-drag pan stays as it is.
+- A refused bare number shows the tool-specific refusal, not `NO_DIRECTION`, when the tool takes numbers as values (ROTATE angle, SCALE factor): today `app/cmdline.rs::send` shows "No direction for distance input" for a keyboard-only `-1` at the SCALE factor prompt (found in LCV-182).
 - DESIGN.md §7 and §8 are updated in this spec's last task.
 
 ## Acceptance criteria
