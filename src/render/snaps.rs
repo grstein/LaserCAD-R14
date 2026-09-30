@@ -264,4 +264,176 @@ mod tests {
         assert_eq!(marker_shape_for(SnapKind::Center), MarkerShape::Circle);
         assert_eq!(marker_shape_for(SnapKind::Intersection), MarkerShape::X);
     }
+
+    // ── LCV-161 AC7: painted glyphs per kind ─────────────────────────────
+
+    /// Paint `kind` at world (0, 0) through `draw_snap_marker` and return
+    /// the flattened shapes plus the marker's screen centre.
+    fn paint(kind: SnapKind) -> (Vec<egui::Shape>, egui::Pos2) {
+        let camera = Camera {
+            center_world: Vec2::new(0.0, 0.0),
+            mm_per_px: 1.0,
+            viewport_size_px: [800.0, 600.0],
+        };
+        let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::Vec2::new(800.0, 600.0));
+        let snap = SnapResult {
+            point: Vec2::new(0.0, 0.0),
+            kind,
+            primary_idx: 0,
+            secondary_idx: None,
+        };
+        let ctx = egui::Context::default();
+        let out = ctx.run(egui::RawInput::default(), |ctx| {
+            let painter = ctx.layer_painter(egui::LayerId::new(
+                egui::Order::Foreground,
+                egui::Id::new("lcv161-snap"),
+            ));
+            draw_snap_marker(&painter, rect, &camera, &snap);
+        });
+        fn flatten(shape: egui::Shape, out: &mut Vec<egui::Shape>) {
+            match shape {
+                egui::Shape::Vec(v) => v.into_iter().for_each(|s| flatten(s, out)),
+                egui::Shape::Noop => {}
+                s => out.push(s),
+            }
+        }
+        let mut shapes = Vec::new();
+        for clipped in out.shapes {
+            flatten(clipped.shape, &mut shapes);
+        }
+        (shapes, camera.world_to_screen(Vec2::new(0.0, 0.0)))
+    }
+
+    fn solid(c: &egui::epaint::ColorMode) -> egui::Color32 {
+        match c {
+            egui::epaint::ColorMode::Solid(c) => *c,
+            egui::epaint::ColorMode::UV(_) => panic!("marker strokes are solid"),
+        }
+    }
+
+    fn near(a: egui::Pos2, b: egui::Pos2) -> bool {
+        (a - b).length() < 1e-3
+    }
+
+    /// The single stroked path of `shapes`, asserting the marker colour.
+    fn only_path(shapes: &[egui::Shape]) -> egui::epaint::PathShape {
+        assert_eq!(shapes.len(), 1, "one path expected, got {shapes:?}");
+        match &shapes[0] {
+            egui::Shape::Path(p) => {
+                assert_eq!(solid(&p.stroke.color), marker_color());
+                p.clone()
+            }
+            other => panic!("expected a path, got {other:?}"),
+        }
+    }
+
+    /// AC7 — Quadrant: a hollow 4-vertex diamond, one vertex on each axis.
+    #[test]
+    fn quadrant_paints_a_diamond() {
+        let (shapes, c) = paint(SnapKind::Quadrant);
+        let p = only_path(&shapes);
+        assert!(p.closed);
+        assert_eq!(p.points.len(), 4);
+        let h = MARKER_SIZE_PX / 2.0;
+        for v in [
+            egui::pos2(c.x, c.y - h),
+            egui::pos2(c.x + h, c.y),
+            egui::pos2(c.x, c.y + h),
+            egui::pos2(c.x - h, c.y),
+        ] {
+            assert!(p.points.iter().any(|q| near(*q, v)), "missing vertex {v:?}");
+        }
+    }
+
+    /// AC7 — Perpendicular: an L (two perpendicular legs) plus the inner
+    /// right-angle box, all in the marker colour.
+    #[test]
+    fn perpendicular_paints_a_right_angle_mark() {
+        let (shapes, _) = paint(SnapKind::Perpendicular);
+        assert_eq!(shapes.len(), 2, "L plus corner box, got {shapes:?}");
+        for s in &shapes {
+            let egui::Shape::Path(p) = s else {
+                panic!("expected paths, got {s:?}")
+            };
+            assert_eq!(solid(&p.stroke.color), marker_color());
+            assert!(!p.closed);
+            assert_eq!(p.points.len(), 3);
+            let (a, b) = (p.points[0] - p.points[1], p.points[2] - p.points[1]);
+            assert!(a.dot(b).abs() < 1e-3, "legs must meet at a right angle");
+            assert!(a.length() > 0.0 && b.length() > 0.0);
+        }
+        let (egui::Shape::Path(l), egui::Shape::Path(corner)) = (&shapes[0], &shapes[1]) else {
+            unreachable!()
+        };
+        // The corner box closes on the L's two legs.
+        let knee = l.points[1];
+        assert!(
+            (corner.points[0].x - knee.x).abs() < 1e-3,
+            "box starts on one leg"
+        );
+        assert!(
+            (corner.points[2].y - knee.y).abs() < 1e-3,
+            "box ends on the other"
+        );
+    }
+
+    /// AC7 — Tangent: a stroked circle plus a bar touching its top.
+    #[test]
+    fn tangent_paints_a_circle_with_a_tangent_bar() {
+        let (shapes, c) = paint(SnapKind::Tangent);
+        assert_eq!(shapes.len(), 2, "circle plus bar, got {shapes:?}");
+        let circle = shapes.iter().find_map(|s| match s {
+            egui::Shape::Circle(ci) => Some(*ci),
+            _ => None,
+        });
+        let circle = circle.expect("a circle");
+        assert_eq!(circle.stroke.color, marker_color());
+        assert!(near(circle.center, c));
+        let bar = shapes.iter().find_map(|s| match s {
+            egui::Shape::LineSegment { points, stroke } => Some((*points, stroke.clone())),
+            _ => None,
+        });
+        let (bar, stroke) = bar.expect("a tangent bar");
+        assert_eq!(solid(&stroke.color), marker_color());
+        let top = c.y - circle.radius;
+        assert!((bar[0].y - top).abs() < 1e-3 && (bar[1].y - top).abs() < 1e-3);
+        assert!(
+            bar[0].x < c.x && bar[1].x > c.x,
+            "the bar spans the circle's top"
+        );
+    }
+
+    /// AC7 — Nearest: a closed hourglass (top edge, diagonal, bottom edge,
+    /// diagonal).
+    #[test]
+    fn nearest_paints_an_hourglass() {
+        let (shapes, c) = paint(SnapKind::Nearest);
+        let p = only_path(&shapes);
+        assert!(p.closed);
+        assert_eq!(p.points.len(), 4);
+        let [tl, tr, bl, br] = [p.points[0], p.points[1], p.points[2], p.points[3]];
+        assert!((tl.y - tr.y).abs() < 1e-3 && tl.y < c.y, "top edge");
+        assert!((bl.y - br.y).abs() < 1e-3 && bl.y > c.y, "bottom edge");
+        assert!((tl.x - bl.x).abs() < 1e-3 && tl.x < c.x, "left side");
+        assert!((tr.x - br.x).abs() < 1e-3 && tr.x > c.x, "right side");
+    }
+
+    /// AC7 — the four LCV-016 kinds keep their shapes.
+    #[test]
+    fn existing_kinds_keep_their_shapes() {
+        let (s, _) = paint(SnapKind::Endpoint);
+        assert!(matches!(&s[..], [egui::Shape::Rect(r)] if r.fill == marker_color()));
+        let (s, _) = paint(SnapKind::Midpoint);
+        assert!(
+            matches!(&s[..], [egui::Shape::Path(p)] if p.fill == marker_color() && p.points.len() == 3)
+        );
+        let (s, _) = paint(SnapKind::Center);
+        assert!(matches!(&s[..], [egui::Shape::Circle(c)] if c.stroke.color == marker_color()));
+        let (s, _) = paint(SnapKind::Intersection);
+        assert_eq!(s.len(), 2);
+        assert!(
+            s.iter()
+                .all(|x| matches!(x, egui::Shape::LineSegment { .. }))
+        );
+    }
 }

@@ -28,7 +28,7 @@
 - [x] T8 [AC2, AC3, AC9] `resolve_snap` takes `anchor` and `kinds`; `handle_hover` passes
   `tool_manager.anchor()` and `settings.object_snaps`; update the in-file `resolve_snap`
   tests (files: src/app/snap.rs, src/app/viewport.rs)
-- [ ] T9 [P] [AC7] Test: painting each new kind with `draw_snap_marker` in a test
+- [x] T9 [P] [AC7] Test: painting each new kind with `draw_snap_marker` in a test
   `egui::Context` emits shapes in `marker_color()` of the expected form: a 4-vertex diamond, a
   right-angle mark, a circle plus a tangent bar, and an hourglass. Existing kinds keep their
   shapes (files: src/render/snaps.rs)
