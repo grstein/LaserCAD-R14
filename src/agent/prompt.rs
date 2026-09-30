@@ -54,6 +54,9 @@ dy mm along Y.
 copy_entity {index, dx, dy}: add a copy of the entity at index, moved by dx
 mm along X and dy mm along Y, on the same layer. The copy is added at the end.
 
+rotate_entity {index, x, y, degrees}: rotate the entity at index about the
+point x, y in mm by degrees, counter-clockwise positive. Degrees, not radians.
+
 query_entities {}: list every entity with its index, kind, geometry in mm
 and layer, plus the bed size and the layers. Changes nothing.
 

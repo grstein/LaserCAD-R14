@@ -12,5 +12,6 @@ mod progress_row;
 mod prompt_editor;
 mod system_prompt;
 mod timeout_and_cancel;
+mod transform_tools;
 mod turn;
 mod turn_group;

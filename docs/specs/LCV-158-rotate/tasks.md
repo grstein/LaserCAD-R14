@@ -11,5 +11,5 @@ ADR 0003 amendment (5) (commit `868bb01`) admits `ToolKind::Rotate`. The `agent/
 - [x] T6 [AC2] [AC3] [AC4] [AC5] [AC7] [AC8] Test then implement `RotateTool`: prompts, empty-selection no-op, preview, typed degrees, picked angle, zero angle, successor SELECT (files: src/tools/rotate.rs, src/tools/mod.rs)
 - [x] T7 [AC4] [AC5] Integration: `ro` ⏎ `0,0` ⏎ `90` ⏎ and a picked angle through `App` (files: tests/it/cmdline/transform_commands.rs, tests/it/cmdline/mod.rs)
 - [x] T8 [AC9] Test then implement `rotate_entity` parse → `AgentAction::Rotate` (files: src/agent/bridge.rs, src/agent/tools.rs, src/agent/tools/schema.rs)
-- [ ] T9 [AC9] Test then implement the apply arm + built-in prompt line (files: src/app/agent_apply/edit.rs, src/agent/prompt.rs, tests/it/agent/transform_tools.rs)
+- [x] T9 [AC9] Test then implement the apply arm + built-in prompt line (files: src/app/agent_apply/edit.rs, src/agent/prompt.rs, tests/it/agent/transform_tools.rs)
 - [ ] T10 CHANGELOG line (files: CHANGELOG.md)
