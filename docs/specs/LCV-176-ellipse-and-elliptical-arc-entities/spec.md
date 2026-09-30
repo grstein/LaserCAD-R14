@@ -1,6 +1,6 @@
 # LCV-176 — Ellipse and elliptical-arc entities
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-172, LCV-173
 - **Implementation**: -
 
