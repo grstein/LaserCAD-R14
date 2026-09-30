@@ -126,7 +126,7 @@ fn ac1_relative_without_anchor_is_warning() {
 #[test]
 fn ac1_export_layers_unsaved_is_warning() {
     let mut app = App::default();
-    app.command_feedback_severity = Severity::Info;
+    app.say(Severity::Info, "");
     lasercad::io::action_export_layers(&mut app);
     assert!(app.command_feedback.contains("Save"), "{}", app.command_feedback);
     assert_eq!(app.command_feedback_severity, Severity::Warning);

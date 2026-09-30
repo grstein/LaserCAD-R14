@@ -198,7 +198,7 @@ fn send_pointer(app: &mut App, event: PointerEvent) {
 /// so the hand-over below cannot swallow it.
 pub(super) fn poll_successor(app: &mut App) {
     if let Some(message) = app.tool_manager.take_message() {
-        app.command_feedback = message;
+        app.say(super::Severity::Info, message);
     }
     if let Some(t) = app.tool_manager.take_successor() {
         app.tool_manager.set_tool(t);

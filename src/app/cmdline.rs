@@ -27,7 +27,7 @@
 
 mod dispatch;
 
-use super::{App, handle_zoom_extents};
+use super::{App, Severity, handle_zoom_extents};
 use crate::agent::{Route, classify};
 use crate::cmdline::{CommandInput, ToggleKind, ToolInput, ZoomKind, parse};
 use crate::render::Camera;
@@ -111,7 +111,7 @@ pub fn submit(app: &mut App, raw: &str) {
         Route::Cad => {}
         Route::Agent(prompt) => return to_agent(app, &prompt),
         Route::Unavailable => {
-            app.command_feedback = AGENT_UNAVAILABLE.to_owned();
+            app.say(Severity::Error, AGENT_UNAVAILABLE);
             return;
         }
     }
@@ -127,7 +127,7 @@ pub fn submit(app: &mut App, raw: &str) {
             Some(anchor) => send(app, ToolInput::Point(anchor + delta)),
             // Deterministic refusal (product decision 2): no anchor means the
             // offset designates nothing. Invent no origin.
-            None => app.command_feedback = NO_BASE_POINT.to_owned(),
+            None => app.say(Severity::Warning, NO_BASE_POINT),
         },
         CommandInput::Distance(value_mm) => {
             let along = direct_distance(app, value_mm);
@@ -137,7 +137,7 @@ pub fn submit(app: &mut App, raw: &str) {
         // command line usually holds keyboard focus.
         CommandInput::Empty => super::input::route_to_tool(app, egui::Key::Enter),
         CommandInput::Unknown(text) => {
-            app.command_feedback = format!("Unknown command: \"{text}\"")
+            app.say(Severity::Warning, format!("Unknown command: \"{text}\""))
         }
     }
 }
@@ -170,14 +170,14 @@ pub(crate) fn agent_available(app: &App) -> bool {
 /// their typo.
 fn to_agent(app: &mut App, prompt: &str) {
     if prompt.is_empty() {
-        app.command_feedback = AGENT_EMPTY_PROMPT.to_owned();
+        app.say(Severity::Warning, AGENT_EMPTY_PROMPT);
         return;
     }
     if app.agent.busy {
-        app.command_feedback = AGENT_BUSY.to_owned();
+        app.say(Severity::Warning, AGENT_BUSY);
         return;
     }
-    app.command_feedback = format!("→ AI: \"{}\"", echo(prompt));
+    app.say(Severity::Info, format!("→ AI: \"{}\"", echo(prompt)));
     app.agent.panel_open = true;
     super::start_turn(app, prompt);
 }
@@ -206,7 +206,7 @@ fn toggle(app: &mut App, kind: ToggleKind) {
     };
     *flag = !*flag;
     let state = if *flag { "on" } else { "off" };
-    app.command_feedback = format!("{name} {state}");
+    app.say(Severity::Info, format!("{name} {state}"));
 }
 
 /// Typed zoom. Shares [`Camera::ZOOM_STEP`] with the View menu (AC 16) so the

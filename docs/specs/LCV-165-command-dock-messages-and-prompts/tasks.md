@@ -9,7 +9,7 @@
   (files: tests/it/cmdline/dock_messages.rs, tests/it/cmdline/mod.rs)
 - [x] T3 [AC1] `Severity` + `App::say` in `app/feedback.rs`; field and default (files:
   src/app/feedback.rs, src/app/mod.rs, src/app/init.rs)
-- [ ] T4 [AC1] Writers use `say` with the plan's severities (files: src/app/cmdline.rs,
+- [x] T4 [AC1] Writers use `say` with the plan's severities (files: src/app/cmdline.rs,
   src/app/cmdline/dispatch.rs, src/app/viewport.rs)
 - [ ] T5 [AC1] Export-layers writers use `say`; the dock colours by severity (the `! ` prefix
   rule goes); T2 green (files: src/io/export_layers.rs, src/ui/command_line.rs)

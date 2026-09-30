@@ -6,7 +6,7 @@
 //!
 //! MUST NOT import `eframe`, `rfd` or `crate::ui`.
 
-use crate::app::{App, apply_ortho};
+use crate::app::{App, Severity, apply_ortho};
 use crate::cmdline::ToolInput;
 use crate::geometry::{EPSILON, Vec2};
 
@@ -27,13 +27,14 @@ pub(super) fn send(app: &mut App, input: ToolInput) {
         crate::app::viewport::poll_successor(app);
         return;
     }
-    app.command_feedback = match input {
+    let refusal = match input {
         ToolInput::Distance { along: None, .. } => NO_DIRECTION.to_owned(),
         _ => format!(
             "{} does not accept that input.",
             app.tool_manager.active_tool_name()
         ),
     };
+    app.say(Severity::Warning, refusal);
 }
 
 /// Resolve direct-distance entry (AC 11): `value_mm` along the anchor→cursor
