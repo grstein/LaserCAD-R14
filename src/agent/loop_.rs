@@ -124,7 +124,10 @@ impl std::error::Error for AgentError {}
 /// make; the guard fires **before** dispatching any call of a batch that would
 /// cross it, so a turn never half-applies a batch it cannot finish. The
 /// comparison is done in `usize` — narrower arithmetic could wrap on a large
-/// batch and wave it through.
+/// batch and wave it through. An overrunning batch is answered "not run" call
+/// by call and the model gets one more reply; a second overrun in a row ends
+/// the turn [`AgentError::IterationLimitExceeded`] (ADR 0007 §D13, LCV-189). A
+/// batch that runs ends its last result with the steps left.
 ///
 /// `dispatch_fn` receives [`Dispatch::Tool`] and returns the
 /// outcome whose text becomes the `tool`-role result. It is the caller's
@@ -149,18 +152,31 @@ where
     D: FnMut(Dispatch<'_>) -> Result<AgentOutcome, AgentError>,
 {
     let budget = usize::try_from(step_budget).unwrap_or(usize::MAX);
-    let mut dispatched: usize = 0;
+    let (mut dispatched, mut overran): (usize, bool) = (0, false);
     loop {
         let message = send_images(send_fn, dispatch_fn, messages)?;
         match (message.tool_calls, message.content) {
             (Some(calls), content) if !calls.is_empty() => {
-                if dispatched + calls.len() > budget {
+                let over = dispatched + calls.len() > budget;
+                if over && overran {
                     return Err(AgentError::IterationLimitExceeded(step_budget));
                 }
                 messages.push(ChatMessage::assistant_with_tool_calls(
                     content,
                     calls.clone(),
                 ));
+                overran = over;
+                if over {
+                    let left = budget - dispatched;
+                    let text = format!(
+                        "not run: this reply has {} tool calls but {left} steps are left",
+                        calls.len()
+                    );
+                    for call in &calls {
+                        messages.push(ChatMessage::tool_result(call.id.clone(), text.clone()));
+                    }
+                    continue;
+                }
                 let (mut fenced, mut images) = (false, Vec::new());
                 for (i, call) in calls.iter().enumerate() {
                     let mut result = if fenced {

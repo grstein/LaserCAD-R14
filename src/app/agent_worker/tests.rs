@@ -1313,11 +1313,6 @@ fn a_failed_turn_returns_its_whole_batches() {
     let cases = [
         ("transport", with_memory(Vec::new()), vec![one(), None]),
         (
-            "budget",
-            cfg("sys", 2),
-            vec![one(), Some(batch(&[("a", ""), ("b", "")]))],
-        ),
-        (
             "no content",
             with_memory(Vec::new()),
             vec![one(), Some(batch(&[]))],
@@ -1329,6 +1324,16 @@ fn a_failed_turn_returns_its_whole_batches() {
         assert_eq!(batches, requests[1][2..].to_vec(), "{name}");
         assert_eq!(batches.len(), 2, "{name}: one call and its result");
     }
+    // LCV-189: the overrun batch is answered "not run", so it is whole too.
+    let over = || Some(batch(&[("a", ""), ("b", "")]));
+    let (result, batches, requests) = scripted("go", &cfg("sys", 2), vec![one(), over(), over()]);
+    assert!(matches!(result, Err(AgentError::IterationLimitExceeded(2))));
+    assert_eq!(batches, requests[2][2..].to_vec(), "budget");
+    assert_eq!(
+        batches.len(),
+        5,
+        "budget: the run batch and the not-run one"
+    );
     let (result, _, _, _) = fenced_turn(batch(&[("query_entities", "{}")]));
     assert!(matches!(result, Err(AgentError::FenceStopped)));
 }
