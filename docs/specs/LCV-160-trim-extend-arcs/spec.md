@@ -1,8 +1,8 @@
 # LCV-160 — TRIM and EXTEND with arcs
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: 03aa6cc..b8e1ab5
 
 ## Problem
 
