@@ -20,7 +20,7 @@ pub(crate) mod hit;
 use crate::app::App;
 use crate::document::{Document, Entity, History, SelectionCommand};
 use crate::geometry::Vec2;
-use crate::tools::{DRAG_THRESHOLD_PT, PICK_APERTURE_PT, Tool};
+use crate::tools::{DRAG_THRESHOLD_PT, Mark, PICK_APERTURE_PT, Tool};
 
 // ---------------------------------------------------------------------------
 // Internal state machine
@@ -169,6 +169,29 @@ impl Tool for SelectTool {
         } else {
             vec![]
         }
+    }
+
+    /// LCV-163 AC 1–3: while dragging, the box — solid `Preview` for a
+    /// window (left to right), `Dashed` for a crossing; otherwise the entity
+    /// the click would pick, as `Hover`.
+    fn feedback(&self, doc: &Document, cursor: Option<Vec2>) -> Vec<Mark> {
+        if let SelectState::Dragging { press_pos } = self.state {
+            let style = if press_pos.x < self.cursor_pos.x {
+                Mark::Preview
+            } else {
+                Mark::Dashed
+            };
+            return hit::box_preview(press_pos, self.cursor_pos)
+                .into_iter()
+                .map(style)
+                .collect();
+        }
+        let radius = PICK_APERTURE_PT * self.mm_per_pt;
+        cursor
+            .and_then(|c| hit::pick_closest(c, &doc.entities, radius))
+            .map(Mark::Hover)
+            .into_iter()
+            .collect()
     }
 
     fn cancel(&mut self) {
@@ -360,6 +383,43 @@ mod tests {
         let pv = tool.preview();
         assert_eq!(pv.len(), 4);
         assert!(pv.iter().all(|e| matches!(e, Entity::Line(_))));
+    }
+
+    /// LCV-163 AC 1/AC 2 — the drag box is a solid `Preview` box left to
+    /// right (window) and a `Dashed` box right to left (crossing).
+    #[test]
+    fn feedback_box_style_follows_the_drag_direction() {
+        let doc = crate::document::Document::default();
+        let mut tool = SelectTool::default();
+        press(&mut tool, Vec2::new(0.0, 0.0));
+        slide(&mut tool, Vec2::new(10.0, 10.0));
+        let marks = tool.feedback(&doc, Some(Vec2::new(10.0, 10.0)));
+        assert_eq!(marks.len(), 4);
+        assert!(marks.iter().all(|m| matches!(m, Mark::Preview(_))));
+        slide(&mut tool, Vec2::new(-10.0, 10.0));
+        let marks = tool.feedback(&doc, None);
+        assert_eq!(marks.len(), 4, "the box does not need the cursor");
+        assert!(marks.iter().all(|m| matches!(m, Mark::Dashed(_))));
+    }
+
+    /// LCV-163 AC 3 — off a drag, the entity in the pickbox is `Hover`ed;
+    /// nothing when none is in range or the cursor is `None`.
+    #[test]
+    fn feedback_hovers_the_closest_entity_in_the_pickbox() {
+        let mut doc = crate::document::Document::default();
+        for y in [0.0, 3.0] {
+            doc.entities.push(Entity::Line(crate::geometry::Line::new(
+                Vec2::new(-10.0, y),
+                Vec2::new(10.0, y),
+            )));
+        }
+        let tool = SelectTool::default();
+        assert_eq!(
+            tool.feedback(&doc, Some(Vec2::new(0.0, 2.0))),
+            vec![Mark::Hover(1)]
+        );
+        assert!(tool.feedback(&doc, Some(Vec2::new(0.0, 9.0))).is_empty());
+        assert!(tool.feedback(&doc, None).is_empty());
     }
 
     /// `preview()` is empty after `cancel()`.

@@ -39,7 +39,7 @@
   `PREVIEW`, `Danger` → `draw_dashed` in `DANGER`), then snap, pickbox, crosshair; update the
   doc comment and the LCV-137 AC 1 scan/order tests (files: src/app/viewport/paint.rs,
   src/app/viewport/tests.rs)
-- [ ] T10 [AC1] [AC2] [AC3] [AC6] `SelectTool::feedback`: `Preview`/`Dashed` box by drag direction
+- [x] T10 [AC1] [AC2] [AC3] [AC6] `SelectTool::feedback`: `Preview`/`Dashed` box by drag direction
   while `Dragging`; else `Hover(hit::pick_closest(cursor, …, aperture))` (files:
   src/tools/select/mod.rs, src/tools/select/hit.rs)
 - [ ] T11 [P] [AC3] [AC4] [AC6] TRIM: `trim_steps` → `trim_fold` returning (cutter indices, kept
