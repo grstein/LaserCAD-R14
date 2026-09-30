@@ -1,6 +1,6 @@
 # LCV-163 — Selection and edit feedback
 
-- **Status**: Planned
+- **Status**: In Progress
 - **Depends on**: LCV-156, LCV-162, LCV-160
 - **Implementation**: -
 
