@@ -1,8 +1,8 @@
 # LCV-163 — Selection and edit feedback
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-156, LCV-162, LCV-160
-- **Implementation**: -
+- **Implementation**: 672f02c..34ab532
 
 ## Problem
 
