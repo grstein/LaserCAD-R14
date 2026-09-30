@@ -1,8 +1,8 @@
 # LCV-183 — Icon tool rail in two columns
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: da1cb24..7c57640
 
 ## Problem
 
