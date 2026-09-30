@@ -1,6 +1,6 @@
 # LCV-189 — Agent step budget visibility
 
-- **Status**: Planned
+- **Status**: In Progress
 - **Depends on**: none
 - **Implementation**: -
 
