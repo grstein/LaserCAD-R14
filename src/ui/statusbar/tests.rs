@@ -65,7 +65,7 @@ fn format_coords_has_a_fixed_char_count() {
     );
     assert_eq!(
         small.chars().count(),
-        "X: -1234.50mm  Y: 9999.99mm".chars().count()
+        "X: -1234.50mm  Y:  9999.99mm".chars().count()
     );
 }
 

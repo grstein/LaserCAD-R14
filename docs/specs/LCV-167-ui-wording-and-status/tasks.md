@@ -34,7 +34,7 @@
 - [x] T11 [AC6] Test first: `(1, -1)` and `(-1234.5, 9999.99)` give equal char counts; padding is
   U+2007, never U+0020, inside a number; `None` unchanged; painted expectations follow (files:
   src/ui/statusbar/tests.rs, tests/it/ui/compact_chrome_and_action_hints.rs)
-- [ ] T12 [AC6] `format_coords` width 8 with figure-space padding, doctest updated; T11 green
+- [x] T12 [AC6] `format_coords` width 8 with figure-space padding, doctest updated; T11 green
   (files: src/ui/statusbar.rs)
 - [ ] T13 [AC7] Test first: `STATUS_ERROR` = #ff6b6b, WCAG ≥4.5:1 on `BG_PANEL`,
   `visuals.error_fg_color == STATUS_ERROR` after `apply_theme`; the panel test's error colour

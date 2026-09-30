@@ -23,13 +23,18 @@ use crate::geometry::Vec2;
 /// The on/off mode pill (LCV-184).
 mod pill;
 
+/// Width, in chars, of one coordinate number: sign, four digits, point and
+/// two decimals (LCV-167 AC 6).
+const COORD_WIDTH: usize = 8;
+
 /// Format cursor world-space coordinates for display in the status bar.
 ///
-/// Returns `"X: 123.45mm  Y:  67.89mm"` (values right-aligned in 6 chars, 2
-/// dp, each carrying an explicit `mm` unit — LCV-140 AC 4, millimetres being
-/// canonical everywhere outside `render/camera`) when `pos` is `Some`, or
-/// `"X: —  Y: —"` (em-dash, no unit — there is no value to carry one) when
-/// `pos` is `None`.
+/// Returns `"X: <x>mm  Y: <y>mm"` when `pos` is `Some`: each value to
+/// 2 dp with an explicit `mm` unit (LCV-140 AC 4, millimetres being canonical
+/// everywhere outside `render/camera`), right-aligned to [`COORD_WIDTH`] chars
+/// with figure spaces (U+2007, as wide as a digit) so no digit moves when a
+/// sign appears (LCV-167 AC 6). A value that does not fit grows the string.
+/// Returns `"X: —  Y: —"` (em-dash, no unit) when `pos` is `None`.
 ///
 /// # Examples
 /// ```
@@ -37,13 +42,18 @@ mod pill;
 /// use lasercad::geometry::Vec2;
 ///
 /// assert_eq!(format_coords(None), "X: —  Y: —");
-/// let s = format_coords(Some(Vec2::new(123.45, 67.89)));
-/// assert_eq!(s, "X: 123.45mm  Y:  67.89mm");
+/// let s = format_coords(Some(Vec2::new(123.45, -67.89)));
+/// assert_eq!(s, "X: \u{2007}\u{2007}123.45mm  Y: \u{2007}\u{2007}-67.89mm");
 /// ```
 pub fn format_coords(pos: Option<Vec2>) -> String {
+    let pad = |v: f64| {
+        let n = format!("{v:.2}");
+        let fill = COORD_WIDTH.saturating_sub(n.chars().count());
+        format!("{}{n}", "\u{2007}".repeat(fill))
+    };
     match pos {
         None => "X: \u{2014}  Y: \u{2014}".to_owned(),
-        Some(p) => format!("X: {:>6.2}mm  Y: {:>6.2}mm", p.x, p.y),
+        Some(p) => format!("X: {}mm  Y: {}mm", pad(p.x), pad(p.y)),
     }
 }
 
