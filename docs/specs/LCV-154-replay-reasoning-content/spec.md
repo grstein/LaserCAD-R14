@@ -1,8 +1,8 @@
 # LCV-154 — Replay reasoning_content for thinking models
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-153
-- **Implementation**: -
+- **Implementation**: 03675de..aee9c3b
 
 ## Problem
 
