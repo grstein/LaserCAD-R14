@@ -1,6 +1,6 @@
 # LCV-177 — Cubic and quadratic Bézier entities
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-172
 - **Implementation**: -
 
