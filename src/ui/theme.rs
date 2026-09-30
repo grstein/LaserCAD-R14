@@ -169,6 +169,35 @@ mod tests {
         }
     }
 
+    /// WCAG 2 contrast ratio of two opaque colours.
+    fn contrast(a: Color32, b: Color32) -> f64 {
+        let luminance = |c: Color32| {
+            let ch = |v: u8| {
+                let v = f64::from(v) / 255.0;
+                if v <= 0.03928 {
+                    v / 12.92
+                } else {
+                    ((v + 0.055) / 1.055).powf(2.4)
+                }
+            };
+            0.2126 * ch(c.r()) + 0.7152 * ch(c.g()) + 0.0722 * ch(c.b())
+        };
+        let (a, b) = (luminance(a), luminance(b));
+        (a.max(b) + 0.05) / (a.min(b) + 0.05)
+    }
+
+    /// LCV-167 AC 7 — after `apply_theme` egui's own error colour is
+    /// `status.error` (#ff6b6b), readable at ≥4.5:1 on `bg.panel`; the old
+    /// `Color32::RED` is not (control).
+    #[test]
+    fn status_error_is_egui_error_colour_and_readable_on_the_panel() {
+        let v = themed();
+        assert_eq!(hex(v.error_fg_color), "#ff6b6b");
+        let ratio = contrast(v.error_fg_color, BG_PANEL);
+        assert!(ratio >= 4.5, "status.error on bg.panel: {ratio:.2}:1");
+        assert!(contrast(Color32::RED, BG_PANEL) < 4.5, "control");
+    }
+
     /// LCV-071 AC 1 — `CANVAS_BG` is exactly `#1a1a1a`.
     #[test]
     fn canvas_bg_colour_components() {

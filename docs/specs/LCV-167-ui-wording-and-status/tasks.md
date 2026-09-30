@@ -36,7 +36,7 @@
   src/ui/statusbar/tests.rs, tests/it/ui/compact_chrome_and_action_hints.rs)
 - [x] T12 [AC6] `format_coords` width 8 with figure-space padding, doctest updated; T11 green
   (files: src/ui/statusbar.rs)
-- [ ] T13 [AC7] Test first: `STATUS_ERROR` = #ff6b6b, WCAG ≥4.5:1 on `BG_PANEL`,
+- [x] T13 [AC7] Test first: `STATUS_ERROR` = #ff6b6b, WCAG ≥4.5:1 on `BG_PANEL`,
   `visuals.error_fg_color == STATUS_ERROR` after `apply_theme`; the panel test's error colour
   reads the visuals (files: src/ui/theme.rs, src/agent/panel/tests.rs)
 - [ ] T14 [AC7] `STATUS_ERROR` + `TOKENS` row + `v.error_fg_color`; DESIGN.md §3 `status.error`
