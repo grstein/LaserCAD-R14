@@ -19,7 +19,7 @@
 - [x] T7 [AC2] `Tool::status_text -> Cow<'_, str>` (default `Borrowed(name)`), manager and dock
   follow, every impl wraps its literal with `.into()`; TEXT height formats its default
   (mechanical; the one task over 3 files: src/tools/*.rs, src/ui/command_line.rs)
-- [ ] T8 [AC3] Test first: `tests/it/cmdline/prompt_grammar.rs` — the plan's prompt table,
+- [x] T8 [AC3] Test first: `tests/it/cmdline/prompt_grammar.rs` — the plan's prompt table,
   driven by typed input per tool state, plus the grammar check on every non-`Command:` prompt
   (files: tests/it/cmdline/prompt_grammar.rs, tests/it/cmdline/mod.rs)
 - [ ] T9 [AC3] LINE, PLINE, RECT prompts; tests keyed on the old strings follow (files:
