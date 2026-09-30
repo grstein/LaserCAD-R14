@@ -4,7 +4,7 @@
       Output off, a current layer, a line, a circle, an arc, a name with `& < > " '` and `é`) as a
       `const` golden string; register the module (files: tests/it/io_svg/export_audit.rs,
       tests/it/io_svg/mod.rs)
-- [ ] T2 [AC1] `.expected` parser with its own tests: `bed`, `layer`, `line`/`circle`/`arc`
+- [x] T2 [AC1] `.expected` parser with its own tests: `bed`, `layer`, `line`/`circle`/`arc`
       (layer index, degrees, `ccw|cw`), `error <Variant>`, `#` comments; a malformed line is an
       `Err` naming line number (files: tests/it/io_svg/corpus/expected.rs, tests/it/io_svg/corpus.rs)
 - [ ] T3 [AC2] [AC3] Corpus runner `check_corpus(dir) -> Vec<String>`: import each `.svg`, compare

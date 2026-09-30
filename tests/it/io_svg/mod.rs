@@ -1,5 +1,6 @@
 //! SVG import/export: orientation, layers, checked-in examples.
 
+mod corpus;
 mod docs_examples_roundtrip;
 mod export_audit;
 mod export_layers;
