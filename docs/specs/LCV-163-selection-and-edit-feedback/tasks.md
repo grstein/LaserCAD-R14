@@ -13,7 +13,7 @@
   line with 0/1/2 removed ends, circle → complementary arc, CCW and CW arc with 0/1/2 pieces,
   across ±π, degenerate pieces dropped (files: src/document/commands/trim/removed.rs,
   src/document/commands/trim/mod.rs)
-- [ ] T5 [AC1] [AC2] [AC3] [AC4] [AC5] [AC7] [AC9] Test: painted-shape tests through
+- [x] T5 [AC1] [AC2] [AC3] [AC4] [AC5] [AC7] [AC9] Test: painted-shape tests through
   `App::update_ui` (pattern of `tests/it/ui/cursor_and_picking.rs`): L→R box = 4 solid segments,
   R→L box = dashed (many short segments on one edge); Select idle hover over a line paints it at
   `HOVER_WIDTH_PT` in the layer colour, nothing when no entity is in the pickbox; TRIM hover paints

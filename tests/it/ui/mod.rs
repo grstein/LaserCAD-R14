@@ -6,6 +6,7 @@ mod cursor_and_picking;
 mod discard_dialog_pointer_click;
 mod layer_combo;
 mod object_snap_menu;
+mod selection_and_edit_feedback;
 mod shortcuts_command_line_group;
 mod shortcuts_dialog;
 mod shortcuts_dialog_fits;
