@@ -45,7 +45,7 @@
 - [x] T15 [AC7] Test first: painted AI panel `error` row and the `! AI unavailable` dock line are
   #ff6b6b; an ordinary dock feedback stays `status.warning`; source scan: no `Color32::RED` in
   `src/` outside tests (files: tests/it/ui/wording_and_status.rs)
-- [ ] T16 [AC7] `draw_chat_row` error rows and `! ` dock feedback read `error_fg_color`; T15
+- [x] T16 [AC7] `draw_chat_row` error rows and `! ` dock feedback read `error_fg_color`; T15
   green (files: src/agent/panel.rs, src/ui/command_line.rs)
 - [ ] T17 [AC8] Test only (holds since LCV-184): after `apply_theme`, `selection.bg_fill` is
   #005c80 and no widget fill is `ACCENT` (files: tests/it/ui/wording_and_status.rs)

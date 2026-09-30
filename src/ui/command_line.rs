@@ -81,8 +81,13 @@ fn draw_context_row(ui: &mut egui::Ui, app: &mut App) {
 
         // Feedback: the last submit's result, in a colour the prompt never
         // uses. A display string only — nothing reads it back (LCV-111 AC 24).
+        // A line starting `! ` is an error, painted `status.error` (LCV-167).
         if !app.command_feedback.is_empty() {
-            let colour = ui.visuals().warn_fg_color;
+            let colour = if app.command_feedback.starts_with("! ") {
+                ui.visuals().error_fg_color
+            } else {
+                ui.visuals().warn_fg_color
+            };
             let feedback = egui::RichText::new(app.command_feedback.as_str()).color(colour);
             bounded_label(ui, feedback);
         }
