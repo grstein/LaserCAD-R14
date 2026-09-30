@@ -318,7 +318,9 @@ fn multi_step_turn_sends_the_whole_conversation_back() {
     );
     assert_eq!(
         second["tools"].as_array().map(|t| t.len()),
-        Some(8),
+        crate::agent::tool_definitions(false)
+            .as_array()
+            .map(|t| t.len()),
         "every round offers the tools, body was {second}"
     );
 }
