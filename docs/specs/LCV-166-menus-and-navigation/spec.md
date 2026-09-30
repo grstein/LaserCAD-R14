@@ -1,7 +1,7 @@
-# LCV-166 — Menu shortcut column, Zoom All/Extents and Ctrl+A
+# LCV-166 — Menu icons and shortcut column, Zoom All/Extents and Ctrl+A
 
 - **Status**: Draft
-- **Depends on**: none
+- **Depends on**: LCV-183
 - **Implementation**: -
 
 ## Problem
@@ -37,6 +37,11 @@ The menus are how operators learn the keyboard, but today they teach it poorly:
 - `Ctrl+A` selects all visible entities through the same path as `Edit > Select All`. It joins
   the ADR 0002 §A6 gate table in the global-commands class.
 - The Tools menu shows each tool's key in the same column (`toolbar::TOOLS`).
+- **Menu icons** (user decision 2026-09-30): each menu row is `icon | label | shortcut`. Tools
+  menu rows reuse the rail icon from `TOOLS` (LCV-183). File (New, Open, Save), Edit (Undo,
+  Redo, Delete) and View (Zoom In, Zoom Out, Zoom Extents, Fit to Bed) get icons from the same
+  `ui/icons/` set. Rows without an icon keep an empty icon slot, so labels stay aligned. The
+  mode checkboxes keep their check mark in the icon slot.
 - DESIGN.md §7 and §8 are updated in this spec's last task.
 
 ## Acceptance criteria
@@ -46,6 +51,7 @@ To be written by /specify.
 ## Out of scope
 
 - Menu mnemonics (Alt+letter underlines). egui 0.29 has no support for them.
+- Icons for menu items that have no rail tool or view action (Export Layers, Bed size, Help).
 - A customisable shortcut table.
 - New menus or reordering (R14 order; LCV-156 adds `Format` after View).
 

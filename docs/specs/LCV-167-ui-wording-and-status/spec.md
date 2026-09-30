@@ -18,7 +18,7 @@
 - **Colour.** Agent errors are `Color32::RED` (`agent/panel.rs`), 3.8:1 on the panel. The
   LCV-071 accent `#4fa3e0` never shipped; as a fill under `#d0d0d0` text it measures 1.8:1.
 - **Autosave.** A failed write is dropped silently (`app/autosave.rs::record_autosave_outcome`);
-  the status bar keeps saying `○ autosaved`. Toolbar buttons show their key only on hover.
+  the status bar keeps saying `○ autosaved`.
 
 ## Stories
 
@@ -37,7 +37,8 @@
   accent becomes a foreground-only token.
 - The status bar shows a fourth autosave state, `autosave failed`, in `status.error`, until the
   next write succeeds.
-- Toolbar labels show their key (`Line  L`) within the LCV-140 width cap. Seams for `plan.md`:
+- The rail no longer shows text (LCV-183), so its keys go in the tooltip there. The AI toggle's
+  tooltip reads `AI Assistant`. Seams for `plan.md`:
   `ui/statusbar.rs` 256 LOC, `app/mod.rs` 295 LOC.
 - DESIGN.md §3, §4 and §9 are updated in this spec's last task.
 

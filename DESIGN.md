@@ -27,7 +27,10 @@ that change, and that change's last task updates this file.
    meaning. Entity hue belongs to layers (LCV-156), so no state may rely on hue alone.
 6. **One name per concept, one pattern per interaction** (§9).
 7. **Fits 800×600.** Every surface passes the budgets in §2.
-8. **No decoration.** No icons, emoji, gradients, shadows or animation (§12).
+8. **No decoration.** No emoji, gradients, shadows or animation (§12). Icons are functional,
+   not decoration: flat line icons with R14 metaphors on the tool rail and in the menus
+   (user decision 2026-09-30; gap → LCV-183, LCV-166). Modern means flat and consistent, never
+   ornamental (gap → LCV-184).
 
 ## 2. Layout
 
@@ -179,7 +182,8 @@ dark edge and a kind label are planned (gap → LCV-164).
 - **Tool rail** (`ui/toolbar.rs::TOOLS`): text labels. One table drives the rail, the Tools
   menu and the shortcuts dialog. Groups: draw (Select … Text) | modify (Move, Copy, Rotate,
   Mirror, Scale, Trim, Extend, Delete, Dist) | AI toggle. The v0.3 tools have no bare-letter
-  key (ADR 0003 amendment 5). Key letter in the label: gap → LCV-167.
+  key (ADR 0003 amendment 5). Painted icons in two columns (draw | modify), with name, key and
+  command word in the tooltip: gap → LCV-183.
 - **Command dock** (`ui/command_line.rs`, ADR 0003)
   - Prompt row, then editor row with its destination label (`ui/command_destination.rs`).
   - New prompts follow `VERB  Specify <thing> [Opt/Opt]:`. A `<default>` needs a runtime
@@ -189,7 +193,8 @@ dark edge and a kind label are planned (gap → LCV-164).
     today everything is `status.warning`). Query results such as DIST are info.
 - **Status bar** (`ui/statusbar.rs::draw_statusbar`): coords · tool · `Entities: n` · current
   layer dropdown (`ui/layer_combo.rs`, LCV-156) · SNAP GRID ORTHO · autosave. Mode toggles are
-  always-visible `selectable_label`s (LCV-116). New segments are appended.
+  always-visible `selectable_label`s (LCV-116); on/off pills and separators: gap → LCV-184.
+  New segments are appended.
 - **Dialogs** (`ui/dialogs.rs`, `app/bed_dialog.rs`, `app/discard.rs`, `ui/layers_dialog.rs`): Title Case titles,
   buttons ordered primary → Cancel. Non-modal, no keyboard handling (LCV-069, LCV-113, ADR 0002
   §A6). Enter/Esc, destructive styling and one close pattern: gap → LCV-169.
@@ -264,7 +269,7 @@ LCV-167. The rules already apply to every new label, including the v0.3 commands
 
 ## 12. Rejected
 
-Not without new evidence from the CAD → LaserGRBL flow: icons, ribbon, docking or floating
-toolbars (LCV-065/066/140) · light theme or theme switcher · grips · on-canvas dynamic input ·
+Not without new evidence from the CAD → LaserGRBL flow: ribbon, docking or floating
+toolbars (LCV-065/066/140), icon files or icon fonts · light theme or theme switcher · grips · on-canvas dynamic input ·
 F2 text-history window (LCV-139) · chat decoration in the AI Assistant (LCV-125) · animations
 and transitions · custom fonts · multiple documents or tabs.
