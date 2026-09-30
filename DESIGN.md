@@ -87,10 +87,11 @@ one named constant per token in `ui/theme.rs` (chrome) or a new `render/palette.
 | `entity` | its layer's colour, 1 pt | geometry | per layer (§3 rules) | `render/entities.rs::draw_entities` |
 | `layer.new` | #0000ff, #00aa00, #ff00ff, #00aaaa, #ff8000, #8000ff | colours offered to new layers, in order | per layer | `app/layers.rs::NEW_LAYER_COLORS` |
 | `selection` | rgba(64,160,255,180), 3 pt | selection halo | 3.4:1 blended (floor) | `render/selection.rs` |
-| `preview` | rgba(255,220,100,160) | rubber-band geometry | 5.3:1 blended | `render/preview.rs` |
+| `preview` | rgba(255,220,100,160) | rubber-band geometry, window/crossing box | 5.3:1 blended | `render/palette.rs::preview` |
 | `snap` | #ffa000, 8 pt glyph | object snap marker | 7.2:1 | `render/snaps.rs::marker_color` |
 | `cursor` | gray 220, 1 pt | crosshair and pickbox | 10.8:1 | `render/cursor.rs::cursor_color` |
-| `hover`, `danger` | — | pick highlight, removal preview | ≥3:1 | gap → LCV-163 |
+| `hover` | its layer's colour, 2.5 pt | entity a click would pick | per layer (§3 rules) | `render/palette.rs::HOVER_WIDTH_PT` |
+| `danger` | #ff4d6a, 1 pt dashed | what TRIM or ERASE will remove | 4.6:1 | `render/palette.rs::DANGER` |
 
 Rules:
 
@@ -122,7 +123,7 @@ Rules:
 - Units are egui points everywhere in the chrome. Names ending in `_PX` are points
   (e.g. `render/snaps.rs::MARKER_SIZE_PX`). Geometry is millimetres (AGENTS.md invariants).
 - egui's default spacing. Any other size is a named constant next to its use.
-- Canvas strokes: hairline 1 pt · bed border 1.5 pt · selection halo 3 pt · snap glyph 8 pt ·
+- Canvas strokes: hairline 1 pt · bed border 1.5 pt · selection halo 3 pt · hover 2.5 pt · snap glyph 8 pt ·
   snap aperture 12 pt (`app/snap.rs::SNAP_TOLERANCE_PX`) · crosshair and pickbox 1 pt.
 - **Pointer tolerances are in screen points**, turned into mm with the live zoom: entity pick
   aperture 5 pt for Select, TRIM and EXTEND (`tools/tool.rs::PICK_APERTURE_PT`; the pickbox
@@ -134,17 +135,17 @@ Rules:
 ## 6. Canvas visual language
 
 Paint order (LCV-137 AC 1, `app/viewport/paint.rs::paint`): canvas background → bed fill → grid →
-bed border and outside overlay → entities → selection halo → preview → snap glyph → pickbox →
-crosshair (LCV-162).
+bed border and outside overlay → entities → selection halo → hover → preview and danger marks in
+the tool's order (ADR 0013, LCV-163) → snap glyph → pickbox → crosshair (LCV-162).
 
 | Element | Form | Status |
 |---|---|---|
 | Entity | 1 pt, `entity` (its layer's colour, LCV-156) | shipped |
 | Selected | 3 pt `selection` halo over the entity | shipped |
-| Hover / pick target | thicker stroke, own colour | gap → LCV-163 |
+| Hover / pick target | 2.5 pt `hover` stroke in the layer colour (Select, TRIM, EXTEND) | shipped |
 | Preview | `preview` stroke | shipped |
-| Window box / crossing box | solid / dashed outline | gap → LCV-163 (both amber today) |
-| Trim / Delete preview | dashed, `danger` | gap → LCV-163 |
+| Window box / crossing box | solid / dashed `preview` outline | shipped |
+| Trim / Delete preview | dashed, `danger` | shipped |
 | Crosshair + pickbox | full canvas, `cursor`; pickbox only while an entity pick is pending; OS cursor hidden | shipped |
 | Origin (0,0) | small X/Y marker under geometry | gap → LCV-164 |
 
@@ -157,10 +158,10 @@ dark edge and a kind label are planned (gap → LCV-164).
 | Midpoint | ▲ filled triangle | shipped |
 | Center | ○ circle (stroke) | shipped |
 | Intersection | ✕ crossed diagonals | shipped |
-| Quadrant | ◇ diamond | reserved for LCV-161 |
-| Perpendicular | ⊥ | reserved for LCV-161 |
-| Tangent | ○ with a tangent bar | reserved for LCV-161 |
-| Nearest | ⧗ hourglass | reserved for LCV-161 |
+| Quadrant | ◇ diamond | shipped |
+| Perpendicular | ⊥ | shipped |
+| Tangent | ○ with a tangent bar | shipped |
+| Nearest | ⧗ hourglass | shipped |
 
 - Feedback reflects this frame's input: `app/viewport.rs::draw` handles the pointer before it
   paints (LCV-162). While an entity pick is pending there is no running snap and no glyph (R14

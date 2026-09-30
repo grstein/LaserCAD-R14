@@ -48,7 +48,7 @@
 - [x] T12 [P] [AC3] [AC5] EXTEND `feedback` = `Hover(ti)` + `Preview(grown)` from
   `hover(cursor, …)`; ERASE `feedback` = `Danger` per selected entity when `cursor` is `Some`;
   T5 and T6 go green (files: src/tools/extend.rs, src/tools/delete.rs)
-- [ ] T13 [AC10] DESIGN.md §3: `hover` and `danger` rows (value, contrast, home
+- [x] T13 [AC10] DESIGN.md §3: `hover` and `danger` rows (value, contrast, home
   `render/palette.rs`), `preview` home moved; §6: paint order with hover, the three rows marked
   shipped; also mark the Quadrant/Perpendicular/Tangent/Nearest glyph rows shipped (LCV-161)
   (files: DESIGN.md)
