@@ -34,7 +34,7 @@
   shapes (files: src/render/snaps.rs)
 - [x] T10 [AC7] Implement the four `MarkerShape` variants and their pure shape helpers
   (files: src/render/snaps.rs)
-- [ ] T11 [AC8] Test: with the View menu and its `Object snap` submenu opened through the
+- [x] T11 [AC8] Test: with the View menu and its `Object snap` submenu opened through the
   harness, the painted text shows one checkbox label per kind (8). Toggling a kind through
   `App::set_object_snap` flips `settings.object_snaps` and writes the settings file at an
   injected temp `settings_path` (files: tests/it/ui/object_snap_menu.rs, tests/it/ui/mod.rs)
