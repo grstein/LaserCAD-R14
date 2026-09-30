@@ -183,7 +183,8 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
     let mut picked_layer = None;
 
     ui.horizontal(|ui| {
-        ui.label(&coord_str);
+        // LCV-184 AC 5: fixed-width digits, so the readout does not jitter.
+        ui.label(egui::RichText::new(&coord_str).monospace());
         ui.separator();
         ui.label(&tool_str);
         ui.separator();
