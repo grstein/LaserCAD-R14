@@ -427,3 +427,251 @@ fn disabled_kind_gives_no_candidate() {
     assert!(snap_query(Vec2::new(0.0, 0.1), 1.0, &line, None, none).is_none());
     assert!(snap_query(Vec2::new(0.0, 10.1), 1.0, &circle, None, none).is_none());
 }
+
+// ── LCV-161: Perpendicular and Tangent from the tool anchor ──────────────
+
+/// A set with only `kind` enabled.
+fn only(kind: SnapKind) -> SnapKinds {
+    let mut k = SnapKinds::default();
+    for other in [
+        SnapKind::Endpoint,
+        SnapKind::Midpoint,
+        SnapKind::Center,
+        SnapKind::Intersection,
+        SnapKind::Quadrant,
+        SnapKind::Perpendicular,
+        SnapKind::Tangent,
+        SnapKind::Nearest,
+    ] {
+        k.set(other, other == kind);
+    }
+    k
+}
+
+/// LCV-161 AC2 — the foot on a segment snaps; a foot on the extension does not.
+#[test]
+fn perpendicular_foot_on_segment_only() {
+    let entities = [SnapEntity::Line(Line::new(
+        Vec2::default(),
+        Vec2::new(10.0, 0.0),
+    ))];
+    let anchor = Some(Vec2::new(3.0, 8.0));
+    let r = snap_query(
+        Vec2::new(3.2, 0.3),
+        1.0,
+        &entities,
+        anchor,
+        SnapKinds::default(),
+    )
+    .expect("perpendicular foot");
+    assert_eq!(r.kind, SnapKind::Perpendicular);
+    assert!(r.point.approx_eq(Vec2::new(3.0, 0.0), 1e-9));
+    assert_eq!(r.primary_idx, 0);
+    // Foot at (15, 0) lies on the extension: no candidate.
+    let ext = snap_query(
+        Vec2::new(15.0, 0.2),
+        1.0,
+        &entities,
+        Some(Vec2::new(15.0, 8.0)),
+        SnapKinds::default(),
+    );
+    assert!(ext.is_none());
+}
+
+/// LCV-161 AC2 — a circle gives two feet on the line through centre and anchor.
+#[test]
+fn perpendicular_two_feet_on_circle() {
+    let entities = [SnapEntity::Circle(Circle::new(Vec2::default(), 5.0))];
+    let anchor = Some(Vec2::new(20.0, 20.0));
+    let h = 5.0 / 2.0_f64.sqrt();
+    for foot in [Vec2::new(h, h), Vec2::new(-h, -h)] {
+        let cursor = foot + Vec2::new(0.2, -0.1);
+        let r = snap_query(cursor, 1.0, &entities, anchor, SnapKinds::default()).expect("foot");
+        assert_eq!(r.kind, SnapKind::Perpendicular);
+        assert!(r.point.approx_eq(foot, 1e-9));
+    }
+}
+
+/// LCV-161 AC2 — on an arc only the feet inside the sweep count.
+#[test]
+fn perpendicular_feet_on_arc_inside_sweep_only() {
+    let entities = [SnapEntity::Arc(Arc::new(
+        Vec2::default(),
+        5.0,
+        0.0,
+        FRAC_PI_2,
+        true,
+    ))];
+    let anchor = Some(Vec2::new(20.0, 20.0));
+    let h = 5.0 / 2.0_f64.sqrt();
+    let r = snap_query(
+        Vec2::new(h, h),
+        1.0,
+        &entities,
+        anchor,
+        SnapKinds::default(),
+    )
+    .expect("foot inside the sweep");
+    assert_eq!(r.kind, SnapKind::Perpendicular);
+    let outside = snap_query(
+        Vec2::new(-h, -h),
+        1.0,
+        &entities,
+        anchor,
+        SnapKinds::default(),
+    );
+    assert!(outside.is_none());
+}
+
+/// LCV-161 AC3 — two tangent points on a circle from an outside anchor.
+#[test]
+fn tangent_points_on_circle_from_outside_anchor() {
+    let entities = [SnapEntity::Circle(Circle::new(Vec2::default(), 5.0))];
+    let anchor = Some(Vec2::new(10.0, 0.0));
+    let y = 5.0 * (FRAC_PI_2 / 1.5).sin(); // 5·sin 60°
+    for t in [Vec2::new(2.5, y), Vec2::new(2.5, -y)] {
+        let r = snap_query(
+            t + Vec2::new(-0.2, 0.1),
+            1.0,
+            &entities,
+            anchor,
+            SnapKinds::default(),
+        )
+        .expect("tangent");
+        assert_eq!(r.kind, SnapKind::Tangent);
+        assert!(r.point.approx_eq(t, 1e-9));
+        assert_eq!(r.primary_idx, 0);
+    }
+}
+
+/// LCV-161 AC3 — on an arc only tangent points inside the sweep count.
+#[test]
+fn tangent_points_on_arc_inside_sweep_only() {
+    let entities = [SnapEntity::Arc(Arc::new(
+        Vec2::default(),
+        5.0,
+        0.0,
+        FRAC_PI_2,
+        true,
+    ))];
+    let anchor = Some(Vec2::new(10.0, 0.0));
+    let y = 5.0 * (FRAC_PI_2 / 1.5).sin();
+    let r = snap_query(
+        Vec2::new(2.5, y),
+        1.0,
+        &entities,
+        anchor,
+        SnapKinds::default(),
+    )
+    .expect("tangent inside the sweep");
+    assert_eq!(r.kind, SnapKind::Tangent);
+    let outside = snap_query(
+        Vec2::new(2.5, -y),
+        1.0,
+        &entities,
+        anchor,
+        SnapKinds::default(),
+    );
+    assert!(outside.is_none());
+}
+
+/// LCV-161 AC4 — no anchor, anchor on or inside the circle, or anchor at
+/// the centre: no Tangent / Perpendicular candidate.
+#[test]
+fn anchored_kinds_need_a_usable_anchor() {
+    let entities = [SnapEntity::Circle(Circle::new(Vec2::default(), 5.0))];
+    let y = 5.0 * (FRAC_PI_2 / 1.5).sin();
+    let tangent_pt = Vec2::new(2.5, y);
+    // No anchor.
+    for kind in [SnapKind::Perpendicular, SnapKind::Tangent] {
+        assert!(snap_query(tangent_pt, 1.0, &entities, None, only(kind)).is_none());
+    }
+    // Anchor on the circle (at the 60° point) or inside it: no tangent.
+    for anchor in [tangent_pt, Vec2::new(1.0, 1.0)] {
+        for cursor in [tangent_pt, Vec2::new(2.5, -y), Vec2::new(-5.0, 0.0)] {
+            let r = snap_query(
+                cursor,
+                1.0,
+                &entities,
+                Some(anchor),
+                only(SnapKind::Tangent),
+            );
+            assert!(r.is_none(), "anchor {anchor:?} cursor {cursor:?}");
+        }
+    }
+    // Anchor at the centre: no perpendicular foot on the circle.
+    let r = snap_query(
+        tangent_pt,
+        1.0,
+        &entities,
+        Some(Vec2::default()),
+        only(SnapKind::Perpendicular),
+    );
+    assert!(r.is_none());
+}
+
+/// LCV-161 AC2/AC3 — feet and tangent points outside the aperture do not count.
+#[test]
+fn anchored_candidates_respect_the_aperture() {
+    let entities = [SnapEntity::Circle(Circle::new(Vec2::default(), 5.0))];
+    let y = 5.0 * (FRAC_PI_2 / 1.5).sin();
+    let cursor = Vec2::new(2.5 + 1.5, y);
+    let anchor = Some(Vec2::new(10.0, 0.0));
+    assert!(snap_query(cursor, 1.0, &entities, anchor, only(SnapKind::Tangent)).is_none());
+    let foot_cursor = Vec2::new(-5.0, 1.5);
+    assert!(
+        snap_query(
+            foot_cursor,
+            1.0,
+            &entities,
+            anchor,
+            only(SnapKind::Perpendicular)
+        )
+        .is_none()
+    );
+}
+
+/// LCV-161 AC6 — Quadrant beats Perpendicular, Perpendicular beats Tangent.
+#[test]
+fn tie_quadrant_perpendicular_tangent() {
+    // Anchor on the +X axis: the circle's perpendicular foot is its quadrant.
+    let circle = [SnapEntity::Circle(Circle::new(Vec2::default(), 5.0))];
+    let r = snap_query(
+        Vec2::new(5.0, 0.0),
+        1.0,
+        &circle,
+        Some(Vec2::new(20.0, 0.0)),
+        SnapKinds::default(),
+    )
+    .expect("snap");
+    assert_eq!(r.kind, SnapKind::Quadrant);
+
+    // A radial segment through the arc's tangent point T: the anchor's foot
+    // on the segment is T too (AT ⟂ CT). Arc-line intersections are skipped.
+    let u = Vec2::new(0.5, 3.0_f64.sqrt() / 2.0);
+    let t = u * 5.0;
+    let entities = [
+        SnapEntity::Arc(Arc::new(Vec2::default(), 5.0, 0.0, FRAC_PI_2, true)),
+        SnapEntity::Line(Line::new(u * 2.5, u * 10.0)),
+    ];
+    let r = snap_query(
+        t,
+        1.0,
+        &entities,
+        Some(Vec2::new(10.0, 0.0)),
+        SnapKinds::default(),
+    )
+    .expect("snap");
+    assert_eq!(r.kind, SnapKind::Perpendicular);
+    assert_eq!(r.primary_idx, 1);
+    let r = snap_query(
+        t,
+        1.0,
+        &entities,
+        Some(Vec2::new(10.0, 0.0)),
+        only(SnapKind::Tangent),
+    )
+    .expect("tangent alone");
+    assert_eq!(r.kind, SnapKind::Tangent);
+    assert_eq!(r.primary_idx, 0);
+}

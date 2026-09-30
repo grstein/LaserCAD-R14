@@ -9,7 +9,7 @@
   wrapper, the extended `priority`, Quadrant and Nearest candidates; old kernel tests stay
   green or are restated (files: src/geometry/snap/mod.rs, src/geometry/snap/anchored.rs,
   src/geometry/snap/candidates.rs)
-- [ ] T3 [AC2, AC3, AC4] Test: Perpendicular foot on a segment (and none when the foot falls
+- [x] T3 [AC2, AC3, AC4] Test: Perpendicular foot on a segment (and none when the foot falls
   on the extension), up to two feet on a circle, feet only inside an arc's sweep; Tangent
   points from an outside anchor on a circle and inside an arc's sweep; no candidate without an
   anchor, with the anchor on or inside the circle, or at the centre; only feet/tangent points
