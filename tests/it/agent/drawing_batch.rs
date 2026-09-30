@@ -321,3 +321,155 @@ fn ac9_undo_redo_and_svg_round_trip() {
         }
     }
 }
+
+// ── LCV-185: the published schema matches the validator ─────────────────────
+
+/// The reason `dispatch` gives for these entities, or a panic if accepted.
+fn refusal(entities: Value) -> String {
+    match batch(entities) {
+        AgentAction::Malformed { reason, .. } => reason,
+        other => panic!("accepted: {other:?}"),
+    }
+}
+
+/// Draw `entities` in a fresh armed turn; the created entities.
+fn drawn(entities: Value) -> Vec<Entity> {
+    let (ctx, mut app) = ctx_and_app();
+    let tx = arm_turn(&mut app, "draw");
+    let answer = push_act(&tx, batch(entities));
+    idle(&ctx, &mut app);
+    let outcome = answer.try_recv().unwrap();
+    assert!(!outcome.is_refused(), "{outcome:?}");
+    app.document.entities.clone()
+}
+
+/// A valid item of each type with its own keys only.
+fn own_items() -> [Value; 3] {
+    [
+        json!({"type": "line", "x1": 1, "y1": 2, "x2": 3, "y2": 4}),
+        json!({"type": "circle", "cx": 5, "cy": 6, "r": 7}),
+        json!({"type": "arc", "cx": 8, "cy": 9, "r": 10,
+               "start_deg": 0, "end_deg": 90, "ccw": true}),
+    ]
+}
+
+/// Every item property the published `create_drawing` schema lists.
+fn published_keys() -> Vec<String> {
+    let schema = lasercad::agent::drawing::schema();
+    let props = schema["properties"]["entities"]["items"]["properties"]
+        .as_object()
+        .expect("item properties object");
+    props.keys().cloned().collect()
+}
+
+/// LCV-185 AC 1 — a foreign key set to `null` is ignored; the item is
+/// validated and drawn by its own type.
+#[test]
+fn lcv185_ac1_a_null_foreign_key_is_ignored() {
+    let cases = [
+        ("line", "r"),
+        ("circle", "start_deg"),
+        ("arc", "x1"),
+        ("line", "ccw"),
+    ];
+    for (kind, foreign) in cases {
+        let mut item = own_items()
+            .into_iter()
+            .find(|i| i["type"] == kind)
+            .unwrap();
+        item[foreign] = Value::Null;
+        let entities = drawn(json!([item]));
+        assert_eq!(entities.len(), 1, "{kind} with {foreign}: null");
+        let same_kind = matches!(
+            (kind, &entities[0]),
+            ("line", Entity::Line(_)) | ("circle", Entity::Circle(_)) | ("arc", Entity::Arc(_))
+        );
+        assert!(same_kind, "{kind}: {:?}", entities[0]);
+    }
+}
+
+/// LCV-185 AC 2 — a foreign key with any non-null value refuses the batch,
+/// naming the key, the item's type and the keys that type takes.
+#[test]
+fn lcv185_ac2_a_non_null_foreign_key_is_refused_with_the_type_keys() {
+    let cases = [
+        ("line", "r", json!(5), "a line takes x1, y1, x2, y2"),
+        ("circle", "start_deg", json!(0), "a circle takes cx, cy, r"),
+        (
+            "arc",
+            "x1",
+            json!(1),
+            "a arc takes cx, cy, r, start_deg, end_deg, ccw",
+        ),
+        ("line", "cx", json!(0), "a line takes x1, y1, x2, y2"),
+        ("circle", "ccw", json!(false), "a circle takes cx, cy, r"),
+    ];
+    for (kind, foreign, value, takes) in cases {
+        let mut item = own_items()
+            .into_iter()
+            .find(|i| i["type"] == kind)
+            .unwrap();
+        item[foreign] = value.clone();
+        let mut items = vec![own_items()[1].clone(), own_items()[0].clone()];
+        items.push(item);
+        assert_eq!(
+            refusal(Value::Array(items)),
+            format!("create_drawing entities[2].{foreign}: not a {kind} key; {takes}"),
+            "{kind} with {foreign}: {value}"
+        );
+    }
+    // The empty string on a foreign key is not null either.
+    let mut circle = own_items()[1].clone();
+    circle["x2"] = json!("");
+    assert_eq!(
+        refusal(json!([circle])),
+        "create_drawing entities[0].x2: not a circle key; a circle takes cx, cy, r"
+    );
+}
+
+/// LCV-185 AC 3 — a key no type publishes keeps the `unknown key` refusal,
+/// even when its value is `null`.
+#[test]
+fn lcv185_ac3_an_unpublished_key_is_still_unknown() {
+    for value in [json!(1), Value::Null] {
+        let mut line = own_items()[0].clone();
+        line["radius"] = value.clone();
+        assert_eq!(
+            refusal(json!([line])),
+            "create_drawing entities[0].radius: unknown key",
+            "radius: {value}"
+        );
+    }
+}
+
+/// LCV-185 AC 4 — for each type, an item setting every published property
+/// (its own keys valid, every foreign key `null`) is accepted and draws that
+/// one entity.
+#[test]
+fn lcv185_ac4_an_item_with_every_published_property_draws_one_entity() {
+    let published = published_keys();
+    assert!(published.len() >= 11, "control: {published:?}");
+    for own in own_items() {
+        let mut item = own.clone();
+        for key in &published {
+            if item.get(key).is_none() {
+                item[key.as_str()] = Value::Null;
+            }
+        }
+        assert_eq!(item.as_object().unwrap().len(), published.len());
+        let entities = drawn(json!([item]));
+        assert_eq!(entities.len(), 1, "{own}");
+        match (own["type"].as_str().unwrap(), &entities[0]) {
+            ("line", Entity::Line(l)) => {
+                assert_eq!((l.p1, l.p2), (Vec2::new(1.0, 2.0), Vec2::new(3.0, 4.0)))
+            }
+            ("circle", Entity::Circle(c)) => {
+                assert_eq!((c.center, c.r), (Vec2::new(5.0, 6.0), 7.0))
+            }
+            ("arc", Entity::Arc(a)) => {
+                assert_eq!((a.center, a.r, a.ccw), (Vec2::new(8.0, 9.0), 10.0, true))
+            }
+            (kind, got) => panic!("{kind} drew {got:?}"),
+        }
+    }
+}
