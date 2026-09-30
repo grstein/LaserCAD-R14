@@ -1,8 +1,8 @@
 # LCV-167 — UI wording, one AI name and status bar polish
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-183
-- **Implementation**: -
+- **Implementation**: c9a0635..0ff1605
 
 ## Problem
 
