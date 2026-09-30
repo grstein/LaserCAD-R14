@@ -23,7 +23,7 @@
       circular-arc path; width/height in mm equal to the viewBox; no transform) (files:
       tests/fixtures/svg/export-layers-engrave.svg + .expected, tests/fixtures/svg/inkscape-mm.svg +
       .expected)
-- [ ] T6 [AC9] Test: `check_fields` refuses `"A\u{7}B"`, `"A\tB"`, `"A\u{85}B"` with
+- [x] T6 [AC9] Test: `check_fields` refuses `"A\u{7}B"`, `"A\tB"`, `"A\u{85}B"` with
       `LayerError::ControlChar`, and accepts `"Grav é"`; add the import fixture
       `layer-control-char` (`data-layer="A&#9;B"`, expectation `error MalformedLayer`) (files:
       src/document/layer.rs (tests section), tests/fixtures/svg/layer-control-char.svg + .expected)

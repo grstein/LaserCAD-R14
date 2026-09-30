@@ -196,6 +196,21 @@ mod tests {
     }
 
     #[test]
+    fn control_characters_are_refused() {
+        for name in ["A\u{7}B", "A\tB", "A\u{85}B"] {
+            let err = check_fields(&[], None, name, [1, 2, 3]);
+            assert_eq!(
+                err,
+                Err(LayerError::ControlChar(name.to_owned())),
+                "{name:?}"
+            );
+        }
+        assert_eq!(check_fields(&[], None, "Grav é", [1, 2, 3]), Ok(()));
+        let msg = LayerError::ControlChar("A\tB".into()).to_string();
+        assert_eq!(msg, "Layer name \"A\\tB\" has a control character.");
+    }
+
+    #[test]
     fn errors_say_why() {
         let msg = LayerError::DuplicateName("Cut".into()).to_string();
         assert!(msg.contains("Cut") && msg.contains("already"));

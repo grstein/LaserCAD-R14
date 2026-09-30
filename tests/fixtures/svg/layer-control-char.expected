@@ -1,0 +1,3 @@
+# A layer name holding a tab written as a character reference (`&#9;` is not
+# normalised to a space, unlike a raw tab). Control characters are refused.
+error MalformedLayer
