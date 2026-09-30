@@ -74,7 +74,11 @@ impl Walk {
         let bed_h = self.bed_h;
         for child in node.children().filter(|n| n.is_element()) {
             let name = child.tag_name().name();
-            let entity = match classify(child) {
+            let kind = classify(child);
+            if matches!(kind, Kind::Import | Kind::Descend) {
+                self.report.note_properties(child);
+            }
+            let entity = match kind {
                 Kind::Import => match name {
                     "line" => Some(parse_line(child, bed_h)?),
                     "circle" => Some(parse_circle(child, bed_h)?),

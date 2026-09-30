@@ -13,6 +13,7 @@
 
 use super::css_color::parse_css_color;
 use super::import::SvgImportError;
+use super::import::report::style_decls;
 use crate::document::layer::{check_fields, color_hex};
 use crate::document::{Layer, LayerId};
 
@@ -49,13 +50,9 @@ fn layer_stroke<'a>(node: roxmltree::Node<'a, '_>) -> Option<&'a str> {
 /// The stroke `node` declares itself: the last `stroke` in `style` wins over
 /// the `stroke` attribute; `inherit` or no declaration is `None`.
 fn own_stroke<'a>(node: roxmltree::Node<'a, '_>) -> Option<&'a str> {
-    let styled = node.attribute("style").and_then(|style| {
-        style
-            .split(';')
-            .filter_map(|decl| decl.split_once(':'))
-            .rfind(|(prop, _)| prop.trim().eq_ignore_ascii_case("stroke"))
-            .map(|(_, value)| value.trim().trim_end_matches("!important").trim())
-    });
+    let styled = style_decls(node)
+        .rfind(|(prop, _)| prop.eq_ignore_ascii_case("stroke"))
+        .map(|(_, value)| value);
     styled
         .or_else(|| node.attribute("stroke"))
         .filter(|value| !value.trim().eq_ignore_ascii_case("inherit"))

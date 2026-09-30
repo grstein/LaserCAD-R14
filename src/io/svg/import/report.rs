@@ -4,6 +4,39 @@
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
+/// Properties LaserCAD does not apply yet, reported by name whenever an
+/// imported or descended element carries one, as an attribute or a `style`
+/// declaration (AC 7); `fill:none` is exempt.
+pub(super) const REPORTED_PROPERTIES: [&str; 12] = [
+    "transform",
+    "fill",
+    "clip-path",
+    "mask",
+    "filter",
+    "marker-start",
+    "marker-mid",
+    "marker-end",
+    "stroke-dasharray",
+    "opacity",
+    "display",
+    "visibility",
+];
+
+/// `node`'s `style` declarations as trimmed `(property, value)` pairs in
+/// written order, a trailing `!important` dropped. Not a CSS parser (LCV-175).
+pub(in crate::io::svg) fn style_decls<'a>(
+    node: roxmltree::Node<'a, '_>,
+) -> impl DoubleEndedIterator<Item = (&'a str, &'a str)> {
+    node.attribute("style")
+        .into_iter()
+        .flat_map(|style| style.split(';'))
+        .filter_map(|decl| decl.split_once(':'))
+        .map(|(prop, value)| {
+            let value = value.trim().trim_end_matches("!important").trim();
+            (prop.trim(), value)
+        })
+}
+
 /// Report builder: [`Report::note`] bumps a label's count or appends it.
 #[derive(Debug, Default)]
 pub(super) struct Report {
@@ -16,6 +49,31 @@ impl Report {
         match self.entries.iter_mut().find(|(known, _)| known == label) {
             Some((_, count)) => *count += 1,
             None => self.entries.push((label.to_owned(), 1)),
+        }
+    }
+
+    /// Count each [`REPORTED_PROPERTIES`] entry `node` carries: attributes in
+    /// the null namespace by exact name, then `style` declarations ASCII
+    /// case-insensitively. `fill` whose value is `none` is not counted.
+    pub(super) fn note_properties(&mut self, node: roxmltree::Node<'_, '_>) {
+        let attrs = node
+            .attributes()
+            .filter(|attr| attr.namespace().is_none())
+            .filter_map(|attr| {
+                let name = attr.name();
+                let prop = REPORTED_PROPERTIES.iter().find(|&&p| p == name)?;
+                Some((*prop, attr.value()))
+            });
+        let styled = style_decls(node).filter_map(|(name, value)| {
+            let prop = REPORTED_PROPERTIES
+                .iter()
+                .find(|p| p.eq_ignore_ascii_case(name))?;
+            Some((*prop, value))
+        });
+        for (prop, value) in attrs.chain(styled) {
+            if prop != "fill" || !value.trim().eq_ignore_ascii_case("none") {
+                self.note(prop);
+            }
         }
     }
 

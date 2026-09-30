@@ -6,11 +6,13 @@
 //!
 //! | Outcome | Elements (SVG namespace unless noted) | Report |
 //! |---|---|---|
-//! | import | `line`, `circle`, `path d="M…A…"` | a `path` not imported → `path (unsupported data)` |
-//! | descend | `svg`, `g`, `a` | — |
+//! | import | `line`, `circle`, `path d="M…A…"` | properties; a `path` not imported → `path (unsupported data)` |
+//! | descend | `svg`, `g`, `a` | properties, then the children |
 //! | never rendered | `defs symbol clipPath mask marker pattern linearGradient radialGradient filter` | name, iff it has an element child |
 //! | silent | `title desc metadata`; any element outside the SVG namespace | nothing |
 //! | other | every other SVG element, subtree included | name |
+//!
+//! "Properties" are the unapplied ones in [`report::REPORTED_PROPERTIES`].
 //!
 //! SVG is Y-down and the world is Y-up, so every parsed Y is un-mirrored
 //! through [`crate::util::flip_y`] (`y_world = bed_height - y_svg`, the exact
@@ -153,6 +155,7 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
     }
     let bed_mm = parse_bed(root)?;
     let mut walk = Walk::new(bed_mm[1]);
+    walk.report.note_properties(root);
     walk.collect(root, None)?;
     let (layers, current_layer) = walk.layers.finish();
     Ok(ImportedSvg {

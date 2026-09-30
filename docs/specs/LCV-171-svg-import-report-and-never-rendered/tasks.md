@@ -35,7 +35,7 @@
       `style="fill: NONE"` are not reported, `fill="red"` is; `!important` and case are ignored; a
       `transform` on a skipped `<image>` or inside `<defs>` is not reported; a repeat counts twice
       under one label (files: src/io/svg/import/tests.rs)
-- [ ] T11 [AC7] `REPORTED_PROPERTIES`, `style_decls`, `note_properties` in `report.rs`, called by
+- [x] T11 [AC7] `REPORTED_PROPERTIES`, `style_decls`, `note_properties` in `report.rs`, called by
       `collect` on imported and descended elements; `layers.rs::own_stroke` reuses `style_decls`
       (files: src/io/svg/import/report.rs, src/io/svg/import/walk.rs, src/io/svg/layers.rs)
 - [ ] T12 [AC10] Test: `export_svg` and every `export_layer_svg` output of a document with a line,
