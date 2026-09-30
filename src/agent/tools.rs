@@ -37,6 +37,7 @@ use crate::agent::drawing;
 
 mod schema;
 use schema::base_definitions;
+mod transform;
 
 /// Why a tool call could not be turned into an [`AgentAction`].
 ///
@@ -174,6 +175,8 @@ fn get_layer(args: &Value, tool: &'static str) -> Result<Option<String>, ToolCal
 /// of the wrong type, or outside its domain.
 #[rustfmt::skip]
 pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCallError> {
+    // LCV-186: `indices` on an edit tool is a set call; else as before.
+    if let Some(set) = transform::parse_set(name, args) { return set; }
     match name {
         "create_line" => Ok(AgentAction::CreateLine {
             x1: get_f64(args, "create_line", "x1")?,

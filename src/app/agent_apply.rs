@@ -164,6 +164,9 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
             y,
             factor,
         } => edit::scale(index, Vec2::new(x, y), factor, doc),
+        AgentAction::Set { .. } => Planned::Answer(AgentOutcome::Refused(
+            "set operations are not applied yet".to_owned(),
+        )),
         AgentAction::QueryEntities => Planned::Answer(AgentOutcome::Ok(list_entities(doc))),
         AgentAction::QuerySelection => Planned::Answer(AgentOutcome::Ok(list_selection(doc))),
         // One command for the whole batch (ADR 0010 §1, §5).

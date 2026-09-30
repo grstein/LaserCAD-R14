@@ -124,6 +124,16 @@ pub enum AgentAction {
         /// Uniform scale factor. Positive and finite — checked at parse time.
         factor: f64,
     },
+    /// Apply one edit to a whole set of entities as one command and one step
+    /// (LCV-186): one base point or axis, copies appended in ascending
+    /// source order.
+    Set {
+        /// Zero-based indices into `Document::entities`: 1..=1000, unique,
+        /// shape-checked at parse time; range-checked at the apply site.
+        indices: Vec<usize>,
+        /// The edit applied to every listed entity.
+        op: SetOp,
+    },
     /// Read back every entity in the drawing. Commits nothing.
     QueryEntities,
     /// Read back the current selection. Commits nothing.
@@ -156,6 +166,59 @@ pub enum AgentAction {
         tool: String,
         /// Names the tool and the field; never echoes the raw arguments.
         reason: String,
+    },
+}
+
+/// The edit of an [`AgentAction::Set`]: a single-index edit without its
+/// `index`, with the same units and already-validated arguments (LCV-186).
+#[derive(Debug, Clone, PartialEq)]
+pub enum SetOp {
+    /// `delete_entity`.
+    Delete,
+    /// `move_entity`: translate by `(dx, dy)` mm.
+    Move {
+        /// X translation, mm.
+        dx: f64,
+        /// Y translation, mm.
+        dy: f64,
+    },
+    /// `copy_entity`: append translated copies on the sources' layers.
+    Copy {
+        /// X translation, mm.
+        dx: f64,
+        /// Y translation, mm.
+        dy: f64,
+    },
+    /// `rotate_entity`: rotate about `(x, y)` mm by `angle` radians.
+    Rotate {
+        /// Base point X, mm.
+        x: f64,
+        /// Base point Y, mm.
+        y: f64,
+        /// Rotation angle, radians, CCW positive.
+        angle: f64,
+    },
+    /// `mirror_entity`: mirror across `(x1, y1)`–`(x2, y2)` mm.
+    Mirror {
+        /// Mirror line points, mm.
+        x1: f64,
+        /// See `x1`.
+        y1: f64,
+        /// See `x1`.
+        x2: f64,
+        /// See `x1`.
+        y2: f64,
+        /// `true` replaces the sources; `false` keeps them.
+        erase_source: bool,
+    },
+    /// `scale_entity`: scale about `(x, y)` mm by `factor` (> 0).
+    Scale {
+        /// Base point X, mm.
+        x: f64,
+        /// Base point Y, mm.
+        y: f64,
+        /// Uniform scale factor, positive and finite.
+        factor: f64,
     },
 }
 
