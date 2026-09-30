@@ -17,7 +17,7 @@ use lasercad::document::{CreateCircle, CreateLine};
 use lasercad::geometry::{Circle, Line, Vec2};
 use std::sync::mpsc::{Receiver, Sender, channel};
 
-const DISABLED: &str = "canvas capture is disabled in Agent settings";
+const DISABLED: &str = "canvas capture is disabled in Help > AI Settings…";
 
 fn ctx_and_app() -> (egui::Context, App) {
     let ctx = egui::Context::default();

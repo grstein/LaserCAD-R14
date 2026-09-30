@@ -507,8 +507,8 @@ fn without_a_key_a_prefixed_line_reports_the_missing_key() {
     assert_eq!(
         app.command_feedback,
         concat!(
-            "! Agent unavailable: set the API key in ",
-            "Help > Agent settings"
+            "! AI unavailable: set the API key in ",
+            "Help > AI Settings…"
         )
     );
     assert!(!app.agent.busy);

@@ -17,7 +17,7 @@
 - [x] T5 [AC3] Test only (holds since LCV-183): rail toggle paints `AI`, its tooltip is
   `AI Assistant`, the panel heading is `AI Assistant`, the dock destination for `:draw` is `AI`
   (files: tests/it/ui/wording_and_status.rs)
-- [ ] T6 [AC4] Test first: timeout and 401 texts contain `Help > AI Settings…`; `:draw` with no
+- [x] T6 [AC4] Test first: timeout and 401 texts contain `Help > AI Settings…`; `:draw` with no
   key sets the dock line `! AI unavailable: set the API key in Help > AI Settings…`; a capture
   with capture off is refused with `CAPTURE_DISABLED` naming `Help > AI Settings…` (files:
   src/agent/transport/tests.rs, src/app/cmdline/tests.rs, tests/it/agent/canvas_capture.rs)
