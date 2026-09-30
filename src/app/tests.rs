@@ -86,7 +86,7 @@ fn app_default_has_no_persistence_paths() {
     assert_eq!(app.autosave_path, None);
 }
 
-/// LCV-114 AC 14 — the Bed size… modal starts closed.
+/// LCV-114 AC 14 — the Bed Size… modal starts closed.
 #[test]
 fn app_default_has_no_bed_dialog() {
     assert_eq!(App::default().bed_dialog, None);

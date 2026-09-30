@@ -38,7 +38,7 @@ pub fn draw_bed_dialog(ctx: &egui::Context, app: &mut App) {
     };
     let mut result = None;
 
-    egui::Window::new("Bed size")
+    egui::Window::new("Bed Size")
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
         .resizable(false)
         .collapsible(false)

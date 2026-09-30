@@ -331,7 +331,7 @@ fn ac8_ac9_ac10_the_settings_dialog_draws_headless_frame() {
 /// added, or it certifies the old screen as still correct.
 ///
 /// **LCV-143 note**: two more lines, for the same reason — the System prompt
-/// row with its Restore default button, and the editor, which paints the whole
+/// row with its Restore Default button, and the editor, which paints the whole
 /// built-in prompt as one multi-line galley.
 ///
 /// **LCV-145 note**: three more lines — the two canvas opt-in checkboxes and
@@ -373,7 +373,7 @@ fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
                 "When both are on, the agent may send a picture of the drawing ",
                 "(not the window) to the configured provider and model."
             )],
-            vec!["System prompt", "Restore default"],
+            vec!["System prompt", "Restore Default"],
             vec![lasercad::agent::DEFAULT_PROMPT],
             vec!["Changes apply immediately and are saved when this window closes."],
             vec!["Done"],

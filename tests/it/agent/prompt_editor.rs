@@ -146,7 +146,7 @@ fn ac3_typed_text_persists_verbatim_through_done() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// AC 4 — Restore default clears the override and the editor shows the
+/// AC 4 — Restore Default clears the override and the editor shows the
 /// built-in text on the very frame of the click; Done persists `None`.
 #[test]
 fn ac4_restore_default_clears_the_override_on_the_same_frame() {
@@ -158,7 +158,7 @@ fn ac4_restore_default_clears_the_override_on_the_same_frame() {
         "control"
     );
 
-    let runs = click(&ctx, &mut app, locate(&runs, "Restore default"));
+    let runs = click(&ctx, &mut app, locate(&runs, "Restore Default"));
     assert_eq!(app.settings.agent_system_prompt, None);
     assert!(
         runs.iter()
@@ -215,7 +215,7 @@ fn ac8_every_control_is_reachable_at_800x600_with_a_long_prompt() {
         "The API key is stored in plain text",
         "Steps per turn",
         "System prompt",
-        "Restore default",
+        "Restore Default",
         "Done",
     ] {
         assert!(

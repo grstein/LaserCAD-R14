@@ -1,4 +1,4 @@
-//! tests/it/ui/bed_dialog.rs — the Bed size… dialog end to end (LCV-114
+//! tests/it/ui/bed_dialog.rs — the Bed Size… dialog end to end (LCV-114
 //! AC 14 / AC 15).
 //!
 //! Every test drives the real frame body through
@@ -26,7 +26,7 @@ use lasercad::document::CreateLine;
 use lasercad::geometry::{Line, Vec2};
 use lasercad::ui::DialogResult;
 
-/// A test `App` with the Bed size… dialog already open on `draft` — the state
+/// A test `App` with the Bed Size… dialog already open on `draft` — the state
 /// the menu entry produces.
 fn app_with_draft(draft: [f64; 2]) -> App {
     App {

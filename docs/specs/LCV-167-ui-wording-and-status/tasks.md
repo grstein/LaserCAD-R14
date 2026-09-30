@@ -8,7 +8,7 @@
 - [x] T2 [AC1] Menu rows `Export Layers`, `Bed Size…`, `Keyboard Shortcuts…\tF1`, submenu
   `Object Snap`; tests keyed on the old rows follow (`visual_refresh.rs`, `object_snap_menu.rs`)
   (files: src/ui/menubar.rs, src/ui/menubar/object_snap.rs, tests/it/ui/object_snap_menu.rs)
-- [ ] T3 [AC1] Window titles `Bed Size`, `Keyboard Shortcuts`; button `Restore Default`; tests
+- [x] T3 [AC1] Window titles `Bed Size`, `Keyboard Shortcuts`; button `Restore Default`; tests
   keyed on the old titles/ids follow (`ui/bed_dialog.rs`, `ui/shortcuts_dialog_fits.rs`)
   (files: src/app/bed_dialog.rs, src/ui/shortcuts_dialog.rs, src/agent/settings_ui.rs)
 - [ ] T4 [AC2] Help item `AI Settings…`, window `AI Settings`; `Id::new`/`area_rect`/title

@@ -94,7 +94,7 @@ pub struct AgentSettingsFrame {
 /// - **Allow canvas capture** / **Model supports images** — the two LCV-145
 ///   opt-ins, followed by [`CANVAS_DISCLOSURE`].
 /// - **System prompt** — a multiline editor over the *effective* prompt
-///   (`prompt::resolve`), with a **Restore default** button (LCV-143). The
+///   (`prompt::resolve`), with a **Restore Default** button (LCV-143). The
 ///   text is copied into a per-frame buffer, so only a real edit writes
 ///   `Some(text)` — opening the dialog creates no override — and the button,
 ///   drawn before the editor, sets `None` so the built-in text shows on the
@@ -201,13 +201,13 @@ pub fn draw_agent_settings(ui: &mut egui::Ui, settings: &mut Settings) -> AgentS
     }
 }
 
-/// The System prompt row: label, Restore default, then the editor. Returns
+/// The System prompt row: label, Restore Default, then the editor. Returns
 /// whether either changed `settings.agent_system_prompt`.
 fn prompt_editor(ui: &mut egui::Ui, settings: &mut Settings) -> bool {
     let mut changed = false;
     ui.horizontal(|ui| {
         ui.label("System prompt");
-        if ui.button("Restore default").clicked() {
+        if ui.button("Restore Default").clicked() {
             settings.agent_system_prompt = None;
             changed = true;
         }

@@ -156,7 +156,7 @@ fn render_column(ui: &mut egui::Ui, sections: &[Section]) {
     }
 }
 
-/// Render the Keyboard shortcuts dialog (LCV-116 AC 11).
+/// Render the Keyboard Shortcuts dialog (LCV-116 AC 11).
 ///
 /// Follows [`crate::ui::dialogs::about_dialog`]: opened/closed through `open`;
 /// centre-anchored, not collapsible. Laid out in **two columns**
@@ -178,7 +178,7 @@ fn render_column(ui: &mut egui::Ui, sections: &[Section]) {
 /// Read-only: no widget changes application state, and it reads no key. `F1`
 /// is dispatched in `src/ui/shortcuts.rs` like `F3` / `F7` / `F8`, not here.
 pub fn shortcuts_dialog(ctx: &Context, open: &mut bool) {
-    Window::new("Keyboard shortcuts")
+    Window::new("Keyboard Shortcuts")
         .open(open)
         .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
         .default_height(ctx.screen_rect().height() - 80.0)
