@@ -3,7 +3,7 @@
 ADR 0003 amendment (5) (commit `868bb01`) admits `ToolKind::Rotate`. The `agent/tools/schema.rs` and
 `app/agent_apply/edit.rs` seams land in LCV-157 (T5/T6).
 
-- [ ] T1 [P] [AC6] Test: rotate point/line/circle/arc; property test for rigidity, radii, sweep, arc endpoints (files: tests/it/geometry/transform_props.rs, tests/it/geometry/mod.rs)
+- [x] T1 [P] [AC6] Test: rotate point/line/circle/arc; property test for rigidity, radii, sweep, arc endpoints (files: tests/it/geometry/transform_props.rs, tests/it/geometry/mod.rs)
 - [ ] T2 [AC6] Implement `Transform::Rotate` + methods, re-export (files: src/geometry/transform.rs, src/geometry/mod.rs)
 - [ ] T3 [AC6] Test then implement `Entity::transformed` (files: src/document/entity.rs)
 - [ ] T4 [AC7] Test then implement `TransformEntities`: do/undo/redo bit-exact, layer and selection kept (files: src/document/commands/transform.rs, src/document/commands/mod.rs, src/document/mod.rs)
