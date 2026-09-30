@@ -18,7 +18,7 @@
       `<metadata>` holding a `<line>`, and `<sodipodi:namedview>`/`<foo:line>` (foreign namespace)
       import nothing and leave the report empty; `<svg:line>` with the SVG prefix imports (files:
       src/io/svg/import/tests.rs)
-- [ ] T7 [AC3] Test: a `<line>`/`<circle>` inside each of the nine never-rendered elements imports
+- [x] T7 [AC3] Test: a `<line>`/`<circle>` inside each of the nine never-rendered elements imports
       nothing and reports that element's name; `<defs/>` and `<clipPath></clipPath>` (no element
       child) report nothing; `<linearGradient><stop/></linearGradient>` reports
       `linearGradient` (files: src/io/svg/import/tests.rs)

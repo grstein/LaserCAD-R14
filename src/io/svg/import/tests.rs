@@ -463,3 +463,38 @@ fn silent_elements_and_foreign_namespaces_import_nothing_unreported() {
         assert!(imported.report.is_empty(), "{inner}");
     }
 }
+
+const NEVER_RENDERED: [&str; 9] = [
+    "defs",
+    "symbol",
+    "clipPath",
+    "mask",
+    "marker",
+    "pattern",
+    "linearGradient",
+    "radialGradient",
+    "filter",
+];
+
+/// AC 3 — geometry inside a never-rendered element is not imported, and the
+/// element is reported by name.
+#[test]
+fn never_rendered_elements_import_nothing_and_are_reported() {
+    for name in NEVER_RENDERED {
+        let src = svg(&format!(
+            r#"<{name}>{A_LINE}<circle cx="1" cy="1" r="1"/></{name}>"#
+        ));
+        let imported = import_svg(&src).unwrap();
+        assert!(imported.entities.is_empty(), "{name}");
+        assert_eq!(imported.report, [entry(name, 1)], "{name}");
+    }
+}
+
+/// AC 3 — reported iff it has an element child; a `stop` counts.
+#[test]
+fn never_rendered_elements_without_element_children_are_not_reported() {
+    assert!(report_of(&svg("<defs/>")).is_empty());
+    assert!(report_of(&svg("<clipPath> text </clipPath>")).is_empty());
+    let gradient = svg("<linearGradient><stop/></linearGradient>");
+    assert_eq!(report_of(&gradient), [entry("linearGradient", 1)]);
+}
