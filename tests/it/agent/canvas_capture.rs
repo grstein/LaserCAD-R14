@@ -1,4 +1,5 @@
-//! LCV-145 — opt-in canvas observations, driven through real frames.
+//! LCV-145 — opt-in canvas observations, driven through real frames;
+//! LCV-187 — the `frame` argument and the post-send notes.
 //!
 //! Like `tests/it/agent/turn.rs`, every test pushes `Act`s by hand onto a turn
 //! armed with `arm_turn` and reads the answers off its own reply `Receiver`:
@@ -11,7 +12,10 @@
 use crate::harness;
 
 use harness::frame;
-use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome};
+use lasercad::agent::{
+    AgentAction, AgentEvent, AgentOutcome, CaptureFrame, parse_tool_call, tool_definitions,
+};
+use serde_json::{Value, json};
 use lasercad::app::{AGENT_FENCE_REFUSAL, App, arm_turn};
 use lasercad::document::{CreateCircle, CreateLine};
 use lasercad::geometry::{Circle, Line, Vec2};
@@ -68,7 +72,17 @@ fn capture_in_one_frame(
     app: &mut App,
     tx: &Sender<AgentEvent>,
 ) -> AgentOutcome {
-    let answer = push_act(tx, AgentAction::CaptureCanvas);
+    capture_frame_in_one_frame(ctx, app, tx, CaptureFrame::View)
+}
+
+/// Answer one `CaptureCanvas(frame)` on an armed turn in one `update_ui`.
+fn capture_frame_in_one_frame(
+    ctx: &egui::Context,
+    app: &mut App,
+    tx: &Sender<AgentEvent>,
+    frame: CaptureFrame,
+) -> AgentOutcome {
+    let answer = push_act(tx, AgentAction::CaptureCanvas(frame));
     idle(ctx, app);
     answer
         .try_recv()
@@ -488,5 +502,112 @@ fn no_log_call_carries_the_png() {
     );
     for (path, body) in src_sections(true) {
         assert!(!logs_png(&body), "{path} logs the png");
+    }
+}
+
+// ── LCV-187: the `frame` argument ────────────────────────────────────────
+
+fn parse(args: Value) -> Result<AgentAction, String> {
+    parse_tool_call("capture_canvas", &args).map_err(|e| e.to_string())
+}
+
+fn region(x0: f64, y0: f64, x1: f64, y1: f64) -> CaptureFrame {
+    CaptureFrame::Region { x0, y0, x1, y1 }
+}
+
+/// LCV-187 AC 1 — no arguments, `{}`, a null or `"view"` frame, and stray
+/// keys all parse to today's viewport capture.
+#[test]
+fn no_frame_or_view_parses_to_the_viewport() {
+    for args in [
+        Value::Null,
+        json!({}),
+        json!({"frame": null}),
+        json!({"frame": "view"}),
+        json!({"frame": "view", "x0": null}),
+        json!({"stray": 1}),
+    ] {
+        assert_eq!(
+            parse(args.clone()),
+            Ok(AgentAction::CaptureCanvas(CaptureFrame::View)),
+            "{args}"
+        );
+    }
+    assert_eq!(
+        parse(json!({"frame": "drawing"})),
+        Ok(AgentAction::CaptureCanvas(CaptureFrame::Drawing))
+    );
+    assert_eq!(
+        parse(json!({"frame": "region", "x0": 30, "y0": 40.5, "x1": -10, "y1": 0})),
+        Ok(AgentAction::CaptureCanvas(region(30.0, 40.5, -10.0, 0.0))),
+        "corners are kept as given; the capture normalises them"
+    );
+}
+
+/// LCV-187 AC 4 — a frame name outside the three, a missing or non-numeric
+/// region corner, and a corner given with another frame are refused, each
+/// naming its field.
+#[test]
+fn a_bad_frame_or_corner_is_refused_naming_the_field() {
+    let frame = "tool `capture_canvas` argument `frame` is invalid: \
+                 must be \"view\", \"drawing\" or \"region\"";
+    for bad in [json!("bed"), json!("VIEW"), json!(3), json!(true)] {
+        assert_eq!(parse(json!({"frame": bad})), Err(frame.to_owned()), "{bad}");
+    }
+    let full = json!({"frame": "region", "x0": 0, "y0": 0, "x1": 10, "y1": 10});
+    for field in ["x0", "y0", "x1", "y1"] {
+        for bad in [Value::Null, json!("inf"), json!("NaN"), json!([1])] {
+            let mut args = full.clone();
+            args[field] = bad.clone();
+            assert_eq!(
+                parse(args),
+                Err(format!(
+                    "tool `capture_canvas` missing required argument `{field}`"
+                )),
+                "{field} = {bad}"
+            );
+        }
+        let mut args = full.clone();
+        args.as_object_mut().unwrap().remove(field);
+        assert!(parse(args).is_err(), "{field} absent");
+    }
+    for name in ["view", "drawing"] {
+        assert_eq!(
+            parse(json!({"frame": name, "y1": 5})),
+            Err("tool `capture_canvas` argument `y1` is invalid: \
+                 only used with frame \"region\"".to_owned()),
+            "{name}"
+        );
+    }
+    assert!(
+        serde_json::from_str::<Value>(r#"{"x0":1e999}"#).is_err(),
+        "a non-finite corner cannot reach the parser: JSON has none"
+    );
+}
+
+/// LCV-187 AC 7 — with the opt-ins off `capture_canvas` stays unadvertised
+/// and every frame is refused as today.
+#[test]
+fn opt_ins_off_leave_every_frame_unadvertised_and_refused() {
+    let named = |vision: bool| {
+        tool_definitions(vision)
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|t| t["function"]["name"] == "capture_canvas")
+    };
+    assert!(named(true), "positive control: advertised with vision");
+    assert!(!named(false));
+    for frame in [CaptureFrame::View, CaptureFrame::Drawing, region(0.0, 0.0, 9.0, 9.0)] {
+        let (ctx, mut app) = ctx_and_app();
+        draw_something(&mut app);
+        idle(&ctx, &mut app);
+        let tx = arm_turn(&mut app, "look");
+        pin_camera(&mut app);
+        assert_eq!(
+            capture_frame_in_one_frame(&ctx, &mut app, &tx, frame.clone()),
+            AgentOutcome::Refused(DISABLED.into()),
+            "{frame:?}"
+        );
     }
 }

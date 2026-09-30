@@ -1,6 +1,6 @@
 # LCV-187 — Tasks
 
-- [ ] T1 [AC1] [AC4] [AC7] Test: no args / `"view"` parse to `View`; bad frame name, missing or non-finite region corner refused; opt-ins off still unadvertised and refused (files: tests/it/agent/canvas_capture.rs)
+- [x] T1 [AC1] [AC4] [AC7] Test: no args / `"view"` parse to `View`; bad frame name, missing or non-finite region corner refused; opt-ins off still unadvertised and refused (files: tests/it/agent/canvas_capture.rs)
 - [ ] T2 [AC1] [AC4] `CaptureFrame` in the action, `frame`/corner schema and parser (files: src/agent/bridge/action.rs, src/agent/tools.rs)
 - [ ] T3 [AC2] [AC3] [AC4] [AC5] Test: drawing frame = bounds + 5 % with longest edge 1024 px; region framed exactly; empty drawing / zero-area region refused; outcome text reports the actual frame; PNG under 2 MiB (files: tests/it/agent/canvas_capture.rs)
 - [ ] T4 [AC2] [AC3] [AC4] [AC5] Frame resolution and exact-1024 sizing in `capture` (files: src/app/agent_capture.rs, src/app/agent_apply.rs)
