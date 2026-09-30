@@ -1,9 +1,10 @@
 //! The `CentralPanel` viewport: painting, pointer routing, and camera actions.
 //!
-//! [`draw`] is the whole canvas phase of a frame — camera sync, the render
-//! pipeline (grid, bed, entities, selection, preview, snap marker), pointer
-//! events into the active tool, wheel zoom and middle-drag pan. It is called
-//! once per frame from [`App::update_ui`](super::App::update_ui).
+//! [`draw`] is the whole canvas phase of a frame — camera sync, middle-drag
+//! pan, pointer events into the active tool and wheel zoom, then the render
+//! pipeline (grid, bed, entities, selection, preview, snap marker, cursor;
+//! `viewport/paint.rs`). It is called once per frame from
+//! [`App::update_ui`](super::App::update_ui).
 //!
 //! No key is read here: `src/app/input.rs` is the single keyboard gate
 //! (LCV-103 / ADR 0002 §A6). A `ctx.input(|i| i.key_*)` call in this file is a
@@ -19,6 +20,9 @@ use crate::tools::{PointerButton, PointerEvent};
 
 /// Factor applied per mouse-wheel notch. `> 1.0` zooms in; `< 1.0` zooms out.
 const WHEEL_ZOOM_FACTOR: f64 = 1.1;
+
+mod paint;
+use paint::paint;
 
 /// Render the canvas and route pointer input for one frame.
 pub fn draw(ctx: &egui::Context, app: &mut App) {
@@ -44,6 +48,12 @@ pub fn draw(ctx: &egui::Context, app: &mut App) {
             .hover_pos()
             .filter(|_| response.hovered())
             .map(|hover_pos| handle_hover(ctx, app, rect, hover_pos));
+
+        // The crosshair replaces the OS cursor over the canvas (AC 1). egui
+        // resets the icon every frame, so off the canvas it is the arrow.
+        if cursor.is_some() {
+            ctx.set_cursor_icon(egui::CursorIcon::None);
+        }
 
         paint(ui, rect, app, cursor);
 
@@ -72,59 +82,6 @@ pub fn draw(ctx: &egui::Context, app: &mut App) {
 /// the previous one's.
 fn viewport_is_live(response: &egui::Response, app: &App) -> bool {
     response.hovered() || response.dragged() || !app.preview_entities.is_empty()
-}
-
-/// Paint the canvas background and the whole render pipeline into `rect`.
-///
-/// Paint order (LCV-137 AC 1): canvas background, bed background fill, the
-/// grid (when enabled), the bed border and exterior overlay, entities,
-/// selection, preview, snap marker. The bed's fill is painted BEFORE the
-/// grid and its border/overlay AFTER, so the grid's lines land on top of the
-/// fill and are visible inside the bed rather than painted over by it — the
-/// two halves of what used to be one `draw_bed` call, split for this order
-/// (LCV-137 AC 2, `src/render/bed.rs`).
-fn paint(ui: &egui::Ui, rect: egui::Rect, app: &mut App, _cursor: Option<Vec2>) {
-    let painter = ui.painter_at(rect);
-    painter.rect_filled(rect, 0.0, crate::ui::CANVAS_BG);
-    painter.rect_stroke(
-        rect,
-        0.0,
-        egui::Stroke::new(1.0_f32, egui::Color32::from_gray(64)),
-    );
-
-    // The bed is the document's, rebuilt every frame (LCV-114 AC 4/AC 15):
-    // no cached copy, so a `SetBedSize` shows up on the very next frame.
-    let bed = crate::render::Bed::from_size_mm(app.document.bed_mm);
-    crate::render::draw_bed_fill(&painter, rect, &app.camera, &bed);
-
-    if app.grid_enabled {
-        crate::render::draw_grid(&painter, rect, &app.camera);
-    }
-
-    crate::render::draw_bed(&painter, rect, &app.camera, &bed);
-    crate::render::draw_entities(
-        &painter,
-        rect,
-        &app.camera,
-        &app.document,
-        crate::render::PaintOptions::default(),
-    );
-    crate::render::draw_selection_highlight(
-        &painter,
-        rect,
-        &app.camera,
-        &app.document.entities,
-        &app.document.selection,
-    );
-
-    // Update preview from tool (LCV-040 AC#9).
-    app.preview_entities = app.tool_manager.preview();
-
-    crate::render::draw_preview(&painter, rect, &app.camera, &app.preview_entities);
-
-    if let Some(snap) = &app.active_snap {
-        crate::render::draw_snap_marker(&painter, rect, &app.camera, snap);
-    }
 }
 
 /// Resolve the cursor position and route pointer events while the viewport is

@@ -262,11 +262,11 @@ fn every_repaint_request_in_src_is_conditional() {
 /// absence assertion cannot pass vacuously.
 #[test]
 fn the_canvas_bed_comes_from_the_document() {
-    let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/app/viewport.rs"));
-    let cfg_test_at = src
-        .find("\n#[cfg(test)]")
-        .expect("viewport.rs must have a test module to bound the scan");
-    let implementation = &src[..cfg_test_at];
+    // `paint` lives in `viewport/paint.rs` since LCV-162 (LOC-cap seam).
+    let implementation = implementation_or_all(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/app/viewport/paint.rs"
+    )));
     assert!(
         implementation.contains("crate::render::draw_bed(&painter, rect, &app.camera, &bed)"),
         "positive control: the canvas must draw the bed"
