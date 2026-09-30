@@ -616,3 +616,179 @@ fn opt_ins_off_leave_every_frame_unadvertised_and_refused() {
         );
     }
 }
+
+/// The PNG's `(width, height)`, and whether any pixel is inked black.
+fn dims_and_ink(png: &[u8]) -> ((u32, u32), bool) {
+    let decoder = png::Decoder::new(std::io::Cursor::new(png));
+    let mut reader = decoder.read_info().expect("png header");
+    let mut buf = vec![0; reader.output_buffer_size().expect("size")];
+    let info = reader.next_frame(&mut buf).expect("png frame");
+    buf.truncate(info.buffer_size());
+    ((info.width, info.height), buf.contains(&0))
+}
+
+/// Capture `frame` on a fresh app holding `entities` lines, the camera
+/// pinned elsewhere; returns the outcome, the last row and the revision.
+fn capture_lines(
+    lines: &[((f64, f64), (f64, f64))],
+    frame: CaptureFrame,
+) -> (AgentOutcome, (String, String), u64) {
+    let (ctx, mut app) = ctx_and_app();
+    for &((ax, ay), (bx, by)) in lines {
+        app.commit(Box::new(CreateLine::new(Line::new(
+            Vec2::new(ax, ay),
+            Vec2::new(bx, by),
+        ))));
+    }
+    allow(&mut app, true, true);
+    idle(&ctx, &mut app);
+    let tx = arm_turn(&mut app, "look");
+    pin_camera(&mut app);
+    let outcome = capture_frame_in_one_frame(&ctx, &mut app, &tx, frame);
+    let row = app.agent.chat.last().cloned().expect("a row");
+    assert_eq!(app.agent.turn.steps, 1, "a framed capture is one step");
+    (outcome, row, app.history.revision())
+}
+
+fn observed(outcome: AgentOutcome) -> (String, Vec<u8>) {
+    match outcome {
+        AgentOutcome::Observed { text, png } => (text, png),
+        other => panic!("expected Observed, got {other:?}"),
+    }
+}
+
+fn canvas_text(w: u32, h: u32, x: &str, y: &str, revision: u64) -> String {
+    format!(
+        "Canvas {w}×{h} px of X {x} mm, Y {y} mm \
+         (Y up; bed outline grey, entities black), revision {revision}."
+    )
+}
+
+/// LCV-187 AC 2 / AC 5 — `"drawing"` frames the extents plus 5 % of the
+/// longest extent on each side, whatever the viewport shows, and renders
+/// the longest edge at exactly 1024 px, aspect kept, under 2 MiB; the
+/// outcome text reports that frame.
+#[test]
+fn the_drawing_frame_is_the_extents_plus_five_percent_at_1024() {
+    // Extents X 10..210, Y 20..120: margin 10 mm → 220 × 120 mm.
+    let lines = [
+        ((10.0, 20.0), (210.0, 120.0)),
+        ((50.0, 100.0), (60.0, 20.0)),
+    ];
+    let (outcome, (role, row), revision) = capture_lines(&lines, CaptureFrame::Drawing);
+    let (text, png) = observed(outcome);
+    let expected = canvas_text(1024, 559, "0.000..220.000", "10.000..130.000", revision);
+    assert_eq!(text, expected);
+    assert_eq!((role.as_str(), row.as_str()), ("tool", expected.as_str()));
+    assert_eq!(dims_and_ink(&png), ((1024, 559), true));
+    assert!(png.len() < 2 * 1024 * 1024);
+
+    // A lone horizontal line still frames an area: the margin is the
+    // longest extent's, on both axes.
+    let (outcome, _, revision) =
+        capture_lines(&[((0.0, 0.0), (100.0, 0.0))], CaptureFrame::Drawing);
+    let (text, png) = observed(outcome);
+    assert_eq!(
+        text,
+        canvas_text(1024, 93, "-5.000..105.000", "-5.000..5.000", revision)
+    );
+    assert_eq!(dims_and_ink(&png), ((1024, 93), true));
+}
+
+/// LCV-187 AC 3 / AC 5 — `"region"` frames exactly that rectangle, corners
+/// in any order, longest edge 1024 px even when that upscales a tiny one.
+#[test]
+fn a_region_is_framed_exactly_at_1024() {
+    let lines = [((0.0, 0.0), (20.0, 20.0))];
+    let frame = CaptureFrame::Region {
+        x0: 30.0,
+        y0: 40.5,
+        x1: -10.0,
+        y1: 0.0,
+    };
+    let (outcome, _, revision) = capture_lines(&lines, frame);
+    let (text, png) = observed(outcome);
+    assert_eq!(
+        text,
+        canvas_text(1011, 1024, "-10.000..30.000", "0.000..40.500", revision)
+    );
+    assert_eq!(dims_and_ink(&png), ((1011, 1024), true));
+
+    let tiny = CaptureFrame::Region {
+        x0: 1.0,
+        y0: 1.0,
+        x1: 1.5,
+        y1: 1.25,
+    };
+    let (outcome, _, revision) = capture_lines(&lines, tiny);
+    let (text, png) = observed(outcome);
+    assert_eq!(
+        text,
+        canvas_text(1024, 512, "1.000..1.500", "1.000..1.250", revision)
+    );
+    assert_eq!(
+        dims_and_ink(&png),
+        ((1024, 512), true),
+        "the diagonal crosses it"
+    );
+    assert!(png.len() < 2 * 1024 * 1024, "{} bytes", png.len());
+}
+
+/// LCV-187 AC 4 — a frame with no area is refused naming the cause, is
+/// transcribed `refused`, and captures nothing.
+#[test]
+fn a_frame_without_area_is_refused_naming_the_cause() {
+    let region = |x0, y0, x1, y1| CaptureFrame::Region { x0, y0, x1, y1 };
+    let one = [((1.0, 1.0), (9.0, 9.0))];
+    let cases: [(&[((f64, f64), (f64, f64))], CaptureFrame, &str); 8] = [
+        (
+            &[],
+            CaptureFrame::Drawing,
+            "the drawing is empty; nothing to capture",
+        ),
+        (
+            &[((5.0, 5.0), (5.0, 5.0))],
+            CaptureFrame::Drawing,
+            "the drawing has no area; nothing to capture",
+        ),
+        (
+            &one,
+            region(5.0, 5.0, 5.0, 20.0),
+            "the region has no area; nothing to capture",
+        ),
+        (
+            &one,
+            region(5.0, 5.0, 20.0, 5.0),
+            "the region has no area; nothing to capture",
+        ),
+        (
+            &one,
+            region(f64::NAN, 0.0, 1.0, 1.0),
+            "the region is not finite; nothing to capture",
+        ),
+        (
+            &one,
+            region(0.0, 0.0, 1.0, f64::INFINITY),
+            "the region is not finite; nothing to capture",
+        ),
+        (
+            &one,
+            region(0.0, f64::NEG_INFINITY, 1.0, 1.0),
+            "the region is not finite; nothing to capture",
+        ),
+        (
+            &one,
+            region(-1e308, 0.0, 1e308, 1.0),
+            "the region is not finite; nothing to capture",
+        ),
+    ];
+    for (lines, frame, reason) in cases {
+        let (outcome, (role, row), _) = capture_lines(lines, frame.clone());
+        assert_eq!(
+            outcome,
+            AgentOutcome::Refused(reason.to_owned()),
+            "{frame:?}"
+        );
+        assert_eq!((role.as_str(), row.as_str()), ("refused", reason));
+    }
+}
