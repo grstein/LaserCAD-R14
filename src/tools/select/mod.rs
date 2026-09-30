@@ -4,7 +4,7 @@
 //!
 //! ```text
 //! Idle ──press──► MaybeDragging { press_pos }
-//!                      │ move > DRAG_THRESHOLD_MM
+//!                      │ move > DRAG_THRESHOLD_PT × mm/pt
 //!                      ▼
 //!                 Dragging { press_pos }   ──release──► Idle (box commit)
 //!
@@ -20,10 +20,7 @@ pub(crate) mod hit;
 use crate::app::App;
 use crate::document::{Document, Entity, History, SelectionCommand};
 use crate::geometry::Vec2;
-use crate::tools::Tool;
-
-/// How far the cursor must move from the initial press to enter drag mode.
-const DRAG_THRESHOLD_MM: f64 = 2.0;
+use crate::tools::{DRAG_THRESHOLD_PT, PICK_APERTURE_PT, Tool};
 
 // ---------------------------------------------------------------------------
 // Internal state machine
@@ -53,6 +50,8 @@ pub struct SelectTool {
     /// Most-recently-reported cursor position, used to render the live drag
     /// box via [`SelectTool::preview`].
     cursor_pos: Vec2,
+    /// Live zoom in mm per screen point (LCV-162); `1.0` until forwarded.
+    mm_per_pt: f64,
 }
 
 impl Default for SelectTool {
@@ -60,6 +59,7 @@ impl Default for SelectTool {
         Self {
             state: SelectState::Idle,
             cursor_pos: Vec2::new(0.0, 0.0),
+            mm_per_pt: 1.0,
         }
     }
 }
@@ -94,7 +94,7 @@ impl Tool for SelectTool {
     fn on_pointer_move(&mut self, pos: Vec2, _doc: &mut Document) {
         self.cursor_pos = pos;
         if let SelectState::MaybeDragging { press_pos } = self.state
-            && (pos - press_pos).length() > DRAG_THRESHOLD_MM
+            && (pos - press_pos).length() > DRAG_THRESHOLD_PT * self.mm_per_pt
         {
             self.state = SelectState::Dragging { press_pos };
         }
@@ -104,7 +104,8 @@ impl Tool for SelectTool {
         match self.state {
             SelectState::MaybeDragging { .. } => {
                 let current_sel: Vec<usize> = doc.selection.iter().collect();
-                let new_indices = hit::pick_resolve(pos, shift, &doc.entities, current_sel);
+                let radius = PICK_APERTURE_PT * self.mm_per_pt;
+                let new_indices = hit::pick_resolve(pos, shift, &doc.entities, current_sel, radius);
                 history.commit(Box::new(SelectionCommand::new(new_indices)), doc);
                 self.state = SelectState::Idle;
             }
@@ -172,6 +173,15 @@ impl Tool for SelectTool {
 
     fn cancel(&mut self) {
         self.state = SelectState::Idle;
+    }
+
+    /// An entity pick unless a box drag is under way (LCV-162 AC 5/AC 6).
+    fn wants_entity_pick(&self) -> bool {
+        !matches!(self.state, SelectState::Dragging { .. })
+    }
+
+    fn set_pick_scale(&mut self, mm_per_pt: f64) {
+        self.mm_per_pt = mm_per_pt;
     }
 }
 
@@ -257,7 +267,7 @@ mod tests {
         );
     }
 
-    /// Moving > `DRAG_THRESHOLD_MM` transitions to Dragging.
+    /// Moving > `DRAG_THRESHOLD_PT` at the default 1 mm/pt enters Dragging.
     #[test]
     fn move_past_threshold_enters_dragging() {
         let mut tool = SelectTool::default();
@@ -266,13 +276,57 @@ mod tests {
         assert!(matches!(tool.state, SelectState::Dragging { .. }));
     }
 
-    /// Moving < `DRAG_THRESHOLD_MM` stays in MaybeDragging.
+    /// Moving < `DRAG_THRESHOLD_PT` at the default 1 mm/pt stays MaybeDragging.
     #[test]
     fn move_below_threshold_stays_maybe_dragging() {
         let mut tool = SelectTool::default();
         press(&mut tool, Vec2::new(0.0, 0.0));
         slide(&mut tool, Vec2::new(1.0, 0.0)); // 1 mm < 2 mm
         assert!(matches!(tool.state, SelectState::MaybeDragging { .. }));
+    }
+
+    /// LCV-162 AC 9 — the drag threshold scales with the zoom: 30 mm is a
+    /// 1.5 pt move at 20 mm/pt (a click), 0.15 mm a 3 pt move at 0.05.
+    #[test]
+    fn drag_threshold_follows_the_pick_scale() {
+        let mut tool = SelectTool::default();
+        tool.set_pick_scale(20.0);
+        press(&mut tool, Vec2::new(0.0, 0.0));
+        slide(&mut tool, Vec2::new(30.0, 0.0));
+        assert!(matches!(tool.state, SelectState::MaybeDragging { .. }));
+        tool.set_pick_scale(0.05);
+        slide(&mut tool, Vec2::new(0.15, 0.0));
+        assert!(matches!(tool.state, SelectState::Dragging { .. }));
+    }
+
+    /// LCV-162 AC 7 — the click pick radius is 5 pt at the live zoom.
+    #[test]
+    fn click_pick_radius_follows_the_pick_scale() {
+        let mut doc = crate::document::Document::default();
+        doc.entities.push(Entity::Line(crate::geometry::Line::new(
+            Vec2::new(-10.0, 0.0),
+            Vec2::new(10.0, 0.0),
+        )));
+        let mut hist = History::default();
+        for (scale, y, picked) in [(0.05, 0.2, true), (0.05, 0.3, false), (20.0, 80.0, true)] {
+            let mut tool = SelectTool::default();
+            tool.set_pick_scale(scale);
+            tool.on_pointer_down(Vec2::new(0.0, y), false, &mut doc, &mut hist);
+            tool.on_pointer_up(Vec2::new(0.0, y), false, &mut doc, &mut hist);
+            assert_eq!(!doc.selection.is_empty(), picked, "{scale} mm/pt, {y} mm");
+        }
+    }
+
+    /// LCV-162 AC 5/AC 6 — an entity pick in Idle and MaybeDragging, not
+    /// while a box drag is under way.
+    #[test]
+    fn wants_entity_pick_unless_dragging() {
+        let mut tool = SelectTool::default();
+        assert!(tool.wants_entity_pick());
+        press(&mut tool, Vec2::new(0.0, 0.0));
+        assert!(tool.wants_entity_pick());
+        slide(&mut tool, Vec2::new(10.0, 0.0));
+        assert!(!tool.wants_entity_pick());
     }
 
     /// Release resets state to Idle.

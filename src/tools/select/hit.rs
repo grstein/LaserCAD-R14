@@ -13,26 +13,23 @@
 use crate::document::Entity;
 use crate::geometry::{Arc, Line, Rect, Vec2};
 
-/// Distance threshold for point-picking: entities closer than this (mm) to
-/// the cursor are candidates; the closest one wins.
-pub(super) const PICK_THRESHOLD_MM: f64 = 5.0;
-
 // ---------------------------------------------------------------------------
 // Pick helpers
 // ---------------------------------------------------------------------------
 
 /// Resolve a point-pick at `pos`, respecting `shift` toggle semantics.
 ///
-/// `current_sel` is the set of currently-selected indices. Returns the new
-/// selection index set ready to pass to
-/// [`crate::document::SelectionCommand::new`].
+/// `current_sel` is the set of currently-selected indices; `radius_mm` is the
+/// pick aperture at the live zoom. Returns the new selection index set ready
+/// to pass to [`crate::document::SelectionCommand::new`].
 pub(super) fn pick_resolve(
     pos: Vec2,
     shift: bool,
     entities: &[Entity],
     current_sel: Vec<usize>,
+    radius_mm: f64,
 ) -> Vec<usize> {
-    let picked = pick_closest(pos, entities);
+    let picked = pick_closest(pos, entities, radius_mm);
 
     match (picked, shift) {
         // Hit + shift: toggle the entity in the current selection.
@@ -54,16 +51,16 @@ pub(super) fn pick_resolve(
     }
 }
 
-/// Find the index of the closest entity within [`PICK_THRESHOLD_MM`].
+/// Find the index of the closest entity within `radius_mm` of `pos`.
 ///
 /// Returns `None` when there are no entities or all are farther than the
-/// threshold.
-pub(super) fn pick_closest(pos: Vec2, entities: &[Entity]) -> Option<usize> {
+/// radius.
+pub(super) fn pick_closest(pos: Vec2, entities: &[Entity], radius_mm: f64) -> Option<usize> {
     entities
         .iter()
         .enumerate()
         .map(|(i, e)| (i, entity_distance_to_point(e, pos)))
-        .filter(|(_, d)| *d <= PICK_THRESHOLD_MM)
+        .filter(|(_, d)| *d <= radius_mm)
         .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
         .map(|(i, _)| i)
 }
@@ -176,26 +173,29 @@ mod tests {
         );
     }
 
-    /// pick_closest returns None when entity is farther than threshold.
+    /// pick_closest returns None when entity is farther than the radius.
     #[test]
-    fn pick_closest_returns_none_when_outside_threshold() {
+    fn pick_closest_returns_none_when_outside_radius() {
         let entities = vec![Entity::Line(Line::new(
             Vec2::new(0.0, 0.0),
             Vec2::new(10.0, 0.0),
         ))];
-        let far = Vec2::new(0.0, PICK_THRESHOLD_MM + 1.0);
-        assert!(pick_closest(far, &entities).is_none());
+        assert!(pick_closest(Vec2::new(0.0, 6.0), &entities, 5.0).is_none());
+        assert!(pick_closest(Vec2::new(5.0, 0.3), &entities, 0.25).is_none());
     }
 
-    /// pick_closest returns Some(0) when entity is within threshold.
+    /// pick_closest returns Some(0) when entity is within the radius.
     #[test]
-    fn pick_closest_returns_index_when_within_threshold() {
+    fn pick_closest_returns_index_when_within_radius() {
         let entities = vec![Entity::Line(Line::new(
             Vec2::new(0.0, 0.0),
             Vec2::new(10.0, 0.0),
         ))];
-        let near = Vec2::new(5.0, 1.0);
-        assert_eq!(pick_closest(near, &entities), Some(0));
+        assert_eq!(pick_closest(Vec2::new(5.0, 1.0), &entities, 5.0), Some(0));
+        assert_eq!(
+            pick_closest(Vec2::new(5.0, 80.0), &entities, 100.0),
+            Some(0)
+        );
     }
 
     /// entity_in_window: fully-inside line passes, crossing line fails.
