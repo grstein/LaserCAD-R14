@@ -6,7 +6,7 @@
 
 use core::f64::consts::FRAC_PI_2;
 
-use lasercad::agent::{AgentAction, AgentOutcome, parse_tool_call};
+use lasercad::agent::{AgentAction, AgentOutcome, parse_tool_call, tool_definitions};
 use lasercad::app::{App, apply};
 use lasercad::document::{AddLayer, Command, Entity, TransformEntities};
 use lasercad::geometry::{Line, Transform, Vec2};
@@ -314,5 +314,39 @@ fn a_bad_indices_list_is_refused_naming_the_entry() {
                 );
             }
         }
+    }
+}
+
+/// LCV-186 AC1 — each of the six published schemas offers an optional
+/// `indices` list of 1..=1000 integers beside `index`, and requires neither.
+#[test]
+fn the_six_schemas_offer_an_optional_indices_list() {
+    let defs = tool_definitions(false);
+    for (tool, _) in set_tools() {
+        let def = defs
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|d| d["function"]["name"] == tool)
+            .unwrap_or_else(|| panic!("{tool} is published"));
+        let params = &def["function"]["parameters"];
+        assert_eq!(
+            params["properties"]["index"],
+            json!({"type":"integer"}),
+            "{tool}"
+        );
+        assert_eq!(
+            params["properties"]["indices"],
+            json!({"type":"array","items":{"type":"integer"},"minItems":1,"maxItems":1000}),
+            "{tool}"
+        );
+        let required = params["required"].as_array().unwrap();
+        assert!(!required.contains(&json!("index")), "{tool}: {required:?}");
+        assert!(
+            !required.contains(&json!("indices")),
+            "{tool}: {required:?}"
+        );
+        let text = def["function"]["description"].as_str().unwrap();
+        assert!(text.contains("indices"), "{tool}: {text}");
     }
 }

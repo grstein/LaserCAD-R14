@@ -37,12 +37,13 @@
         assert_eq!(req(&d,0), json!(["x1","y1","x2","y2"]));
         assert_eq!(req(&d,1), json!(["cx","cy","r"]));
         assert_eq!(req(&d,2), json!(["cx","cy","r","start_deg","end_deg","ccw"]));
-        assert_eq!(req(&d,3), json!(["index"]));
-        assert_eq!(req(&d,4), json!(["index","dx","dy"]));
-        assert_eq!(req(&d,5), json!(["index","dx","dy"]));
-        assert_eq!(req(&d,6), json!(["index","x","y","degrees"]));
-        assert_eq!(req(&d,7), json!(["index","x1","y1","x2","y2","erase_source"]));
-        assert_eq!(req(&d,8), json!(["index","x","y","factor"]));
+        // LCV-186: `index` or `indices`, so neither is required.
+        assert_eq!(req(&d,3), json!([]));
+        assert_eq!(req(&d,4), json!(["dx","dy"]));
+        assert_eq!(req(&d,5), json!(["dx","dy"]));
+        assert_eq!(req(&d,6), json!(["x","y","degrees"]));
+        assert_eq!(req(&d,7), json!(["x1","y1","x2","y2","erase_source"]));
+        assert_eq!(req(&d,8), json!(["x","y","factor"]));
     }
     /// AC 13 — both queries declare an **empty** object, not a missing one:
     /// `properties` is `{}` and `required` is `[]`, both present.
