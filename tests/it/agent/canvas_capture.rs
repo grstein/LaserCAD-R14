@@ -792,3 +792,54 @@ fn a_frame_without_area_is_refused_naming_the_cause() {
         assert_eq!((role.as_str(), row.as_str()), ("refused", reason));
     }
 }
+
+/// LCV-187 AC 6 — a post-send `Note` is a `note` row after LCV-145's
+/// pre-send note, answered `Ok`; it is not a step and never fenced.
+#[test]
+fn a_post_send_note_follows_the_pre_send_note_and_is_not_a_step() {
+    let (ctx, mut app) = ctx_and_app();
+    idle(&ctx, &mut app);
+    let tx = arm_turn(&mut app, "look");
+    allow(&mut app, true, true);
+    pin_camera(&mut app);
+    let (text, _) = observed(capture_in_one_frame(&ctx, &mut app, &tx));
+    assert!(matches!(
+        authorize_in_one_frame(&ctx, &mut app, &tx),
+        AgentOutcome::Ok(_)
+    ));
+    let sent = "Canvas image for call call_1 sent.";
+    let answer = push_act(&tx, AgentAction::Note(sent.to_owned()));
+    idle(&ctx, &mut app);
+    assert_eq!(answer.try_recv(), Ok(AgentOutcome::Ok(sent.to_owned())));
+    let model = app.settings.agent_model.clone();
+    let tail: Vec<(String, String)> = app.agent.chat.iter().rev().take(3).rev().cloned().collect();
+    assert_eq!(
+        tail,
+        [
+            ("tool".to_owned(), text),
+            (
+                "note".to_owned(),
+                format!("Sending a canvas image to {model}.")
+            ),
+            ("note".to_owned(), sent.to_owned()),
+        ]
+    );
+    assert_eq!(app.agent.turn.steps, 1, "the capture only");
+
+    app.commit(Box::new(CreateCircle::new(Circle::new(
+        Vec2::new(5.0, 5.0),
+        1.0,
+    ))));
+    let lost = "Canvas image for call call_2 not delivered (request failed).";
+    let answer = push_act(&tx, AgentAction::Note(lost.to_owned()));
+    idle(&ctx, &mut app);
+    assert_eq!(answer.try_recv(), Ok(AgentOutcome::Ok(lost.to_owned())));
+    assert_eq!(
+        app.agent.chat.last(),
+        Some(&("note".to_owned(), lost.to_owned()))
+    );
+    assert_eq!(
+        app.agent.turn.steps, 1,
+        "not a step behind the fence either"
+    );
+}

@@ -365,13 +365,15 @@ fn named_calls(names: &[&str]) -> Result<AssistantMessage, AgentError> {
 }
 
 /// What one scripted turn did: the serialised requests, the authorise
-/// count, the tool dispatch count and the result.
+/// count, the tool dispatch count, the result, and the order of sends,
+/// authorisations and notes (LCV-187).
 struct Run {
     requests: Vec<String>,
     authorisations: usize,
     tools: usize,
     messages: Vec<ChatMessage>,
     result: Result<String, AgentError>,
+    events: Vec<String>,
 }
 
 /// Drive the loop: `reply(n)` answers the n-th send (1-based), a
@@ -383,16 +385,23 @@ fn run(
     budget: u32,
 ) -> Run {
     let (mut requests, mut authorisations, mut tools) = (Vec::new(), 0, 0);
+    let events = std::cell::RefCell::new(Vec::new());
     let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
     let result = agent_loop(
         &mut |msgs| {
             requests.push(serde_json::to_string(msgs).unwrap());
+            events.borrow_mut().push(format!("send {}", requests.len()));
             reply(requests.len())
         },
         &mut |dispatch| match dispatch {
             Dispatch::AuthorizeUpload => {
                 authorisations += 1;
+                events.borrow_mut().push("authorise".to_owned());
                 verdict()
+            }
+            Dispatch::Note(text) => {
+                events.borrow_mut().push(format!("note {text}"));
+                Ok(AgentOutcome::Ok(text.to_owned()))
             }
             Dispatch::Tool { name, .. } => {
                 tools += 1;
@@ -415,6 +424,7 @@ fn run(
         tools,
         messages,
         result,
+        events: events.into_inner(),
     }
 }
 
@@ -617,6 +627,7 @@ fn a_cancelled_upload_check_sends_nothing() {
 fn the_fence_stop_send_is_authorised_and_elided_too() {
     let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
     let (mut requests, mut authorisations, mut tools) = (Vec::<String>::new(), 0, 0);
+    let mut notes = Vec::new();
     let result = agent_loop(
         &mut |msgs| {
             requests.push(serde_json::to_string(msgs).unwrap());
@@ -630,6 +641,10 @@ fn the_fence_stop_send_is_authorised_and_elided_too() {
             Dispatch::AuthorizeUpload => {
                 authorisations += 1;
                 Ok(AgentOutcome::Refused("no".into()))
+            }
+            Dispatch::Note(text) => {
+                notes.push(text.to_owned());
+                Ok(AgentOutcome::Ok(text.to_owned()))
             }
             Dispatch::Tool { .. } => {
                 tools += 1;
@@ -650,6 +665,11 @@ fn the_fence_stop_send_is_authorised_and_elided_too() {
     assert_eq!(authorisations, 1);
     assert!(!requests[1].contains("image_url"));
     assert!(requests[1].contains(IMAGE_WITHHELD));
+    assert_eq!(
+        notes,
+        ["Canvas image for call call_0 withheld (permission changed)."],
+        "LCV-187 AC 6: the fence's last send notes its image too"
+    );
 }
 
 // ── LCV-189: the step budget is visible ──────────────────────────────────
@@ -996,5 +1016,143 @@ fn an_overrun_batch_keeps_its_reasoning_content() {
     assert_eq!(
         request_message(&r.requests[1], 2)["reasoning_content"],
         "R2"
+    );
+}
+
+// ── LCV-187: what happened to each image ─────────────────────────────────
+
+/// The note events of a run, in order.
+fn notes(r: &Run) -> Vec<&str> {
+    r.events
+        .iter()
+        .filter_map(|e| e.strip_prefix("note "))
+        .collect()
+}
+
+/// A batch with captures at `call_0` and `call_2`, then `second`.
+fn two_captures(second: Result<AssistantMessage, AgentError>) -> Run {
+    let mut second = Some(second);
+    run(
+        move |n| match n {
+            1 => named_calls(&["capture_canvas", "query_entities", "capture_canvas"]),
+            _ => second.take().unwrap_or_else(|| text_reply("again")),
+        },
+        yes,
+        AGENT_STEP_BUDGET_DEFAULT,
+    )
+}
+
+/// LCV-187 AC 6 — an authorised send that returns notes `sent` once per
+/// image, in call order, after the authorisation and after the send.
+#[test]
+fn a_delivered_image_is_noted_sent_after_the_send() {
+    let r = two_captures(text_reply("seen"));
+    assert_eq!(r.result.unwrap(), "seen");
+    assert_eq!(
+        r.events,
+        [
+            "send 1",
+            "authorise",
+            "send 2",
+            "note Canvas image for call call_0 sent.",
+            "note Canvas image for call call_2 sent.",
+        ]
+    );
+}
+
+/// LCV-187 AC 6 — a refused upload notes `withheld` per image, whether the
+/// text-only send then succeeds or fails.
+#[test]
+fn a_withheld_image_is_noted_withheld() {
+    for second in [
+        text_reply("blind"),
+        Err(AgentError::Transport("down".into())),
+    ] {
+        let ok = second.is_ok();
+        let r = run(
+            {
+                let mut second = Some(second);
+                move |n| match n {
+                    1 => named_calls(&["capture_canvas"]),
+                    _ => second.take().unwrap_or_else(|| text_reply("again")),
+                }
+            },
+            || Ok(AgentOutcome::Refused("no".into())),
+            AGENT_STEP_BUDGET_DEFAULT,
+        );
+        assert_eq!(r.result.is_ok(), ok);
+        assert_eq!(
+            notes(&r),
+            ["Canvas image for call call_0 withheld (permission changed)."],
+            "send ok: {ok}"
+        );
+        assert_eq!(
+            r.events.last().map(String::as_str),
+            Some("note Canvas image for call call_0 withheld (permission changed).")
+        );
+    }
+}
+
+/// LCV-187 AC 6 — an authorised send that fails notes `not delivered` per
+/// image before the error returns.
+#[test]
+fn a_failed_send_notes_the_image_not_delivered() {
+    let r = two_captures(Err(AgentError::Transport("503".into())));
+    assert!(matches!(r.result, Err(AgentError::Transport(_))));
+    assert_eq!(
+        r.events,
+        [
+            "send 1",
+            "authorise",
+            "send 2",
+            "note Canvas image for call call_0 not delivered (request failed).",
+            "note Canvas image for call call_2 not delivered (request failed).",
+        ]
+    );
+}
+
+/// LCV-187 AC 6 — no image, no note; a cancelled authorisation sends
+/// nothing and notes nothing.
+#[test]
+fn no_image_or_a_cancelled_check_notes_nothing() {
+    let r = run(
+        |n| {
+            if n == 1 {
+                named_calls(&["query_entities"])
+            } else {
+                text_reply("done")
+            }
+        },
+        yes,
+        AGENT_STEP_BUDGET_DEFAULT,
+    );
+    assert_eq!(r.result.unwrap(), "done");
+    assert!(notes(&r).is_empty());
+    let r = run(
+        |n| {
+            if n == 1 {
+                named_calls(&["capture_canvas"])
+            } else {
+                text_reply("never")
+            }
+        },
+        || Err(AgentError::Cancelled),
+        AGENT_STEP_BUDGET_DEFAULT,
+    );
+    assert!(matches!(r.result, Err(AgentError::Cancelled)));
+    assert_eq!(r.events, ["send 1", "authorise"]);
+}
+
+/// LCV-187 AC 6 — a note is not a step: after two noted images the next
+/// batch still reports the steps the tool calls alone left.
+#[test]
+fn a_note_is_not_a_step() {
+    let r = two_captures(named_calls(&["query_entities"]));
+    assert_eq!(r.result.unwrap(), "again");
+    assert_eq!(notes(&r).len(), 2);
+    assert_eq!(r.tools, 4);
+    assert_eq!(
+        tool_texts(&r.messages)[3],
+        "ok\nSteps left this turn: 252 of 256."
     );
 }
