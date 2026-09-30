@@ -14,7 +14,7 @@
 - [x] T5 [AC8] `Report` builder, `ImportedSvg::report: Vec<(String, usize)>` with doc comment,
       `Walk` holds a `Report` (files: src/io/svg/import/report.rs, src/io/svg/import.rs,
       src/io/svg/import/walk.rs)
-- [ ] T6 [AC2] [AC4] Test: geometry inside `<a>` and a nested `<svg>` imports; `<title>`, `<desc>`,
+- [x] T6 [AC2] [AC4] Test: geometry inside `<a>` and a nested `<svg>` imports; `<title>`, `<desc>`,
       `<metadata>` holding a `<line>`, and `<sodipodi:namedview>`/`<foo:line>` (foreign namespace)
       import nothing and leave the report empty; `<svg:line>` with the SVG prefix imports (files:
       src/io/svg/import/tests.rs)

@@ -414,3 +414,52 @@ fn arc_zero_radius_returns_malformed_path() {
     let r = import_svg(&svg(r#"<path d="M 0 0 A 0 0 0 0 1 5 5"/>"#));
     assert!(matches!(r, Err(SvgImportError::MalformedPath(_))));
 }
+
+// ── LCV-171 — import report and never-rendered elements ──────────────
+
+/// The report as `(&str, usize)` pairs, for terse assertions.
+fn report_of(src: &str) -> Vec<(String, usize)> {
+    import_svg(src).unwrap().report
+}
+
+fn entry(label: &str, count: usize) -> (String, usize) {
+    (label.to_owned(), count)
+}
+
+/// AC 2 — `a` and a nested `svg` are descended into; the prefixed SVG
+/// namespace is the SVG namespace.
+#[test]
+fn a_and_nested_svg_are_descended_into() {
+    for inner in [
+        format!("<a>{A_LINE}</a>"),
+        format!("<svg>{A_LINE}</svg>"),
+        format!("<g><a><svg>{A_LINE}</svg></a></g>"),
+        r#"<svg:line xmlns:svg="http://www.w3.org/2000/svg" x1="0" y1="0" x2="1" y2="1"/>"#
+            .to_owned(),
+    ] {
+        let imported = import_svg(&svg(&inner)).unwrap();
+        assert_eq!(imported.entities.len(), 1, "{inner}");
+        assert!(imported.report.is_empty(), "{inner}");
+    }
+}
+
+/// AC 4 — `title`, `desc`, `metadata` and anything outside the SVG namespace
+/// are skipped with their subtree, and reported nowhere.
+#[test]
+fn silent_elements_and_foreign_namespaces_import_nothing_unreported() {
+    for inner in [
+        format!("<title>{A_LINE}</title>"),
+        format!("<desc>t{A_LINE}</desc>"),
+        format!("<metadata><g>{A_LINE}</g></metadata>"),
+        format!(
+            r#"<sodipodi:namedview xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd">{A_LINE}</sodipodi:namedview>"#
+        ),
+        r#"<foo:line xmlns:foo="http://example.com/foo" x1="0" y1="0" x2="1" y2="1"/>"#
+            .to_owned(),
+        format!(r#"<foo:g xmlns:foo="http://example.com/foo">{A_LINE}</foo:g>"#),
+    ] {
+        let imported = import_svg(&svg(&inner)).unwrap();
+        assert!(imported.entities.is_empty(), "{inner}");
+        assert!(imported.report.is_empty(), "{inner}");
+    }
+}
