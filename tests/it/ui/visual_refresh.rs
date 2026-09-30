@@ -220,7 +220,7 @@ fn ac2_file_menu_frame_is_flat_with_one_border() {
         let _ = paint(&ctx, &mut app, Vec::new());
     }
     let open = paint(&ctx, &mut app, Vec::new());
-    let item = run(&open.runs, "Export layers", SCREEN[1]).pos;
+    let item = run(&open.runs, "Export Layers", SCREEN[1]).pos;
 
     // The menu frame: the smallest panel-filled rect around a menu item.
     let frame = rects(&open.shapes)

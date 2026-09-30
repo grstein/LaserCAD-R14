@@ -1,4 +1,4 @@
-//! View > Object snap (LCV-161): one checkbox per [`SnapKind`].
+//! View > Object Snap (LCV-161): one checkbox per [`SnapKind`].
 //!
 //! The item list is [`SNAP_KIND_LABELS`]; a toggle goes through
 //! [`App::set_object_snap`], which writes `settings.object_snaps` and
@@ -19,9 +19,9 @@ const SNAP_KIND_LABELS: [(SnapKind, &str); 8] = [
     (SnapKind::Nearest, "Nearest"),
 ];
 
-/// The `Object snap` submenu: one checkbox per [`SNAP_KIND_LABELS`] entry.
+/// The `Object Snap` submenu: one checkbox per [`SNAP_KIND_LABELS`] entry.
 pub(super) fn object_snap_menu(ui: &mut egui::Ui, app: &mut App) {
-    ui.menu_button("Object snap", |ui| {
+    ui.menu_button("Object Snap", |ui| {
         for (kind, label) in SNAP_KIND_LABELS {
             let mut on = app.settings.object_snaps.contains(kind);
             if ui.checkbox(&mut on, label).changed() {

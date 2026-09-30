@@ -53,7 +53,7 @@ fn file_menu(ui: &mut egui::Ui, app: &mut App) {
         }
         // LCV-156 AC 10: one LaserGRBL file per Output layer, beside the
         // saved drawing; no dialog, the file names go to the feedback line.
-        if ui.button("Export layers").clicked() {
+        if ui.button("Export Layers").clicked() {
             ui.close_menu();
             crate::io::action_export_layers(app);
         }
@@ -61,7 +61,7 @@ fn file_menu(ui: &mut egui::Ui, app: &mut App) {
         // LCV-114: the bed belongs to the document, so its dialog belongs to
         // the File menu. Opening it only parks a draft; nothing is committed
         // until OK (see `src/app/bed_dialog.rs`).
-        if ui.button("Bed size…").clicked() {
+        if ui.button("Bed Size…").clicked() {
             ui.close_menu();
             app.bed_dialog = Some(app.document.bed_mm);
         }
@@ -229,7 +229,7 @@ fn tools_menu(ui: &mut egui::Ui, app: &mut App) {
 
 fn help_menu(ui: &mut egui::Ui, app: &mut App) {
     ui.menu_button("Help", |ui| {
-        if ui.button("Keyboard shortcuts\u{2026}\tF1").clicked() {
+        if ui.button("Keyboard Shortcuts\u{2026}\tF1").clicked() {
             ui.close_menu();
             do_shortcuts(app);
         }

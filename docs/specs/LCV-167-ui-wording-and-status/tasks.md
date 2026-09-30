@@ -5,7 +5,7 @@
   `Export Layers`, `Bed Size…`, `Keyboard Shortcuts…`, `AI Settings…`, `Object Snap` exist; the
   Bed Size, Keyboard Shortcuts (F1) and AI Settings windows paint those titles; AI Settings
   paints `Restore Default` (files: tests/it/ui/wording_and_status.rs, tests/it/ui/mod.rs)
-- [ ] T2 [AC1] Menu rows `Export Layers`, `Bed Size…`, `Keyboard Shortcuts…\tF1`, submenu
+- [x] T2 [AC1] Menu rows `Export Layers`, `Bed Size…`, `Keyboard Shortcuts…\tF1`, submenu
   `Object Snap`; tests keyed on the old rows follow (`visual_refresh.rs`, `object_snap_menu.rs`)
   (files: src/ui/menubar.rs, src/ui/menubar/object_snap.rs, tests/it/ui/object_snap_menu.rs)
 - [ ] T3 [AC1] Window titles `Bed Size`, `Keyboard Shortcuts`; button `Restore Default`; tests
