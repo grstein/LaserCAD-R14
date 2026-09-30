@@ -78,7 +78,7 @@ one named constant per token in `ui/theme.rs` (chrome) or a new `render/palette.
 
 | Token | Value | Role | Contrast | Home |
 |---|---|---|---|---|
-| `canvas.frame` | gray 64, 1 pt | canvas edge | — | `app/viewport.rs::paint` |
+| `canvas.frame` | gray 64, 1 pt | canvas edge | — | `app/viewport/paint.rs::paint` |
 | `bed.fill` | gray 40 | work area | — | `render/bed.rs::draw_bed_fill` |
 | `bed.border` | gray 160, 1.5 pt | bed edge | 5.6:1 | `render/bed.rs::draw_bed` |
 | `bed.outside` | black α 96 | dims off-bed area | — | `render/bed.rs::draw_bed` |
