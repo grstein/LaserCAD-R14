@@ -21,8 +21,6 @@
 //!
 //! MUST NOT import `eframe` or `rfd`.
 
-use core::f64::consts::TAU;
-
 use crate::app::App;
 use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History, TransformEntities};
@@ -76,12 +74,6 @@ fn angle_to(base: Vec2, p: Vec2) -> Option<f64> {
     (d.length() > EPSILON).then(|| d.y.atan2(d.x))
 }
 
-/// `true` when `angle` is a whole number of turns, within `EPSILON` (AC8).
-fn is_zero_turn(angle: f64) -> bool {
-    let r = angle.rem_euclid(TAU);
-    r <= EPSILON || TAU - r <= EPSILON
-}
-
 impl RotateTool {
     /// Rotate the captured sources by `angle` radians about the base point.
     /// A zero turn commits nothing and keeps prompting (AC8); sources changed
@@ -100,10 +92,10 @@ impl RotateTool {
             self.cancel();
             return;
         }
-        if is_zero_turn(angle) {
+        let transform = Transform::Rotate { base: *base, angle };
+        if transform.is_identity() {
             return;
         }
-        let transform = Transform::Rotate { base: *base, angle };
         let cmd = TransformEntities::new(indices.clone(), transform);
         history.commit(Box::new(cmd), doc);
         self.state = RotateState::Idle;

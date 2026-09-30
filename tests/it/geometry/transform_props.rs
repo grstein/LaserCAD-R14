@@ -79,6 +79,17 @@ fn rotate_arc_adds_angle_to_start_and_end() {
     assert!(!a.ccw);
 }
 
+/// AC8 — whole turns within `EPSILON` are the identity; anything else is not.
+#[test]
+fn rotate_identity_is_a_whole_turn() {
+    for angle in [0.0, TAU, -2.0 * TAU, 1e-12, TAU - 1e-12] {
+        assert!(rotate(3.0, 4.0, angle).is_identity(), "{angle}");
+    }
+    for angle in [1e-6, PI, -FRAC_PI_2, TAU - 1e-6] {
+        assert!(!rotate(3.0, 4.0, angle).is_identity(), "{angle}");
+    }
+}
+
 fn point() -> impl Strategy<Value = Vec2> {
     (-500.0..500.0f64, -500.0..500.0f64).prop_map(|(x, y)| Vec2::new(x, y))
 }

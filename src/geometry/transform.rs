@@ -11,7 +11,9 @@
 //!
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
-use crate::geometry::{Arc, Circle, Line, Vec2};
+use core::f64::consts::TAU;
+
+use crate::geometry::{Arc, Circle, EPSILON, Line, Vec2};
 
 /// A geometric transform applied to points and to every kernel primitive.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -26,6 +28,17 @@ pub enum Transform {
 }
 
 impl Transform {
+    /// `true` when the transform moves nothing, within `EPSILON`: a rotation
+    /// by a whole number of turns. Callers commit nothing then (LCV-158 AC8).
+    pub fn is_identity(&self) -> bool {
+        match *self {
+            Transform::Rotate { angle, .. } => {
+                let r = angle.rem_euclid(TAU);
+                r <= EPSILON || TAU - r <= EPSILON
+            }
+        }
+    }
+
     /// The image of point `p`.
     pub fn point(&self, p: Vec2) -> Vec2 {
         match *self {
