@@ -1,8 +1,8 @@
 # LCV-181 — MIRROR command
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-158
-- **Implementation**: -
+- **Implementation**: 35d6efb..a53391b
 
 ## Problem
 

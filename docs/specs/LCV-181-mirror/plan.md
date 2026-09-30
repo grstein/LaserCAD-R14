@@ -35,4 +35,5 @@ Other text is refused and the tool keeps prompting.
   it stays on the same indices, which now hold the mirrored geometry.
 - LOC: `agent/bridge.rs` ≈ 281 after 157 + 158 + this (over the 270 mark). Seam if needed:
   LCV-182's Risks.
+- LOC: `tools/mirror.rs` landed at 274. Seam if it grows: move the Yes/No answer parsing and the prompt table into `tools/mirror/answer.rs`.
 - Mutation testing: no (export untouched; the round-trip test pins the arc path).
