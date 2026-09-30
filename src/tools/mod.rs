@@ -64,6 +64,7 @@ pub fn make(kind: ToolKind) -> Box<dyn Tool> {
         ToolKind::Text => Box::new(TextTool::default()),
         ToolKind::Copy => Box::new(CopyTool::default()),
         ToolKind::Dist => Box::new(DistTool::default()),
+        ToolKind::Rotate => Box::new(RotateTool::default()),
     }
 }
 
@@ -90,5 +91,6 @@ mod tests {
         assert_eq!(make(ToolKind::Text).name(), "TEXT");
         assert_eq!(make(ToolKind::Copy).name(), "COPY");
         assert_eq!(make(ToolKind::Dist).name(), "DIST");
+        assert_eq!(make(ToolKind::Rotate).name(), "ROTATE");
     }
 }

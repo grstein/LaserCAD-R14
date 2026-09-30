@@ -114,6 +114,7 @@ pub fn parse(raw: &str) -> CommandInput {
 /// | `copy` | `Copy` | `erase` | `Delete` |
 /// | `co` | `Copy` | `cp` | `Copy` |
 /// | `dist` | `Dist` | `di` | `Dist` |
+/// | `rotate` | `Rotate` | `ro` | `Rotate` |
 ///
 /// `delete` / `del` / `erase` all reach the same tool: R14 says `ERASE`, the
 /// v2 tool and its menu entry say Delete, so both vocabularies are accepted
@@ -148,6 +149,7 @@ fn tool_alias(lower: &str) -> Option<ToolKind> {
         "delete" | "del" | "erase" => Some(ToolKind::Delete),
         "copy" | "co" | "cp" => Some(ToolKind::Copy),
         "dist" | "di" => Some(ToolKind::Dist),
+        "rotate" | "ro" => Some(ToolKind::Rotate),
         _ => None,
     }
 }
@@ -421,8 +423,10 @@ mod tests {
             ("cp", ToolKind::Copy),
             ("dist", ToolKind::Dist),
             ("di", ToolKind::Dist),
+            ("rotate", ToolKind::Rotate),
+            ("ro", ToolKind::Rotate),
         ];
-        assert_eq!(words.len(), 20, "the approved word set is exactly twenty");
+        assert_eq!(words.len(), 22, "the approved word set is exactly twenty-two");
         for &(word, kind) in words {
             assert_eq!(
                 parse(word),
@@ -439,6 +443,15 @@ mod tests {
             assert_eq!(parse(word), CommandInput::Tool(ToolKind::Copy), "{word:?}");
         }
         assert_eq!(parse("c"), CommandInput::Tool(ToolKind::Circle));
+    }
+
+    /// LCV-158 AC1 — `rotate` and `ro` (any case) are ROTATE; `r` stays RECT.
+    #[test]
+    fn rotate_words_are_rotate() {
+        for word in ["rotate", "ROTATE", "ro", " Ro "] {
+            assert_eq!(parse(word), CommandInput::Tool(ToolKind::Rotate), "{word:?}");
+        }
+        assert_eq!(parse("r"), CommandInput::Tool(ToolKind::Rect));
     }
 
     /// LCV-156 AC 4 — `layer` and `la` (any case) are the Layers command;

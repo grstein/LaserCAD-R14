@@ -97,6 +97,9 @@ pub enum ToolKind {
     /// DIST — report the distance between two points (LCV-159). A query:
     /// words only, `dist` and `di`; no letter, no toolbar button.
     Dist,
+    /// ROTATE — turn the selection about a base point (LCV-158). Words
+    /// only: `rotate`, `ro`; no letter.
+    Rotate,
 }
 
 /// A view / drawing-aid toggle the command line can flip.
