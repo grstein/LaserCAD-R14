@@ -70,8 +70,12 @@ fn entity_path(entity: Entity, cam: &Camera) -> egui::epaint::PathShape {
 }
 
 /// Largest on-screen sagitta of the chords `points[i]`–`points[i + 1]` (plus
-/// the closing chord when `closed`) of a curve of radius `r_pt` around `c`.
+/// the closing chord when `closed`) of a curve of radius `r_pt` around `c`,
+/// less the rounding of the `f32` screen points themselves (two ulps at the
+/// points' magnitude — 0.002 pt for a 10 000 pt circle).
 fn max_sagitta(points: &[egui::Pos2], closed: bool, c: egui::Pos2, r_pt: f64) -> f64 {
+    let magnitude = r_pt + f64::from(c.x.abs().max(c.y.abs()));
+    let f32_noise = 2.0 * f64::from(f32::EPSILON) * magnitude;
     let mut chords: Vec<(egui::Pos2, egui::Pos2)> =
         points.windows(2).map(|w| (w[0], w[1])).collect();
     if closed {
@@ -82,7 +86,7 @@ fn max_sagitta(points: &[egui::Pos2], closed: bool, c: egui::Pos2, r_pt: f64) ->
         .map(|(a, b)| {
             let mid = egui::Pos2::new((a.x + b.x) / 2.0, (a.y + b.y) / 2.0);
             let (dx, dy) = (f64::from(mid.x - c.x), f64::from(mid.y - c.y));
-            r_pt - dx.hypot(dy)
+            r_pt - dx.hypot(dy) - f32_noise
         })
         .fold(0.0, f64::max)
 }

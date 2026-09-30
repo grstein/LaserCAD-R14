@@ -5,7 +5,7 @@
 - [x] T2 [AC1] `GRID_MINOR`/`GRID_MAJOR` tokens; `draw_grid` 1 pt on pixel centres (files: src/render/palette.rs, src/render/grid.rs)
 - [x] T3 [AC5] Test: painted circle and arc paths at 0.01, 1 and 100 mm/pt and a sub-pt circle —
   chords in [8, 1024], each sagitta ≤0.25 pt (files: tests/it/ui/canvas_legibility.rs, tests/it/ui/mod.rs)
-- [ ] T4 [AC5] `render/tessellate.rs` (`chords_per_turn`, `screen_points`, `stroke_entity`) with
+- [x] T4 [AC5] `render/tessellate.rs` (`chords_per_turn`, `screen_points`, `stroke_entity`) with
   unit tests; `draw_entities` uses it; drop `PaintOptions::arc_segments` (files: src/render/tessellate.rs, src/render/mod.rs, src/render/entities.rs)
 - [ ] T5 [AC6] Test: selection halo, hover and preview of an arc and a circle paint one shape per
   entity (files: tests/it/ui/canvas_legibility.rs)
