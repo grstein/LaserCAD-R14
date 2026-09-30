@@ -13,7 +13,7 @@
   `theme.rs` (with positive control); painted File menu frame (1 pt `BORDER`, rounding 4, no
   blurred shape); a full frame paints no rect filled `ACCENT` (files:
   tests/it/ui/visual_refresh.rs, tests/it/ui/mod.rs)
-- [ ] T4 [AC4] [AC3] Test first: SNAP on → pill rect filled `FILL_SELECTED`, text `ACCENT`; GRID
+- [x] T4 [AC4] [AC3] Test first: SNAP on → pill rect filled `FILL_SELECTED`, text `ACCENT`; GRID
   off → no fill, 1 pt `BORDER` outline, text `TEXT_MUTED`; a click on each pill flips only its
   flag (files: tests/it/ui/visual_refresh.rs)
 - [ ] T5 [AC4] `mode_pill` widget with `PILL_PADDING` and its unit tests (files:

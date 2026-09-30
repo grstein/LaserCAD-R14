@@ -268,3 +268,96 @@ fn ac3_no_shape_is_filled_with_accent() {
     assert!(fills.contains(&FILL_SELECTED), "positive control");
     assert!(!fills.contains(&ACCENT), "accent is never a fill");
 }
+
+// ── AC 4 — mode pills ──────────────────────────────────────────────────
+
+/// The one text shape reading exactly `text` in the bottom `band` points of
+/// a `screen`-tall window (the status bar is the last row).
+fn bottom_text<'a>(
+    shapes: &'a [egui::Shape],
+    text: &str,
+    screen: [f32; 2],
+    band: f32,
+) -> &'a egui::epaint::TextShape {
+    let found: Vec<&egui::epaint::TextShape> = shapes
+        .iter()
+        .filter_map(|s| match s {
+            egui::Shape::Text(t) => Some(t),
+            _ => None,
+        })
+        .filter(|t| t.galley.text().trim() == text && t.pos.y > screen[1] - band)
+        .collect();
+    assert_eq!(found.len(), 1, "`{text}` must paint once near the bottom");
+    found[0]
+}
+
+/// The colours a text shape paints its sections in (egui resolves a
+/// `PLACEHOLDER` section to the shape's `fallback_color`).
+fn text_colours(t: &egui::epaint::TextShape) -> Vec<egui::Color32> {
+    if let Some(c) = t.override_text_color {
+        return vec![c];
+    }
+    t.galley
+        .job
+        .sections
+        .iter()
+        .map(|s| match s.format.color {
+            egui::Color32::PLACEHOLDER => t.fallback_color,
+            c => c,
+        })
+        .collect()
+}
+
+/// The smallest rect shape enclosing text shape `t`.
+fn rect_around<'a>(
+    shapes: &'a [egui::Shape],
+    t: &egui::epaint::TextShape,
+) -> &'a egui::epaint::RectShape {
+    let text = egui::Rect::from_min_size(t.pos, t.galley.size());
+    rects(shapes)
+        .into_iter()
+        .filter(|r| r.rect.contains_rect(text.shrink(0.5)))
+        .min_by(|a, b| a.rect.area().total_cmp(&b.rect.area()))
+        .expect("a rect must enclose the text")
+}
+
+/// AC 4 — SNAP on: `fill.selected` pill, `accent` text. GRID off: no fill,
+/// a 1 pt `border` outline, `text.muted` text.
+#[test]
+fn ac4_on_and_off_pills_paint_their_state() {
+    let (ctx, mut app) = ctx_and_app();
+    app.snap_enabled = true;
+    app.grid_enabled = false;
+    let _ = paint(&ctx, &mut app, Vec::new());
+    let painted = paint(&ctx, &mut app, Vec::new());
+
+    let snap = bottom_text(&painted.shapes, "SNAP", SCREEN, 40.0);
+    let pill = rect_around(&painted.shapes, snap);
+    assert_eq!(pill.fill, FILL_SELECTED, "SNAP on: {pill:?}");
+    assert_eq!(text_colours(snap), vec![ACCENT]);
+
+    let grid = bottom_text(&painted.shapes, "GRID", SCREEN, 40.0);
+    let pill = rect_around(&painted.shapes, grid);
+    assert!(pill.rect.height() < 30.0, "a pill, not the panel: {pill:?}");
+    assert_eq!(pill.fill.a(), 0, "GRID off has no fill: {pill:?}");
+    assert_eq!(pill.stroke, egui::Stroke::new(1.0_f32, BORDER));
+    assert_eq!(text_colours(grid), vec![TEXT_MUTED]);
+}
+
+/// AC 4 — a click on a pill flips its own flag and no other.
+#[test]
+fn ac4_a_click_on_each_pill_flips_only_its_flag() {
+    for (label, index) in [("SNAP", 0), ("GRID", 1), ("ORTHO", 2)] {
+        let (ctx, mut app) = ctx_and_app();
+        let painted = paint(&ctx, &mut app, Vec::new());
+        let text = bottom_text(&painted.shapes, label, SCREEN, 40.0);
+        let at = egui::Rect::from_min_size(text.pos, text.galley.size()).center();
+        let flags = |a: &App| [a.snap_enabled, a.grid_enabled, a.ortho_enabled];
+        let before = flags(&app);
+        click(&ctx, &mut app, SCREEN, at);
+        let after = flags(&app);
+        for i in 0..3 {
+            assert_eq!(after[i] != before[i], i == index, "{label}: {after:?}");
+        }
+    }
+}
