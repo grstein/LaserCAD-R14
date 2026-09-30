@@ -1,6 +1,6 @@
 # LCV-165 — Command dock messages, prompts and repeat
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-167
 - **Implementation**: -
 
