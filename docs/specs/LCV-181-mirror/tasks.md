@@ -10,4 +10,4 @@ ADR 0003 amendment (5) (commit `868bb01`) admits `ToolKind::Mirror`; no ADR task
 - [x] T6 [AC5] [AC6] [AC7] Integration: `mi` ⏎ two points ⏎ blank / `y` through `App` (files: tests/it/cmdline/transform_commands.rs)
 - [x] T7 [AC10] Test then implement `mirror_entity` parse → `AgentAction::Mirror` (files: src/agent/bridge.rs, src/agent/tools.rs, src/agent/tools/schema.rs)
 - [x] T8 [AC10] Test then implement apply arm + prompt line (files: src/app/agent_apply/edit.rs, src/agent/prompt.rs, tests/it/agent/transform_tools.rs)
-- [ ] T9 CHANGELOG line (files: CHANGELOG.md)
+- [x] T9 CHANGELOG line (files: CHANGELOG.md)
