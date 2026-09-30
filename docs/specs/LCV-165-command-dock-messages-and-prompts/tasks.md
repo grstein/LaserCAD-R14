@@ -1,6 +1,6 @@
 # LCV-165 — Tasks
 
-- [ ] T1 Refactor, no behaviour change: move `send`, `direct_distance`, `NO_BASE_POINT`,
+- [x] T1 Refactor, no behaviour change: move `send`, `direct_distance`, `NO_BASE_POINT`,
   `NO_DIRECTION` into `app/cmdline/dispatch.rs`; `scripts/check.sh cmdline` green (files:
   src/app/cmdline.rs, src/app/cmdline/dispatch.rs)
 - [ ] T2 [AC1] Test first: painted feedback colour — `hello` ⏎ → `STATUS_WARNING`, `grid` ⏎ →

@@ -1,7 +1,7 @@
 use super::*;
 use crate::cmdline::CommandHistory;
 use crate::document::{Entity, commands::CreateLine};
-use crate::geometry::Line;
+use crate::geometry::{Line, Vec2};
 use crate::tools::{CircleTool, LineTool, SelectTool};
 
 /// An app with `LineTool` active and its first point already fixed at the
