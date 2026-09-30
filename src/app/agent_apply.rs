@@ -40,7 +40,7 @@ use crate::geometry::{Arc as GeoArc, Circle, Line, Vec2};
 mod edit;
 
 /// The refusal for a capture while either opt-in is off (LCV-145 AC 2).
-pub(crate) const CAPTURE_DISABLED: &str = "canvas capture is disabled in Agent settings";
+pub(crate) const CAPTURE_DISABLED: &str = "canvas capture is disabled in Help > AI Settings…";
 
 /// What [`plan`] decided, before anything was applied.
 enum Planned {

@@ -24,7 +24,7 @@
 - [x] T7 [AC4] Transport texts and the dock's AI lines (`! AI unavailable: …`, `AI prompt is
   empty.`, `AI is busy — …`, echo `→ AI: "…"`); `cmdline/agent_routing.rs` follows (files:
   src/agent/transport.rs, src/app/cmdline.rs, tests/it/cmdline/agent_routing.rs)
-- [ ] T8 [AC4] `CAPTURE_DISABLED` = `canvas capture is disabled in Help > AI Settings…`;
+- [x] T8 [AC4] `CAPTURE_DISABLED` = `canvas capture is disabled in Help > AI Settings…`;
   `agent_capture.rs` uses the const, not its literal; T6 green (files: src/app/agent_apply.rs,
   src/app/agent_capture.rs)
 - [ ] T9 [AC5] Test first: `turn_label` gives `AI: <prompt>` (plain, trimmed, truncated cases);
