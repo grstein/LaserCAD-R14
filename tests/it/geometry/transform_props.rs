@@ -1,6 +1,7 @@
-//! `geometry::Transform::Rotate` (LCV-158 AC6) and `Transform::Mirror`
-//! (LCV-181 AC8): fixed cases for a point, a line, a circle and an arc, and
-//! property tests that both transforms are rigid.
+//! `geometry::Transform::Rotate` (LCV-158 AC6), `Transform::Mirror`
+//! (LCV-181 AC8) and `Transform::Scale` (LCV-182 AC4): fixed cases for a
+//! point, a line, a circle and an arc, and property tests that rotation and
+//! mirror are rigid and that scale multiplies lengths by its factor.
 //!
 //! A rotation keeps line lengths, radii and arc sweeps, maps line endpoints
 //! and centers like points, and lands the rotated arc's start and end points
@@ -164,6 +165,65 @@ fn mirror_with_coincident_points_is_identity() {
     assert_eq!(t.arc(a), a);
 }
 
+fn scale(x: f64, y: f64, factor: f64) -> Transform {
+    Transform::Scale {
+        base: Vec2::new(x, y),
+        factor,
+    }
+}
+
+/// Scaling by 2 about (1, 1) sends (3, 2) to (5, 3); the base stays put.
+#[test]
+fn scale_point_about_base() {
+    let t = scale(1.0, 1.0, 2.0);
+    let p = t.point(Vec2::new(3.0, 2.0));
+    assert!(p.approx_eq(Vec2::new(5.0, 3.0), EPSILON), "{p:?}");
+    assert!(
+        t.point(Vec2::new(1.0, 1.0))
+            .approx_eq(Vec2::new(1.0, 1.0), EPSILON)
+    );
+}
+
+/// A line maps both endpoints, in order.
+#[test]
+fn scale_line_maps_both_endpoints() {
+    let l = scale(0.0, 0.0, 0.5).line(Line::new(Vec2::new(2.0, 4.0), Vec2::new(-6.0, 8.0)));
+    assert!(l.p1.approx_eq(Vec2::new(1.0, 2.0), EPSILON), "{l:?}");
+    assert!(l.p2.approx_eq(Vec2::new(-3.0, 4.0), EPSILON), "{l:?}");
+}
+
+/// A circle maps its center and multiplies its radius by the factor.
+#[test]
+fn scale_circle_maps_center_scales_radius() {
+    let c = scale(10.0, 0.0, 3.0).circle(Circle::new(Vec2::new(12.0, 1.0), 2.5));
+    assert!(c.center.approx_eq(Vec2::new(16.0, 3.0), EPSILON), "{c:?}");
+    assert!((c.r - 7.5).abs() <= EPSILON, "{c:?}");
+}
+
+/// An arc maps its center, multiplies its radius, and keeps its start and
+/// end angles and orientation bit-exact.
+#[test]
+fn scale_arc_keeps_angles() {
+    let src = Arc::new(Vec2::new(4.0, 0.0), 1.5, 0.25, 1.0, true);
+    let a = scale(0.0, 0.0, 2.0).arc(src);
+    assert!(a.center.approx_eq(Vec2::new(8.0, 0.0), EPSILON), "{a:?}");
+    assert!((a.r - 3.0).abs() <= EPSILON, "{a:?}");
+    assert_eq!(a.start_angle, 0.25);
+    assert_eq!(a.end_angle, 1.0);
+    assert!(a.ccw);
+}
+
+/// AC6 — a factor of 1 within `EPSILON` is the identity; anything else is not.
+#[test]
+fn scale_identity_is_factor_one() {
+    for factor in [1.0, 1.0 + EPSILON / 2.0, 1.0 - EPSILON / 2.0] {
+        assert!(scale(3.0, 4.0, factor).is_identity(), "{factor}");
+    }
+    for factor in [1.0 + 1e-6, 0.5, 2.0] {
+        assert!(!scale(3.0, 4.0, factor).is_identity(), "{factor}");
+    }
+}
+
 fn point() -> impl Strategy<Value = Vec2> {
     (-500.0..500.0f64, -500.0..500.0f64).prop_map(|(x, y)| Vec2::new(x, y))
 }
@@ -190,6 +250,10 @@ fn mirror_line() -> impl Strategy<Value = Transform> {
     (point(), point())
         .prop_filter("distinct points", |(a, b)| a.distance(*b) > 1.0)
         .prop_map(|(a, b)| Transform::Mirror { a, b })
+}
+
+fn scaling() -> impl Strategy<Value = Transform> {
+    (point(), 0.01..100.0f64).prop_map(|(base, factor)| Transform::Scale { base, factor })
 }
 
 /// Coordinates stay within ~1500 mm of the origin, so a scaled `EPSILON`
@@ -270,5 +334,48 @@ proptest! {
         prop_assert!((out.sweep_angle() - a.sweep_angle()).abs() <= TOL);
         prop_assert!(out.start_point().approx_eq(t.point(a.start_point()), TOL));
         prop_assert!(out.end_point().approx_eq(t.point(a.end_point()), TOL));
+    }
+
+    /// Distances between any two points are multiplied by the factor.
+    #[test]
+    fn scale_multiplies_distances(t in scaling(), p in point(), q in point()) {
+        let Transform::Scale { factor, .. } = t else { unreachable!() };
+        let d = t.point(p).distance(t.point(q));
+        let want = factor * p.distance(q);
+        prop_assert!((d - want).abs() <= TOL * factor.max(1.0), "{} vs {}", d, want);
+    }
+
+    /// Line length and circle radius are multiplied by the factor; line
+    /// endpoints and the center map as points.
+    #[test]
+    fn scale_multiplies_line_length_and_radius(
+        t in scaling(), p in point(), q in point(), r in 0.01..500.0f64,
+    ) {
+        let Transform::Scale { factor, .. } = t else { unreachable!() };
+        let src = Line::new(p, q);
+        let l = t.line(src);
+        prop_assert!((l.length() - factor * src.length()).abs() <= TOL * factor.max(1.0));
+        prop_assert_eq!(l.p1, t.point(p));
+        prop_assert_eq!(l.p2, t.point(q));
+        let c = t.circle(Circle::new(p, r));
+        prop_assert_eq!(c.r, factor * r);
+        prop_assert_eq!(c.center, t.point(p));
+    }
+
+    /// A scaled arc keeps its angles, orientation and sweep exactly, scales
+    /// its radius, and its endpoints land on the scaled source endpoints.
+    #[test]
+    fn scale_keeps_arc_angles(t in scaling(), a in arc()) {
+        let Transform::Scale { factor, .. } = t else { unreachable!() };
+        let out = t.arc(a);
+        prop_assert_eq!(out.r, factor * a.r);
+        prop_assert_eq!(out.start_angle, a.start_angle);
+        prop_assert_eq!(out.end_angle, a.end_angle);
+        prop_assert_eq!(out.ccw, a.ccw);
+        prop_assert_eq!(out.sweep_angle(), a.sweep_angle());
+        prop_assert_eq!(out.center, t.point(a.center));
+        let tol = TOL * factor.max(1.0);
+        prop_assert!(out.start_point().approx_eq(t.point(a.start_point()), tol));
+        prop_assert!(out.end_point().approx_eq(t.point(a.end_point()), tol));
     }
 }
