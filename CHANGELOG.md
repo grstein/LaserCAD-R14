@@ -18,6 +18,7 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ### Fixed
 
+- Thinking models (such as DeepSeek in thinking mode) keep their reasoning across tool calls and turns: the agent sends a tool-call reply's `reasoning_content` back verbatim with it, within the turn and when memory replays the batch later; plain-text replies and providers that send none are unchanged. See LCV-154.
 - The agent's batch drawing tool (`create_drawing`) now accepts items that set another entity type's keys to `null`, as its published schema invites; a non-null value names the keys the item's type takes. Fewer refused batches, fewer fallbacks to one call per entity. See LCV-185.
 
 ## [0.3.0] - 2026-09-30
