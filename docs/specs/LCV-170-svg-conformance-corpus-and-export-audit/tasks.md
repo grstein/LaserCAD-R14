@@ -27,7 +27,7 @@
       `LayerError::ControlChar`, and accepts `"Grav é"`; add the import fixture
       `layer-control-char` (`data-layer="A&#9;B"`, expectation `error MalformedLayer`) (files:
       src/document/layer.rs (tests section), tests/fixtures/svg/layer-control-char.svg + .expected)
-- [ ] T7 [AC9] `LayerError::ControlChar` + the check in `check_fields`, before the `name_key`
+- [x] T7 [AC9] `LayerError::ControlChar` + the check in `check_fields`, before the `name_key`
       test (files: src/document/layer.rs)
 - [ ] T8 [AC9] Tests: the Layers dialog, opened by typing `layer`, refuses the rename to `"A\tB"`
       with the ControlChar message, and the document is unchanged; `AddLayer`/`from_parts` refuse
