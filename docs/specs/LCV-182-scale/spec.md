@@ -1,8 +1,8 @@
 # LCV-182 — SCALE command
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-158
-- **Implementation**: -
+- **Implementation**: a30dd5b..e5496f6
 
 ## Problem
 
