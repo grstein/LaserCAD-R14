@@ -775,6 +775,7 @@ fn batch(calls: &[(&str, &str)]) -> AssistantMessage {
                 })
                 .collect(),
         ),
+        reasoning_content: None,
     }
 }
 
@@ -782,6 +783,7 @@ fn text(content: &str) -> AssistantMessage {
     AssistantMessage {
         content: Some(content.to_owned()),
         tool_calls: None,
+        reasoning_content: None,
     }
 }
 

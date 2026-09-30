@@ -17,6 +17,7 @@ fn text_reply(text: &str) -> Result<AssistantMessage, AgentError> {
     Ok(AssistantMessage {
         content: Some(text.to_owned()),
         tool_calls: None,
+        reasoning_content: None,
     })
 }
 
@@ -27,6 +28,7 @@ fn call_reply(n: usize) -> Result<AssistantMessage, AgentError> {
     Ok(AssistantMessage {
         content: None,
         tool_calls: Some(calls),
+        reasoning_content: None,
     })
 }
 
@@ -257,6 +259,7 @@ fn prose_alongside_a_tool_call_survives_the_round_trip() {
                 Ok(AssistantMessage {
                     content: Some("Let me look at the drawing first.".into()),
                     tool_calls: Some(vec![ToolCall::function("call_0", "noop", "{}")]),
+                    reasoning_content: None,
                 })
             } else {
                 text_reply("Two lines.")
@@ -285,6 +288,7 @@ fn no_content_returns_error() {
             Ok(AssistantMessage {
                 content: None,
                 tool_calls: None,
+                reasoning_content: None,
             })
         },
         &mut |_| Ok(AgentOutcome::Ok("ok".into())),
@@ -356,6 +360,7 @@ fn named_calls(names: &[&str]) -> Result<AssistantMessage, AgentError> {
     Ok(AssistantMessage {
         content: None,
         tool_calls: Some(calls),
+        reasoning_content: None,
     })
 }
 

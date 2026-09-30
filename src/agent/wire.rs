@@ -91,6 +91,10 @@ pub struct ChatMessage {
     /// The [`ToolCall::id`] a `"tool"` turn answers.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
+    /// A thinking model's reasoning for a tool-call assistant turn, sent back
+    /// verbatim (LCV-154). Declared last so every other key keeps its place.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_content: Option<String>,
 }
 
 impl ChatMessage {
@@ -118,6 +122,16 @@ impl ChatMessage {
             content: content.map(Content::Text),
             tool_calls: Some(tool_calls),
             tool_call_id: None,
+            reasoning_content: None,
+        }
+    }
+
+    /// This turn with `reasoning_content` set; `None` leaves no key (LCV-154).
+    #[must_use]
+    pub fn with_reasoning(self, reasoning_content: Option<String>) -> Self {
+        Self {
+            reasoning_content,
+            ..self
         }
     }
 
@@ -128,6 +142,7 @@ impl ChatMessage {
             content: Some(Content::Text(content.into())),
             tool_calls: None,
             tool_call_id: Some(tool_call_id.into()),
+            reasoning_content: None,
         }
     }
 
@@ -138,6 +153,7 @@ impl ChatMessage {
             content: Some(Content::Parts(parts)),
             tool_calls: None,
             tool_call_id: None,
+            reasoning_content: None,
         }
     }
 
@@ -166,6 +182,7 @@ impl ChatMessage {
             content: Some(Content::Text(content.into())),
             tool_calls: None,
             tool_call_id: None,
+            reasoning_content: None,
         }
     }
 }
@@ -247,6 +264,9 @@ pub struct AssistantMessage {
     /// The tool calls the model wants dispatched, in the order it sent them.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
+    /// A thinking model's reasoning, when it sent a string (LCV-154).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_content: Option<String>,
 }
 
 /// One completion choice. Only `choices[0]` is ever read.

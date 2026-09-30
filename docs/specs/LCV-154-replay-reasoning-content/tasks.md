@@ -5,7 +5,7 @@
   tool-call `ChatMessage` with `with_reasoning(None)` serialises byte-identical to the
   pre-LCV-154 literal, and with `Some("R")` ends in `,"reasoning_content":"R"}`
   (files: src/agent/wire.rs)
-- [ ] T2 [AC1] [AC5] Add `reasoning_content` to `AssistantMessage` and (last) to `ChatMessage`,
+- [x] T2 [AC1] [AC5] Add `reasoning_content` to `AssistantMessage` and (last) to `ChatMessage`,
   `None` in every constructor, `ChatMessage::with_reasoning`; add `reasoning_content: None` to
   struct-literal fixtures. The one task over 3 files, all edits mechanical except `wire.rs`
   (files: src/agent/wire.rs, src/agent/memory.rs, src/agent/loop_/tests.rs,
