@@ -2,7 +2,7 @@
 
 ADR 0003 amendment (5) (commit `868bb01`) admits `ToolKind::Dist`, polar input and `Tool::take_message`; no ADR task here.
 
-- [ ] T1 [AC1] [AC2] [AC3] [AC5] Test: `parse` polar table — `@50<30`, `50<30`, `@10<-45`, `@-10<45`, `@ 10 < 45`, exact `@10<90`/`<180`/`<270`, malformed `@<30`, `@10<`, `10<<5`, `<30` → `Unknown` (files: src/cmdline/parse.rs)
+- [x] T1 [AC1] [AC2] [AC3] [AC5] Test: `parse` polar table — `@50<30`, `50<30`, `@10<-45`, `@-10<45`, `@ 10 < 45`, exact `@10<90`/`<180`/`<270`, malformed `@<30`, `@10<`, `10<<5`, `<30` → `Unknown` (files: src/cmdline/parse.rs)
 - [ ] T2 [AC1] [AC2] [AC3] [AC5] Implement `parse_polar` and the arm in `parse` (files: src/cmdline/parse.rs)
 - [ ] T3 [AC1] [AC4] Test end-to-end: `l` ⏎ `0,0` ⏎ `@50<30` ⏎ draws the expected line; `@10<45` with no anchor shows the no-base-point message and changes nothing; `100<0` is an absolute point (files: tests/it/cmdline/polar_and_dist.rs, tests/it/cmdline/mod.rs)
 - [ ] T4 [AC6] [AC7] Test then add `Tool::take_message` (default `None`), `ToolManager::take_message`, and the drain in `poll_successor` before succession (files: src/tools/tool.rs, src/tools/manager.rs, src/app/viewport.rs)

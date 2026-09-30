@@ -257,6 +257,76 @@ mod tests {
         );
     }
 
+    /// LCV-159 AC1–AC3, AC5 — `@d<a` is a relative offset, `d<a` an absolute
+    /// point, degrees CCW from +X; signs, decimals and spaces around `<` are
+    /// accepted, quarter turns are exact, malformed polar text is `Unknown`.
+    #[test]
+    fn parses_polar_input() {
+        let near = |got: CommandInput, want: CommandInput| {
+            let (g, w) = match (got, want) {
+                (CommandInput::Relative(g), CommandInput::Relative(w)) => (g, w),
+                (CommandInput::Point(g), CommandInput::Point(w)) => (g, w),
+                (g, w) => panic!("got {g:?}, want {w:?}"),
+            };
+            assert!((g - w).length() <= 1e-12, "got {g:?}, want {w:?}");
+        };
+        let d30 = 30f64.to_radians();
+        let d45 = 45f64.to_radians();
+        near(
+            parse("@50<30"),
+            CommandInput::Relative(Vec2::new(50.0 * d30.cos(), 50.0 * d30.sin())),
+        );
+        near(
+            parse("50<30"),
+            CommandInput::Point(Vec2::new(50.0 * d30.cos(), 50.0 * d30.sin())),
+        );
+        near(
+            parse("@10<-45"),
+            CommandInput::Relative(Vec2::new(10.0 * d45.cos(), -10.0 * d45.sin())),
+        );
+        near(
+            parse("@-10<45"),
+            CommandInput::Relative(Vec2::new(-10.0 * d45.cos(), -10.0 * d45.sin())),
+        );
+        near(
+            parse("@ 10 < 45"),
+            CommandInput::Relative(Vec2::new(10.0 * d45.cos(), 10.0 * d45.sin())),
+        );
+        near(
+            parse("@2.5<12.5"),
+            CommandInput::Relative(Vec2::new(
+                2.5 * 12.5f64.to_radians().cos(),
+                2.5 * 12.5f64.to_radians().sin(),
+            )),
+        );
+
+        // Quarter turns are exact, not merely close.
+        assert_eq!(parse("@10<0"), CommandInput::Relative(Vec2::new(10.0, 0.0)));
+        assert_eq!(
+            parse("@10<90"),
+            CommandInput::Relative(Vec2::new(0.0, 10.0))
+        );
+        assert_eq!(
+            parse("@10<180"),
+            CommandInput::Relative(Vec2::new(-10.0, 0.0))
+        );
+        assert_eq!(
+            parse("@10<270"),
+            CommandInput::Relative(Vec2::new(0.0, -10.0))
+        );
+        assert_eq!(
+            parse("@10<-90"),
+            CommandInput::Relative(Vec2::new(0.0, -10.0))
+        );
+        assert_eq!(parse("100<0"), CommandInput::Point(Vec2::new(100.0, 0.0)));
+
+        for raw in [
+            "@<30", "@10<", "10<<5", "<30", "@10<abc", "1,2<3", "@10<nan",
+        ] {
+            assert_eq!(parse(raw), CommandInput::Unknown(raw.to_owned()), "{raw:?}");
+        }
+    }
+
     #[test]
     fn parses_bare_distances() {
         assert_eq!(parse("37.5"), CommandInput::Distance(37.5));
