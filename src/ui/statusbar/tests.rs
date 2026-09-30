@@ -292,12 +292,11 @@ fn the_indicators_are_always_visible() {
     let loop_at = body
         .find("for mode in Mode::ALL {")
         .expect("mode loop present");
-    // The needle omits the `ui` receiver: LCV-140's added `.on_hover_text`
-    // call makes the chain long enough that `rustfmt` puts `ui` alone on
-    // its own line, ahead of `.selectable_label(...)`.
+    // LCV-184 AC 4: the indicator is a `mode_pill`, no longer egui's
+    // `selectable_label`.
     let label_at = body[loop_at..]
-        .find(".selectable_label(mode.is_on(app), mode.label())")
-        .expect("positive control: the selectable_label call is in the loop")
+        .find("pill::mode_pill(ui, mode.is_on(app), mode.label())")
+        .expect("positive control: the mode_pill call is in the loop")
         + loop_at;
     assert!(
         !body[loop_at..label_at].contains("app."),

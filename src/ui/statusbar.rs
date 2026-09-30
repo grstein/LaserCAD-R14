@@ -159,7 +159,8 @@ pub(crate) const RECOVERY_HOVER_TEXT: &str = "This drawing was restored from a c
 /// Displays — left to right — cursor coordinates, the active tool name
 /// (uppercased), the document entity count, the current-layer dropdown
 /// (LCV-156, `src/ui/layer_combo.rs`), the three clickable mode
-/// indicators `SNAP` / `GRID` / `ORTHO` (LCV-116, always visible, selected iff their flag is on), the autosave
+/// indicators `SNAP` / `GRID` / `ORTHO` (LCV-116, always visible; LCV-184 on/off
+/// pills, filled iff their flag is on), the autosave
 /// indicator, and — only while [`App::title`]'s
 /// `recovered_from_autosave` is set (LCV-138) — a recovery label with an
 /// explanatory tooltip, all separated in the existing style.
@@ -192,8 +193,7 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
         for mode in Mode::ALL {
             ui.separator();
             let hint = format!("{} ({})", mode.label(), mode.key_hint());
-            if ui
-                .selectable_label(mode.is_on(app), mode.label())
+            if pill::mode_pill(ui, mode.is_on(app), mode.label())
                 .on_hover_text(hint)
                 .clicked()
             {

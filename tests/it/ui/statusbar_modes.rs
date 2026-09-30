@@ -6,9 +6,9 @@
 //! of that contract: rendering alone changes nothing, and the one gesture the
 //! indicators share with the keyboard (`F3`) lands identically.
 //!
-//! The pointer click on a specific `selectable_label` is **[manual]** per the
-//! demand — hit-testing a label by position is brittle. The logic behind the
-//! click is covered by `src/ui/statusbar.rs::tests::toggle_click_flips_only_its_own_flag`,
+//! The pointer click on each mode pill is driven by position in
+//! `tests/it/ui/visual_refresh.rs` (LCV-184). The logic behind the click is
+//! covered by `src/ui/statusbar.rs::tests::toggle_click_flips_only_its_own_flag`,
 //! which calls the same `apply_toggle` the click handler calls.
 //!
 //! ADR 0002 §A4: key taps are press+release (`harness::tap`), no `Ctrl+O` /

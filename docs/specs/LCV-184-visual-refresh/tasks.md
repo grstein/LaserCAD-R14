@@ -18,7 +18,7 @@
   flag (files: tests/it/ui/visual_refresh.rs)
 - [x] T5 [AC4] `mode_pill` widget with `PILL_PADDING` and its unit tests (files:
   src/ui/statusbar/pill.rs, src/ui/statusbar.rs)
-- [ ] T6 [AC4] `draw_statusbar` uses `mode_pill`; rewrite the `selectable_label` source-scan
+- [x] T6 [AC4] `draw_statusbar` uses `mode_pill`; rewrite the `selectable_label` source-scan
   needles in the status-bar unit tests; T4 green (files: src/ui/statusbar.rs,
   src/ui/statusbar/tests.rs)
 - [ ] T7 [AC5] Test first: a 1 pt vertical line segment lies between every pair of adjacent

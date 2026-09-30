@@ -202,7 +202,10 @@ mod tests {
             assert_eq!(state.rounding, egui::Rounding::same(3.0));
             assert_eq!(state.fg_stroke.color, TEXT_PRIMARY);
         }
-        assert_eq!(w.noninteractive.bg_stroke, egui::Stroke::new(1.0_f32, BORDER));
+        assert_eq!(
+            w.noninteractive.bg_stroke,
+            egui::Stroke::new(1.0_f32, BORDER)
+        );
         for (state, fill) in [
             (&w.inactive, FILL_WIDGET),
             (&w.hovered, FILL_HOVER),
