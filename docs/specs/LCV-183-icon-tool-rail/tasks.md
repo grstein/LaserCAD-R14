@@ -22,7 +22,7 @@
   src/ui/toolbar.rs, src/ui/icons.rs, tests/it/ui/compact_chrome_and_action_hints.rs)
 - [x] T9 [AC8] Fixed `RAIL_WIDTH` and 4 pt frame margin in `panels.rs`; drop the label-width
   measure and its clamp test; T6 goes green (files: src/app/panels.rs)
-- [ ] T10 [AC10] DESIGN.md §2 rail budget ≤80 pt, §7 tool rail: painted icons, two columns,
+- [x] T10 [AC10] DESIGN.md §2 rail budget ≤80 pt, §7 tool rail: painted icons, two columns,
   `AI` toggle, tooltip format (files: DESIGN.md)
 - [ ] T11 CHANGELOG `[Unreleased]` line: icon tool rail in two columns, tooltips with key and
   command word (files: CHANGELOG.md)

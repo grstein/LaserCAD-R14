@@ -29,7 +29,7 @@ that change, and that change's last task updates this file.
 7. **Fits 800×600.** Every surface passes the budgets in §2.
 8. **No decoration.** No emoji, gradients, shadows or animation (§12). Icons are functional,
    not decoration: flat line icons with R14 metaphors on the tool rail and in the menus
-   (user decision 2026-09-30; gap → LCV-183, LCV-166). Modern means flat and consistent, never
+   (user decision 2026-09-30; rail: LCV-183; menus: gap → LCV-166). Modern means flat and consistent, never
    ornamental (gap → LCV-184).
 
 ## 2. Layout
@@ -39,7 +39,7 @@ that change, and that change's last task updates this file.
 ├──────────┬─────────────────────────────────┬───────────────────┤
 │ tool     │ canvas                          │ AI Assistant      │
 │ rail     │ bed · grid · geometry ·         │ panel             │
-│ ≤120 pt  │ feedback                        │ ≤ ⅓ app width,    │
+│ ≤80 pt   │ feedback                        │ ≤ ⅓ app width,    │
 │          │                                 │ closed by default │
 ├──────────┴─────────────────────────────────┴───────────────────┤
 │ command dock: prompt row + editor row                  ≤64 pt  │
@@ -50,8 +50,8 @@ that change, and that change's last task updates this file.
 
 - Panels: `app/panels.rs` (`menubar`, `statusbar`, `command_line`, `toolbar` left,
   `agent_panel` right); canvas `app/viewport.rs::draw`.
-- Budgets, proven at 800×600, 1024×600 and 1280×800 at the default font: rail ≤120 pt and
-  status rows ≤56 pt (LCV-140); dock ≤64 pt, editor ≥240 pt wide (LCV-139); agent panel ≤ ⅓
+- Budgets, proven at 800×600, 1024×600 and 1280×800 at the default font: rail ≤80 pt, never
+  scrolling at these sizes (LCV-183), status rows ≤56 pt (LCV-140); dock ≤64 pt, editor ≥240 pt wide (LCV-139); agent panel ≤ ⅓
   of the app width (LCV-141); canvas ≥320×300 pt with every panel open (LCV-140 AC 6).
 - New UI goes into an existing region (LCV-156 puts its layer control in the status bar). A new
   docked region must justify itself against these budgets in its spec.
@@ -179,11 +179,15 @@ dark edge and a kind label are planned (gap → LCV-164).
 - **Menubar**: R14 order — File Edit View Format Tools Help (`Format > Layers…`, LCV-156).
   Title Case labels (§9); `…` only when a dialog
   follows. Shortcuts in an aligned column: gap → LCV-166 (today `"\t"` in `ui/menubar.rs`).
-- **Tool rail** (`ui/toolbar.rs::TOOLS`): text labels. One table drives the rail, the Tools
-  menu and the shortcuts dialog. Groups: draw (Select … Text) | modify (Move, Copy, Rotate,
-  Mirror, Scale, Trim, Extend, Delete, Dist) | AI toggle. The v0.3 tools have no bare-letter
-  key (ADR 0003 amendment 5). Painted icons in two columns (draw | modify), with name, key and
-  command word in the tooltip: gap → LCV-183.
+- **Tool rail** (`ui/toolbar.rs::TOOLS`, LCV-183): 32 pt square buttons with no text, each
+  holding a flat line icon painted with egui shapes (`ui/icons.rs`: 1.5 pt stroke in the text
+  colour, centred 20 pt square, R14 metaphors). Two columns: draw (Select … Text) left, modify
+  (Move, Copy, Rotate, Mirror, Scale, Trim, Extend, Delete, Dist) right; then a separator and
+  the `AI` toggle (32 pt square, text `AI`, tooltip `AI Assistant`). No group captions. Width
+  fixed at 76 pt (`app/panels.rs::RAIL_WIDTH`); the rail scrolls only when the window is too
+  short. Tooltip `<Label> — <key> · <WORD>` or `<Label> — <WORD>` (`tool_hover_text`), e.g.
+  `Line — L · LINE`. One table drives the rail, the Tools menu (text labels) and the shortcuts
+  dialog. The v0.3 tools have no bare-letter key (ADR 0003 amendment 5).
 - **Command dock** (`ui/command_line.rs`, ADR 0003)
   - Prompt row, then editor row with its destination label (`ui/command_destination.rs`).
   - New prompts follow `VERB  Specify <thing> [Opt/Opt]:`. A `<default>` needs a runtime
