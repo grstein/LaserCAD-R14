@@ -76,6 +76,12 @@
   field, and `History` gains `id()`. **§D1 holds as written** — its "message
   list" already lives in the thread; memory is a longer message list, not
   document state. Nothing is reversed.
+- **Amended (10)**: 2026-09-30 — LCV-189 (step budget visibility). §D13's
+  "after exact exhaustion … tool calls in it end the turn" is relaxed: an
+  overrunning reply is answered "not run" call by call and gets one more reply
+  before the turn ends; a batch that runs tells the model the steps left. The
+  whole-batch preflight, the step definition, the range and the clamp stand.
+  Nothing else changes.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
@@ -774,6 +780,16 @@ first eviction or document replacement. Accepted.
   whole-batch preflight stays: a batch that would cross the budget is refused
   before any of it is dispatched. After exact exhaustion one more completion
   is sent; tool calls in it end the turn with `IterationLimitExceeded`.
+- **Amended (10):** the model sees the budget and gets one grace reply
+  (LCV-189). The last tool result of a batch that ran to its end — not one
+  the fence stopped — ends with `Steps left this turn: <n> of <budget>.`. A
+  reply whose calls would cross the budget is still refused whole, but no
+  longer ends the turn at once: its assistant message is kept, each call is
+  answered `not run: this reply has <k> tool calls but <n> steps are left`
+  (not a step, no steps-left line), and one more completion is sent. If that
+  reply overruns again the turn ends `IterationLimitExceeded`; a batch that
+  runs clears the grace, so a later overrun gets its own. `AuthorizeUpload`
+  is still not a step.
 - **Everything that crosses into the worker is one owned `TurnConfig`**
   (`agent_worker.rs`): endpoint, key, model, budget — and, from LCV-143, the
   effective system prompt; from ADR 0011, the vision flag. `run_agent_turn`
