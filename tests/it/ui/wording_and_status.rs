@@ -157,3 +157,40 @@ fn ac1_window_titles_and_restore_default() {
     let _ = locate(&runs, "AI Settings");
     let _ = locate(&runs, "Restore Default");
 }
+
+// ── AC 3 — one AI name ──────────────────────────────────────────────────
+
+/// AC 3 — the rail toggle paints `AI` with tooltip `AI Assistant`, the panel
+/// it opens is headed `AI Assistant`, and a `:draw` line routes to `AI`.
+#[test]
+fn ac3_rail_panel_and_dock_say_ai() {
+    let (ctx, mut app) = ctx_and_app();
+    let runs = settle(&ctx, &mut app);
+    let toggle = locate(&runs, "AI");
+    let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(toggle)]), |c| {
+        app.update_ui(c)
+    });
+    let hover = settle(&ctx, &mut app);
+    let _ = locate(&hover, "AI Assistant");
+
+    click(&ctx, &mut app, toggle);
+    assert!(app.agent.panel_open, "the toggle opens the panel");
+    let away = egui::pos2(600.0, 300.0);
+    let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(away)]), |c| {
+        app.update_ui(c)
+    });
+    let open = settle(&ctx, &mut app);
+    let _ = locate(&open, "AI Assistant");
+
+    let (ctx, mut app) = ctx_and_app();
+    app.settings.agent_api_key = "sk-test-key".to_owned();
+    app.command_line_input = ":draw a line".to_owned();
+    let runs = settle(&ctx, &mut app);
+    let lines = harness::paint::lines_on_surface_of(&runs, "Destination:");
+    let row = lines
+        .into_iter()
+        .map(|(_, texts)| texts)
+        .find(|texts| texts.iter().any(|t| t == "Destination:"))
+        .expect("the dock paints its destination row");
+    assert_eq!(row.last().map(String::as_str), Some("AI"), "{row:?}");
+}

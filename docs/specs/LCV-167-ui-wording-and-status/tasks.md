@@ -14,7 +14,7 @@
 - [x] T4 [AC2] Help item `AI Settings…`, window `AI Settings`; `Id::new`/`area_rect`/title
   lookups in `agent/panel_width_and_settings.rs`, `agent/prompt_editor.rs`,
   `agent/panel_and_settings.rs` follow; T1 green (files: src/ui/menubar.rs, src/app/panels.rs)
-- [ ] T5 [AC3] Test only (holds since LCV-183): rail toggle paints `AI`, its tooltip is
+- [x] T5 [AC3] Test only (holds since LCV-183): rail toggle paints `AI`, its tooltip is
   `AI Assistant`, the panel heading is `AI Assistant`, the dock destination for `:draw` is `AI`
   (files: tests/it/ui/wording_and_status.rs)
 - [ ] T6 [AC4] Test first: timeout and 401 texts contain `Help > AI Settings…`; `:draw` with no
