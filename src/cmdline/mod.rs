@@ -94,6 +94,9 @@ pub enum ToolKind {
     /// COPY — place translated copies of the selection (LCV-157). Words
     /// only: `copy`, `co`, `cp`; no letter.
     Copy,
+    /// DIST — report the distance between two points (LCV-159). A query:
+    /// words only, `dist` and `di`; no letter, no toolbar button.
+    Dist,
 }
 
 /// A view / drawing-aid toggle the command line can flip.

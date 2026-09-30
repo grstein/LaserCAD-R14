@@ -113,6 +113,7 @@ pub fn parse(raw: &str) -> CommandInput {
 /// | `arc` | `Arc` | `del` | `Delete` |
 /// | `copy` | `Copy` | `erase` | `Delete` |
 /// | `co` | `Copy` | `cp` | `Copy` |
+/// | `dist` | `Dist` | `di` | `Dist` |
 ///
 /// `delete` / `del` / `erase` all reach the same tool: R14 says `ERASE`, the
 /// v2 tool and its menu entry say Delete, so both vocabularies are accepted
@@ -146,6 +147,7 @@ fn tool_alias(lower: &str) -> Option<ToolKind> {
         "text" => Some(ToolKind::Text),
         "delete" | "del" | "erase" => Some(ToolKind::Delete),
         "copy" | "co" | "cp" => Some(ToolKind::Copy),
+        "dist" | "di" => Some(ToolKind::Dist),
         _ => None,
     }
 }
@@ -417,8 +419,10 @@ mod tests {
             ("copy", ToolKind::Copy),
             ("co", ToolKind::Copy),
             ("cp", ToolKind::Copy),
+            ("dist", ToolKind::Dist),
+            ("di", ToolKind::Dist),
         ];
-        assert_eq!(words.len(), 18, "the approved word set is exactly eighteen");
+        assert_eq!(words.len(), 20, "the approved word set is exactly twenty");
         for &(word, kind) in words {
             assert_eq!(
                 parse(word),
