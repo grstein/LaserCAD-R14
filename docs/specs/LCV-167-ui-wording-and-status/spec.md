@@ -1,6 +1,6 @@
 # LCV-167 — UI wording, one AI name and status bar polish
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-183
 - **Implementation**: -
 
