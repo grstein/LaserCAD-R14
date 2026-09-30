@@ -8,6 +8,10 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ## [Unreleased]
 
+### Changed
+
+- The agent now sees its step budget: every batch of tool calls ends with the steps left this turn, and a reply that asks for more calls than are left is answered "not run" with one more chance to fit or report, instead of ending the turn at once. A second overrun in a row still ends it. See LCV-189.
+
 ### Fixed
 
 - The agent's batch drawing tool (`create_drawing`) now accepts items that set another entity type's keys to `null`, as its published schema invites; a non-null value names the keys the item's type takes. Fewer refused batches, fewer fallbacks to one call per entity. See LCV-185.

@@ -7,4 +7,4 @@
 - [x] T5 [AC5] Test: `AuthorizeUpload` is not counted in steps left; budget clamp 1..=4096 unchanged (files: src/agent/loop_/tests.rs, tests/it/agent/turn.rs)
 - [x] T6 [AC4] Test + prompt: STEP BUDGET paragraph states per-call counting, create_drawing/set = one step, remaining count in tool results (files: tests/it/agent/default_prompt.rs, src/agent/prompt.rs)
 - [x] T7 Amend ADR 0007 §D13 (grace reply) (files: docs/adr/0007-agent-turn-mutates-the-live-document.md)
-- [ ] T8 CHANGELOG line (files: CHANGELOG.md)
+- [x] T8 CHANGELOG line (files: CHANGELOG.md)
