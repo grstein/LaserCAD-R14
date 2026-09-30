@@ -10,7 +10,7 @@
   struct-literal fixtures. The one task over 3 files, all edits mechanical except `wire.rs`
   (files: src/agent/wire.rs, src/agent/memory.rs, src/agent/loop_/tests.rs,
   src/app/agent_worker/tests.rs)
-- [ ] T3 [AC2] Test: batch 1 carries `reasoning_content` `R1`, batch 2 none, then text; the
+- [x] T3 [AC2] Test: batch 1 carries `reasoning_content` `R1`, batch 2 none, then text; the
   assistant message of batch 1 carries `R1` verbatim in requests 2 and 3, batch 2's has no
   `reasoning_content` key; an overrun "not run" batch keeps its field
   (files: src/agent/loop_/tests.rs)

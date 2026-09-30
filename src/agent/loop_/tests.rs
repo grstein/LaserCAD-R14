@@ -930,3 +930,71 @@ fn loop_declares_no_wire_structs_of_its_own() {
         );
     }
 }
+
+// ── LCV-154: reasoning_content rides with its tool-call turn ─────────────
+
+/// `reply` with `reasoning_content` set to `reasoning`.
+fn reasoned(
+    reply: Result<AssistantMessage, AgentError>,
+    reasoning: &str,
+) -> Result<AssistantMessage, AgentError> {
+    reply.map(|message| AssistantMessage {
+        reasoning_content: Some(reasoning.to_owned()),
+        ..message
+    })
+}
+
+/// The `n`-th message of a serialised request.
+fn request_message(request: &str, n: usize) -> serde_json::Value {
+    let messages: serde_json::Value = serde_json::from_str(request).unwrap();
+    messages[n].clone()
+}
+
+/// LCV-154 AC 2 — batch 1's `reasoning_content` goes back verbatim on its
+/// assistant message in every later request of the turn; batch 2, which
+/// had none, carries no key.
+#[test]
+fn reasoning_content_rides_every_later_request_of_the_turn() {
+    let r = run(
+        |n| match n {
+            1 => reasoned(named_calls(&["query_entities"]), "R1 \"verbatim\"\n"),
+            2 => named_calls(&["query_entities"]),
+            _ => text_reply("done"),
+        },
+        yes,
+        AGENT_STEP_BUDGET_DEFAULT,
+    );
+    assert_eq!(r.result.unwrap(), "done");
+    assert_eq!(r.requests.len(), 3);
+    assert!(!r.requests[0].contains("reasoning_content"));
+    for request in &r.requests[1..] {
+        let first = request_message(request, 2);
+        assert_eq!(first["role"], "assistant");
+        assert_eq!(first["reasoning_content"], "R1 \"verbatim\"\n");
+    }
+    let second = request_message(&r.requests[2], 4);
+    assert_eq!(second["role"], "assistant");
+    assert!(second.get("reasoning_content").is_none(), "got {second}");
+    assert_eq!(r.requests[2].matches("reasoning_content").count(), 1);
+}
+
+/// LCV-154 AC 2 — an overrun batch answered "not run" (LCV-189) is still a
+/// tool-call turn and keeps its `reasoning_content`.
+#[test]
+fn an_overrun_batch_keeps_its_reasoning_content() {
+    let r = run(
+        |n| match n {
+            1 => reasoned(call_reply(2), "R2"),
+            _ => text_reply("done"),
+        },
+        yes,
+        1,
+    );
+    assert_eq!(r.result.unwrap(), "done");
+    assert_eq!(r.tools, 0);
+    assert_eq!(r.messages[2].reasoning_content.as_deref(), Some("R2"));
+    assert_eq!(
+        request_message(&r.requests[1], 2)["reasoning_content"],
+        "R2"
+    );
+}
