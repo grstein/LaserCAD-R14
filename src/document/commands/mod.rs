@@ -66,7 +66,7 @@ pub mod trim;
 pub use bed::SetBedSize;
 pub use composite::CompositeCommand;
 pub use create::{CreateArc, CreateCircle, CreateEntities, CreateLine};
-pub use edit::{DeleteEntities, MoveEntities};
+pub use edit::{CopyEntities, DeleteEntities, MoveEntities};
 pub use layer::{AddLayer, DeleteLayer, EditLayer, SetCurrentLayer, SetEntityLayers};
 pub use select::SelectionCommand;
 pub use trim::{ExtendEntity, TrimEntity};
