@@ -38,7 +38,7 @@
 - [x] T11 [AC7] `REPORTED_PROPERTIES`, `style_decls`, `note_properties` in `report.rs`, called by
       `collect` on imported and descended elements; `layers.rs::own_stroke` reuses `style_decls`
       (files: src/io/svg/import/report.rs, src/io/svg/import/walk.rs, src/io/svg/layers.rs)
-- [ ] T12 [AC10] Test: `export_svg` and every `export_layer_svg` output of a document with a line,
+- [x] T12 [AC10] Test: `export_svg` and every `export_layer_svg` output of a document with a line,
       a circle, a CCW and a CW arc on two layers (one Output off, one current) reopen with
       `report == []` (files: tests/it/io_svg/import_report.rs, tests/it/io_svg/mod.rs)
 - [ ] T13 [AC9] Test: `action_open_path` on a file with two `<image>` and a `transform` on a `<g>`

@@ -7,6 +7,7 @@ mod export_audit;
 mod export_layers;
 mod import;
 mod import_fuzz;
+mod import_report;
 mod layers_roundtrip;
 mod mirror_arc;
 mod orientation;
