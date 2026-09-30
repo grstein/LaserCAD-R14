@@ -220,3 +220,21 @@ fn the_prompt_describes_layers() {
         assert!(lower.contains(needle), "`{needle}` missing: {section}");
     }
 }
+
+/// LCV-185 AC 7 — the create_drawing paragraph says that keys of other types
+/// may be omitted or null, and no longer demands exactly one type's keys.
+#[test]
+fn the_create_drawing_paragraph_tolerates_null_foreign_keys() {
+    let paragraph = DEFAULT_PROMPT
+        .split("\n\n")
+        .find(|p| words(p).first() == Some(&"create_drawing"))
+        .expect("a create_drawing paragraph");
+    let folded = paragraph.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(
+        folded
+            .to_lowercase()
+            .contains("keys of other types may be omitted or null"),
+        "{folded}"
+    );
+    assert!(!folded.contains("exactly that type's"), "{folded}");
+}

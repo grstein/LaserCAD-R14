@@ -9,7 +9,7 @@
 use lasercad::agent::prompt::{DEFAULT_PROMPT, resolve};
 use lasercad::io::settings::Settings;
 
-/// The built-in system prompt, line by line (LCV-143 AC 6, text of LCV-151, layers of LCV-156, copy of LCV-157, rotate of LCV-158).
+/// The built-in system prompt, line by line (LCV-143 AC 6, text of LCV-151, layers of LCV-156, copy of LCV-157, rotate of LCV-158, null keys of LCV-185).
 const SPEC_TEXT: &[&str] = &[
     "You are the CAD assistant embedded in LaserCAD v2, a 2D CAD program for",
     "laser cutting. Drawings are saved as plain SVG for LaserGRBL. You change and",
@@ -72,10 +72,11 @@ const SPEC_TEXT: &[&str] = &[
     "create_drawing {version, entities, layer}: append many lines, circles and",
     "arcs in one call; prefer it to many single create calls. version is always",
     "1. layer, if given, applies to the whole call.",
-    "entities is a list of 1 to 1000 objects, each with a type and exactly that",
-    "type's other keys, meaning what they mean in the single tools:",
+    "entities is a list of 1 to 1000 objects, each with a type and that type's",
+    "keys, meaning what they mean in the single tools:",
     "{\"type\": \"line\", x1, y1, x2, y2}, {\"type\": \"circle\", cx, cy, r} or",
-    "{\"type\": \"arc\", cx, cy, r, start_deg, end_deg, ccw}. The whole call is",
+    "{\"type\": \"arc\", cx, cy, r, start_deg, end_deg, ccw}. Keys of other types",
+    "may be omitted or null; any other value for them is refused. The whole call is",
     "checked first: if any entity is wrong, nothing is drawn and the result names",
     "it, for example entities[3].r. One create_drawing call is one step.",
     "",
