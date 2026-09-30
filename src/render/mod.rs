@@ -7,6 +7,7 @@
 
 pub mod bed;
 pub mod camera;
+pub mod cursor;
 pub mod entities;
 pub mod grid;
 pub mod preview;
@@ -16,6 +17,7 @@ pub mod snaps;
 
 pub use bed::{Bed, draw_bed, draw_bed_fill};
 pub use camera::Camera;
+pub use cursor::{cursor_color, draw_crosshair, draw_pickbox};
 pub use entities::{PaintOptions, arc_polyline, draw_entities};
 pub use grid::draw_grid;
 pub use preview::draw_preview;
