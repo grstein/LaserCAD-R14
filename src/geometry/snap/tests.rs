@@ -2,7 +2,7 @@
 //! demand LCV-016.
 
 use super::*;
-use core::f64::consts::FRAC_PI_2;
+use core::f64::consts::{FRAC_PI_2, FRAC_PI_4};
 
 /// AC#1 — public surface is constructible via literal syntax.
 #[test]
@@ -213,4 +213,217 @@ fn arc_involving_intersection_pairs_skipped() {
             "arc-involving pair must not produce an Intersection candidate"
         );
     }
+}
+
+// ── LCV-161: snap_query, Quadrant, Nearest, per-kind toggles ─────────────
+
+/// Default kinds plus Nearest.
+fn with_nearest() -> SnapKinds {
+    SnapKinds {
+        nearest: true,
+        ..SnapKinds::default()
+    }
+}
+
+/// LCV-161 AC8 — every kind is on by default except Nearest.
+#[test]
+fn snap_kinds_default_all_on_except_nearest() {
+    let k = SnapKinds::default();
+    for kind in [
+        SnapKind::Endpoint,
+        SnapKind::Midpoint,
+        SnapKind::Center,
+        SnapKind::Intersection,
+        SnapKind::Quadrant,
+        SnapKind::Perpendicular,
+        SnapKind::Tangent,
+    ] {
+        assert!(k.contains(kind), "{kind:?} should be on by default");
+    }
+    assert!(!k.contains(SnapKind::Nearest));
+}
+
+/// LCV-161 AC1 — a circle's 90° point snaps as Quadrant.
+#[test]
+fn quadrant_on_circle() {
+    let entities = [SnapEntity::Circle(Circle::new(Vec2::default(), 10.0))];
+    let r = snap_query(
+        Vec2::new(0.2, 10.1),
+        1.0,
+        &entities,
+        None,
+        SnapKinds::default(),
+    )
+    .expect("expected quadrant snap");
+    assert_eq!(r.kind, SnapKind::Quadrant);
+    assert!(r.point.approx_eq(Vec2::new(0.0, 10.0), 1e-9));
+    assert_eq!(r.primary_idx, 0);
+    assert_eq!(r.secondary_idx, None);
+    // All four world-axis quadrants count.
+    for q in [
+        Vec2::new(10.0, 0.0),
+        Vec2::new(-10.0, 0.0),
+        Vec2::new(0.0, -10.0),
+    ] {
+        let r = snap_query(q, 0.5, &entities, None, SnapKinds::default()).expect("quadrant");
+        assert_eq!(r.kind, SnapKind::Quadrant);
+        assert!(r.point.approx_eq(q, 1e-9));
+    }
+}
+
+/// LCV-161 AC1 — for an arc, only quadrant angles inside its sweep count.
+#[test]
+fn quadrant_on_arc_only_inside_sweep() {
+    let arc = Arc::new(Vec2::default(), 10.0, FRAC_PI_4, 3.0 * FRAC_PI_4, true);
+    let entities = [SnapEntity::Arc(arc)];
+    let r = snap_query(
+        Vec2::new(0.1, 9.8),
+        1.0,
+        &entities,
+        None,
+        SnapKinds::default(),
+    )
+    .expect("90° is inside the sweep");
+    assert_eq!(r.kind, SnapKind::Quadrant);
+    assert!(r.point.approx_eq(Vec2::new(0.0, 10.0), 1e-9));
+    // 180° lies outside the sweep: no candidate there.
+    let far = snap_query(
+        Vec2::new(-10.0, 0.1),
+        1.0,
+        &entities,
+        None,
+        SnapKinds::default(),
+    );
+    assert!(far.is_none(), "quadrant outside the sweep must not snap");
+}
+
+/// LCV-161 AC5 — Nearest snaps to the closest point of a line only when on.
+#[test]
+fn nearest_on_line_only_when_enabled() {
+    let entities = [SnapEntity::Line(Line::new(
+        Vec2::default(),
+        Vec2::new(100.0, 0.0),
+    ))];
+    let cursor = Vec2::new(30.0, 0.5);
+    assert!(snap_query(cursor, 1.0, &entities, None, SnapKinds::default()).is_none());
+    let r = snap_query(cursor, 1.0, &entities, None, with_nearest()).expect("nearest");
+    assert_eq!(r.kind, SnapKind::Nearest);
+    assert!(r.point.approx_eq(Vec2::new(30.0, 0.0), 1e-9));
+    assert_eq!(r.primary_idx, 0);
+}
+
+/// LCV-161 AC5 — Nearest on circles and arcs, and the nearest entity wins.
+#[test]
+fn nearest_on_circle_and_arc_picks_closest_entity() {
+    let entities = [
+        SnapEntity::Circle(Circle::new(Vec2::default(), 10.0)),
+        SnapEntity::Arc(Arc::new(Vec2::default(), 11.0, 0.0, FRAC_PI_2, true)),
+    ];
+    let dir = Vec2::new(1.0, 1.0) * (1.0 / 2.0_f64.sqrt());
+    // 10.4 from the centre: 0.4 from the circle, 0.6 from the arc.
+    let r = snap_query(dir * 10.4, 1.0, &entities, None, with_nearest()).expect("nearest");
+    assert_eq!(r.kind, SnapKind::Nearest);
+    assert_eq!(r.primary_idx, 0);
+    assert!(r.point.approx_eq(dir * 10.0, 1e-9));
+    // 10.7 from the centre: the arc is closer.
+    let r = snap_query(dir * 10.7, 1.0, &entities, None, with_nearest()).expect("nearest");
+    assert_eq!(r.primary_idx, 1);
+    assert!(r.point.approx_eq(dir * 11.0, 1e-9));
+    // Outside the arc's sweep only the circle is a Nearest candidate.
+    let r = snap_query(dir * -10.7, 1.0, &entities, None, with_nearest()).expect("nearest");
+    assert_eq!(r.primary_idx, 0);
+}
+
+/// LCV-161 AC5 — Nearest never shadows a real candidate within the aperture.
+#[test]
+fn nearest_does_not_shadow_endpoint_in_range() {
+    let entities = [SnapEntity::Line(Line::new(
+        Vec2::default(),
+        Vec2::new(100.0, 0.0),
+    ))];
+    // The line is 0.1 away, the endpoint 0.61 away: the endpoint still wins.
+    let r = snap_query(Vec2::new(0.6, 0.1), 1.0, &entities, None, with_nearest()).expect("snap");
+    assert_eq!(r.kind, SnapKind::Endpoint);
+}
+
+/// LCV-161 AC6 — distance ties break Endpoint > Intersection > Midpoint >
+/// Center > Quadrant > Perpendicular > Tangent (Nearest never ties: it is
+/// only computed when nothing else is in range).
+#[test]
+fn tie_order_covers_new_kinds() {
+    let order = [
+        SnapKind::Endpoint,
+        SnapKind::Intersection,
+        SnapKind::Midpoint,
+        SnapKind::Center,
+        SnapKind::Quadrant,
+        SnapKind::Perpendicular,
+        SnapKind::Tangent,
+        SnapKind::Nearest,
+    ];
+    for w in order.windows(2) {
+        assert!(
+            priority(w[0]) < priority(w[1]),
+            "{:?} before {:?}",
+            w[0],
+            w[1]
+        );
+    }
+}
+
+/// LCV-161 AC6 — Center beats Quadrant on a geometric tie.
+#[test]
+fn tie_center_beats_quadrant() {
+    let entities = [
+        SnapEntity::Circle(Circle::new(Vec2::default(), 5.0)),
+        SnapEntity::Circle(Circle::new(Vec2::new(5.0, 0.0), 2.0)),
+    ];
+    let r = snap_query(
+        Vec2::new(5.0, 0.0),
+        1.0,
+        &entities,
+        None,
+        SnapKinds::default(),
+    )
+    .expect("snap");
+    assert_eq!(r.kind, SnapKind::Center);
+    assert_eq!(r.primary_idx, 1);
+}
+
+/// LCV-161 AC9 — a disabled kind gives no candidate.
+#[test]
+fn disabled_kind_gives_no_candidate() {
+    let line = [SnapEntity::Line(Line::new(
+        Vec2::default(),
+        Vec2::new(1.0, 0.0),
+    ))];
+    let no_end = SnapKinds {
+        endpoint: false,
+        ..SnapKinds::default()
+    };
+    let r = snap_query(Vec2::new(0.0, 0.1), 1.0, &line, None, no_end).expect("midpoint");
+    assert_eq!(r.kind, SnapKind::Midpoint);
+
+    let circle = [SnapEntity::Circle(Circle::new(Vec2::default(), 10.0))];
+    let no_quad = SnapKinds {
+        quadrant: false,
+        ..SnapKinds::default()
+    };
+    assert!(snap_query(Vec2::new(0.0, 10.1), 1.0, &circle, None, no_quad).is_none());
+
+    let mut none = SnapKinds::default();
+    for kind in [
+        SnapKind::Endpoint,
+        SnapKind::Midpoint,
+        SnapKind::Center,
+        SnapKind::Intersection,
+        SnapKind::Quadrant,
+        SnapKind::Perpendicular,
+        SnapKind::Tangent,
+        SnapKind::Nearest,
+    ] {
+        none.set(kind, false);
+    }
+    assert!(snap_query(Vec2::new(0.0, 0.1), 1.0, &line, None, none).is_none());
+    assert!(snap_query(Vec2::new(0.0, 10.1), 1.0, &circle, None, none).is_none());
 }

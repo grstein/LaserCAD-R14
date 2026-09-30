@@ -1,6 +1,6 @@
 # LCV-161 — Tasks
 
-- [ ] T1 [AC1, AC5, AC6, AC9] Test: kernel `snap_query` tests. Quadrant on a circle and only
+- [x] T1 [AC1, AC5, AC6, AC9] Test: kernel `snap_query` tests. Quadrant on a circle and only
   inside an arc's sweep; Nearest only when nothing else is in range and only when enabled; the
   tie order Endpoint > Intersection > Midpoint > Center > Quadrant > Perpendicular > Tangent; a
   disabled kind gives no candidate. Plus the `SnapKinds::default()` values (files:
