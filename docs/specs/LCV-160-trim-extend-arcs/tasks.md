@@ -21,5 +21,5 @@
 - [x] T7 [AC5] [AC6] [AC7] `ExtendTool`: Line and Arc endpoints, and the boundary with the least
   `extend_reach` travel. The preview is an `Entity`, the local geometry copies go, and the status
   text says "line or arc endpoint" (files: src/tools/extend.rs)
-- [ ] T8 CHANGELOG `[Unreleased]` line: TRIM and EXTEND work with arcs, and a trim click is one
+- [x] T8 CHANGELOG `[Unreleased]` line: TRIM and EXTEND work with arcs, and a trim click is one
   undo step (files: CHANGELOG.md)
