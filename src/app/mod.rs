@@ -136,6 +136,9 @@ pub struct App {
     /// cannot claim a save the operator does not have. Read only by the
     /// status-bar indicator; no control flow depends on it.
     pub last_autosave_at: Option<Instant>,
+    /// The last autosave write to a real `autosave_path` failed (LCV-167 AC 9);
+    /// set and cleared only by `src/app/autosave.rs`.
+    pub autosave_failed: bool,
     /// Controls visibility of the About dialog.
     pub about_open: bool,
     /// Controls visibility of the Keyboard shortcuts dialog (LCV-116 AC 11).

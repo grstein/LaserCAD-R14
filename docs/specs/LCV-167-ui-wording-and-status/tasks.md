@@ -54,7 +54,7 @@
   `true` clears it; painted flow: path = a directory → `× autosave failed` in #ff6b6b, then a
   writable path → `○ autosaved` (files: src/ui/statusbar/tests.rs, src/app/autosave.rs,
   tests/it/ui/wording_and_status.rs)
-- [ ] T19 [AC9] `App::autosave_failed`, set/clear in `record_autosave_outcome`, `format_autosave`
+- [x] T19 [AC9] `App::autosave_failed`, set/clear in `record_autosave_outcome`, `format_autosave`
   `failed` argument, failed badge painted in `error_fg_color`; T18 green (files: src/app/mod.rs,
   src/app/autosave.rs, src/ui/statusbar.rs)
 - [ ] T20 [AC10] DESIGN.md §3 (accent foreground-only, amends LCV-071 AC 4), §4 (figure-space

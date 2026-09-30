@@ -65,6 +65,8 @@ pub fn flush_if_due(app: &mut App) {
 ///
 /// - `wrote == true` → stamp `last_autosave_at`. This is the only writer of
 ///   that field in the tree.
+/// - `autosave_failed` = `!wrote` when this process has an `autosave_path`
+///   (LCV-167 AC 9): a pathless process never writes, so it never "fails".
 /// - Either way → [`App::mark_clean`]. Unconditional on purpose (LCV-102
 ///   AC 18): a failed write is dropped, not retried every frame, or the
 ///   debounce would spin. The next document change re-arms it.
@@ -72,6 +74,7 @@ fn record_autosave_outcome(app: &mut App, wrote: bool) {
     if wrote {
         app.last_autosave_at = Some(Instant::now());
     }
+    app.autosave_failed = !wrote && app.autosave_path.is_some();
     app.mark_clean();
 }
 

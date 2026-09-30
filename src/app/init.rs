@@ -50,6 +50,7 @@ impl Default for App {
             dirty_since: None,
             last_synced_revision: 0,
             last_autosave_at: None,
+            autosave_failed: false,
             about_open: false,
             shortcuts_open: false,
             agent_settings_open: false,

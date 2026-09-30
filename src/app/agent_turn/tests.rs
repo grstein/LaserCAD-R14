@@ -296,10 +296,7 @@ fn the_turn_label_trims_and_truncates_at_forty_characters() {
     assert_eq!(turn_label(&forty), format!("AI: {forty}"));
     // Forty-one: forty kept, one ellipsis.
     let forty_one = "b".repeat(41);
-    assert_eq!(
-        turn_label(&forty_one),
-        format!("AI: {}…", "b".repeat(40))
-    );
+    assert_eq!(turn_label(&forty_one), format!("AI: {}…", "b".repeat(40)));
 }
 
 /// AC 10 — the cut counts `char`s, not bytes. Slicing this prompt at byte

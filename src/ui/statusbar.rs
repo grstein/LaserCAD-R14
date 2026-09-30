@@ -125,26 +125,24 @@ pub(crate) fn apply_toggle(app: &mut App, mode: Mode) {
     }
 }
 
-/// Return the autosave indicator string (LCV-116 AC 8).
+/// Return the autosave indicator string (LCV-116 AC 8, LCV-167 AC 9).
 ///
-/// Three permanent states, no timer and no animation — a relative
+/// Four permanent states, no timer and no animation — a relative
 /// "saved N seconds ago" would need a repaint every second for the life of the
 /// process and would go stale the moment repaints stopped:
 ///
+/// - the last write failed → `"× autosave failed"`, until a write succeeds;
 /// - a write is pending → `"● autosave pending"`;
 /// - otherwise, at least one write succeeded this session → `"○ autosaved"`;
 /// - otherwise → `"○ no autosave yet"`.
 ///
-/// `write_pending` wins over `ever_saved`: what the operator needs to know is
-/// whether the *current* state of the drawing is on disk.
-///
-/// This does **not** report autosave *failures*. The error behind
-/// `App::write_autosave`'s `false` is
-/// swallowed today (LCV-102); surfacing it is its own demand. What the
-/// indicator distinguishes is "an autosave has happened this session" from
-/// "none has", which is honest with the information available.
-pub(crate) fn format_autosave(write_pending: bool, ever_saved: bool) -> &'static str {
-    if write_pending {
+/// `failed` wins over `write_pending`, which wins over `ever_saved`: what the
+/// operator needs to know is whether the *current* drawing is on disk, and a
+/// failure stays visible until the next write proves otherwise.
+pub(crate) fn format_autosave(failed: bool, write_pending: bool, ever_saved: bool) -> &'static str {
+    if failed {
+        "\u{d7} autosave failed"
+    } else if write_pending {
         "\u{25cf} autosave pending"
     } else if ever_saved {
         "\u{25cb} autosaved"
@@ -185,7 +183,11 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
     let coord_str = format_coords(app.last_cursor_world);
     let tool_str = app.tool_manager.active_tool_name().to_uppercase();
     let count = app.document.entity_count();
-    let autosave_str = format_autosave(app.dirty_since.is_some(), app.last_autosave_at.is_some());
+    let autosave_str = format_autosave(
+        app.autosave_failed,
+        app.dirty_since.is_some(),
+        app.last_autosave_at.is_some(),
+    );
 
     // At most one indicator can be clicked per frame; the flip is applied
     // after the loop so the borrow of `app` inside it stays shared.
@@ -212,7 +214,11 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
             }
         }
         ui.separator();
-        ui.label(autosave_str);
+        if app.autosave_failed {
+            ui.colored_label(ui.visuals().error_fg_color, autosave_str);
+        } else {
+            ui.label(autosave_str);
+        }
         // LCV-138 AC 4 — distinct from the autosave badge above: this
         // session's document came back from the crash-safety copy at boot.
         // Reading the flag and painting a label/tooltip touches nothing
