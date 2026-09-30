@@ -79,7 +79,7 @@ one named constant per token in `ui/theme.rs` (chrome, done by LCV-184) or a new
 | `border` | #404040 | the one 1 pt border: windows, menus, separators, off pills | — | `ui/theme.rs::BORDER` |
 | `status.warning` | #ff8f00 | warnings, command feedback | 6.7:1 | `ui/theme.rs::STATUS_WARNING` |
 | `agent.tool` | #78beff | agent tool rows | 7.7:1 | `agent/panel.rs::TOOL_COLOR` |
-| `status.error` | #ff6b6b | errors (today `Color32::RED`, 3.8:1) | 5.5:1 | gap → LCV-167 |
+| `status.error` | #ff6b6b | errors: AI panel error rows, `! ` dock lines, failed autosave badge (egui `error_fg_color`) | 5.5:1 | `ui/theme.rs::STATUS_ERROR` |
 | `accent` | #4fa3e0 | foreground-only highlight, never a fill: focus rings, active pill text, active rail icon, prompt verb | 5.5:1 | `ui/theme.rs::ACCENT` |
 
 **Canvas** (surface: bed, gray 40)

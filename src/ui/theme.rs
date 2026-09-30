@@ -22,6 +22,9 @@ pub(crate) const TEXT_MUTED: Color32 = Color32::from_rgb(0x8c, 0x8c, 0x8c);
 pub(crate) const FILL_SELECTED: Color32 = Color32::from_rgb(0x00, 0x5c, 0x80);
 /// `status.warning` — warnings and command feedback (`#ff8f00`).
 pub(crate) const STATUS_WARNING: Color32 = Color32::from_rgb(0xff, 0x8f, 0x00);
+/// `status.error` — errors, read by panels as egui's `error_fg_color`
+/// (`#ff6b6b`, LCV-167).
+pub(crate) const STATUS_ERROR: Color32 = Color32::from_rgb(0xff, 0x6b, 0x6b);
 /// `accent` — foreground-only highlight, never a fill (`#4fa3e0`).
 pub(crate) const ACCENT: Color32 = Color32::from_rgb(0x4f, 0xa3, 0xe0);
 /// `border` — the one 1 pt chrome border, gray 64 (`#404040`).
@@ -70,6 +73,7 @@ pub fn apply_theme(ctx: &egui::Context) {
     v.window_fill = BG_PANEL;
     v.extreme_bg_color = CANVAS_BG;
     v.warn_fg_color = STATUS_WARNING;
+    v.error_fg_color = STATUS_ERROR;
     v.window_shadow = egui::epaint::Shadow::NONE;
     v.popup_shadow = egui::epaint::Shadow::NONE;
     v.window_stroke = border_stroke();
@@ -113,13 +117,14 @@ mod tests {
     use super::*;
 
     /// Every chrome token, by its DESIGN.md §3 name.
-    const TOKENS: [(&str, Color32); 11] = [
+    const TOKENS: [(&str, Color32); 12] = [
         ("bg.canvas", BG_CANVAS),
         ("bg.panel", BG_PANEL),
         ("text.primary", TEXT_PRIMARY),
         ("text.muted", TEXT_MUTED),
         ("fill.selected", FILL_SELECTED),
         ("status.warning", STATUS_WARNING),
+        ("status.error", STATUS_ERROR),
         ("accent", ACCENT),
         ("border", BORDER),
         ("fill.widget", FILL_WIDGET),

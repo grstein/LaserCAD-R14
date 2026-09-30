@@ -39,7 +39,7 @@
 - [x] T13 [AC7] Test first: `STATUS_ERROR` = #ff6b6b, WCAG ≥4.5:1 on `BG_PANEL`,
   `visuals.error_fg_color == STATUS_ERROR` after `apply_theme`; the panel test's error colour
   reads the visuals (files: src/ui/theme.rs, src/agent/panel/tests.rs)
-- [ ] T14 [AC7] `STATUS_ERROR` + `TOKENS` row + `v.error_fg_color`; DESIGN.md §3 `status.error`
+- [x] T14 [AC7] `STATUS_ERROR` + `TOKENS` row + `v.error_fg_color`; DESIGN.md §3 `status.error`
   Home → `ui/theme.rs::STATUS_ERROR` in the same commit (TOKENS ↔ §3 test); T13 green (files:
   src/ui/theme.rs, DESIGN.md)
 - [ ] T15 [AC7] Test first: painted AI panel `error` row and the `! AI unavailable` dock line are
