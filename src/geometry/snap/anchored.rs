@@ -35,6 +35,95 @@ pub(super) fn collect_quadrants(entities: &[SnapEntity], out: &mut Vec<Candidate
     }
 }
 
+/// Push the feet of the perpendicular from `anchor`: on a segment (only
+/// when the foot lies on it), and the two points of a circle or arc on the
+/// line through its centre and `anchor` (none when `anchor` is the centre).
+pub(super) fn collect_perpendicular(
+    anchor: Vec2,
+    entities: &[SnapEntity],
+    out: &mut Vec<Candidate>,
+) {
+    for (idx, e) in entities.iter().enumerate() {
+        let (center, r, arc) = match e {
+            SnapEntity::Line(l) => {
+                let d = l.p2 - l.p1;
+                let len_sq = d.length_squared();
+                if len_sq > EPSILON * EPSILON {
+                    let t = (anchor - l.p1).dot(d) / len_sq;
+                    if (-EPSILON..=1.0 + EPSILON).contains(&t) {
+                        let foot = l.p1 + d * t.clamp(0.0, 1.0);
+                        out.push(make_candidate(foot, SnapKind::Perpendicular, idx));
+                    }
+                }
+                continue;
+            }
+            SnapEntity::Circle(c) => (c.center, c.r, None),
+            SnapEntity::Arc(a) => (a.center, a.r, Some(a)),
+        };
+        let v = anchor - center;
+        if v.length() <= EPSILON {
+            continue;
+        }
+        let base = v.y.atan2(v.x);
+        push_on_circle(
+            center,
+            r,
+            arc,
+            [base, base + core::f64::consts::PI],
+            SnapKind::Perpendicular,
+            idx,
+            out,
+        );
+    }
+}
+
+/// Push the tangent points from `anchor` on every circle and arc that
+/// `anchor` lies strictly outside of (inside the sweep, for an arc).
+pub(super) fn collect_tangent(anchor: Vec2, entities: &[SnapEntity], out: &mut Vec<Candidate>) {
+    for (idx, e) in entities.iter().enumerate() {
+        let (center, r, arc) = match e {
+            SnapEntity::Line(_) => continue,
+            SnapEntity::Circle(c) => (c.center, c.r, None),
+            SnapEntity::Arc(a) => (a.center, a.r, Some(a)),
+        };
+        let v = anchor - center;
+        let d = v.length();
+        if d <= r + EPSILON {
+            continue;
+        }
+        let base = v.y.atan2(v.x);
+        let alpha = (r / d).acos();
+        push_on_circle(
+            center,
+            r,
+            arc,
+            [base - alpha, base + alpha],
+            SnapKind::Tangent,
+            idx,
+            out,
+        );
+    }
+}
+
+/// Push the points of the circle `(center, r)` at `angles`, keeping only
+/// those inside `arc`'s sweep when `arc` is given.
+fn push_on_circle(
+    center: Vec2,
+    r: f64,
+    arc: Option<&Arc>,
+    angles: [f64; 2],
+    kind: SnapKind,
+    idx: usize,
+    out: &mut Vec<Candidate>,
+) {
+    for angle in angles {
+        if arc.is_none_or(|a| a.contains_angle(angle)) {
+            let point = Circle::new(center, r).point_at_angle(angle);
+            out.push(make_candidate(point, kind, idx));
+        }
+    }
+}
+
 /// Push a Nearest candidate for every entity whose closest point to `world`
 /// lies within `tolerance`, with its distance filled in.
 pub(super) fn collect_nearest(

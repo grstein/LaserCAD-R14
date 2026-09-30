@@ -14,7 +14,7 @@
   points from an outside anchor on a circle and inside an arc's sweep; no candidate without an
   anchor, with the anchor on or inside the circle, or at the centre; only feet/tangent points
   within the aperture count (files: src/geometry/snap/tests.rs)
-- [ ] T4 [AC2, AC3, AC4] Implement `collect_perpendicular` and `collect_tangent` in the
+- [x] T4 [AC2, AC3, AC4] Implement `collect_perpendicular` and `collect_tangent` in the
   anchored helpers and wire them into `snap_query` (files: src/geometry/snap/anchored.rs,
   src/geometry/snap/mod.rs, src/geometry/mod.rs)
 - [ ] T5 [P] [AC8, AC10] Test: `Settings` without `object_snaps` in JSON loads

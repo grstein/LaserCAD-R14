@@ -7,24 +7,11 @@
 //! the supplied tolerance. [`snap`] is the anchor-less, default-kinds
 //! wrapper. The selection rule is documented on [`snap_query`].
 //!
-//! **Transitional `SnapEntity`.** This module defines a stripped-down
-//! [`SnapEntity`] enum (`Line` | `Circle` | `Arc`) as a stand-in for the
-//! `document::Entity` enum that will ship with LCV-020. Once LCV-020 lands, a
-//! follow-up demand replaces `SnapEntity` with `document::Entity` and removes
-//! this enum. Until then, callers convert their entities to `SnapEntity` at
-//! the call site (a short match).
-//!
-//! Kernel-purity contract: no `egui`, `eframe`, or `rfd` imports here. The
-//! snap engine must remain testable as a pure library.
-//!
-//! Split across two files to honor the kernel's 300-LOC-per-file cap:
-//!
-//! - This file — public types, [`snap_query`] / [`snap`] entry points, picker.
-//! - [`candidates`] — endpoint, midpoint, center and intersection candidates.
-//! - [`anchored`] — quadrant, perpendicular, tangent and nearest candidates
-//!   (LCV-161).
-//!
-//! Introduced by demand LCV-016; extended by LCV-161.
+//! [`SnapEntity`] is the snap engine's own entity view (`Line` | `Circle` |
+//! `Arc`); callers convert at the call site. Kernel-pure: no `egui`,
+//! `eframe` or `rfd`. Split to honor the 300-LOC cap: [`candidates`]
+//! (endpoint, midpoint, center, intersection) and [`anchored`] (quadrant,
+//! perpendicular, tangent, nearest). Introduced by LCV-016; extended by LCV-161.
 
 mod anchored;
 mod candidates;
@@ -41,7 +28,7 @@ use candidates::{Candidate, collect_intersection_candidates, collect_single_enti
 /// Discrete classification of a snap candidate.
 ///
 /// The ordering of the variants is **not** the tie-break priority — see
-/// [`snap`] for the precedence rule. `Eq` and `Hash` are derived because the
+/// [`snap_query`] for the precedence rule. `Eq` and `Hash` are derived because the
 /// enum carries no floating-point data.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SnapKind {
@@ -179,31 +166,18 @@ pub fn snap(world: Vec2, tolerance: f64, entities: &[SnapEntity]) -> Option<Snap
 ///
 /// # Selection rule
 ///
-/// Among all candidates within `tolerance` of `world`:
-///
-/// 1. Smallest [`Vec2`] distance wins.
-/// 2. On ties (equal distance within [`EPSILON`]), kind priority breaks the
-///    tie: `Endpoint > Intersection > Midpoint > Center > Quadrant >
-///    Perpendicular > Tangent` (AutoCAD's OSNAP precedence).
-/// 3. On further ties, the smaller `primary_idx` wins.
+/// The closest candidate within `tolerance` wins. Distance ties (within
+/// [`EPSILON`]) break by kind, `Endpoint > Intersection > Midpoint > Center >
+/// Quadrant > Perpendicular > Tangent` (AutoCAD's OSNAP precedence), then by
+/// the smaller `primary_idx`.
 ///
 /// Nearest is computed only when no other candidate is in range, so it never
 /// shadows a real feature.
 ///
-/// # Candidate enumeration
-///
-/// - **Endpoint**: line endpoints; arc [`Arc::start_point`] / [`Arc::end_point`].
-/// - **Midpoint**: [`Line::midpoint`].
-/// - **Center**: circle and arc centers.
-/// - **Intersection**: line-line, line-circle and circle-circle pairs.
-///   Arc-involving pairs are **skipped** (documented limitation).
-/// - **Quadrant**: circle points on the world axes; for an arc, only those
-///   inside its sweep.
-/// - **Perpendicular** / **Tangent**: from `anchor`, on the entity itself only.
-/// - **Nearest**: closest point of a line, circle or arc (inside its sweep).
-///
-/// The intersection enumeration is `O(n²)`; for the v2 document size cap
-/// (~10k entities) at pointer-event rate this is acceptable.
+/// Intersections cover line-line, line-circle and circle-circle pairs
+/// (arc-involving pairs are skipped) in `O(n²)`, acceptable for the ~10k
+/// entity cap at pointer-event rate. Arc points (quadrant, foot, tangent,
+/// nearest) count only inside the sweep; segment feet only on the segment.
 pub fn snap_query(
     world: Vec2,
     tolerance: f64,
@@ -211,13 +185,20 @@ pub fn snap_query(
     anchor: Option<Vec2>,
     kinds: SnapKinds,
 ) -> Option<SnapResult> {
-    let _ = anchor;
     let mut candidates: Vec<Candidate> = Vec::new();
     collect_single_entity_candidates(entities, &mut candidates);
     if kinds.intersection {
         collect_intersection_candidates(entities, &mut candidates);
     }
     anchored::collect_quadrants(entities, &mut candidates);
+    if let Some(anchor) = anchor {
+        if kinds.perpendicular {
+            anchored::collect_perpendicular(anchor, entities, &mut candidates);
+        }
+        if kinds.tangent {
+            anchored::collect_tangent(anchor, entities, &mut candidates);
+        }
+    }
 
     let mut in_range: Vec<Candidate> = candidates
         .into_iter()
@@ -260,34 +241,19 @@ fn priority(kind: SnapKind) -> u8 {
 
 /// Pick the winning candidate using the rule documented on [`snap_query`].
 fn pick_best(candidates: Vec<Candidate>) -> Option<Candidate> {
-    let mut best: Option<Candidate> = None;
-    for c in candidates {
-        best = Some(match best {
-            None => c,
-            Some(b) => {
-                let delta = c.distance - b.distance;
-                if delta < -EPSILON {
-                    c
-                } else if delta > EPSILON {
-                    b
-                } else {
-                    // Distances equal within EPSILON: kind priority, then primary_idx.
-                    let pc = priority(c.kind);
-                    let pb = priority(b.kind);
-                    if pc < pb {
-                        c
-                    } else if pc > pb {
-                        b
-                    } else if c.primary_idx < b.primary_idx {
-                        c
-                    } else {
-                        b
-                    }
-                }
-            }
-        });
+    candidates
+        .into_iter()
+        .reduce(|best, c| if beats(&c, &best) { c } else { best })
+}
+
+/// True iff `c` strictly beats `b`: closer, else (distances equal within
+/// [`EPSILON`]) higher kind priority, else lower `primary_idx`.
+fn beats(c: &Candidate, b: &Candidate) -> bool {
+    let delta = c.distance - b.distance;
+    if delta.abs() > EPSILON {
+        return delta < 0.0;
     }
-    best
+    (priority(c.kind), c.primary_idx) < (priority(b.kind), b.primary_idx)
 }
 
 #[cfg(test)]
