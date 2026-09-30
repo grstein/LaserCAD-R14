@@ -5,4 +5,5 @@ mod command_words;
 mod context_row;
 mod copy_command;
 mod drives_tools;
+mod polar_and_dist;
 mod text_command;
