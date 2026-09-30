@@ -133,12 +133,12 @@ fn mouse_free_circle_commits() {
     submit_command(&ctx, &mut app, "c");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "CIRCLE Specify center point:"
+        "CIRCLE  Specify center point:"
     );
     submit_command(&ctx, &mut app, "50,50");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "CIRCLE Specify radius:"
+        "CIRCLE  Specify radius:"
     );
     submit_command(&ctx, &mut app, "25");
 
@@ -208,17 +208,17 @@ fn typed_arc_commits_exact_geometry() {
     submit_command(&ctx, &mut app, "a");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ARC Specify start point:"
+        "ARC  Specify start point:"
     );
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ARC Specify end point:"
+        "ARC  Specify end point:"
     );
     submit_command(&ctx, &mut app, "100,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ARC Specify point on arc:"
+        "ARC  Specify point on arc:"
     );
     submit_command(&ctx, &mut app, "50,50");
 
@@ -513,22 +513,22 @@ fn prompt_follows_the_active_phase() {
     submit_command(&ctx, &mut app, "a");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ARC Specify start point:"
+        "ARC  Specify start point:"
     );
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ARC Specify end point:"
+        "ARC  Specify end point:"
     );
     submit_command(&ctx, &mut app, "100,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ARC Specify point on arc:"
+        "ARC  Specify point on arc:"
     );
     submit_command(&ctx, &mut app, "50,50");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ARC Specify start point:",
+        "ARC  Specify start point:",
         "a committed arc returns the tool to its idle prompt"
     );
 }

@@ -86,14 +86,17 @@ impl Tool for TextTool {
     /// The AC 6 prompt table, pulled fresh every frame.
     fn status_text(&self) -> Cow<'_, str> {
         match &self.state {
-            TextToolState::Idle => "TEXT Specify start point:".into(),
-            TextToolState::WaitingText { .. } => "TEXT Enter text:".into(),
+            TextToolState::Idle => "TEXT  Specify start point:".into(),
+            TextToolState::WaitingText { .. } => "TEXT  Specify text:".into(),
             TextToolState::WaitingHeight { invalid: false, .. } => {
                 format!("TEXT  Specify height <{DEFAULT_TEXT_HEIGHT_MM}>:").into()
             }
-            TextToolState::WaitingHeight { invalid: true, .. } => {
-                "TEXT Height must be between 0.1 and 2000 mm. Specify height <5>:".into()
-            }
+            // The refusal keeps its sentence before `Specify` (LCV-165).
+            TextToolState::WaitingHeight { invalid: true, .. } => format!(
+                "TEXT  Height must be between {MIN_HEIGHT_MM} and {MAX_HEIGHT_MM} mm. \
+                 Specify height <{DEFAULT_TEXT_HEIGHT_MM}>:"
+            )
+            .into(),
         }
     }
 

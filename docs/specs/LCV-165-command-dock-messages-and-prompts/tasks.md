@@ -24,7 +24,7 @@
   (files: tests/it/cmdline/prompt_grammar.rs, tests/it/cmdline/mod.rs)
 - [x] T9 [AC3] LINE, PLINE, RECT prompts; tests keyed on the old strings follow (files:
   src/tools/line.rs, src/tools/polyline.rs, src/tools/rect.rs)
-- [ ] T10 [AC3] CIRCLE, ARC, TEXT prompts; tests follow (files: src/tools/circle.rs,
+- [x] T10 [AC3] CIRCLE, ARC, TEXT prompts; tests follow (files: src/tools/circle.rs,
   src/tools/arc.rs, src/tools/text.rs)
 - [ ] T11 [AC3] DIST, MOVE, COPY prompts; tests follow (files: src/tools/dist.rs,
   src/tools/move_.rs, src/tools/copy.rs)

@@ -210,7 +210,7 @@ fn raw_input_wins_for_the_slash_ai_prefix_too() {
     submit(&mut app, ":10");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "TEXT Height must be between 0.1 and 2000 mm. Specify height <5>:",
+        "TEXT  Height must be between 0.1 and 2000 mm. Specify height <5>:",
         "`:10` was offered to the height parser, not to the agent"
     );
     assert!(!app.agent.busy);

@@ -234,7 +234,7 @@ fn invalid_height_keeps_the_text_and_re_prompts() {
         assert_eq!(app.history.len(), 0);
         assert_eq!(
             app.tool_manager.active_status_text(),
-            "TEXT Height must be between 0.1 and 2000 mm. Specify height <5>:",
+            "TEXT  Height must be between 0.1 and 2000 mm. Specify height <5>:",
             "{bad} must show the retry prompt"
         );
     }
@@ -366,7 +366,7 @@ fn escape_mid_flow_commits_nothing_and_clears_the_field() {
     assert_eq!(app.history.len(), 0, "cancelling commits nothing");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "TEXT Specify start point:"
+        "TEXT  Specify start point:"
     );
 }
 

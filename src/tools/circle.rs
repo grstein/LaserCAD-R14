@@ -43,8 +43,8 @@ impl Tool for CircleTool {
     /// this demand and inherited [`Tool::name`], so it showed no phase.
     fn status_text(&self) -> Cow<'_, str> {
         match self.state {
-            CircleState::Idle => "CIRCLE Specify center point:".into(),
-            CircleState::WaitingRadius { .. } => "CIRCLE Specify radius:".into(),
+            CircleState::Idle => "CIRCLE  Specify center point:".into(),
+            CircleState::WaitingRadius { .. } => "CIRCLE  Specify radius:".into(),
         }
     }
 
@@ -377,8 +377,8 @@ mod tests {
     #[test]
     fn status_text_follows_the_phase() {
         let (mut t, mut doc, mut h) = make();
-        assert_eq!(t.status_text(), "CIRCLE Specify center point:");
+        assert_eq!(t.status_text(), "CIRCLE  Specify center point:");
         t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
-        assert_eq!(t.status_text(), "CIRCLE Specify radius:");
+        assert_eq!(t.status_text(), "CIRCLE  Specify radius:");
     }
 }

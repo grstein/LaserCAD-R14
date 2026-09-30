@@ -290,7 +290,7 @@ fn tool_alias_activates_the_tool_without_feedback() {
     assert_eq!(app.tool_manager.active_tool_name(), "CIRCLE");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "CIRCLE Specify center point:"
+        "CIRCLE  Specify center point:"
     );
     assert!(app.command_feedback.is_empty());
 }
