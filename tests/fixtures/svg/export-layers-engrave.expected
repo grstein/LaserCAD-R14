@@ -1,0 +1,6 @@
+# A `File > Export layers` output file: one `<g data-layer>`, no `data-current`,
+# so its only layer is current. World y = 180 - svg y.
+bed 300 180
+layer "Engrave" #00aa00 output=1 current=1
+circle 0 150 90 40
+line 0 110 90 190 90

@@ -17,7 +17,7 @@
       `data-current` on the second) (files: tests/fixtures/svg/v02-presets.svg,
       tests/fixtures/svg/v02-presets.expected, tests/fixtures/svg/v03-mother-three-layers.svg +
       .expected)
-- [ ] T5 [AC4] Seed fixtures: `export-layers-engrave` (one `<g data-layer>`, no `data-current`)
+- [x] T5 [AC4] Seed fixtures: `export-layers-engrave` (one `<g data-layer>`, no `data-current`)
       and `inkscape-mm` (`xmlns:sodipodi`/`xmlns:inkscape`, `<metadata>`, `<sodipodi:namedview>`,
       `<g inkscape:groupmode="layer" inkscape:label="Layer 1">` with a line, a circle and a
       circular-arc path; width/height in mm equal to the viewBox; no transform) (files:
