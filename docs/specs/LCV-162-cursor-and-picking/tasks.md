@@ -13,5 +13,5 @@ No ADR task: the `Tool` trait additions are additive defaults (plan.md, Risks).
 - [x] T9 [AC5] [AC6] Test: a hollow square of side 2 × 5 pt, centred on the crosshair, is painted in Select idle, TRIM and EXTEND; none in LINE, COPY, MOVE, ROTATE, MIRROR, SCALE, DIST, or during a Select box drag (files: tests/it/ui/cursor_and_picking.rs)
 - [x] T10 [P] [AC2] [AC5] `render/cursor.rs`: `cursor_color` with a unit test for WCAG contrast ≥3:1 on the bed fill (gray 40), `draw_crosshair` and `draw_pickbox`; re-export (files: src/render/cursor.rs, src/render/mod.rs)
 - [x] T11 [AC1] [AC2] [AC3] [AC5] [AC6] [AC10] Wire into the viewport: `CursorIcon::None` while hovered; `paint` draws the crosshair last (after the snap glyph) and the pickbox when `wants_entity_pick()`; T8 and T9 go green. If `viewport.rs` would pass 270 LOC, first move `paint` to `src/app/viewport/paint.rs` (files: src/app/viewport.rs, src/app/viewport/paint.rs)
-- [ ] T12 DESIGN.md: §3 `cursor` token, §5 tolerances in points (5 pt pick, 2 pt drag), §6 paint order and crosshair/pickbox row shipped plus the F1 note, §11 drop F1 (files: DESIGN.md)
+- [x] T12 DESIGN.md: §3 `cursor` token, §5 tolerances in points (5 pt pick, 2 pt drag), §6 paint order and crosshair/pickbox row shipped plus the F1 note, §11 drop F1 (files: DESIGN.md)
 - [ ] T13 CHANGELOG line (files: CHANGELOG.md)

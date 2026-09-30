@@ -89,7 +89,8 @@ one named constant per token in `ui/theme.rs` (chrome) or a new `render/palette.
 | `selection` | rgba(64,160,255,180), 3 pt | selection halo | 3.4:1 blended (floor) | `render/selection.rs` |
 | `preview` | rgba(255,220,100,160) | rubber-band geometry | 5.3:1 blended | `render/preview.rs` |
 | `snap` | #ffa000, 8 pt glyph | object snap marker | 7.2:1 | `render/snaps.rs::marker_color` |
-| `cursor`, `hover`, `danger` | — | crosshair, pick highlight, removal preview | ≥3:1 | gap → LCV-162, LCV-163 |
+| `cursor` | gray 220, 1 pt | crosshair and pickbox | 10.8:1 | `render/cursor.rs::cursor_color` |
+| `hover`, `danger` | — | pick highlight, removal preview | ≥3:1 | gap → LCV-163 |
 
 Rules:
 
@@ -122,18 +123,19 @@ Rules:
   (e.g. `render/snaps.rs::MARKER_SIZE_PX`). Geometry is millimetres (AGENTS.md invariants).
 - egui's default spacing. Any other size is a named constant next to its use.
 - Canvas strokes: hairline 1 pt · bed border 1.5 pt · selection halo 3 pt · snap glyph 8 pt ·
-  snap aperture 12 pt (`app/snap.rs::SNAP_TOLERANCE_PX`).
-- **Pointer tolerances are in screen points.** Today pick, trim and extend use 5 mm and drag
-  uses 2 mm in world space (`tools/select/hit.rs::PICK_THRESHOLD_MM`,
-  `tools/select/mod.rs::DRAG_THRESHOLD_MM`) (gap → LCV-162). New tolerances are in points.
+  snap aperture 12 pt (`app/snap.rs::SNAP_TOLERANCE_PX`) · crosshair and pickbox 1 pt.
+- **Pointer tolerances are in screen points**, turned into mm with the live zoom: entity pick
+  aperture 5 pt for Select, TRIM and EXTEND (`tools/tool.rs::PICK_APERTURE_PT`; the pickbox
+  side is twice it) and box-drag threshold 2 pt (`tools/tool.rs::DRAG_THRESHOLD_PT`). New
+  tolerances are in points.
 - Curves are tessellated to a chord tolerance in points. Today it is 64 segments
   (`render/entities.rs::PaintOptions`, LCV-035 AC 2) (gap → LCV-164).
 
 ## 6. Canvas visual language
 
-Paint order (LCV-137 AC 1, `app/viewport.rs::paint`): canvas background → bed fill → grid →
-bed border and outside overlay → entities → selection halo → preview → snap glyph → crosshair
-(gap → LCV-162).
+Paint order (LCV-137 AC 1, `app/viewport/paint.rs::paint`): canvas background → bed fill → grid →
+bed border and outside overlay → entities → selection halo → preview → snap glyph → pickbox →
+crosshair (LCV-162).
 
 | Element | Form | Status |
 |---|---|---|
@@ -143,7 +145,7 @@ bed border and outside overlay → entities → selection halo → preview → s
 | Preview | `preview` stroke | shipped |
 | Window box / crossing box | solid / dashed outline | gap → LCV-163 (both amber today) |
 | Trim / Delete preview | dashed, `danger` | gap → LCV-163 |
-| Crosshair + pickbox | full canvas, OS cursor hidden | gap → LCV-162 |
+| Crosshair + pickbox | full canvas, `cursor`; pickbox only while an entity pick is pending; OS cursor hidden | shipped |
 | Origin (0,0) | small X/Y marker under geometry | gap → LCV-164 |
 
 Snap glyphs are R14 shapes at a fixed 8 pt in `snap` (`render/snaps.rs::marker_shape_for`). A
@@ -160,9 +162,10 @@ dark edge and a kind label are planned (gap → LCV-164).
 | Tangent | ○ with a tangent bar | reserved for LCV-161 |
 | Nearest | ⧗ hourglass | reserved for LCV-161 |
 
-- Feedback reflects this frame's input. Today the canvas paints before `handle_hover` (one frame
-  late; gap → F1), and the snap glyph stays at the pre-ortho point and after the pointer leaves
-  (gap → F2).
+- Feedback reflects this frame's input: `app/viewport.rs::draw` handles the pointer before it
+  paints (LCV-162). While an entity pick is pending there is no running snap and no glyph (R14
+  has no osnap at "Select objects"). The snap glyph stays at the pre-ortho point and after the
+  pointer leaves (gap → F2).
 - Navigation: the wheel zooms about the cursor (gap → F3), middle-drag pans, `F` / `Ctrl+0`
   zoom to extents, `View > Fit to Bed` frames the bed. Zoom All and Zoom Extents in the menu:
   gap → LCV-166. Framing the bed on startup and Open: gap → LCV-164.
@@ -248,8 +251,6 @@ LCV-167. The rules already apply to every new label, including the v0.3 commands
 - Prove UI ACs on painted output: paint-harness text (`tests/harness/paint.rs`), colour/shape
   tests on `FullOutput.shapes`, and source scans only for structure.
 - Fast-lane defects (≤3 files, regression test, no spec; candidates for v0.3 step 0):
-  - **F1**: handle input before painting in `app/viewport.rs::draw`, so feedback is not a
-    frame late.
   - **F2**: hide the snap glyph when Ortho moved the point, and clear `active_snap` when the
     pointer leaves the canvas.
   - **F3**: make the wheel zoom factor proportional to the scroll delta, and clamp zoom in
