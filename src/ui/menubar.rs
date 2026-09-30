@@ -10,7 +10,6 @@
 
 use crate::app::App;
 use crate::document::SelectionCommand;
-use crate::geometry::Vec2;
 use crate::render::Camera;
 use crate::tools;
 use crate::ui::toolbar::TOOLS;
@@ -275,14 +274,7 @@ pub(crate) fn do_select_all(app: &mut App) {
 /// Built from `document.bed_mm` at the point of use (LCV-114 AC 4/AC 15), so
 /// resizing the bed reframes to the new rectangle with no extra bookkeeping.
 pub(crate) fn do_fit_to_bed(app: &mut App) {
-    let bed = crate::render::Bed::from_size_mm(app.document.bed_mm);
-    let min = bed.origin_world;
-    let max = Vec2::new(
-        bed.origin_world.x + bed.size_mm[0],
-        bed.origin_world.y + bed.size_mm[1],
-    );
-    let vp = app.camera.viewport_size_px;
-    app.camera.zoom_extents(Some((min, max)), vp);
+    app.camera.frame_bed(app.document.bed_mm);
 }
 
 #[cfg(test)]

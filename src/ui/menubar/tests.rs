@@ -1,6 +1,6 @@
 use super::*;
 use crate::document::Entity;
-use crate::geometry::Line;
+use crate::geometry::{Line, Vec2};
 
 fn run_menubar(app: &mut App) {
     let ctx = egui::Context::default();

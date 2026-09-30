@@ -194,6 +194,14 @@ impl Camera {
         // 80% of the viewport carries the drawing → multiply by 1/0.8.
         self.mm_per_px = mm_per_px_x.max(mm_per_px_y) / 0.8;
     }
+
+    /// Frame a bed of `bed_mm` (anchored at the world origin) in the current
+    /// viewport, as `View > Fit to Bed` does: [`Self::zoom_extents`] on the
+    /// bed's rectangle (LCV-164 AC 7).
+    pub fn frame_bed(&mut self, bed_mm: [f64; 2]) {
+        let max = Vec2::new(bed_mm[0], bed_mm[1]);
+        self.zoom_extents(Some((Vec2::new(0.0, 0.0), max)), self.viewport_size_px);
+    }
 }
 
 #[cfg(test)]

@@ -22,7 +22,7 @@
 - [x] T13 [AC7] Test: pending flag frames on the first frame with area; Open (`action_open_path`
   on a temp SVG) and Bed dialog OK frame; `App::new` sets the flag (source scan), `App::default`
   does not (files: tests/it/ui/canvas_legibility.rs, src/app/init.rs)
-- [ ] T14 [AC7] `Camera::frame_bed`; `do_fit_to_bed` delegates to it (files: src/render/camera.rs, src/ui/menubar.rs)
+- [x] T14 [AC7] `Camera::frame_bed`; `do_fit_to_bed` delegates to it (files: src/render/camera.rs, src/ui/menubar.rs)
 - [ ] T15 [AC7] `App::frame_bed_pending`: default false, `App::new` true, consumed in
   `viewport::draw` after the size sync (files: src/app/mod.rs, src/app/init.rs, src/app/viewport.rs)
 - [ ] T16 [AC7] Open paths and Bed dialog OK set the flag (files: src/io/file_actions.rs, src/app/bed_dialog.rs)
