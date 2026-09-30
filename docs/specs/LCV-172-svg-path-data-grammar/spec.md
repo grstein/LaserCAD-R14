@@ -1,6 +1,6 @@
 # LCV-172 — Full SVG path-data grammar
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-171
 - **Implementation**: -
 
