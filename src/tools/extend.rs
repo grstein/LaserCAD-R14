@@ -12,6 +12,7 @@ use crate::document::commands::trim::extend_reach;
 use crate::document::{Document, Entity, ExtendEntity, History};
 use crate::geometry::Vec2;
 use crate::tools::{Mark, PICK_APERTURE_PT, Tool};
+use std::borrow::Cow;
 
 /// Compact hover state: (target_idx, extend_endpoint, boundary_idx, preview).
 #[derive(Debug, Clone, Copy)]
@@ -80,10 +81,10 @@ impl Tool for ExtendTool {
         "EXTEND"
     }
 
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match self.state {
-            State::Idle => "EXTEND: Click near a line or arc endpoint to extend it",
-            State::Hover(_) => "EXTEND: Click to extend  |  Esc to cancel",
+            State::Idle => "EXTEND: Click near a line or arc endpoint to extend it".into(),
+            State::Hover(_) => "EXTEND: Click to extend  |  Esc to cancel".into(),
         }
     }
 

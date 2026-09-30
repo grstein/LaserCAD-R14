@@ -14,6 +14,7 @@ use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History, commands::CreateEntities};
 use crate::geometry::{EPSILON, Line, Vec2};
 use crate::tools::Tool;
+use std::borrow::Cow;
 
 /// Internal FSM state of [`RectTool`].
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -68,10 +69,10 @@ impl Tool for RectTool {
     }
 
     /// The R14 prompt table (LCV-111 AC 17).
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match self.state {
-            RectState::Idle => "RECT Specify first corner:",
-            RectState::WaitingSecondCorner { .. } => "RECT Specify opposite corner:",
+            RectState::Idle => "RECT Specify first corner:".into(),
+            RectState::WaitingSecondCorner { .. } => "RECT Specify opposite corner:".into(),
         }
     }
 

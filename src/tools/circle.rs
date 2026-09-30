@@ -11,6 +11,7 @@ use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History, commands::CreateCircle};
 use crate::geometry::{Circle, EPSILON, Vec2};
 use crate::tools::Tool;
+use std::borrow::Cow;
 
 /// Internal FSM state of [`CircleTool`].
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -40,10 +41,10 @@ impl Tool for CircleTool {
 
     /// The R14 prompt table (LCV-111 AC 17). CIRCLE had no override before
     /// this demand and inherited [`Tool::name`], so it showed no phase.
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match self.state {
-            CircleState::Idle => "CIRCLE Specify center point:",
-            CircleState::WaitingRadius { .. } => "CIRCLE Specify radius:",
+            CircleState::Idle => "CIRCLE Specify center point:".into(),
+            CircleState::WaitingRadius { .. } => "CIRCLE Specify radius:".into(),
         }
     }
 

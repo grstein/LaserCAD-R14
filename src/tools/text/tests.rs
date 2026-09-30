@@ -49,7 +49,7 @@ fn click_anchors_and_a_second_click_does_not_move_it() {
 fn non_empty_text_advances_to_the_height_prompt() {
     let (mut t, mut d, mut h) = anchored();
     assert!(t.on_raw_input("HELLO", &mut d, &mut h));
-    assert_eq!(t.status_text(), "TEXT Specify height <5>:");
+    assert_eq!(t.status_text(), "TEXT  Specify height <5>:");
     assert_eq!(d.entity_count(), 0, "the string alone commits nothing");
 }
 
@@ -295,7 +295,7 @@ fn prompt_matches_each_state() {
     assert_eq!(t.status_text(), "TEXT Enter text:");
 
     t.on_raw_input("HELLO", &mut d, &mut h);
-    assert_eq!(t.status_text(), "TEXT Specify height <5>:");
+    assert_eq!(t.status_text(), "TEXT  Specify height <5>:");
 
     t.on_raw_input("abc", &mut d, &mut h);
     assert_eq!(

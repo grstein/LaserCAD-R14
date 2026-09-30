@@ -303,7 +303,7 @@ fn raw_input_is_not_parsed() {
     assert_eq!(app.tool_manager.active_tool_name(), "TEXT");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "TEXT Specify height <5>:"
+        "TEXT  Specify height <5>:"
     );
 
     submit_command(&ctx, &mut app, "10");

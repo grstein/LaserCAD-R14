@@ -26,6 +26,7 @@ use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History};
 use crate::geometry::Vec2;
 use crate::tools::Mark;
+use std::borrow::Cow;
 
 /// Entity pick aperture in screen points (LCV-162, DESIGN.md §5): an entity
 /// within this distance of the cursor can be picked; the pickbox side is
@@ -109,12 +110,12 @@ pub trait Tool {
     /// Context-sensitive status bar text for the current tool state.
     ///
     /// Defaults to `self.name()`. Override to return richer prompts that
-    /// reflect the tool's internal state (e.g.
-    /// `"LINE Specify next point (Enter to finish):"`). The literals are the
-    /// R14 prompt table in the LCV-111 demand, AC 17; `src/ui/command_line.rs`
-    /// is the only consumer.
-    fn status_text(&self) -> &'static str {
-        self.name()
+    /// reflect the tool's internal state, in the grammar
+    /// `VERB  Specify <thing> [Opt/Opt] <default>:` (DESIGN.md §7). A `Cow`
+    /// so a prompt can carry a runtime value, e.g. a formatted default
+    /// (LCV-165 AC 2); `src/ui/command_line.rs` is the only consumer.
+    fn status_text(&self) -> Cow<'_, str> {
+        Cow::Borrowed(self.name())
     }
 
     /// The anchor point for ortho / snap constraints: the last committed

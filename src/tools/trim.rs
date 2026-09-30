@@ -18,6 +18,7 @@ use crate::document::commands::{Command, CompositeCommand};
 use crate::document::{Document, Entity, History, TrimEntity};
 use crate::geometry::{Arc, Vec2};
 use crate::tools::{Mark, PICK_APERTURE_PT, Tool};
+use std::borrow::Cow;
 
 /// Stateless trim tool: single-click removes the clicked segment at every
 /// real (segment-level) intersection with all other entities in the document.
@@ -100,8 +101,8 @@ impl Tool for TrimTool {
         "TRIM"
     }
 
-    fn status_text(&self) -> &'static str {
-        "TRIM: Click on a segment to trim"
+    fn status_text(&self) -> Cow<'_, str> {
+        "TRIM: Click on a segment to trim".into()
     }
 
     /// Pick the nearest entity and trim it at every cutter, as one undo step.

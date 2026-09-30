@@ -16,7 +16,7 @@
 - [ ] T6 [AC2] Test first: the TEXT height prompt is `TEXT  Specify height <5>:` and is
   `Cow::Owned`; the manager hands the owned prompt through unchanged (files:
   src/tools/text/tests.rs, src/tools/manager.rs)
-- [ ] T7 [AC2] `Tool::status_text -> Cow<'_, str>` (default `Borrowed(name)`), manager and dock
+- [x] T7 [AC2] `Tool::status_text -> Cow<'_, str>` (default `Borrowed(name)`), manager and dock
   follow, every impl wraps its literal with `.into()`; TEXT height formats its default
   (mechanical; the one task over 3 files: src/tools/*.rs, src/ui/command_line.rs)
 - [ ] T8 [AC3] Test first: `tests/it/cmdline/prompt_grammar.rs` — the plan's prompt table,

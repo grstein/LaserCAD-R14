@@ -10,6 +10,7 @@ use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History, commands::CreateLine};
 use crate::geometry::{EPSILON, Line, Vec2};
 use crate::tools::Tool;
+use std::borrow::Cow;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 enum State {
@@ -43,10 +44,10 @@ impl Tool for LineTool {
     }
 
     /// The R14 prompt table (LCV-111 AC 17).
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match self.state {
-            State::Idle => "LINE Specify first point:",
-            State::WaitingSecondPoint { .. } => "LINE Specify next point (Enter to finish):",
+            State::Idle => "LINE Specify first point:".into(),
+            State::WaitingSecondPoint { .. } => "LINE Specify next point (Enter to finish):".into(),
         }
     }
 

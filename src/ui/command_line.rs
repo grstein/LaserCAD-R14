@@ -77,6 +77,7 @@ fn draw_context_row(ui: &mut egui::Ui, app: &mut App) {
     ui.horizontal(|ui| {
         // Prompt label: reflects the active tool's current instruction.
         let prompt = app.tool_manager.active_status_text();
+        let prompt = prompt.as_ref();
         bounded_label(ui, prompt_job(ui, prompt));
 
         // Feedback: the last submit's result. A display string only — nothing

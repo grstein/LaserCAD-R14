@@ -31,6 +31,7 @@ use crate::document::{Document, Entity, History, TransformEntities};
 use crate::geometry::{Transform, Vec2};
 use crate::tools::copy::sources_intact;
 use crate::tools::{SelectTool, Tool};
+use std::borrow::Cow;
 
 /// Internal state of [`MirrorTool`].
 #[derive(Debug)]
@@ -99,11 +100,11 @@ impl Tool for MirrorTool {
     }
 
     /// The R14 prompts (AC1, AC3, AC5).
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match &self.state {
-            MirrorState::FirstPoint => "MIRROR Specify first point of mirror line:",
-            MirrorState::SecondPoint { .. } => "MIRROR Specify second point of mirror line:",
-            MirrorState::Confirm { .. } => "MIRROR Erase source objects? [Yes/No] <N>:",
+            MirrorState::FirstPoint => "MIRROR Specify first point of mirror line:".into(),
+            MirrorState::SecondPoint { .. } => "MIRROR Specify second point of mirror line:".into(),
+            MirrorState::Confirm { .. } => "MIRROR Erase source objects? [Yes/No] <N>:".into(),
         }
     }
 

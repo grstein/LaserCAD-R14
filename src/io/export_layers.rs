@@ -40,7 +40,10 @@ pub fn layer_exports(doc: &Document, mother: &Path) -> Vec<(PathBuf, String)> {
 /// failure stops at that file and sets `app.error_message`.
 pub fn action_export_layers(app: &mut App) {
     let Some(mother) = app.current_file.clone() else {
-        app.say(Severity::Warning, "Save the drawing first, then export its layers.");
+        app.say(
+            Severity::Warning,
+            "Save the drawing first, then export its layers.",
+        );
         return;
     };
     let plan = layer_exports(&app.document, &mother);

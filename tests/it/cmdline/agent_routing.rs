@@ -175,7 +175,7 @@ fn raw_input_wins_over_the_agent_prefix() {
     assert_eq!(app.tool_manager.active_tool_name(), "TEXT");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "TEXT Specify height <5>:",
+        "TEXT  Specify height <5>:",
         "the prefixed line was consumed as the string, not routed"
     );
     assert!(!app.agent.busy, "no turn may be armed from raw input");
@@ -205,7 +205,7 @@ fn raw_input_wins_for_the_slash_ai_prefix_too() {
     submit(&mut app, "/ai hello");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "TEXT Specify height <5>:"
+        "TEXT  Specify height <5>:"
     );
     submit(&mut app, ":10");
     assert_eq!(

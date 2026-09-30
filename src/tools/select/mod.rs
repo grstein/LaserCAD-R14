@@ -21,6 +21,7 @@ use crate::app::App;
 use crate::document::{Document, Entity, History, SelectionCommand};
 use crate::geometry::Vec2;
 use crate::tools::{DRAG_THRESHOLD_PT, Mark, PICK_APERTURE_PT, Tool};
+use std::borrow::Cow;
 
 // ---------------------------------------------------------------------------
 // Internal state machine
@@ -76,8 +77,8 @@ impl Tool for SelectTool {
     /// R14's idle prompt, verbatim (LCV-111 AC 17). SELECT is the tool that
     /// is active when the operator is not in the middle of anything, so its
     /// prompt is the command line's resting state.
-    fn status_text(&self) -> &'static str {
-        "Command:"
+    fn status_text(&self) -> Cow<'_, str> {
+        "Command:".into()
     }
 
     fn on_pointer_down(

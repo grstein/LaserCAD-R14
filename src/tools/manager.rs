@@ -16,6 +16,7 @@ use crate::geometry::Vec2;
 use crate::tools::feedback::FeedbackGate;
 use crate::tools::pointer_event::{PointerButton, PointerEvent};
 use crate::tools::{Mark, Tool};
+use std::borrow::Cow;
 
 /// Owner of the active tool, routes pointer and key events.
 ///
@@ -214,7 +215,7 @@ impl ToolManager {
     /// Delegates to `active.status_text()`. When `SelectTool` is active this
     /// returns R14's idle prompt `"Command:"`; the drawing tools return a
     /// per-phase prompt (LCV-111 AC 17).
-    pub fn active_status_text(&self) -> &'static str {
+    pub fn active_status_text(&self) -> Cow<'_, str> {
         self.active.status_text()
     }
 
@@ -462,8 +463,8 @@ mod tests {
             fn name(&self) -> &'static str {
                 "Prompt"
             }
-            fn status_text(&self) -> &'static str {
-                "LINE: Click start point"
+            fn status_text(&self) -> Cow<'_, str> {
+                "LINE: Click start point".into()
             }
             fn on_pointer_down(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
             fn on_pointer_move(&mut self, _: Vec2, _: &mut Document) {}

@@ -10,6 +10,7 @@ use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History, commands::CreateLine};
 use crate::geometry::{EPSILON, Line, Vec2};
 use crate::tools::Tool;
+use std::borrow::Cow;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 enum State {
@@ -44,10 +45,12 @@ impl Tool for PolylineTool {
     }
 
     /// The R14 prompt table (LCV-111 AC 17).
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match self.state {
-            State::Idle => "PLINE Specify start point:",
-            State::WaitingSecondPoint { .. } => "PLINE Specify next point (Enter to finish):",
+            State::Idle => "PLINE Specify start point:".into(),
+            State::WaitingSecondPoint { .. } => {
+                "PLINE Specify next point (Enter to finish):".into()
+            }
         }
     }
 

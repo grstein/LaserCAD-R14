@@ -19,6 +19,7 @@ use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History};
 use crate::geometry::Vec2;
 use crate::tools::{SelectTool, Tool};
+use std::borrow::Cow;
 
 /// Internal state of [`DistTool`].
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -58,10 +59,10 @@ impl Tool for DistTool {
         "DIST"
     }
 
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match self.state {
-            DistState::Idle => "DIST Specify first point:",
-            DistState::WaitingSecond { .. } => "DIST Specify second point:",
+            DistState::Idle => "DIST Specify first point:".into(),
+            DistState::WaitingSecond { .. } => "DIST Specify second point:".into(),
         }
     }
 

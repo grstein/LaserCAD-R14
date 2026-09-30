@@ -106,7 +106,11 @@ fn ac1_dist_result_is_info() {
     for line in ["dist", "0,0", "3,4"] {
         submit_command(&ctx, &mut app, line);
     }
-    assert!(app.command_feedback.starts_with("Distance = 5.000"), "{}", app.command_feedback);
+    assert!(
+        app.command_feedback.starts_with("Distance = 5.000"),
+        "{}",
+        app.command_feedback
+    );
     assert_eq!(app.command_feedback_severity, Severity::Info);
     let shapes = text_shapes(&ctx, &mut app);
     assert_eq!(colours_of(&shapes, "Distance ="), vec![TEXT_PRIMARY]);
@@ -128,6 +132,10 @@ fn ac1_export_layers_unsaved_is_warning() {
     let mut app = App::default();
     app.say(Severity::Info, "");
     lasercad::io::action_export_layers(&mut app);
-    assert!(app.command_feedback.contains("Save"), "{}", app.command_feedback);
+    assert!(
+        app.command_feedback.contains("Save"),
+        "{}",
+        app.command_feedback
+    );
     assert_eq!(app.command_feedback_severity, Severity::Warning);
 }

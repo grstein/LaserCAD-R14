@@ -27,6 +27,7 @@ use crate::document::{Document, Entity, History, TransformEntities};
 use crate::geometry::{Transform, Vec2};
 use crate::tools::copy::sources_intact;
 use crate::tools::{SelectTool, Tool};
+use std::borrow::Cow;
 
 /// Internal state of [`ScaleTool`].
 #[derive(Debug)]
@@ -125,10 +126,10 @@ impl Tool for ScaleTool {
     }
 
     /// The R14 prompts (AC1, AC3).
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match &self.state {
-            ScaleState::Idle => "SCALE Specify base point:",
-            ScaleState::WaitingFactor { .. } => "SCALE Specify scale factor:",
+            ScaleState::Idle => "SCALE Specify base point:".into(),
+            ScaleState::WaitingFactor { .. } => "SCALE Specify scale factor:".into(),
         }
     }
 

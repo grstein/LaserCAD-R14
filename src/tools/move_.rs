@@ -25,6 +25,7 @@ use crate::document::{Document, Entity, History, MoveEntities};
 use crate::geometry::{EPSILON, Vec2};
 use crate::tools::copy::sources_intact;
 use crate::tools::{SelectTool, Tool};
+use std::borrow::Cow;
 
 // ---------------------------------------------------------------------------
 // Internal state machine
@@ -85,10 +86,10 @@ impl Tool for MoveTool {
     }
 
     /// The R14 prompt table (LCV-111 AC 17).
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match &self.state {
-            MoveState::Idle => "MOVE Specify base point:",
-            MoveState::WaitingDest { .. } => "MOVE Specify destination point:",
+            MoveState::Idle => "MOVE Specify base point:".into(),
+            MoveState::WaitingDest { .. } => "MOVE Specify destination point:".into(),
         }
     }
 

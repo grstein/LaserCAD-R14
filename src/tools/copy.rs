@@ -26,6 +26,7 @@ use crate::cmdline::ToolInput;
 use crate::document::{CopyEntities, Document, Entity, History};
 use crate::geometry::{EPSILON, Vec2};
 use crate::tools::Tool;
+use std::borrow::Cow;
 
 /// Internal state of [`CopyTool`].
 #[derive(Debug)]
@@ -67,10 +68,10 @@ impl Tool for CopyTool {
         "COPY"
     }
 
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match &self.state {
-            CopyState::Idle => "COPY Specify base point:",
-            CopyState::WaitingSecond { .. } => "COPY Specify second point:",
+            CopyState::Idle => "COPY Specify base point:".into(),
+            CopyState::WaitingSecond { .. } => "COPY Specify second point:".into(),
         }
     }
 

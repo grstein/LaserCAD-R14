@@ -110,7 +110,7 @@ fn text_tool_at_height_prompt(ctx: &egui::Context, app: &mut App, viewport: egui
     submit_command(ctx, app, "HI"); // WaitingText -> WaitingHeight
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "TEXT Specify height <5>:"
+        "TEXT  Specify height <5>:"
     );
     assert!(
         !app.tool_manager.preview().is_empty(),
