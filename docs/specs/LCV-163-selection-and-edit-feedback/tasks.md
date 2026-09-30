@@ -30,7 +30,7 @@
   `draw_hover(painter, rect, camera, doc, index)` in the layer colour at `HOVER_WIDTH_PT`,
   out-of-range index skipped; unit tests (files: src/render/preview.rs, src/render/selection.rs,
   src/render/mod.rs)
-- [ ] T8 [AC9] `ToolManager::feedback(doc, cursor)`: records `last_move` on `Move`, `muted_at` on
+- [x] T8 [AC9] `ToolManager::feedback(doc, cursor)`: records `last_move` on `Move`, `muted_at` on
   `handle_key(Escape)`, passes `None` while muted, clears on a different `Move`; unit tests. If
   the file passes 270 LOC, move the gate into `tools/feedback.rs` as `FeedbackGate` (files:
   src/tools/manager.rs, src/tools/feedback.rs)

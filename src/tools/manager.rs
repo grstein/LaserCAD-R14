@@ -13,8 +13,9 @@ use crate::app::App;
 use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History};
 use crate::geometry::Vec2;
-use crate::tools::Tool;
+use crate::tools::feedback::FeedbackGate;
 use crate::tools::pointer_event::{PointerButton, PointerEvent};
+use crate::tools::{Mark, Tool};
 
 /// Owner of the active tool, routes pointer and key events.
 ///
@@ -26,6 +27,8 @@ pub struct ToolManager {
     /// The live zoom in mm per screen point, as last set by
     /// [`Self::set_pick_scale`]; `1.0` (the default camera) until then.
     mm_per_pt: f64,
+    /// Esc mute of the hover and danger feedback (LCV-163 AC 9).
+    gate: FeedbackGate,
 }
 
 impl std::fmt::Debug for ToolManager {
@@ -50,6 +53,7 @@ impl ToolManager {
         Self {
             active: initial,
             mm_per_pt: 1.0,
+            gate: FeedbackGate::default(),
         }
     }
 
@@ -116,6 +120,7 @@ impl ToolManager {
     ) {
         match event {
             PointerEvent::Move { world_pos } => {
+                self.gate.on_move(*world_pos);
                 self.active.on_pointer_move(*world_pos, doc);
             }
             PointerEvent::Press {
@@ -168,8 +173,12 @@ impl ToolManager {
             .on_pointer_up(pos, false, &mut app.document, &mut app.history);
     }
 
-    /// Route a keyboard event to the active tool.
+    /// Route a keyboard event to the active tool. Escape also mutes the
+    /// hover and danger feedback until the pointer moves (LCV-163 AC 9).
     pub fn handle_key(&mut self, key: egui::Key, app: &mut App) {
+        if key == egui::Key::Escape {
+            self.gate.on_escape();
+        }
         self.active.on_key(key, app);
     }
 
@@ -192,6 +201,12 @@ impl ToolManager {
     /// if the tool has no in-progress preview.
     pub fn preview(&self) -> Vec<Entity> {
         self.active.preview()
+    }
+
+    /// The active tool's styled canvas feedback at `cursor` (ADR 0013), with
+    /// `cursor` passed as `None` while Esc has muted it (LCV-163 AC 9).
+    pub fn feedback(&self, doc: &Document, cursor: Option<Vec2>) -> Vec<Mark> {
+        self.active.feedback(doc, self.gate.cursor(cursor))
     }
 
     /// Context-sensitive prompt text for the command-line widget (LCV-068).
@@ -620,5 +635,47 @@ mod tests {
         let line = ToolManager::new(Box::new(crate::tools::LineTool::default()));
         assert!(!line.wants_entity_pick());
         assert_eq!(crate::tools::DRAG_THRESHOLD_PT, 2.0);
+    }
+
+    /// LCV-163 AC 9 — after Escape the tool sees no cursor at the same
+    /// point; a move to another point hands it the cursor again.
+    #[test]
+    fn escape_mutes_feedback_until_the_pointer_moves() {
+        struct Probe;
+        impl Tool for Probe {
+            fn name(&self) -> &'static str {
+                "Probe"
+            }
+            fn on_pointer_down(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
+            fn on_pointer_move(&mut self, _: Vec2, _: &mut Document) {}
+            fn on_pointer_up(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
+            fn on_key(&mut self, _: egui::Key, _: &mut App) {}
+            fn preview(&self) -> Vec<Entity> {
+                vec![]
+            }
+            fn cancel(&mut self) {}
+            fn feedback(&self, _: &Document, cursor: Option<Vec2>) -> Vec<Mark> {
+                cursor.map(|_| Mark::Hover(0)).into_iter().collect()
+            }
+        }
+        let mut manager = ToolManager::new(Box::new(Probe));
+        let (mut app, mut doc, mut hist) =
+            (App::default(), Document::default(), History::default());
+        let (a, b) = (Vec2::new(1.0, 1.0), Vec2::new(2.0, 1.0));
+        let mv = |world_pos| PointerEvent::Move { world_pos };
+        manager.on_pointer_event(&mv(a), &mut doc, &mut hist);
+        assert_eq!(manager.feedback(&doc, Some(a)), vec![Mark::Hover(0)]);
+        manager.handle_key(egui::Key::Escape, &mut app);
+        assert!(manager.feedback(&doc, Some(a)).is_empty(), "muted");
+        manager.on_pointer_event(&mv(a), &mut doc, &mut hist);
+        assert!(manager.feedback(&doc, Some(a)).is_empty(), "same point");
+        manager.on_pointer_event(&mv(b), &mut doc, &mut hist);
+        assert_eq!(manager.feedback(&doc, Some(b)), vec![Mark::Hover(0)]);
+        manager.handle_key(egui::Key::Enter, &mut app);
+        assert_eq!(
+            manager.feedback(&doc, Some(b)),
+            vec![Mark::Hover(0)],
+            "only Esc mutes"
+        );
     }
 }
