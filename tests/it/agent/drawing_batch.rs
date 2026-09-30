@@ -488,6 +488,24 @@ fn lcv185_ac5_the_published_properties_are_the_union_of_the_type_keys() {
     assert_eq!(types, &json!(names));
 }
 
+/// LCV-185 AC 4, 5 — each published property has the JSON type the validator
+/// wants: `type` a string, `ccw` a boolean, every other key a number.
+#[test]
+fn lcv185_the_published_property_types_match_the_validator() {
+    let schema = lasercad::agent::drawing::schema();
+    let props = schema["properties"]["entities"]["items"]["properties"]
+        .as_object()
+        .expect("item properties object");
+    for (key, prop) in props {
+        let want = match key.as_str() {
+            "type" => "string",
+            "ccw" => "boolean",
+            _ => "number",
+        };
+        assert_eq!(prop["type"], json!(want), "{key}");
+    }
+}
+
 /// Every object key anywhere in `value`, depth first.
 fn all_keys(value: &Value, out: &mut Vec<String>) {
     match value {
