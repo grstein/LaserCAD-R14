@@ -1,7 +1,8 @@
 //! LCV-158 AC9 — the agent's `rotate_entity` commits the same
 //! `TransformEntities` as ROTATE, in degrees, as one undo step; LCV-181 AC10
 //! — `mirror_entity` commits the same `TransformEntities` as MIRROR; LCV-182
-//! AC8 — `scale_entity` commits the same `TransformEntities` as SCALE.
+//! AC8 — `scale_entity` commits the same `TransformEntities` as SCALE;
+//! LCV-186 — the six edit tools also take a set of `indices`.
 
 use core::f64::consts::FRAC_PI_2;
 
@@ -237,4 +238,81 @@ fn scale_entity_refuses_out_of_range_and_skips_factor_one() {
 
     assert_eq!(app.history.revision(), before);
     assert_eq!(app.document.entities, vec![Entity::Line(line)]);
+}
+
+/// The six set-capable tools, each with valid arguments for its operation.
+fn set_tools() -> [(&'static str, serde_json::Value); 6] {
+    [
+        ("delete_entity", json!({})),
+        ("move_entity", json!({"dx":1,"dy":2})),
+        ("copy_entity", json!({"dx":1,"dy":2})),
+        ("rotate_entity", json!({"x":0,"y":0,"degrees":90})),
+        (
+            "mirror_entity",
+            json!({"x1":0,"y1":0,"x2":0,"y2":5,"erase_source":false}),
+        ),
+        ("scale_entity", json!({"x":0,"y":0,"factor":2})),
+    ]
+}
+
+/// `base` with the keys of `extra` added.
+fn with(base: &serde_json::Value, extra: serde_json::Value) -> serde_json::Value {
+    let mut out = base.clone();
+    for (k, v) in extra.as_object().unwrap() {
+        out[k] = v.clone();
+    }
+    out
+}
+
+/// LCV-186 AC5 — an empty, oversized, duplicated, negative, fractional or
+/// non-numeric `indices` list, a list that is not a list, and `index` given
+/// together with `indices` are each refused by every set tool, and the
+/// refusal names the offending entry.
+#[test]
+fn a_bad_indices_list_is_refused_naming_the_entry() {
+    let too_many: Vec<usize> = (0..1001).collect();
+    let cases = [
+        (json!({"indices": []}), vec!["`indices`", "empty"]),
+        (
+            json!({"indices": too_many}),
+            vec!["`indices`", "1001", "1000"],
+        ),
+        (
+            json!({"indices": [0, 4, 2, 4]}),
+            vec!["indices[3]", "duplicate of indices[1]"],
+        ),
+        (
+            json!({"indices": [0, -1]}),
+            vec!["indices[1]", "-1", "non-negative integer"],
+        ),
+        (
+            json!({"indices": [0, 2, 1.5]}),
+            vec!["indices[2]", "1.5", "non-negative integer"],
+        ),
+        (
+            json!({"indices": [0, "2"]}),
+            vec!["indices[1]", "non-negative integer"],
+        ),
+        (json!({"indices": 3}), vec!["`indices`", "list"]),
+        (
+            json!({"index": 0, "indices": [1]}),
+            vec!["`index`", "`indices`", "not both"],
+        ),
+    ];
+    for (tool, args) in set_tools() {
+        for (extra, needles) in &cases {
+            let call = with(&args, extra.clone());
+            let text = match parse_tool_call(tool, &call) {
+                Err(e) => e.to_string(),
+                Ok(a) => panic!("{tool} {extra}: accepted as {a:?}"),
+            };
+            assert!(text.contains(tool), "{text}");
+            for needle in needles {
+                assert!(
+                    text.contains(needle),
+                    "{tool} {extra}: `{needle}` missing: {text}"
+                );
+            }
+        }
+    }
 }

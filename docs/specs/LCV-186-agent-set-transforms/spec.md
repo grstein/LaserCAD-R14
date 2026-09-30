@@ -1,6 +1,6 @@
 # LCV-186 — Agent transforms over entity sets
 
-- **Status**: Planned
+- **Status**: In Progress
 - **Depends on**: none
 - **Implementation**: -
 
