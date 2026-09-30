@@ -25,6 +25,7 @@ use crate::app::App;
 use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History};
 use crate::geometry::Vec2;
+use crate::tools::Mark;
 
 /// Entity pick aperture in screen points (LCV-162, DESIGN.md §5): an entity
 /// within this distance of the cursor can be picked; the pickbox side is
@@ -146,6 +147,15 @@ pub trait Tool {
     /// if the tool has no in-progress preview. The returned entities are
     /// painted with a translucent amber stroke by `draw_preview` (LCV-037).
     fn preview(&self) -> Vec<Entity>;
+
+    /// Styled canvas feedback for this frame (ADR 0013), a pure query at
+    /// paint time. `cursor` is the world point sent as this frame's `Move`,
+    /// or `None` off the canvas or after Esc; `Hover`/`Danger` marks are
+    /// returned only for `Some`. The default wraps [`Self::preview`] as
+    /// [`Mark::Preview`], so a tool that does not override it paints as before.
+    fn feedback(&self, _doc: &Document, _cursor: Option<Vec2>) -> Vec<Mark> {
+        self.preview().into_iter().map(Mark::Preview).collect()
+    }
 
     /// Reset the tool to idle state. Called on Escape press or tool switch.
     /// Clears any in-progress state and preview geometry.

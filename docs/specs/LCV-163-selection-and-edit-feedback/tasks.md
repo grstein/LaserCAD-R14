@@ -2,7 +2,7 @@
 
 - [x] T1 ADR 0013 committed and listed in the AGENTS.md ADR list (files:
   docs/adr/0013-styled-canvas-feedback-from-tools.md, AGENTS.md)
-- [ ] T2 [AC1–9] Seam: `Mark` enum and the `Tool::feedback` default (wraps `preview()` as
+- [x] T2 [AC1–9] Seam: `Mark` enum and the `Tool::feedback` default (wraps `preview()` as
   `Mark::Preview`); unit test that a tool with no override returns its preview as `Preview`
   marks (files: src/tools/feedback.rs, src/tools/mod.rs, src/tools/tool.rs)
 - [ ] T3 [AC8] Test first, then `render/palette.rs`: `PREVIEW` (moved from `preview_stroke`),
