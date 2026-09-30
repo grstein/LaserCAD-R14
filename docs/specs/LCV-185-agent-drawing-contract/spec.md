@@ -1,8 +1,8 @@
 # LCV-185 — Batch drawing schema matches its validator
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: 014615a..3498523
 
 ## Problem
 
