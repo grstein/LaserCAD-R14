@@ -12,8 +12,8 @@
     /// `..._is_five` asserting `7` is a lie a reader has to read the body to
     /// catch.
     #[test]
-    fn tool_definitions_array_length_is_eight() {
-        assert_eq!(tool_definitions(false).as_array().unwrap().len(), 8);
+    fn tool_definitions_array_length_is_nine() {
+        assert_eq!(tool_definitions(false).as_array().unwrap().len(), 9);
     }
     /// AC 13 — the order is part of the contract: every other schema test and
     /// `transport.rs`'s wire assertions index into this array.
@@ -21,14 +21,14 @@
     fn tool_definitions_names_in_order() {
         let d = tool_definitions(false);
         let n = ["create_line","create_circle","create_arc","delete_entity","move_entity",
-                 "query_entities","query_selection","create_drawing"];
+                 "copy_entity","query_entities","query_selection","create_drawing"];
         for (i, nm) in n.iter().enumerate() { assert_eq!(d[i]["function"]["name"], *nm); }
         assert_eq!(d[n.len()], Value::Null, "and nothing after them");
     }
     #[test]
     fn tool_definitions_types_are_function() {
         let d = tool_definitions(false);
-        for i in 0..8 { assert_eq!(d[i]["type"], "function"); }
+        for i in 0..9 { assert_eq!(d[i]["type"], "function"); }
     }
     #[test]
     fn tool_definitions_required_fields() {
@@ -38,13 +38,14 @@
         assert_eq!(req(&d,2), json!(["cx","cy","r","start_deg","end_deg","ccw"]));
         assert_eq!(req(&d,3), json!(["index"]));
         assert_eq!(req(&d,4), json!(["index","dx","dy"]));
+        assert_eq!(req(&d,5), json!(["index","dx","dy"]));
     }
     /// AC 13 — both queries declare an **empty** object, not a missing one:
     /// `properties` is `{}` and `required` is `[]`, both present.
     #[test]
     fn the_two_query_schemas_take_no_parameters() {
         let d = tool_definitions(false);
-        for i in [5, 6] {
+        for i in [6, 7] {
             let params = &d[i]["function"]["parameters"];
             assert_eq!(params["type"], "object", "schema {i}");
             assert_eq!(params["properties"], json!({}), "schema {i}");
@@ -107,13 +108,13 @@
         assert!(!names(&off).contains(&"capture_canvas".to_owned()));
         let on = tool_definitions(true);
         let mut expected = names(&off);
-        expected.insert(7, "capture_canvas".to_owned());
+        expected.insert(8, "capture_canvas".to_owned());
         assert_eq!(names(&on), expected);
-        let params = &on[7]["function"]["parameters"];
+        let params = &on[8]["function"]["parameters"];
         assert_eq!(*params, json!({"type":"object","properties":{},"required":[]}));
-        assert_eq!(on[8]["function"]["name"], "create_drawing");
+        assert_eq!(on[9]["function"]["name"], "create_drawing");
         for (i, tool) in off.as_array().unwrap().iter().enumerate() {
-            let j = if i < 7 { i } else { i + 1 };
+            let j = if i < 8 { i } else { i + 1 };
             assert_eq!(on[j], *tool, "tool {i} unchanged");
         }
     }
@@ -200,6 +201,19 @@
     fn parse_move_entity_happy_path() {
         assert_eq!(ok("move_entity", json!({"index":0,"dx":3.0,"dy":4.0})),
             AgentAction::Move { index: 0, dx: 3.0, dy: 4.0 });
+    }
+    /// LCV-157 AC9 — `copy_entity` parses like `move_entity`; the range check
+    /// is the apply site's.
+    #[test]
+    fn parse_copy_entity() {
+        assert_eq!(ok("copy_entity", json!({"index":1,"dx":-2.5,"dy":4.0})),
+            AgentAction::Copy { index: 1, dx: -2.5, dy: 4.0 });
+        assert_eq!(ok("copy_entity", json!({"index":99,"dx":0.0,"dy":0.0})),
+            AgentAction::Copy { index: 99, dx: 0.0, dy: 0.0 });
+        let e = err("copy_entity", json!({"index":0,"dx":1.0}));
+        assert!(matches!(e, ToolCallError::MissingField { tool: "copy_entity", field: "dy" }), "{e:?}");
+        let e = err("copy_entity", json!({"index":-1,"dx":1.0,"dy":1.0}));
+        assert!(matches!(e, ToolCallError::InvalidArg { tool: "copy_entity", field: "index", .. }), "{e:?}");
     }
     #[test]
     fn parse_unknown_tool() {

@@ -88,8 +88,8 @@ pub enum ToolCallError {
 }
 
 /// OpenAI function-calling schemas. Order: create_line(0) create_circle(1)
-/// create_arc(2) delete_entity(3) move_entity(4) query_entities(5)
-/// query_selection(6) create_drawing(7).
+/// create_arc(2) delete_entity(3) move_entity(4) copy_entity(5)
+/// query_entities(6) query_selection(7) create_drawing(8).
 ///
 /// The two queries take no arguments at all — an explicitly empty
 /// `properties` / `required` pair rather than an absent `parameters`, because
@@ -205,6 +205,12 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
             let dy = get_f64(args, "move_entity", "dy")?;
             let index = get_index(args, "move_entity")?;
             Ok(AgentAction::Move { index, dx, dy })
+        }
+        "copy_entity" => {
+            let index = get_index(args, "copy_entity")?;
+            let dx = get_f64(args, "copy_entity", "dx")?;
+            let dy = get_f64(args, "copy_entity", "dy")?;
+            Ok(AgentAction::Copy { index, dx, dy })
         }
         // Read-only, argument-free: whatever the model sends as arguments —
         // `{}`, a stray field, or nothing at all — the answer is the same, so
