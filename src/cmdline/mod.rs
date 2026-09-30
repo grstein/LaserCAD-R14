@@ -91,6 +91,9 @@ pub enum ToolKind {
     Extend,
     /// TEXT — place Hershey-font text.
     Text,
+    /// COPY — place translated copies of the selection (LCV-157). Words
+    /// only: `copy`, `co`, `cp`; no letter.
+    Copy,
 }
 
 /// A view / drawing-aid toggle the command line can flip.

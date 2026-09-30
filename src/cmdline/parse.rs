@@ -98,7 +98,8 @@ pub fn parse(raw: &str) -> CommandInput {
 /// | `rectangle` | `Rect` | `text` | `Text` |
 /// | `circle` | `Circle` | `delete` | `Delete` |
 /// | `arc` | `Arc` | `del` | `Delete` |
-/// | | | `erase` | `Delete` |
+/// | `copy` | `Copy` | `erase` | `Delete` |
+/// | `co` | `Copy` | `cp` | `Copy` |
 ///
 /// `delete` / `del` / `erase` all reach the same tool: R14 says `ERASE`, the
 /// v2 tool and its menu entry say Delete, so both vocabularies are accepted
@@ -131,6 +132,7 @@ fn tool_alias(lower: &str) -> Option<ToolKind> {
         "move" => Some(ToolKind::Move),
         "text" => Some(ToolKind::Text),
         "delete" | "del" | "erase" => Some(ToolKind::Delete),
+        "copy" | "co" | "cp" => Some(ToolKind::Copy),
         _ => None,
     }
 }
@@ -284,7 +286,7 @@ mod tests {
         assert_eq!(parse("TEXT"), CommandInput::Tool(ToolKind::Text));
         assert_eq!(parse(" Text "), CommandInput::Tool(ToolKind::Text));
 
-        // LCV-131 AC 1 — the word axis (ADR 0003 §A2a): all fifteen approved
+        // LCV-131 AC 1 — the word axis (ADR 0003 §A2a): all approved
         // rows, each naming the exact `ToolKind` a swapped mapping would
         // otherwise survive. `text` repeats the assertion above; it is in the
         // set (already shipped) and belongs in the one table that names it.
@@ -304,8 +306,11 @@ mod tests {
             ("delete", ToolKind::Delete),
             ("del", ToolKind::Delete),
             ("erase", ToolKind::Delete),
+            ("copy", ToolKind::Copy),
+            ("co", ToolKind::Copy),
+            ("cp", ToolKind::Copy),
         ];
-        assert_eq!(words.len(), 15, "the approved word set is exactly fifteen");
+        assert_eq!(words.len(), 18, "the approved word set is exactly eighteen");
         for &(word, kind) in words {
             assert_eq!(
                 parse(word),
@@ -313,6 +318,15 @@ mod tests {
                 "word {word:?} must resolve to {kind:?}"
             );
         }
+    }
+
+    /// LCV-157 AC1 — `copy`, `co` and `cp` (any case) are COPY; `c` stays CIRCLE.
+    #[test]
+    fn copy_words_are_copy() {
+        for word in ["copy", "COPY", "co", "Co", "cp", " CP "] {
+            assert_eq!(parse(word), CommandInput::Tool(ToolKind::Copy), "{word:?}");
+        }
+        assert_eq!(parse("c"), CommandInput::Tool(ToolKind::Circle));
     }
 
     /// LCV-156 AC 4 — `layer` and `la` (any case) are the Layers command;
