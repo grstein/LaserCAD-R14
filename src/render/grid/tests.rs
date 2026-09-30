@@ -357,9 +357,10 @@ fn ac1_grid_lines_are_one_point_tokens_on_pixel_centres() {
                 continue;
             };
             assert_eq!(stroke.width, 1.0, "ppp={ppp}: grid line width");
-            if stroke.color == GRID_MINOR {
+            let solid = egui::epaint::ColorMode::Solid;
+            if stroke.color == solid(GRID_MINOR) {
                 minor += 1;
-            } else if stroke.color == GRID_MAJOR {
+            } else if stroke.color == solid(GRID_MAJOR) {
                 major += 1;
             } else {
                 panic!("ppp={ppp}: grid line in {:?}, not a grid token", stroke.color);

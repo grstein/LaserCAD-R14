@@ -2,7 +2,7 @@
 
 - [x] T1 [AC1] Test: grid token contrast (minor ≥1.35:1, major ≥2.2:1 on gray 40) and painted
   `draw_grid` at 1 and 1.5 ppp — 1 pt, token colour, pixel-centre coordinate (files: src/render/palette.rs, src/render/grid/tests.rs)
-- [ ] T2 [AC1] `GRID_MINOR`/`GRID_MAJOR` tokens; `draw_grid` 1 pt on pixel centres (files: src/render/palette.rs, src/render/grid.rs)
+- [x] T2 [AC1] `GRID_MINOR`/`GRID_MAJOR` tokens; `draw_grid` 1 pt on pixel centres (files: src/render/palette.rs, src/render/grid.rs)
 - [ ] T3 [AC5] Test: painted circle and arc paths at 0.01, 1 and 100 mm/pt and a sub-pt circle —
   chords in [8, 1024], each sagitta ≤0.25 pt (files: tests/it/ui/canvas_legibility.rs, tests/it/ui/mod.rs)
 - [ ] T4 [AC5] `render/tessellate.rs` (`chords_per_turn`, `screen_points`, `stroke_entity`) with

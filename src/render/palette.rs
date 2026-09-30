@@ -1,5 +1,5 @@
-//! Canvas feedback tokens (DESIGN.md §3): the single home of `preview`,
-//! `danger` and `hover` (LCV-163 AC 8).
+//! Canvas tokens (DESIGN.md §3): the single home of `preview`, `danger` and
+//! `hover` (LCV-163 AC 8) and of the grid colours (LCV-164).
 //!
 //! State on the canvas is shown by form first (dash, width) and hue second,
 //! because entity colour belongs to the layer (LCV-156).
@@ -24,6 +24,14 @@ pub const DANGER: egui::Color32 = egui::Color32::from_rgb(255, 77, 106);
 /// pickbox. Its colour is the entity's layer colour; the width (thicker than
 /// the 1 pt entity stroke) is what marks it.
 pub const HOVER_WIDTH_PT: f32 = 2.5;
+
+/// The `grid.minor` token: gray 62, ≈1.38:1 on the bed fill (gray 40),
+/// painted 1 pt wide (LCV-164 AC 1).
+pub const GRID_MINOR: egui::Color32 = egui::Color32::from_gray(62);
+
+/// The `grid.major` token: gray 96, ≈2.34:1 on the bed fill, every tenth
+/// line, 1 pt wide (LCV-164 AC 1).
+pub const GRID_MAJOR: egui::Color32 = egui::Color32::from_gray(96);
 
 #[cfg(test)]
 mod tests {
