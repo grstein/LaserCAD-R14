@@ -1,50 +1,41 @@
-//! Left-side toolbar: one selectable button per drawing / modify tool.
+//! Left-side tool rail: one painted-icon button per drawing / modify tool.
 //!
-//! Exposes [`draw_toolbar`], which renders a vertical stack of tool buttons
-//! into an [`egui::Ui`] that lives inside a `SidePanel::left`.  Clicking a
-//! button activates the corresponding tool via
-//! [`crate::tools::ToolManager::set_tool`].
+//! Exposes [`draw_toolbar`], which renders the rail into an [`egui::Ui`] that
+//! lives inside a `SidePanel::left`. Clicking a button activates the
+//! corresponding tool via [`crate::tools::ToolManager::set_tool`].
 //!
 //! [`TOOLS`] is the single source of truth for every rail tool: it drives
-//! this toolbar *and* the Tools menu in `crate::ui::menubar` — there is no
-//! second list. One drawing tool that exists in `src/tools/` is deliberately
-//! not in this table; LCV-106 decides its fate.
+//! this rail, the Tools menu in `crate::ui::menubar` and the shortcuts
+//! dialog — there is no second list. LCV-110 resolves each entry through
+//! `entry.kind` + [`tools::make`], the single tool-identity map (ADR 0003
+//! §A3).
 //!
-//! Introduced by demand LCV-066; extended to the full eleven-tool set and
-//! made the Tools-menu data source by LCV-104. LCV-110 replaced the old
-//! string-keyed label lookup with `entry.kind` + [`tools::make`] — the
-//! single tool-identity map (ADR 0003 §A3).
-//!
-//! LCV-140 added three things, all derived from the same [`TOOLS`] table (no
-//! second, hand-typed one): every button's hover tooltip names its
-//! [`ToolEntry::shortcut`] (via [`tool_hover_text`]); the rail wraps its
-//! eleven entries — plus the agent toggle — in one `ScrollArea` so a short
-//! window scrolls the whole list instead of clipping any of it; and the AI
-//! assistant toggle shows a short visible label ([`AGENT_TOGGLE_LABEL`])
-//! instead of the old icon-only `"🤖"`, keeping its existing hover text and
-//! click behaviour. The rail's outer width cap itself is computed in
-//! `src/app/panels.rs::toolbar_width` — a panel-sizing decision, not a
-//! drawing one — from this same table.
+//! LCV-140 put the rail and the AI toggle in one `ScrollArea` so a short
+//! window scrolls instead of clipping. LCV-183 replaced the text buttons with
+//! 32 pt icon buttons (`crate::ui::icons`) in two columns — the draw group
+//! left, the modify group right — with the `AI` toggle below both, and a
+//! tooltip naming label, key and command word ([`tool_hover_text`]). The
+//! rail's fixed width lives in `src/app/panels.rs::RAIL_WIDTH`.
 
 use crate::app::App;
 use crate::cmdline::ToolKind;
 use crate::tools;
+use crate::ui::icons::{icon_button, text_button};
 
 mod table;
 pub(crate) use table::{TOOLS, ToolEntry};
 
-/// Index of the first "modify group" entry (`Move`). The toolbar draws a
-/// separator immediately before it, splitting the draw tools (Select …
-/// Text) from the modify tools (Move … Dist).
+/// Index of the first "modify group" entry (`Move`): the draw tools (Select
+/// … Text) fill the left column, the modify tools (Move … Dist) the right.
 const MODIFY_GROUP_START: usize = 7;
 
-/// The AI assistant toggle's visible label (LCV-140 AC 3): a short text
-/// button replacing the old icon-only `"🤖"`, which depended on emoji-font
-/// coverage the rest of the UI never assumes. Its hover text stays the
-/// pre-existing `"AI Assistant"` (set at the one call site in
-/// [`draw_toolbar`]) — only what is visible changes, not the tooltip or the
-/// click behaviour.
-pub(crate) const AGENT_TOGGLE_LABEL: &str = "Agent";
+/// Gap between rail buttons, across and down, in points (LCV-183).
+pub(crate) const RAIL_GAP: f32 = 4.0;
+
+/// The AI assistant toggle's visible text (LCV-183 AC 7, LCV-167's short
+/// form): a 32 pt square button below both tool columns. Its hover text is
+/// `"AI Assistant"`, set at the one call site in [`draw_toolbar`].
+pub(crate) const AGENT_TOGGLE_LABEL: &str = "AI";
 
 /// Hover-tooltip text for one `TOOLS` entry (LCV-183 AC 6):
 /// `<Label> — <key> · <WORD>`, or `<Label> — <WORD>` when the entry has no
@@ -59,61 +50,55 @@ pub(crate) fn tool_hover_text(entry: &ToolEntry) -> String {
     }
 }
 
-/// Render the left-side toolbar into `ui`.
+/// Render the tool rail into `ui`.
 ///
-/// Draws one [`egui::SelectableLabel`] per tool, with a separator between the
-/// draw group (Select … Text) and the modify group (Move … Dist). The
-/// currently active tool button is rendered in its selected/highlighted
-/// state. Clicking an inactive button calls
+/// Two columns of [`icon_button`]s — the draw group (Select … Text) on the
+/// left, the modify group (Move … Dist) on the right — then a separator and
+/// the `AI` toggle below both. The active tool's button is painted in the
+/// selected fill. Clicking a button calls
 /// [`ToolManager::set_tool`](crate::tools::ToolManager::set_tool), which
 /// cancels any in-progress state on the old tool before switching.
 ///
 /// **Call site**: inside a `SidePanel::left("toolbar")` added in
 /// [`crate::app::App::update_ui`], *after* the bottom status-bar panel and
-/// *before* the `CentralPanel`. The panel's own width is capped by the
-/// caller (`src/app/panels.rs::toolbar_width`, LCV-140 AC 2) — this function
-/// only ever draws into whatever `ui` it is given.
+/// *before* the `CentralPanel`. The panel's width is fixed by the caller
+/// (`src/app/panels.rs::RAIL_WIDTH`).
 ///
-/// The eleven `TOOLS` entries, a separator, then the agent toggle are all
-/// wrapped in one `ScrollArea` (LCV-140 AC 2): egui only shows a scrollbar
-/// and clips when the panel's available height is smaller than that whole
-/// content, so a normal window never scrolls and a short one degrades to
-/// scrolling instead of losing content. The toggle is deliberately *inside*
-/// the scroll area, not pinned below it — a `SidePanel` clips whatever
-/// overflows its own assigned rect with no way back, so anything left
-/// outside the one scrolling mechanism on an extremely cramped window would
-/// be unreachable, not merely hidden (LCV-140 review, mutation testing:
-/// `tests/it/ui/compact_chrome_and_action_hints.rs::ac2_a_real_wheel_scroll_reaches_a_row_hidden_by_the_cramped_rail`
-/// is the regression guard).
+/// Everything — both columns and the toggle — sits in one `ScrollArea`
+/// (LCV-140 AC 2, LCV-183 AC 9): a window too short for the rail scrolls it
+/// instead of clipping. The toggle is deliberately *inside* the scroll area:
+/// a `SidePanel` clips whatever overflows its rect with no way back, so
+/// anything outside the one scrolling mechanism would be unreachable on a
+/// cramped window.
 pub fn draw_toolbar(ui: &mut egui::Ui, app: &mut App) {
     // `active_tool_name` returns `&'static str` — the borrow on `app` ends
     // immediately so the later mutable call to `set_tool` is safe.
     let active = app.tool_manager.active_tool_name();
     let agent_panel_open = app.agent.panel_open;
+    let (draw, modify) = TOOLS.split_at(MODIFY_GROUP_START);
 
     // At most one of these can be true/Some per frame.
     let (clicked, agent_clicked): (Option<ToolKind>, bool) = egui::ScrollArea::vertical()
         .show(ui, |ui| {
+            ui.spacing_mut().item_spacing = egui::Vec2::splat(RAIL_GAP);
             let mut clicked: Option<ToolKind> = None;
-            for (i, entry) in TOOLS.iter().enumerate() {
-                if i == MODIFY_GROUP_START {
-                    ui.separator();
+            ui.horizontal_top(|ui| {
+                for group in [draw, modify] {
+                    ui.vertical(|ui| {
+                        for entry in group {
+                            if icon_button(ui, active == entry.tool_name, entry.icon)
+                                .on_hover_text(tool_hover_text(entry))
+                                .clicked()
+                            {
+                                clicked = Some(entry.kind);
+                            }
+                        }
+                    });
                 }
-                let is_active = active == entry.tool_name;
-                if ui
-                    .selectable_label(is_active, entry.label)
-                    .on_hover_text(tool_hover_text(entry))
-                    .clicked()
-                {
-                    clicked = Some(entry.kind);
-                }
-            }
+            });
 
-            // ── AI assistant toggle (LCV-080; visible label since LCV-140,
-            // moved inside the scroll area by the same demand's review) ────
             ui.separator();
-            let agent_clicked = ui
-                .selectable_label(agent_panel_open, AGENT_TOGGLE_LABEL)
+            let agent_clicked = text_button(ui, agent_panel_open, AGENT_TOGGLE_LABEL)
                 .on_hover_text("AI Assistant")
                 .clicked();
 

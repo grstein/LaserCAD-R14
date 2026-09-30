@@ -17,7 +17,7 @@
   tests/it/ui/mod.rs)
 - [x] T7 [AC6] Tooltip format `<Label> — <key> · <WORD>` / `<Label> — <WORD>` with unit tests
   (Select, Line, Rotate, Delete) (files: src/ui/toolbar.rs)
-- [ ] T8 [AC1] [AC3] [AC4] [AC5] [AC7] [AC9] `icon_button` + two-column rail + `AI` toggle in
+- [x] T8 [AC1] [AC3] [AC4] [AC5] [AC7] [AC9] `icon_button` + two-column rail + `AI` toggle in
   `draw_toolbar`; rewrite the LCV-140 rail tests from labels to tooltips (files:
   src/ui/toolbar.rs, src/ui/icons.rs, tests/it/ui/compact_chrome_and_action_hints.rs)
 - [ ] T9 [AC8] Fixed `RAIL_WIDTH` and 4 pt frame margin in `panels.rs`; drop the label-width

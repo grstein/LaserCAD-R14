@@ -15,6 +15,48 @@ pub(crate) const ICON_SIZE: f32 = 20.0;
 /// Width of every icon line, in points.
 pub(crate) const ICON_STROKE: f32 = 1.5;
 
+/// Side of a rail button, in points (LCV-183 AC 1).
+pub(crate) const BUTTON_SIZE: f32 = 32.0;
+
+/// A square selectable button painting `icon` in the text colour, centred in
+/// an [`ICON_SIZE`] square. No text.
+pub(crate) fn icon_button(ui: &mut egui::Ui, selected: bool, icon: IconFn) -> egui::Response {
+    let (rect, response, color) = square_button(ui, selected);
+    let inner = egui::Rect::from_center_size(rect.center(), egui::Vec2::splat(ICON_SIZE));
+    icon(ui.painter(), inner, egui::Stroke::new(ICON_STROKE, color));
+    response
+}
+
+/// A square selectable button showing a short `text` (the `AI` toggle).
+pub(crate) fn text_button(ui: &mut egui::Ui, selected: bool, text: &str) -> egui::Response {
+    let (rect, response, color) = square_button(ui, selected);
+    let font = egui::TextStyle::Button.resolve(ui.style());
+    let centre = egui::Align2::CENTER_CENTER;
+    ui.painter().text(rect.center(), centre, text, font, color);
+    response
+}
+
+/// Allocate one [`BUTTON_SIZE`] square, paint its background the way
+/// `egui::SelectableLabel` does (selected fill while `selected`, hover fill
+/// while hovered) and return its rect, response and foreground colour.
+fn square_button(ui: &mut egui::Ui, selected: bool) -> (egui::Rect, egui::Response, egui::Color32) {
+    let size = egui::Vec2::splat(BUTTON_SIZE);
+    let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+    let visuals = ui.style().interact_selectable(&response, selected);
+    let lit = selected || response.hovered() || response.highlighted() || response.has_focus();
+    if lit && ui.is_rect_visible(rect) {
+        let bg = rect.expand(visuals.expansion);
+        let painter = ui.painter();
+        painter.rect(
+            bg,
+            visuals.rounding,
+            visuals.weak_bg_fill,
+            visuals.bg_stroke,
+        );
+    }
+    (rect, response, visuals.text_color())
+}
+
 /// Draw-group icons (Select … Text).
 pub(crate) mod draw;
 /// Modify-group icons (Move … Dist).
