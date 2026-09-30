@@ -15,6 +15,8 @@ use crate::render::Camera;
 use crate::tools;
 use crate::ui::toolbar::TOOLS;
 
+mod object_snap;
+
 /// Render the menubar strip.  Must be the first panel in `App::update`.
 pub fn draw_menubar(ui: &mut egui::Ui, app: &mut App) {
     egui::menu::bar(ui, |ui| {
@@ -192,6 +194,7 @@ fn view_menu(ui: &mut egui::Ui, app: &mut App) {
         // paths, no third copy of the state.
         ui.checkbox(&mut app.grid_enabled, "Grid\tF7");
         ui.checkbox(&mut app.snap_enabled, "Snap\tF3");
+        object_snap::object_snap_menu(ui, app); // LCV-161: per-kind toggles
         ui.checkbox(&mut app.ortho_enabled, "Ortho\tF8");
     });
 }

@@ -79,28 +79,29 @@ fn open_object_snap_menu(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
     paint::painted_runs(ctx, app)
 }
 
-/// AC 8 — the submenu paints one checkbox label per kind, in order.
+/// AC 8 — the submenu paints one checkbox label per kind, one column, in
+/// order. Menu popups are clipped to the whole screen, so the column is
+/// found by the x of the `Endpoint` run rather than by clip rect.
 #[test]
 fn object_snap_submenu_lists_one_checkbox_per_kind() {
     let ctx = egui::Context::default();
     let mut app = App::default();
     let runs = open_object_snap_menu(&ctx, &mut app);
-    let lines = paint::texts(&paint::lines_on_surface_of(&runs, "Perpendicular"));
-    let flat: Vec<&str> = lines.iter().flatten().map(String::as_str).collect();
-    let mut last = 0usize;
+    let column_x = locate(&runs, "Endpoint").x - 2.0;
+    let mut last_y = f32::NEG_INFINITY;
     for label in LABELS {
-        let at = flat
+        let in_column: Vec<&Run> = runs
             .iter()
-            .position(|t| *t == label)
-            .unwrap_or_else(|| panic!("`{label}` missing from the submenu: {flat:?}"));
-        assert!(at >= last, "`{label}` is out of order: {flat:?}");
-        last = at;
+            .filter(|r| r.text.trim() == label && (r.pos.x - column_x).abs() < 1.0)
+            .collect();
+        assert_eq!(
+            in_column.len(),
+            1,
+            "`{label}` must be painted once in the submenu"
+        );
+        assert!(in_column[0].pos.y > last_y, "`{label}` is out of order");
+        last_y = in_column[0].pos.y;
     }
-    assert_eq!(
-        flat.iter().filter(|t| LABELS.contains(t)).count(),
-        LABELS.len(),
-        "exactly one checkbox per kind: {flat:?}"
-    );
 }
 
 /// AC 8 — clicking a kind's checkbox flips `settings.object_snaps` and

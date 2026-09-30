@@ -1,4 +1,4 @@
-//! The whole persistence surface of [`App`] — three methods, one file
+//! The whole persistence surface of [`App`] — four methods, one file
 //! (LCV-119, [ADR 0006](../../docs/adr/0006-real-user-paths-are-injected.md)).
 //!
 //! A real per-user filesystem location is resolved exactly once, at boot, and
@@ -25,6 +25,7 @@
 //! MUST NOT import `egui`, `eframe` or `rfd`.
 
 use super::App;
+use crate::geometry::SnapKind;
 use crate::io::autosave::{clear_autosave_at, save_autosave_to};
 use crate::io::settings::save_to;
 
@@ -41,6 +42,13 @@ impl App {
             return;
         };
         let _ = save_to(&self.settings, path);
+    }
+
+    /// Turn one object-snap kind on or off (View > Object snap, LCV-161) and
+    /// persist the settings. F3 stays the master switch.
+    pub fn set_object_snap(&mut self, kind: SnapKind, on: bool) {
+        self.settings.object_snaps.set(kind, on);
+        self.persist_settings();
     }
 
     /// Write the current document to `autosave_path`; returns whether a file

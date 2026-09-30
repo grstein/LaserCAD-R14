@@ -38,7 +38,7 @@
   harness, the painted text shows one checkbox label per kind (8). Toggling a kind through
   `App::set_object_snap` flips `settings.object_snaps` and writes the settings file at an
   injected temp `settings_path` (files: tests/it/ui/object_snap_menu.rs, tests/it/ui/mod.rs)
-- [ ] T12 [AC8] Add the `Object snap` submenu below the `Snap\tF3` checkbox. Its
+- [x] T12 [AC8] Add the `Object snap` submenu below the `Snap\tF3` checkbox. Its
   `SNAP_KIND_LABELS` table drives one checkbox per kind; a change calls
   `App::set_object_snap`, which writes the setting and persists it. The existing menubar
   source-scan tests stay green (files: src/ui/menubar.rs, src/ui/menubar/object_snap.rs,
