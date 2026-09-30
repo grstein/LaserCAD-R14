@@ -1,6 +1,6 @@
 # LCV-169 — Dialog keyboard, destructive styling and Save/Discard/Cancel
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-163, LCV-167
 - **Implementation**: -
 
