@@ -14,3 +14,4 @@ mod shortcuts_dialog_fits;
 mod statusbar_modes;
 mod tool_hotkeys;
 mod viewport_grid_and_coordinates;
+mod visual_refresh;

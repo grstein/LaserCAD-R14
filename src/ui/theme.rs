@@ -188,7 +188,7 @@ mod tests {
         let v = themed();
         assert_eq!(v.window_shadow, egui::epaint::Shadow::NONE);
         assert_eq!(v.popup_shadow, egui::epaint::Shadow::NONE);
-        assert_eq!(v.window_stroke, egui::Stroke::new(1.0, BORDER));
+        assert_eq!(v.window_stroke, egui::Stroke::new(1.0_f32, BORDER));
         assert_eq!(v.window_rounding, egui::Rounding::same(4.0));
         assert_eq!(v.menu_rounding, egui::Rounding::same(4.0));
         let w = &v.widgets;
@@ -202,7 +202,7 @@ mod tests {
             assert_eq!(state.rounding, egui::Rounding::same(3.0));
             assert_eq!(state.fg_stroke.color, TEXT_PRIMARY);
         }
-        assert_eq!(w.noninteractive.bg_stroke, egui::Stroke::new(1.0, BORDER));
+        assert_eq!(w.noninteractive.bg_stroke, egui::Stroke::new(1.0_f32, BORDER));
         for (state, fill) in [
             (&w.inactive, FILL_WIDGET),
             (&w.hovered, FILL_HOVER),
@@ -223,7 +223,7 @@ mod tests {
     fn accent_is_foreground_only() {
         let v = themed();
         assert_eq!(v.selection.bg_fill, FILL_SELECTED);
-        assert_eq!(v.selection.stroke, egui::Stroke::new(1.0, ACCENT));
+        assert_eq!(v.selection.stroke, egui::Stroke::new(1.0_f32, ACCENT));
         let w = &v.widgets;
         let mut fills = vec![
             v.selection.bg_fill,

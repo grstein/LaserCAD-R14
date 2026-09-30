@@ -9,7 +9,7 @@
 - [x] T2 [AC1] [AC2] [AC3] Token constants + `TOKENS` + `apply_theme` rewrite (plan §Approach);
   DESIGN.md §3 gains `border`, `fill.widget`, `fill.hover`, `fill.active` rows and every chrome
   Home points at `ui/theme.rs`; T1 green (files: src/ui/theme.rs, DESIGN.md)
-- [ ] T3 [AC1] [AC2] [AC3] Test: source scan for `Color32` literals in `src/ui/` outside
+- [x] T3 [AC1] [AC2] [AC3] Test: source scan for `Color32` literals in `src/ui/` outside
   `theme.rs` (with positive control); painted File menu frame (1 pt `BORDER`, rounding 4, no
   blurred shape); a full frame paints no rect filled `ACCENT` (files:
   tests/it/ui/visual_refresh.rs, tests/it/ui/mod.rs)
