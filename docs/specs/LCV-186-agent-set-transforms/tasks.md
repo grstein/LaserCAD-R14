@@ -7,6 +7,6 @@
 - [x] T5 [AC1] [AC2] [AC3] [AC4] [AC5] App side: range check, sort, one command, narration (files: src/app/agent_apply/set.rs, src/app/agent_apply.rs)
 - [x] T6 [AC7] Test: a turn mixing a set action and single calls undoes in one step (files: tests/it/agent/turn_group.rs)
 - [x] T7 [AC8] Test: every tool with `index` gives today's result text and document (files: tests/it/agent/transform_tools.rs)
-- [ ] T8 Prompt: the six paragraphs name `indices` (default_prompt.rs whole-word check) (files: src/agent/prompt.rs, tests/it/agent/default_prompt.rs)
+- [x] T8 Prompt: the six paragraphs name `indices` (default_prompt.rs whole-word check) (files: src/agent/prompt.rs, tests/it/agent/default_prompt.rs)
 - [ ] T9 AGENTS.md purity list gains `tools/transform.rs` (files: AGENTS.md)
 - [ ] T10 CHANGELOG line (files: CHANGELOG.md)

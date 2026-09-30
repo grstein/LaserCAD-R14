@@ -267,3 +267,43 @@ fn the_step_budget_section_says_how_steps_are_counted() {
     }
     assert!(!section.contains("no message"), "{section}");
 }
+
+/// LCV-186 — the TOOLS section says what a set call is: 1 to 1000 distinct
+/// indices instead of index, one step, one base point or mirror line, all or
+/// nothing; each of the six edit paragraphs offers `index or indices`, and
+/// copies are appended in ascending source order.
+#[test]
+fn the_edit_paragraphs_offer_indices() {
+    let folded = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let paragraphs: Vec<String> = DEFAULT_PROMPT.split("\n\n").map(folded).collect();
+    let tools = paragraphs
+        .iter()
+        .find(|p| p.starts_with("TOOLS "))
+        .expect("a TOOLS paragraph");
+    for needle in [
+        "take either index, one entity, or indices, a list of 1 to 1000 different entity indices, never both",
+        "in one step",
+        "one base point, one mirror line",
+        "nothing changes and the result names it, for example indices[3]",
+    ] {
+        assert!(tools.contains(needle), "`{needle}` missing: {tools}");
+    }
+    for tool in [
+        "delete_entity",
+        "move_entity",
+        "copy_entity",
+        "rotate_entity",
+        "mirror_entity",
+        "scale_entity",
+    ] {
+        let own = paragraphs
+            .iter()
+            .find(|p| words(p).first() == Some(&tool))
+            .unwrap_or_else(|| panic!("a {tool} paragraph"));
+        assert!(own.contains(&format!("{tool} {{index or indices")), "{own}");
+    }
+    for tool in ["copy_entity", "mirror_entity"] {
+        let own = paragraphs.iter().find(|p| p.starts_with(tool)).unwrap();
+        assert!(own.contains("ascending source index order"), "{own}");
+    }
+}
