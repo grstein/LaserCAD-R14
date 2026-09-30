@@ -12,7 +12,7 @@
       modulo 2π) or the error variant; report orphan `.svg`/`.expected` and unparseable
       `.expected`. Tests: `corpus_matches_expected` over `tests/fixtures/svg/`, and
       `an_svg_without_expected_fails_naming_it` over a temp dir (files: tests/it/io_svg/corpus.rs)
-- [ ] T4 [AC4] Seed fixtures, expectations written by hand: `v02-presets` (v0.2 `<g id=…>` groups,
+- [x] T4 [AC4] Seed fixtures, expectations written by hand: `v02-presets` (v0.2 `<g id=…>` groups,
       no `data-layer`) and `v03-mother-three-layers` (three layers, one `data-output="0"`,
       `data-current` on the second) (files: tests/fixtures/svg/v02-presets.svg,
       tests/fixtures/svg/v02-presets.expected, tests/fixtures/svg/v03-mother-three-layers.svg +
