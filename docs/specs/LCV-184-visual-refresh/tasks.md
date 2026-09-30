@@ -16,7 +16,7 @@
 - [x] T4 [AC4] [AC3] Test first: SNAP on → pill rect filled `FILL_SELECTED`, text `ACCENT`; GRID
   off → no fill, 1 pt `BORDER` outline, text `TEXT_MUTED`; a click on each pill flips only its
   flag (files: tests/it/ui/visual_refresh.rs)
-- [ ] T5 [AC4] `mode_pill` widget with `PILL_PADDING` and its unit tests (files:
+- [x] T5 [AC4] `mode_pill` widget with `PILL_PADDING` and its unit tests (files:
   src/ui/statusbar/pill.rs, src/ui/statusbar.rs)
 - [ ] T6 [AC4] `draw_statusbar` uses `mode_pill`; rewrite the `selectable_label` source-scan
   needles in the status-bar unit tests; T4 green (files: src/ui/statusbar.rs,

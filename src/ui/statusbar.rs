@@ -20,6 +20,9 @@
 use crate::app::App;
 use crate::geometry::Vec2;
 
+/// The on/off mode pill (LCV-184).
+mod pill;
+
 /// Format cursor world-space coordinates for display in the status bar.
 ///
 /// Returns `"X: 123.45mm  Y:  67.89mm"` (values right-aligned in 6 chars, 2
