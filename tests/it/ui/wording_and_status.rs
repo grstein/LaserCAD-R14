@@ -8,7 +8,13 @@ use crate::harness;
 
 use harness::paint::{Run, painted_runs};
 use harness::raw_input;
+use harness::scan::{is_test_file, occurrences, rs_files};
 use lasercad::app::App;
+
+/// `status.error` (DESIGN.md §3; pinned to `ui/theme.rs` by its own test).
+const STATUS_ERROR: egui::Color32 = egui::Color32::from_rgb(0xff, 0x6b, 0x6b);
+/// `status.warning` (DESIGN.md §3).
+const STATUS_WARNING: egui::Color32 = egui::Color32::from_rgb(0xff, 0x8f, 0x00);
 
 /// Words Title Case leaves lowercase (DESIGN.md §9).
 const MINOR: [&str; 10] = ["to", "as", "a", "an", "the", "of", "in", "on", "and", "or"];
@@ -193,4 +199,95 @@ fn ac3_rail_panel_and_dock_say_ai() {
         .find(|texts| texts.iter().any(|t| t == "Destination:"))
         .expect("the dock paints its destination row");
     assert_eq!(row.last().map(String::as_str), Some("AI"), "{row:?}");
+}
+
+// ── AC 7 — one readable error red ───────────────────────────────────────
+
+/// Every text shape of one settled frame, `Shape::Vec` flattened.
+fn text_shapes(ctx: &egui::Context, app: &mut App) -> Vec<egui::epaint::TextShape> {
+    let _ = settle(ctx, app);
+    let out = ctx.run(raw_input(Vec::new()), |c| app.update_ui(c));
+    let mut stack: Vec<egui::Shape> = out.shapes.into_iter().map(|c| c.shape).collect();
+    let mut found = Vec::new();
+    while let Some(shape) = stack.pop() {
+        match shape {
+            egui::Shape::Vec(inner) => stack.extend(inner),
+            egui::Shape::Text(t) => found.push(t),
+            _ => {}
+        }
+    }
+    found
+}
+
+/// The colours of the one text shape whose text starts with `prefix`
+/// (a `PLACEHOLDER` section paints in the shape's `fallback_color`).
+fn colours_of(shapes: &[egui::epaint::TextShape], prefix: &str) -> Vec<egui::Color32> {
+    let hits: Vec<&egui::epaint::TextShape> = shapes
+        .iter()
+        .filter(|t| t.galley.text().starts_with(prefix))
+        .collect();
+    assert_eq!(hits.len(), 1, "`{prefix}…` must paint once");
+    let t = hits[0];
+    if let Some(c) = t.override_text_color {
+        return vec![c];
+    }
+    t.galley
+        .job
+        .sections
+        .iter()
+        .map(|s| match s.format.color {
+            egui::Color32::PLACEHOLDER => t.fallback_color,
+            c => c,
+        })
+        .collect()
+}
+
+/// AC 7 — an AI panel `error` row paints in `status.error`.
+#[test]
+fn ac7_panel_error_row_paints_status_error() {
+    let (ctx, mut app) = ctx_and_app();
+    app.agent.panel_open = true;
+    app.agent
+        .chat
+        .push(("error".to_owned(), "LCV167ERR the turn failed".to_owned()));
+    let shapes = text_shapes(&ctx, &mut app);
+    assert_eq!(colours_of(&shapes, "LCV167ERR"), vec![STATUS_ERROR]);
+}
+
+/// AC 7 — the `! AI unavailable` dock line paints in `status.error`; an
+/// ordinary feedback line stays `status.warning` (control).
+#[test]
+fn ac7_dock_error_line_is_status_error_and_feedback_stays_warning() {
+    let (ctx, mut app) = ctx_and_app();
+    harness::submit_command(&ctx, &mut app, ":draw a line");
+    assert!(app.command_feedback.starts_with("! AI unavailable"));
+    let shapes = text_shapes(&ctx, &mut app);
+    assert_eq!(colours_of(&shapes, "! AI unavailable"), vec![STATUS_ERROR]);
+
+    let (ctx, mut app) = ctx_and_app();
+    harness::submit_command(&ctx, &mut app, "lien");
+    let shapes = text_shapes(&ctx, &mut app);
+    assert_eq!(colours_of(&shapes, "Unknown command"), vec![STATUS_WARNING]);
+}
+
+/// AC 7 — no implementation code under `src/` names egui's pure red.
+#[test]
+fn ac7_no_pure_red_in_src_outside_tests() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut files = Vec::new();
+    rs_files(&root, &mut files);
+    files.retain(|p| !is_test_file(p));
+    let sections: Vec<(String, String)> = files
+        .iter()
+        .map(|p| {
+            let src = std::fs::read_to_string(p).expect("readable source");
+            let body = src.split("\n#[cfg(test)]").next().unwrap_or_default();
+            (p.display().to_string(), body.to_owned())
+        })
+        .collect();
+    let needle = concat!("Color32::", "RED");
+    let control = occurrences(&sections, concat!("Color32::", "from_rgb("));
+    assert!(!control.is_empty(), "positive control: the scan reads code");
+    let hits = occurrences(&sections, needle);
+    assert!(hits.is_empty(), "{hits:?}");
 }

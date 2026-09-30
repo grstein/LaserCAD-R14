@@ -42,7 +42,7 @@
 - [x] T14 [AC7] `STATUS_ERROR` + `TOKENS` row + `v.error_fg_color`; DESIGN.md §3 `status.error`
   Home → `ui/theme.rs::STATUS_ERROR` in the same commit (TOKENS ↔ §3 test); T13 green (files:
   src/ui/theme.rs, DESIGN.md)
-- [ ] T15 [AC7] Test first: painted AI panel `error` row and the `! AI unavailable` dock line are
+- [x] T15 [AC7] Test first: painted AI panel `error` row and the `! AI unavailable` dock line are
   #ff6b6b; an ordinary dock feedback stays `status.warning`; source scan: no `Color32::RED` in
   `src/` outside tests (files: tests/it/ui/wording_and_status.rs)
 - [ ] T16 [AC7] `draw_chat_row` error rows and `! ` dock feedback read `error_fg_color`; T15
