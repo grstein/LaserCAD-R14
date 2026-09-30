@@ -28,4 +28,4 @@
 - [x] T16 [AC7] Open paths and Bed dialog OK set the flag (files: src/io/file_actions.rs, src/app/bed_dialog.rs)
 - [x] T17 [AC8] DESIGN.md §3 grid/origin/snap-edge tokens, §5 chord rule, §6 origin, snap label,
   framing and paint order; gap notes removed (files: DESIGN.md)
-- [ ] T18 CHANGELOG line (files: CHANGELOG.md)
+- [x] T18 CHANGELOG line (files: CHANGELOG.md)
