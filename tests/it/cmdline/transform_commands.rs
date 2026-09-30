@@ -1,5 +1,5 @@
-//! LCV-158 — ROTATE and LCV-181 — MIRROR driven from the command line and
-//! the canvas through the real frame.
+//! LCV-158 — ROTATE, LCV-181 — MIRROR and LCV-182 — SCALE driven from the
+//! command line and the canvas through the real frame.
 
 use crate::harness;
 
@@ -209,4 +209,82 @@ fn escape_at_the_yes_no_prompt_cancels() {
         app.tool_manager.active_status_text(),
         "MIRROR Specify first point of mirror line:"
     );
+}
+
+/// LCV-182 AC1, AC4, AC7 — `sc` ⏎ `0,0` ⏎ `2` ⏎ doubles a line on a
+/// non-current layer about the origin as one undo step, keeps its layer and
+/// the selection, and hands back to SELECT; Ctrl+Z restores it bit-exact.
+#[test]
+fn sc_typed_factor_two_doubles() {
+    let ctx = egui::Context::default();
+    let mut app = App::default();
+    frame(&ctx, &mut app, vec![]);
+    AddLayer::new("Engrave", [0, 0, 255], true).do_(&mut app.document);
+    let engrave = app.document.layer_by_name("Engrave").unwrap().id;
+    let source = Line::new(Vec2::new(10.0, 0.0), Vec2::new(20.0, 5.0));
+    app.document.push_entity(Entity::Line(source), engrave);
+    app.document.selection.add(0);
+
+    submit_command(&ctx, &mut app, "sc");
+    assert_eq!(app.tool_manager.active_tool_name(), "SCALE");
+    assert_eq!(
+        app.tool_manager.active_status_text(),
+        "SCALE Specify base point:"
+    );
+    submit_command(&ctx, &mut app, "0,0");
+    assert_eq!(
+        app.tool_manager.active_status_text(),
+        "SCALE Specify scale factor:"
+    );
+    submit_command(&ctx, &mut app, "2");
+
+    let l = line_at(&app, 0);
+    assert_near(l.p1, Vec2::new(20.0, 0.0));
+    assert_near(l.p2, Vec2::new(40.0, 10.0));
+    assert_eq!(app.document.entity_layer(0), Some(engrave));
+    assert!(app.document.selection.is_selected(0));
+    assert_eq!(app.history.len(), 1, "one undo step");
+    assert_eq!(app.tool_manager.active_tool_name(), "Select");
+
+    tap(&ctx, &mut app, egui::Key::Z, egui::Modifiers::COMMAND);
+    assert_eq!(line_at(&app, 0), source, "undo is bit-exact");
+}
+
+/// LCV-182 AC5 — with the cursor on the canvas, `scale` ⏎ `0,0` ⏎ then `-1`
+/// or `0` ⏎ shows the refusal line, changes nothing, and keeps prompting for
+/// the factor.
+#[test]
+fn scale_refuses_a_non_positive_factor() {
+    let ctx = egui::Context::default();
+    let mut app = App::default();
+    let mut viewport = egui::Rect::NOTHING;
+    let _ = ctx.run(raw_input(vec![]), |c| {
+        app.update_ui(c);
+        viewport = c.available_rect();
+    });
+    let source = Line::new(Vec2::new(10.0, 0.0), Vec2::new(20.0, 5.0));
+    app.document.push_current(Entity::Line(source));
+    app.document.selection.add(0);
+    frame(
+        &ctx,
+        &mut app,
+        vec![egui::Event::PointerMoved(viewport.center())],
+    );
+
+    submit_command(&ctx, &mut app, "scale");
+    submit_command(&ctx, &mut app, "0,0");
+    for factor in ["-1", "0"] {
+        app.command_feedback.clear();
+        submit_command(&ctx, &mut app, factor);
+        assert_eq!(
+            app.command_feedback, "SCALE does not accept that input.",
+            "{factor:?}"
+        );
+        assert_eq!(
+            app.tool_manager.active_status_text(),
+            "SCALE Specify scale factor:"
+        );
+    }
+    assert_eq!(line_at(&app, 0), source);
+    assert_eq!(app.history.len(), 0);
 }
