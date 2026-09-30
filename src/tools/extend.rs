@@ -1,7 +1,7 @@
 //! ExtendTool: hover near a Line or Arc endpoint → preview → click to commit.
 //!
 //! `on_pointer_move` picks the nearest Line or Arc endpoint within
-//! [`PICK_RADIUS_MM`] and the boundary with the least [`extend_reach`] travel
+//! [`PICK_APERTURE_PT`] at the live zoom and the boundary with the least [`extend_reach`] travel
 //! (Line, Circle or Arc), and shows the grown entity as a live preview (a
 //! Line to its boundary; an Arc along its own circle, never into a full
 //! turn — LCV-160). `on_pointer_down` commits [`ExtendEntity`] and resets to
@@ -11,10 +11,7 @@ use crate::app::App;
 use crate::document::commands::trim::extend_reach;
 use crate::document::{Document, Entity, ExtendEntity, History};
 use crate::geometry::Vec2;
-use crate::tools::Tool;
-
-/// World-space pick radius (mm) for nearest-endpoint detection.
-pub(crate) const PICK_RADIUS_MM: f64 = 5.0;
+use crate::tools::{PICK_APERTURE_PT, Tool};
 
 /// Compact hover state: (target_idx, extend_endpoint, boundary_idx, preview).
 #[derive(Debug, Clone, Copy)]
@@ -28,9 +25,20 @@ enum State {
 }
 
 /// Single-click extend-to-nearest-boundary modify tool (LCV-051, LCV-160).
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ExtendTool {
     state: State,
+    /// Live zoom in mm per screen point (LCV-162); `1.0` until forwarded.
+    mm_per_pt: f64,
+}
+
+impl Default for ExtendTool {
+    fn default() -> Self {
+        Self {
+            state: State::Idle,
+            mm_per_pt: 1.0,
+        }
+    }
 }
 
 /// The two endpoints (`0` = p1 / start, `1` = p2 / end) of an extendable
@@ -43,9 +51,9 @@ fn endpoints(e: &Entity) -> Option<[Vec2; 2]> {
     }
 }
 
-/// The hover state for `pos`: the nearest endpoint in reach and its
-/// shortest extension, or `None`.
-fn hover(pos: Vec2, entities: &[Entity]) -> Option<H> {
+/// The hover state for `pos`: the nearest endpoint within `radius_mm` and
+/// its shortest extension, or `None`.
+fn hover(pos: Vec2, entities: &[Entity], radius_mm: f64) -> Option<H> {
     let mut best: Option<(usize, u8, f64)> = None;
     for (i, e) in entities.iter().enumerate() {
         let Some([p0, p1]) = endpoints(e) else {
@@ -53,7 +61,7 @@ fn hover(pos: Vec2, entities: &[Entity]) -> Option<H> {
         };
         let (d0, d1) = ((pos - p0).length(), (pos - p1).length());
         let (md, ep) = if d0 < d1 { (d0, 0u8) } else { (d1, 1u8) };
-        if md <= PICK_RADIUS_MM && best.is_none_or(|(_, _, bd)| md < bd) {
+        if md <= radius_mm && best.is_none_or(|(_, _, bd)| md < bd) {
             best = Some((i, ep, md));
         }
     }
@@ -80,7 +88,8 @@ impl Tool for ExtendTool {
     }
 
     fn on_pointer_move(&mut self, pos: Vec2, doc: &mut Document) {
-        self.state = hover(pos, &doc.entities).map_or(State::Idle, State::Hover);
+        let radius = PICK_APERTURE_PT * self.mm_per_pt;
+        self.state = hover(pos, &doc.entities, radius).map_or(State::Idle, State::Hover);
     }
 
     fn on_pointer_down(&mut self, _: Vec2, _: bool, doc: &mut Document, history: &mut History) {
@@ -107,6 +116,15 @@ impl Tool for ExtendTool {
 
     fn cancel(&mut self) {
         self.state = State::Idle;
+    }
+
+    /// EXTEND always waits for an entity pick (LCV-162 AC 5).
+    fn wants_entity_pick(&self) -> bool {
+        true
+    }
+
+    fn set_pick_scale(&mut self, mm_per_pt: f64) {
+        self.mm_per_pt = mm_per_pt;
     }
 }
 
@@ -172,6 +190,20 @@ mod tests {
     #[test]
     #[rustfmt::skip]
     fn single_line_no_boundary_stays_idle() { let mut t = ExtendTool::default(); let mut d = mk(vec![le(0.,0.,5.,0.)]); t.on_pointer_move(v(5.1,0.),&mut d); assert!(t.preview().is_empty()); }
+
+    /// LCV-162 AC 8 — the endpoint radius is 5 pt at the live zoom, and
+    /// EXTEND always waits for an entity pick.
+    #[test]
+    fn pick_radius_follows_the_pick_scale() {
+        for (scale, x, previews) in [(0.05, 5.2, true), (0.05, 5.3, false), (20.0, 85.0, true)] {
+            let mut t = ExtendTool::default();
+            t.set_pick_scale(scale);
+            assert!(t.wants_entity_pick());
+            let mut d = mk(vec![le(0., 0., 5., 0.), le(300., -1., 300., 1.)]);
+            t.on_pointer_move(v(x, 0.), &mut d);
+            assert_eq!(!t.preview().is_empty(), previews, "{scale} mm/pt, x {x}");
+        }
+    }
 
     #[test]
     fn hover_line_boundary_preview() {

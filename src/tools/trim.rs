@@ -14,18 +14,21 @@ use crate::document::commands::trim::{cut_points, trim_step};
 use crate::document::commands::{Command, CompositeCommand};
 use crate::document::{Document, Entity, History, TrimEntity};
 use crate::geometry::{Arc, Vec2};
-use crate::tools::Tool;
-
-/// Distance tolerance for point-to-entity picking (mm).
-///
-/// Independent from `select/hit::PICK_THRESHOLD_MM` — the two constants do not
-/// share state so they can diverge independently.
-pub const PICK_THRESHOLD_MM: f64 = 5.0;
+use crate::tools::{PICK_APERTURE_PT, Tool};
 
 /// Stateless trim tool: single-click removes the clicked segment at every
 /// real (segment-level) intersection with all other entities in the document.
-#[derive(Debug, Default)]
-pub struct TrimTool;
+#[derive(Debug)]
+pub struct TrimTool {
+    /// Live zoom in mm per screen point (LCV-162); `1.0` until forwarded.
+    mm_per_pt: f64,
+}
+
+impl Default for TrimTool {
+    fn default() -> Self {
+        Self { mm_per_pt: 1.0 }
+    }
+}
 
 /// Distance from `p` to the nearest point on the arc's stroke.
 fn arc_dist(arc: &Arc, p: Vec2) -> f64 {
@@ -40,9 +43,9 @@ fn arc_dist(arc: &Arc, p: Vec2) -> f64 {
     }
 }
 
-/// Return the index of the entity closest to `pos` within [`PICK_THRESHOLD_MM`],
-/// or `None` if no entity qualifies.
-fn pick_entity(pos: Vec2, entities: &[Entity]) -> Option<usize> {
+/// Return the index of the entity closest to `pos` within `radius_mm`, or
+/// `None` if no entity qualifies.
+fn pick_entity(pos: Vec2, entities: &[Entity], radius_mm: f64) -> Option<usize> {
     entities
         .iter()
         .enumerate()
@@ -54,7 +57,7 @@ fn pick_entity(pos: Vec2, entities: &[Entity]) -> Option<usize> {
             };
             (i, d)
         })
-        .filter(|(_, d)| *d <= PICK_THRESHOLD_MM)
+        .filter(|(_, d)| *d <= radius_mm)
         .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
         .map(|(i, _)| i)
 }
@@ -104,7 +107,8 @@ impl Tool for TrimTool {
         doc: &mut Document,
         history: &mut History,
     ) {
-        let Some(target_idx) = pick_entity(pos, &doc.entities) else {
+        let radius = PICK_APERTURE_PT * self.mm_per_pt;
+        let Some(target_idx) = pick_entity(pos, &doc.entities, radius) else {
             return;
         };
         let mut steps = trim_steps(doc, target_idx, pos);
@@ -138,6 +142,15 @@ impl Tool for TrimTool {
     }
 
     fn cancel(&mut self) {}
+
+    /// TRIM always waits for an entity pick (LCV-162 AC 5).
+    fn wants_entity_pick(&self) -> bool {
+        true
+    }
+
+    fn set_pick_scale(&mut self, mm_per_pt: f64) {
+        self.mm_per_pt = mm_per_pt;
+    }
 }
 
 #[cfg(test)]
@@ -155,7 +168,7 @@ mod tests {
         doc
     }
     fn do_trim(doc: &mut Document, hist: &mut History, x: f64, y: f64) {
-        TrimTool.on_pointer_down(Vec2::new(x, y), false, doc, hist);
+        TrimTool::default().on_pointer_down(Vec2::new(x, y), false, doc, hist);
     }
     fn line_at(doc: &Document, idx: usize) -> Line {
         match doc.entities[idx] {
@@ -167,27 +180,41 @@ mod tests {
         a.approx_eq(b, EPSILON)
     }
 
-    /// AC#1 — Default derive compiles.
+    /// AC#1 — `Default` exists; LCV-162 — at the default 1 mm/pt.
     #[test]
-    #[expect(
-        clippy::default_constructed_unit_structs,
-        reason = "AC#1 checks that `Default` exists on the unit struct"
-    )]
     fn trim_tool_struct_constructs() {
-        let _a = TrimTool::default();
         let _b: TrimTool = Default::default();
+        assert_eq!(TrimTool::default().mm_per_pt, 1.0);
+    }
+
+    /// LCV-162 AC 8 — the pick radius is 5 pt at the live zoom, and TRIM
+    /// always waits for an entity pick.
+    #[test]
+    fn pick_radius_follows_the_pick_scale() {
+        for (scale, y, trims) in [(0.05, 0.2, true), (0.05, 0.3, false), (20.0, 80.0, true)] {
+            let mut doc = doc_with(vec![ln(0.0, 0.0, 10.0, 0.0), ln(5.0, -500.0, 5.0, 500.0)]);
+            let mut hist = History::default();
+            let mut tool = TrimTool::default();
+            tool.set_pick_scale(scale);
+            assert!(tool.wants_entity_pick());
+            tool.on_pointer_down(Vec2::new(2.0, y), false, &mut doc, &mut hist);
+            assert_eq!(hist.can_undo(), trims, "{scale} mm/pt, {y} mm");
+        }
     }
 
     /// AC#2
     #[test]
     fn name_is_trim() {
-        assert_eq!(TrimTool.name(), "TRIM");
+        assert_eq!(TrimTool::default().name(), "TRIM");
     }
 
     /// AC#3
     #[test]
     fn status_text_is_constant() {
-        assert_eq!(TrimTool.status_text(), "TRIM: Click on a segment to trim");
+        assert_eq!(
+            TrimTool::default().status_text(),
+            "TRIM: Click on a segment to trim"
+        );
     }
 
     /// AC#4 — miss (> 5 mm) is a no-op.
@@ -284,26 +311,26 @@ mod tests {
     fn pointer_up_is_noop() {
         let mut doc = Document::default();
         let mut hist = History::default();
-        TrimTool.on_pointer_up(Vec2::new(5.0, 5.0), false, &mut doc, &mut hist);
+        TrimTool::default().on_pointer_up(Vec2::new(5.0, 5.0), false, &mut doc, &mut hist);
         assert!(!hist.can_undo());
     }
 
     /// AC#12 — preview is always empty.
     #[test]
     fn preview_always_empty() {
-        assert!(TrimTool.preview().is_empty());
+        assert!(TrimTool::default().preview().is_empty());
     }
 
     /// AC#13 — cancel is a no-op.
     #[test]
     fn cancel_is_noop() {
-        TrimTool.cancel();
+        TrimTool::default().cancel();
     }
 
     /// AC#14 — object-safe.
     #[test]
     fn object_safe() {
-        let _: Box<dyn Tool> = Box::new(TrimTool);
+        let _: Box<dyn Tool> = Box::new(TrimTool::default());
     }
 
     /// LCV-160 — a Circle target's second pass: a one-point cutter listed

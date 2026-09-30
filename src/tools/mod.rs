@@ -63,7 +63,7 @@ pub fn make(kind: ToolKind) -> Box<dyn Tool> {
         ToolKind::Arc => Box::new(ArcTool::default()),
         ToolKind::Move => Box::new(MoveTool::default()),
         ToolKind::Delete => Box::new(DeleteTool),
-        ToolKind::Trim => Box::new(TrimTool),
+        ToolKind::Trim => Box::new(TrimTool::default()),
         ToolKind::Extend => Box::new(ExtendTool::default()),
         ToolKind::Text => Box::new(TextTool::default()),
         ToolKind::Copy => Box::new(CopyTool::default()),

@@ -251,7 +251,7 @@ mod tests {
         ];
         let mut tools: Vec<Box<dyn Tool>> = vec![
             Box::new(SelectTool::default()),
-            Box::new(TrimTool),
+            Box::new(TrimTool::default()),
             Box::new(ExtendTool::default()),
             Box::new(DeleteTool),
         ];

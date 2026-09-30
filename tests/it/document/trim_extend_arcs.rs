@@ -32,7 +32,7 @@ fn doc_with(entities: Vec<Entity>) -> Document {
     doc
 }
 fn trim_at(doc: &mut Document, hist: &mut History, pos: Vec2) {
-    TrimTool.on_pointer_down(pos, false, doc, hist);
+    TrimTool::default().on_pointer_down(pos, false, doc, hist);
 }
 fn as_arc(e: &Entity) -> Arc {
     match e {
