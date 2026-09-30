@@ -325,3 +325,76 @@ fn audit_exports_write_svg_numbers_and_arc_paths() {
         }
     }
 }
+
+/// Round-trip tolerance, mm: export writes four decimals (AC 8).
+const TRIP_MM: f64 = 5e-4;
+
+fn near(label: &str, what: &str, a: Vec2, b: Vec2) {
+    assert!(
+        (a.x - b.x).abs() <= TRIP_MM && (a.y - b.y).abs() <= TRIP_MM,
+        "{label}: {what} {a:?} vs {b:?}"
+    );
+}
+
+/// The entities on each layer, in layer order, each list in document order.
+/// Export writes one group per layer, so entities interleaved across layers
+/// come back grouped: order is kept within a layer, not across layers.
+fn by_layer(doc: &Document) -> Vec<Vec<&Entity>> {
+    doc.layers()
+        .iter()
+        .map(|l| {
+            (0..doc.entity_count())
+                .filter(|&i| doc.entity_layer(i) == Some(l.id))
+                .map(|i| &doc.entities[i])
+                .collect()
+        })
+        .collect()
+}
+
+/// AC 8 — export, `import_svg`, `into_document` restores the bed, the layers
+/// (order, name, color, output, current) and the entities within 5e-4 mm,
+/// each on its layer.
+#[test]
+fn audit_documents_survive_export_and_reopen() {
+    for (label, doc) in audit_set() {
+        let back = lasercad::io::svg::import_svg(&export_svg(&doc))
+            .and_then(|imported| imported.into_document())
+            .unwrap_or_else(|e| panic!("{label}: reopen failed: {e}"));
+        assert_eq!(back.bed_mm, doc.bed_mm, "{label}: bed");
+        let fields = |d: &Document| -> Vec<(String, [u8; 3], bool, bool)> {
+            d.layers()
+                .iter()
+                .map(|l| (l.name.clone(), l.color, l.output, l.id == d.current_layer()))
+                .collect()
+        };
+        assert_eq!(fields(&back), fields(&doc), "{label}: layers");
+        assert_eq!(back.entity_count(), doc.entity_count(), "{label}");
+        let (got_layers, want_layers) = (by_layer(&back), by_layer(&doc));
+        let lens = |v: &[Vec<&Entity>]| v.iter().map(Vec::len).collect::<Vec<_>>();
+        assert_eq!(lens(&got_layers), lens(&want_layers), "{label}: per layer");
+        let pairs = got_layers
+            .iter()
+            .flatten()
+            .zip(want_layers.iter().flatten());
+        for (got, want) in pairs {
+            match (got, want) {
+                (Entity::Line(g), Entity::Line(w)) => {
+                    near(&label, "p1", g.p1, w.p1);
+                    near(&label, "p2", g.p2, w.p2);
+                }
+                (Entity::Circle(g), Entity::Circle(w)) => {
+                    near(&label, "center", g.center, w.center);
+                    assert!((g.r - w.r).abs() <= TRIP_MM, "{label}: r");
+                }
+                (Entity::Arc(g), Entity::Arc(w)) => {
+                    near(&label, "center", g.center, w.center);
+                    assert!((g.r - w.r).abs() <= TRIP_MM, "{label}: r");
+                    near(&label, "start", g.start_point(), w.start_point());
+                    near(&label, "end", g.end_point(), w.end_point());
+                    assert_eq!(g.ccw, w.ccw, "{label}: ccw");
+                }
+                _ => panic!("{label}: kind {got:?} vs {want:?}"),
+            }
+        }
+    }
+}
