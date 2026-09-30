@@ -356,9 +356,39 @@ mod tests {
 
     // ── LCV-161 AC7: painted glyphs per kind ─────────────────────────────
 
+    /// The glyph pass of [`paint_all`]: every shape in the marker colour
+    /// (LCV-164 adds an edge pass under it and a label over it).
+    fn paint(kind: SnapKind) -> (Vec<egui::Shape>, egui::Pos2) {
+        let (shapes, c) = paint_all(kind);
+        let glyph = shapes
+            .into_iter()
+            .filter(|s| ink(s).is_some_and(|(color, _)| color == marker_color()))
+            .collect();
+        (glyph, c)
+    }
+
+    /// The colour and stroke width a marker shape paints with: its stroke
+    /// when it has one, else its fill at width 0. `None` for text.
+    fn ink(shape: &egui::Shape) -> Option<(egui::Color32, f32)> {
+        let pick = |fill: egui::Color32, color: egui::Color32, width: f32| {
+            if width > 0.0 {
+                (color, width)
+            } else {
+                (fill, 0.0)
+            }
+        };
+        match shape {
+            egui::Shape::Rect(r) => Some(pick(r.fill, r.stroke.color, r.stroke.width)),
+            egui::Shape::Circle(c) => Some(pick(c.fill, c.stroke.color, c.stroke.width)),
+            egui::Shape::Path(p) => Some(pick(p.fill, solid(&p.stroke.color), p.stroke.width)),
+            egui::Shape::LineSegment { stroke, .. } => Some((solid(&stroke.color), stroke.width)),
+            _ => None,
+        }
+    }
+
     /// Paint `kind` at world (0, 0) through `draw_snap_marker` and return
     /// the flattened shapes plus the marker's screen centre.
-    fn paint(kind: SnapKind) -> (Vec<egui::Shape>, egui::Pos2) {
+    fn paint_all(kind: SnapKind) -> (Vec<egui::Shape>, egui::Pos2) {
         let camera = Camera {
             center_world: Vec2::new(0.0, 0.0),
             mm_per_px: 1.0,
@@ -524,5 +554,102 @@ mod tests {
             s.iter()
                 .all(|x| matches!(x, egui::Shape::LineSegment { .. }))
         );
+    }
+
+    // ── LCV-164 AC 2, AC 3: dark edge and kind label ─────────────────────
+
+    const ALL_KINDS: [SnapKind; 8] = [
+        SnapKind::Endpoint,
+        SnapKind::Midpoint,
+        SnapKind::Center,
+        SnapKind::Intersection,
+        SnapKind::Quadrant,
+        SnapKind::Perpendicular,
+        SnapKind::Tangent,
+        SnapKind::Nearest,
+    ];
+
+    /// LCV-164 AC 2 — every glyph shape has an edge twin of the same kind in
+    /// `SNAP_EDGE` (the canvas background), ≥1 pt wider, and every edge is
+    /// painted before the first glyph shape.
+    #[test]
+    fn ac2_every_glyph_sits_on_a_wider_canvas_coloured_edge() {
+        use crate::render::palette::SNAP_EDGE;
+        assert_eq!(SNAP_EDGE, crate::ui::CANVAS_BG);
+        for kind in ALL_KINDS {
+            let (shapes, _) = paint_all(kind);
+            let inked: Vec<(usize, &egui::Shape, egui::Color32, f32)> = shapes
+                .iter()
+                .enumerate()
+                .filter_map(|(i, s)| ink(s).map(|(c, w)| (i, s, c, w)))
+                .collect();
+            let edges: Vec<_> = inked.iter().filter(|x| x.2 == SNAP_EDGE).collect();
+            let glyph: Vec<_> = inked.iter().filter(|x| x.2 == marker_color()).collect();
+            assert!(!glyph.is_empty(), "{kind:?}: control, the glyph paints");
+            assert_eq!(
+                edges.len(),
+                glyph.len(),
+                "{kind:?}: one edge per glyph shape"
+            );
+            let last_edge = edges.iter().map(|x| x.0).max().unwrap_or(usize::MAX);
+            let first_glyph = glyph.iter().map(|x| x.0).min().unwrap_or(0);
+            assert!(last_edge < first_glyph, "{kind:?}: the edge paints first");
+            for (edge, glyph) in edges.iter().zip(&glyph) {
+                assert_eq!(
+                    core::mem::discriminant(edge.1),
+                    core::mem::discriminant(glyph.1),
+                    "{kind:?}: the edge has the glyph's shape"
+                );
+                assert!(
+                    edge.3 >= glyph.3 + 1.0,
+                    "{kind:?}: edge {} pt vs glyph {} pt",
+                    edge.3,
+                    glyph.3
+                );
+            }
+        }
+    }
+
+    /// LCV-164 AC 3 — every glyph is followed by one text shape with the
+    /// kind's lower-case name, in the `snap` colour, whose rect does not
+    /// cover the snap point.
+    #[test]
+    fn ac3_every_glyph_is_labelled_clear_of_the_point() {
+        let names = [
+            "endpoint",
+            "midpoint",
+            "center",
+            "intersection",
+            "quadrant",
+            "perpendicular",
+            "tangent",
+            "nearest",
+        ];
+        for (kind, name) in ALL_KINDS.into_iter().zip(names) {
+            let (shapes, point) = paint_all(kind);
+            let texts: Vec<(usize, &egui::epaint::TextShape)> = shapes
+                .iter()
+                .enumerate()
+                .filter_map(|(i, s)| match s {
+                    egui::Shape::Text(t) => Some((i, t)),
+                    _ => None,
+                })
+                .collect();
+            let [(at, label)] = texts[..] else {
+                panic!("{kind:?}: one label expected, got {texts:?}");
+            };
+            assert_eq!(label.galley.text(), name, "{kind:?}");
+            assert!(at == shapes.len() - 1, "{kind:?}: the label paints last");
+            let rect = label.visual_bounding_rect();
+            assert!(
+                !rect.expand(1.0).contains(point),
+                "{kind:?}: label {rect:?} covers the point {point:?}"
+            );
+            let color = label.fallback_color;
+            assert!(
+                color == marker_color() || label.override_text_color == Some(marker_color()),
+                "{kind:?}: label in the snap colour, got {color:?}"
+            );
+        }
     }
 }

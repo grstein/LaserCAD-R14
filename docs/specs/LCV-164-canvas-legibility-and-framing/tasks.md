@@ -11,7 +11,7 @@
   entity (files: tests/it/ui/canvas_legibility.rs)
 - [x] T6 [AC6] Halo/hover/preview through `stroke_entity`, `draw_dashed` through `screen_points`;
   `layer_colors.rs` reads circles as paths (files: src/render/selection.rs, src/render/preview.rs, tests/it/app/layer_colors.rs)
-- [ ] T7 [AC2, AC3] Test: for all 8 kinds, an edge shape in `SNAP_EDGE` ≥1 pt wider precedes the
+- [x] T7 [AC2, AC3] Test: for all 8 kinds, an edge shape in `SNAP_EDGE` ≥1 pt wider precedes the
   glyph, and a text shape with the lower-case name sits clear of the point (files: src/render/snaps.rs)
 - [ ] T8 [AC2] `SNAP_EDGE` token; `glyph_shapes` painted as an edge pass, then the glyph (files: src/render/palette.rs, src/render/snaps.rs)
 - [ ] T9 [AC3] `snaps/label.rs`: `snap_label`, `LABEL_OFFSET_PT`, label painted after the glyph (files: src/render/snaps.rs, src/render/snaps/label.rs)
