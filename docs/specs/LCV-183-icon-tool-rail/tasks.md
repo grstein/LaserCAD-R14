@@ -5,7 +5,7 @@
   `IconFn`s so the tests compile and fail (files: src/ui/icons.rs, src/ui/mod.rs)
 - [x] T2 [AC1] [AC2] Draw-group icons: select, line, polyline, rect, circle, arc, text; shared
   helpers `marker`, `arrow_head`, `dashed` (files: src/ui/icons/draw.rs, src/ui/icons.rs)
-- [ ] T3 Refactor: move `ToolEntry` and `TOOLS` to `ui/toolbar/table.rs`, re-exported from
+- [x] T3 Refactor: move `ToolEntry` and `TOOLS` to `ui/toolbar/table.rs`, re-exported from
   `toolbar.rs`; no behaviour change (files: src/ui/toolbar.rs, src/ui/toolbar/table.rs)
 - [ ] T4 [AC1] [AC2] Modify-group icons: move, copy, rotate, mirror, scale, trim, extend,
   delete, dist; T1 goes green (files: src/ui/icons/modify.rs, src/ui/icons.rs)
