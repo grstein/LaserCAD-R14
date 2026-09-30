@@ -1,60 +1,55 @@
 # LCV-164 — Canvas legibility and bed framing
 
-- **Status**: Draft
+- **Status**: Specified
 - **Depends on**: none
 - **Implementation**: -
 
 ## Problem
 
-The canvas is hard to read, and it opens in the wrong place:
-
-- **Grid.** The minor grid is gray 48 at 0.5 pt on the gray-40 bed, about 1.12:1
-  (`render/grid.rs::draw_grid`). It disappears on most screens. The major grid is 2.34:1.
-- **Snap glyph.** The 8 pt orange glyph (`render/snaps.rs`) has no dark edge, so it gets lost
-  over bright geometry. Nothing names the snap kind.
-- **Origin.** Nothing marks the machine origin (0,0), which is where LaserGRBL starts.
-- **Arcs and overlays.** Arcs are always 64 chords, whatever the zoom
-  (`render/entities.rs::PaintOptions`, LCV-035 AC 2). Big circles look faceted and tiny ones waste
-  shapes. Translucent overlays are drawn one segment at a time, so the joints look darker.
-- **Framing.** On startup the camera is at (0,0) at 1 mm/pt (`render/camera.rs::Camera`), so a
-  400×400 mm bed opens off-centre. Open, autosave recovery and a bed-size change do not
-  reframe either.
+The minor grid is gray 48 at 0.5 pt on the gray-40 bed, about 1.12:1
+(`render/grid.rs::draw_grid`), and vanishes on most screens. The snap glyph
+(`render/snaps.rs::draw_snap_marker`) has no dark edge, so it gets lost over bright geometry,
+and nothing names the snap kind. Nothing marks the machine origin (0,0), where LaserGRBL starts.
+Arcs are always 64 chords (`render/entities.rs::PaintOptions`, LCV-035 AC 2): big circles look
+faceted, tiny ones waste shapes. Translucent overlays are drawn one segment at a time, so the
+joints look darker. The camera starts at (0,0) at 1 mm/pt (`render/camera.rs::Camera`), so a
+400×400 mm bed opens off-centre, and Open, autosave recovery and a bed-size change do not
+reframe.
 
 ## Stories
 
 - As an operator, I want to see the bed, the grid and the origin as soon as the drawing opens.
 - As an operator, I want snap glyphs and curves that stay crisp at every zoom level.
 
-## Direction
-
-- Grid: minor ≈1.4:1 at 1 pt, major ≈2.3:1. The grid stays visible but never competes with
-  geometry. Lines sit on pixel centres (`Painter::round_to_pixel_center`).
-- Snap glyph: a 1 pt dark edge under the orange stroke, and a small kind label (`endpoint`,
-  `midpoint`, …) next to it. The glyph table in DESIGN.md §6 also reserves the R14 glyphs for
-  LCV-161.
-- Origin marker: a small L-shaped X/Y indicator at world (0,0), drawn under the geometry.
-- Arcs are tessellated to a chord tolerance in screen points, not a fixed segment count.
-  Translucent overlays (selection halo, preview) are drawn as one path per entity.
-- Frame the bed (Fit to Bed) on startup, after Open, after autosave recovery and after a
-  bed-size change.
-- DESIGN.md §3, §5 and §6 are updated in this spec's last task.
-
 ## Acceptance criteria
 
-To be written by /specify.
+1. THE SYSTEM SHALL paint minor grid lines at 1 pt with ≥1.35:1 contrast on the bed fill and
+   major lines with ≥2.2:1, each on a pixel centre.
+2. WHEN a snap glyph is painted THE SYSTEM SHALL paint a dark edge (≥1 pt wider, `CANVAS_BG`)
+   under the `snap` stroke of the same shape.
+3. WHEN a snap glyph is painted THE SYSTEM SHALL paint the kind's lower-case name (`endpoint`,
+   `midpoint`, `center`, `intersection`, `quadrant`, `perpendicular`, `tangent`, `nearest`) as
+   text beside the glyph, offset so it does not cover the snap point.
+4. THE SYSTEM SHALL paint an origin marker at world (0,0): an X arm along +X and a Y arm along
+   +Y, each 12 pt long, after the grid and before the entities.
+5. WHEN an arc or circle is painted THE SYSTEM SHALL use enough chords that the sagitta of each
+   chord is ≤0.25 pt on screen, with at least 8 and at most 1024 chords per full turn (replaces
+   LCV-035 AC 2's fixed 64).
+6. WHEN a translucent overlay (selection halo, preview, hover) strokes an entity THE SYSTEM SHALL
+   paint it as one path shape per entity, not one shape per segment.
+7. WHEN the app starts, a file is opened, an autosave is recovered or the bed size changes THE
+   SYSTEM SHALL frame the bed as `View > Fit to Bed` does, once the viewport size is known.
+8. THE SYSTEM SHALL record the grid, origin, snap label and tessellation rules in DESIGN.md §3,
+   §5 and §6 in this spec's last task (amends the LCV-137 paint-order test for path shapes).
 
 ## Out of scope
 
-- A UCS icon that follows a user coordinate system (no UCS in LaserCAD).
-- Grid settings dialog, and adaptive grid density beyond `render/grid.rs::pick_minor_spacing_mm`.
-- Choosing layer colours (LCV-156). This spec only keeps the displayed colour readable.
+- A UCS icon (no UCS in LaserCAD); a grid settings dialog or new grid density rules.
+- Adjusting a layer's displayed colour: layers paint their raw colour (ADR 0012 §9).
+- Snap tracking; the snap glyph shapes themselves (LCV-161).
 
 ## Open questions
 
-- ✱ LCV-035 AC 2 pins `arc_segments == 64`. The chord-tolerance change replaces that AC.
-- ✱ The LCV-137 paint-order test treats grid lines as `LineSegment` shapes. Drawing the grid or
-  overlays as paths amends that test.
-- LCV-156 paints the raw layer colour (ADR 0012 §9). Should a layer colour under 3:1 on the bed
-  (e.g. `#0000ff`, 1.7:1) be lightened for display, or should layers offer a curated palette?
-  DESIGN.md §3 sets the ≥3:1 target.
-- Should the snap label be on by default, or only after the glyph has been still for a moment?
+- None. Decided (self-approved per user goal): LCV-035 AC 2 is replaced by AC 5; the LCV-137
+  paint-order test is amended for path shapes; low-contrast layer colours are left raw (no
+  display lightening, no curated palette); the snap label shows at once, with no delay.
