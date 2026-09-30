@@ -19,10 +19,6 @@ use crate::geometry::{Arc, EPSILON, Line};
 /// complementary to the kept arc. Arc: the 0–2 sub-arcs outside the kept
 /// span, same centre, radius and direction. An unchanged target, or a `kept`
 /// of a shape `original` cannot trim to, removes nothing.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "wired into the TRIM feedback by LCV-163 T11")
-)]
 pub(crate) fn removed_pieces(original: &Entity, kept: &Entity) -> Vec<Entity> {
     let pieces = match (*original, *kept) {
         (Entity::Line(o), Entity::Line(k)) => line_pieces(o, k),

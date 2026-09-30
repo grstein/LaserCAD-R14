@@ -42,7 +42,7 @@
 - [x] T10 [AC1] [AC2] [AC3] [AC6] `SelectTool::feedback`: `Preview`/`Dashed` box by drag direction
   while `Dragging`; else `Hover(hit::pick_closest(cursor, …, aperture))` (files:
   src/tools/select/mod.rs, src/tools/select/hit.rs)
-- [ ] T11 [P] [AC3] [AC4] [AC6] TRIM: `trim_steps` → `trim_fold` returning (cutter indices, kept
+- [x] T11 [P] [AC3] [AC4] [AC6] TRIM: `trim_steps` → `trim_fold` returning (cutter indices, kept
   entity); click builds commands from the indices; `feedback` = `Hover(target)` + `Danger` per
   `removed_pieces` (files: src/tools/trim.rs)
 - [ ] T12 [P] [AC3] [AC5] EXTEND `feedback` = `Hover(ti)` + `Preview(grown)` from

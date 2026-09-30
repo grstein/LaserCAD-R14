@@ -4,17 +4,20 @@
 //! has a cut point on it ([`cut_points`], [`trim_step`]) over a copy, and
 //! commit only the steps that change it: nothing, one bare [`TrimEntity`], or
 //! one [`CompositeCommand`] labelled `Trim` — one undo step per click
-//! (LCV-160 AC 9). Stateless — remains active after each trim.
+//! (LCV-160 AC 9). Stateless — remains active after each trim. The hover
+//! feedback runs the same fold and paints what the click would remove
+//! (LCV-163).
 //!
 //! MUST NOT import `eframe` or `rfd`. `egui` is allowed (for [`egui::Key`]).
 //! Introduced by demand LCV-050.
 
 use crate::app::App;
+use crate::document::commands::trim::removed::removed_pieces;
 use crate::document::commands::trim::{cut_points, trim_step};
 use crate::document::commands::{Command, CompositeCommand};
 use crate::document::{Document, Entity, History, TrimEntity};
 use crate::geometry::{Arc, Vec2};
-use crate::tools::{PICK_APERTURE_PT, Tool};
+use crate::tools::{Mark, PICK_APERTURE_PT, Tool};
 
 /// Stateless trim tool: single-click removes the clicked segment at every
 /// real (segment-level) intersection with all other entities in the document.
@@ -62,10 +65,13 @@ fn pick_entity(pos: Vec2, entities: &[Entity], radius_mm: f64) -> Option<usize> 
         .map(|(i, _)| i)
 }
 
-/// The trim steps of one click: each cutter that changes the target, folded
-/// in document order over a copy. A Circle target gets a second pass, since
-/// once it is an Arc a cutter with a single cut point can trim it too.
-fn trim_steps(doc: &Document, target_idx: usize, pos: Vec2) -> Vec<Box<dyn Command>> {
+/// Fold one click over a copy of the target: the cutters that change it, in
+/// the order they apply, and the kept entity. Each cutter is tried in
+/// document order; a Circle target gets a second pass, since once it is an
+/// Arc a cutter with a single cut point can trim it too. The click and the
+/// hover feedback share this fold, so what is painted is what is removed
+/// (LCV-163 AC 6).
+fn trim_fold(doc: &Document, target_idx: usize, pos: Vec2) -> (Vec<usize>, Entity) {
     let original = doc.entities[target_idx];
     let cutters: Vec<usize> = (0..doc.entities.len())
         .filter(|&i| i != target_idx && !cut_points(&original, &doc.entities[i]).is_empty())
@@ -76,17 +82,17 @@ fn trim_steps(doc: &Document, target_idx: usize, pos: Vec2) -> Vec<Box<dyn Comma
         1
     };
     let mut current = original;
-    let mut steps: Vec<Box<dyn Command>> = Vec::new();
+    let mut applied = Vec::new();
     for &cutter_idx in cutters.iter().cycle().take(cutters.len() * passes) {
         match trim_step(&current, &doc.entities[cutter_idx], pos) {
             Some(next) if next != current => {
                 current = next;
-                steps.push(Box::new(TrimEntity::new(target_idx, cutter_idx, pos)));
+                applied.push(cutter_idx);
             }
             _ => {}
         }
     }
-    steps
+    (applied, current)
 }
 
 impl Tool for TrimTool {
@@ -111,7 +117,11 @@ impl Tool for TrimTool {
         let Some(target_idx) = pick_entity(pos, &doc.entities, radius) else {
             return;
         };
-        let mut steps = trim_steps(doc, target_idx, pos);
+        let (cutters, _) = trim_fold(doc, target_idx, pos);
+        let mut steps: Vec<Box<dyn Command>> = cutters
+            .into_iter()
+            .map(|c| Box::new(TrimEntity::new(target_idx, c, pos)) as Box<dyn Command>)
+            .collect();
         let command = match steps.len() {
             0 => return,
             1 => steps.remove(0),
@@ -139,6 +149,22 @@ impl Tool for TrimTool {
 
     fn preview(&self) -> Vec<Entity> {
         vec![]
+    }
+
+    /// LCV-163 AC 3/AC 4: the entity a click would trim, as `Hover`, and
+    /// what it would lose, as `Danger` — nothing when `cursor` is `None`.
+    fn feedback(&self, doc: &Document, cursor: Option<Vec2>) -> Vec<Mark> {
+        let radius = PICK_APERTURE_PT * self.mm_per_pt;
+        let Some((pos, target)) =
+            cursor.and_then(|c| pick_entity(c, &doc.entities, radius).map(|t| (c, t)))
+        else {
+            return Vec::new();
+        };
+        let (_, kept) = trim_fold(doc, target, pos);
+        let removed = removed_pieces(&doc.entities[target], &kept);
+        std::iter::once(Mark::Hover(target))
+            .chain(removed.into_iter().map(Mark::Danger))
+            .collect()
     }
 
     fn cancel(&mut self) {}
@@ -331,6 +357,40 @@ mod tests {
     #[test]
     fn object_safe() {
         let _: Box<dyn Tool> = Box::new(TrimTool::default());
+    }
+
+    /// LCV-163 AC 3/AC 4 — the hover marks the target and paints, as
+    /// `Danger`, exactly the pieces the click would remove.
+    #[test]
+    fn feedback_hovers_the_target_and_marks_the_removed_pieces() {
+        let doc = doc_with(vec![
+            ln(0.0, 0.0, 20.0, 0.0),
+            ln(5.0, -5.0, 5.0, 5.0),
+            ln(15.0, -5.0, 15.0, 5.0),
+        ]);
+        let marks = TrimTool::default().feedback(&doc, Some(Vec2::new(10.0, 0.5)));
+        assert_eq!(
+            marks,
+            vec![
+                Mark::Hover(0),
+                Mark::Danger(ln(0.0, 0.0, 5.0, 0.0)),
+                Mark::Danger(ln(15.0, 0.0, 20.0, 0.0)),
+            ]
+        );
+    }
+
+    /// LCV-163 AC 3/AC 9 — nothing without a cursor or off every entity; a
+    /// target nothing cuts is hovered with no danger.
+    #[test]
+    fn feedback_is_empty_off_the_canvas_or_off_every_entity() {
+        let doc = doc_with(vec![ln(0.0, 0.0, 10.0, 0.0), ln(0.0, 5.0, 10.0, 5.0)]);
+        let tool = TrimTool::default();
+        assert!(tool.feedback(&doc, None).is_empty());
+        assert!(tool.feedback(&doc, Some(Vec2::new(0.0, 20.0))).is_empty());
+        assert_eq!(
+            tool.feedback(&doc, Some(Vec2::new(5.0, 0.1))),
+            vec![Mark::Hover(0)]
+        );
     }
 
     /// LCV-160 — a Circle target's second pass: a one-point cutter listed
