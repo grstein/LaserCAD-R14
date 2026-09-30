@@ -19,6 +19,8 @@
 use crate::geometry::{SnapKind, SnapResult};
 use crate::render::Camera;
 
+mod label;
+
 /// Marker size in screen pixels (independent of zoom).
 pub(crate) const MARKER_SIZE_PX: f32 = 8.0;
 
@@ -241,7 +243,8 @@ pub(crate) fn glyph_shapes(
 /// Converts `snap.point` (world space) to screen space and paints the kind's
 /// glyph ([`glyph_shapes`]) twice: first the edge in
 /// [`crate::render::palette::SNAP_EDGE`], [`EDGE_EXTRA_PT`] wider, then the
-/// glyph in [`marker_color`] (LCV-164 AC 2):
+/// glyph in [`marker_color`] (LCV-164 AC 2); then the kind's name beside it
+/// (`snaps/label.rs`, AC 3):
 ///
 /// - `Endpoint` → filled square; `Midpoint` → filled upward triangle;
 ///   `Center` → unfilled circle; `Intersection` → X.
@@ -260,6 +263,7 @@ pub fn draw_snap_marker(
     let edge = crate::render::palette::SNAP_EDGE;
     painter.extend(glyph_shapes(shape, pos, edge, EDGE_EXTRA_PT));
     painter.extend(glyph_shapes(shape, pos, marker_color(), 0.0));
+    label::draw_label(painter, pos, snap.kind, marker_color());
 }
 
 #[cfg(test)]
