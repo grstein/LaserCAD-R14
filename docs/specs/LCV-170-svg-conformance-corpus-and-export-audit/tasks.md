@@ -38,7 +38,7 @@
       plus a current layer, and names with `& < > " '` and non-ASCII. For every mother and layer
       export, assert `roxmltree` parses it and the root is `svg` in
       `http://www.w3.org/2000/svg` (files: tests/it/io_svg/export_audit.rs)
-- [ ] T11 [AC6] Test: every element is one of `svg g line circle path`, and each carries only
+- [x] T11 [AC6] Test: every element is one of `svg g line circle path`, and each carries only
       its contract attributes (svg: xmlns width height viewBox fill; g: data-layer stroke
       stroke-width data-output data-current; line: x1 y1 x2 y2; circle: cx cy r; path: d) (files:
       tests/it/io_svg/export_audit.rs)

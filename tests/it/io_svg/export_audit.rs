@@ -149,3 +149,72 @@ fn every_audit_export_parses_with_an_svg_root() {
         assert_eq!(root.tag_name().namespace(), Some(SVG_NS), "{label}");
     }
 }
+
+/// The contract attributes of each allowed element: `(required, optional)`.
+/// `xmlns` is a namespace declaration, not an attribute, in `roxmltree`; the
+/// root's namespace is checked in AC 5.
+fn contract(element: &str) -> Option<(&'static [&'static str], &'static [&'static str])> {
+    Some(match element {
+        "svg" => (&["width", "height", "viewBox", "fill"], &[]),
+        "g" => (
+            &["data-layer", "stroke", "stroke-width", "data-output"],
+            &["data-current"],
+        ),
+        "line" => (&["x1", "y1", "x2", "y2"], &[]),
+        "circle" => (&["cx", "cy", "r"], &[]),
+        "path" => (&["d"], &[]),
+        _ => return None,
+    })
+}
+
+/// AC 6 — only `svg g line circle path`, all in the SVG namespace, each with
+/// exactly its contract attributes; no text content; no namespace besides SVG.
+#[test]
+fn audit_exports_use_only_contract_elements_and_attributes() {
+    for (label, text) in audit_exports() {
+        let xml = roxmltree::Document::parse(&text).expect("AC 5");
+        for node in xml.root().descendants() {
+            if node.is_text() {
+                let t = node.text().unwrap_or("");
+                assert!(t.trim().is_empty(), "{label}: text {t:?}");
+                continue;
+            }
+            if !node.is_element() {
+                assert!(node.is_root(), "{label}: {node:?}");
+                continue;
+            }
+            let name = node.tag_name().name();
+            assert_eq!(
+                node.tag_name().namespace(),
+                Some(SVG_NS),
+                "{label} <{name}>"
+            );
+            let (required, optional) =
+                contract(name).unwrap_or_else(|| panic!("{label}: element <{name}>"));
+            for a in node.attributes() {
+                assert_eq!(a.namespace(), None, "{label} <{name}> {}", a.name());
+                assert!(
+                    required.contains(&a.name()) || optional.contains(&a.name()),
+                    "{label}: <{name}> has {}",
+                    a.name()
+                );
+            }
+            for want in required {
+                assert!(node.has_attribute(*want), "{label}: <{name}> lacks {want}");
+            }
+            let ns: Vec<_> = node.namespaces().map(|n| n.uri()).collect();
+            assert_eq!(ns, [SVG_NS], "{label} <{name}> namespaces");
+        }
+        let root = xml.root_element();
+        assert_eq!(root.attribute("fill"), Some("none"), "{label}");
+        let current = xml
+            .descendants()
+            .filter(|n| n.attribute("data-current").is_some())
+            .map(|n| n.attribute("data-current"))
+            .collect::<Vec<_>>();
+        assert!(
+            current.len() <= 1 && current.iter().all(|c| *c == Some("1")),
+            "{label}"
+        );
+    }
+}
