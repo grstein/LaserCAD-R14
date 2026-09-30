@@ -8,6 +8,10 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ## [Unreleased]
 
+### Added
+
+- Quadrant, Perpendicular, Tangent and Nearest object snaps, each with its R14 marker (diamond, right-angle mark, circle with a tangent bar, hourglass). Perpendicular and Tangent work from the active tool's last point. `View > Object snap` turns each snap kind on or off and remembers the choice; all are on except Nearest, and F3 still switches snapping as a whole. See LCV-161.
+
 ### Changed
 
 - `TRIM` and `EXTEND` work with arcs: an arc can be trimmed and extended, and lines, circles and arcs can be cut or extended against an arc. A circle can be trimmed by another circle or an arc. `EXTEND` grows an arc along its own circle, never into a full turn. A `TRIM` click that meets several cutters is now one undo step. See LCV-160.

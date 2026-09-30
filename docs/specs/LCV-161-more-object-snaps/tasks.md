@@ -43,5 +43,5 @@
   `App::set_object_snap`, which writes the setting and persists it. The existing menubar
   source-scan tests stay green (files: src/ui/menubar.rs, src/ui/menubar/object_snap.rs,
   src/app/persist.rs)
-- [ ] T13 CHANGELOG `[Unreleased]` line: Quadrant, Perpendicular, Tangent and Nearest snaps;
+- [x] T13 CHANGELOG `[Unreleased]` line: Quadrant, Perpendicular, Tangent and Nearest snaps;
   View > Object snap per-kind toggles (files: CHANGELOG.md)
