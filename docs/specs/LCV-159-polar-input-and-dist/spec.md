@@ -1,8 +1,8 @@
 # LCV-159 — Polar input and DIST query
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: 364acb4..3868c0f
 
 ## Problem
 
