@@ -154,6 +154,16 @@ fn mirror_is_never_identity() {
     assert!(!mirror(3.0, 4.0, 3.0, 4.1).is_identity());
 }
 
+/// Coincident mirror points define no line: the transform moves nothing.
+#[test]
+fn mirror_with_coincident_points_is_identity() {
+    let t = mirror(3.0, 4.0, 3.0, 4.0 + EPSILON / 2.0);
+    assert!(t.is_identity());
+    assert_eq!(t.point(Vec2::new(1.0, 2.0)), Vec2::new(1.0, 2.0));
+    let a = Arc::new(Vec2::new(0.0, 0.0), 1.0, 0.0, 1.0, true);
+    assert_eq!(t.arc(a), a);
+}
+
 fn point() -> impl Strategy<Value = Vec2> {
     (-500.0..500.0f64, -500.0..500.0f64).prop_map(|(x, y)| Vec2::new(x, y))
 }

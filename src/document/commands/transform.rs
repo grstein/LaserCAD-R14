@@ -60,6 +60,7 @@ impl Command for TransformEntities {
     fn label(&self) -> &str {
         match self.transform {
             Transform::Rotate { .. } => "Rotate Entities",
+            Transform::Mirror { .. } => "Mirror Entities",
         }
     }
 }
