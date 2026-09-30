@@ -44,11 +44,9 @@ use crate::render::Camera;
 ///   compare the preview's footprint to what it will look like once committed.
 ///
 /// Exposed as `pub(crate)` for testability (AC#4).
+/// The colour is the `preview` token, [`crate::render::palette::preview`].
 pub(crate) fn preview_stroke() -> egui::Stroke {
-    egui::Stroke::new(
-        1.0_f32,
-        egui::Color32::from_rgba_unmultiplied(255, 220, 100, 160),
-    )
+    egui::Stroke::new(1.0_f32, crate::render::palette::preview())
 }
 
 /// Draw the preview overlay: entities that are about to be committed.

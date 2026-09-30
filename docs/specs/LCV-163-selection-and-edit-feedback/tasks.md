@@ -5,7 +5,7 @@
 - [x] T2 [AC1–9] Seam: `Mark` enum and the `Tool::feedback` default (wraps `preview()` as
   `Mark::Preview`); unit test that a tool with no override returns its preview as `Preview`
   marks (files: src/tools/feedback.rs, src/tools/mod.rs, src/tools/tool.rs)
-- [ ] T3 [AC8] Test first, then `render/palette.rs`: `PREVIEW` (moved from `preview_stroke`),
+- [x] T3 [AC8] Test first, then `render/palette.rs`: `PREVIEW` (moved from `preview_stroke`),
   `DANGER` #ff4d6a, `HOVER_WIDTH_PT` 2.5. Unit tests: `DANGER` ≥3:1 WCAG on gray 40 and hue
   ≥30° from `preview`, `snap` (#ffa000) and `status.warning` (#ff8f00); `HOVER_WIDTH_PT` > 1
   (files: src/render/palette.rs, src/render/mod.rs, src/render/preview.rs)

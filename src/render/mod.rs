@@ -10,6 +10,7 @@ pub mod camera;
 pub mod cursor;
 pub mod entities;
 pub mod grid;
+pub mod palette;
 pub mod preview;
 pub mod raster;
 pub mod selection;
