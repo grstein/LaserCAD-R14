@@ -17,6 +17,8 @@ pub(crate) const ICON_STROKE: f32 = 1.5;
 
 /// Draw-group icons (Select … Text).
 pub(crate) mod draw;
+/// Modify-group icons (Move … Dist).
+pub(crate) mod modify;
 
 /// A point on the 20-unit authoring grid, `[x, y]` with `y` down.
 pub(crate) type P = [f32; 2];
@@ -104,28 +106,6 @@ pub(crate) fn arc_points(c: P, r: f32, a0: f32, a1: f32) -> Vec<P> {
             [c[0] + r * a.cos(), c[1] + r * a.sin()]
         })
         .collect()
-}
-
-/// Modify-group icons (Move … Dist).
-pub(crate) mod modify {
-    /// Stub.
-    pub(crate) fn move_(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
-    /// Stub.
-    pub(crate) fn copy(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
-    /// Stub.
-    pub(crate) fn rotate(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
-    /// Stub.
-    pub(crate) fn mirror(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
-    /// Stub.
-    pub(crate) fn scale(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
-    /// Stub.
-    pub(crate) fn trim(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
-    /// Stub.
-    pub(crate) fn extend(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
-    /// Stub.
-    pub(crate) fn delete(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
-    /// Stub.
-    pub(crate) fn dist(_: &egui::Painter, _: egui::Rect, _: egui::Stroke) {}
 }
 
 #[cfg(test)]

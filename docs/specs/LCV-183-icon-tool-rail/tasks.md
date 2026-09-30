@@ -7,7 +7,7 @@
   helpers `marker`, `arrow_head`, `dashed` (files: src/ui/icons/draw.rs, src/ui/icons.rs)
 - [x] T3 Refactor: move `ToolEntry` and `TOOLS` to `ui/toolbar/table.rs`, re-exported from
   `toolbar.rs`; no behaviour change (files: src/ui/toolbar.rs, src/ui/toolbar/table.rs)
-- [ ] T4 [AC1] [AC2] Modify-group icons: move, copy, rotate, mirror, scale, trim, extend,
+- [x] T4 [AC1] [AC2] Modify-group icons: move, copy, rotate, mirror, scale, trim, extend,
   delete, dist; T1 goes green (files: src/ui/icons/modify.rs, src/ui/icons.rs)
 - [ ] T5 [AC2] `ToolEntry.icon` field filled for all 16 entries (files: src/ui/toolbar/table.rs)
 - [ ] T6 [AC3] [AC4] [AC5] [AC6] [AC7] [AC8] [AC9] Test first: `icon_tool_rail.rs` — tooltip
