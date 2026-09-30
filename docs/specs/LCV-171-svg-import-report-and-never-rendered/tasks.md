@@ -41,7 +41,7 @@
 - [x] T12 [AC10] Test: `export_svg` and every `export_layer_svg` output of a document with a line,
       a circle, a CCW and a CW arc on two layers (one Output off, one current) reopen with
       `report == []` (files: tests/it/io_svg/import_report.rs, tests/it/io_svg/mod.rs)
-- [ ] T13 [AC9] Test: `action_open_path` on a file with two `<image>` and a `transform` on a `<g>`
+- [x] T13 [AC9] Test: `action_open_path` on a file with two `<image>` and a `transform` on a `<g>`
       sets `command_feedback` to `Ignored: 2 image, 1 transform`; on a clean export it clears a
       pre-set feedback; a failed open leaves the feedback unchanged (files:
       src/io/file_actions/tests.rs)

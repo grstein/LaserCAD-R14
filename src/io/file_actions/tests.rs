@@ -473,3 +473,45 @@ fn action_save_io_error_sets_error_message() {
     action_save(&mut app);
     assert!(app.error_message.is_some());
 }
+
+// --- LCV-171 AC 9 — the import report on the command line ---------------
+
+/// LCV-171 AC 9 — a successful open with a non-empty report says what was
+/// ignored, in report order.
+#[test]
+fn open_path_reports_what_the_import_ignored() {
+    let dir = tempdir("open_path_report");
+    let path = dir.join("ignored.svg");
+    let src = r#"<svg xmlns="http://www.w3.org/2000/svg"><image/><image/><g transform="translate(1,1)"><line x1="0" y1="0" x2="1" y2="1"/></g></svg>"#;
+    fs::write(&path, src).unwrap();
+
+    let mut app = app_with_tempdir(&dir);
+    action_open_path(&mut app, path);
+
+    assert_eq!(app.error_message, None, "the open must succeed");
+    assert_eq!(app.document.entity_count(), 1);
+    assert_eq!(app.command_feedback, "Ignored: 2 image, 1 transform");
+}
+
+/// LCV-171 AC 9 — a clean open clears stale feedback; a failed open leaves
+/// it alone.
+#[test]
+fn open_path_clears_feedback_on_a_clean_file_and_keeps_it_on_failure() {
+    let dir = tempdir("open_path_clean_report");
+    let clean = svg_file(&dir, "clean.svg", [300.0, 180.0]);
+    let broken = dir.join("broken.svg");
+    fs::write(&broken, "<svg/>").unwrap();
+
+    let mut app = app_with_tempdir(&dir);
+    app.command_feedback = "stale".to_owned();
+    action_open_path(&mut app, broken);
+    assert!(app.error_message.is_some(), "positive control: it failed");
+    assert_eq!(app.command_feedback, "stale");
+    action_open_path(&mut app, dir.join("missing.svg"));
+    assert_eq!(app.command_feedback, "stale");
+
+    app.error_message = None;
+    action_open_path(&mut app, clean);
+    assert_eq!(app.error_message, None, "the open must succeed");
+    assert_eq!(app.command_feedback, "");
+}
