@@ -23,11 +23,13 @@
 //! Y mirror by LCV-100, bed by LCV-114, layers by LCV-156.
 
 use super::header::parse_bed;
-use super::layers::{LayerReader, STRAY_LAYER};
 use crate::document::entity::Entity;
 use crate::document::{Document, Layer, LayerId};
 use crate::geometry::{Arc, Circle, EPSILON, Line, Vec2};
 use crate::util::flip_y;
+use walk::Walk;
+
+mod walk;
 
 /// Errors returned by [`import_svg`].
 #[derive(Debug, thiserror::Error)]
@@ -131,12 +133,7 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
         return Err(SvgImportError::NoSvgRoot);
     }
     let bed_mm = parse_bed(root)?;
-    let mut walk = Walk {
-        entities: Vec::new(),
-        entity_layers: Vec::new(),
-        layers: LayerReader::default(),
-        bed_h: bed_mm[1],
-    };
+    let mut walk = Walk::new(bed_mm[1]);
     walk.collect(root, None)?;
     let (layers, current_layer) = walk.layers.finish();
     Ok(ImportedSvg {
@@ -146,43 +143,6 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
         current_layer,
         entity_layers: walk.entity_layers,
     })
-}
-
-/// Traversal state: geometry and membership so far, layers so far.
-struct Walk {
-    entities: Vec<Entity>,
-    entity_layers: Vec<LayerId>,
-    layers: LayerReader,
-    bed_h: f64,
-}
-
-impl Walk {
-    /// Append `node`'s recognised geometry on `layer` (the innermost enclosing
-    /// layer group; `None` = outside any, which means the first layer).
-    fn collect(
-        &mut self,
-        node: roxmltree::Node<'_, '_>,
-        layer: Option<LayerId>,
-    ) -> Result<(), SvgImportError> {
-        let bed_h = self.bed_h;
-        for child in node.children().filter(|n| n.is_element()) {
-            let entity = match child.tag_name().name() {
-                "line" => Some(parse_line(child, bed_h)?),
-                "circle" => Some(parse_circle(child, bed_h)?),
-                "path" => parse_path(child, bed_h)?,
-                _ => {
-                    let inner = self.layers.enter(child)?.or(layer);
-                    self.collect(child, inner)?;
-                    None
-                }
-            };
-            if let Some(entity) = entity {
-                self.entities.push(entity);
-                self.entity_layers.push(layer.unwrap_or(STRAY_LAYER));
-            }
-        }
-        Ok(())
-    }
 }
 
 fn parse_line(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Entity, SvgImportError> {
