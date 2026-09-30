@@ -89,7 +89,7 @@ pub enum ToolCallError {
 
 /// OpenAI function-calling schemas. Order: create_line(0) create_circle(1)
 /// create_arc(2) delete_entity(3) move_entity(4) copy_entity(5)
-/// query_entities(6) query_selection(7) create_drawing(8).
+/// rotate_entity(6) query_entities(7) query_selection(8) create_drawing(9).
 ///
 /// The two queries take no arguments at all — an explicitly empty
 /// `properties` / `required` pair rather than an absent `parameters`, because
@@ -189,7 +189,7 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
             let end_deg = get_f64(args, "create_arc", "end_deg")?;
             let ccw = get_bool(args, "create_arc", "ccw")?;
             validate_r("create_arc", r)?;
-            // The one unit boundary in this file: degrees in, radians out.
+            // A unit boundary, like `rotate_entity`: degrees in, radians out.
             Ok(AgentAction::CreateArc {
                 cx, cy, r, start: start_deg.to_radians(), end: end_deg.to_radians(), ccw,
                 layer: get_layer(args, "create_arc")?,
@@ -211,6 +211,13 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
             let dx = get_f64(args, "copy_entity", "dx")?;
             let dy = get_f64(args, "copy_entity", "dy")?;
             Ok(AgentAction::Copy { index, dx, dy })
+        }
+        "rotate_entity" => {
+            let index = get_index(args, "rotate_entity")?;
+            let x = get_f64(args, "rotate_entity", "x")?;
+            let y = get_f64(args, "rotate_entity", "y")?;
+            let degrees = get_f64(args, "rotate_entity", "degrees")?;
+            Ok(AgentAction::Rotate { index, x, y, angle: degrees.to_radians() })
         }
         // Read-only, argument-free: whatever the model sends as arguments —
         // `{}`, a stray field, or nothing at all — the answer is the same, so

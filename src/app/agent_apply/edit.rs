@@ -1,5 +1,5 @@
 //! The edit arms of `agent_apply.rs::plan`: actions that address an existing
-//! entity by index (LCV-078; `copy_entity` LCV-157). Split out for the LOC
+//! entity by index (LCV-078; `copy_entity` LCV-157; `rotate_entity` LCV-158). Split out for the LOC
 //! cap (LCV-157); the range check lives here because only these arms need it
 //! (ADR 0007 §D2a).
 //!
@@ -8,8 +8,10 @@
 use super::Planned;
 use crate::agent::AgentOutcome;
 use crate::app::agent_narrate::{describe, pt};
-use crate::document::{CopyEntities, DeleteEntities, Document, Entity, MoveEntities};
-use crate::geometry::Vec2;
+use crate::document::{
+    CopyEntities, DeleteEntities, Document, Entity, MoveEntities, TransformEntities,
+};
+use crate::geometry::{Transform, Vec2};
 
 /// `delete_entity`: refuse an out-of-range index, else name what goes and
 /// which indices shift.
@@ -57,6 +59,31 @@ pub(super) fn copy(index: usize, dx: f64, dy: f64, doc: &Document) -> Planned {
             ),
         ),
     }
+}
+
+/// `rotate_entity`: refuse an out-of-range index; a whole turn commits
+/// nothing (LCV-158 AC8); else rotate about `(x, y)` by `angle` radians.
+pub(super) fn rotate(index: usize, x: f64, y: f64, angle: f64, doc: &Document) -> Planned {
+    let entity = match in_range(index, doc) {
+        Err(refusal) => return Planned::Answer(refusal),
+        Ok(entity) => entity,
+    };
+    let base = Vec2::new(x, y);
+    let transform = Transform::Rotate { base, angle };
+    let what = format!("entity {index} ({})", describe(entity));
+    if transform.is_identity() {
+        return Planned::Answer(AgentOutcome::Ok(format!(
+            "A whole-turn rotation leaves {what} unchanged; nothing committed."
+        )));
+    }
+    Planned::Commit(
+        Box::new(TransformEntities::new(vec![index], transform)),
+        format!(
+            "Rotated {what} by {:.3}° about {} mm.",
+            angle.to_degrees(),
+            pt(x, y)
+        ),
+    )
 }
 
 /// The check the worker thread cannot make: is `index` a real entity?

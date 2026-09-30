@@ -109,6 +109,18 @@ pub enum AgentAction {
         /// Y translation, mm.
         dy: f64,
     },
+    /// Rotate one entity about `(x, y)` mm by `angle` radians, CCW positive
+    /// (LCV-158).
+    Rotate {
+        /// Zero-based index into `Document::entities`.
+        index: usize,
+        /// Base point X, mm.
+        x: f64,
+        /// Base point Y, mm.
+        y: f64,
+        /// Rotation angle, radians, CCW positive.
+        angle: f64,
+    },
     /// Read back every entity in the drawing. Commits nothing.
     QueryEntities,
     /// Read back the current selection. Commits nothing.
@@ -327,10 +339,16 @@ mod tests {
                 dx: 3.0,
                 dy: 4.0,
             },
+            AgentAction::Rotate {
+                index: 0,
+                x: 1.0,
+                y: 2.0,
+                angle: 0.5,
+            },
             AgentAction::QueryEntities,
             AgentAction::QuerySelection,
         ];
-        assert_eq!(actions.len(), 8);
+        assert_eq!(actions.len(), 9);
         for (i, a) in actions.iter().enumerate() {
             for (j, b) in actions.iter().enumerate() {
                 assert_eq!(
