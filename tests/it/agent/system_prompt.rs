@@ -9,7 +9,7 @@
 use lasercad::agent::prompt::{DEFAULT_PROMPT, resolve};
 use lasercad::io::settings::Settings;
 
-/// The built-in system prompt, line by line (LCV-143 AC 6, text of LCV-151, layers of LCV-156).
+/// The built-in system prompt, line by line (LCV-143 AC 6, text of LCV-151, layers of LCV-156, copy of LCV-157).
 const SPEC_TEXT: &[&str] = &[
     "You are the CAD assistant embedded in LaserCAD v2, a 2D CAD program for",
     "laser cutting. Drawings are saved as plain SVG for LaserGRBL. You change and",
@@ -42,6 +42,9 @@ const SPEC_TEXT: &[&str] = &[
     "",
     "move_entity {index, dx, dy}: move the entity at index by dx mm along X and",
     "dy mm along Y.",
+    "",
+    "copy_entity {index, dx, dy}: add a copy of the entity at index, moved by dx",
+    "mm along X and dy mm along Y, on the same layer. The copy is added at the end.",
     "",
     "query_entities {}: list every entity with its index, kind, geometry in mm",
     "and layer, plus the bed size and the layers. Changes nothing.",

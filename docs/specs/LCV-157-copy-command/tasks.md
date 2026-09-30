@@ -10,5 +10,5 @@ ADR 0003 amendment (5) (commit `868bb01`) admits `ToolKind::Copy` (and `Rotate`,
 - [x] T6 [P] Seam (no behavior change): move the Delete/Move arms of `plan` into `app/agent_apply/edit.rs` (files: src/app/agent_apply.rs, src/app/agent_apply/edit.rs)
 - [x] T7 [AC9] `AgentAction::Copy` and the `copy_entity` schema entry (files: src/agent/bridge.rs, src/agent/tools/schema.rs)
 - [x] T8 [AC9] Test first, then the `copy_entity` parse arm and the schema-order doc (files: src/agent/tools.rs, src/agent/tools/tests.rs)
-- [ ] T9 [AC9] Test first, then the `Copy` apply arm (out-of-range refused, copy lands on the source layer) and the `copy_entity` line in the built-in prompt (files: src/app/agent_apply/edit.rs, src/app/agent_apply/tests.rs, src/agent/prompt.rs)
+- [x] T9 [AC9] Test first, then the `Copy` apply arm (out-of-range refused, copy lands on the source layer) and the `copy_entity` line in the built-in prompt (files: src/app/agent_apply/edit.rs, src/app/agent_apply/tests.rs, src/agent/prompt.rs)
 - [ ] T10 CHANGELOG line under Unreleased/Added (files: CHANGELOG.md)

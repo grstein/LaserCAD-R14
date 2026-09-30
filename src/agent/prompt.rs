@@ -51,6 +51,9 @@ delete_entity {index}: delete the entity at index.
 move_entity {index, dx, dy}: move the entity at index by dx mm along X and
 dy mm along Y.
 
+copy_entity {index, dx, dy}: add a copy of the entity at index, moved by dx
+mm along X and dy mm along Y, on the same layer. The copy is added at the end.
+
 query_entities {}: list every entity with its index, kind, geometry in mm
 and layer, plus the bed size and the layers. Changes nothing.
 
