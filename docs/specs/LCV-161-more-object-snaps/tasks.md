@@ -21,7 +21,7 @@
   `SnapKinds::default()`; a round-trip keeps a toggled kind (files: src/io/settings/tests.rs)
 - [x] T6 [AC8, AC10] Add `Settings::object_snaps` with `#[serde(default)]` (files:
   src/io/settings.rs)
-- [ ] T7 [AC2, AC3, AC9] Test (app level): LINE with a first point, hovering near a circle's
+- [x] T7 [AC2, AC3, AC9] Test (app level): LINE with a first point, hovering near a circle's
   tangent point sets `active_snap.kind == Tangent`, and near a segment's foot sets
   `Perpendicular`; with that kind off in `settings.object_snaps` it does not; F3 off gives no
   snap at all (files: tests/it/app/object_snaps.rs, tests/it/app/mod.rs)
