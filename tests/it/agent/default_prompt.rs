@@ -307,3 +307,19 @@ fn the_edit_paragraphs_offer_indices() {
         assert!(own.contains("ascending source index order"), "{own}");
     }
 }
+
+/// LCV-187 — the capture_canvas paragraph names the frame argument, its
+/// three values and the region corners, and says what size the frames are.
+#[test]
+fn the_capture_paragraph_names_the_frames_and_corners() {
+    let paragraph = DEFAULT_PROMPT
+        .split("\n\n")
+        .find(|p| p.starts_with("capture_canvas"))
+        .expect("a capture_canvas paragraph");
+    let found = words(paragraph);
+    for word in [
+        "frame", "view", "drawing", "region", "x0", "y0", "x1", "y1", "1024",
+    ] {
+        assert!(found.contains(&word), "{word} missing from: {paragraph}");
+    }
+}
