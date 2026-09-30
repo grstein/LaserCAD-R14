@@ -1284,27 +1284,54 @@ fn each_request_is_a_byte_prefix_of_the_next_turn() {
     assert_eq!(next.last(), wire(&[ChatMessage::user("wider")]).last());
 }
 
-/// AC 4 — a response's `reasoning_content` never reaches the batches.
+/// LCV-153 AC 4 as amended by LCV-154 AC 3/4 — a tool-call batch keeps
+/// its `reasoning_content` and memory replays it verbatim in the next
+/// turn; the recorded closing text never carries one, even when its reply
+/// did.
 #[test]
-fn reasoning_content_never_reaches_the_batches() {
+fn reasoning_content_rides_with_its_tool_call_batch() {
     let reply = |body: serde_json::Value| -> AssistantMessage {
         serde_json::from_value(body).expect("a response message parses")
     };
     let calls = reply(json!({
         "content": null,
-        "reasoning_content": "SECRET-THOUGHT",
+        "reasoning_content": "R1 \"verbatim\"",
         "tool_calls": [{"id": "c", "type": "function",
             "function": {"name": "query_entities", "arguments": "{}"}}]
     }));
-    let last = reply(json!({"content": "done", "reasoning_content": "SECRET-THOUGHT"}));
-    let (_, batches, _) = scripted(
+    let last = reply(json!({"content": "done", "reasoning_content": "LAST-THOUGHT"}));
+    let (result, batches, _) = scripted(
         "go",
         &with_memory(Vec::new()),
         vec![Some(calls), Some(last)],
     );
     assert_eq!(batches.len(), 2);
-    assert!(!wire(&batches).concat().contains("SECRET-THOUGHT"));
-    assert!(!wire(&batches).concat().contains("reasoning_content"));
+    assert_eq!(
+        batches[0].reasoning_content.as_deref(),
+        Some("R1 \"verbatim\"")
+    );
+    assert_eq!(batches[1].reasoning_content, None, "the tool result");
+    let done = TurnEnd::Done {
+        text: result.expect("text ends the turn"),
+    };
+    let memory = turn_record("go", batches, &done);
+    let closing = memory.last().expect("a closing text");
+    assert_eq!(
+        wire(std::slice::from_ref(closing)),
+        wire(&[ChatMessage::assistant("done")])
+    );
+    let (_, _, turn2) = scripted("again", &with_memory(memory), vec![Some(text("t"))]);
+    let sent = wire(&turn2[0]).concat();
+    assert_eq!(sent.matches("reasoning_content").count(), 1, "{sent}");
+    assert!(
+        sent.contains(r#""reasoning_content":"R1 \"verbatim\""}"#),
+        "{sent}"
+    );
+    assert!(!sent.contains("LAST-THOUGHT"));
+    assert_eq!(
+        turn2[0][2].reasoning_content.as_deref(),
+        Some("R1 \"verbatim\"")
+    );
 }
 
 /// AC 5 — a failed turn reports its whole batches only: a transport error

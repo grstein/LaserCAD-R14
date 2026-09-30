@@ -14,7 +14,7 @@
   assistant message of batch 1 carries `R1` verbatim in requests 2 and 3, batch 2's has no
   `reasoning_content` key; an overrun "not run" batch keeps its field
   (files: src/agent/loop_/tests.rs)
-- [ ] T4 [AC3] [AC4] Rewrite `reasoning_content_never_reaches_the_batches` as
+- [x] T4 [AC3] [AC4] Rewrite `reasoning_content_never_reaches_the_batches` as
   `reasoning_content_rides_with_its_tool_call_batch`: the batch's tool-call message keeps
   `R1`; the recorded closing text (a reply that also had `reasoning_content`) has no key;
   turn 2's first request carries `R1` on the replayed message, verbatim
