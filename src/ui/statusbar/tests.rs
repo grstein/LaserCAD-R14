@@ -6,38 +6,42 @@ fn format_coords_none_returns_dash_placeholder() {
     assert_eq!(format_coords(None), "X: \u{2014}  Y: \u{2014}");
 }
 
-/// LCV-067 AC — positive coordinates are formatted to two decimal places,
-/// right-aligned in a 6-char field. LCV-140 AC 4 — each axis carries an
-/// explicit `mm` unit, directly after the number.
+/// LCV-067 AC — positive coordinates are formatted to two decimal places.
+/// LCV-140 AC 4 — each axis carries an explicit `mm` unit. LCV-167 AC 6 —
+/// right-aligned in 8 chars, padded with figure spaces (U+2007).
 #[test]
 fn format_coords_some_positive_values() {
     let s = format_coords(Some(Vec2::new(123.45, 67.89)));
-    assert_eq!(s, "X: 123.45mm  Y:  67.89mm");
+    assert_eq!(
+        s,
+        "X: \u{2007}\u{2007}123.45mm  Y: \u{2007}\u{2007}\u{2007}67.89mm"
+    );
 }
 
-/// LCV-067 AC — negative x value is formatted correctly (sign included in
-/// the 6-char field, extending it naturally). LCV-140 AC 4 — `mm` unit.
+/// LCV-067 AC — a negative x keeps its sign inside the 8-char field.
 #[test]
 fn format_coords_some_negative_x() {
     let s = format_coords(Some(Vec2::new(-5.0, 0.0)));
-    assert_eq!(s, "X:  -5.00mm  Y:   0.00mm");
+    assert_eq!(
+        s,
+        "X: \u{2007}\u{2007}\u{2007}-5.00mm  Y: \u{2007}\u{2007}\u{2007}\u{2007}0.00mm"
+    );
 }
 
 /// LCV-067 AC — zero coordinates produce all-zero output, not "—".
-/// LCV-140 AC 4 — `mm` unit.
 #[test]
 fn format_coords_some_zero() {
     let s = format_coords(Some(Vec2::new(0.0, 0.0)));
-    assert_eq!(s, "X:   0.00mm  Y:   0.00mm");
+    let pad = "\u{2007}".repeat(4);
+    assert_eq!(s, format!("X: {pad}0.00mm  Y: {pad}0.00mm"));
 }
 
 /// LCV-067 AC — large values are not truncated (no width cap).
 #[test]
 fn format_coords_large_values_not_truncated() {
-    let s = format_coords(Some(Vec2::new(1234.56, 9876.54)));
-    // 1234.56 is 7 chars — the field is at least that wide.
-    assert!(s.contains("1234.56"), "x value present");
-    assert!(s.contains("9876.54"), "y value present");
+    let s = format_coords(Some(Vec2::new(12345.67, 98765.43)));
+    assert!(s.contains("12345.67"), "x value present");
+    assert!(s.contains("98765.43"), "y value present");
 }
 
 /// LCV-140 AC 4 / AC 6 — a six-digit signed coordinate pair renders with
@@ -46,6 +50,54 @@ fn format_coords_large_values_not_truncated() {
 fn format_coords_six_digit_signed_pair_keeps_its_mm_unit() {
     let s = format_coords(Some(Vec2::new(-1234.56, -1234.56)));
     assert_eq!(s, "X: -1234.56mm  Y: -1234.56mm");
+}
+
+/// LCV-167 AC 6 — `(1, -1)` and `(-1234.5, 9999.99)` give strings of equal
+/// char count, so no digit moves when a sign or a digit appears.
+#[test]
+fn format_coords_has_a_fixed_char_count() {
+    let small = format_coords(Some(Vec2::new(1.0, -1.0)));
+    let large = format_coords(Some(Vec2::new(-1234.5, 9999.99)));
+    assert_eq!(
+        small.chars().count(),
+        large.chars().count(),
+        "{small:?} {large:?}"
+    );
+    assert_eq!(
+        small.chars().count(),
+        "X: -1234.50mm  Y: 9999.99mm".chars().count()
+    );
+}
+
+/// LCV-167 AC 6 — the padding inside a number is U+2007, never U+0020: the
+/// only plain spaces are the ones after `X:`/`Y:` and between the axes.
+#[test]
+fn format_coords_pads_with_figure_spaces_only() {
+    let s = format_coords(Some(Vec2::new(1.0, -1.0)));
+    assert_eq!(s.matches('\u{2007}').count(), 7, "{s:?}");
+    assert_eq!(s.matches(' ').count(), 4, "{s:?}");
+    for number in s.split("mm") {
+        let value = number.rsplit(": ").next().unwrap_or_default();
+        assert!(!value.contains(' '), "{value:?} in {s:?}");
+    }
+}
+
+/// LCV-167 AC 6 — laid out in egui's monospace font, the two readouts are
+/// equally wide: the font has a glyph for U+2007 as wide as a digit.
+#[test]
+fn format_coords_lays_out_at_one_width() {
+    let ctx = egui::Context::default();
+    let _ = ctx.run(egui::RawInput::default(), |_| {});
+    let width = |s: String| {
+        ctx.fonts(|f| {
+            f.layout_no_wrap(s, egui::FontId::monospace(12.0), egui::Color32::WHITE)
+                .size()
+                .x
+        })
+    };
+    let small = width(format_coords(Some(Vec2::new(1.0, -1.0))));
+    let large = width(format_coords(Some(Vec2::new(-1234.5, 9999.99))));
+    assert!((small - large).abs() < 0.01, "{small} vs {large}");
 }
 
 // ── LCV-116 (a) — clickable mode indicators ───────────────────────────

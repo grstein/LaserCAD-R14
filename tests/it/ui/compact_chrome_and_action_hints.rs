@@ -430,7 +430,8 @@ fn ac4_coordinate_readout_carries_an_explicit_mm_unit() {
     let runs = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
     assert!(
         runs.iter()
-            .any(|r| r.text.trim() == "X: 123.45mm  Y:  67.89mm"),
+            .any(|r| r.text.trim()
+                == "X: \u{2007}\u{2007}123.45mm  Y: \u{2007}\u{2007}\u{2007}67.89mm"),
         "the coordinate readout must show an explicit mm unit: {:?}",
         runs.iter().map(|r| &r.text).collect::<Vec<_>>()
     );

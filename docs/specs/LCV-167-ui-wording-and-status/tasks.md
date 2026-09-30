@@ -31,7 +31,7 @@
   a committed turn's undo label starts `AI: ` (files: src/app/agent_turn/tests.rs)
 - [x] T10 [AC5] `turn_label` prefix `AI: ` and its doc; composite doc example (files:
   src/app/agent_turn.rs, src/document/commands/composite.rs)
-- [ ] T11 [AC6] Test first: `(1, -1)` and `(-1234.5, 9999.99)` give equal char counts; padding is
+- [x] T11 [AC6] Test first: `(1, -1)` and `(-1234.5, 9999.99)` give equal char counts; padding is
   U+2007, never U+0020, inside a number; `None` unchanged; painted expectations follow (files:
   src/ui/statusbar/tests.rs, tests/it/ui/compact_chrome_and_action_hints.rs)
 - [ ] T12 [AC6] `format_coords` width 8 with figure-space padding, doctest updated; T11 green
