@@ -17,6 +17,12 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 - `MIRROR` (`MI`): pick two points of a mirror line, then answer `Erase source objects? [Yes/No] <N>`: No (or Enter) adds the mirrored copies on their source layers, Yes replaces the sources. The preview follows the cursor, arcs stay single arcs, and the mirror is one undo step. The agent gets a matching `mirror_entity` tool. See LCV-181.
 - `SCALE` (`SC`): pick a base point, then type a factor or pick a point whose distance from the base point is the factor; positions and radii scale, arc angles stay. The preview follows the cursor. A zero or negative factor is refused, a factor of 1 changes nothing, and the scale is one undo step that keeps layers and the selection. The agent gets a matching `scale_entity` tool. See LCV-182.
 
+### Fixed
+
+- Undoing past the start of a MOVE or COPY run and then picking the next point no longer crashes; the command goes back to its base-point prompt.
+- COPY places multi-entity copies in source order, so saved and exported files list entities deterministically.
+- A drawing whose half-turn arc was rounded on export (chord slightly longer than the diameter) reopens instead of being rejected.
+
 ### Removed
 
 - `File > Export preset` and the preset badge in the status bar; layers replace them. See LCV-156.

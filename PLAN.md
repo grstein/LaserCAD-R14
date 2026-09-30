@@ -24,14 +24,17 @@ Rust (toolchain pinned) · `egui`/`eframe` · `rfd` dialogs · blocking `reqwest
 - **1.0 scope** (user decisions 2026-09-27/28): LCV-142..145, 149..153 — all Done.
   LCV-146 is deferred past 1.0.
 - **Release**: v0.2.0 (LCV-089) tagged and published on 2026-09-28 with the user's authorization; the user smoke-tests it.
-- **Next — v0.3 "workshop-ready"** (proposal approved by the user 2026-09-29), in order:
-  0. close v0.2 — the user's smoke-test findings (fast lane) and CI green once billing resumes;
-  1. LCV-156 layers, LightBurn-style, one export file per layer (changes the SVG export
-     contract; ADR at /design);
-  2. LCV-157 COPY; 3. LCV-158 ROTATE / MIRROR / SCALE; 4. LCV-159 polar input `@d<a` + DIST;
-  5. LCV-160 TRIM/EXTEND with arcs; 6. LCV-161 more object snaps; 7. LCV-154.
-  v0.3.0 when 0–4 are Done; 5–7 may slip to 0.3.x. Each new command also reaches the agent
-  (tool entry + built-in prompt line).
+- **v0.3 "workshop-ready"** (approved 2026-09-29): LCV-156 layers, 157 COPY, 159 polar `@d<a` +
+  DIST, 158 ROTATE, 181 MIRROR, 182 SCALE — all Done 2026-09-30 (158 was split into 158/181/182).
+  Ready to tag `v0.3.0` once the user smoke-tests it; tagging is the user's call.
+- **Version roadmap** (proposal 2026-09-29; pre-1.0 semver: features → minor, fixes → patch):
+  - v0.3.x — smoke-test fixes only.
+  - v0.4.0 "precise editing" — 160 TRIM/EXTEND with arcs, 161 snaps, 162 crosshair/picking,
+    163 selection feedback.
+  - v0.5.0 "UI polish" — 164–169, plus 154.
+  - v0.6.0 "platform" — 180 dependency refresh (alone, first), Windows/macOS packaging.
+  - v0.7–0.8 "SVG conformance" — 170–175, then 176–179.
+  - v1.0.0 — R14 v1 parity, stable SVG contract, multi-OS; after 1.0 an SVG contract change is a major.
 - **Not in 0.3**: DXF, blocks/xref, fillet/chamfer/offset, G-code, LCV-146 skills.
 - **Tooling**: LCV-152 and LCV-155 made build and test faster.
 
