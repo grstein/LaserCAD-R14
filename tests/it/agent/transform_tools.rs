@@ -540,6 +540,12 @@ fn a_set_delete_states_the_count_and_the_shift() {
         "Deleted 2 entities (indices 2, 3). No indices shifted. The drawing now has 2 entities."
     );
     let mut app = set_app();
+    let (last, _) = run(&mut app, "delete_entity", json!({"indices":[3]}));
+    assert_eq!(
+        last.text(),
+        "Deleted 1 entity (index 3). No indices shifted. The drawing now has 3 entities."
+    );
+    let mut app = set_app();
     let (one, _) = run(&mut app, "delete_entity", json!({"indices":[1]}));
     assert!(
         one.text()
