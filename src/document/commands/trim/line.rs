@@ -1,12 +1,14 @@
-//! Line-target trim and line-target extend helpers — the four entity-pair
-//! cases where the target is a [`Line`]: [`trim_line_by_line`] (Line cutter),
-//! [`trim_line_by_circle`] (Circle cutter), [`extend_line_to_line`] (Line
-//! boundary), [`extend_line_to_circle`] (Circle boundary). See the parent
-//! [`super`] module for the public commands wrapping these routines.
+//! Line-target trim and line-target extend helpers: [`trim_line_at_points`]
+//! keeps the piece around the click given any cutter's cut points;
+//! [`extend_line_to_line`], [`extend_line_to_circle`] and
+//! [`extend_line_to_arc`] (LCV-160) grow an endpoint to a boundary. See the
+//! parent [`super`] module for the public commands wrapping these routines.
 
 use super::parametric_t;
 use crate::document::Entity;
-use crate::geometry::{Circle, EPSILON, Line, Vec2, line_circle, line_line, line_line_infinite};
+use crate::geometry::{
+    Arc, Circle, EPSILON, Line, Vec2, line_arc, line_circle, line_line, line_line_infinite,
+};
 
 /// Trim a [`Line`] target by a [`Line`] cutter. The cutter's strict-segment
 /// intersection point `X` splits the target into `[p1, X]` and `[X, p2]`.
@@ -24,44 +26,36 @@ pub(crate) fn trim_line_by_line(target: Line, cutter: &Line, keep: Vec2) -> Opti
     }
 }
 
-/// Trim a [`Line`] target by a [`Circle`] cutter. One intersection splits
-/// the target into 2 sub-segments; two intersections split into 3 (the
-/// "middle" sub-segment is what the cutter carves out — kept when `keep` is
-/// inside the cutter). A tangent (one point) is treated like a single split.
-/// Returns `None` when the cutter does not intersect the target.
+/// Trim a [`Line`] target by a [`Circle`] cutter (see
+/// [`trim_line_at_points`]). Returns `None` when the cutter misses.
 pub(crate) fn trim_line_by_circle(target: Line, cutter: &Circle, keep: Vec2) -> Option<Entity> {
-    let pts = line_circle(&target, cutter);
-    if pts.is_empty() {
+    trim_line_at_points(target, &line_circle(&target, cutter), keep)
+}
+
+/// Trim a [`Line`] target at its cut points `pts` (LCV-160): keep the
+/// sub-segment between the two cut points (or target endpoints) around
+/// `keep`, compared by parametric `t` on the target. Cut points at the
+/// target's own endpoints are ignored; `None` when none is left.
+pub(crate) fn trim_line_at_points(target: Line, pts: &[Vec2], keep: Vec2) -> Option<Entity> {
+    let mut ts: Vec<(f64, Vec2)> = pts
+        .iter()
+        .map(|&p| (parametric_t(&target, p), p))
+        .filter(|(t, _)| *t > EPSILON && *t < 1.0 - EPSILON)
+        .collect();
+    if ts.is_empty() {
         return None;
     }
-    let mut ts: Vec<(f64, Vec2)> = pts
-        .into_iter()
-        .map(|p| (parametric_t(&target, p), p))
-        .collect();
-    ts.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(core::cmp::Ordering::Equal));
+    ts.sort_by(|a, b| a.0.total_cmp(&b.0));
     let t_keep = parametric_t(&target, keep);
-    match ts.len() {
-        1 => {
-            let (t_x, x) = ts[0];
-            if t_keep <= t_x + EPSILON {
-                Some(Entity::Line(Line::new(target.p1, x)))
-            } else {
-                Some(Entity::Line(Line::new(x, target.p2)))
-            }
+    let (mut lo, mut hi) = (target.p1, target.p2);
+    for (t, p) in ts {
+        if t_keep <= t + EPSILON {
+            hi = p;
+            break;
         }
-        2 => {
-            let (t_a, a) = ts[0];
-            let (t_b, b) = ts[1];
-            if t_keep < t_a - EPSILON {
-                Some(Entity::Line(Line::new(target.p1, a)))
-            } else if t_keep > t_b + EPSILON {
-                Some(Entity::Line(Line::new(b, target.p2)))
-            } else {
-                Some(Entity::Line(Line::new(a, b)))
-            }
-        }
-        _ => None,
+        lo = p;
     }
+    Some(Entity::Line(Line::new(lo, hi)))
 }
 
 /// Extend a target line to its infinite-line intersection with a boundary
@@ -74,45 +68,46 @@ pub(crate) fn extend_line_to_line(target: Line, boundary: &Line, endpoint: u8) -
 }
 
 /// Extend a target line to the nearest valid intersection with a boundary
-/// [`Circle`]. Uses an infinite-line interpretation: the segment is extended
-/// along its own direction until it hits the circle. Returns `None` if the
-/// infinite line misses the circle or every intersection is behind the
-/// chosen endpoint.
+/// [`Circle`]. Uses an infinite-line interpretation of the target: the
+/// segment is extended along its own direction until it hits the circle.
+/// Returns `None` if the line misses the circle or every intersection is
+/// behind the chosen endpoint.
 pub(crate) fn extend_line_to_circle(target: Line, boundary: &Circle, endpoint: u8) -> Option<Line> {
+    let reach = reach_line(&target, boundary.center, boundary.r)?;
+    extend_line_to_points(target, &line_circle(&reach, boundary), endpoint)
+}
+
+/// Extend a target line to the nearest cut point of its extension on a
+/// boundary [`Arc`]'s span (LCV-160); crossings of the arc's parent circle
+/// off the span do not count.
+pub(crate) fn extend_line_to_arc(target: Line, boundary: &Arc, endpoint: u8) -> Option<Line> {
+    let reach = reach_line(&target, boundary.center, boundary.r)?;
+    extend_line_to_points(target, &line_arc(&reach, boundary), endpoint)
+}
+
+/// Move the chosen endpoint to the nearest point of `pts` that lies ahead
+/// of it on the target's infinite line. `None` when every point is behind.
+pub(crate) fn extend_line_to_points(target: Line, pts: &[Vec2], endpoint: u8) -> Option<Line> {
+    let from = if endpoint == 0 { target.p1 } else { target.p2 };
+    pts.iter()
+        .filter_map(|&p| apply_extend(target, p, endpoint).map(|l| ((p - from).length(), l)))
+        .min_by(|a, b| a.0.total_cmp(&b.0))
+        .map(|(_, l)| l)
+}
+
+/// A segment along the target's infinite line, long enough to cover both
+/// endpoints and any crossing with the circle `(center, r)`: the slack
+/// `+ len + 1.0` keeps the surrogate's `[0, 1]` window around `p1` and `p2`.
+/// `None` for a degenerate target.
+fn reach_line(target: &Line, center: Vec2, r: f64) -> Option<Line> {
     let d = target.p2 - target.p1;
     let len = d.length();
     if len <= EPSILON {
         return None;
     }
     let dir = d / len;
-    // Reach far enough that any sensible boundary lies inside the surrogate
-    // segment that `line_circle` will solve. `+ len + 1.0` is slack so the
-    // parametric `[0, 1]` window of the surrogate covers both `p1` and `p2`.
-    let reach = (boundary.center - target.p1).length() + boundary.r + len + 1.0;
-    let surrogate = Line::new(target.p1 - dir * reach, target.p1 + dir * reach);
-    let pts = line_circle(&surrogate, boundary);
-    if pts.is_empty() {
-        return None;
-    }
-    let endpoint_pos = if endpoint == 0 { target.p1 } else { target.p2 };
-    let mut best: Option<(f64, Vec2)> = None;
-    for p in pts {
-        let t = parametric_t(&target, p);
-        let valid = if endpoint == 0 {
-            t <= -EPSILON
-        } else {
-            t >= 1.0 + EPSILON
-        };
-        if !valid {
-            continue;
-        }
-        let dist = (p - endpoint_pos).length();
-        if best.map(|(bd, _)| dist < bd).unwrap_or(true) {
-            best = Some((dist, p));
-        }
-    }
-    let (_, x) = best?;
-    apply_extend(target, x, endpoint)
+    let reach = (center - target.p1).length() + r + len + 1.0;
+    Some(Line::new(target.p1 - dir * reach, target.p1 + dir * reach))
 }
 
 /// Move the chosen endpoint to `x`, but only if doing so lengthens the
@@ -293,5 +288,48 @@ mod tests {
         ));
         cmd.undo(&mut doc);
         assert!(line_approx_eq(as_line(&doc.entities[0]), target));
+    }
+
+    /// LCV-160 AC 2 — the kept piece lies between the cut points around the
+    /// click; with an arc cutter only its span points count.
+    #[test]
+    fn trim_line_at_points_keeps_piece_around_click() {
+        use super::trim_line_at_points;
+        use crate::geometry::{Arc, line_arc};
+        let target = Line::new(Vec2::new(5.0, -20.0), Vec2::new(5.0, 20.0));
+        let upper = Arc::new(Vec2::default(), 10.0, 0.0, core::f64::consts::PI, true);
+        let pts = line_arc(&target, &upper);
+        let got = trim_line_at_points(target, &pts, Vec2::new(5.0, -15.0));
+        let y = 75.0f64.sqrt();
+        let want = Line::new(Vec2::new(5.0, -20.0), Vec2::new(5.0, y));
+        assert!(line_approx_eq(as_line(&got.expect("cut")), want));
+        let three = [0.5, -0.4, 0.0].map(|t| Vec2::new(5.0, 20.0 * t));
+        let got = trim_line_at_points(target, &three, Vec2::new(5.0, 3.0));
+        let want = Line::new(Vec2::new(5.0, 0.0), Vec2::new(5.0, 10.0));
+        assert!(line_approx_eq(as_line(&got.expect("cut")), want));
+    }
+
+    /// LCV-160 — cut points at the target's own endpoints are ignored, so a
+    /// cutter that only touches an end changes nothing.
+    #[test]
+    fn trim_line_at_points_ignores_own_endpoints() {
+        use super::trim_line_at_points;
+        let target = Line::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0));
+        let ends = [target.p1, target.p2];
+        assert!(trim_line_at_points(target, &ends, Vec2::new(5.0, 0.0)).is_none());
+        assert!(trim_line_at_points(target, &[], Vec2::new(5.0, 0.0)).is_none());
+    }
+
+    /// LCV-160 AC 6 — extending to an arc skips the parent circle's nearer
+    /// crossing that lies off the span.
+    #[test]
+    fn extend_line_to_arc_uses_span_points_only() {
+        use super::extend_line_to_arc;
+        use crate::geometry::Arc;
+        let target = Line::new(Vec2::new(5.0, -20.0), Vec2::new(5.0, -15.0));
+        let upper = Arc::new(Vec2::default(), 10.0, 0.0, core::f64::consts::PI, true);
+        let got = extend_line_to_arc(target, &upper, 1).expect("reaches the span");
+        assert!(got.p2.approx_eq(Vec2::new(5.0, 75.0f64.sqrt()), 1e-9));
+        assert!(extend_line_to_arc(target, &upper, 0).is_none());
     }
 }

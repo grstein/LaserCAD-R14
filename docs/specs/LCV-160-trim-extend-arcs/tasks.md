@@ -7,7 +7,7 @@
   `Document` + `History`. AC 8 also checks redo and the target's layer; AC 4 also covers a
   Circle cut at one point by each of two cutters (files: tests/it/document/trim_extend_arcs.rs,
   tests/it/document/mod.rs)
-- [ ] T3 [AC2] [AC6] Line-target helpers: `trim_line_at_points` and `extend_line_to_points`
+- [x] T3 [AC2] [AC6] Line-target helpers: `trim_line_at_points` and `extend_line_to_points`
   (Circle and Arc boundaries), with unit tests (files: src/document/commands/trim/line.rs)
 - [ ] T4 [AC1] [AC3] [AC5] [AC7] `trim_circle_at_points`, plus the new `trim_arc_at_points` and
   `extend_arc` with the full-turn guard, with unit tests (files: src/document/commands/trim/circle.rs,
