@@ -1,8 +1,8 @@
 # LCV-164 — Canvas legibility and bed framing
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: 5303bfd..2adcf45
 
 ## Problem
 
