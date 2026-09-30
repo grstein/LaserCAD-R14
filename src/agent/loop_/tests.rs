@@ -864,6 +864,32 @@ fn a_run_batch_between_overruns_resets_the_grace() {
     assert_eq!(texts[10], "ok\nSteps left this turn: 1 of 4.");
 }
 
+/// LCV-189 AC 5 — asking to upload an image is not a step: two captures
+/// and a query spend all of a budget of three, even though two sends were
+/// authorised along the way.
+#[test]
+fn an_upload_authorisation_is_not_counted_in_steps_left() {
+    let r = run(
+        |n| match n {
+            1 | 2 => named_calls(&["capture_canvas"]),
+            3 => named_calls(&["query_entities"]),
+            _ => text_reply("done"),
+        },
+        yes,
+        3,
+    );
+    assert_eq!(r.result.unwrap(), "done");
+    assert_eq!((r.tools, r.authorisations), (3, 2));
+    assert_eq!(
+        tool_texts(&r.messages),
+        [
+            "Canvas 1\nSteps left this turn: 2 of 3.",
+            "Canvas 2\nSteps left this turn: 1 of 3.",
+            "ok\nSteps left this turn: 0 of 3.",
+        ]
+    );
+}
+
 // ── AC 2: the wire types are declared once, in wire.rs ───────────────────
 
 /// AC 2 — no duplicate wire struct survives in this file, and the shared

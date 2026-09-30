@@ -836,6 +836,63 @@ fn a_whole_turn_lands_on_the_bed() {
     );
 }
 
+/// LCV-189 AC 5 — the budget a turn announces is the stored one clamped to
+/// 1..=4096 at the read site: `0` runs as 1 and `5000` as 4096, and one
+/// call leaves `budget - 1` in the tool result the model reads next.
+#[test]
+fn the_announced_budget_is_the_clamped_setting() {
+    for (stored, line) in [
+        (0u32, "Steps left this turn: 0 of 1."),
+        (5000, "Steps left this turn: 4095 of 4096."),
+    ] {
+        let mut server = mockito::Server::new();
+        let _call = server
+            .mock("POST", "/chat/completions")
+            .with_status(200)
+            .with_body(
+                r#"{"choices":[{"message":{"role":"assistant","content":null,"tool_calls":[
+                    {"id":"a","type":"function","function":{"name":"query_entities",
+                     "arguments":"{}"}}
+                ]}}]}"#,
+            )
+            .expect(1)
+            .create();
+        let told = server
+            .mock("POST", "/chat/completions")
+            .match_body(mockito::Matcher::Regex(regex_escape(line)))
+            .with_status(200)
+            .with_body(r#"{"choices":[{"message":{"role":"assistant","content":"Done."}}]}"#)
+            .expect(1)
+            .create();
+
+        let (ctx, mut app) = ctx_and_app();
+        app.settings.agent_endpoint = server.url();
+        app.settings.agent_api_key = DUMMY_KEY.to_owned();
+        app.settings.agent_model = "test/model".to_owned();
+        app.settings.agent_step_budget = stored;
+
+        start_turn(&mut app, "look");
+        run_until_idle(&ctx, &mut app, "the budget turn must finish");
+        told.assert();
+        let reply = app
+            .agent
+            .chat
+            .iter()
+            .rev()
+            .find(|(role, _)| role == "assistant");
+        assert_eq!(
+            reply.map(|(_, text)| text.as_str()),
+            Some("Done."),
+            "{stored}"
+        );
+    }
+}
+
+/// `text` with the regex metacharacters it uses (`.`) escaped.
+fn regex_escape(text: &str) -> String {
+    text.replace('.', "\\.")
+}
+
 // ── AC 19: the repaint that keeps a turn moving ────────────────────────────
 
 /// Everything in `src` up to the first bare `#[cfg(test)]` at column 0.
