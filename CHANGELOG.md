@@ -11,6 +11,7 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 ### Added
 
 - Layers: every entity belongs to a named layer with its own color and Output flag; new entities go on the current layer and the canvas strokes each entity in its layer's color. `Format > Layers…` (or `LAYER` / `LA`) adds, renames, recolors, deletes and makes layers current and moves the selection onto a layer; the status bar shows the current layer in a dropdown. Every change is one undo step. The mother SVG stores layers as `<g data-layer>` groups and reads them back, accepting any CSS stroke color (named, hex, `rgb()`, `hsl()`, `style`, inherited from a parent group). `File > Export layers` writes one LaserGRBL file per layer with Output on beside the saved drawing. The agent's drawing tools take a `layer` argument and `query_entities` lists the layers. See LCV-156.
+- `COPY` (`CO`, `CP`): pick a base point, then place as many translated copies of the selection as you like, typed (`@dx,dy`) or picked; each copy stays on its source's layer and is its own undo step. Enter or Escape ends the run. The agent gets a matching `copy_entity` tool. See LCV-157.
 
 ### Removed
 
