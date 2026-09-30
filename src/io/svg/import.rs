@@ -1,7 +1,16 @@
 //! SVG import — pure function that parses a LaserCAD-exported SVG string.
-//! Returns an [`ImportedSvg`] (entities plus the file's bed size); recognises
-//! `<line>`, `<circle>`, `<path d="M…A…"/>`. Silently skips unknown elements;
-//! geometry coordinates are bare mm values (no unit suffix).
+//! Returns an [`ImportedSvg`] (entities plus the file's bed size); geometry
+//! coordinates are bare mm values (no unit suffix). The root must be `svg` in
+//! the [`SVG_NS`] namespace. Each element below it is, by namespace and local
+//! name (LCV-171), and what it adds to [`ImportedSvg::report`]:
+//!
+//! | Outcome | Elements (SVG namespace unless noted) | Report |
+//! |---|---|---|
+//! | import | `line`, `circle`, `path d="M…A…"` | a `path` not imported → `path (unsupported data)` |
+//! | descend | `svg`, `g`, `a` | — |
+//! | never rendered | `defs symbol clipPath mask marker pattern linearGradient radialGradient filter` | name, iff it has an element child |
+//! | silent | `title desc metadata`; any element outside the SVG namespace | nothing |
+//! | other | every other SVG element, subtree included | name |
 //!
 //! SVG is Y-down and the world is Y-up, so every parsed Y is un-mirrored
 //! through [`crate::util::flip_y`] (`y_world = bed_height - y_svg`, the exact
@@ -132,7 +141,7 @@ impl ImportedSvg {
 /// Parse an SVG string and return its geometry, layers and bed size.
 ///
 /// Depth-first traversal; `<line>`, `<circle>`, `<path d="M…A…"/>` → entities.
-/// Everything else is silently skipped. The bed comes from the root header
+/// What is skipped lands in the report (module docs). The bed comes from the root header
 /// (see [`parse_bed`]) and is the axis every Y is un-mirrored around.
 /// Returns the first error encountered, having mutated nothing: the caller's
 /// document is untouched on `Err` (LCV-114 AC 9).

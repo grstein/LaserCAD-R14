@@ -27,7 +27,7 @@
       `unknown_elements_silently_skipped` (`<rect/>` → `[("rect", 1)]`) and
       `non_arc_path_silently_skipped` (→ `path (unsupported data)`), plus a `<path>` without `d`
       (files: src/io/svg/import/tests.rs)
-- [ ] T9 [AC2]–[AC6] Classification in `collect` per the plan's table; `LayerReader::enter` is
+- [x] T9 [AC2]–[AC6] Classification in `collect` per the plan's table; `LayerReader::enter` is
       called only for descended elements; module doc of `import.rs` replaces "silently skips"
       with the table (files: src/io/svg/import/walk.rs, src/io/svg/import.rs)
 - [ ] T10 [AC7] Test: each of the eleven properties is reported as an attribute and as a `style`
