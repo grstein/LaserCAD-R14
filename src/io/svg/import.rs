@@ -251,11 +251,14 @@ fn parse_path(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Option<Entity>, 
     let (sy, ey) = (flip_y(sy, bed_h), flip_y(ey, bed_h));
     let (dx, dy) = (ex - sx, ey - sy);
     let chord = dx.hypot(dy);
-    if chord < EPSILON || chord > 2.0 * rx + EPSILON {
+    if chord < EPSILON || rx <= 0.0 {
         return Err(SvgImportError::MalformedPath(d.to_string()));
     }
+    // Out-of-range radius (SVG 2 §F.6.6): rounding can push a half turn's
+    // chord past the diameter, so the radius scales up to reach it.
+    let r = if chord > 2.0 * rx { chord / 2.0 } else { rx };
     let (mx, my) = ((sx + ex) / 2.0, (sy + ey) / 2.0);
-    let h = (rx * rx - (chord / 2.0).powi(2)).max(0.0).sqrt();
+    let h = (r * r - (chord / 2.0).powi(2)).max(0.0).sqrt();
     let (ux, uy) = (-dy / chord, dx / chord);
     // Sign branches swapped relative to the un-mirrored reading: in world
     // space the SVG sweep flag denotes the opposite handedness.
@@ -263,7 +266,7 @@ fn parse_path(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Option<Entity>, 
     let (cx, cy) = (mx + sign * h * ux, my + sign * h * uy);
     let (sa, ea) = ((sy - cy).atan2(sx - cx), (ey - cy).atan2(ex - cx));
     let ctr = Vec2::new(cx, cy);
-    Ok(Some(Entity::Arc(Arc::new(ctr, rx, sa, ea, !sweep_flag))))
+    Ok(Some(Entity::Arc(Arc::new(ctr, r, sa, ea, !sweep_flag))))
 }
 
 fn tok_f64(t: &str, d: &str) -> Result<f64, SvgImportError> {

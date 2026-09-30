@@ -14,11 +14,11 @@
 //! is compared. Its centre is not — it is rebuilt from the rounded endpoints and
 //! is ill-conditioned near a half turn, by design of the SVG arc form.
 //!
-//! Known bug (LCV-172): an arc at or near a half turn can export endpoints whose
-//! rounded chord exceeds the rounded diameter, and `import_svg` then rejects the
-//! app's own file with `MalformedPath`. The full property is `#[ignore]`d until
-//! LCV-172 lands; the running one keeps arcs at least 1e-3 mm short of a
-//! diameter, well clear of the rounding (at most ~2.5e-4 mm).
+//! An arc at or near a half turn can export endpoints whose rounded chord
+//! exceeds the rounded diameter; `import_svg` then scales the radius up to half
+//! the chord (SVG 2 §F.6.6). One property keeps arcs at least 1e-3 mm short of
+//! a diameter, well clear of the rounding (at most ~2.5e-4 mm); the other and
+//! `half_turn_arc_reimports` cover exact and near half turns.
 
 use core::f64::consts::{PI, TAU};
 use lasercad::document::{Document, Entity, Layer, LayerId};
@@ -234,7 +234,6 @@ proptest! {
 
     /// The same, for every arc including exact and near half turns.
     #[test]
-    #[ignore = "bug: LCV-172 rounded half-turn arc chord exceeds 2r, import rejects own export"]
     fn export_import_round_trip_preserves_half_turn_arcs(doc in document(false)) {
         check_round_trip(&doc)?;
     }
@@ -242,7 +241,6 @@ proptest! {
 
 /// The minimised case: a 0.01 mm half-turn arc on a 1 mm bed.
 #[test]
-#[ignore = "bug: LCV-172 rounded half-turn arc chord exceeds 2r, import rejects own export"]
 fn half_turn_arc_reimports() {
     let mut doc = Document::with_bed([1.0, 1.0]);
     doc.push_current(Entity::Arc(Arc::new(

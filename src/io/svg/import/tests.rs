@@ -378,3 +378,22 @@ fn layer_names_are_unescaped() {
     let src = svg(r##"<g data-layer="A &amp; &quot;B&quot;" stroke="#010101"/>"##);
     assert_eq!(import_svg(&src).unwrap().layers[0].name, "A & \"B\"");
 }
+
+/// SVG 2 F.6.6 — a chord past the diameter (here by the file's rounding)
+/// scales the radius up to half the chord: the arc is a half turn.
+#[test]
+fn arc_chord_past_diameter_scales_radius_up() {
+    let a = only_arc(&svg(
+        r#"<path d="M 10.0001 400.0000 A 10.0000 10.0000 0 0 0 -10.0001 400.0000"/>"#,
+    ));
+    assert!((a.r - 10.0001).abs() < EPSILON);
+    assert!((a.sweep_angle() - PI).abs() < EPSILON);
+    assert!(a.center.x.abs() < EPSILON && a.center.y.abs() < EPSILON);
+}
+
+/// A non-positive radius stays malformed; it is not scaled up.
+#[test]
+fn arc_zero_radius_returns_malformed_path() {
+    let r = import_svg(&svg(r#"<path d="M 0 0 A 0 0 0 0 1 5 5"/>"#));
+    assert!(matches!(r, Err(SvgImportError::MalformedPath(_))));
+}
