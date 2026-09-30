@@ -1152,6 +1152,7 @@ fn the_upload_check_names_endpoint_and_model_never_the_key() {
                 endpoint: "https://example.invalid/v1".into(),
                 model: "vision/model".into(),
             },
+            AgentAction::Note("Canvas image for call call_0 sent.".into()),
             AgentAction::QueryEntities,
         ]
     );

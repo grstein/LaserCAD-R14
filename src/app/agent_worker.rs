@@ -134,13 +134,14 @@ where
     // A refusal is a tool result, not a failure (ADR 0007 §D2a), and so is a
     // malformed call (§D15); a `Fenced` answer is read by `agent_loop` (§D14).
     // An upload check names the turn's endpoint and model, never its key
-    // (ADR 0011 item 10).
+    // (ADR 0011 item 10); a note rides as a non-step action (LCV-187).
     let mut dispatch_fn = |dispatch: Dispatch<'_>| match dispatch {
         Dispatch::Tool { name, args } => ask(to_action(name, args)),
         Dispatch::AuthorizeUpload => ask(AgentAction::AuthorizeUpload {
             endpoint: config.endpoint.clone(),
             model: config.model.clone(),
         }),
+        Dispatch::Note(text) => ask(AgentAction::Note(text.to_owned())),
     };
     let result = agent_loop(send_fn, &mut dispatch_fn, &mut messages, config.step_limit);
     // What memory keeps of this turn: whole batches, no image (§D3, ADR 0011).

@@ -1126,7 +1126,7 @@ fn no_image_or_a_cancelled_check_notes_nothing() {
         yes,
         AGENT_STEP_BUDGET_DEFAULT,
     );
-    assert_eq!(r.result.unwrap(), "done");
+    assert_eq!(r.result.as_deref().unwrap(), "done");
     assert!(notes(&r).is_empty());
     let r = run(
         |n| {
@@ -1148,7 +1148,7 @@ fn no_image_or_a_cancelled_check_notes_nothing() {
 #[test]
 fn a_note_is_not_a_step() {
     let r = two_captures(named_calls(&["query_entities"]));
-    assert_eq!(r.result.unwrap(), "again");
+    assert_eq!(r.result.as_deref().unwrap(), "again");
     assert_eq!(notes(&r).len(), 2);
     assert_eq!(r.tools, 4);
     assert_eq!(

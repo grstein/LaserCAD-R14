@@ -72,10 +72,15 @@ pub fn poll_agent_rx(app: &mut App) {
         match rx.try_recv() {
             Ok(AgentEvent::Act { action, reply }) => {
                 // LCV-145: the pre-upload check is a rendezvous, not a step —
-                // no count, no fence, no `tool` row (ADR 0011 item 10).
+                // no count, no fence, no `tool` row (ADR 0011 item 10); nor
+                // is an image's post-send note, a `note` row (LCV-187).
                 let outcome = match &action {
                     AgentAction::AuthorizeUpload { endpoint, model } => {
                         agent_capture::authorize(app, endpoint, model)
+                    }
+                    AgentAction::Note(text) => {
+                        app.agent.chat.push(("note".to_owned(), text.clone()));
+                        AgentOutcome::Ok(text.clone())
                     }
                     _ => apply_fenced(app, &action),
                 };

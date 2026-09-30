@@ -150,6 +150,10 @@ pub enum AgentAction {
         /// The model the turn was started with.
         model: String,
     },
+    /// A transcript `note` from the loop: what happened to one canvas image
+    /// once its request returned (LCV-187, ADR 0011 item 10). **Not a
+    /// step**, like `AuthorizeUpload`; answered `Ok`.
+    Note(String),
     /// Append a whole validated batch as one command (LCV-144, ADR 0010).
     CreateDrawing {
         /// The entities, in order; 1..=1000, already shape-checked.

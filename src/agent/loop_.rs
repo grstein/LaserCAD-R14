@@ -12,7 +12,10 @@
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use crate::agent::bridge::AgentOutcome;
-use crate::agent::wire::{AssistantMessage, ChatMessage, ContentPart, replace_images};
+use crate::agent::wire::{AssistantMessage, ChatMessage, ContentPart};
+
+mod images;
+use images::send_images;
 
 // ── Step budget ──────────────────────────────────────────────────────────────
 
@@ -68,6 +71,9 @@ pub(crate) enum Dispatch<'a> {
     /// May the next request carry its canvas images? Not a step (ADR 0011
     /// item 10); `AgentOutcome::Ok` is yes, anything else is no.
     AuthorizeUpload,
+    /// A transcript note: what happened to one canvas image once its request
+    /// returned (LCV-187). Not a step; its answer is not read.
+    Note(&'a str),
 }
 
 // ── Error ────────────────────────────────────────────────────────────────────
@@ -140,7 +146,8 @@ impl std::error::Error for AgentError {}
 ///
 /// An [`AgentOutcome::Observed`] (LCV-145) is a step like any other; its PNG
 /// rides after **all** of the batch's tool results in one `user` message,
-/// and every send goes through [`send_images`].
+/// and every send goes through [`send_images`], which notes each image's
+/// fate by its call id (LCV-187).
 pub(crate) fn agent_loop<F, D>(
     send_fn: &mut F,
     dispatch_fn: &mut D,
@@ -153,8 +160,10 @@ where
 {
     let budget = usize::try_from(step_budget).unwrap_or(usize::MAX);
     let (mut dispatched, mut overran): (usize, bool) = (0, false);
+    // The call ids whose images ride the next send (LCV-187).
+    let mut shown: Vec<String> = Vec::new();
     loop {
-        let message = send_images(send_fn, dispatch_fn, messages)?;
+        let message = send_images(send_fn, dispatch_fn, messages, &mut shown)?;
         match (message.tool_calls, message.content) {
             (Some(calls), content) if !calls.is_empty() => {
                 let over = dispatched + calls.len() > budget;
@@ -190,6 +199,7 @@ where
                             AgentOutcome::Observed { text, png } => {
                                 let label = format!("canvas image for tool call {}", call.id);
                                 images.extend([ContentPart::text(label), ContentPart::png(&png)]);
+                                shown.push(call.id.clone());
                                 text
                             }
                             other => other.into_text(),
@@ -204,7 +214,7 @@ where
                     messages.push(ChatMessage::user_parts(images));
                 }
                 if fenced {
-                    return last_word(send_images(send_fn, dispatch_fn, messages)?);
+                    return last_word(send_images(send_fn, dispatch_fn, messages, &mut shown)?);
                 }
             }
             (_, Some(text)) => return Ok(text),
@@ -218,31 +228,6 @@ where
 /// batch gets none — its turn has no steps left to plan with.
 fn steps_left_line(left: usize, budget: u32) -> String {
     format!("\nSteps left this turn: {left} of {budget}.")
-}
-
-/// Every send of the loop (ADR 0011 items 9–10). A request carrying an image
-/// first asks [`Dispatch::AuthorizeUpload`], once: no — or anything but
-/// `Ok` — withholds every image and sends text-only; a failed ask (cancel)
-/// returns before anything is sent. After the send returns, success or error,
-/// every image is elided, so none outlives its one request.
-fn send_images<F, D>(
-    send_fn: &mut F,
-    dispatch_fn: &mut D,
-    messages: &mut [ChatMessage],
-) -> Result<AssistantMessage, AgentError>
-where
-    F: FnMut(&[ChatMessage]) -> Result<AssistantMessage, AgentError>,
-    D: FnMut(Dispatch<'_>) -> Result<AgentOutcome, AgentError>,
-{
-    if messages.iter().any(ChatMessage::has_image) {
-        let verdict = dispatch_fn(Dispatch::AuthorizeUpload)?;
-        if !matches!(verdict, AgentOutcome::Ok(_)) {
-            replace_images(messages, IMAGE_WITHHELD);
-        }
-    }
-    let reply = send_fn(messages);
-    replace_images(messages, IMAGE_ELIDED);
-    reply
 }
 
 /// The one completion a fence-stopped turn is allowed (ADR 0007 §D14): text is
