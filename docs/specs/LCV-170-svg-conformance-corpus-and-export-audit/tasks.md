@@ -49,5 +49,5 @@
 - [x] T13 [AC8] Test: export → `import_svg` → `into_document` for each audit document restores
       the bed, the layers (order, name, color, output, current) and the entities within 5e-4 mm
       (files: tests/it/io_svg/export_audit.rs)
-- [ ] T14 CHANGELOG `Unreleased`: layer names with control characters are refused; SVG
+- [x] T14 CHANGELOG `Unreleased`: layer names with control characters are refused; SVG
       conformance corpus added (files: CHANGELOG.md)

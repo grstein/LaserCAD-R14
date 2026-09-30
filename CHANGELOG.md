@@ -8,6 +8,14 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ## [Unreleased]
 
+### Changed
+
+- A layer name with a control character (a tab, a bell, …) is refused with the reason, in the Layers dialog and when a drawing or SVG is opened (the SVG import reports a malformed layer). Such a name used to be written raw into the SVG, giving a file no program could reopen. See LCV-170.
+
+### Added
+
+- An SVG conformance corpus (`tests/fixtures/svg/`): each file is paired with hand-written expected geometry, and every file LaserCAD exports is checked as well-formed SVG 2 within the LaserGRBL export contract. See LCV-170.
+
 ## [0.4.0] - 2026-09-30
 
 ### Added
