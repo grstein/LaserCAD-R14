@@ -34,7 +34,7 @@
       it (files: tests/it/app/layers_dialog.rs, tests/it/document/layers.rs)
 - [ ] T9 [AC9] Test: an agent `create_line` naming layer `"Cut\u{7}"` is refused and adds no
       entity; no message-text assertion (files: tests/it/agent/layers.rs)
-- [ ] T10 [AC5] Audit-set builder: an empty doc, each entity kind, layers with Output on and off
+- [x] T10 [AC5] Audit-set builder: an empty doc, each entity kind, layers with Output on and off
       plus a current layer, and names with `& < > " '` and non-ASCII. For every mother and layer
       export, assert `roxmltree` parses it and the root is `svg` in
       `http://www.w3.org/2000/svg` (files: tests/it/io_svg/export_audit.rs)
