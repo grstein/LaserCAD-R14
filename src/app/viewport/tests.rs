@@ -367,6 +367,9 @@ fn zoom_extents_noop_on_zero_area_viewport() {
 enum Kind {
     Rect(egui::Rect, f32),
     Line,
+    /// A path shape: its point count and whether it is closed (LCV-164: the
+    /// origin marker is an open three-point path).
+    Path(usize, bool),
 }
 
 /// Flatten `shape` into `out`, recursing into `Shape::Vec` — the only
@@ -377,6 +380,7 @@ fn flatten_shape(shape: &egui::Shape, out: &mut Vec<Kind>) {
     match shape {
         egui::Shape::Rect(r) => out.push(Kind::Rect(r.rect, r.stroke.width)),
         egui::Shape::LineSegment { .. } => out.push(Kind::Line),
+        egui::Shape::Path(p) => out.push(Kind::Path(p.points.len(), p.closed)),
         egui::Shape::Vec(shapes) => shapes.iter().for_each(|s| flatten_shape(s, out)),
         _ => {}
     }
@@ -392,8 +396,9 @@ fn close_rect(a: egui::Rect, b: egui::Rect) -> bool {
 
 /// LCV-137 AC 1/AC 2 — paint order inside the private `paint()`: canvas
 /// background, bed fill, the grid (when enabled), the bed border plus
-/// exterior overlay, then — on this fixture's empty document, empty
-/// selection and absent snap — nothing else. Toggling `grid_enabled`
+/// exterior overlay, the origin marker (LCV-164 AC 4, a path), then — on
+/// this fixture's empty document, empty selection and absent snap —
+/// nothing else. Toggling `grid_enabled`
 /// off removes the grid lines and nothing else.
 ///
 /// `paint` is called directly (it is private, and this is its own
@@ -475,6 +480,17 @@ fn ac1_ac2_grid_paints_between_bed_fill_and_bed_border_and_toggles_off() {
             .map(|(i, _)| i)
             .collect();
 
+        // LCV-164 AC 4 — the origin marker, the one open three-point path,
+        // paints after the bed border (and so after the grid).
+        let origin_idx = kinds
+            .iter()
+            .position(|k| matches!(k, Kind::Path(3, false)))
+            .expect("LCV-164 AC 4: the origin marker must paint");
+        assert!(
+            bed_border_idx < origin_idx,
+            "LCV-164 AC 4: the origin marker must paint after the bed border"
+        );
+
         if grid_enabled {
             let first_line = *line_indices
                 .first()
@@ -503,7 +519,7 @@ fn ac1_ac2_grid_paints_between_bed_fill_and_bed_border_and_toggles_off() {
             .iter()
             .filter_map(|k| match k {
                 Kind::Rect(r, w) => Some((*r, *w)),
-                Kind::Line => None,
+                Kind::Line | Kind::Path(..) => None,
             })
             .collect();
         rects_by_toggle.push(rects_only);

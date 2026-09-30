@@ -183,3 +183,81 @@ fn ac6_translucent_overlays_paint_one_path_per_entity() {
         );
     }
 }
+
+/// The origin marker's path in `shapes`: an open three-point path in the
+/// `ORIGIN` token, and its index.
+fn origin_path(shapes: &[Shape]) -> Option<(usize, egui::epaint::PathShape)> {
+    use lasercad::render::palette::ORIGIN;
+    shapes.iter().enumerate().find_map(|(i, s)| match s {
+        Shape::Path(p)
+            if !p.closed
+                && p.points.len() == 3
+                && p.stroke.color == egui::epaint::ColorMode::Solid(ORIGIN) =>
+        {
+            Some((i, p.clone()))
+        }
+        _ => None,
+    })
+}
+
+/// LCV-164 AC 4 — the origin marker is one open path from 12 pt along +X,
+/// through world (0,0), to 12 pt along +Y (up the screen), at every zoom.
+#[test]
+fn ac4_origin_marker_is_two_twelve_point_arms_at_world_zero() {
+    use lasercad::render::draw_origin;
+    use lasercad::render::palette::{ORIGIN_ARM_PT, ORIGIN_WIDTH_PT};
+    for mm_per_px in [0.05, 1.0, 20.0] {
+        let cam = camera(mm_per_px, Vec2::new(30.0, 20.0));
+        let rect = viewport();
+        let shapes = painted(|p| draw_origin(p, rect, &cam));
+        assert_eq!(
+            shapes.len(),
+            1,
+            "mm/pt={mm_per_px}: one shape, got {shapes:?}"
+        );
+        let (_, path) = origin_path(&shapes).expect("the origin path");
+        let o = cam.world_to_screen(Vec2::new(0.0, 0.0)) + rect.min.to_vec2();
+        let expected = [
+            o + egui::Vec2::new(ORIGIN_ARM_PT, 0.0),
+            o,
+            o + egui::Vec2::new(0.0, -ORIGIN_ARM_PT),
+        ];
+        for (got, want) in path.points.iter().zip(expected) {
+            assert!(
+                (*got - want).length() < 1e-3,
+                "mm/pt={mm_per_px}: {got:?} vs {want:?}"
+            );
+        }
+        assert_eq!(ORIGIN_ARM_PT, 12.0);
+        assert_eq!(path.stroke.width, ORIGIN_WIDTH_PT);
+    }
+}
+
+/// LCV-164 AC 4 — in a real frame the origin marker paints before the
+/// entities: its path comes before the circle's.
+#[test]
+fn ac4_origin_marker_paints_before_the_entities() {
+    let ctx = egui::Context::default();
+    let mut app = lasercad::app::App::default();
+    app.document
+        .push_current(Entity::Circle(Circle::new(Vec2::new(0.0, 0.0), 30.0)));
+    let mut shapes = Vec::new();
+    for _ in 0..2 {
+        let out = ctx.run(crate::harness::raw_input(Vec::new()), |ctx| {
+            app.update_ui(ctx)
+        });
+        shapes.clear();
+        for clipped in out.shapes {
+            flatten(clipped.shape, &mut shapes);
+        }
+    }
+    let (origin_at, _) = origin_path(&shapes).expect("AC 4: the origin marker paints");
+    let circle_at = shapes
+        .iter()
+        .position(|s| matches!(s, Shape::Path(p) if p.closed && p.points.len() >= 8))
+        .expect("control: the circle paints as a closed path");
+    assert!(
+        origin_at < circle_at,
+        "AC 4: origin {origin_at} after entity {circle_at}"
+    );
+}
