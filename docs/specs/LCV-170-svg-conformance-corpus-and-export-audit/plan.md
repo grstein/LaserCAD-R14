@@ -78,3 +78,5 @@ a control-character layer name. AC 10 pins today's bytes.
   this plan. Stop, record it under "Export contract changes", and ask before continuing.
 - Parallel branches (`ui`, `agent-harness`) edit `tests/it/app/` and `tests/it/agent/`. The AC 9
   tests only append new functions, to keep rebases trivial.
+
+- Review addendum: T9 also touched `src/app/agent_apply.rs::target_layer` (the agent name lookup folds `"Cut\u{7}"` onto `Cut` via `name_key`).
