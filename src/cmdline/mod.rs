@@ -100,6 +100,9 @@ pub enum ToolKind {
     /// ROTATE — turn the selection about a base point (LCV-158). Words
     /// only: `rotate`, `ro`; no letter.
     Rotate,
+    /// MIRROR — reflect the selection across a picked line (LCV-181). Words
+    /// only: `mirror`, `mi`; no letter.
+    Mirror,
 }
 
 /// A view / drawing-aid toggle the command line can flip.

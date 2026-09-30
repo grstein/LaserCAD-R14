@@ -115,6 +115,7 @@ pub fn parse(raw: &str) -> CommandInput {
 /// | `co` | `Copy` | `cp` | `Copy` |
 /// | `dist` | `Dist` | `di` | `Dist` |
 /// | `rotate` | `Rotate` | `ro` | `Rotate` |
+/// | `mirror` | `Mirror` | `mi` | `Mirror` |
 ///
 /// `delete` / `del` / `erase` all reach the same tool: R14 says `ERASE`, the
 /// v2 tool and its menu entry say Delete, so both vocabularies are accepted
@@ -150,6 +151,7 @@ fn tool_alias(lower: &str) -> Option<ToolKind> {
         "copy" | "co" | "cp" => Some(ToolKind::Copy),
         "dist" | "di" => Some(ToolKind::Dist),
         "rotate" | "ro" => Some(ToolKind::Rotate),
+        "mirror" | "mi" => Some(ToolKind::Mirror),
         _ => None,
     }
 }
@@ -425,11 +427,13 @@ mod tests {
             ("di", ToolKind::Dist),
             ("rotate", ToolKind::Rotate),
             ("ro", ToolKind::Rotate),
+            ("mirror", ToolKind::Mirror),
+            ("mi", ToolKind::Mirror),
         ];
         assert_eq!(
             words.len(),
-            22,
-            "the approved word set is exactly twenty-two"
+            24,
+            "the approved word set is exactly twenty-four"
         );
         for &(word, kind) in words {
             assert_eq!(
@@ -460,6 +464,19 @@ mod tests {
             );
         }
         assert_eq!(parse("r"), CommandInput::Tool(ToolKind::Rect));
+    }
+
+    /// LCV-181 AC1 — `mirror` and `mi` (any case) are MIRROR; `m` stays MOVE.
+    #[test]
+    fn mirror_words_are_mirror() {
+        for word in ["mirror", "MIRROR", "mi", " Mi "] {
+            assert_eq!(
+                parse(word),
+                CommandInput::Tool(ToolKind::Mirror),
+                "{word:?}"
+            );
+        }
+        assert_eq!(parse("m"), CommandInput::Tool(ToolKind::Move));
     }
 
     /// LCV-156 AC 4 — `layer` and `la` (any case) are the Layers command;
