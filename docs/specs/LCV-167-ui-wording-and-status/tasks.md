@@ -27,7 +27,7 @@
 - [x] T8 [AC4] `CAPTURE_DISABLED` = `canvas capture is disabled in Help > AI Settings…`;
   `agent_capture.rs` uses the const, not its literal; T6 green (files: src/app/agent_apply.rs,
   src/app/agent_capture.rs)
-- [ ] T9 [AC5] Test first: `turn_label` gives `AI: <prompt>` (plain, trimmed, truncated cases);
+- [x] T9 [AC5] Test first: `turn_label` gives `AI: <prompt>` (plain, trimmed, truncated cases);
   a committed turn's undo label starts `AI: ` (files: src/app/agent_turn/tests.rs)
 - [ ] T10 [AC5] `turn_label` prefix `AI: ` and its doc; composite doc example (files:
   src/app/agent_turn.rs, src/document/commands/composite.rs)

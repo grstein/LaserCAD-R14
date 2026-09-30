@@ -77,7 +77,7 @@ fn arm_turn_records_the_user_row_and_arms_a_live_channel() {
     assert!(app.agent.busy);
     assert!(app.agent.rx.is_some());
     assert_eq!(app.agent.turn.applied, 0);
-    assert_eq!(app.agent.turn.label, "Agent: draw a 20 mm square");
+    assert_eq!(app.agent.turn.label, "AI: draw a 20 mm square");
     assert!(app.history.group_open(), "the turn's group is open");
 
     tx.send(AgentEvent::done("hi"))
@@ -286,19 +286,19 @@ fn the_settings_module_does_not_import_the_agent() {
 
 // ── AC 10: the undo label ────────────────────────────────────────────────
 
-/// AC 10 — the label is `Agent:` plus the trimmed prompt, cut at 40
+/// AC 10 — the label is `AI:` plus the trimmed prompt, cut at 40
 /// characters with an `…` only when something was actually cut.
 #[test]
 fn the_turn_label_trims_and_truncates_at_forty_characters() {
-    assert_eq!(turn_label("  draw a square  "), "Agent: draw a square");
+    assert_eq!(turn_label("  draw a square  "), "AI: draw a square");
     // Exactly 40 characters: kept whole, no ellipsis.
     let forty = "a".repeat(40);
-    assert_eq!(turn_label(&forty), format!("Agent: {forty}"));
+    assert_eq!(turn_label(&forty), format!("AI: {forty}"));
     // Forty-one: forty kept, one ellipsis.
     let forty_one = "b".repeat(41);
     assert_eq!(
         turn_label(&forty_one),
-        format!("Agent: {}…", "b".repeat(40))
+        format!("AI: {}…", "b".repeat(40))
     );
 }
 
@@ -309,9 +309,9 @@ fn the_turn_label_cuts_on_character_boundaries() {
     let prompt = "desenhe um quadrado de vinte milímetros no canto";
     let label = turn_label(prompt);
     assert!(label.ends_with('…'), "{label}");
-    assert_eq!(label.chars().count(), "Agent: ".len() + 40 + 1);
+    assert_eq!(label.chars().count(), "AI: ".len() + 40 + 1);
     assert!(
-        label.starts_with("Agent: desenhe um quadrado de vinte milí"),
+        label.starts_with("AI: desenhe um quadrado de vinte milí"),
         "{label}"
     );
 }
