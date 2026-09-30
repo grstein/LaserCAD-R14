@@ -8,8 +8,10 @@ use core::f64::consts::FRAC_PI_2;
 
 use lasercad::agent::{AgentAction, AgentOutcome, parse_tool_call, tool_definitions};
 use lasercad::app::{App, apply};
-use lasercad::document::{AddLayer, Command, Entity, TransformEntities};
-use lasercad::geometry::{Line, Transform, Vec2};
+use lasercad::document::{
+    AddLayer, Command, CopyEntities, DeleteEntities, Entity, MoveEntities, TransformEntities,
+};
+use lasercad::geometry::{Arc, Circle, Line, Transform, Vec2};
 use serde_json::json;
 
 fn action(args: serde_json::Value) -> AgentAction {
@@ -349,4 +351,262 @@ fn the_six_schemas_offer_an_optional_indices_list() {
         let text = def["function"]["description"].as_str().unwrap();
         assert!(text.contains("indices"), "{tool}: {text}");
     }
+}
+
+/// Line 0 and arc 2 on the current layer, circle 1 and line 3 on `Engrave`.
+fn set_app() -> App {
+    let mut app = App::default();
+    AddLayer::new("Engrave", [0, 0, 255], true).do_(&mut app.document);
+    let engrave = app.document.layer_by_name("Engrave").unwrap().id;
+    let doc = &mut app.document;
+    doc.push_current(Entity::Line(Line::new(
+        Vec2::new(0.0, 0.0),
+        Vec2::new(10.0, 0.0),
+    )));
+    doc.push_entity(
+        Entity::Circle(Circle::new(Vec2::new(20.0, 20.0), 5.0)),
+        engrave,
+    );
+    doc.push_current(Entity::Arc(Arc::new(
+        Vec2::new(30.0, 0.0),
+        3.0,
+        0.0,
+        FRAC_PI_2,
+        true,
+    )));
+    doc.push_entity(
+        Entity::Line(Line::new(Vec2::new(0.0, 10.0), Vec2::new(10.0, 10.0))),
+        engrave,
+    );
+    app
+}
+
+/// Parse and apply one call; the outcome and the revisions it took.
+fn run(app: &mut App, tool: &str, args: serde_json::Value) -> (AgentOutcome, u64) {
+    let before = app.history.revision();
+    let action = parse_tool_call(tool, &args).unwrap_or_else(|e| panic!("{e}"));
+    let outcome = apply(app, &action);
+    (outcome, app.history.revision() - before)
+}
+
+/// `set_app()`'s document after `command`.
+fn expected(mut command: impl Command) -> Vec<Entity> {
+    let mut app = set_app();
+    command.do_(&mut app.document);
+    app.document.entities
+}
+
+/// LCV-186 AC1, AC2 — a set move, rotate, scale and in-place mirror given
+/// in any order commit one command that uses the one base point or axis for
+/// every listed entity, leave the others alone, and undo in one step.
+#[test]
+fn a_set_transform_is_one_command_about_one_base() {
+    let indices = json!([3, 0, 1]);
+    let cases: [(&str, serde_json::Value, Vec<Entity>, &str); 4] = [
+        (
+            "move_entity",
+            json!({"indices":indices,"dx":1,"dy":2}),
+            expected(MoveEntities::new(vec![0, 1, 3], Vec2::new(1.0, 2.0))),
+            "Moved 3 entities by (1.000, 2.000) mm.",
+        ),
+        (
+            "rotate_entity",
+            json!({"indices":indices,"x":5,"y":5,"degrees":90}),
+            expected(TransformEntities::new(
+                vec![0, 1, 3],
+                Transform::Rotate {
+                    base: Vec2::new(5.0, 5.0),
+                    angle: FRAC_PI_2,
+                },
+            )),
+            "Rotated 3 entities by 90.000° about (5.000, 5.000) mm.",
+        ),
+        (
+            "scale_entity",
+            json!({"indices":indices,"x":1,"y":2,"factor":2}),
+            expected(TransformEntities::new(
+                vec![0, 1, 3],
+                Transform::Scale {
+                    base: Vec2::new(1.0, 2.0),
+                    factor: 2.0,
+                },
+            )),
+            "Scaled 3 entities by 2.000 about (1.000, 2.000) mm.",
+        ),
+        (
+            "mirror_entity",
+            json!({"indices":indices,"x1":0,"y1":0,"x2":0,"y2":5,"erase_source":true}),
+            expected(TransformEntities::new(vec![0, 1, 3], across_y())),
+            "Mirrored 3 entities across the line (0.000, 0.000)–(0.000, 5.000) mm.",
+        ),
+    ];
+    for (tool, args, entities, sentence) in cases {
+        let mut app = set_app();
+        let (outcome, steps) = run(&mut app, tool, args);
+        assert!(
+            matches!(outcome, AgentOutcome::Ok(_)),
+            "{tool}: {outcome:?}"
+        );
+        assert_eq!(
+            outcome.text(),
+            format!("{sentence} The drawing now has 4 entities."),
+            "{tool}"
+        );
+        assert_eq!(steps, 1, "{tool}: one command");
+        assert_eq!(app.document.entities, entities, "{tool}");
+        assert!(app.history.undo(&mut app.document), "{tool}");
+        assert_eq!(app.document.entities, set_app().document.entities, "{tool}");
+    }
+}
+
+/// LCV-186 AC3 — a set copy and a keep-source set mirror, listed in
+/// descending order, append the new entities in ascending source order, each
+/// on its source's layer, and name the new indices.
+#[test]
+fn set_copies_append_in_ascending_source_order_on_source_layers() {
+    let cases = [
+        (
+            "copy_entity",
+            json!({"indices":[3, 1, 0],"dx":1,"dy":2}),
+            expected(CopyEntities::new(vec![0, 1, 3], Vec2::new(1.0, 2.0))),
+            "Copied 3 entities by (1.000, 2.000) mm as entities 4..6.",
+        ),
+        (
+            "mirror_entity",
+            json!({"indices":[3, 1, 0],"x1":0,"y1":0,"x2":0,"y2":5,"erase_source":false}),
+            expected(TransformEntities::new(vec![0, 1, 3], across_y()).with_keep_source(true)),
+            "Mirrored 3 entities across the line (0.000, 0.000)–(0.000, 5.000) mm as entities 4..6.",
+        ),
+    ];
+    for (tool, args, entities, sentence) in cases {
+        let mut app = set_app();
+        let (outcome, steps) = run(&mut app, tool, args);
+        assert_eq!(
+            outcome.text(),
+            format!("{sentence} The drawing now has 7 entities."),
+            "{tool}"
+        );
+        assert_eq!(steps, 1, "{tool}");
+        assert_eq!(app.document.entities, entities, "{tool}");
+        for (copy, source) in [(4, 0), (5, 1), (6, 3)] {
+            assert_eq!(
+                app.document.entity_layer(copy),
+                app.document.entity_layer(source),
+                "{tool}: entity {copy}"
+            );
+        }
+        assert_ne!(
+            app.document.entity_layer(4),
+            app.document.entity_layer(5),
+            "control"
+        );
+    }
+    let mut app = set_app();
+    let (one, _) = run(
+        &mut app,
+        "copy_entity",
+        json!({"indices":[2],"dx":0,"dy":1}),
+    );
+    assert_eq!(
+        one.text(),
+        "Copied 1 entity by (0.000, 1.000) mm as entity 4. The drawing now has 5 entities."
+    );
+}
+
+/// LCV-186 AC4 — a set delete removes every listed entity in one command;
+/// the result states the new count and that later indices shifted, or that
+/// none did when the tail went.
+#[test]
+fn a_set_delete_states_the_count_and_the_shift() {
+    let mut app = set_app();
+    let (outcome, steps) = run(&mut app, "delete_entity", json!({"indices":[2, 0]}));
+    assert_eq!(steps, 1);
+    assert_eq!(
+        app.document.entities,
+        expected(DeleteEntities::new(vec![0, 2]))
+    );
+    assert_eq!(
+        outcome.text(),
+        "Deleted 2 entities (indices 0, 2). Every later index moved down by the \
+         number of deleted entities before it. The drawing now has 2 entities."
+    );
+    assert!(app.history.undo(&mut app.document));
+    assert_eq!(app.document.entities, set_app().document.entities);
+
+    let mut app = set_app();
+    let (tail, _) = run(&mut app, "delete_entity", json!({"indices":[3, 2]}));
+    assert_eq!(
+        tail.text(),
+        "Deleted 2 entities (indices 2, 3). No indices shifted. The drawing now has 2 entities."
+    );
+    let mut app = set_app();
+    let (one, _) = run(&mut app, "delete_entity", json!({"indices":[1]}));
+    assert!(
+        one.text()
+            .starts_with("Deleted 1 entity (index 1). Every later"),
+        "{}",
+        one.text()
+    );
+}
+
+/// LCV-186 AC5, AC6 — an out-of-range entry, a mirror line that is a point
+/// and a factor that is not positive each change no entity at all; a
+/// whole-turn rotation or factor 1 commits nothing.
+#[test]
+fn a_set_that_cannot_apply_to_every_entity_changes_nothing() {
+    let untouched = set_app().document.entities;
+    let mut app = set_app();
+    let refused = [
+        (
+            "move_entity",
+            json!({"indices":[0, 4, 1],"dx":1,"dy":1}),
+            "indices[1] = 4 is out of range (the drawing has 4 entities); nothing was changed",
+        ),
+        (
+            "delete_entity",
+            json!({"indices":[9]}),
+            "indices[0] = 9 is out of range (the drawing has 4 entities); nothing was changed",
+        ),
+        (
+            "mirror_entity",
+            json!({"indices":[0, 1],"x1":2,"y1":2,"x2":2,"y2":2,"erase_source":false}),
+            "the mirror line needs two distinct points, got (2.000, 2.000) mm twice",
+        ),
+    ];
+    for (tool, args, text) in refused {
+        let (outcome, steps) = run(&mut app, tool, args);
+        assert!(
+            matches!(outcome, AgentOutcome::Refused(_)),
+            "{tool}: {outcome:?}"
+        );
+        assert_eq!(outcome.text(), text, "{tool}");
+        assert_eq!(steps, 0, "{tool}");
+    }
+    let bad = parse_tool_call(
+        "scale_entity",
+        &json!({"indices":[0, 1],"x":0,"y":0,"factor":-2}),
+    );
+    assert!(bad.unwrap_err().to_string().contains("`factor`"));
+    let noop = [
+        (
+            "rotate_entity",
+            json!({"indices":[0, 1],"x":3,"y":3,"degrees":360}),
+            "A whole-turn rotation leaves 2 entities unchanged; nothing committed.",
+        ),
+        (
+            "scale_entity",
+            json!({"indices":[0, 1],"x":3,"y":3,"factor":1}),
+            "A factor of 1 leaves 2 entities unchanged; nothing committed.",
+        ),
+    ];
+    for (tool, args, text) in noop {
+        let (outcome, steps) = run(&mut app, tool, args);
+        assert!(
+            matches!(outcome, AgentOutcome::Ok(_)),
+            "{tool}: {outcome:?}"
+        );
+        assert_eq!(outcome.text(), text, "{tool}");
+        assert_eq!(steps, 0, "{tool}");
+    }
+    assert_eq!(app.document.entities, untouched);
 }
