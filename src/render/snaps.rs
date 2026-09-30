@@ -171,73 +171,95 @@ pub(crate) fn nearest_marker_corners(center: egui::Pos2, size_px: f32) -> [egui:
     ]
 }
 
+/// Stroke width, in points, of a stroked glyph.
+const GLYPH_STROKE_PT: f32 = 1.5;
+
+/// How much wider, in points, the dark edge under a glyph is: 1 pt each side
+/// (LCV-164 AC 2).
+const EDGE_EXTRA_PT: f32 = 2.0;
+
+/// The shapes of one pass of `shape`'s glyph at `pos`, in `color`, every
+/// stroke `widen` points wider than the glyph's own: `0` for the glyph,
+/// [`EDGE_EXTRA_PT`] for the edge under it. A filled glyph gets an outline
+/// of width `widen`, so the glyph pass has none.
+pub(crate) fn glyph_shapes(
+    shape: MarkerShape,
+    pos: egui::Pos2,
+    color: egui::Color32,
+    widen: f32,
+) -> Vec<egui::Shape> {
+    use egui::Shape;
+    let size = MARKER_SIZE_PX;
+    let stroke = egui::Stroke::new(GLYPH_STROKE_PT + widen, color);
+    let outline = egui::Stroke::new(widen, color);
+    match shape {
+        MarkerShape::Square => {
+            let c = endpoint_marker_corners(pos, size);
+            let rect = egui::Rect::from_min_max(c[0], c[2]);
+            vec![Shape::Rect(egui::epaint::RectShape::new(
+                rect, 0.0, color, outline,
+            ))]
+        }
+        MarkerShape::Triangle => {
+            let corners = midpoint_marker_corners(pos, size).to_vec();
+            vec![Shape::convex_polygon(corners, color, outline)]
+        }
+        MarkerShape::Circle => vec![Shape::circle_stroke(
+            pos,
+            center_marker_radius(size),
+            stroke,
+        )],
+        MarkerShape::X => intersection_marker_segments(pos, size)
+            .into_iter()
+            .map(|seg| Shape::line_segment(seg, stroke))
+            .collect(),
+        MarkerShape::Diamond => {
+            vec![Shape::closed_line(
+                quadrant_marker_corners(pos, size).to_vec(),
+                stroke,
+            )]
+        }
+        MarkerShape::RightAngle => perpendicular_marker_paths(pos, size)
+            .into_iter()
+            .map(|path| Shape::line(path.to_vec(), stroke))
+            .collect(),
+        MarkerShape::Tangent => vec![
+            Shape::circle_stroke(pos, center_marker_radius(size), stroke),
+            Shape::line_segment(tangent_marker_bar(pos, size), stroke),
+        ],
+        MarkerShape::Hourglass => {
+            vec![Shape::closed_line(
+                nearest_marker_corners(pos, size).to_vec(),
+                stroke,
+            )]
+        }
+    }
+}
+
 /// Draw a snap marker at the given [`SnapResult`] location.
 ///
-/// Converts `snap.point` (world space) to screen space, then dispatches on
-/// `snap.kind` to draw the appropriate shape:
+/// Converts `snap.point` (world space) to screen space and paints the kind's
+/// glyph ([`glyph_shapes`]) twice: first the edge in
+/// [`crate::render::palette::SNAP_EDGE`], [`EDGE_EXTRA_PT`] wider, then the
+/// glyph in [`marker_color`] (LCV-164 AC 2):
 ///
-/// - `Endpoint` → filled orange square.
-/// - `Midpoint` → filled orange upward-pointing triangle.
-/// - `Center` → unfilled orange circle (stroke only).
-/// - `Intersection` → orange X (two crossed line segments).
+/// - `Endpoint` → filled square; `Midpoint` → filled upward triangle;
+///   `Center` → unfilled circle; `Intersection` → X.
 /// - `Quadrant` → diamond; `Perpendicular` → right-angle mark; `Tangent` →
 ///   circle with a tangent bar; `Nearest` → hourglass (all stroked).
 ///
-/// Markers are sized in screen pixels (constant size regardless of zoom).
+/// Markers are sized in screen points (constant size regardless of zoom).
 pub fn draw_snap_marker(
     painter: &egui::Painter,
     rect: egui::Rect,
     camera: &Camera,
     snap: &SnapResult,
 ) {
-    // Convert world point to screen space.
-    let screen_pos = camera.world_to_screen(snap.point) + rect.min.to_vec2();
-    let color = marker_color();
-    let size = MARKER_SIZE_PX;
-    let stroke = egui::Stroke::new(1.5_f32, color);
-
-    match marker_shape_for(snap.kind) {
-        MarkerShape::Square => {
-            let corners = endpoint_marker_corners(screen_pos, size);
-            // Draw filled square using top-left and bottom-right.
-            let rect = egui::Rect::from_min_max(corners[0], corners[2]);
-            painter.rect_filled(rect, 0.0, color);
-        }
-        MarkerShape::Triangle => {
-            let corners = midpoint_marker_corners(screen_pos, size);
-            painter.add(egui::Shape::convex_polygon(
-                corners.to_vec(),
-                color,
-                egui::Stroke::NONE,
-            ));
-        }
-        MarkerShape::Circle => {
-            let radius = center_marker_radius(size);
-            painter.circle_stroke(screen_pos, radius, stroke);
-        }
-        MarkerShape::X => {
-            let segments = intersection_marker_segments(screen_pos, size);
-            painter.line_segment(segments[0], stroke);
-            painter.line_segment(segments[1], stroke);
-        }
-        MarkerShape::Diamond => {
-            let corners = quadrant_marker_corners(screen_pos, size).to_vec();
-            painter.add(egui::Shape::closed_line(corners, stroke));
-        }
-        MarkerShape::RightAngle => {
-            for path in perpendicular_marker_paths(screen_pos, size) {
-                painter.add(egui::Shape::line(path.to_vec(), stroke));
-            }
-        }
-        MarkerShape::Tangent => {
-            painter.circle_stroke(screen_pos, center_marker_radius(size), stroke);
-            painter.line_segment(tangent_marker_bar(screen_pos, size), stroke);
-        }
-        MarkerShape::Hourglass => {
-            let corners = nearest_marker_corners(screen_pos, size).to_vec();
-            painter.add(egui::Shape::closed_line(corners, stroke));
-        }
-    }
+    let pos = camera.world_to_screen(snap.point) + rect.min.to_vec2();
+    let shape = marker_shape_for(snap.kind);
+    let edge = crate::render::palette::SNAP_EDGE;
+    painter.extend(glyph_shapes(shape, pos, edge, EDGE_EXTRA_PT));
+    painter.extend(glyph_shapes(shape, pos, marker_color(), 0.0));
 }
 
 #[cfg(test)]
