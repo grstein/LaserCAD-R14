@@ -396,7 +396,7 @@ fn lcv185_ac2_a_non_null_foreign_key_is_refused_with_the_type_keys() {
             "arc",
             "x1",
             json!(1),
-            "a arc takes cx, cy, r, start_deg, end_deg, ccw",
+            "an arc takes cx, cy, r, start_deg, end_deg, ccw",
         ),
         ("line", "cx", json!(0), "a line takes x1, y1, x2, y2"),
         ("circle", "ccw", json!(false), "a circle takes cx, cy, r"),
@@ -408,7 +408,10 @@ fn lcv185_ac2_a_non_null_foreign_key_is_refused_with_the_type_keys() {
         items.push(item);
         assert_eq!(
             refusal(Value::Array(items)),
-            format!("create_drawing entities[2].{foreign}: not a {kind} key; {takes}"),
+            format!(
+                "create_drawing entities[2].{foreign}: not {} {kind} key; {takes}",
+                &takes[..takes.find(' ').unwrap()]
+            ),
             "{kind} with {foreign}: {value}"
         );
     }

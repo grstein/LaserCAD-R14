@@ -28,7 +28,7 @@ A *foreign key* is a key the schema publishes for another entity type (e.g. `r` 
 1. WHEN an item carries a foreign key whose value is `null`, THE SYSTEM SHALL ignore that key and
    validate the item by its own `type`.
 2. IF an item carries a foreign key with a non-null value THEN THE SYSTEM SHALL refuse the batch
-   with `create_drawing entities[i].<key>: not a <type> key; a <type> takes <its keys>`.
+   with `create_drawing entities[i].<key>: not a <type> key; a <type> takes <its keys>` ("an" before `arc`).
 3. IF an item carries a key the schema does not publish THEN THE SYSTEM SHALL refuse the batch
    with the current `unknown key` message, unchanged.
 4. WHEN a test builds, for each `type`, an item that sets every published property (the item's own

@@ -208,9 +208,10 @@ fn item(index: usize, value: &Value) -> Result<DrawingItem, ToolCallError> {
             return Err(fail(&cut(key), "unknown key".to_owned()));
         } else if !value.is_null() {
             let takes = keys.join(", ");
+            let a = if kind_name == "arc" { "an" } else { "a" };
             return Err(fail(
                 key,
-                format!("not a {kind_name} key; a {kind_name} takes {takes}"),
+                format!("not {a} {kind_name} key; {a} {kind_name} takes {takes}"),
             ));
         }
     }
