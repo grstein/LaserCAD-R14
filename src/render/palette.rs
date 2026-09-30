@@ -64,6 +64,23 @@ mod tests {
         d.min(360.0 - d)
     }
 
+    /// WCAG 2 contrast ratio of two opaque colours.
+    fn contrast(a: egui::Color32, b: egui::Color32) -> f64 {
+        let (a, b) = (luminance(a), luminance(b));
+        (a.max(b) + 0.05) / (a.min(b) + 0.05)
+    }
+
+    /// LCV-164 AC 1 — minor grid ≥1.35:1 and major grid ≥2.2:1 on the bed
+    /// fill (gray 40), both opaque.
+    #[test]
+    fn grid_tokens_contrast_with_the_bed_fill() {
+        let bed = egui::Color32::from_gray(40);
+        assert!(GRID_MINOR.a() == 255 && GRID_MAJOR.a() == 255);
+        let (minor, major) = (contrast(GRID_MINOR, bed), contrast(GRID_MAJOR, bed));
+        assert!(minor >= 1.35, "minor grid contrast {minor:.2}:1");
+        assert!(major >= 2.2, "major grid contrast {major:.2}:1");
+    }
+
     /// LCV-163 AC 8 — `danger` is opaque with ≥3:1 WCAG contrast on the bed
     /// fill (gray 40).
     #[test]
