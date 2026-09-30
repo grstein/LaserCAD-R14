@@ -1,8 +1,8 @@
 # LCV-158 — ROTATE command
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-157
-- **Implementation**: -
+- **Implementation**: b0e3502..9ff4820
 
 ## Problem
 
