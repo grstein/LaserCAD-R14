@@ -1,6 +1,7 @@
 //! Chrome and dialogs: menus, status bar, shortcuts, bed dialog, viewport.
 
 mod bed_dialog;
+mod canvas_legibility;
 mod compact_chrome_and_action_hints;
 mod cursor_and_picking;
 mod discard_dialog_pointer_click;
