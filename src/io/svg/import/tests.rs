@@ -33,6 +33,13 @@ fn empty_svg_returns_no_entities() {
     assert!(es.is_empty());
 }
 
+/// LCV-171 AC 8 — a file with nothing to ignore has an empty report.
+#[test]
+fn empty_svg_has_an_empty_report() {
+    let imported = import_svg(r#"<svg xmlns="http://www.w3.org/2000/svg"/>"#).unwrap();
+    assert!(imported.report.is_empty());
+}
+
 #[test]
 fn invalid_xml_returns_xml_parse_error() {
     let r = import_svg("<svg><unclosed");

@@ -29,6 +29,7 @@ use crate::geometry::{Arc, Circle, EPSILON, Line, Vec2};
 use crate::util::flip_y;
 use walk::Walk;
 
+pub(super) mod report;
 mod walk;
 
 /// The SVG namespace URI; only elements in it are SVG (LCV-171 AC 1).
@@ -103,6 +104,11 @@ pub struct ImportedSvg {
     pub current_layer: LayerId,
     /// One layer id per entity.
     pub entity_layers: Vec<LayerId>,
+    /// What the file held that was not imported, as `(label, count)` in
+    /// order of first occurrence, one entry per label (LCV-171 AC 8):
+    /// skipped element names, `path (unsupported data)`, and unapplied
+    /// property names. Empty for a file LaserCAD wrote.
+    pub report: Vec<(String, usize)>,
 }
 
 impl ImportedSvg {
@@ -146,6 +152,7 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
         layers,
         current_layer,
         entity_layers: walk.entity_layers,
+        report: Vec::new(),
     })
 }
 
