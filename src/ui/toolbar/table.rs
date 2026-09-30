@@ -12,7 +12,7 @@ use crate::ui::icons::{IconFn, draw, modify};
 /// labels. `shortcut` is the bare-key hint shown in the Tools menu (`None`
 /// for `Select`, which has no keyboard binding).
 pub(crate) struct ToolEntry {
-    /// Text displayed on the toolbar button and in the Tools menu.
+    /// Text shown in the Tools menu and the rail button tooltip.
     pub(crate) label: &'static str,
     /// String returned by [`crate::tools::Tool::name`]; used to detect the active tool for
     /// highlight purposes.

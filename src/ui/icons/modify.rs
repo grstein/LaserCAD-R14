@@ -36,9 +36,9 @@ pub(crate) fn rotate(p: &Painter, r: Rect, s: Stroke) {
 
 /// Mirror: a shape, a dashed axis and its reflection.
 pub(crate) fn mirror(p: &Painter, r: Rect, s: Stroke) {
-    path(p, r, &[[3.0, 4.0], [8.0, 16.0], [3.0, 16.0]], true, s);
+    path(p, r, &[[3.0, 4.0], [7.0, 16.0], [3.0, 16.0]], true, s);
     dashed(p, r, [10.0, 2.0], [10.0, 18.0], s);
-    path(p, r, &[[17.0, 4.0], [12.0, 16.0], [17.0, 16.0]], true, s);
+    path(p, r, &[[17.0, 4.0], [13.0, 16.0], [17.0, 16.0]], true, s);
 }
 
 /// Scale: a small square in a large one, with a diagonal arrow.
@@ -53,7 +53,7 @@ pub(crate) fn scale(p: &Painter, r: Rect, s: Stroke) {
 pub(crate) fn trim(p: &Painter, r: Rect, s: Stroke) {
     path(p, r, &[[10.0, 2.0], [10.0, 18.0]], false, s);
     path(p, r, &[[2.0, 12.0], [10.0, 12.0]], false, s);
-    dashed(p, r, [10.0, 12.0], [18.0, 12.0], s);
+    dashed(p, r, [11.5, 12.0], [18.0, 12.0], s);
 }
 
 /// Extend: a segment with an arrow reaching a boundary.
