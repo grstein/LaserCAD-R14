@@ -683,46 +683,60 @@ fn a_batch_narrates_its_indices_count_and_revision() {
 
 // ── AC 8: the commit path, not a direct mutation ─────────────────────────
 
-/// AC 8 / AGENTS.md §"State and mutation" — this file must never reach into
-/// `document.entities` to change it. Mutation (f) writes exactly that, and
-/// the revision assertions above are what fail; this scan is the second
-/// line of defence and names the offence directly.
+/// AC 8 / AGENTS.md §"State and mutation" — `agent_apply.rs` and its
+/// `agent_apply/edit.rs` arms must never reach into `document.entities` to
+/// change it. Mutation (f) writes exactly that, and the revision assertions
+/// above are what fail; this scan is the second line of defence and names the
+/// offence directly.
 ///
-/// Bounded at the bare `#[cfg(test)]` at column 0 with `concat!` needles,
-/// so it cannot match the literals in this very test. The positive control
-/// is the one grouped commit call that must be here (ADR 0007 §D12).
+/// Each file is bounded at its bare `#[cfg(test)]` at column 0, if any, with
+/// `concat!` needles, so it cannot match the literals in this very test. The
+/// positive controls are the one grouped commit call (ADR 0007 §D12) and the
+/// edit arms' `Planned::Commit`.
 #[test]
 fn agent_apply_only_ever_commits() {
-    let src = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/src/app/agent_apply.rs"
-    ));
-    let at = src
-        .find("\n#[cfg(test)]")
-        .expect("agent_apply.rs must have a bare #[cfg(test)] marker");
-    let implementation = &src[..at];
-
-    assert!(
-        implementation.contains(concat!("history.commit_", "grouped(command")),
-        "positive control: the grouped commit path must be in this file"
-    );
-    for forbidden in [
-        concat!("entities.pu", "sh"),
-        concat!("entities.re", "move"),
-        concat!("entities.in", "sert"),
-        concat!("entities.cl", "ear"),
-        concat!("entities[", ""),
-        concat!("std::thread", "::spawn"),
-        concat!("e", "frame"),
-        concat!("r", "fd"),
-    ] {
-        let hit = implementation
-            .lines()
-            .find(|l| l.contains(forbidden) && !l.trim_start().starts_with("//"));
+    let files = [
+        (
+            "agent_apply.rs",
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/src/app/agent_apply.rs"
+            )),
+            concat!("history.commit_", "grouped(command"),
+        ),
+        (
+            "agent_apply/edit.rs",
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/src/app/agent_apply/edit.rs"
+            )),
+            concat!("Planned::", "Commit("),
+        ),
+    ];
+    for (name, src, control) in files {
+        let implementation = src.find("\n#[cfg(test)]").map_or(src, |at| &src[..at]);
         assert!(
-            hit.is_none(),
-            "agent_apply.rs must not contain `{forbidden}`: {hit:?}"
+            implementation.contains(control),
+            "positive control: `{control}` must be in {name}"
         );
+        for forbidden in [
+            concat!("entities.pu", "sh"),
+            concat!("entities.re", "move"),
+            concat!("entities.in", "sert"),
+            concat!("entities.cl", "ear"),
+            concat!("entities[", ""),
+            concat!("std::thread", "::spawn"),
+            concat!("e", "frame"),
+            concat!("r", "fd"),
+        ] {
+            let hit = implementation
+                .lines()
+                .find(|l| l.contains(forbidden) && !l.trim_start().starts_with("//"));
+            assert!(
+                hit.is_none(),
+                "{name} must not contain `{forbidden}`: {hit:?}"
+            );
+        }
     }
 }
 
