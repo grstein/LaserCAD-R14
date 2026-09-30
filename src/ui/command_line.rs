@@ -77,13 +77,14 @@ fn draw_context_row(ui: &mut egui::Ui, app: &mut App) {
     ui.horizontal(|ui| {
         // Prompt label: reflects the active tool's current instruction.
         let prompt = app.tool_manager.active_status_text();
-        bounded_label(ui, prompt, None);
+        bounded_label(ui, prompt_job(ui, prompt));
 
         // Feedback: the last submit's result, in a colour the prompt never
         // uses. A display string only — nothing reads it back (LCV-111 AC 24).
         if !app.command_feedback.is_empty() {
             let colour = ui.visuals().warn_fg_color;
-            bounded_label(ui, app.command_feedback.as_str(), Some(colour));
+            let feedback = egui::RichText::new(app.command_feedback.as_str()).color(colour);
+            bounded_label(ui, feedback);
         }
 
         // LCV-139 AC 3-6: what today's Enter would do with the field's exact
@@ -101,19 +102,41 @@ fn draw_context_row(ui: &mut egui::Ui, app: &mut App) {
     });
 }
 
-/// Paint `text` truncated to at most [`CONTEXT_SEGMENT_MAX_WIDTH`] points,
-/// with `colour` applied when given. `Label::truncate()` attaches egui's own
-/// full-text hover tooltip automatically once the laid-out galley no longer
-/// fits (LCV-139 AC 2) — nothing here re-implements or requests that.
-fn bounded_label(ui: &mut egui::Ui, text: &str, colour: Option<egui::Color32>) {
+/// Paint `text` truncated to at most [`CONTEXT_SEGMENT_MAX_WIDTH`] points.
+/// `Label::truncate()` attaches egui's own full-text hover tooltip
+/// automatically once the laid-out galley no longer fits (LCV-139 AC 2) —
+/// nothing here re-implements or requests that.
+fn bounded_label(ui: &mut egui::Ui, text: impl Into<egui::WidgetText>) {
     ui.scope(|ui| {
         ui.set_max_width(CONTEXT_SEGMENT_MAX_WIDTH);
-        let rich = match colour {
-            Some(colour) => egui::RichText::new(text).color(colour),
-            None => egui::RichText::new(text),
-        };
-        ui.add(egui::Label::new(rich).truncate());
+        ui.add(egui::Label::new(text).truncate());
     });
+}
+
+/// The prompt as one layout job, each [`prompt::PromptPart`] in its colour
+/// (LCV-184 AC 6): verb `accent`, request `text.primary`, options
+/// `text.muted`.
+fn prompt_job(ui: &egui::Ui, text: &str) -> egui::text::LayoutJob {
+    use crate::ui::theme::{ACCENT, TEXT_MUTED, TEXT_PRIMARY};
+    use prompt::PromptPart;
+    let font_id = egui::TextStyle::Body.resolve(ui.style());
+    let valign = ui.text_valign();
+    let mut job = egui::text::LayoutJob::default();
+    for (part, span) in prompt::prompt_spans(text) {
+        let color = match part {
+            PromptPart::Verb => ACCENT,
+            PromptPart::Request => TEXT_PRIMARY,
+            PromptPart::Option => TEXT_MUTED,
+        };
+        let format = egui::TextFormat {
+            font_id: font_id.clone(),
+            color,
+            valign,
+            ..Default::default()
+        };
+        job.append(span, 0.0, format);
+    }
+    job
 }
 
 /// The editable row: the single-line field alone (LCV-139 AC 1, AC 7) — a

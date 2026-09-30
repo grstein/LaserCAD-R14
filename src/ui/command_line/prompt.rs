@@ -15,11 +15,49 @@ pub(crate) enum PromptPart {
 }
 
 /// Split `prompt` into `(part, text)` spans, in order.
+///
+/// The verb is the leading run of two or more ASCII capitals, ending at a
+/// space or `:` (`LINE Specify…`, `TRIM: Click…`). After it, every balanced
+/// `[…]` or `<…>` is an option and the rest is request. A prompt without a
+/// verb (`Command:`) is one request span; an unclosed bracket stays request.
 pub(crate) fn prompt_spans(prompt: &str) -> Vec<(PromptPart, &str)> {
-    if prompt.is_empty() {
-        return Vec::new();
+    let caps = prompt.len()
+        - prompt
+            .trim_start_matches(|c: char| c.is_ascii_uppercase())
+            .len();
+    let ends_verb = matches!(prompt.as_bytes().get(caps), Some(b' ' | b':'));
+    if caps < 2 || !ends_verb {
+        return request(prompt);
     }
-    vec![(PromptPart::Request, prompt)]
+    let mut spans = vec![(PromptPart::Verb, &prompt[..caps])];
+    let mut rest = &prompt[caps..];
+    while let Some((open, close)) = next_option(rest) {
+        spans.extend(request(&rest[..open]));
+        spans.push((PromptPart::Option, &rest[open..=close]));
+        rest = &rest[close + 1..];
+    }
+    spans.extend(request(rest));
+    spans
+}
+
+/// `text` as one request span, or none when it is empty.
+fn request(text: &str) -> Vec<(PromptPart, &str)> {
+    match text {
+        "" => Vec::new(),
+        _ => vec![(PromptPart::Request, text)],
+    }
+}
+
+/// Byte offsets of the first balanced `[…]` or `<…>` in `text`.
+fn next_option(text: &str) -> Option<(usize, usize)> {
+    text.char_indices().find_map(|(open, c)| {
+        let close = match c {
+            '[' => ']',
+            '<' => '>',
+            _ => return None,
+        };
+        text[open..].find(close).map(|len| (open, open + len))
+    })
 }
 
 #[cfg(test)]

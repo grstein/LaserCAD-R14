@@ -31,7 +31,7 @@
   unbalanced `[`), stubbed; painted test: LINE active → verb `ACCENT`, request `TEXT_PRIMARY`;
   MIRROR confirm → `[Yes/No]` and `<N>` `TEXT_MUTED`; Select → `Command:` `TEXT_PRIMARY` (files:
   src/ui/command_line/prompt.rs, src/ui/command_line.rs, tests/it/ui/visual_refresh.rs)
-- [ ] T10 [AC6] `prompt_spans` + prompt painted from a `LayoutJob` through the truncating
+- [x] T10 [AC6] `prompt_spans` + prompt painted from a `LayoutJob` through the truncating
   label; T9 green (files: src/ui/command_line/prompt.rs, src/ui/command_line.rs)
 - [ ] T11 [AC7] Test first: the frame rect enclosing the editor response rect has a 1 pt
   `BORDER` stroke while unfocused and `ACCENT` after a typed character focuses the editor
