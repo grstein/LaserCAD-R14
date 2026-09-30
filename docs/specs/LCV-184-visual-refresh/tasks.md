@@ -21,7 +21,7 @@
 - [x] T6 [AC4] `draw_statusbar` uses `mode_pill`; rewrite the `selectable_label` source-scan
   needles in the status-bar unit tests; T4 green (files: src/ui/statusbar.rs,
   src/ui/statusbar/tests.rs)
-- [ ] T7 [AC5] Test first: a 1 pt vertical line segment lies between every pair of adjacent
+- [x] T7 [AC5] Test first: a 1 pt vertical line segment lies between every pair of adjacent
   status segments; the coordinate run's galley uses `FontFamily::Monospace` (files:
   tests/it/ui/visual_refresh.rs)
 - [ ] T8 [AC5] Coordinates painted as `RichText::monospace()`; T7 green (files:

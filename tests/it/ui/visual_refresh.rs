@@ -361,3 +361,94 @@ fn ac4_a_click_on_each_pill_flips_only_its_flag() {
         }
     }
 }
+
+// ── AC 5 — separators and monospace coordinates ───────────────────────
+
+/// A panel's outer rect, as egui stored it last frame.
+fn panel_rect(ctx: &egui::Context, id: &str) -> egui::Rect {
+    egui::containers::panel::PanelState::load(ctx, egui::Id::new(id))
+        .unwrap_or_else(|| panic!("panel `{id}` must have stored its state"))
+        .rect
+}
+
+/// The text shapes inside `area`, left to right.
+fn texts_in(shapes: &[egui::Shape], area: egui::Rect) -> Vec<&egui::epaint::TextShape> {
+    let mut found: Vec<&egui::epaint::TextShape> = shapes
+        .iter()
+        .filter_map(|s| match s {
+            egui::Shape::Text(t) if area.contains(t.pos) => Some(t),
+            _ => None,
+        })
+        .filter(|t| !t.galley.text().trim().is_empty())
+        .collect();
+    found.sort_by(|a, b| a.pos.x.total_cmp(&b.pos.x));
+    found
+}
+
+/// Vertical 1 pt `border` line segments inside `area`, by x.
+fn vertical_rules(shapes: &[egui::Shape], area: egui::Rect) -> Vec<f32> {
+    shapes
+        .iter()
+        .filter_map(|s| match s {
+            egui::Shape::LineSegment { points, stroke }
+                if points[0].x == points[1].x
+                    && area.contains(points[0])
+                    && stroke.width == 1.0
+                    && matches!(stroke.color, egui::epaint::ColorMode::Solid(c) if c == BORDER) =>
+            {
+                Some(points[0].x)
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// AC 5 — a 1 pt vertical rule between every pair of adjacent status-bar
+/// segments, in every mode state.
+#[test]
+fn ac5_a_rule_separates_every_adjacent_pair_of_segments() {
+    for on in [true, false] {
+        let (ctx, mut app) = ctx_and_app();
+        (app.snap_enabled, app.grid_enabled, app.ortho_enabled) = (on, on, on);
+        let _ = paint(&ctx, &mut app, Vec::new());
+        let painted = paint(&ctx, &mut app, Vec::new());
+        let bar = panel_rect(&ctx, "statusbar");
+        let segments = texts_in(&painted.shapes, bar);
+        assert!(segments.len() >= 8, "eight segments: {}", segments.len());
+        let rules = vertical_rules(&painted.shapes, bar);
+        for pair in segments.windows(2) {
+            let left = pair[0].pos.x + pair[0].galley.size().x;
+            let right = pair[1].pos.x;
+            let between = rules.iter().filter(|x| **x > left && **x < right).count();
+            assert_eq!(
+                between,
+                1,
+                "one rule between {:?} and {:?}",
+                pair[0].galley.text(),
+                pair[1].galley.text()
+            );
+        }
+    }
+}
+
+/// AC 5 — the coordinate run is laid out in egui's monospace family.
+#[test]
+fn ac5_coordinates_use_the_monospace_font() {
+    let (ctx, mut app) = ctx_and_app();
+    let _ = paint(&ctx, &mut app, Vec::new());
+    let painted = paint(&ctx, &mut app, Vec::new());
+    let bar = panel_rect(&ctx, "statusbar");
+    let coords = texts_in(&painted.shapes, bar)
+        .into_iter()
+        .find(|t| t.galley.text().starts_with("X:"))
+        .expect("the coordinate readout paints");
+    for section in &coords.galley.job.sections {
+        assert_eq!(section.format.font_id.family, egui::FontFamily::Monospace);
+    }
+    let tool = texts_in(&painted.shapes, bar)[1];
+    assert_eq!(
+        tool.galley.job.sections[0].format.font_id.family,
+        egui::FontFamily::Proportional,
+        "control: other segments stay proportional"
+    );
+}
