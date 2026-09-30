@@ -228,7 +228,10 @@ fn a_tool_round_appends_an_assistant_turn_and_a_matching_tool_turn() {
     assert_eq!(calls[0].id, "call_0");
     assert_eq!(messages[3].role, "tool");
     assert_eq!(messages[3].tool_call_id.as_deref(), Some("call_0"));
-    assert_eq!(messages[3].text_content(), Some("Line created: …."));
+    assert_eq!(
+        messages[3].text_content(),
+        Some("Line created: ….\nSteps left this turn: 255 of 256.")
+    );
 }
 
 /// LCV-121 carry-over, closed by LCV-122 — a model that narrates *and*
@@ -490,7 +493,8 @@ fn a_batch_appends_one_user_message_after_all_tool_results() {
             "user"
         ]
     );
-    for (i, text) in [(3, "ok"), (4, "Canvas 2"), (5, "Canvas 3")] {
+    let last = "Canvas 3\nSteps left this turn: 253 of 256.";
+    for (i, text) in [(3, "ok"), (4, "Canvas 2"), (5, last)] {
         assert_eq!(
             sent[i].tool_call_id.as_deref(),
             Some(format!("call_{}", i - 3).as_str())

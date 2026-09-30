@@ -313,7 +313,7 @@ fn multi_step_turn_sends_the_whole_conversation_back() {
     assert_eq!(
         msgs[3]["content"],
         "Line created: (0.000, 0.000) → (20.000, 0.000) mm. \
-             The drawing now has 1 entities.",
+             The drawing now has 1 entities.\nSteps left this turn: 255 of 256.",
         "the model reads the real outcome, count and all (AC 9)"
     );
     assert_eq!(
@@ -383,7 +383,8 @@ fn a_refusal_is_fed_back_as_a_tool_result_and_the_turn_survives() {
     assert_eq!(roles, ["system", "user", "assistant", "tool"]);
     assert_eq!(msgs[3]["tool_call_id"], "call_bad");
     assert_eq!(
-        msgs[3]["content"], "index 7 is out of range (the drawing has 0 entities)",
+        msgs[3]["content"],
+        "index 7 is out of range (the drawing has 0 entities)\nSteps left this turn: 255 of 256.",
         "the model must be told what went wrong, in the apply site's words"
     );
 }

@@ -162,8 +162,8 @@ where
                     calls.clone(),
                 ));
                 let (mut fenced, mut images) = (false, Vec::new());
-                for call in &calls {
-                    let result = if fenced {
+                for (i, call) in calls.iter().enumerate() {
+                    let mut result = if fenced {
                         FENCE_STOP_PLACEHOLDER.to_owned()
                     } else {
                         let (name, args) = (&call.function.name, &call.function.arguments);
@@ -179,6 +179,9 @@ where
                             other => other.into_text(),
                         }
                     };
+                    if i + 1 == calls.len() && !fenced {
+                        result.push_str(&steps_left_line(budget - dispatched, step_budget));
+                    }
                     messages.push(ChatMessage::tool_result(call.id.clone(), result));
                 }
                 if !images.is_empty() {
@@ -192,6 +195,13 @@ where
             _ => return Err(AgentError::NoContent),
         }
     }
+}
+
+/// The line that ends the last tool result of a batch that ran to its end
+/// (LCV-189): what the model may still spend this turn. A fence-stopped
+/// batch gets none — its turn has no steps left to plan with.
+fn steps_left_line(left: usize, budget: u32) -> String {
+    format!("\nSteps left this turn: {left} of {budget}.")
 }
 
 /// Every send of the loop (ADR 0011 items 9–10). A request carrying an image
