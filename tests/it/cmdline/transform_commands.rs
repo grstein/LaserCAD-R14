@@ -1,5 +1,5 @@
-//! LCV-158 — ROTATE driven from the command line and the canvas through the
-//! real frame.
+//! LCV-158 — ROTATE and LCV-181 — MIRROR driven from the command line and
+//! the canvas through the real frame.
 
 use crate::harness;
 
@@ -108,4 +108,105 @@ fn rotate_by_picked_angle() {
     assert_eq!(app.document.entities[0], Entity::Line(t.line(source)));
     assert_eq!(app.history.len(), 1);
     assert_eq!(app.tool_manager.active_tool_name(), "Select");
+}
+
+/// A line on the non-current `Engrave` layer, selected, mirrored across the
+/// Y axis by `word` ⏎ `0,0` ⏎ `0,10` ⏎; returns the app at the Yes/No prompt.
+fn mirror_to_confirm(ctx: &egui::Context, word: &str) -> (App, Line, Transform) {
+    let mut app = App::default();
+    frame(ctx, &mut app, vec![]);
+    AddLayer::new("Engrave", [0, 0, 255], true).do_(&mut app.document);
+    let engrave = app.document.layer_by_name("Engrave").unwrap().id;
+    let source = Line::new(Vec2::new(10.0, 0.0), Vec2::new(20.0, 5.0));
+    app.document.push_entity(Entity::Line(source), engrave);
+    app.document.selection.add(0);
+
+    submit_command(ctx, &mut app, word);
+    assert_eq!(app.tool_manager.active_tool_name(), "MIRROR");
+    assert_eq!(
+        app.tool_manager.active_status_text(),
+        "MIRROR Specify first point of mirror line:"
+    );
+    submit_command(ctx, &mut app, "0,0");
+    assert_eq!(
+        app.tool_manager.active_status_text(),
+        "MIRROR Specify second point of mirror line:"
+    );
+    submit_command(ctx, &mut app, "0,10");
+    assert_eq!(
+        app.tool_manager.active_status_text(),
+        "MIRROR Erase source objects? [Yes/No] <N>:"
+    );
+    let t = Transform::Mirror {
+        a: Vec2::new(0.0, 0.0),
+        b: Vec2::new(0.0, 10.0),
+    };
+    (app, source, t)
+}
+
+/// AC5, AC6, AC9 — `mi` ⏎ two points ⏎ blank ⏎ (and `n` ⏎) adds the mirrored
+/// line on the source's layer, keeps the source and the selection, as one
+/// undo step, and hands back to SELECT; Ctrl+Z removes the copy.
+#[test]
+fn mi_blank_or_n_keeps_the_source() {
+    for answer in ["", "n"] {
+        let ctx = egui::Context::default();
+        let (mut app, source, t) = mirror_to_confirm(&ctx, "mi");
+        let engrave = app.document.entity_layer(0);
+        submit_command(&ctx, &mut app, answer);
+
+        assert_eq!(app.document.entity_count(), 2, "{answer:?}");
+        assert_eq!(line_at(&app, 0), source);
+        let m = line_at(&app, 1);
+        assert_near(m.p1, Vec2::new(-10.0, 0.0));
+        assert_near(m.p2, Vec2::new(-20.0, 5.0));
+        assert_eq!(app.document.entities[1], Entity::Line(t.line(source)));
+        assert_eq!(app.document.entity_layer(1), engrave);
+        assert!(app.document.selection.is_selected(0));
+        assert!(!app.document.selection.is_selected(1));
+        assert_eq!(app.history.len(), 1, "one undo step");
+        assert_eq!(app.tool_manager.active_tool_name(), "Select");
+
+        tap(&ctx, &mut app, egui::Key::Z, egui::Modifiers::COMMAND);
+        assert_eq!(app.document.entity_count(), 1);
+        assert_eq!(line_at(&app, 0), source);
+    }
+}
+
+/// AC7, AC9 — `mirror` ⏎ two points ⏎ `y` ⏎ replaces the source in place, on
+/// its layer, as one undo step; Ctrl+Z restores it bit-exact.
+#[test]
+fn mirror_yes_replaces_the_source() {
+    let ctx = egui::Context::default();
+    let (mut app, source, t) = mirror_to_confirm(&ctx, "mirror");
+    let engrave = app.document.entity_layer(0);
+    submit_command(&ctx, &mut app, "y");
+
+    assert_eq!(app.document.entity_count(), 1);
+    assert_eq!(app.document.entities[0], Entity::Line(t.line(source)));
+    assert_eq!(app.document.entity_layer(0), engrave);
+    assert!(app.document.selection.is_selected(0));
+    assert_eq!(app.history.len(), 1, "one undo step");
+    assert_eq!(app.tool_manager.active_tool_name(), "Select");
+
+    tap(&ctx, &mut app, egui::Key::Z, egui::Modifiers::COMMAND);
+    assert_eq!(line_at(&app, 0), source, "undo is bit-exact");
+}
+
+/// Escape at the Yes/No prompt commits nothing; the tool stays MIRROR, back
+/// at the first-point prompt.
+#[test]
+fn escape_at_the_yes_no_prompt_cancels() {
+    let ctx = egui::Context::default();
+    let (mut app, source, _) = mirror_to_confirm(&ctx, "mi");
+    tap(&ctx, &mut app, egui::Key::Escape, egui::Modifiers::NONE);
+
+    assert_eq!(app.document.entity_count(), 1);
+    assert_eq!(line_at(&app, 0), source);
+    assert_eq!(app.history.len(), 0);
+    assert_eq!(app.tool_manager.active_tool_name(), "MIRROR");
+    assert_eq!(
+        app.tool_manager.active_status_text(),
+        "MIRROR Specify first point of mirror line:"
+    );
 }
