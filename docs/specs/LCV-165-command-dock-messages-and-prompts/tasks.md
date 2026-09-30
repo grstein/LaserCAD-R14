@@ -13,7 +13,7 @@
   src/app/cmdline/dispatch.rs, src/app/viewport.rs)
 - [x] T5 [AC1] Export-layers writers use `say`; the dock colours by severity (the `! ` prefix
   rule goes); T2 green (files: src/io/export_layers.rs, src/ui/command_line.rs)
-- [ ] T6 [AC2] Test first: the TEXT height prompt is `TEXT  Specify height <5>:` and is
+- [x] T6 [AC2] Test first: the TEXT height prompt is `TEXT  Specify height <5>:` and is
   `Cow::Owned`; the manager hands the owned prompt through unchanged (files:
   src/tools/text/tests.rs, src/tools/manager.rs)
 - [x] T7 [AC2] `Tool::status_text -> Cow<'_, str>` (default `Borrowed(name)`), manager and dock

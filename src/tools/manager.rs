@@ -480,6 +480,25 @@ mod tests {
         assert_eq!(manager.active_status_text(), "LINE: Click start point");
     }
 
+    /// LCV-165 AC 2 — the manager hands an owned prompt through unchanged.
+    #[test]
+    fn tool_manager_hands_an_owned_prompt_through() {
+        let mut manager = ToolManager::default();
+        manager.set_tool(Box::new(crate::tools::TextTool::default()));
+        let mut doc = Document::default();
+        let mut history = History::default();
+        let press = PointerEvent::Press {
+            world_pos: Vec2::new(0.0, 0.0),
+            button: PointerButton::Primary,
+            shift: false,
+        };
+        manager.on_pointer_event(&press, &mut doc, &mut history);
+        manager.on_raw_input("HELLO", &mut doc, &mut history);
+        let prompt = manager.active_status_text();
+        assert_eq!(prompt, "TEXT  Specify height <5>:");
+        assert!(matches!(prompt, Cow::Owned(_)), "{prompt:?}");
+    }
+
     /// LCV-068 AC#6 / LCV-111 AC 2 — `on_command_input` delegates the
     /// resolved [`ToolInput`] to the active tool and forwards its verdict.
     #[test]

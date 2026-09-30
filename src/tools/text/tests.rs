@@ -287,6 +287,20 @@ fn layout_with_no_glyphs_commits_nothing() {
 
 // ── AC 6 — prompts ───────────────────────────────────────────────────
 
+/// LCV-165 AC 2 — the height prompt is formatted from
+/// `DEFAULT_TEXT_HEIGHT_MM` at runtime, so it is an owned string.
+#[test]
+fn height_prompt_is_owned_and_formats_the_default() {
+    let (mut t, mut d, mut h) = anchored();
+    t.on_raw_input("HELLO", &mut d, &mut h);
+    let prompt = t.status_text();
+    assert_eq!(prompt, "TEXT  Specify height <5>:");
+    assert!(
+        matches!(prompt, std::borrow::Cow::Owned(_)),
+        "a runtime value makes the prompt owned: {prompt:?}"
+    );
+}
+
 #[test]
 fn prompt_matches_each_state() {
     assert_eq!(idle().status_text(), "TEXT Specify start point:");
