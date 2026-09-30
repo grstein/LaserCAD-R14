@@ -57,7 +57,7 @@
 - [x] T19 [AC9] `App::autosave_failed`, set/clear in `record_autosave_outcome`, `format_autosave`
   `failed` argument, failed badge painted in `error_fg_color`; T18 green (files: src/app/mod.rs,
   src/app/autosave.rs, src/ui/statusbar.rs)
-- [ ] T20 [AC10] DESIGN.md §3 (accent foreground-only, amends LCV-071 AC 4), §4 (figure-space
+- [x] T20 [AC10] DESIGN.md §3 (accent foreground-only, amends LCV-071 AC 4), §4 (figure-space
   coordinates), §7 (fourth autosave state, amends LCV-116 decision 3), §9 (AI names, gap
   paragraph closed) (files: DESIGN.md)
 - [ ] T21 CHANGELOG `[Unreleased]`: Title Case labels, one AI name (`AI Settings…`, `AI:` undo

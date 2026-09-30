@@ -80,7 +80,7 @@ one named constant per token in `ui/theme.rs` (chrome, done by LCV-184) or a new
 | `status.warning` | #ff8f00 | warnings, command feedback | 6.7:1 | `ui/theme.rs::STATUS_WARNING` |
 | `agent.tool` | #78beff | agent tool rows | 7.7:1 | `agent/panel.rs::TOOL_COLOR` |
 | `status.error` | #ff6b6b | errors: AI panel error rows, `! ` dock lines, failed autosave badge (egui `error_fg_color`) | 5.5:1 | `ui/theme.rs::STATUS_ERROR` |
-| `accent` | #4fa3e0 | foreground-only highlight, never a fill: focus rings, active pill text, active rail icon, prompt verb | 5.5:1 | `ui/theme.rs::ACCENT` |
+| `accent` | #4fa3e0 | foreground-only highlight, never a fill: focus rings, active pill text, active rail icon, prompt verb (amends LCV-071 AC 4; selection fill stays egui's #005c80, `fill.selected`) | 5.5:1 | `ui/theme.rs::ACCENT` |
 
 **Canvas** (surface: bed, gray 40)
 
@@ -122,8 +122,9 @@ Rules:
   small 9, heading 18, monospace 12. No custom fonts.
 - Monospace is for key bindings (`ui/shortcuts_dialog.rs`), agent tool rows (`agent/panel.rs`),
   and any text aligned in columns.
-- Live numbers keep a fixed width: pad with figure spaces (U+2007), not ASCII spaces
-  (`ui/statusbar.rs::format_coords` today; gap → LCV-167).
+- Live numbers keep a fixed width: pad with figure spaces (U+2007), not ASCII spaces.
+  `ui/statusbar.rs::format_coords` right-aligns each coordinate to 8 chars (sign, 4 digits,
+  point, 2 decimals); a wider value grows the string (LCV-167).
 - `heading` is for a surface title (the AI Assistant panel) or a dialog section. Everything else
   is body or small.
 - Any change to a font size re-measures the LCV-139/140 budgets and the ADR 0009 cap.
@@ -221,10 +222,14 @@ clear of the point and the crosshair (`render/snaps/label.rs`, LCV-164).
   - New prompts follow `VERB  Specify <thing> [Opt/Opt]:`. A `<default>` needs a runtime
     value, which ADR 0003 §C rules out (`&'static str`). Defaults and existing prompts:
     gap → LCV-165.
-  - Messages state a fact and the next step. Severity is error / warning / info (gap → LCV-165;
-    today everything is `status.warning`). Query results such as DIST are info.
+  - Messages state a fact and the next step. Severity is error / warning / info (gap → LCV-165).
+    Today a line starting `! ` is an error in `status.error` (LCV-167); everything else is
+    `status.warning`. Query results such as DIST are info.
 - **Status bar** (`ui/statusbar.rs::draw_statusbar`): coords · tool · `Entities: n` · current
-  layer dropdown (`ui/layer_combo.rs`, LCV-156) · SNAP GRID ORTHO · autosave. A 1 pt `border`
+  layer dropdown (`ui/layer_combo.rs`, LCV-156) · SNAP GRID ORTHO · autosave. The autosave
+  badge has four states, first match wins: `× autosave failed` in `status.error` until the next
+  write succeeds, `● autosave pending`, `○ autosaved`, `○ no autosave yet` (LCV-167 amends LCV-116
+  decision 3; a process with no autosave path never fails). A 1 pt `border`
   rule separates adjacent segments. Coordinates use egui's built-in monospace font. Mode
   toggles are always-visible clickable pills (LCV-116, `ui/statusbar/pill.rs::mode_pill`,
   LCV-184): on = `fill.selected` fill and `accent` text; off = no fill, 1 pt `border` outline
@@ -234,8 +239,9 @@ clear of the point and the crosshair (`render/snaps/label.rs`, LCV-164).
   buttons ordered primary → Cancel. Non-modal, no keyboard handling (LCV-069, LCV-113, ADR 0002
   §A6). Enter/Esc, destructive styling and one close pattern: gap → LCV-169.
 - **AI Assistant panel** (`agent/panel.rs`): transcript roles per LCV-125 — user, assistant,
-  tool (monospace, `agent.tool`), refused (`status.warning`), note (small), error (gap →
-  LCV-167). No avatars, bubbles or decoration; one heading.
+  tool (monospace, `agent.tool`), refused (`status.warning`), note (small), error
+  (`status.error`, read as egui's `error_fg_color`, LCV-167). No avatars, bubbles or decoration;
+  one heading.
 
 ## 8. Interaction and keyboard
 
@@ -274,8 +280,12 @@ Canonical bindings live in ADR 0002 §A6 (gate table), ADR 0003 (command line) a
 | Cut group | Layer (`Format > Layers…`, `LAYER`, LCV-156) | pen, colour, preset |
 | The LLM feature | AI Assistant; short form AI; settings AI Settings | Agent, bot |
 
-Existing labels that break these rules, including LCV-156's `File > Export layers`: gap →
-LCV-167. The rules already apply to every new label, including the v0.3 commands.
+The AI names, applied by LCV-167: the rail toggle reads `AI` with tooltip `AI Assistant`; the
+panel heading is `AI Assistant`; the dock destination is `AI`; the settings are `Help > AI
+Settings…` and the `AI Settings` window, and every message that points there says so; an AI
+turn's undo step is `AI: <prompt>`. Code identifiers (`agent/`, `AgentAction`) keep their names.
+LCV-167 brought the existing labels into line (`Export Layers`, `Bed Size…`, `Keyboard
+Shortcuts…`, `Object Snap`, `Restore Default`); the rules apply to every new label.
 
 ## 10. Accessibility and scaling
 
