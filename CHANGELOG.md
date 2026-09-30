@@ -8,6 +8,10 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ## [Unreleased]
 
+### Fixed
+
+- The agent's batch drawing tool (`create_drawing`) now accepts items that set another entity type's keys to `null`, as its published schema invites; a non-null value names the keys the item's type takes. Fewer refused batches, fewer fallbacks to one call per entity. See LCV-185.
+
 ## [0.3.0] - 2026-09-30
 
 ### Added
