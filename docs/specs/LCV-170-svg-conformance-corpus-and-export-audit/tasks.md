@@ -29,7 +29,7 @@
       src/document/layer.rs (tests section), tests/fixtures/svg/layer-control-char.svg + .expected)
 - [x] T7 [AC9] `LayerError::ControlChar` + the check in `check_fields`, before the `name_key`
       test (files: src/document/layer.rs)
-- [ ] T8 [AC9] Tests: the Layers dialog, opened by typing `layer`, refuses the rename to `"A\tB"`
+- [x] T8 [AC9] Tests: the Layers dialog, opened by typing `layer`, refuses the rename to `"A\tB"`
       with the ControlChar message, and the document is unchanged; `AddLayer`/`from_parts` refuse
       it (files: tests/it/app/layers_dialog.rs, tests/it/document/layers.rs)
 - [ ] T9 [AC9] Test: an agent `create_line` naming layer `"Cut\u{7}"` is refused and adds no

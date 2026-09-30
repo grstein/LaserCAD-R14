@@ -3,7 +3,8 @@
 use lasercad::document::commands::CreateEntities;
 use lasercad::document::{AddLayer, DeleteLayer, EditLayer, SetCurrentLayer, SetEntityLayers};
 use lasercad::document::{
-    CreateArc, CreateCircle, CreateLine, DeleteEntities, Document, Entity, History, Layer, LayerId,
+    CreateArc, CreateCircle, CreateLine, DeleteEntities, Document, Entity, History, Layer,
+    LayerError, LayerId,
 };
 use lasercad::geometry::{Arc, Circle, Line, Vec2};
 
@@ -309,4 +310,19 @@ fn layer_commands_carry_their_undo_labels() {
             "Move to Layer"
         ]
     );
+}
+
+/// LCV-170 AC 9 — a name with a control character is refused by the check
+/// that gates `AddLayer` and `EditLayer`, and by `Document::from_parts`.
+#[test]
+fn control_character_names_are_refused() {
+    let doc = two_layer_doc(CUT);
+    for name in ["A\tB", "Cut\u{7}"] {
+        let want = Err(LayerError::ControlChar(name.to_owned()));
+        assert_eq!(doc.check_new_layer(name, [9, 9, 9]), want);
+        assert_eq!(doc.check_edit_layer(MARK, name, [0, 0, 255]), want);
+        let layers = vec![layer(CUT, name, [255, 0, 0])];
+        let opened = Document::from_parts([400.0; 2], layers, CUT, vec![], vec![]);
+        assert_eq!(opened.err(), want.err());
+    }
 }
