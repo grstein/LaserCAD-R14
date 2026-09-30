@@ -146,7 +146,8 @@ impl Tool for RotateTool {
                 if doc.selection.is_empty() {
                     return;
                 }
-                let indices: Vec<usize> = doc.selection.iter().collect();
+                let mut indices: Vec<usize> = doc.selection.iter().collect();
+                indices.sort_unstable();
                 let snapshots = indices.iter().map(|&i| doc.entities[i]).collect();
                 self.state = RotateState::WaitingAngle {
                     base: pos,
