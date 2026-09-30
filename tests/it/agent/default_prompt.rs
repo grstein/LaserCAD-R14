@@ -173,7 +173,7 @@ fn the_sections_appear_in_order() {
         "one tool call is one step",
         &default,
         &range,
-        "no message",
+        "steps left this turn",
         // Reply style (AC 7).
         "brief",
         "do not ask for confirmation",
@@ -237,4 +237,33 @@ fn the_create_drawing_paragraph_tolerates_null_foreign_keys() {
         "{folded}"
     );
     assert!(!folded.contains("exactly that type's"), "{folded}");
+}
+
+/// LCV-189 AC 4 — the STEP BUDGET section says that each call of a parallel
+/// batch counts one step, that create_drawing and a set operation count one,
+/// and that the remaining count arrives in tool results; it no longer says
+/// the turn ends with no message.
+#[test]
+fn the_step_budget_section_says_how_steps_are_counted() {
+    let folded = DEFAULT_PROMPT
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
+    let section = folded
+        .split_once("step budget one tool call")
+        .map(|(_, rest)| rest)
+        .expect("a STEP BUDGET section");
+    let section = section.split_once("reply style").map_or(section, |s| s.0);
+    for needle in [
+        "each call in a parallel batch counts one step",
+        "create_drawing counts one",
+        "so does a set operation",
+        "the remaining count arrives in tool results",
+        "\"steps left this turn: n of b.\"",
+        "\"not run: this reply has k tool calls but n steps are left\"",
+    ] {
+        assert!(section.contains(needle), "`{needle}` missing: {section}");
+    }
+    assert!(!section.contains("no message"), "{section}");
 }
