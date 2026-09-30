@@ -24,6 +24,6 @@ pub use intersect::{
 };
 pub use line::Line;
 pub use rect::Rect;
-pub use snap::{SnapEntity, SnapKind, SnapResult, snap};
+pub use snap::{SnapEntity, SnapKind, SnapKinds, SnapResult, snap, snap_query};
 pub use transform::Transform;
 pub use vec2::Vec2;

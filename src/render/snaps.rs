@@ -46,6 +46,10 @@ pub(crate) fn marker_shape_for(kind: SnapKind) -> MarkerShape {
         SnapKind::Midpoint => MarkerShape::Triangle,
         SnapKind::Center => MarkerShape::Circle,
         SnapKind::Intersection => MarkerShape::X,
+        // LCV-161: dedicated glyphs arrive with T10.
+        SnapKind::Quadrant | SnapKind::Perpendicular | SnapKind::Tangent | SnapKind::Nearest => {
+            MarkerShape::X
+        }
     }
 }
 

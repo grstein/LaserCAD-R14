@@ -5,7 +5,7 @@
   tie order Endpoint > Intersection > Midpoint > Center > Quadrant > Perpendicular > Tangent; a
   disabled kind gives no candidate. Plus the `SnapKinds::default()` values (files:
   src/geometry/snap/tests.rs)
-- [ ] T2 [AC1, AC5, AC6, AC9] Add `SnapKind` variants, `SnapKinds`, `snap_query`, the `snap`
+- [x] T2 [AC1, AC5, AC6, AC9] Add `SnapKind` variants, `SnapKinds`, `snap_query`, the `snap`
   wrapper, the extended `priority`, Quadrant and Nearest candidates; old kernel tests stay
   green or are restated (files: src/geometry/snap/mod.rs, src/geometry/snap/anchored.rs,
   src/geometry/snap/candidates.rs)
