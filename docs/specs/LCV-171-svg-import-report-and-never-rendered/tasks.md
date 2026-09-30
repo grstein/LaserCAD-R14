@@ -3,7 +3,7 @@
 - [x] T1 Refactor, no behaviour change: move `Walk` and `collect` into `import/walk.rs` (`mod walk;`
       in `import.rs`; `parse_*` reached through `super::`); the existing tests stay green (files:
       src/io/svg/import.rs, src/io/svg/import/walk.rs)
-- [ ] T2 [AC1] Test: `no_svg_root_returns_error` also refuses `<svg/>` without `xmlns` and
+- [x] T2 [AC1] Test: `no_svg_root_returns_error` also refuses `<svg/>` without `xmlns` and
       `<svg xmlns="http://example.com/x"/>` with `NoSvgRoot`, and accepts a prefixed
       `<s:svg xmlns:s="http://www.w3.org/2000/svg">` (files: src/io/svg/import/tests.rs)
 - [ ] T3 [AC1] `SVG_NS` const and the namespace check in `import_svg`; `NoSvgRoot` doc names the

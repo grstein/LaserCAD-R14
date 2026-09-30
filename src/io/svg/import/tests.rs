@@ -39,10 +39,20 @@ fn invalid_xml_returns_xml_parse_error() {
     assert!(matches!(r, Err(SvgImportError::XmlParse(_))));
 }
 
+/// LCV-171 AC 1 — the root must be `svg` in the SVG namespace; a missing
+/// or foreign `xmlns` is refused, a prefixed SVG root is accepted.
 #[test]
 fn no_svg_root_returns_error() {
-    let r = import_svg("<root/>");
-    assert!(matches!(r, Err(SvgImportError::NoSvgRoot)));
+    for src in [
+        "<root/>",
+        "<svg/>",
+        r#"<svg xmlns="http://example.com/x"/>"#,
+    ] {
+        let r = import_svg(src);
+        assert!(matches!(r, Err(SvgImportError::NoSvgRoot)), "{src}: {r:?}");
+    }
+    let prefixed = r#"<s:svg xmlns:s="http://www.w3.org/2000/svg"/>"#;
+    assert!(import_svg(prefixed).is_ok());
 }
 
 #[test]
