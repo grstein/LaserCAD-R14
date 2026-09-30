@@ -102,7 +102,8 @@ fn budget_of_one_refuses_a_two_call_batch_before_dispatching() {
     assert_eq!(dispatches, 0, "not one call of the batch may be applied");
 }
 
-/// LCV-142 AC 3 — budget 5, one batch of 6: rejected whole, zero dispatches.
+/// LCV-142 AC 3 — budget 5, one batch of 6: rejected whole, zero
+/// dispatches; the repeat after the grace reply (LCV-189) ends the turn.
 #[test]
 fn budget_of_five_refuses_a_six_call_batch_whole() {
     let (result, dispatches, sends) = drive(|_| call_reply(6), 5);
@@ -110,12 +111,12 @@ fn budget_of_five_refuses_a_six_call_batch_whole() {
         matches!(result, Err(AgentError::IterationLimitExceeded(5))),
         "got {result:?}"
     );
-    assert_eq!((dispatches, sends), (0, 1));
+    assert_eq!((dispatches, sends), (0, 2));
 }
 
 /// LCV-142 AC 3 — the guard counts across rounds at the new scale: budget
 /// 300 takes three batches of 100, and a fourth batch of one is refused
-/// with nothing of it dispatched.
+/// with nothing of it dispatched, nor its repeat after the grace reply.
 #[test]
 fn budget_of_300_takes_three_batches_of_100_and_refuses_a_fourth() {
     let (result, dispatches, sends) = drive(
@@ -133,11 +134,12 @@ fn budget_of_300_takes_three_batches_of_100_and_refuses_a_fourth() {
         "got {result:?}"
     );
     assert_eq!(dispatches, 300, "the three batches of 100 all dispatched");
-    assert_eq!(sends, 4);
+    assert_eq!(sends, 5);
 }
 
-/// LCV-142 AC 4 — after a batch that lands exactly on the limit, exactly
-/// one more completion is sent: text ends the turn `Ok`, tool calls end it
+/// LCV-142 AC 4, as amended by LCV-189 — after a batch that lands exactly
+/// on the limit, text ends the turn `Ok`; tool calls are answered "not run"
+/// and get one more completion, and tool calls again end it
 /// `IterationLimitExceeded(limit)` with nothing more dispatched.
 #[test]
 fn exact_exhaustion_allows_exactly_one_more_completion() {
@@ -160,7 +162,7 @@ fn exact_exhaustion_allows_exactly_one_more_completion() {
         "got {result:?}"
     );
     assert_eq!(dispatches, 6, "the dispatch count did not move");
-    assert_eq!(sends, 3, "exactly one completion after exhaustion");
+    assert_eq!(sends, 4, "exactly one grace completion after the overrun");
     assert_eq!(
         AgentError::IterationLimitExceeded(6).to_string(),
         "step budget exceeded (6 tool calls per turn)"
@@ -760,6 +762,106 @@ fn a_fence_stopped_batch_gets_no_steps_left_line() {
         tool_texts(&messages),
         ["fenced", FENCE_STOP_PLACEHOLDER, FENCE_STOP_PLACEHOLDER]
     );
+}
+
+/// LCV-189 AC 2 — an overrunning reply runs none of its calls, answers
+/// each one "not run" (no steps-left line), keeps every id paired, and the
+/// model gets one more reply.
+#[test]
+fn an_overrun_is_answered_not_run_and_gets_one_more_reply() {
+    let r = run(
+        |n| {
+            if n == 1 {
+                named_calls(&["query_entities"; 6])
+            } else {
+                text_reply("too big")
+            }
+        },
+        yes,
+        5,
+    );
+    assert_eq!(r.result.unwrap(), "too big");
+    assert_eq!((r.tools, r.requests.len()), (0, 2));
+    let not_run = "not run: this reply has 6 tool calls but 5 steps are left";
+    assert_eq!(tool_texts(&r.messages), [not_run; 6]);
+    let calls = r.messages[2].tool_calls.as_ref().expect("calls kept");
+    assert_eq!(calls.len(), 6);
+    for (i, tool) in r.messages[3..].iter().enumerate() {
+        assert_eq!(
+            tool.tool_call_id.as_deref(),
+            Some(format!("call_{i}").as_str())
+        );
+    }
+}
+
+/// LCV-189 AC 2 — the grace reply may spend what is left: budget 5, three
+/// run, a batch of three (one over) is refused naming the two left, and a
+/// batch of exactly two then runs.
+#[test]
+fn the_grace_reply_can_spend_the_steps_left() {
+    let r = run(
+        |n| match n {
+            1 | 2 => named_calls(&["query_entities"; 3]),
+            3 => named_calls(&["query_entities"; 2]),
+            _ => text_reply("done"),
+        },
+        yes,
+        5,
+    );
+    assert_eq!(r.result.unwrap(), "done");
+    assert_eq!((r.tools, r.requests.len()), (5, 4));
+    let not_run = "not run: this reply has 3 tool calls but 2 steps are left";
+    assert_eq!(
+        tool_texts(&r.messages),
+        [
+            "ok",
+            "ok",
+            "ok\nSteps left this turn: 2 of 5.",
+            not_run,
+            not_run,
+            not_run,
+            "ok",
+            "ok\nSteps left this turn: 0 of 5.",
+        ]
+    );
+}
+
+/// LCV-189 AC 3 — a second consecutive overrun ends the turn
+/// `IterationLimitExceeded`, with nothing dispatched and no third send.
+#[test]
+fn a_second_consecutive_overrun_ends_the_turn() {
+    let r = run(|_| named_calls(&["query_entities"; 3]), yes, 2);
+    assert!(
+        matches!(r.result, Err(AgentError::IterationLimitExceeded(2))),
+        "got {:?}",
+        r.result
+    );
+    assert_eq!((r.tools, r.requests.len()), (0, 2));
+}
+
+/// LCV-189 AC 2, AC 3 — a batch that runs clears the grace: a later
+/// overrun gets its own one more reply.
+#[test]
+fn a_run_batch_between_overruns_resets_the_grace() {
+    let r = run(
+        |n| match n {
+            1 => named_calls(&["query_entities"; 5]),
+            2 => named_calls(&["query_entities"; 2]),
+            3 => named_calls(&["query_entities"; 3]),
+            4 => named_calls(&["query_entities"]),
+            _ => text_reply("done"),
+        },
+        yes,
+        4,
+    );
+    assert_eq!(r.result.unwrap(), "done");
+    assert_eq!((r.tools, r.requests.len()), (3, 5));
+    let texts = tool_texts(&r.messages);
+    assert_eq!(
+        texts[7],
+        "not run: this reply has 3 tool calls but 2 steps are left"
+    );
+    assert_eq!(texts[10], "ok\nSteps left this turn: 1 of 4.");
 }
 
 // ── AC 2: the wire types are declared once, in wire.rs ───────────────────
