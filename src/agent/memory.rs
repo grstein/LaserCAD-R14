@@ -351,6 +351,33 @@ mod tests {
         assert_eq!(estimate_tokens(&[]), 0);
     }
 
+    /// LCV-154 AC 6 — `reasoning_content` bytes count like any text: 8 bytes
+    /// of arguments and 8 of reasoning are 16 bytes, 4 tokens.
+    #[test]
+    fn the_estimate_counts_reasoning_content() {
+        let reasoned = calls(&["a"], "{\"ab\":1}").with_reasoning(Some("thinking".into()));
+        assert_eq!(estimate_tokens(&[reasoned]), 4);
+        let short = calls(&["a"], "{}").with_reasoning(Some("abcdef".into()));
+        assert_eq!(estimate_tokens(&[short]), 2);
+    }
+
+    /// LCV-154 AC 6 — the trim counts reasoning toward the cap: without the
+    /// 200 reasoning bytes the two turns (410 bytes) sit under a 150-token
+    /// cap; with them (610 bytes) the trim elides and then drops turn 0.
+    #[test]
+    fn the_trim_counts_reasoning_toward_the_cap() {
+        let plain = vec![turn("u", &"r".repeat(200)), turn("u", &"r".repeat(200))];
+        let mut untouched = memory(plain.clone());
+        untouched.trim(300);
+        assert_eq!(untouched, memory(plain.clone()));
+        let mut reasoned = plain.clone();
+        reasoned[0][1] = reasoned[0][1].clone().with_reasoning(Some("t".repeat(200)));
+        let mut m = memory(reasoned);
+        assert_eq!(estimate_tokens(&m.flatten()), 152);
+        m.trim(300);
+        assert_eq!(m, memory(plain[1..].to_vec()));
+    }
+
     /// AC 8 — default 128 000, clamped to 8 000..=2 000 000.
     #[test]
     fn the_context_size_is_clamped() {

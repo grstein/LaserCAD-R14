@@ -21,7 +21,7 @@
   (files: src/app/agent_worker/tests.rs)
 - [x] T5 [AC2] [AC3] `agent_loop` pushes the tool-call turn with
   `.with_reasoning(message.reasoning_content)` (files: src/agent/loop_.rs)
-- [ ] T6 [AC6] Test: `estimate_tokens` of a tool-call message with 8 bytes of arguments and
+- [x] T6 [AC6] Test: `estimate_tokens` of a tool-call message with 8 bytes of arguments and
   8 bytes of `reasoning_content` is 4; `Memory::trim` counts the field toward the cap
   (files: src/agent/memory.rs)
 - [ ] T7 [AC6] `message_bytes` adds `reasoning_content` bytes; `estimate_tokens` doc names it
