@@ -373,10 +373,7 @@ fn lcv185_ac1_a_null_foreign_key_is_ignored() {
         ("line", "ccw"),
     ];
     for (kind, foreign) in cases {
-        let mut item = own_items()
-            .into_iter()
-            .find(|i| i["type"] == kind)
-            .unwrap();
+        let mut item = own_items().into_iter().find(|i| i["type"] == kind).unwrap();
         item[foreign] = Value::Null;
         let entities = drawn(json!([item]));
         assert_eq!(entities.len(), 1, "{kind} with {foreign}: null");
@@ -405,10 +402,7 @@ fn lcv185_ac2_a_non_null_foreign_key_is_refused_with_the_type_keys() {
         ("circle", "ccw", json!(false), "a circle takes cx, cy, r"),
     ];
     for (kind, foreign, value, takes) in cases {
-        let mut item = own_items()
-            .into_iter()
-            .find(|i| i["type"] == kind)
-            .unwrap();
+        let mut item = own_items().into_iter().find(|i| i["type"] == kind).unwrap();
         item[foreign] = value.clone();
         let mut items = vec![own_items()[1].clone(), own_items()[0].clone()];
         items.push(item);

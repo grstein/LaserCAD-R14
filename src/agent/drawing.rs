@@ -65,10 +65,13 @@ pub const MAX_LAYER_NAME_CHARS: usize = 64;
 /// Longest unknown-key name echoed back in an error, in characters.
 const KEY_ECHO_CHARS: usize = 64;
 
-/// The keys each entity type takes besides `type`, in reading order.
-const LINE_KEYS: [&str; 4] = ["x1", "y1", "x2", "y2"];
-const CIRCLE_KEYS: [&str; 3] = ["cx", "cy", "r"];
-const ARC_KEYS: [&str; 6] = ["cx", "cy", "r", "start_deg", "end_deg", "ccw"];
+/// Each entity `type` with the keys it takes besides `type`, in reading
+/// order; the one source of the item schema and of the item key check.
+pub const ENTITY_KEYS: [(&str, &[&str]); 3] = [
+    ("line", &["x1", "y1", "x2", "y2"]),
+    ("circle", &["cx", "cy", "r"]),
+    ("arc", &["cx", "cy", "r", "start_deg", "end_deg", "ccw"]),
+];
 
 /// The `parameters` schema of `create_drawing` (ADR 0010 §2).
 ///
@@ -174,8 +177,9 @@ pub fn parse(args: &Value) -> Result<Vec<DrawingItem>, ToolCallError> {
         .collect()
 }
 
-/// One entity: an object, a known `type`, exactly that type's keys, finite
-/// numbers, a boolean `ccw`, and the shared radius rule.
+/// One entity: an object, a known `type`, that type's keys (another type's
+/// key only as `null`), finite numbers, a boolean `ccw`, and the shared
+/// radius rule.
 fn item(index: usize, value: &Value) -> Result<DrawingItem, ToolCallError> {
     let fail = |field: &str, reason: String| ToolCallError::DrawingItem {
         index,
@@ -191,20 +195,23 @@ fn item(index: usize, value: &Value) -> Result<DrawingItem, ToolCallError> {
     let kind = obj
         .get("type")
         .ok_or_else(|| fail("type", "missing".to_owned()))?;
-    let keys: &[&str] = match kind.as_str() {
-        Some("line") => &LINE_KEYS,
-        Some("circle") => &CIRCLE_KEYS,
-        Some("arc") => &ARC_KEYS,
-        _ => {
-            let reason = r#"must be "line", "circle" or "arc""#.to_owned();
-            return Err(fail("type", reason));
-        }
+    let Some(&(kind_name, keys)) = ENTITY_KEYS.iter().find(|(t, _)| Some(*t) == kind.as_str())
+    else {
+        let reason = r#"must be "line", "circle" or "arc""#.to_owned();
+        return Err(fail("type", reason));
     };
-    if let Some(key) = obj
-        .keys()
-        .find(|k| *k != "type" && !keys.contains(&k.as_str()))
-    {
-        return Err(fail(&cut(key), "unknown key".to_owned()));
+    // A key of another type is tolerated only as `null` (ADR 0010 §2).
+    let own = |k: &str| k == "type" || keys.contains(&k);
+    for (key, value) in obj.iter().filter(|(k, _)| !own(k)) {
+        if !ENTITY_KEYS.iter().any(|(_, k)| k.contains(&key.as_str())) {
+            return Err(fail(&cut(key), "unknown key".to_owned()));
+        } else if !value.is_null() {
+            let takes = keys.join(", ");
+            return Err(fail(
+                key,
+                format!("not a {kind_name} key; a {kind_name} takes {takes}"),
+            ));
+        }
     }
     for key in keys {
         if !obj.contains_key(*key) {
