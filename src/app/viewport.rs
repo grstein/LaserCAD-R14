@@ -34,6 +34,9 @@ pub fn draw(ctx: &egui::Context, app: &mut App) {
             handle_pan(&mut app.camera, response.drag_delta());
         }
 
+        // Picks are screen points: the tool turns them into mm at this zoom.
+        app.tool_manager.set_pick_scale(app.camera.mm_per_px);
+
         // Input before painting (DESIGN.md F1, LCV-162 AC 4): the snap glyph
         // and the crosshair come from this frame's pointer, not the last.
         // `cursor` is the resolved world point, `None` off the canvas.
@@ -144,7 +147,12 @@ fn handle_hover(
 
     // `resolve_snap` takes the global `hover_pos` plus `rect` and does this
     // same subtraction internally.
-    if app.snap_enabled {
+    // No running snap while an entity pick is pending (LCV-162 AC 11): R14
+    // has no osnap at "Select objects", and a snap would move the pick off
+    // the pointer by up to the 12 pt snap aperture.
+    if app.tool_manager.wants_entity_pick() {
+        app.active_snap = None;
+    } else if app.snap_enabled {
         let (anchor, kinds) = (app.tool_manager.anchor(), app.settings.object_snaps);
         let entities = &app.document.entities;
         app.active_snap = resolve_snap(hover_pos, rect, &app.camera, entities, anchor, kinds);

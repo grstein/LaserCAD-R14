@@ -25,7 +25,7 @@ use lasercad::app::App;
 use lasercad::document::Entity;
 use lasercad::geometry::Vec2;
 use lasercad::io::export_svg;
-use lasercad::tools::{LineTool, SelectTool};
+use lasercad::tools::LineTool;
 
 /// Spend frame 0 (which always settles layout for fixed panels — no `Window`/
 /// `Area` placement is in play here, unlike `tests/harness/paint.rs` trap 7)
@@ -282,10 +282,10 @@ fn ac7_navigation_preserves_the_document_and_keeps_hover_snap_and_click_in_agree
         other => panic!("expected a Line entity, got {other:?}"),
     };
 
-    // Navigation gestures are not tool input: switch away from LineTool so
-    // the clicks inside `click()` below cannot be misread as a second
-    // anchor.
-    app.tool_manager.set_tool(Box::new(SelectTool::default()));
+    // Navigation gestures are not tool input: a fresh LineTool holds no
+    // anchor, so nothing below can be misread as a second point. Not
+    // SelectTool: an entity pick resolves no running snap (LCV-162 AC 11).
+    app.tool_manager.set_tool(Box::new(LineTool::default()));
 
     let revision_before = app.history.revision();
     let svg_before = export_svg(&app.document);
