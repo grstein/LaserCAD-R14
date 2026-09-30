@@ -7,7 +7,7 @@
   chords in [8, 1024], each sagitta ≤0.25 pt (files: tests/it/ui/canvas_legibility.rs, tests/it/ui/mod.rs)
 - [x] T4 [AC5] `render/tessellate.rs` (`chords_per_turn`, `screen_points`, `stroke_entity`) with
   unit tests; `draw_entities` uses it; drop `PaintOptions::arc_segments` (files: src/render/tessellate.rs, src/render/mod.rs, src/render/entities.rs)
-- [ ] T5 [AC6] Test: selection halo, hover and preview of an arc and a circle paint one shape per
+- [x] T5 [AC6] Test: selection halo, hover and preview of an arc and a circle paint one shape per
   entity (files: tests/it/ui/canvas_legibility.rs)
 - [ ] T6 [AC6] Halo/hover/preview through `stroke_entity`, `draw_dashed` through `screen_points`;
   `layer_colors.rs` reads circles as paths (files: src/render/selection.rs, src/render/preview.rs, tests/it/app/layer_colors.rs)

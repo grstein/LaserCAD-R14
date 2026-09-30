@@ -141,3 +141,45 @@ fn ac5_arcs_use_enough_chords_for_a_quarter_point_sagitta() {
         assert!(s <= 0.25, "mm/pt={mm_per_px}, r={r}: sagitta {s:.4} pt");
     }
 }
+
+/// LCV-164 AC 6 — the selection halo, hover and preview each stroke a
+/// selected, hovered arc and circle as one path per entity: a closed path for
+/// the circle, an open one for the arc, never one shape per chord.
+#[test]
+fn ac6_translucent_overlays_paint_one_path_per_entity() {
+    use lasercad::render::{draw_hover, draw_preview, draw_selection_highlight};
+    let mut doc = Document::default();
+    doc.push_current(Entity::Arc(Arc::new(
+        Vec2::new(0.0, 0.0),
+        50.0,
+        0.0,
+        2.0,
+        true,
+    )));
+    doc.push_current(Entity::Circle(Circle::new(Vec2::new(20.0, 10.0), 40.0)));
+    doc.selection.set([0, 1]);
+    let cam = camera(0.5, Vec2::new(0.0, 0.0));
+    let rect = viewport();
+
+    let halo = painted(|p| draw_selection_highlight(p, rect, &cam, &doc.entities, &doc.selection));
+    let hover = painted(|p| {
+        draw_hover(p, rect, &cam, &doc, 0);
+        draw_hover(p, rect, &cam, &doc, 1);
+    });
+    let preview = painted(|p| draw_preview(p, rect, &cam, &doc.entities));
+
+    for (overlay, shapes) in [("halo", halo), ("hover", hover), ("preview", preview)] {
+        let closed: Vec<bool> = shapes
+            .iter()
+            .map(|s| match s {
+                Shape::Path(p) if p.points.len() > 8 => p.closed,
+                other => panic!("{overlay}: one path per entity, got {other:?}"),
+            })
+            .collect();
+        assert_eq!(
+            closed,
+            [false, true],
+            "{overlay}: arc then circle, one shape each"
+        );
+    }
+}
