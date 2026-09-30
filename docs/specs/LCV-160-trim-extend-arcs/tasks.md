@@ -12,7 +12,7 @@
 - [x] T4 [AC1] [AC3] [AC5] [AC7] `trim_circle_at_points`, plus the new `trim_arc_at_points` and
   `extend_arc` with the full-turn guard, with unit tests (files: src/document/commands/trim/circle.rs,
   src/document/commands/trim/arc.rs)
-- [ ] T5 [AC1–3] [AC5–8] Dispatch: `cut_points`, `trim_step`, `extend_reach`. `TrimEntity` and
+- [x] T5 [AC1–3] [AC5–8] Dispatch: `cut_points`, `trim_step`, `extend_reach`. `TrimEntity` and
   `ExtendEntity` delegate to them, and `ExtendEntity` takes Arc targets. Update the module docs
   (files: src/document/commands/trim/mod.rs)
 - [ ] T6 [AC1–4] [AC9] `TrimTool`: pick and cutters via `cut_points`. Fold over a copy and commit

@@ -10,13 +10,7 @@
 //! routine.
 
 use crate::document::Entity;
-use crate::geometry::{Arc, Circle, EPSILON, Line, Vec2, line_circle};
-
-/// Trim a [`Circle`] target by a [`Line`] cutter (see
-/// [`trim_circle_at_points`]).
-pub(crate) fn trim_circle_by_line(target: &Circle, cutter: &Line, keep: Vec2) -> Option<Entity> {
-    trim_circle_at_points(target, &line_circle(cutter, target), keep)
-}
+use crate::geometry::{Arc, Circle, EPSILON, Vec2};
 
 /// Trim a [`Circle`] target at its cut points (LCV-160 AC 3). Requires
 /// exactly two points; returns the CCW [`Entity::Arc`] between them that

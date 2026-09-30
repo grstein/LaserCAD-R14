@@ -7,30 +7,8 @@
 use super::parametric_t;
 use crate::document::Entity;
 use crate::geometry::{
-    Arc, Circle, EPSILON, Line, Vec2, line_arc, line_circle, line_line, line_line_infinite,
+    Arc, Circle, EPSILON, Line, Vec2, line_arc, line_circle, line_line_infinite,
 };
-
-/// Trim a [`Line`] target by a [`Line`] cutter. The cutter's strict-segment
-/// intersection point `X` splits the target into `[p1, X]` and `[X, p2]`.
-/// Returns whichever sub-segment contains `keep` (parametric test on the
-/// target's infinite line); when ambiguous (`keep` exactly at `X`) the
-/// deterministic choice is `[p1, X]`.
-pub(crate) fn trim_line_by_line(target: Line, cutter: &Line, keep: Vec2) -> Option<Entity> {
-    let x = line_line(&target, cutter)?;
-    let t_x = parametric_t(&target, x);
-    let t_keep = parametric_t(&target, keep);
-    if t_keep <= t_x + EPSILON {
-        Some(Entity::Line(Line::new(target.p1, x)))
-    } else {
-        Some(Entity::Line(Line::new(x, target.p2)))
-    }
-}
-
-/// Trim a [`Line`] target by a [`Circle`] cutter (see
-/// [`trim_line_at_points`]). Returns `None` when the cutter misses.
-pub(crate) fn trim_line_by_circle(target: Line, cutter: &Circle, keep: Vec2) -> Option<Entity> {
-    trim_line_at_points(target, &line_circle(&target, cutter), keep)
-}
 
 /// Trim a [`Line`] target at its cut points `pts` (LCV-160): keep the
 /// sub-segment between the two cut points (or target endpoints) around
