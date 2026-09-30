@@ -641,6 +641,123 @@ fn the_fence_stop_send_is_authorised_and_elided_too() {
     assert!(requests[1].contains(IMAGE_WITHHELD));
 }
 
+// ── LCV-189: the step budget is visible ──────────────────────────────────
+
+/// The text of every `tool` message, in order.
+fn tool_texts(messages: &[ChatMessage]) -> Vec<&str> {
+    messages
+        .iter()
+        .filter(|m| m.role == "tool")
+        .map(|m| m.text_content().expect("tool results are text"))
+        .collect()
+}
+
+/// LCV-189 AC 1 — each run batch ends its **last** tool result with the
+/// steps left; the earlier results of the batch are untouched.
+#[test]
+fn the_last_tool_result_of_a_batch_carries_the_steps_left() {
+    let r = run(
+        |n| match n {
+            1 => named_calls(&["query_entities"; 3]),
+            2 => named_calls(&["query_entities"]),
+            _ => text_reply("done"),
+        },
+        yes,
+        10,
+    );
+    assert_eq!(r.result.unwrap(), "done");
+    assert_eq!(
+        tool_texts(&r.messages),
+        [
+            "ok",
+            "ok",
+            "ok\nSteps left this turn: 7 of 10.",
+            "ok\nSteps left this turn: 6 of 10.",
+        ]
+    );
+}
+
+/// LCV-189 AC 1 — a batch of exactly the budget still runs whole and
+/// reports zero steps left.
+#[test]
+fn an_exact_budget_batch_runs_and_reports_zero_left() {
+    let r = run(
+        |n| {
+            if n == 1 {
+                named_calls(&["query_entities"; 4])
+            } else {
+                text_reply("done")
+            }
+        },
+        yes,
+        4,
+    );
+    assert_eq!(r.result.unwrap(), "done");
+    assert_eq!(r.tools, 4);
+    assert_eq!(
+        tool_texts(&r.messages)[3],
+        "ok\nSteps left this turn: 0 of 4."
+    );
+}
+
+/// LCV-189 AC 1 — when the last call observed the canvas, the line goes on
+/// its tool result text; the image message keeps its own label.
+#[test]
+fn the_steps_left_line_goes_on_the_text_of_an_observed_result() {
+    let r = run(
+        |n| {
+            if n == 1 {
+                named_calls(&["query_entities", "capture_canvas"])
+            } else {
+                text_reply("seen")
+            }
+        },
+        yes,
+        5,
+    );
+    assert_eq!(r.result.unwrap(), "seen");
+    assert_eq!(
+        tool_texts(&r.messages),
+        ["ok", "Canvas 2\nSteps left this turn: 3 of 5."]
+    );
+    let sent: Vec<ChatMessage> = serde_json::from_str(&r.requests[1]).unwrap();
+    let image = ContentPart::png(PNG);
+    assert_eq!(
+        sent[5],
+        ChatMessage::user_parts(vec![
+            ContentPart::text("canvas image for tool call call_1"),
+            image,
+        ])
+    );
+}
+
+/// LCV-189 AC 1 — a fence-stopped batch did not run to its end: its
+/// results stay verbatim, the placeholder included, with no steps-left
+/// line (the turn has no more steps to spend).
+#[test]
+fn a_fence_stopped_batch_gets_no_steps_left_line() {
+    let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
+    let mut sends = 0;
+    let result = agent_loop(
+        &mut |_| {
+            sends += 1;
+            if sends == 1 {
+                named_calls(&["query_entities"; 3])
+            } else {
+                text_reply("stopped")
+            }
+        },
+        &mut |_| Ok(AgentOutcome::Fenced("fenced".into())),
+        &mut messages,
+        AGENT_STEP_BUDGET_DEFAULT,
+    );
+    assert_eq!(result.unwrap(), "stopped");
+    assert_eq!(
+        tool_texts(&messages),
+        ["fenced", FENCE_STOP_PLACEHOLDER, FENCE_STOP_PLACEHOLDER]
+    );
+}
+
 // ── AC 2: the wire types are declared once, in wire.rs ───────────────────
 
 /// AC 2 — no duplicate wire struct survives in this file, and the shared

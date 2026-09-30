@@ -1,6 +1,6 @@
 # LCV-189 — Tasks
 
-- [ ] T1 [AC1] Test: after a run batch, the last tool result ends with `Steps left this turn: <n> of <budget>.`; exact-budget batch still runs (files: src/agent/loop_/tests.rs)
+- [x] T1 [AC1] Test: after a run batch, the last tool result ends with `Steps left this turn: <n> of <budget>.`; exact-budget batch still runs (files: src/agent/loop_/tests.rs)
 - [ ] T2 [AC1] Append the steps-left line to the batch's last tool result (files: src/agent/loop_.rs)
 - [ ] T3 [AC2] [AC3] Test: overrun answers each call with the not-run text, nothing dispatched, one more send; a second consecutive overrun returns `IterationLimitExceeded`; a run batch in between resets the grace (files: src/agent/loop_/tests.rs)
 - [ ] T4 [AC2] [AC3] Grace-reply path with the `overran` flag (files: src/agent/loop_.rs)
