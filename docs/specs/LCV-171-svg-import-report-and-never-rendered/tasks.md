@@ -11,7 +11,7 @@
 - [x] T4 [AC8] Test: `Report::note` keeps first-occurrence order and merges repeats
       (`a, b, a` → `[(a, 2), (b, 1)]`); `import_svg` of an empty `<svg>` has `report == []`
       (files: src/io/svg/import/report.rs, src/io/svg/import/tests.rs)
-- [ ] T5 [AC8] `Report` builder, `ImportedSvg::report: Vec<(String, usize)>` with doc comment,
+- [x] T5 [AC8] `Report` builder, `ImportedSvg::report: Vec<(String, usize)>` with doc comment,
       `Walk` holds a `Report` (files: src/io/svg/import/report.rs, src/io/svg/import.rs,
       src/io/svg/import/walk.rs)
 - [ ] T6 [AC2] [AC4] Test: geometry inside `<a>` and a nested `<svg>` imports; `<title>`, `<desc>`,

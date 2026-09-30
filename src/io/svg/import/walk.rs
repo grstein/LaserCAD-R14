@@ -3,6 +3,7 @@
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
+use super::report::Report;
 use super::{SvgImportError, parse_circle, parse_line, parse_path};
 use crate::document::LayerId;
 use crate::document::entity::Entity;
@@ -13,6 +14,7 @@ pub(super) struct Walk {
     pub(super) entities: Vec<Entity>,
     pub(super) entity_layers: Vec<LayerId>,
     pub(super) layers: LayerReader,
+    pub(super) report: Report,
     bed_h: f64,
 }
 
@@ -23,6 +25,7 @@ impl Walk {
             entities: Vec::new(),
             entity_layers: Vec::new(),
             layers: LayerReader::default(),
+            report: Report::default(),
             bed_h,
         }
     }

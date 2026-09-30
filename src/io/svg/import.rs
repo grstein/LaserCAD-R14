@@ -152,7 +152,7 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
         layers,
         current_layer,
         entity_layers: walk.entity_layers,
-        report: Vec::new(),
+        report: walk.report.finish(),
     })
 }
 

@@ -13,7 +13,10 @@ pub(super) struct Report {
 impl Report {
     /// Count one more `label`.
     pub(super) fn note(&mut self, label: &str) {
-        self.entries.push((label.to_owned(), 1));
+        match self.entries.iter_mut().find(|(known, _)| known == label) {
+            Some((_, count)) => *count += 1,
+            None => self.entries.push((label.to_owned(), 1)),
+        }
     }
 
     /// The entries in order of first occurrence.
