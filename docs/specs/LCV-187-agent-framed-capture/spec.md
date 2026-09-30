@@ -1,6 +1,6 @@
 # LCV-187 — Framed canvas capture
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: none
 - **Implementation**: -
 
