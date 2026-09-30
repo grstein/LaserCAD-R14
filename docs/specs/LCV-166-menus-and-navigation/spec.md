@@ -1,6 +1,6 @@
 # LCV-166 — Menu icons and shortcut column, Zoom All/Extents and Ctrl+A
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-183
 - **Implementation**: -
 
