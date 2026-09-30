@@ -1,7 +1,7 @@
 //! Rigid and similarity transforms shared by the core edit commands.
 //!
 //! [`Transform`] is a closed enum with one variant per edit: ROTATE
-//! (LCV-158) and MIRROR (LCV-181) today, SCALE (LCV-182) next. Every method
+//! (LCV-158), MIRROR (LCV-181) and SCALE (LCV-182). Every method
 //! returns a new value; nothing here mutates in place. Angles are radians,
 //! CCW-positive from +X, like the rest of the kernel.
 //!
@@ -33,12 +33,20 @@ pub enum Transform {
         /// Second point of the mirror line, in mm.
         b: Vec2,
     },
+    /// Scale uniformly about `base` by `factor`. Callers only build it with
+    /// `factor > 0` (LCV-182 AC5).
+    Scale {
+        /// The fixed point of the scale, in mm.
+        base: Vec2,
+        /// The uniform scale factor, positive.
+        factor: f64,
+    },
 }
 
 impl Transform {
     /// `true` when the transform moves nothing, within `EPSILON`: a rotation
-    /// by a whole number of turns, or a mirror whose two points coincide.
-    /// Callers commit nothing then (LCV-158 AC8).
+    /// by a whole number of turns, a mirror whose two points coincide, or a
+    /// scale by 1. Callers commit nothing then (LCV-158 AC8, LCV-182 AC6).
     pub fn is_identity(&self) -> bool {
         match *self {
             Transform::Rotate { angle, .. } => {
@@ -46,11 +54,12 @@ impl Transform {
                 r <= EPSILON || TAU - r <= EPSILON
             }
             Transform::Mirror { .. } => self.mirror_axis().is_none(),
+            Transform::Scale { factor, .. } => (factor - 1.0).abs() <= EPSILON,
         }
     }
 
-    /// The mirror line as `(a, unit direction)`, or `None` for a rotation or
-    /// for coincident mirror points.
+    /// The mirror line as `(a, unit direction)`, or `None` for any other
+    /// transform or for coincident mirror points.
     fn mirror_axis(&self) -> Option<(Vec2, Vec2)> {
         match *self {
             Transform::Mirror { a, b } if a.distance(b) > EPSILON => {
@@ -75,6 +84,7 @@ impl Transform {
                 }
                 None => p,
             },
+            Transform::Scale { base, factor } => base + (p - base) * factor,
         }
     }
 
@@ -84,11 +94,14 @@ impl Transform {
     }
 
     /// The image of `circle`: the center mapped; rotation and mirror keep the
-    /// radius.
+    /// radius, a scale multiplies it by its factor.
     pub fn circle(&self, circle: Circle) -> Circle {
         match *self {
             Transform::Rotate { .. } | Transform::Mirror { .. } => {
                 Circle::new(self.point(circle.center), circle.r)
+            }
+            Transform::Scale { factor, .. } => {
+                Circle::new(self.point(circle.center), circle.r * factor)
             }
         }
     }
@@ -97,7 +110,8 @@ impl Transform {
     /// the orientation and adds its angle to the start and end angles. A mirror
     /// across a line at angle θ maps each angle to `2θ − angle` and reverses the
     /// orientation, so the start and end points are the images of the source's,
-    /// in the same roles, and the result is still one arc (LCV-181 AC8).
+    /// in the same roles, and the result is still one arc (LCV-181 AC8). A
+    /// scale multiplies the radius and keeps the angles and orientation.
     pub fn arc(&self, arc: Arc) -> Arc {
         match *self {
             Transform::Rotate { angle, .. } => Arc::new(
@@ -120,6 +134,13 @@ impl Transform {
                 }
                 None => arc,
             },
+            Transform::Scale { factor, .. } => Arc::new(
+                self.point(arc.center),
+                arc.r * factor,
+                arc.start_angle,
+                arc.end_angle,
+                arc.ccw,
+            ),
         }
     }
 }

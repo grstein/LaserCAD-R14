@@ -1,7 +1,7 @@
 //! [`TransformEntities`]: replace entities in place with their image under a
 //! [`Transform`], or append the images and keep the sources. Backs the
-//! `RotateTool` and the agent's `rotate_entity` (LCV-158) and MIRROR
-//! (LCV-181); SCALE (LCV-182) reuses it.
+//! `RotateTool` and the agent's `rotate_entity` (LCV-158), MIRROR
+//! (LCV-181), and SCALE (LCV-182).
 //!
 //! In place, `do_` snapshots the originals before replacing them; `undo`
 //! writes the snapshot back, so the round trip is bit-exact even though a
@@ -93,6 +93,7 @@ impl Command for TransformEntities {
         match self.transform {
             Transform::Rotate { .. } => "Rotate Entities",
             Transform::Mirror { .. } => "Mirror Entities",
+            Transform::Scale { .. } => "Scale Entities",
         }
     }
 }
