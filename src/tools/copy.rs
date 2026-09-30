@@ -378,4 +378,29 @@ mod tests {
         assert_eq!(tool.status_text(), "COPY Specify base point:");
         assert!(hist.can_redo(), "nothing was committed");
     }
+
+    /// Regression: the copies of a multi-entity selection are appended in
+    /// ascending source order, whatever order the selection was built in.
+    #[test]
+    fn copies_are_appended_in_ascending_source_order() {
+        let mut doc = Document::default();
+        for i in 0..32 {
+            let y = f64::from(i);
+            doc.push_current(Entity::Line(Line::new(
+                Vec2::new(0.0, y),
+                Vec2::new(1.0, y),
+            )));
+        }
+        for i in (0..32).rev() {
+            doc.selection.add(i);
+        }
+        let mut hist = History::default();
+        let mut tool = CopyTool::default();
+        click(&mut tool, Vec2::new(0.0, 0.0), &mut doc, &mut hist);
+        click(&mut tool, Vec2::new(100.0, 0.0), &mut doc, &mut hist);
+        for i in 0..32u32 {
+            let copy = line_at(&doc.entities[32 + i as usize]);
+            assert_eq!(copy.p1, Vec2::new(100.0, f64::from(i)), "copy {i}");
+        }
+    }
 }

@@ -4,9 +4,9 @@
 //! Stored as a [`HashSet<usize>`] over indices into [`Document::entities`].
 //! Sparse selections (a handful of entities out of hundreds) are the common
 //! case in laser-cutting CAD; `HashSet` gives O(1) `add` / `remove` /
-//! `is_selected` and a small default footprint. Iteration order is not
-//! guaranteed — callers that need deterministic order sort the iterator
-//! themselves.
+//! `is_selected` and a small default footprint. [`Selection::iter`] yields
+//! ascending indices, so every command built from the selection (COPY's
+//! appended copies above all) is deterministic.
 //!
 //! Index stability is the caller's responsibility. After a `DeleteEntities`
 //! command shifts the [`Document::entities`] vec, the indices in `Selection`
@@ -54,11 +54,13 @@ impl Selection {
         self.indices.contains(&idx)
     }
 
-    /// Iterate over the selected indices. Order is **not guaranteed** — it is
-    /// `HashSet` iteration order. Callers that need deterministic order
-    /// collect into a `Vec<usize>` and sort.
+    /// Iterate over the selected indices in ascending order. Sorted here,
+    /// once, so no caller sees `HashSet` order: selections are small, and
+    /// document and export order must not depend on hashing.
     pub fn iter(&self) -> impl Iterator<Item = usize> + '_ {
-        self.indices.iter().copied()
+        let mut sorted: Vec<usize> = self.indices.iter().copied().collect();
+        sorted.sort_unstable();
+        sorted.into_iter()
     }
 
     /// Number of selected indices.
