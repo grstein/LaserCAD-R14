@@ -1,6 +1,6 @@
 # LCV-184 — Visual refresh: theme, status bar and dock
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-183
 - **Implementation**: -
 
