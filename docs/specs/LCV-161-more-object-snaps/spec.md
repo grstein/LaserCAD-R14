@@ -1,6 +1,6 @@
 # LCV-161 — Quadrant, perpendicular, tangent and nearest snaps
 
-- **Status**: Planned
+- **Status**: In Progress
 - **Depends on**: none
 - **Implementation**: -
 
