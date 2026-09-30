@@ -31,16 +31,13 @@
 //! thread.
 
 use crate::agent::{AgentAction, AgentOutcome, DrawingItem};
-use crate::app::agent_narrate::{
-    batch_created, describe, list_entities, list_selection, pt, sweep,
-};
+use crate::app::agent_narrate::{batch_created, list_entities, list_selection, pt, sweep};
 use crate::app::{App, agent_capture};
 use crate::document::commands::CreateEntities;
-use crate::document::{
-    Command, CreateArc, CreateCircle, CreateLine, DeleteEntities, Document, Entity, LayerId,
-    MoveEntities,
-};
+use crate::document::{Command, CreateArc, CreateCircle, CreateLine, Document, Entity, LayerId};
 use crate::geometry::{Arc as GeoArc, Circle, Line, Vec2};
+
+mod edit;
 
 /// The refusal for a capture while either opt-in is off (LCV-145 AC 2).
 pub(crate) const CAPTURE_DISABLED: &str = "canvas capture is disabled in Agent settings";
@@ -146,28 +143,8 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
                 sweep(start, end, ccw)
             ),
         ),
-        AgentAction::Delete { index } => match in_range(index, doc) {
-            Err(refusal) => Planned::Answer(refusal),
-            Ok(entity) => Planned::Commit(
-                Box::new(DeleteEntities::new(vec![index])),
-                format!(
-                    "Deleted entity {index} ({}).{}",
-                    describe(entity),
-                    shift_note(index, doc.entity_count())
-                ),
-            ),
-        },
-        AgentAction::Move { index, dx, dy } => match in_range(index, doc) {
-            Err(refusal) => Planned::Answer(refusal),
-            Ok(entity) => Planned::Commit(
-                Box::new(MoveEntities::new(vec![index], Vec2::new(dx, dy))),
-                format!(
-                    "Moved entity {index} ({}) by {} mm.",
-                    describe(entity),
-                    pt(dx, dy)
-                ),
-            ),
-        },
+        AgentAction::Delete { index } => edit::delete(index, doc),
+        AgentAction::Move { index, dx, dy } => edit::move_(index, dx, dy, doc),
         AgentAction::QueryEntities => Planned::Answer(AgentOutcome::Ok(list_entities(doc))),
         AgentAction::QuerySelection => Planned::Answer(AgentOutcome::Ok(list_selection(doc))),
         // One command for the whole batch (ADR 0010 §1, §5).
@@ -222,38 +199,10 @@ fn entity_of(item: &DrawingItem) -> Entity {
     }
 }
 
-/// The check the worker thread cannot make: is `index` a real entity?
-///
-/// ADR 0007 §D2a — the wording of the refusal is the wording `get_index` used
-/// to produce, re-homed where `entities.len()` is actually knowable.
-fn in_range(index: usize, doc: &Document) -> Result<&Entity, AgentOutcome> {
-    doc.entities.get(index).ok_or_else(|| {
-        AgentOutcome::Refused(format!(
-            "index {index} is out of range (the drawing has {} entities)",
-            doc.entity_count()
-        ))
-    })
-}
-
 /// Append the post-mutation entity count (ADR 0007 §D5). One space, one
 /// sentence, so a test can pin it.
 fn with_count(sentence: &str, count: usize) -> String {
     format!("{sentence} The drawing now has {count} entities.")
-}
-
-/// Which indices a delete at `index` renumbered, given the count *before* it.
-fn shift_note(index: usize, count_before: usize) -> String {
-    if index + 1 < count_before {
-        format!(
-            " Indices {}..{} are now {}..{}.",
-            index + 1,
-            count_before - 1,
-            index,
-            count_before - 2
-        )
-    } else {
-        " No indices shifted.".to_string()
-    }
 }
 
 #[cfg(test)]

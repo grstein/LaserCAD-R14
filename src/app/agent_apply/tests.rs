@@ -1,4 +1,5 @@
 use super::*;
+use crate::app::agent_narrate::describe;
 use crate::document::SelectionCommand;
 use core::f64::consts::FRAC_PI_2;
 
