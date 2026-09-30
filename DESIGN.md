@@ -30,7 +30,8 @@ that change, and that change's last task updates this file.
 8. **No decoration.** No emoji, gradients, shadows or animation (§12). Icons are functional,
    not decoration: flat line icons with R14 metaphors on the tool rail and in the menus
    (user decision 2026-09-30; rail: LCV-183; menus: gap → LCV-166). Modern means flat and consistent, never
-   ornamental (gap → LCV-184).
+   ornamental (LCV-184): windows and menus carry no shadow, one 1 pt `border`, one radius per
+   kind (§5), and every chrome colour is a §3 token in `ui/theme.rs::apply_theme`.
 
 ## 2. Layout
 
@@ -79,7 +80,7 @@ one named constant per token in `ui/theme.rs` (chrome, done by LCV-184) or a new
 | `status.warning` | #ff8f00 | warnings, command feedback | 6.7:1 | `ui/theme.rs::STATUS_WARNING` |
 | `agent.tool` | #78beff | agent tool rows | 7.7:1 | `agent/panel.rs::TOOL_COLOR` |
 | `status.error` | #ff6b6b | errors (today `Color32::RED`, 3.8:1) | 5.5:1 | gap → LCV-167 |
-| `accent` | #4fa3e0 | foreground-only highlight, never a fill | 5.5:1 | `ui/theme.rs::ACCENT` |
+| `accent` | #4fa3e0 | foreground-only highlight, never a fill: focus rings, active pill text, active rail icon, prompt verb | 5.5:1 | `ui/theme.rs::ACCENT` |
 
 **Canvas** (surface: bed, gray 40)
 
@@ -130,6 +131,10 @@ Rules:
 - Units are egui points everywhere in the chrome. Names ending in `_PX` are points
   (e.g. `render/snaps.rs::MARKER_SIZE_PX`). Geometry is millimetres (AGENTS.md invariants).
 - egui's default spacing. Any other size is a named constant next to its use.
+- Chrome (LCV-184, `ui/theme.rs`): one border weight, 1 pt `border`; corners 3 pt on widgets
+  (`WIDGET_ROUNDING`) and 4 pt on windows and menus; no shadows. Mode pill padding 6×1 pt
+  (`ui/statusbar/pill.rs::PILL_PADDING`); editor-row frame margin 4×2 pt
+  (`ui/command_line.rs::EDITOR_FRAME_MARGIN`).
 - Canvas strokes: hairline 1 pt · bed border 1.5 pt · selection halo 3 pt · hover 2.5 pt · snap glyph 8 pt ·
   snap aperture 12 pt (`app/snap.rs::SNAP_TOLERANCE_PX`) · crosshair and pickbox 1 pt.
 - **Pointer tolerances are in screen points**, turned into mm with the live zoom: entity pick
@@ -185,7 +190,9 @@ dark edge and a kind label are planned (gap → LCV-164).
   follows. Shortcuts in an aligned column: gap → LCV-166 (today `"\t"` in `ui/menubar.rs`).
 - **Tool rail** (`ui/toolbar.rs::TOOLS`, LCV-183): 32 pt square buttons with no text, each
   holding a flat line icon painted with egui shapes (`ui/icons.rs`: 1.5 pt stroke in the text
-  colour, centred 20 pt square, R14 metaphors). Two columns: draw (Select … Text) left, modify
+  colour, `accent` on the active tool, centred 20 pt square, R14 metaphors). Buttons take the
+  theme's 3 pt corners and state fills: flat when idle, `fill.hover` hovered, `fill.selected`
+  for the active tool (LCV-184). Two columns: draw (Select … Text) left, modify
   (Move, Copy, Rotate, Mirror, Scale, Trim, Extend, Delete, Dist) right; then a separator and
   the `AI` toggle (32 pt square, text `AI`, tooltip `AI Assistant`). No group captions. Width
   fixed at 76 pt (`app/panels.rs::RAIL_WIDTH`); the rail scrolls only when the window is too
@@ -194,14 +201,23 @@ dark edge and a kind label are planned (gap → LCV-164).
   dialog. The v0.3 tools have no bare-letter key (ADR 0003 amendment 5).
 - **Command dock** (`ui/command_line.rs`, ADR 0003)
   - Prompt row, then editor row with its destination label (`ui/command_destination.rs`).
+  - The prompt is coloured by part (`ui/command_line/prompt.rs::prompt_spans`, LCV-184): the
+    leading verb (≥2 capitals ending at a space or `:`) in `accent`, the request in
+    `text.primary`, `[Options]` and `<default>` in `text.muted`. A prompt without a verb
+    (`Command:`) is all `text.primary`.
+  - The editor row sits in a 1 pt frame, `border` idle and `accent` while the editor holds
+    keyboard focus; the field itself is frameless.
   - New prompts follow `VERB  Specify <thing> [Opt/Opt]:`. A `<default>` needs a runtime
     value, which ADR 0003 §C rules out (`&'static str`). Defaults and existing prompts:
     gap → LCV-165.
   - Messages state a fact and the next step. Severity is error / warning / info (gap → LCV-165;
     today everything is `status.warning`). Query results such as DIST are info.
 - **Status bar** (`ui/statusbar.rs::draw_statusbar`): coords · tool · `Entities: n` · current
-  layer dropdown (`ui/layer_combo.rs`, LCV-156) · SNAP GRID ORTHO · autosave. Mode toggles are
-  always-visible `selectable_label`s (LCV-116); on/off pills and separators: gap → LCV-184.
+  layer dropdown (`ui/layer_combo.rs`, LCV-156) · SNAP GRID ORTHO · autosave. A 1 pt `border`
+  rule separates adjacent segments. Coordinates use egui's built-in monospace font. Mode
+  toggles are always-visible clickable pills (LCV-116, `ui/statusbar/pill.rs::mode_pill`,
+  LCV-184): on = `fill.selected` fill and `accent` text; off = no fill, 1 pt `border` outline
+  and `text.muted` text (`fill.hover` while hovered); the label is the second cue.
   New segments are appended.
 - **Dialogs** (`ui/dialogs.rs`, `app/bed_dialog.rs`, `app/discard.rs`, `ui/layers_dialog.rs`): Title Case titles,
   buttons ordered primary → Cancel. Non-modal, no keyboard handling (LCV-069, LCV-113, ADR 0002

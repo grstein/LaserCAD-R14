@@ -46,7 +46,7 @@
   titles inside the window, status segments contained and bar ≤56 pt, dock ≤64 pt, 17 rail
   centres inside the unscrolled rail; tune `PILL_PADDING` if it fails (files:
   tests/it/ui/visual_refresh.rs, src/ui/statusbar/pill.rs)
-- [ ] T15 [AC10] DESIGN.md §1.8 and §7 status-bar gaps closed; §5 border 1 pt, rounding 3/4 pt,
+- [x] T15 [AC10] DESIGN.md §1.8 and §7 status-bar gaps closed; §5 border 1 pt, rounding 3/4 pt,
   pill padding; §7 pills, separators, monospace coordinates, prompt colours, editor frame;
   `accent` Home `ui/theme.rs` (files: DESIGN.md)
 - [ ] T16 CHANGELOG `[Unreleased]` line: flat dark theme without shadows, on/off mode pills,
