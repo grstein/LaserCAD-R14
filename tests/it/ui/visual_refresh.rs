@@ -578,3 +578,73 @@ fn ac7_editor_frame_turns_accent_with_focus() {
         egui::Stroke::new(1.0_f32, ACCENT)
     );
 }
+
+// ── AC 8 — rail buttons ────────────────────────────────────────────────
+
+/// Centre of the rail button at `(column, row)`: 4 pt margin, 32 pt
+/// buttons, 4 pt gaps (pinned by `tests/it/ui/icon_tool_rail.rs`).
+fn rail_centre(rail: egui::Rect, column: usize, row: usize) -> egui::Pos2 {
+    let step = 32.0 + 4.0;
+    rail.min
+        + egui::vec2(4.0 + column as f32 * step, 4.0 + row as f32 * step)
+        + egui::vec2(16.0, 16.0)
+}
+
+/// The smallest rect shape filled `fill` under `at`.
+fn filled_under(
+    shapes: &[egui::Shape],
+    fill: egui::Color32,
+    at: egui::Pos2,
+) -> Vec<egui::epaint::RectShape> {
+    rects(shapes)
+        .into_iter()
+        .filter(|r| r.fill == fill && r.rect.contains(at))
+        .cloned()
+        .collect()
+}
+
+/// Whether any stroked shape inside `area` is drawn in `colour`.
+fn stroked_in(shapes: &[egui::Shape], area: egui::Rect, colour: egui::Color32) -> bool {
+    let solid = |c: &egui::epaint::ColorMode| matches!(c, egui::epaint::ColorMode::Solid(x) if *x == colour);
+    shapes.iter().any(|s| match s {
+        egui::Shape::LineSegment { points, stroke } => {
+            area.contains(points[0]) && solid(&stroke.color)
+        }
+        egui::Shape::Path(p) => {
+            p.points.first().is_some_and(|q| area.contains(*q)) && solid(&p.stroke.color)
+        }
+        egui::Shape::Circle(c) => area.contains(c.center) && c.stroke.color == colour,
+        _ => false,
+    })
+}
+
+/// AC 8 — the active tool's button is `fill.selected` with 3 pt corners and
+/// an `accent` icon; a hovered one is `fill.hover`, 3 pt corners.
+#[test]
+fn ac8_rail_buttons_use_the_theme_state_fills() {
+    let (ctx, mut app) = ctx_and_app();
+    harness::submit_command(&ctx, &mut app, "line");
+    let _ = paint(&ctx, &mut app, Vec::new());
+    let rail = panel_rect(&ctx, "toolbar");
+    let line = rail_centre(rail, 0, 1);
+    let circle = rail_centre(rail, 0, 4);
+    let painted = paint(&ctx, &mut app, vec![egui::Event::PointerMoved(circle)]);
+    let painted_hover = paint(&ctx, &mut app, Vec::new());
+
+    let active = filled_under(&painted.shapes, FILL_SELECTED, line);
+    assert_eq!(active.len(), 1, "one selected fill under LINE: {active:?}");
+    assert_eq!(active[0].rounding, egui::Rounding::same(3.0));
+    assert!(
+        stroked_in(&painted.shapes, active[0].rect, ACCENT),
+        "the active icon is drawn in accent"
+    );
+
+    let hovered = filled_under(&painted_hover.shapes, FILL_HOVER, circle);
+    assert_eq!(hovered.len(), 1, "one hover fill under CIRCLE: {hovered:?}");
+    assert_eq!(hovered[0].rounding, egui::Rounding::same(3.0));
+    assert_eq!(
+        app.tool_manager.active_tool_name(),
+        "LINE",
+        "hover does not click"
+    );
+}

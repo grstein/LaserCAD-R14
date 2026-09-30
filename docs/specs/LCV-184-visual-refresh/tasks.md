@@ -39,7 +39,7 @@
 - [x] T12 [AC7] Editor row in an `egui::Frame` (1 pt stroke, focus read from memory),
   `TextEdit::frame(false)`; T11 and `tests/it/cmdline/context_row.rs` green (files:
   src/ui/command_line.rs)
-- [ ] T13 [AC8] Test: active rail button rect filled `FILL_SELECTED`, rounding 3, icon stroke
+- [x] T13 [AC8] Test: active rail button rect filled `FILL_SELECTED`, rounding 3, icon stroke
   `ACCENT`; a hovered button filled `FILL_HOVER`, rounding 3; fix `square_button` only if it
   fails (files: tests/it/ui/visual_refresh.rs, src/ui/icons.rs)
 - [ ] T14 [AC9] Test: at 800×600, 1024×600, 1280×800 with the modes all on and all off, menubar
