@@ -8,6 +8,10 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ## [Unreleased]
 
+### Added
+
+- The agent can delete, move, copy, rotate, mirror or scale a whole set of entities in one call: the six edit tools take an `indices` list (1 to 1000) instead of `index`. A set call is one step, uses one base point or mirror line for every entity, appends copies in ascending source order on their layers, and changes all listed entities or none; it undoes with the rest of the turn. See LCV-186.
+
 ### Changed
 
 - The agent now sees its step budget: every batch of tool calls ends with the steps left this turn, and a reply that asks for more calls than are left is answered "not run" with one more chance to fit or report, instead of ending the turn at once. A second overrun in a row still ends it. See LCV-189.
