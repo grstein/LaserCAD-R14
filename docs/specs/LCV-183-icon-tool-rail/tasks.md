@@ -10,7 +10,7 @@
 - [x] T4 [AC1] [AC2] Modify-group icons: move, copy, rotate, mirror, scale, trim, extend,
   delete, dist; T1 goes green (files: src/ui/icons/modify.rs, src/ui/icons.rs)
 - [x] T5 [AC2] `ToolEntry.icon` field filled for all 16 entries (files: src/ui/toolbar/table.rs)
-- [ ] T6 [AC3] [AC4] [AC5] [AC6] [AC7] [AC8] [AC9] Test first: `icon_tool_rail.rs` — tooltip
+- [x] T6 [AC3] [AC4] [AC5] [AC6] [AC7] [AC8] [AC9] Test first: `icon_tool_rail.rs` — tooltip
   per computed button centre in draw/modify column order, click activates, selected fill under
   the active button only, `AI` toggle text/tooltip/fill/click, width ≤80 pt, no scroll at the
   three sizes, wheel scroll reaches `AI` at 220 pt (files: tests/it/ui/icon_tool_rail.rs,
