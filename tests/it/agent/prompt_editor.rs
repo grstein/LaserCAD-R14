@@ -1,4 +1,4 @@
-//! LCV-143 AC 3, AC 4 and AC 8 — the System prompt editor in Agent Settings,
+//! LCV-143 AC 3, AC 4 and AC 8 — the System prompt editor in AI Settings,
 //! driven headless through the real `App` and the real
 //! `src/app/panels.rs::agent_settings_dialog`, persisting to a test-owned
 //! `settings_path` (ADR 0006), never the real one.
@@ -41,7 +41,7 @@ fn run(ctx: &egui::Context, app: &mut App, events: Vec<egui::Event>) -> Vec<Run>
     painted_runs_at(ctx, app, SCREEN, events)
 }
 
-/// Open Agent Settings and settle it (trap 7: the first frame is unplaced).
+/// Open AI Settings and settle it (trap 7: the first frame is unplaced).
 fn open(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
     app.agent_settings_open = true;
     let _ = run(ctx, app, Vec::new());
@@ -87,7 +87,7 @@ fn done(ctx: &egui::Context, app: &mut App) -> Settings {
     serde_json::from_str(&json).expect("the persisted settings parse")
 }
 
-/// AC 3 — opening and closing Agent Settings without touching the field
+/// AC 3 — opening and closing AI Settings without touching the field
 /// creates no override, and keeps an existing one exactly.
 #[test]
 fn ac3_an_untouched_editor_creates_no_override() {

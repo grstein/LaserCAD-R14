@@ -35,7 +35,7 @@ impl App {
     ///
     /// A failed write is swallowed and the session continues: an unwritable
     /// config directory must not abort a CAD job mid-cut. Called by the three
-    /// file actions that touch the recent-files list, by the Agent Settings
+    /// file actions that touch the recent-files list, by the AI Settings
     /// window on close, and by the Bed size… modal on OK.
     pub fn persist_settings(&self) {
         let Some(path) = self.settings_path.as_deref() else {

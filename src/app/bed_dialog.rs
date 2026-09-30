@@ -26,7 +26,7 @@ use crate::util::{BED_MAX_MM, BED_MIN_MM, clamp_bed_mm};
 /// reaches the document until OK.
 ///
 /// The settings write lives here rather than in [`apply_bed_dialog_result`]
-/// for the same reason as the Agent Settings window (`src/app/panels.rs`):
+/// for the same reason as the AI Settings window (`src/app/panels.rs`):
 /// persisting a preference is a UI-boundary concern, not part of the pure
 /// helper that tests call directly. Since LCV-119 that helper could not reach
 /// a real user file in any case — [`App::persist_settings`] writes only where

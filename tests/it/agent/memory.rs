@@ -48,7 +48,7 @@ fn frame(ctx: &egui::Context, app: &mut App, events: Vec<egui::Event>) {
     let _ = ctx.run(raw_input_at(SCREEN, events), |c| app.update_ui(c));
 }
 
-/// AC 8 — "Context tokens" is one integer field in Agent Settings: a real
+/// AC 8 — "Context tokens" is one integer field in AI Settings: a real
 /// click and typed value, closed with Done, is persisted by the LCV-141 path.
 #[test]
 fn ac8_the_context_tokens_edit_persists_through_done() {

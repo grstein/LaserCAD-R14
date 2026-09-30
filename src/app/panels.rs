@@ -7,9 +7,9 @@
 //!   before the `CentralPanel` so egui shrinks the canvas to what is left.
 //! - [`draw_agent_side_panel`] — the AI assistant panel (LCV-080), only when
 //!   `agent.panel_open`.
-//! - [`draw_dialogs`] — About, Keyboard shortcuts (LCV-116), Agent Settings,
+//! - [`draw_dialogs`] — About, Keyboard Shortcuts (LCV-116), AI Settings,
 //!   the error modal, the discard-confirmation dialog (LCV-113) and the Bed
-//!   size… dialog (LCV-114), rendered after the `CentralPanel` so they float
+//!   Size… dialog (LCV-114), rendered after the `CentralPanel` so they float
 //!   above the canvas.
 //!
 //! No key is read here: `src/app/input.rs` is the single keyboard gate
@@ -109,7 +109,7 @@ pub fn draw_dialogs(ctx: &egui::Context, app: &mut App) {
     crate::ui::draw_layers_dialog(ctx, app);
 }
 
-/// The Agent Settings window (LCV-076). Persists the settings when the window
+/// The AI Settings window (LCV-076). Persists the settings when the window
 /// closes, whether by the × button, the Done button (LCV-141 AC 6), or
 /// programmatically.
 fn agent_settings_dialog(ctx: &egui::Context, app: &mut App) {
@@ -127,7 +127,7 @@ fn agent_settings_dialog(ctx: &egui::Context, app: &mut App) {
         // borrows are scoped and the write happens after they end (LCV-119).
         let open = &mut app.agent_settings_open;
         let settings = &mut app.settings;
-        egui::Window::new("Agent Settings")
+        egui::Window::new("AI Settings")
             .open(open)
             .resizable(false)
             .collapsible(false)

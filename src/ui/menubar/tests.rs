@@ -208,7 +208,7 @@ fn recent_labels_disambiguates_only_the_colliding_subset() {
 // `tests/it/app/document_title_and_file_feedback.rs::open_recent_entry_hover_text_paints_the_full_path`.
 
 // -----------------------------------------------------------------------
-// LCV-104 — Tools menu, Help > Agent settings
+// LCV-104 — Tools menu, Help > AI Settings…
 // -----------------------------------------------------------------------
 
 /// LCV-104 AC#5 — the bar renders its top-level menus (File, Edit, View,

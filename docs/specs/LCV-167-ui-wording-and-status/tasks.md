@@ -11,7 +11,7 @@
 - [x] T3 [AC1] Window titles `Bed Size`, `Keyboard Shortcuts`; button `Restore Default`; tests
   keyed on the old titles/ids follow (`ui/bed_dialog.rs`, `ui/shortcuts_dialog_fits.rs`)
   (files: src/app/bed_dialog.rs, src/ui/shortcuts_dialog.rs, src/agent/settings_ui.rs)
-- [ ] T4 [AC2] Help item `AI Settings…`, window `AI Settings`; `Id::new`/`area_rect`/title
+- [x] T4 [AC2] Help item `AI Settings…`, window `AI Settings`; `Id::new`/`area_rect`/title
   lookups in `agent/panel_width_and_settings.rs`, `agent/prompt_editor.rs`,
   `agent/panel_and_settings.rs` follow; T1 green (files: src/ui/menubar.rs, src/app/panels.rs)
 - [ ] T5 [AC3] Test only (holds since LCV-183): rail toggle paints `AI`, its tooltip is

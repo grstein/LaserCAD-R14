@@ -237,7 +237,7 @@ fn help_menu(ui: &mut egui::Ui, app: &mut App) {
             ui.close_menu();
             do_about(app);
         }
-        if ui.button("Agent settings…").clicked() {
+        if ui.button("AI Settings…").clicked() {
             ui.close_menu();
             do_agent_settings(app);
         }

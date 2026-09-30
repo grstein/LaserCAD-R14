@@ -290,7 +290,7 @@ fn ac6_the_api_key_reaches_no_transcript_row() {
 // ── AC 8 / AC 9 / AC 10: the settings dialog draws its four fields ──────────
 
 /// AC 8 / AC 9 / AC 10 — **headless frame**: the four-field form draws inside
-/// the real `Agent Settings` window, through `src/app/panels.rs`, and an idle
+/// the real `AI Settings` window, through `src/app/panels.rs`, and an idle
 /// frame changes nothing. Which fields exist and what the warning says are the
 /// bounded scans in `src/agent/settings_ui.rs`.
 #[test]

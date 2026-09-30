@@ -20,7 +20,7 @@
 //! busy and non-busy state, plus real Send/Cancel/`×` clicks through the
 //! pointer-click convention (ADR 0002 §A4 rule 3).
 //!
-//! ## AC 6-7: Agent Settings' Done button and its `ScrollArea`
+//! ## AC 6-7: AI Settings' Done button and its `ScrollArea`
 //!
 //! A real click on Done and a real click on `×`, each against a test-owned
 //! `settings_path`, asserting identical persisted bytes and identical `App`
@@ -552,7 +552,7 @@ fn ac5_closing_the_panel_restores_the_canvas_width() {
 }
 
 // ---------------------------------------------------------------------------
-// AC 6 — Agent Settings: Done matches × exactly
+// AC 6 — AI Settings: Done matches × exactly
 // ---------------------------------------------------------------------------
 
 /// A private, empty directory under the system temp dir, named after the
@@ -564,7 +564,7 @@ fn tempdir(name: &str) -> PathBuf {
     dir
 }
 
-/// Open the Agent Settings dialog, edit one field so there is something to
+/// Open the AI Settings dialog, edit one field so there is something to
 /// persist, and settle two frames.
 fn open_and_edit(ctx: &egui::Context, app: &mut App) {
     app.agent_settings_open = true;
@@ -629,7 +629,7 @@ fn ac6_done_closes_and_persists_exactly_like_the_close_button() {
         // The window's own `×`, top-right of its title bar — painted as two
         // strokes, not text (see `window_close_button_pos`), and distinct
         // from the agent panel's `×`, which is closed in this test.
-        let close = window_close_button_pos(&ctx, "Agent Settings");
+        let close = window_close_button_pos(&ctx, "AI Settings");
         let _ = ctx.run(
             raw_input_at([1280.0, 800.0], vec![egui::Event::PointerMoved(close)]),
             |c| app.update_ui(c),
@@ -849,8 +849,8 @@ fn ac7_the_real_settings_dialog_scrolls_to_reach_done() {
     );
 
     let dialog = ctx
-        .memory(|m| m.area_rect(egui::Id::new("Agent Settings")))
-        .expect("the Agent Settings window must be placed by now");
+        .memory(|m| m.area_rect(egui::Id::new("AI Settings")))
+        .expect("the AI Settings window must be placed by now");
     let inside = dialog.center();
 
     // One frame hovers the dialog and sends a real downward scroll: many

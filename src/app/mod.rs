@@ -142,7 +142,7 @@ pub struct App {
     /// Set by `F1` and by `Help > Keyboard shortcuts…`; cleared by egui's own
     /// × through `Window::open`.
     pub shortcuts_open: bool,
-    /// Controls visibility of the Agent Settings dialog.
+    /// Controls visibility of the AI Settings dialog.
     pub agent_settings_open: bool,
     /// Draft `[width, height]` of the Bed size… modal, or `None` when it is
     /// closed (LCV-114). The document's bed is only touched when OK is
