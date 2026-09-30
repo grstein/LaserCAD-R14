@@ -19,7 +19,7 @@
   src/geometry/snap/mod.rs, src/geometry/mod.rs)
 - [x] T5 [P] [AC8, AC10] Test: `Settings` without `object_snaps` in JSON loads
   `SnapKinds::default()`; a round-trip keeps a toggled kind (files: src/io/settings/tests.rs)
-- [ ] T6 [AC8, AC10] Add `Settings::object_snaps` with `#[serde(default)]` (files:
+- [x] T6 [AC8, AC10] Add `Settings::object_snaps` with `#[serde(default)]` (files:
   src/io/settings.rs)
 - [ ] T7 [AC2, AC3, AC9] Test (app level): LINE with a first point, hovering near a circle's
   tangent point sets `active_snap.kind == Tangent`, and near a segment's foot sets
