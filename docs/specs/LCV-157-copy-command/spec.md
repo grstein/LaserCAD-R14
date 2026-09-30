@@ -1,6 +1,6 @@
 # LCV-157 — COPY command
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: none
 - **Implementation**: -
 

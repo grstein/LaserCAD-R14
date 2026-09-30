@@ -1,6 +1,6 @@
 # LCV-182 — SCALE command
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-158
 - **Implementation**: -
 

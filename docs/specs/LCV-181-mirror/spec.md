@@ -1,6 +1,6 @@
 # LCV-181 — MIRROR command
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-158
 - **Implementation**: -
 

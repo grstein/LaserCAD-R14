@@ -1,6 +1,6 @@
 # LCV-159 — Polar input and DIST query
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: none
 - **Implementation**: -
 

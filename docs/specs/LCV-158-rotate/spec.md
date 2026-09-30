@@ -1,7 +1,7 @@
 # LCV-158 — ROTATE command
 
-- **Status**: Specified
-- **Depends on**: none
+- **Status**: Planned
+- **Depends on**: LCV-157
 - **Implementation**: -
 
 ## Problem
