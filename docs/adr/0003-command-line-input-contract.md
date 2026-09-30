@@ -27,6 +27,19 @@
 - **Amended (4)**: 2026-09-29 — [ADR 0012](0012-document-layers-and-per-layer-export.md) §7
   (LCV-156) adds the fieldless variant `CommandInput::Layers` (words `layer`, `la`), the
   variant-level change §A2a reserves for an ADR. The letter axis is unchanged.
+- **Amended (5)**: 2026-09-29 — the v0.3 edit sprint adds five `ToolKind` variants, the
+  variant-level change §A2a reserves for an ADR: `Copy` (words `copy`, `co`, `cp`; LCV-157),
+  `Rotate` (`rotate`, `ro`; LCV-158), `Mirror` (`mirror`, `mi`; LCV-181), `Scale` (`scale`,
+  `sc`; LCV-182) and `Dist` (`dist`, `di`; LCV-159). Command words only: the letter axis is
+  unchanged, with no bare key and no `TOOL_KEYS` row. Polar input `@d<a` / `d<a` (LCV-159) is
+  the "one parser arm" the revisit criteria foresaw: `parse` maps it to the existing
+  `CommandInput::Relative` / `Point` in mm, degrees never leave the parser, and no
+  `CommandInput` variant is added. `Tool` gains one default method,
+  `take_message(&mut self) -> Option<String>` (default `None`), a single-shot sibling of
+  `take_successor` that hands one line to `command_feedback`, drained before succession
+  (LCV-159 DIST); tools that do not override it are unaffected. `geometry::Transform`
+  (LCV-158) is an additive kernel type below this contract and needs no ADR. Nothing in
+  §A..§F is reversed.
 - **Date**: 2026-09-12
 - **Deciders**: architect (Marco 1 / LCV-110, LCV-111, LCV-112)
 
