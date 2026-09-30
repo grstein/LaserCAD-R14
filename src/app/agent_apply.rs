@@ -38,6 +38,7 @@ use crate::document::{Command, CreateArc, CreateCircle, CreateLine, Document, En
 use crate::geometry::{Arc as GeoArc, Circle, Line, Vec2};
 
 mod edit;
+mod set;
 
 /// The refusal for a capture while either opt-in is off (LCV-145 AC 2).
 pub(crate) const CAPTURE_DISABLED: &str = "canvas capture is disabled in Agent settings";
@@ -164,9 +165,10 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
             y,
             factor,
         } => edit::scale(index, Vec2::new(x, y), factor, doc),
-        AgentAction::Set { .. } => Planned::Answer(AgentOutcome::Refused(
-            "set operations are not applied yet".to_owned(),
-        )),
+        AgentAction::Set {
+            ref indices,
+            ref op,
+        } => set::plan(indices, op, doc),
         AgentAction::QueryEntities => Planned::Answer(AgentOutcome::Ok(list_entities(doc))),
         AgentAction::QuerySelection => Planned::Answer(AgentOutcome::Ok(list_selection(doc))),
         // One command for the whole batch (ADR 0010 §1, §5).
