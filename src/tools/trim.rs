@@ -250,7 +250,7 @@ mod tests {
     /// LCV-160 AC 9 (supersedes LCV-050 AC#9) — one click over two cutters
     /// is one undo step: a single undo restores the original line.
     #[test]
-    fn trim_two_cutters_undo_step_by_step() {
+    fn trim_two_cutters_is_one_undo_step() {
         let mut doc = doc_with(vec![
             ln(0.0, 0.0, 20.0, 0.0),
             ln(5.0, -5.0, 5.0, 5.0),

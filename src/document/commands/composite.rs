@@ -37,8 +37,8 @@ impl CompositeCommand {
     /// Wrap `commands` — **in the order they were committed** — under `label`.
     ///
     /// The caller owns the ordering contract: `commands[0]` must be the
-    /// oldest. `History::end_group` is the only production caller and it
-    /// preserves commit order by construction.
+    /// oldest. `History::end_group` and `TrimTool` (one step per click,
+    /// LCV-160) build composites in commit order.
     pub fn new(commands: Vec<Box<dyn Command>>, label: impl Into<String>) -> Self {
         Self {
             commands,

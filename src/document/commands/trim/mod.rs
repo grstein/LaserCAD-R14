@@ -17,7 +17,9 @@
 //!
 //! A *cut point* ([`cut_points`]) lies on both entities; an arc counts only
 //! its span. [`trim_step`] and [`extend_reach`] are the pure dispatchers the
-//! commands and the TRIM / EXTEND tools share.
+//! commands and the TRIM / EXTEND tools share. Extending a Line treats a Line
+//! boundary as infinite (LCV-051); extending an Arc uses only the boundary's
+//! drawn segment (LCV-160 cut-point definition). The asymmetry is deliberate.
 //!
 //! Split into [`line`], [`circle`] and [`arc`] submodules so each file stays
 //! under the AGENTS.md 300-LOC cap; this module holds the public command
