@@ -1,6 +1,6 @@
 # LCV-154 — Tasks
 
-- [ ] T1 [AC1] [AC5] Test in the wire test module: a response message with
+- [x] T1 [AC1] [AC5] Test in the wire test module: a response message with
   `"reasoning_content":"R"` parses to `Some("R")`; missing and `null` parse to `None`; a
   tool-call `ChatMessage` with `with_reasoning(None)` serialises byte-identical to the
   pre-LCV-154 literal, and with `Some("R")` ends in `,"reasoning_content":"R"}`

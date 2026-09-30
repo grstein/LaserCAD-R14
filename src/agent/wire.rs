@@ -385,6 +385,38 @@ mod tests {
         }
     }
 
+    /// LCV-154 AC 1/5 — `reasoning_content` parses when it is a string and is
+    /// `None` when missing or `null`; `None` adds no key, `Some` goes last.
+    #[test]
+    fn reasoning_content_parses_and_serialises_last_or_not_at_all() {
+        let parse = |body: &str| -> Option<String> {
+            serde_json::from_str::<AssistantMessage>(body)
+                .unwrap()
+                .reasoning_content
+        };
+        assert_eq!(
+            parse(r#"{"content":"a","reasoning_content":"R"}"#),
+            Some("R".to_owned())
+        );
+        assert_eq!(parse(r#"{"content":"a"}"#), None);
+        assert_eq!(parse(r#"{"content":"a","reasoning_content":null}"#), None);
+        let calls = vec![ToolCall::function("call_1", "create_line", r#"{"x1":0}"#)];
+        let pinned = r#"{"role":"assistant","tool_calls":[{"id":"call_1","type":"function","function":{"name":"create_line","arguments":"{\"x1\":0}"}}]}"#;
+        let bare = ChatMessage::assistant_with_tool_calls(None, calls.clone()).with_reasoning(None);
+        assert_eq!(serde_json::to_string(&bare).unwrap(), pinned);
+        let with =
+            ChatMessage::assistant_with_tool_calls(None, calls).with_reasoning(Some("R".into()));
+        let json = serde_json::to_string(&with).unwrap();
+        assert_eq!(
+            json,
+            format!(
+                "{},\"reasoning_content\":\"R\"}}",
+                &pinned[..pinned.len() - 1]
+            )
+        );
+        assert_eq!(serde_json::from_str::<ChatMessage>(&json).unwrap(), with);
+    }
+
     /// LCV-145 AC 9 — a parts message has the OpenAI chat-completions shape:
     /// typed `text` and `image_url` parts, the image a base64 PNG data URL.
     #[test]

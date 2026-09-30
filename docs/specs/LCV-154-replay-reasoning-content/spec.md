@@ -1,6 +1,6 @@
 # LCV-154 — Replay reasoning_content for thinking models
 
-- **Status**: Planned
+- **Status**: In Progress
 - **Depends on**: LCV-153
 - **Implementation**: -
 
