@@ -3,12 +3,13 @@
 //! ## State machine
 //!
 //! ```text
-//! Idle ──press (non-empty sel)──► WaitingDest { base, cursor, snapshots }
+//! Idle ──press (non-empty sel)──► WaitingDest { base, cursor, indices, snapshots }
 //! Idle ──press (empty sel)────► Idle (no-op)
 //!
 //! WaitingDest ──move──────────► WaitingDest (cursor updated)
 //! WaitingDest ──press (|delta| > EPSILON)──► Idle (commit MoveEntities)
 //! WaitingDest ──press (|delta| ≤ EPSILON)──► WaitingDest (zero-delta guard)
+//! WaitingDest ──press (sources undone/shifted)──► Idle (cancel, no commit)
 //!
 //! Any ──Escape──► Idle (cancel; tool stays MOVE)
 //! ```
@@ -22,6 +23,7 @@ use crate::app::App;
 use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History, MoveEntities};
 use crate::geometry::{EPSILON, Vec2};
+use crate::tools::copy::sources_intact;
 use crate::tools::{SelectTool, Tool};
 
 // ---------------------------------------------------------------------------
@@ -39,6 +41,8 @@ enum MoveState {
         base: Vec2,
         /// Current cursor position; updated by `on_pointer_move`.
         cursor: Vec2,
+        /// The selected indices, captured on the first click.
+        indices: Vec<usize>,
         /// Cloned snapshots of the selected entities captured on the first
         /// click, used to render the preview ghost without touching `doc`.
         snapshots: Vec<Entity>,
@@ -116,24 +120,33 @@ impl Tool for MoveTool {
                     return;
                 }
                 // Capture entity snapshots while we have `&mut Document`.
-                let snapshots: Vec<Entity> =
-                    doc.selection.iter().map(|i| doc.entities[i]).collect();
+                let indices: Vec<usize> = doc.selection.iter().collect();
+                let snapshots = indices.iter().map(|&i| doc.entities[i]).collect();
                 self.state = MoveState::WaitingDest {
                     base: pos,
                     cursor: pos,
+                    indices,
                     snapshots,
                 };
             }
-            MoveState::WaitingDest { base, .. } => {
-                let base = *base;
-                let delta = pos - base;
+            MoveState::WaitingDest {
+                base,
+                indices,
+                snapshots,
+                ..
+            } => {
+                // An undo since the base point can remove or shift the sources.
+                if !sources_intact(doc, indices, snapshots) {
+                    self.cancel();
+                    return;
+                }
+                let delta = pos - *base;
                 // AC#5: discard zero-delta clicks.
                 if delta.length() <= EPSILON {
                     return;
                 }
-                // Commit the move.
-                let indices: Vec<usize> = doc.selection.iter().collect();
-                history.commit(Box::new(MoveEntities::new(indices, delta)), doc);
+                let cmd = MoveEntities::new(indices.clone(), delta);
+                history.commit(Box::new(cmd), doc);
                 self.state = MoveState::Idle;
                 self.pending_successor = true;
             }
@@ -173,6 +186,7 @@ impl Tool for MoveTool {
                 base,
                 cursor,
                 snapshots,
+                ..
             } => {
                 let offset = *cursor - *base;
                 snapshots
@@ -495,5 +509,32 @@ mod tests {
         assert_eq!(tool.anchor(), Some(Vec2::new(2.0, 3.0)));
         tool.cancel();
         assert_eq!(tool.anchor(), None);
+    }
+
+    /// Regression: undo past the run start (the sources' creation and
+    /// selection) and then a destination must not panic or move a stale
+    /// index; MOVE drops back to the base-point prompt.
+    #[test]
+    fn undo_past_the_base_point_cancels_instead_of_panicking() {
+        use crate::document::{CreateLine, SelectionCommand};
+        let mut doc = Document::default();
+        let mut hist = History::default();
+        let l = Line::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0));
+        hist.commit(Box::new(CreateLine::new(l)), &mut doc);
+        hist.commit(Box::new(SelectionCommand::new([0usize])), &mut doc);
+        let mut tool = MoveTool::default();
+        first_click(&mut tool, Vec2::new(0.0, 0.0), &mut doc, &mut hist);
+        assert!(hist.undo(&mut doc));
+        assert!(hist.undo(&mut doc));
+        // A foreign entity now sits where the source was.
+        doc.push_current(Entity::Line(Line::new(
+            Vec2::new(0.0, 5.0),
+            Vec2::new(1.0, 5.0),
+        )));
+        let before = doc.entities.clone();
+        second_click(&mut tool, Vec2::new(3.0, 4.0), &mut doc, &mut hist);
+        assert_eq!(doc.entities, before);
+        assert!(is_idle(&tool));
+        assert!(tool.take_successor().is_none());
     }
 }

@@ -15,7 +15,8 @@
 //! ```
 //!
 //! The source indices are captured with the base point. Copies are only ever
-//! appended, so those indices stay valid for the whole run. No successor: COPY
+//! appended, so those indices stay valid for the whole run, unless an undo
+//! reaches past the base point: then the next point cancels the run. No successor: COPY
 //! stays armed, like PLINE.
 //!
 //! MUST NOT import `eframe` or `rfd`.
@@ -104,7 +105,17 @@ impl Tool for CopyTool {
                     snapshots,
                 };
             }
-            CopyState::WaitingSecond { base, indices, .. } => {
+            CopyState::WaitingSecond {
+                base,
+                indices,
+                snapshots,
+                ..
+            } => {
+                // An undo past the base point can remove or shift the sources.
+                if !sources_intact(doc, indices, snapshots) {
+                    self.cancel();
+                    return;
+                }
                 let delta = pos - *base;
                 // AC7: a zero delta places nothing.
                 if delta.length() <= EPSILON {
@@ -181,6 +192,18 @@ impl Tool for CopyTool {
             None => false,
         }
     }
+}
+
+/// Do the sources captured with the base point still sit, unchanged, at
+/// their indices? An undo past the base point can remove or shift them; MOVE
+/// and COPY then drop back to the base-point prompt instead of editing a
+/// stale index.
+pub(crate) fn sources_intact(doc: &Document, indices: &[usize], snapshots: &[Entity]) -> bool {
+    indices.len() == snapshots.len()
+        && indices
+            .iter()
+            .zip(snapshots)
+            .all(|(&i, s)| doc.entities.get(i) == Some(s))
 }
 
 #[cfg(test)]
@@ -330,5 +353,29 @@ mod tests {
         assert!(tool.on_command_input(ToolInput::Point(Vec2::default()), &mut doc, &mut hist));
         assert!(tool.on_command_input(ToolInput::Point(Vec2::new(4.0, 0.0)), &mut doc, &mut hist));
         assert_eq!(doc.entity_count(), 2);
+    }
+
+    /// Regression: undo past the run start (the sources' creation and
+    /// selection) and then a second point must not panic or copy a stale
+    /// index; COPY drops back to the base-point prompt.
+    #[test]
+    fn undo_past_the_run_start_cancels_instead_of_panicking() {
+        use crate::document::{CreateLine, SelectionCommand};
+        let mut doc = Document::default();
+        let mut hist = History::default();
+        let l = Line::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0));
+        hist.commit(Box::new(CreateLine::new(l)), &mut doc);
+        hist.commit(Box::new(SelectionCommand::new([0usize])), &mut doc);
+        let mut tool = CopyTool::default();
+        click(&mut tool, Vec2::new(0.0, 0.0), &mut doc, &mut hist);
+        click(&mut tool, Vec2::new(10.0, 0.0), &mut doc, &mut hist);
+        for _ in 0..3 {
+            assert!(hist.undo(&mut doc));
+        }
+        assert_eq!(doc.entity_count(), 0);
+        click(&mut tool, Vec2::new(20.0, 0.0), &mut doc, &mut hist);
+        assert_eq!(doc.entity_count(), 0);
+        assert_eq!(tool.status_text(), "COPY Specify base point:");
+        assert!(hist.can_redo(), "nothing was committed");
     }
 }
