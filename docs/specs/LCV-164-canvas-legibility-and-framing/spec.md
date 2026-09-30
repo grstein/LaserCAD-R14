@@ -1,6 +1,6 @@
 # LCV-164 — Canvas legibility and bed framing
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: none
 - **Implementation**: -
 
