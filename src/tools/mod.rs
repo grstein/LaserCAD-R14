@@ -5,6 +5,7 @@
 
 pub mod arc;
 pub mod circle;
+pub mod copy;
 pub mod delete;
 pub mod extend;
 pub mod line;
@@ -20,6 +21,7 @@ pub mod trim;
 
 pub use arc::ArcTool;
 pub use circle::CircleTool;
+pub use copy::CopyTool;
 pub use delete::DeleteTool;
 pub use extend::ExtendTool;
 pub use line::LineTool;
