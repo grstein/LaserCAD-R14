@@ -60,5 +60,5 @@
 - [x] T20 [AC10] DESIGN.md §3 (accent foreground-only, amends LCV-071 AC 4), §4 (figure-space
   coordinates), §7 (fourth autosave state, amends LCV-116 decision 3), §9 (AI names, gap
   paragraph closed) (files: DESIGN.md)
-- [ ] T21 CHANGELOG `[Unreleased]`: Title Case labels, one AI name (`AI Settings…`, `AI:` undo
+- [x] T21 CHANGELOG `[Unreleased]`: Title Case labels, one AI name (`AI Settings…`, `AI:` undo
   steps), steady coordinates, readable error red, `× autosave failed` (files: CHANGELOG.md)
