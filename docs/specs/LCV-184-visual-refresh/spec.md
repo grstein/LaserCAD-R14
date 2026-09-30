@@ -1,8 +1,8 @@
 # LCV-184 — Visual refresh: theme, status bar and dock
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-183
-- **Implementation**: -
+- **Implementation**: 0fdace8..dab5680
 
 ## Problem
 
