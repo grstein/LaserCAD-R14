@@ -1,34 +1,60 @@
 # LCV-171 — SVG import report and never-rendered elements
 
-- **Status**: Draft
+- **Status**: Specified
 - **Depends on**: LCV-170
 - **Implementation**: -
 
 ## Problem
 
 `io/svg/import.rs::Walk::collect` imports `<line>`, `<circle>` and `<path d="M…A…">` wherever
-they sit and silently skips everything else. Geometry inside never-rendered elements (`defs`,
-`symbol`, `clipPath`, `mask`, `marker`, `pattern`, gradients) is imported as cut geometry, while
-`<image>`, `<text>`, unknown paths and paint-only features vanish with no word to the operator.
-The SVG 2 rendering model says never-rendered content is not drawn, and the conformance target
-(`docs/research/svg-spec-coverage.md`) forbids silent loss or misreading.
+they sit and descends into every other element. Geometry inside never-rendered elements (`defs`,
+`clipPath`, `mask`, `marker`, `pattern`, …) becomes cut geometry, while `<image>`, `<text>`,
+unsupported paths, transforms and paint-only features vanish without a word. The conformance
+target (`docs/research/svg-spec-coverage.md` §1) forbids silent loss and silent gain.
 
 ## Stories
 
-- As an operator, I want Open/Import to tell me what it ignored and why, so that I never cut a
-  drawing that silently lost or gained parts.
-- As an operator, I want content the SVG file would not display to stay out of my drawing.
+- As an operator, I want Open to tell me what it ignored, so I never cut a drawing that silently
+  lost parts.
+- As an operator, I want content the file would not display to stay out of my drawing.
 
 ## Acceptance criteria
 
-To be written by /specify.
+1. IF the root element is not `svg` in namespace `http://www.w3.org/2000/svg` (a missing `xmlns`
+   included) THEN THE SYSTEM SHALL refuse the file with `NoSvgRoot`.
+2. THE SYSTEM SHALL descend only into `svg`, `g` and `a` elements in the SVG namespace.
+3. WHEN import meets `defs`, `symbol`, `clipPath`, `mask`, `marker`, `pattern`,
+   `linearGradient`, `radialGradient` or `filter` THE SYSTEM SHALL import nothing inside it, and
+   SHALL add the element name to the report iff it has an element child.
+4. WHEN import meets `title`, `desc`, `metadata` or an element outside the SVG namespace THE
+   SYSTEM SHALL skip it and its subtree without a report entry.
+5. WHEN import meets any other SVG element it does not turn into entities (e.g. `image`, `text`,
+   `use`, `switch`, `rect`, `style`, `script`, `foreignObject`) THE SYSTEM SHALL skip its subtree
+   and add the element name to the report.
+6. WHEN a `<path>`'s data is not turned into an entity THE SYSTEM SHALL add `path (unsupported
+   data)` to the report instead of skipping it silently.
+7. WHEN an element that is imported or descended into carries `transform`, `fill` (other than
+   `none`), `clip-path`, `mask`, `filter`, `marker-start|mid|end`, `stroke-dasharray`, `opacity`,
+   `display` or `visibility`, as an attribute or a `style` declaration, THE SYSTEM SHALL add that
+   property name to the report.
+8. THE SYSTEM SHALL expose the report on `ImportedSvg` as entries `(label, count)` in order of
+   first occurrence, one entry per label.
+9. WHEN Open or Open Recent succeeds with a non-empty report THE SYSTEM SHALL set the command-line
+   feedback to `Ignored: <count> <label>, …` in report order; with an empty report it SHALL
+   clear the feedback.
+10. WHEN a file written by `export_svg` or `export_layer_svg` is opened THE SYSTEM SHALL produce an
+    empty report (the root's `fill="none"` is not reported).
+11. WHEN the LCV-170 corpus is opened THE SYSTEM SHALL match its `.expected` files, which gain a
+    report section, and an Inkscape-style fixture with `<defs>` geometry proves AC 3.
 
 ## Out of scope
 
-- Supporting the ignored features themselves (LCV-172..179).
-- `display:none` via CSS (LCV-175 owns the cascade).
+- Supporting the reported features (LCV-172..179); applying `display`/`visibility` (LCV-175).
+- A report dialog; per-element positions in the report.
 
 ## Open questions
 
-- Where the report shows: command-line history, a dialog, or both; wording and grouping.
-- Root namespace check: refuse a root `<svg>` outside the SVG namespace?
+- None. Decided (self-approved per user goal): the report shows on the command-line feedback
+  line (no dialog); a root outside the SVG namespace, `xmlns`-less included, is refused as not
+  SVG; `transform` is reported until LCV-173 applies it; tests pinning "silently skips" behaviour
+  are rewritten, not deleted.
