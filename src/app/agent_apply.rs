@@ -63,7 +63,7 @@ enum Planned {
 pub fn apply(app: &mut App, action: &AgentAction) -> AgentOutcome {
     // LCV-145: a capture reads the camera, which `plan` cannot see.
     let planned = match action {
-        AgentAction::CaptureCanvas(_) => Planned::Answer(agent_capture::capture(app)),
+        AgentAction::CaptureCanvas(frame) => Planned::Answer(agent_capture::capture(app, frame)),
         _ => plan(action, &app.document),
     };
     let outcome = match planned {
