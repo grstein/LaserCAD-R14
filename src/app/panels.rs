@@ -33,69 +33,24 @@ pub fn draw_chrome(ctx: &egui::Context, app: &mut App) {
         crate::ui::draw_command_line(ui, app);
     });
 
+    let rail_frame = egui::Frame::side_top_panel(&ctx.style()).inner_margin(RAIL_MARGIN);
     egui::SidePanel::left("toolbar")
         .resizable(false)
-        .exact_width(toolbar_width(ctx))
+        .exact_width(RAIL_WIDTH)
+        .frame(rail_frame)
         .show(ctx, |ui| {
             crate::ui::draw_toolbar(ui, app);
         });
 }
 
-/// Cap on the tool rail's outer width, in points (LCV-140 AC 2): its eleven
-/// `TOOLS` labels never need more than this to render in full at any
-/// reasonable font.
-const TOOLBAR_WIDTH_CEILING: f32 = 120.0;
+/// The tool rail's frame inner margin, in points, on every side (LCV-183).
+const RAIL_MARGIN: f32 = 4.0;
 
-/// The tool rail's fixed outer width — "outer" in the same sense
-/// `SidePanel::exact_width`'s own doc comment uses, i.e. including the
-/// panel's frame margin.
-///
-/// Sized to exactly fit the widest of the `TOOLS` labels and the agent
-/// toggle's own label ([`crate::ui::toolbar::AGENT_TOGGLE_LABEL`]), measured
-/// at the *current* button text style — so a label never wraps onto a
-/// second line inside its `SelectableLabel` (egui wraps rather than elides
-/// button text by default) — plus the button padding and the panel's own
-/// frame margin on both sides, two points of slack for text-layout rounding
-/// at the boundary, and never wider than [`TOOLBAR_WIDTH_CEILING`] (AC 2).
-///
-/// Recomputed from `ctx.style()` / `ctx.fonts()` on every call, mirroring
-/// `agent_panel_width_ceiling`'s "never cached" rule (a font or style change
-/// between frames must be reflected immediately).
-fn toolbar_width(ctx: &egui::Context) -> f32 {
-    let labels = crate::ui::toolbar::TOOLS
-        .iter()
-        .map(|entry| entry.label)
-        .chain(std::iter::once(crate::ui::toolbar::AGENT_TOGGLE_LABEL));
-    toolbar_width_for(ctx, labels)
-}
-
-/// The width computation itself, parameterised over the label set so a unit
-/// test can hand it a synthetic over-wide label and prove
-/// [`TOOLBAR_WIDTH_CEILING`]'s clamp actually binds.
-///
-/// LCV-140 review, mutation testing: the shipped `TOOLS` labels never come
-/// close to 120pt, so a test built only from [`toolbar_width`] cannot tell
-/// the ceiling constant being raised, or the `.min(TOOLBAR_WIDTH_CEILING)`
-/// clamp being deleted, from the real behaviour — both mutations left every
-/// test green. `tests::toolbar_width_for_clamps_a_synthetic_over_wide_label`
-/// below closes that gap.
-fn toolbar_width_for<'a>(ctx: &egui::Context, labels: impl Iterator<Item = &'a str>) -> f32 {
-    let style = ctx.style();
-    let font_id = egui::TextStyle::Button.resolve(&style);
-    let widest_text = labels
-        .map(|label| {
-            ctx.fonts(|f| {
-                f.layout_no_wrap(label.to_owned(), font_id.clone(), egui::Color32::WHITE)
-                    .size()
-                    .x
-            })
-        })
-        .fold(0.0_f32, f32::max);
-    let button_padding = style.spacing.button_padding.x * 2.0;
-    let frame_margin = egui::Frame::side_top_panel(&style).inner_margin;
-    let outer = widest_text + button_padding + frame_margin.left + frame_margin.right + 2.0;
-    outer.min(TOOLBAR_WIDTH_CEILING)
-}
+/// The tool rail's fixed outer width, in points (LCV-183 AC 8: at most 80):
+/// two 32 pt button columns, the 4 pt gap between them
+/// (`crate::ui::toolbar::RAIL_GAP`) and [`RAIL_MARGIN`] on both sides.
+/// "Outer" as in `SidePanel::exact_width`'s own doc comment.
+const RAIL_WIDTH: f32 = 2.0 * 32.0 + crate::ui::toolbar::RAIL_GAP + 2.0 * RAIL_MARGIN;
 
 /// Width the agent panel opens at before the ceiling narrows it (LCV-080's
 /// original default).
@@ -211,40 +166,6 @@ fn error_modal(ctx: &egui::Context, app: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// LCV-140 AC 2, mutation-testing follow-up — an over-wide synthetic
-    /// label forces the ceiling clamp to actually bind: this fails if
-    /// `TOOLBAR_WIDTH_CEILING` is raised (the returned width would then
-    /// exceed today's 120.0), and fails if `.min(TOOLBAR_WIDTH_CEILING)` is
-    /// deleted (the returned width would be the synthetic label's own huge
-    /// natural size). The real `toolbar_width(ctx)` — built only from the
-    /// shipped `TOOLS` labels, which never reach the ceiling — cannot prove
-    /// either.
-    #[test]
-    fn toolbar_width_for_clamps_a_synthetic_over_wide_label() {
-        let ctx = egui::Context::default();
-        // Fonts are not available until the first `Context::run` (egui-0.29.1
-        // `context.rs::Context::fonts`); one empty pass is enough to prime them.
-        let _ = ctx.run(egui::RawInput::default(), |_| {});
-
-        let huge_label = "M".repeat(400);
-        let width = toolbar_width_for(&ctx, std::iter::once(huge_label.as_str()));
-
-        // The expected value is AC 2's own number, 120.0 — hard-coded on
-        // purpose, never `TOOLBAR_WIDTH_CEILING` itself: comparing against
-        // that symbol would make this assertion true for *any* value the
-        // constant holds (raising it to 300 would just move both sides of
-        // the comparison together), which is exactly the mutation this test
-        // exists to catch.
-        assert_eq!(
-            width, 120.0,
-            "an over-wide label must clamp to exactly AC 2's 120pt ceiling, got {width}"
-        );
-        assert_eq!(
-            width, TOOLBAR_WIDTH_CEILING,
-            "positive control: 120.0 must actually be today's TOOLBAR_WIDTH_CEILING"
-        );
-    }
 
     /// LCV-105 — the agent side panel is skipped entirely while the panel is
     /// closed, which is what keeps the canvas full-width by default.

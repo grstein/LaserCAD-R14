@@ -20,7 +20,7 @@
 - [x] T8 [AC1] [AC3] [AC4] [AC5] [AC7] [AC9] `icon_button` + two-column rail + `AI` toggle in
   `draw_toolbar`; rewrite the LCV-140 rail tests from labels to tooltips (files:
   src/ui/toolbar.rs, src/ui/icons.rs, tests/it/ui/compact_chrome_and_action_hints.rs)
-- [ ] T9 [AC8] Fixed `RAIL_WIDTH` and 4 pt frame margin in `panels.rs`; drop the label-width
+- [x] T9 [AC8] Fixed `RAIL_WIDTH` and 4 pt frame margin in `panels.rs`; drop the label-width
   measure and its clamp test; T6 goes green (files: src/app/panels.rs)
 - [ ] T10 [AC10] DESIGN.md §2 rail budget ≤80 pt, §7 tool rail: painted icons, two columns,
   `AI` toggle, tooltip format (files: DESIGN.md)
