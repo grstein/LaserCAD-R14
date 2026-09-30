@@ -16,11 +16,13 @@
 //!
 //! An arc at or near a half turn can export endpoints whose rounded chord
 //! exceeds the rounded diameter; `import_svg` then scales the radius up to half
-//! the chord (SVG 2 §F.6.6). One property keeps arcs at least 1e-3 mm short of
-//! a diameter, well clear of the rounding (at most ~2.5e-4 mm); the other and
-//! `half_turn_arc_reimports` cover exact and near half turns.
+//! the chord (SVG 2 §F.6.6) and rebuilds an exact half turn. Within that band
+//! (`near_half_turn`) the radius drifts up to `5e-5 · √2` mm and the large-arc
+//! side is not compared. One property keeps arcs at least 1e-3 mm short of a
+//! diameter, well clear of the rounding (at most ~2.5e-4 mm); the other and the
+//! pinned `#[test]`s cover exact and near half turns.
 
-use core::f64::consts::{PI, TAU};
+use core::f64::consts::{PI, SQRT_2, TAU};
 use lasercad::document::{Document, Entity, Layer, LayerId};
 use lasercad::geometry::{Arc, Circle, Line, Vec2};
 use lasercad::io::svg::{export_svg, import_svg};
@@ -46,6 +48,11 @@ fn config() -> ProptestConfig {
 
 /// Half a unit in the fourth decimal, plus room for the mirror's own rounding.
 const FORMAT_TOL: f64 = 5e-5 + 1e-9;
+
+/// How far short of a diameter an arc can be and still import as an exact
+/// half turn: the radius rounds by up to `FORMAT_TOL`, half the chord by up to
+/// `FORMAT_TOL · √2`.
+const HALF_TURN_BAND: f64 = FORMAT_TOL * (1.0 + SQRT_2);
 
 /// How far short of a diameter an arc's chord stays in the running property.
 const CHORD_CLEARANCE: f64 = 1e-3;
@@ -160,6 +167,15 @@ fn near(a: Vec2, b: Vec2) -> bool {
     a.approx_eq(b, FORMAT_TOL)
 }
 
+/// Whether `arc`'s chord is within [`HALF_TURN_BAND`] of its diameter. There
+/// the rounded chord can exceed the rounded radius, and import rebuilds an
+/// exact half turn with half the chord as its radius (SVG 2 §F.6.6): the
+/// radius carries the endpoints' rounding along the chord, up to
+/// `FORMAT_TOL · √2`, and which side of a half turn the arc was on is lost.
+fn near_half_turn(arc: &Arc) -> bool {
+    arc.r - arc.start_point().distance(arc.end_point()) / 2.0 <= HALF_TURN_BAND
+}
+
 /// `got` carries the same file-level geometry as `want`, within the format.
 fn same_entity(want: &Entity, got: &Entity) -> Result<(), String> {
     let ok = match (want, got) {
@@ -168,13 +184,17 @@ fn same_entity(want: &Entity, got: &Entity) -> Result<(), String> {
             near(w.center, g.center) && (w.r - g.r).abs() <= FORMAT_TOL
         }
         (Entity::Arc(w), Entity::Arc(g)) => {
-            let large_matches = (w.sweep_angle() - PI).abs() < 1e-3
-                || (w.sweep_angle() > PI) == (g.sweep_angle() > PI);
+            let half_turn = near_half_turn(w);
+            let r_tol = if half_turn {
+                FORMAT_TOL * SQRT_2
+            } else {
+                FORMAT_TOL
+            };
             near(w.start_point(), g.start_point())
                 && near(w.end_point(), g.end_point())
-                && (w.r - g.r).abs() <= FORMAT_TOL
+                && (w.r - g.r).abs() <= r_tol
                 && w.ccw == g.ccw
-                && large_matches
+                && (half_turn || (w.sweep_angle() > PI) == (g.sweep_angle() > PI))
         }
         _ => false,
     };
@@ -252,4 +272,35 @@ fn half_turn_arc_reimports() {
     )));
     let svg = export_svg(&doc);
     assert!(import_svg(&svg).is_ok(), "{svg}");
+}
+
+/// Minimised (LCV-172 follow-up): a near-diagonal half turn whose radius is
+/// rebuilt from the rounded chord, `FORMAT_TOL · √2` from the file's radius.
+#[test]
+fn half_turn_radius_rebuilt_from_chord_round_trips() {
+    let mut doc = Document::with_bed([1.0, 1.0]);
+    doc.push_current(Entity::Arc(Arc::new(
+        Vec2::new(0.05756091447837981, 0.0),
+        706.140216061404,
+        2.3906697908821952,
+        -0.7509228627075979,
+        false,
+    )));
+    check_round_trip(&doc).unwrap();
+}
+
+/// Minimised (LCV-172 follow-up): a clockwise arc just past a half turn,
+/// crossing −π, whose rounded chord reaches the diameter; it returns as an
+/// exact half turn, so its large-arc side is not compared.
+#[test]
+fn cw_arc_past_half_turn_round_trips() {
+    let mut doc = Document::with_bed([1.0, 1.0]);
+    doc.push_current(Entity::Arc(Arc::new(
+        Vec2::new(0.3763535794931111, 0.0),
+        0.01,
+        0.0,
+        -3.1427648489206454,
+        false,
+    )));
+    check_round_trip(&doc).unwrap();
 }
