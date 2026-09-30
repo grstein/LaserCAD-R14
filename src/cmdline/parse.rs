@@ -116,6 +116,7 @@ pub fn parse(raw: &str) -> CommandInput {
 /// | `dist` | `Dist` | `di` | `Dist` |
 /// | `rotate` | `Rotate` | `ro` | `Rotate` |
 /// | `mirror` | `Mirror` | `mi` | `Mirror` |
+/// | `scale` | `Scale` | `sc` | `Scale` |
 ///
 /// `delete` / `del` / `erase` all reach the same tool: R14 says `ERASE`, the
 /// v2 tool and its menu entry say Delete, so both vocabularies are accepted
@@ -152,6 +153,7 @@ fn tool_alias(lower: &str) -> Option<ToolKind> {
         "dist" | "di" => Some(ToolKind::Dist),
         "rotate" | "ro" => Some(ToolKind::Rotate),
         "mirror" | "mi" => Some(ToolKind::Mirror),
+        "scale" | "sc" => Some(ToolKind::Scale),
         _ => None,
     }
 }
@@ -429,11 +431,13 @@ mod tests {
             ("ro", ToolKind::Rotate),
             ("mirror", ToolKind::Mirror),
             ("mi", ToolKind::Mirror),
+            ("scale", ToolKind::Scale),
+            ("sc", ToolKind::Scale),
         ];
         assert_eq!(
             words.len(),
-            24,
-            "the approved word set is exactly twenty-four"
+            26,
+            "the approved word set is exactly twenty-six"
         );
         for &(word, kind) in words {
             assert_eq!(
@@ -477,6 +481,15 @@ mod tests {
             );
         }
         assert_eq!(parse("m"), CommandInput::Tool(ToolKind::Move));
+    }
+
+    /// LCV-182 AC1 — `scale` and `sc` (any case) are SCALE; `s` stays SELECT.
+    #[test]
+    fn scale_words_are_scale() {
+        for word in ["scale", "SCALE", "sc", " Sc "] {
+            assert_eq!(parse(word), CommandInput::Tool(ToolKind::Scale), "{word:?}");
+        }
+        assert_eq!(parse("s"), CommandInput::Tool(ToolKind::Select));
     }
 
     /// LCV-156 AC 4 — `layer` and `la` (any case) are the Layers command;

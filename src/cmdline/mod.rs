@@ -103,6 +103,9 @@ pub enum ToolKind {
     /// MIRROR — reflect the selection across a picked line (LCV-181). Words
     /// only: `mirror`, `mi`; no letter.
     Mirror,
+    /// SCALE — resize the selection about a base point (LCV-182). Words
+    /// only: `scale`, `sc`; no letter.
+    Scale,
 }
 
 /// A view / drawing-aid toggle the command line can flip.

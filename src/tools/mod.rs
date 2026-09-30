@@ -70,6 +70,7 @@ pub fn make(kind: ToolKind) -> Box<dyn Tool> {
         ToolKind::Dist => Box::new(DistTool::default()),
         ToolKind::Rotate => Box::new(RotateTool::default()),
         ToolKind::Mirror => Box::new(MirrorTool::default()),
+        ToolKind::Scale => Box::new(ScaleTool::default()),
     }
 }
 
@@ -98,5 +99,6 @@ mod tests {
         assert_eq!(make(ToolKind::Dist).name(), "DIST");
         assert_eq!(make(ToolKind::Rotate).name(), "ROTATE");
         assert_eq!(make(ToolKind::Mirror).name(), "MIRROR");
+        assert_eq!(make(ToolKind::Scale).name(), "SCALE");
     }
 }
