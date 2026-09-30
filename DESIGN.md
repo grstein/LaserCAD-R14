@@ -60,22 +60,26 @@ that change, and that change's last task updates this file.
 ## 3. Colour tokens
 
 Contrast is WCAG, measured on the surface named. Home: where the value lives today. The goal is
-one named constant per token in `ui/theme.rs` (chrome) or a new `render/palette.rs` (canvas)
-(gap → F4).
+one named constant per token in `ui/theme.rs` (chrome, done by LCV-184) or a new
+`render/palette.rs` (canvas) (gap → F4).
 
 **Chrome** (surface `bg.panel` #252525)
 
 | Token | Value | Role | Contrast | Home |
 |---|---|---|---|---|
-| `bg.canvas` | #1a1a1a | canvas outside the bed | — | `ui/theme.rs::CANVAS_BG` |
-| `bg.panel` | #252525 | panels, windows | — | `ui/theme.rs::apply_theme` |
-| `text.primary` | #d0d0d0 | all chrome text | 9.9:1 | `apply_theme` (`override_text_color`) |
-| `text.muted` | #8c8c8c | secondary text, only on `bg.panel` | 4.6:1 (3.3:1 on buttons, forbidden) | not used yet |
-| `fill.selected` | #005c80 | selected widget fill | — | egui default |
-| `status.warning` | #ff8f00 | warnings, command feedback | 6.7:1 | egui `warn_fg_color` |
+| `bg.canvas` | #1a1a1a | canvas outside the bed | — | `ui/theme.rs::BG_CANVAS` (alias `CANVAS_BG`) |
+| `bg.panel` | #252525 | panels, windows | — | `ui/theme.rs::BG_PANEL` |
+| `text.primary` | #d0d0d0 | all chrome text | 9.9:1 | `ui/theme.rs::TEXT_PRIMARY` |
+| `text.muted` | #8c8c8c | secondary text, only on `bg.panel` | 4.6:1 (3.3:1 on buttons, forbidden) | `ui/theme.rs::TEXT_MUTED` |
+| `fill.selected` | #005c80 | selected widget fill | — | `ui/theme.rs::FILL_SELECTED` |
+| `fill.widget` | #3c3c3c | idle button or field fill | — | `ui/theme.rs::FILL_WIDGET` |
+| `fill.hover` | #464646 | hovered widget fill | — | `ui/theme.rs::FILL_HOVER` |
+| `fill.active` | #373737 | pressed or open widget fill | — | `ui/theme.rs::FILL_ACTIVE` |
+| `border` | #404040 | the one 1 pt border: windows, menus, separators, off pills | — | `ui/theme.rs::BORDER` |
+| `status.warning` | #ff8f00 | warnings, command feedback | 6.7:1 | `ui/theme.rs::STATUS_WARNING` |
 | `agent.tool` | #78beff | agent tool rows | 7.7:1 | `agent/panel.rs::TOOL_COLOR` |
 | `status.error` | #ff6b6b | errors (today `Color32::RED`, 3.8:1) | 5.5:1 | gap → LCV-167 |
-| `accent` | #4fa3e0 | foreground-only highlight, never a fill | 5.5:1 | gap → LCV-167 |
+| `accent` | #4fa3e0 | foreground-only highlight, never a fill | 5.5:1 | `ui/theme.rs::ACCENT` |
 
 **Canvas** (surface: bed, gray 40)
 

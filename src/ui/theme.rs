@@ -39,17 +39,73 @@ pub(crate) const FILL_ACTIVE: Color32 = Color32::from_rgb(0x37, 0x37, 0x37);
 /// [`crate::app::App::update`] to fill the central-panel rect.
 pub const CANVAS_BG: Color32 = BG_CANVAS;
 
+/// Width of the one chrome border weight, in points (DESIGN.md §5).
+const BORDER_WIDTH: f32 = 1.0;
+
+/// Corner radius of every widget, in points (DESIGN.md §5).
+pub(crate) const WIDGET_ROUNDING: f32 = 3.0;
+
+/// Corner radius of windows and menus, in points (DESIGN.md §5).
+const WINDOW_ROUNDING: f32 = 4.0;
+
+/// The 1 pt `border` stroke: windows, menus, separators, off pills.
+pub(crate) fn border_stroke() -> egui::Stroke {
+    egui::Stroke::new(BORDER_WIDTH, BORDER)
+}
+
 /// Apply the LaserCAD dark theme to the given egui context.
+///
+/// Flat (DESIGN.md §1.8): no shadow, one 1 pt `border`, 3 pt widget and
+/// 4 pt window/menu corners, and every fill and text colour set explicitly
+/// from the tokens above instead of left to egui's defaults. `accent` is only
+/// ever a foreground — the selection's stroke, which egui uses for focus
+/// rings and selected text — never a fill (LCV-184 AC 3).
 ///
 /// Calling this once per frame (top of `App::update`) is idempotent and
 /// cheap — egui only re-tessellates when visuals actually change.
 pub fn apply_theme(ctx: &egui::Context) {
-    let mut visuals = egui::Visuals::dark();
-    visuals.override_text_color = Some(TEXT_PRIMARY);
-    visuals.panel_fill = BG_PANEL;
-    visuals.window_fill = BG_PANEL;
-    visuals.extreme_bg_color = CANVAS_BG;
-    ctx.set_visuals(visuals);
+    let mut v = egui::Visuals::dark();
+    v.override_text_color = Some(TEXT_PRIMARY);
+    v.panel_fill = BG_PANEL;
+    v.window_fill = BG_PANEL;
+    v.extreme_bg_color = CANVAS_BG;
+    v.warn_fg_color = STATUS_WARNING;
+    v.window_shadow = egui::epaint::Shadow::NONE;
+    v.popup_shadow = egui::epaint::Shadow::NONE;
+    v.window_stroke = border_stroke();
+    v.window_rounding = egui::Rounding::same(WINDOW_ROUNDING);
+    v.menu_rounding = egui::Rounding::same(WINDOW_ROUNDING);
+    v.selection.bg_fill = FILL_SELECTED;
+    v.selection.stroke = egui::Stroke::new(BORDER_WIDTH, ACCENT);
+
+    let w = &mut v.widgets;
+    w.noninteractive.bg_fill = BG_PANEL;
+    w.noninteractive.weak_bg_fill = BG_PANEL;
+    w.noninteractive.bg_stroke = border_stroke();
+    for (state, fill) in [
+        (&mut w.inactive, FILL_WIDGET),
+        (&mut w.hovered, FILL_HOVER),
+        (&mut w.active, FILL_ACTIVE),
+    ] {
+        state.bg_fill = fill;
+        state.weak_bg_fill = fill;
+    }
+    w.hovered.bg_stroke = border_stroke();
+    w.active.bg_stroke = border_stroke();
+    w.open.bg_fill = BG_PANEL;
+    w.open.weak_bg_fill = FILL_ACTIVE;
+    w.open.bg_stroke = border_stroke();
+    for state in [
+        &mut w.noninteractive,
+        &mut w.inactive,
+        &mut w.hovered,
+        &mut w.active,
+        &mut w.open,
+    ] {
+        state.rounding = egui::Rounding::same(WIDGET_ROUNDING);
+        state.fg_stroke.color = TEXT_PRIMARY;
+    }
+    ctx.set_visuals(v);
 }
 
 #[cfg(test)]

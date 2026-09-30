@@ -6,7 +6,7 @@
   inactive/hovered/active fills and `selection.bg_fill` from tokens, `selection.stroke` 1 pt
   `ACCENT`, and no fill field equals `ACCENT`; stub constants so it compiles and fails
   (files: src/ui/theme.rs)
-- [ ] T2 [AC1] [AC2] [AC3] Token constants + `TOKENS` + `apply_theme` rewrite (plan §Approach);
+- [x] T2 [AC1] [AC2] [AC3] Token constants + `TOKENS` + `apply_theme` rewrite (plan §Approach);
   DESIGN.md §3 gains `border`, `fill.widget`, `fill.hover`, `fill.active` rows and every chrome
   Home points at `ui/theme.rs`; T1 green (files: src/ui/theme.rs, DESIGN.md)
 - [ ] T3 [AC1] [AC2] [AC3] Test: source scan for `Color32` literals in `src/ui/` outside
