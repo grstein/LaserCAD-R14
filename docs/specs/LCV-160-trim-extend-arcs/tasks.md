@@ -3,7 +3,7 @@
 - [x] T1 [AC1] [AC2] [AC6] Geometry: `line_arc`, `circle_arc`, `arc_arc`, span-filtered. Unit tests
   first, covering a CW arc, an arc across ±π, a tangent case and endpoint inclusion (files:
   src/geometry/intersect/arc.rs, src/geometry/intersect/mod.rs, src/geometry/mod.rs)
-- [ ] T2 [AC1–9] Test: one failing integration test per AC that drives `TrimTool`/`ExtendTool` on
+- [x] T2 [AC1–9] Test: one failing integration test per AC that drives `TrimTool`/`ExtendTool` on
   `Document` + `History`. AC 8 also checks redo and the target's layer; AC 4 also covers a
   Circle cut at one point by each of two cutters (files: tests/it/document/trim_extend_arcs.rs,
   tests/it/document/mod.rs)
