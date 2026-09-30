@@ -20,7 +20,7 @@
 use crate::app::App;
 use crate::document::{DeleteEntities, Document, Entity, History, SelectionCommand};
 use crate::geometry::Vec2;
-use crate::tools::Tool;
+use crate::tools::{Mark, Tool};
 
 // ---------------------------------------------------------------------------
 // DeleteTool
@@ -88,6 +88,19 @@ impl Tool for DeleteTool {
         vec![]
     }
 
+    /// LCV-163 AC 5: every selected entity, as `Danger`, while the cursor
+    /// is on the canvas — what the click would erase.
+    fn feedback(&self, doc: &Document, cursor: Option<Vec2>) -> Vec<Mark> {
+        if cursor.is_none() {
+            return Vec::new();
+        }
+        doc.selection
+            .iter()
+            .filter_map(|i| doc.entities.get(i).copied())
+            .map(Mark::Danger)
+            .collect()
+    }
+
     fn cancel(&mut self) {}
 }
 
@@ -124,6 +137,24 @@ mod tests {
     #[test]
     fn preview_always_empty() {
         assert!(DeleteTool.preview().is_empty());
+    }
+
+    /// LCV-163 AC 5/AC 9 — every selected entity is a `Danger` mark while
+    /// the cursor is on the canvas; nothing when it is `None`.
+    #[test]
+    fn feedback_marks_every_selected_entity_as_danger() {
+        let mut doc = doc_with_line();
+        let other = Entity::Line(Line::new(Vec2::new(0.0, 5.0), Vec2::new(10.0, 5.0)));
+        doc.push_current(other);
+        doc.push_current(other);
+        let mut hist = History::default();
+        hist.commit(Box::new(SelectionCommand::new([0usize, 2])), &mut doc);
+        let cursor = Some(Vec2::new(50.0, 50.0));
+        assert_eq!(
+            DeleteTool.feedback(&doc, cursor),
+            vec![Mark::Danger(doc.entities[0]), Mark::Danger(doc.entities[2])]
+        );
+        assert!(DeleteTool.feedback(&doc, None).is_empty());
     }
 
     /// AC#4 — `cancel()` is a no-op (doesn't panic or corrupt state).

@@ -11,7 +11,7 @@ use crate::app::App;
 use crate::document::commands::trim::extend_reach;
 use crate::document::{Document, Entity, ExtendEntity, History};
 use crate::geometry::Vec2;
-use crate::tools::{PICK_APERTURE_PT, Tool};
+use crate::tools::{Mark, PICK_APERTURE_PT, Tool};
 
 /// Compact hover state: (target_idx, extend_endpoint, boundary_idx, preview).
 #[derive(Debug, Clone, Copy)]
@@ -114,6 +114,18 @@ impl Tool for ExtendTool {
         }
     }
 
+    /// LCV-163 AC 3: the entity whose endpoint a click would extend, as
+    /// `Hover`, then its extension as the amber `Preview` — nothing when
+    /// `cursor` is `None` or no extension is in reach.
+    fn feedback(&self, doc: &Document, cursor: Option<Vec2>) -> Vec<Mark> {
+        let radius = PICK_APERTURE_PT * self.mm_per_pt;
+        cursor
+            .and_then(|c| hover(c, &doc.entities, radius))
+            .map_or_else(Vec::new, |H(ti, _, _, grown)| {
+                vec![Mark::Hover(ti), Mark::Preview(grown)]
+            })
+    }
+
     fn cancel(&mut self) {
         self.state = State::Idle;
     }
@@ -147,6 +159,22 @@ mod tests {
     fn hd() -> (ExtendTool, Document, History) {
         let d = mk(vec![le(0.,0.,5.,0.), le(10.,-1.,10.,1.)]);
         (ExtendTool::default(), d, History::default())
+    }
+
+    /// LCV-163 AC 3 — the picked entity is `Hover`ed and its extension
+    /// stays a `Preview`; nothing when the cursor is `None`.
+    #[test]
+    fn feedback_hovers_the_picked_entity_and_previews_the_extension() {
+        let (t, d, _) = hd();
+        let marks = t.feedback(&d, Some(v(5.2, 0.)));
+        assert_eq!(marks.len(), 2);
+        assert_eq!(marks[0], Mark::Hover(0));
+        let Mark::Preview(grown) = marks[1] else {
+            panic!("expected Preview, got {:?}", marks[1]);
+        };
+        assert!(li(grown).p2.approx_eq(v(10., 0.), EPSILON));
+        assert!(t.feedback(&d, None).is_empty());
+        assert!(t.feedback(&d, Some(v(2.5, 20.))).is_empty());
     }
 
     #[test]

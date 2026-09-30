@@ -45,7 +45,7 @@
 - [x] T11 [P] [AC3] [AC4] [AC6] TRIM: `trim_steps` → `trim_fold` returning (cutter indices, kept
   entity); click builds commands from the indices; `feedback` = `Hover(target)` + `Danger` per
   `removed_pieces` (files: src/tools/trim.rs)
-- [ ] T12 [P] [AC3] [AC5] EXTEND `feedback` = `Hover(ti)` + `Preview(grown)` from
+- [x] T12 [P] [AC3] [AC5] EXTEND `feedback` = `Hover(ti)` + `Preview(grown)` from
   `hover(cursor, …)`; ERASE `feedback` = `Danger` per selected entity when `cursor` is `Some`;
   T5 and T6 go green (files: src/tools/extend.rs, src/tools/delete.rs)
 - [ ] T13 [AC10] DESIGN.md §3: `hover` and `danger` rows (value, contrast, home
