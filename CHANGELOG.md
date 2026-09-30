@@ -8,6 +8,10 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ## [Unreleased]
 
+### Changed
+
+- The tool rail shows AutoCAD-style line icons instead of words, in two columns: drawing tools on the left, editing tools on the right, and the `AI` toggle (formerly `Agent`) below them. The rail is narrower (76 points) and no longer scrolls at 800×600. Hovering a tool shows its name, key and command word, e.g. `Line — L · LINE`. See LCV-183.
+
 ## [0.4.0] - 2026-09-30
 
 ### Added

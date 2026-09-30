@@ -24,5 +24,5 @@
   measure and its clamp test; T6 goes green (files: src/app/panels.rs)
 - [x] T10 [AC10] DESIGN.md §2 rail budget ≤80 pt, §7 tool rail: painted icons, two columns,
   `AI` toggle, tooltip format (files: DESIGN.md)
-- [ ] T11 CHANGELOG `[Unreleased]` line: icon tool rail in two columns, tooltips with key and
+- [x] T11 CHANGELOG `[Unreleased]` line: icon tool rail in two columns, tooltips with key and
   command word (files: CHANGELOG.md)
