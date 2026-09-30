@@ -26,6 +26,15 @@ use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History};
 use crate::geometry::Vec2;
 
+/// Entity pick aperture in screen points (LCV-162, DESIGN.md §5): an entity
+/// within this distance of the cursor can be picked; the pickbox side is
+/// twice this. Tools turn it into mm with the live zoom.
+pub const PICK_APERTURE_PT: f64 = 5.0;
+
+/// How far, in screen points, a Select press must move before it becomes a
+/// box drag (LCV-162, DESIGN.md §5).
+pub const DRAG_THRESHOLD_PT: f64 = 2.0;
+
 /// Tool trait: state-machine interface for drawing and modify tools.
 ///
 /// Every tool implements this trait. `ToolManager` owns the active tool
@@ -119,6 +128,19 @@ pub trait Tool {
     fn anchor(&self) -> Option<crate::geometry::Vec2> {
         None
     }
+
+    /// True while this tool waits for an entity pick (Select idle, TRIM,
+    /// EXTEND): the canvas then paints the pickbox and resolves no running
+    /// snap (LCV-162 AC 5, AC 11). Defaults to `false`: a point pick.
+    fn wants_entity_pick(&self) -> bool {
+        false
+    }
+
+    /// The live zoom in mm per screen point, forwarded by
+    /// [`ToolManager::set_pick_scale`](super::ToolManager::set_pick_scale)
+    /// (LCV-162). An entity-picking tool multiplies [`PICK_APERTURE_PT`] and
+    /// [`DRAG_THRESHOLD_PT`] by it. The default ignores it.
+    fn set_pick_scale(&mut self, _mm_per_pt: f64) {}
 
     /// Preview geometry for the current tool state. Returns an empty vector
     /// if the tool has no in-progress preview. The returned entities are

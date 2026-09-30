@@ -40,7 +40,7 @@ pub use rotate::RotateTool;
 pub use scale::ScaleTool;
 pub use select::SelectTool;
 pub use text::TextTool;
-pub use tool::Tool;
+pub use tool::{DRAG_THRESHOLD_PT, PICK_APERTURE_PT, Tool};
 pub use trim::TrimTool;
 
 use crate::cmdline::ToolKind;

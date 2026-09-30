@@ -23,6 +23,9 @@ use crate::tools::pointer_event::{PointerButton, PointerEvent};
 pub struct ToolManager {
     /// The currently active tool. Never `None` — the app always has a tool.
     active: Box<dyn Tool>,
+    /// The live zoom in mm per screen point, as last set by
+    /// [`Self::set_pick_scale`]; `1.0` (the default camera) until then.
+    mm_per_pt: f64,
 }
 
 impl std::fmt::Debug for ToolManager {
@@ -44,7 +47,10 @@ impl ToolManager {
     /// assert_eq!(manager.active_tool_name(), "Select");
     /// ```
     pub fn new(initial: Box<dyn Tool>) -> Self {
-        Self { active: initial }
+        Self {
+            active: initial,
+            mm_per_pt: 1.0,
+        }
     }
 
     /// Replace the active tool. Calls `cancel()` on the old tool before
@@ -58,9 +64,33 @@ impl ToolManager {
     /// manager.set_tool(Box::new(SelectTool::default()));
     /// assert_eq!(manager.active_tool_name(), "Select");
     /// ```
-    pub fn set_tool(&mut self, tool: Box<dyn Tool>) {
+    ///
+    /// The new tool gets the stored pick scale before its first event
+    /// (LCV-162), so a pick right after a switch uses the live zoom.
+    pub fn set_tool(&mut self, mut tool: Box<dyn Tool>) {
         self.active.cancel();
+        tool.set_pick_scale(self.mm_per_pt);
         self.active = tool;
+    }
+
+    /// Store the live zoom in mm per screen point and forward it to the
+    /// active tool (LCV-162). Called every frame by the viewport before any
+    /// pointer event.
+    pub fn set_pick_scale(&mut self, mm_per_pt: f64) {
+        self.mm_per_pt = mm_per_pt;
+        self.active.set_pick_scale(mm_per_pt);
+    }
+
+    /// True while the active tool waits for an entity pick (LCV-162 AC 5):
+    /// the canvas paints the pickbox and resolves no running snap.
+    pub fn wants_entity_pick(&self) -> bool {
+        self.active.wants_entity_pick()
+    }
+
+    /// The entity pick aperture in mm at the stored zoom:
+    /// [`PICK_APERTURE_PT`](crate::tools::PICK_APERTURE_PT) × mm per point.
+    pub fn pick_aperture_mm(&self) -> f64 {
+        crate::tools::PICK_APERTURE_PT * self.mm_per_pt
     }
 
     /// Name of the currently active tool (delegates to `active.name()`).
@@ -514,5 +544,81 @@ mod tests {
             Some(Vec2::new(1.0, 2.0)),
             "anchor should be the first click point"
         );
+    }
+
+    /// A tool that records the last pick scale it was handed.
+    struct ScaleProbe {
+        scale: Rc<RefCell<Option<f64>>>,
+        picks: bool,
+    }
+    impl Tool for ScaleProbe {
+        fn name(&self) -> &'static str {
+            "Probe"
+        }
+        fn on_pointer_down(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
+        fn on_pointer_move(&mut self, _: Vec2, _: &mut Document) {}
+        fn on_pointer_up(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
+        fn on_key(&mut self, _: egui::Key, _: &mut App) {}
+        fn preview(&self) -> Vec<Entity> {
+            vec![]
+        }
+        fn cancel(&mut self) {}
+        fn wants_entity_pick(&self) -> bool {
+            self.picks
+        }
+        fn set_pick_scale(&mut self, mm_per_pt: f64) {
+            *self.scale.borrow_mut() = Some(mm_per_pt);
+        }
+    }
+
+    fn probe(picks: bool) -> (ScaleProbe, Rc<RefCell<Option<f64>>>) {
+        let scale = Rc::new(RefCell::new(None));
+        let tool = ScaleProbe {
+            scale: scale.clone(),
+            picks,
+        };
+        (tool, scale)
+    }
+
+    /// LCV-162 AC 7 — `set_pick_scale` reaches the active tool, and the
+    /// aperture in mm is `PICK_APERTURE_PT` times the scale (5 mm at the
+    /// default 1 mm/pt).
+    #[test]
+    fn set_pick_scale_forwards_and_scales_the_aperture() {
+        let (tool, scale) = probe(true);
+        let mut manager = ToolManager::new(Box::new(tool));
+        assert_eq!(manager.pick_aperture_mm(), 5.0);
+        manager.set_pick_scale(20.0);
+        assert_eq!(*scale.borrow(), Some(20.0));
+        assert_eq!(manager.pick_aperture_mm(), 100.0);
+        manager.set_pick_scale(0.05);
+        assert_eq!(
+            manager.pick_aperture_mm(),
+            crate::tools::PICK_APERTURE_PT * 0.05
+        );
+    }
+
+    /// LCV-162 AC 7–9 — a tool switched in gets the stored scale at once,
+    /// without waiting for the next frame.
+    #[test]
+    fn set_tool_forwards_the_stored_scale() {
+        let mut manager = ToolManager::default();
+        manager.set_pick_scale(0.05);
+        let (tool, scale) = probe(false);
+        manager.set_tool(Box::new(tool));
+        assert_eq!(*scale.borrow(), Some(0.05));
+    }
+
+    /// LCV-162 AC 5/AC 6 — `wants_entity_pick` delegates; the trait default
+    /// is `false` (a point pick).
+    #[test]
+    fn wants_entity_pick_delegates_with_a_false_default() {
+        let (tool, _) = probe(true);
+        assert!(ToolManager::new(Box::new(tool)).wants_entity_pick());
+        let (tool, _) = probe(false);
+        assert!(!ToolManager::new(Box::new(tool)).wants_entity_pick());
+        let line = ToolManager::new(Box::new(crate::tools::LineTool::default()));
+        assert!(!line.wants_entity_pick());
+        assert_eq!(crate::tools::DRAG_THRESHOLD_PT, 2.0);
     }
 }
