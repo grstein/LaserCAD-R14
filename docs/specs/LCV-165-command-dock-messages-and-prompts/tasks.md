@@ -3,7 +3,7 @@
 - [x] T1 Refactor, no behaviour change: move `send`, `direct_distance`, `NO_BASE_POINT`,
   `NO_DIRECTION` into `app/cmdline/dispatch.rs`; `scripts/check.sh cmdline` green (files:
   src/app/cmdline.rs, src/app/cmdline/dispatch.rs)
-- [ ] T2 [AC1] Test first: painted feedback colour — `hello` ⏎ → `STATUS_WARNING`, `grid` ⏎ →
+- [x] T2 [AC1] Test first: painted feedback colour — `hello` ⏎ → `STATUS_WARNING`, `grid` ⏎ →
   `TEXT_PRIMARY`, `:x` ⏎ with no API key → `STATUS_ERROR`; `App::command_feedback_severity`
   asserted for DIST result (Info), `@1,0` with no anchor (Warning), export not saved (Warning)
   (files: tests/it/cmdline/dock_messages.rs, tests/it/cmdline/mod.rs)

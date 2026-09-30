@@ -3,6 +3,7 @@
 mod agent_routing;
 mod command_words;
 mod context_row;
+mod dock_messages;
 mod copy_command;
 mod drives_tools;
 mod polar_and_dist;
