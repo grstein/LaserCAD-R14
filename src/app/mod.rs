@@ -38,6 +38,7 @@ mod bed_dialog;
 mod cmdline;
 mod discard;
 mod document_title;
+mod feedback;
 mod file_ops;
 mod init;
 mod input;
@@ -68,6 +69,7 @@ pub(crate) use cmdline::agent_available;
 pub use cmdline::submit;
 pub use discard::{apply_dialog_result, draw_discard_dialog, poll_close_request};
 pub use document_title::DocumentTitleState;
+pub use feedback::Severity;
 pub use file_ops::PendingAction;
 pub use input::process_input;
 pub use layers::LayersDialog;
@@ -165,6 +167,8 @@ pub struct App {
     /// reads it. Cleared at the top of every [`submit`] and by the widget's
     /// Escape branch, so a stale error is always dismissible.
     pub command_feedback: String,
+    /// How the dock paints `command_feedback`; written only by [`App::say`].
+    pub command_feedback_severity: Severity,
     /// One-shot focus request for the command-line widget (LCV-111 AC 20).
     /// Set by the keyboard gate when an unbound character is typed while the
     /// field is unfocused; consumed with `std::mem::take` by the widget,

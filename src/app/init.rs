@@ -59,6 +59,7 @@ impl Default for App {
             command_line_input: String::new(),
             command_history: CommandHistory::default(),
             command_feedback: String::new(),
+            command_feedback_severity: super::Severity::Warning,
             focus_command_line: false,
             command_line_focused: false,
             snap_enabled: true,

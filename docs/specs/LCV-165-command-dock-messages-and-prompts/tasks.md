@@ -7,7 +7,7 @@
   `TEXT_PRIMARY`, `:x` ⏎ with no API key → `STATUS_ERROR`; `App::command_feedback_severity`
   asserted for DIST result (Info), `@1,0` with no anchor (Warning), export not saved (Warning)
   (files: tests/it/cmdline/dock_messages.rs, tests/it/cmdline/mod.rs)
-- [ ] T3 [AC1] `Severity` + `App::say` in `app/feedback.rs`; field and default (files:
+- [x] T3 [AC1] `Severity` + `App::say` in `app/feedback.rs`; field and default (files:
   src/app/feedback.rs, src/app/mod.rs, src/app/init.rs)
 - [ ] T4 [AC1] Writers use `say` with the plan's severities (files: src/app/cmdline.rs,
   src/app/cmdline/dispatch.rs, src/app/viewport.rs)
