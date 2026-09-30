@@ -1,6 +1,7 @@
 //! LCV-158 AC9 — the agent's `rotate_entity` commits the same
 //! `TransformEntities` as ROTATE, in degrees, as one undo step; LCV-181 AC10
-//! — `mirror_entity` commits the same `TransformEntities` as MIRROR.
+//! — `mirror_entity` commits the same `TransformEntities` as MIRROR; LCV-182
+//! AC8 — `scale_entity` commits the same `TransformEntities` as SCALE.
 
 use core::f64::consts::FRAC_PI_2;
 
@@ -174,6 +175,65 @@ fn mirror_entity_refuses_out_of_range_and_coincident_points() {
         &mirror_action(json!({"index":0,"x1":2,"y1":2,"x2":2,"y2":2,"erase_source":true})),
     );
     assert!(matches!(point, AgentOutcome::Refused(_)), "{point:?}");
+
+    assert_eq!(app.history.revision(), before);
+    assert_eq!(app.document.entities, vec![Entity::Line(line)]);
+}
+
+fn scale_action(args: serde_json::Value) -> AgentAction {
+    parse_tool_call("scale_entity", &args).unwrap_or_else(|e| panic!("{e}"))
+}
+
+/// LCV-182 AC8 — `scale_entity` by 2 about the origin gives the same entity
+/// as SCALE's `TransformEntities`, keeps the layer and the selection,
+/// narrates the scale, and is one undo step.
+#[test]
+fn scale_entity_applies_the_scale_command() {
+    let (mut app, line) = app_with_line();
+    let layer = app.document.entity_layer(0);
+    let before = app.history.revision();
+
+    let outcome = apply(
+        &mut app,
+        &scale_action(json!({"index":0,"x":0.0,"y":0.0,"factor":2.0})),
+    );
+
+    assert!(matches!(outcome, AgentOutcome::Ok(_)), "{outcome:?}");
+    assert!(
+        outcome.text().starts_with("Scaled entity 0 (line"),
+        "{}",
+        outcome.text()
+    );
+    assert!(outcome.text().contains("by 2.000"), "{}", outcome.text());
+    let t = Transform::Scale {
+        base: Vec2::new(0.0, 0.0),
+        factor: 2.0,
+    };
+    assert_eq!(app.document.entities, vec![Entity::Line(t.line(line))]);
+    assert_eq!(app.document.entity_layer(0), layer);
+    assert!(app.document.selection.is_selected(0));
+    assert_eq!(app.history.revision(), before + 1);
+    assert!(app.history.undo(&mut app.document));
+    assert_eq!(app.document.entities, vec![Entity::Line(line)]);
+}
+
+/// LCV-182 AC8 — out of range is refused; AC6 — a factor of 1 commits
+/// nothing.
+#[test]
+fn scale_entity_refuses_out_of_range_and_skips_factor_one() {
+    let (mut app, line) = app_with_line();
+    let before = app.history.revision();
+
+    let far = apply(
+        &mut app,
+        &scale_action(json!({"index":3,"x":0,"y":0,"factor":2})),
+    );
+    assert!(matches!(far, AgentOutcome::Refused(_)), "{far:?}");
+    let one = apply(
+        &mut app,
+        &scale_action(json!({"index":0,"x":5,"y":5,"factor":1})),
+    );
+    assert!(matches!(one, AgentOutcome::Ok(_)), "{one:?}");
 
     assert_eq!(app.history.revision(), before);
     assert_eq!(app.document.entities, vec![Entity::Line(line)]);

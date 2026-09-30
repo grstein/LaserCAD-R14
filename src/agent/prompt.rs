@@ -62,6 +62,10 @@ index across the line through x1, y1 and x2, y2 in mm; the two points must
 differ. erase_source true replaces the entity; false keeps it and adds the
 mirrored copy at the end, on the same layer.
 
+scale_entity {index, x, y, factor}: scale the entity at index about the point
+x, y in mm by factor, which must be greater than 0. Positions and radii
+scale; arc angles stay the same.
+
 query_entities {}: list every entity with its index, kind, geometry in mm
 and layer, plus the bed size and the layers. Changes nothing.
 
