@@ -23,7 +23,8 @@ Rust (toolchain pinned) · `egui`/`eframe` · `rfd` dialogs · blocking `reqwest
   retired in the SDD migration and remain in git history (`git log -- docs/product/demands`).
 - **1.0 scope** (user decisions 2026-09-27/28): LCV-142..145, 149..153 — all Done.
   LCV-146 is deferred past 1.0.
-- **Release**: v0.2.0 (LCV-089) published 2026-09-28; v0.3.0 published 2026-09-30 after the user smoke test, with the user's authorization.
+- **Release**: v0.2.0 (LCV-089) published 2026-09-28; v0.3.0 published 2026-09-30 after the user smoke test, with the user's authorization;
+  v0.4.0 (LCV-160..163) bumped 2026-09-30, untagged until the user smoke-tests it.
 - **v0.3 "workshop-ready"** (approved 2026-09-29): LCV-156 layers, 157 COPY, 159 polar `@d<a` +
   DIST, 158 ROTATE, 181 MIRROR, 182 SCALE — all Done 2026-09-30 (158 was split into 158/181/182).
   Released as v0.3.0.
