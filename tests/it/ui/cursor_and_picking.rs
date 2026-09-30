@@ -10,9 +10,10 @@
 use crate::harness;
 
 use lasercad::app::App;
+use lasercad::cmdline::ToolKind;
 use lasercad::document::CreateLine;
 use lasercad::geometry::{Line, Vec2};
-use lasercad::tools::{LineTool, SelectTool, Tool};
+use lasercad::tools::{LineTool, SelectTool, Tool, make};
 
 /// A booted app with its canvas rect and one known (screen, world) pair.
 struct Canvas {
@@ -345,4 +346,56 @@ fn pickboxes(c: &Canvas, out: &egui::FullOutput, at: egui::Pos2) -> usize {
             _ => false,
         })
         .count()
+}
+
+/// AC 5 — Select idle, TRIM and EXTEND wait for an entity pick: one hollow
+/// square of side 2 × 5 pt, centred on the crosshair.
+#[test]
+fn entity_picks_paint_the_pickbox_on_the_crosshair() {
+    for kind in [ToolKind::Select, ToolKind::Trim, ToolKind::Extend] {
+        let mut c = boot(make(kind));
+        let out = c.hover(c.p + egui::vec2(11.0, 7.0));
+        let (at, _) = crosshair(&c, &out);
+        assert_eq!(pickboxes(&c, &out, at), 1, "AC 5: {kind:?} paints it");
+    }
+}
+
+/// AC 6 — tools waiting for a point paint no pickbox, and neither does a
+/// Select box drag in progress.
+#[test]
+fn point_picks_and_box_drags_paint_no_pickbox() {
+    for kind in [
+        ToolKind::Line,
+        ToolKind::Copy,
+        ToolKind::Move,
+        ToolKind::Rotate,
+        ToolKind::Mirror,
+        ToolKind::Scale,
+        ToolKind::Dist,
+    ] {
+        let mut c = boot(make(kind));
+        let out = c.hover(c.p + egui::vec2(11.0, 7.0));
+        let (at, _) = crosshair(&c, &out);
+        assert_eq!(pickboxes(&c, &out, at), 0, "AC 6: {kind:?} paints none");
+    }
+
+    let mut c = boot(make(ToolKind::Select));
+    let p = c.p;
+    let _ = c.run(vec![
+        egui::Event::PointerMoved(p),
+        egui::Event::PointerButton {
+            pos: p,
+            button: egui::PointerButton::Primary,
+            pressed: true,
+            modifiers: egui::Modifiers::NONE,
+        },
+    ]);
+    let out = c.hover(p + egui::vec2(30.0, 20.0));
+    assert_eq!(
+        c.app.tool_manager.preview().len(),
+        4,
+        "positive control: a box drag is in progress"
+    );
+    let (at, _) = crosshair(&c, &out);
+    assert_eq!(pickboxes(&c, &out, at), 0, "AC 6: no pickbox mid-drag");
 }
