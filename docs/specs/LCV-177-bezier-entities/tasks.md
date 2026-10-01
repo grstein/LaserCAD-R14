@@ -1,6 +1,6 @@
 # LCV-177 — Tasks
 
-- [ ] T1 [AC5, AC6] Test: `Bezier` point/start/end/map for both degrees; tight bbox with the
+- [x] T1 [AC5, AC6] Test: `Bezier` point/start/end/map for both degrees; tight bbox with the
   control polygon far outside the curve, an axis extremum inside (0, 1), and a near-zero leading
   coefficient; `polyline(tol)` vertices on the curve, chord deviation ≤ tol, a straight curve
   gives `n = 1` (files: tests/it/geometry/bezier_props.rs, tests/it/geometry/mod.rs)
