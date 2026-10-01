@@ -43,5 +43,5 @@
   identical entities (`==` on the vectors) (files: `tests/it/io_svg/text.rs`)
 - [x] T15 Mutation run on `src/text/{fonts,outline}.rs` and `import/text.rs`; kill or justify
   survivors in the review notes (files: tests above as needed)
-- [ ] T16 CHANGELOG: "Open SVG: text becomes cuttable outlines in the named installed font;
+- [x] T16 CHANGELOG: "Open SVG: text becomes cuttable outlines in the named installed font;
   substitutions and unsupported text features appear in the import report" (files: `CHANGELOG.md`)
