@@ -41,7 +41,7 @@
 - [x] T14 [AC8] Test: MOVE, COPY, ROTATE, MIRROR and SCALE on a cubic and a quadratic through
   the tools; points equal `Transform::point` of the originals, each undoes as one step (files:
   tests/it/app/bezier_edit.rs)
-- [ ] T15 [AC10] Test: TRIM and EXTEND aimed at a Bézier leave document and history unchanged
+- [x] T15 [AC10] Test: TRIM and EXTEND aimed at a Bézier leave document and history unchanged
   and set "Cannot trim/extend a curve"; a Bézier is never a cutter or boundary for a line (files:
   tests/it/app/bezier_edit.rs)
 - [ ] T16 [AC10] Pick distance and `take_message` in TRIM/EXTEND; `cut_points`/`extend_reach`

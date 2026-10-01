@@ -13,8 +13,8 @@ use harness::{frame, submit_command, tap};
 use lasercad::app::App;
 use lasercad::document::Entity;
 use lasercad::document::commands::CreateEntities;
-use lasercad::geometry::{Bezier, Transform, Vec2};
-use lasercad::tools::{SelectTool, Tool};
+use lasercad::geometry::{Bezier, Line, Transform, Vec2};
+use lasercad::tools::{ExtendTool, SelectTool, Tool, TrimTool};
 
 struct Scene {
     ctx: egui::Context,
@@ -80,6 +80,11 @@ impl Scene {
 
     fn add_all(&mut self, entities: Vec<Entity>) {
         self.app.commit(Box::new(CreateEntities::new(entities)));
+    }
+
+    /// The line from `a` to `b`, both in pixels from `w0`.
+    fn line(&self, a: (f64, f64), b: (f64, f64)) -> Entity {
+        Entity::Line(Line::new(self.w(a.0, a.1), self.w(b.0, b.1)))
     }
 
     fn press(&mut self, at: egui::Pos2, pressed: bool) {
@@ -296,5 +301,74 @@ fn modify_tools_transform_a_bezier_exactly_in_one_step() {
                 "{name}: undone"
             );
         }
+    }
+}
+
+const REFUSAL: &str = "Cannot trim/extend a curve";
+
+/// AC 10 — a TRIM or EXTEND click on a Bézier (mid-curve or at an end)
+/// changes nothing, adds no undo step and says why.
+#[test]
+fn trim_and_extend_aimed_at_a_bezier_refuse() {
+    let tools: [fn() -> Box<dyn Tool>; 2] = [
+        || Box::new(TrimTool::default()),
+        || Box::new(ExtendTool::default()),
+    ];
+    for tool in tools {
+        let s0 = Scene::new(tool());
+        for b in [s0.cubic(), s0.quadratic()] {
+            let mut s = Scene::new(tool());
+            let crossing = s.line((-300.0, 20.0), (300.0, 20.0));
+            s.add_all(vec![Entity::Bezier(b), crossing]);
+            let name = s.app.tool_manager.active_tool_name();
+            for at in [b.point(0.3), b.start(), b.end()] {
+                let depth = s.app.history.len();
+                s.app.command_feedback.clear();
+                s.click(at);
+                assert_eq!(
+                    s.app.document.entities,
+                    vec![Entity::Bezier(b), crossing],
+                    "{name} at {at:?}: unchanged"
+                );
+                assert_eq!(s.app.history.len(), depth, "{name}: no undo step");
+                assert_eq!(s.app.command_feedback, REFUSAL, "{name} at {at:?}");
+            }
+        }
+    }
+}
+
+/// AC 10 — a Bézier is no cutter for TRIM and no boundary for EXTEND: a
+/// line through it is cut, and grown, only at a line beyond it.
+#[test]
+fn a_bezier_is_no_cutter_and_no_boundary() {
+    let s0 = Scene::new(Box::new(TrimTool::default()));
+    for b in [s0.cubic(), s0.quadratic()] {
+        let mut s = Scene::new(Box::new(TrimTool::default()));
+        let wall = s.line((250.0, -50.0), (250.0, 50.0));
+        let through = s.line((-300.0, 20.0), (300.0, 20.0));
+        s.add_all(vec![Entity::Bezier(b), through, wall]);
+        // TRIM keeps the clicked side: everything left of the wall.
+        s.click(s.w(-280.0, 20.0));
+        let Entity::Line(got) = s.app.document.entities[1] else {
+            panic!("the trimmed line stays a line");
+        };
+        assert!(
+            got.p1.approx_eq(s.w(-300.0, 20.0), 1e-9) && got.p2.approx_eq(s.w(250.0, 20.0), 1e-9),
+            "{b:?}: TRIM cuts at the wall only: {got:?}"
+        );
+
+        let mut s = Scene::new(Box::new(ExtendTool::default()));
+        let wall = s.line((250.0, -50.0), (250.0, 50.0));
+        let short = s.line((-300.0, 20.0), (-200.0, 20.0));
+        s.add_all(vec![Entity::Bezier(b), short, wall]);
+        s.click(s.w(-202.0, 20.0));
+        let Entity::Line(got) = s.app.document.entities[1] else {
+            panic!("the extended line stays a line");
+        };
+        assert!(
+            got.p2.approx_eq(s.w(250.0, 20.0), 1e-9),
+            "{b:?}: EXTEND grows to the wall: {got:?}"
+        );
+        assert_ne!(s.app.command_feedback, REFUSAL);
     }
 }
