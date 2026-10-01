@@ -371,4 +371,36 @@ mod tests {
         assert_box(entity_box(&es[..n]), placed_box('l', 10.0 - half, 50.0, s));
         assert_box(entity_box(&es[n..]), placed_box('l', 60.0 - half, 70.0, s));
     }
+
+    /// The entities of each `l` in `es`, in order (every `l` has as many).
+    fn per_l(es: &[Entity], count: usize) -> Vec<(Vec2, Vec2)> {
+        es.chunks(es.len() / count).map(entity_box).collect()
+    }
+
+    /// AC 6 — an `x` list places the first three characters; the fourth
+    /// continues by the third's advance.
+    #[test]
+    fn an_x_list_places_each_character() {
+        let es = page(r#"<text x="0 10 20" y="50" font-size="20.48">llll</text>"#).entities;
+        let s = 20.48 / UPEM;
+        let got = per_l(&es, 4);
+        for (i, x) in [0.0, 10.0, 20.0, 20.0 + 455.0 * s].into_iter().enumerate() {
+            assert_box(got[i], placed_box('l', x, 50.0, s));
+        }
+    }
+
+    /// AC 6 — a `dy` list on a `tspan` shifts its characters cumulatively;
+    /// an inner `x` overrides the outer list's value for that character.
+    #[test]
+    fn tspan_lists_shift_and_override() {
+        let es = page(
+            r#"<text x="0 10 20" y="50" font-size="20.48">l<tspan x="30" dy="5 5">ll</tspan></text>"#,
+        )
+        .entities;
+        let s = 20.48 / UPEM;
+        let got = per_l(&es, 3);
+        assert_box(got[0], placed_box('l', 0.0, 50.0, s));
+        assert_box(got[1], placed_box('l', 30.0, 55.0, s));
+        assert_box(got[2], placed_box('l', 20.0, 60.0, s));
+    }
 }
