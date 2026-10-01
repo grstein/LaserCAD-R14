@@ -20,7 +20,7 @@ Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/
 - [x] T7 [AC1][AC7] Test: `CheckReport::lines()` — summary lines in kind order, singular/plural,
   zero-count kinds omitted, finding lines by kind then index with `{:.3}` mm, clean drawing →
   exactly `CHECK: no problems found.` (files: src/document/check/tests.rs)
-- [ ] T8 [AC1][AC7] `CheckReport::lines()`; move formatting to `check/report.rs` if `check.rs`
+- [x] T8 [AC1][AC7] `CheckReport::lines()`; move formatting to `check/report.rs` if `check.rs`
   passes 270 (files: src/document/check.rs, src/document/check/report.rs)
 - [ ] T9 [AC1][AC7][AC8] Test (headless app): typing `check` fills the dock with the joined summary
   and `check_report` with the lines; clean drawing → dock `CHECK: no problems found.`, no report;
