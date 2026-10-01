@@ -699,3 +699,48 @@
             assert!(about.contains(q), "{q} undescribed");
         }
     }
+
+    /// LCV-196 AC 10 — the `create_drawing` item schema lists the nine types
+    /// and every new key with its JSON type (`points` items `{x, y}`, `of` an
+    /// integer array); a recursive scan finds no union or closed-object
+    /// keyword; the item description names each type's keys.
+    #[test]
+    fn create_drawing_schema_lists_every_type_and_key() {
+        use crate::agent::drawing::ENTITY_TYPES;
+        let d = tool_definitions(false);
+        let params = &d[14]["function"]["parameters"];
+        let item = &params["properties"]["entities"]["items"];
+        let props = &item["properties"];
+        assert_eq!(props["type"]["enum"], json!(["line","circle","arc","polyline","rect",
+            "polygon","text","linear_array","polar_array"]));
+        for (key, ty) in [("points","array"),("closed","boolean"),("x","number"),("y","number"),
+            ("width","number"),("height","number"),("corner_radius","number"),("sides","integer"),
+            ("start_deg","number"),("text","string"),("of","array"),("count","integer"),
+            ("dx","number"),("dy","number"),("step_deg","number"),("ccw","boolean"),("r","number")] {
+            assert_eq!(props[key]["type"], ty, "{key}");
+        }
+        assert_eq!(props["points"]["items"]["type"], "object");
+        assert_eq!(props["points"]["items"]["properties"],
+            json!({"x":{"type":"number"},"y":{"type":"number"}}));
+        assert_eq!(props["points"]["items"]["required"], json!(["x","y"]));
+        assert_eq!(props["of"]["items"], json!({"type":"integer"}));
+        fn keys(v: &Value, out: &mut Vec<String>) {
+            match v {
+                Value::Object(m) => for (k, v) in m { out.push(k.clone()); keys(v, out); },
+                Value::Array(a) => for v in a { keys(v, out); },
+                _ => {}
+            }
+        }
+        let mut found = Vec::new();
+        keys(params, &mut found);
+        assert!(found.iter().filter(|k| *k == "items").count() >= 3, "control: the walk reaches points");
+        for bad in ["oneOf","anyOf","allOf","const","additionalProperties"] {
+            assert!(!found.iter().any(|k| k == bad), "{bad} in the schema");
+        }
+        let about = item["description"].as_str().unwrap();
+        for ty in &ENTITY_TYPES {
+            let names: Vec<&str> = ty.keys.iter().map(|k| k.name).collect();
+            let needle = format!("{}: {}.", ty.name, names.join(", "));
+            assert!(about.contains(&needle), "{needle} not in {about}");
+        }
+    }
