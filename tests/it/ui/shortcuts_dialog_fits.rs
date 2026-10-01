@@ -274,7 +274,7 @@ fn deepest_slack(runs: &[Run], surface: egui::Rect) -> f32 {
 /// surface, so trap 1 in the module doc does not apply: nothing here scopes a
 /// painted run by the window title.
 fn window_rect(ctx: &egui::Context) -> egui::Rect {
-    ctx.memory(|m| m.area_rect(egui::Id::new("Keyboard shortcuts")))
+    ctx.memory(|m| m.area_rect(egui::Id::new("Keyboard Shortcuts")))
         .expect("the shortcuts window has been placed by the settled frame")
 }
 

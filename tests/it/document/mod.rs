@@ -2,3 +2,4 @@
 
 mod bed_roundtrip;
 mod layers;
+mod trim_extend_arcs;

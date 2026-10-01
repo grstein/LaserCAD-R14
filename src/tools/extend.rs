@@ -1,21 +1,25 @@
-//! ExtendTool: hover near a Line endpoint → preview → click to commit.
+//! ExtendTool: hover near a Line or Arc endpoint → preview → click to commit.
 //!
-//! `on_pointer_move` picks the nearest Line endpoint within [`PICK_RADIUS_MM`]
-//! and the nearest valid boundary (Line or Circle) and shows a live preview.
-//! `on_pointer_down` commits [`ExtendEntity`] and resets to `Idle`. Arcs are
-//! silently skipped. MUST NOT import `eframe` or `rfd`. Introduced by LCV-051.
+//! `on_pointer_move` picks the nearest Line or Arc endpoint within
+//! [`PICK_APERTURE_PT`] at the live zoom and the boundary with the least [`extend_reach`] travel
+//! (Line, Circle or Arc), and shows the grown entity as a live preview (a
+//! Line to its boundary; an Arc along its own circle, never into a full
+//! turn — LCV-160). `on_pointer_down` commits [`ExtendEntity`] and resets to
+//! `Idle`. MUST NOT import `eframe` or `rfd`. Introduced by LCV-051.
 
 use crate::app::App;
+use crate::document::commands::trim::extend_reach;
 use crate::document::{Document, Entity, ExtendEntity, History};
-use crate::geometry::{Circle, EPSILON, Line, Vec2, line_circle, line_line_infinite};
-use crate::tools::Tool;
+use crate::geometry::Vec2;
+use crate::tools::{Mark, PICK_APERTURE_PT, Tool};
+use std::borrow::Cow;
 
-/// World-space pick radius (mm) for nearest-endpoint detection.
-pub(crate) const PICK_RADIUS_MM: f64 = 5.0;
+/// The EXTEND prompt (LCV-165 AC 3).
+const PROMPT: &str = "EXTEND  Select object to extend:";
 
-/// Compact hover state: (target_idx, extend_endpoint, boundary_idx, preview_line).
+/// Compact hover state: (target_idx, extend_endpoint, boundary_idx, preview).
 #[derive(Debug, Clone, Copy)]
-struct H(usize, u8, usize, Line);
+struct H(usize, u8, usize, Entity);
 
 #[derive(Debug, Default)]
 enum State {
@@ -24,30 +28,55 @@ enum State {
     Hover(H),
 }
 
-/// Single-click extend-to-nearest-boundary modify tool (LCV-051).
-#[derive(Debug, Default)]
+/// Single-click extend-to-nearest-boundary modify tool (LCV-051, LCV-160).
+#[derive(Debug)]
 pub struct ExtendTool {
     state: State,
+    /// Live zoom in mm per screen point (LCV-162); `1.0` until forwarded.
+    mm_per_pt: f64,
 }
 
-// Parametric t of p on infinite line through `line` (0.0 if degenerate).
-#[rustfmt::skip]
-fn pt(line: &Line, p: Vec2) -> f64 {
-    let d = line.p2 - line.p1; let ls = d.length_squared();
-    if ls <= EPSILON * EPSILON { 0.0 } else { (p - line.p1).dot(d) / ls }
+impl Default for ExtendTool {
+    fn default() -> Self {
+        Self {
+            state: State::Idle,
+            mm_per_pt: 1.0,
+        }
+    }
 }
 
-// Valid infinite-line intersections of `tgt` with circle `b` for endpoint `ep`.
-#[rustfmt::skip]
-fn chits(tgt: &Line, b: &Circle, ep: u8) -> Vec<Vec2> {
-    let d = tgt.p2 - tgt.p1; let len = d.length();
-    if len <= EPSILON { return vec![]; }
-    let dir = d / len;
-    let reach = (b.center - tgt.p1).length() + b.r + len + 1.0;
-    let sur = Line::new(tgt.p1 - dir * reach, tgt.p1 + dir * reach);
-    line_circle(&sur, b).into_iter()
-        .filter(|&p| if ep == 0 { pt(tgt, p) < -EPSILON } else { pt(tgt, p) > 1.0 + EPSILON })
-        .collect()
+/// The two endpoints (`0` = p1 / start, `1` = p2 / end) of an extendable
+/// entity; `None` for a Circle.
+fn endpoints(e: &Entity) -> Option<[Vec2; 2]> {
+    match e {
+        Entity::Line(l) => Some([l.p1, l.p2]),
+        Entity::Arc(a) => Some([a.start_point(), a.end_point()]),
+        Entity::Circle(_) => None,
+    }
+}
+
+/// The hover state for `pos`: the nearest endpoint within `radius_mm` and
+/// its shortest extension, or `None`.
+fn hover(pos: Vec2, entities: &[Entity], radius_mm: f64) -> Option<H> {
+    let mut best: Option<(usize, u8, f64)> = None;
+    for (i, e) in entities.iter().enumerate() {
+        let Some([p0, p1]) = endpoints(e) else {
+            continue;
+        };
+        let (d0, d1) = ((pos - p0).length(), (pos - p1).length());
+        let (md, ep) = if d0 < d1 { (d0, 0u8) } else { (d1, 1u8) };
+        if md <= radius_mm && best.is_none_or(|(_, _, bd)| md < bd) {
+            best = Some((i, ep, md));
+        }
+    }
+    let (ti, ep, _) = best?;
+    let (bi, grown, _) = entities
+        .iter()
+        .enumerate()
+        .filter(|&(j, _)| j != ti)
+        .filter_map(|(j, b)| extend_reach(&entities[ti], b, ep).map(|(g, mm)| (j, g, mm)))
+        .min_by(|a, b| a.2.total_cmp(&b.2))?;
+    Some(H(ti, ep, bi, grown))
 }
 
 impl Tool for ExtendTool {
@@ -55,45 +84,15 @@ impl Tool for ExtendTool {
         "EXTEND"
     }
 
-    fn status_text(&self) -> &'static str {
-        match self.state {
-            State::Idle => "EXTEND: Click near a line endpoint to extend it",
-            State::Hover(_) => "EXTEND: Click to extend  |  Esc to cancel",
-        }
+    /// The picking prompt (LCV-165 AC 3), the same whether or not an
+    /// endpoint is hovered: the preview already shows what a click extends.
+    fn status_text(&self) -> Cow<'_, str> {
+        PROMPT.into()
     }
 
-    #[rustfmt::skip]
     fn on_pointer_move(&mut self, pos: Vec2, doc: &mut Document) {
-        let mut best: Option<(usize, u8, f64)> = None;
-        for (i, e) in doc.entities.iter().enumerate() {
-            let Entity::Line(l) = e else { continue };
-            let d0 = (pos - l.p1).length(); let d1 = (pos - l.p2).length();
-            let (md, ep) = if d0 < d1 { (d0, 0u8) } else { (d1, 1u8) };
-            if md > PICK_RADIUS_MM { continue; }
-            if best.map(|(_, _, bd)| md < bd).unwrap_or(true) { best = Some((i, ep, md)); }
-        }
-        let Some((ti, ep, _)) = best else { self.state = State::Idle; return; };
-        let Entity::Line(tgt) = doc.entities[ti] else { self.state = State::Idle; return; };
-        let ep_pos = if ep == 0 { tgt.p1 } else { tgt.p2 };
-        let mut bnd: Option<(f64, usize, Vec2)> = None;
-        for (j, e) in doc.entities.iter().enumerate() {
-            if j == ti { continue; }
-            let hits: Vec<Vec2> = match e {
-                Entity::Line(b) => match line_line_infinite(&tgt, b) {
-                    Some(x) => { let ok = if ep == 0 { pt(&tgt, x) < -EPSILON } else { pt(&tgt, x) > 1.0 + EPSILON }; if ok { vec![x] } else { vec![] } }
-                    None => vec![],
-                },
-                Entity::Circle(b) => chits(&tgt, b, ep),
-                _ => vec![],
-            };
-            for x in hits {
-                let dist = (x - ep_pos).length();
-                if bnd.map(|(bd, _, _)| dist < bd).unwrap_or(true) { bnd = Some((dist, j, x)); }
-            }
-        }
-        let Some((_, bi, x)) = bnd else { self.state = State::Idle; return; };
-        let pl = if ep == 0 { Line::new(x, tgt.p2) } else { Line::new(tgt.p1, x) };
-        self.state = State::Hover(H(ti, ep, bi, pl));
+        let radius = PICK_APERTURE_PT * self.mm_per_pt;
+        self.state = hover(pos, &doc.entities, radius).map_or(State::Idle, State::Hover);
     }
 
     fn on_pointer_down(&mut self, _: Vec2, _: bool, doc: &mut Document, history: &mut History) {
@@ -114,12 +113,33 @@ impl Tool for ExtendTool {
     fn preview(&self) -> Vec<Entity> {
         match self.state {
             State::Idle => vec![],
-            State::Hover(H(_, _, _, pl)) => vec![Entity::Line(pl)],
+            State::Hover(H(_, _, _, grown)) => vec![grown],
         }
+    }
+
+    /// LCV-163 AC 3: the entity whose endpoint a click would extend, as
+    /// `Hover`, then its extension as the amber `Preview` — nothing when
+    /// `cursor` is `None` or no extension is in reach.
+    fn feedback(&self, doc: &Document, cursor: Option<Vec2>) -> Vec<Mark> {
+        let radius = PICK_APERTURE_PT * self.mm_per_pt;
+        cursor
+            .and_then(|c| hover(c, &doc.entities, radius))
+            .map_or_else(Vec::new, |H(ti, _, _, grown)| {
+                vec![Mark::Hover(ti), Mark::Preview(grown)]
+            })
     }
 
     fn cancel(&mut self) {
         self.state = State::Idle;
+    }
+
+    /// EXTEND always waits for an entity pick (LCV-162 AC 5).
+    fn wants_entity_pick(&self) -> bool {
+        true
+    }
+
+    fn set_pick_scale(&mut self, mm_per_pt: f64) {
+        self.mm_per_pt = mm_per_pt;
     }
 }
 
@@ -144,6 +164,22 @@ mod tests {
         (ExtendTool::default(), d, History::default())
     }
 
+    /// LCV-163 AC 3 — the picked entity is `Hover`ed and its extension
+    /// stays a `Preview`; nothing when the cursor is `None`.
+    #[test]
+    fn feedback_hovers_the_picked_entity_and_previews_the_extension() {
+        let (t, d, _) = hd();
+        let marks = t.feedback(&d, Some(v(5.2, 0.)));
+        assert_eq!(marks.len(), 2);
+        assert_eq!(marks[0], Mark::Hover(0));
+        let Mark::Preview(grown) = marks[1] else {
+            panic!("expected Preview, got {:?}", marks[1]);
+        };
+        assert!(li(grown).p2.approx_eq(v(10., 0.), EPSILON));
+        assert!(t.feedback(&d, None).is_empty());
+        assert!(t.feedback(&d, Some(v(2.5, 20.))).is_empty());
+    }
+
     #[test]
     #[rustfmt::skip]
     fn name_is_extend() { assert_eq!(ExtendTool::default().name(), "EXTEND"); }
@@ -163,15 +199,17 @@ mod tests {
         assert!(!t.preview().is_empty());
         t.on_key(egui::Key::Escape, &mut crate::app::App::default());
         assert!(t.preview().is_empty());
-        assert!(t.status_text().contains("Click near"));
+        assert_eq!(t.status_text(), PROMPT);
     }
 
+    /// LCV-165 AC 3 — one picking prompt, idle or hovering.
     #[test]
-    fn status_text_transitions() {
+    fn status_text_is_the_picking_prompt_in_both_states() {
         let (mut t, mut d, _) = hd();
-        assert!(t.status_text().contains("Click near"));
+        assert_eq!(t.status_text(), "EXTEND  Select object to extend:");
         t.on_pointer_move(v(5.2, 0.), &mut d);
-        assert!(t.status_text().contains("Click to extend"));
+        assert!(!t.preview().is_empty(), "hovering an endpoint");
+        assert_eq!(t.status_text(), "EXTEND  Select object to extend:");
     }
 
     #[test]
@@ -185,6 +223,20 @@ mod tests {
     #[test]
     #[rustfmt::skip]
     fn single_line_no_boundary_stays_idle() { let mut t = ExtendTool::default(); let mut d = mk(vec![le(0.,0.,5.,0.)]); t.on_pointer_move(v(5.1,0.),&mut d); assert!(t.preview().is_empty()); }
+
+    /// LCV-162 AC 8 — the endpoint radius is 5 pt at the live zoom, and
+    /// EXTEND always waits for an entity pick.
+    #[test]
+    fn pick_radius_follows_the_pick_scale() {
+        for (scale, x, previews) in [(0.05, 5.2, true), (0.05, 5.3, false), (20.0, 85.0, true)] {
+            let mut t = ExtendTool::default();
+            t.set_pick_scale(scale);
+            assert!(t.wants_entity_pick());
+            let mut d = mk(vec![le(0., 0., 5., 0.), le(300., -1., 300., 1.)]);
+            t.on_pointer_move(v(x, 0.), &mut d);
+            assert_eq!(!t.preview().is_empty(), previews, "{scale} mm/pt, x {x}");
+        }
+    }
 
     #[test]
     fn hover_line_boundary_preview() {
@@ -260,5 +312,22 @@ mod tests {
         let mut h = History::default();
         t.on_pointer_down(v(5.1, 0.), false, &mut d, &mut h);
         assert!(!h.can_undo() && d.entity_count() == 1);
+    }
+
+    /// LCV-160 AC 5 — an Arc endpoint previews the grown arc; the idle
+    /// status is the picking prompt (LCV-165 AC 3).
+    #[test]
+    fn hover_arc_endpoint_previews_grown_arc() {
+        use crate::geometry::Arc;
+        use core::f64::consts::{FRAC_PI_2, PI};
+        let mut t = ExtendTool::default();
+        assert_eq!(t.status_text(), PROMPT);
+        let quarter = Entity::Arc(Arc::new(v(0., 0.), 10., 0., FRAC_PI_2, true));
+        let mut d = mk(vec![quarter, le(-5., -20., -5., 20.)]);
+        t.on_pointer_move(v(0.5, 10.5), &mut d);
+        let Entity::Arc(a) = t.preview()[0] else {
+            panic!("expected Arc preview")
+        };
+        assert!((a.end_angle - 2. * PI / 3.).abs() < 1e-9 && a.start_angle == 0.);
     }
 }

@@ -29,7 +29,7 @@ pub struct CompositeCommand {
     /// The children, in the order they were originally committed.
     commands: Vec<Box<dyn Command>>,
     /// What the history-aware UI shows for this entry, e.g.
-    /// `"Agent: draw a square"`.
+    /// `"AI: draw a square"`.
     label: String,
 }
 
@@ -37,8 +37,8 @@ impl CompositeCommand {
     /// Wrap `commands` — **in the order they were committed** — under `label`.
     ///
     /// The caller owns the ordering contract: `commands[0]` must be the
-    /// oldest. `History::end_group` is the only production caller and it
-    /// preserves commit order by construction.
+    /// oldest. `History::end_group` and `TrimTool` (one step per click,
+    /// LCV-160) build composites in commit order.
     pub fn new(commands: Vec<Box<dyn Command>>, label: impl Into<String>) -> Self {
         Self {
             commands,
@@ -115,8 +115,8 @@ mod tests {
     /// AC 11 — `label()` returns the stored label verbatim.
     #[test]
     fn composite_label_is_the_stored_string() {
-        let composite = CompositeCommand::new(vec![], "Agent: draw a square");
-        assert_eq!(composite.label(), "Agent: draw a square");
+        let composite = CompositeCommand::new(vec![], "AI: draw a square");
+        assert_eq!(composite.label(), "AI: draw a square");
     }
 
     /// AC 11 — `do_` runs the children **forward**. Run in reverse the same

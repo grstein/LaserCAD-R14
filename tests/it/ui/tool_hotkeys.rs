@@ -2,12 +2,16 @@
 //!
 //! These tests call `dispatch_shortcuts` directly with synthetic values so
 //! they do not require a running egui frame (no `egui::Context` needed).
+//! The LCV-166 Ctrl+A tests drive real frames, so the focus gate is the
+//! one the app reads.
 
 use egui::{Key, Modifiers};
 use lasercad::app::{App, suppress_snap_if_disabled};
 use lasercad::document::CreateLine;
 use lasercad::geometry::{Line, SnapKind, SnapResult, Vec2};
 use lasercad::ui::shortcuts::dispatch_shortcuts;
+
+use crate::harness;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -327,4 +331,65 @@ fn snap_disabled_clears_active_snap() {
         active2.is_some(),
         "active_snap must be preserved when snap_enabled=true"
     );
+}
+
+// ---------------------------------------------------------------------------
+// LCV-166 AC 8 / AC 9 — Ctrl+A selects all, unless a text field has focus
+// ---------------------------------------------------------------------------
+
+/// Two lines with only the first selected.
+fn two_lines_first_selected() -> App {
+    use lasercad::document::SelectionCommand;
+    let mut app = make_line_app();
+    let line = Line::new(Vec2::new(0.0, 10.0), Vec2::new(10.0, 10.0));
+    app.commit(Box::new(CreateLine::new(line)));
+    app.commit(Box::new(SelectionCommand::new(vec![0usize])));
+    app
+}
+
+fn selected(app: &App) -> Vec<usize> {
+    app.document.selection.iter().collect()
+}
+
+/// LCV-166 AC 8 — Ctrl+A with nothing focused selects every entity, and one
+/// Ctrl+Z restores the previous selection.
+#[test]
+fn ctrl_a_selects_all_in_one_undo_step() {
+    let ctx = egui::Context::default();
+    let mut app = two_lines_first_selected();
+    harness::tap(&ctx, &mut app, Key::A, ctrl_mod());
+    assert_eq!(selected(&app), vec![0, 1], "Ctrl+A selects every entity");
+    harness::tap(&ctx, &mut app, Key::Z, ctrl_mod());
+    assert_eq!(selected(&app), vec![0], "one Ctrl+Z restores the selection");
+    assert_eq!(app.document.entity_count(), 2);
+}
+
+/// LCV-166 AC 9 — with the command line focused, Ctrl+A belongs to the text
+/// field: selection and active tool are unchanged.
+#[test]
+fn ctrl_a_is_left_to_the_focused_command_line() {
+    let ctx = egui::Context::default();
+    let mut app = two_lines_first_selected();
+    harness::type_command(&ctx, &mut app, "z");
+    assert!(
+        ctx.wants_keyboard_input(),
+        "the command line must hold focus"
+    );
+    let tool = app.tool_manager.active_tool_name().to_owned();
+    let before = app.history.revision();
+    harness::tap(&ctx, &mut app, Key::A, ctrl_mod());
+    assert_eq!(selected(&app), vec![0], "the selection is unchanged");
+    assert_eq!(app.tool_manager.active_tool_name(), tool);
+    assert_eq!(app.history.revision(), before, "nothing is committed");
+}
+
+/// LCV-166 AC 8 — on an empty document Ctrl+A commits nothing.
+#[test]
+fn ctrl_a_on_an_empty_document_commits_nothing() {
+    let ctx = egui::Context::default();
+    let mut app = App::default();
+    let before = app.history.revision();
+    harness::tap(&ctx, &mut app, Key::A, ctrl_mod());
+    assert_eq!(app.history.revision(), before);
+    assert!(!app.history.can_undo());
 }

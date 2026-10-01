@@ -6,6 +6,7 @@
 pub mod command_destination;
 pub mod command_line;
 pub mod dialogs;
+mod icons;
 mod layer_combo;
 pub mod layers_dialog;
 pub mod menubar;
@@ -19,7 +20,7 @@ pub use command_destination::{
     LABEL_TOOL_INPUT, destination_label,
 };
 pub use command_line::draw_command_line;
-pub use dialogs::{DialogResult, about_dialog, confirm_dialog, error_dialog};
+pub use dialogs::{DialogKey, DialogResult, about_dialog, error_dialog};
 pub use layers_dialog::draw_layers_dialog;
 pub use menubar::draw_menubar;
 pub use shortcuts::process_shortcuts;

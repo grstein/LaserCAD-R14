@@ -7,27 +7,38 @@
 //! intersection, parallel/coincident pair, intersection behind the endpoint
 //! being extended, or an out-of-scope entity pair.
 //!
-//! Supported entity pairs (target x cutter / boundary):
+//! Supported entity pairs (target x cutter / boundary), LCV-160:
 //!
-//! - **Trim**: Line x Line, Line x Circle (in [`line`]); Circle x Line (in
-//!   [`circle`]).
-//! - **Extend**: Line x Line, Line x Circle (in [`line`]).
+//! | Target | Trim cutter          | Extend boundary      | Helpers    |
+//! |--------|----------------------|----------------------|------------|
+//! | Line   | Line, Circle, Arc    | Line, Circle, Arc    | [`line`]   |
+//! | Circle | Line, Circle, Arc    | — (no-op)            | [`circle`] |
+//! | Arc    | Line, Circle, Arc    | Line, Circle, Arc    | [`arc`]    |
 //!
-//! Arc targets and Circle-as-extend-target are out of scope and silently
-//! treated as no-ops (the Phase-4 tools guard against the case).
+//! A *cut point* ([`cut_points`]) lies on both entities; an arc counts only
+//! its span. [`trim_step`] and [`extend_reach`] are the pure dispatchers the
+//! commands and the TRIM / EXTEND tools share. Extending a Line treats a Line
+//! boundary as infinite (LCV-051); extending an Arc uses only the boundary's
+//! drawn segment (LCV-160 cut-point definition). The asymmetry is deliberate.
 //!
-//! Split into [`line`] and [`circle`] submodules so each file stays under the
-//! AGENTS.md 300-LOC cap; this module holds the public command structs and
-//! their [`Command`] impls plus the shared `parametric_t` helper.
+//! Split into [`line`], [`circle`] and [`arc`] submodules so each file stays
+//! under the AGENTS.md 300-LOC cap; this module holds the public command
+//! structs, their [`Command`] impls, the dispatchers and the shared
+//! `parametric_t` helper.
 //!
 //! MUST NOT import `egui`, `eframe`, or `rfd`. Introduced by demand LCV-025.
 
 use super::Command;
 use crate::document::{Document, Entity};
-use crate::geometry::{EPSILON, Line, Vec2};
+use crate::geometry::{
+    Circle, EPSILON, Line, Vec2, arc_arc, circle_arc, circle_circle, line_arc, line_circle,
+    line_line,
+};
 
+pub(crate) mod arc;
 pub(crate) mod circle;
 pub(crate) mod line;
+pub(crate) mod removed;
 
 /// Trim a single target [`Entity`] at its intersection(s) with a cutter
 /// [`Entity`], keeping the sub-segment / sub-arc that contains
@@ -63,19 +74,7 @@ impl Command for TrimEntity {
         }
         let target = doc.entities[self.target_idx];
         let cutter = doc.entities[self.cutter_idx];
-        let trimmed = match (target, cutter) {
-            (Entity::Line(t), Entity::Line(c)) => {
-                line::trim_line_by_line(t, &c, self.keep_side_point)
-            }
-            (Entity::Line(t), Entity::Circle(c)) => {
-                line::trim_line_by_circle(t, &c, self.keep_side_point)
-            }
-            (Entity::Circle(t), Entity::Line(c)) => {
-                circle::trim_circle_by_line(&t, &c, self.keep_side_point)
-            }
-            _ => None,
-        };
-        if let Some(new_entity) = trimmed {
+        if let Some(new_entity) = trim_step(&target, &cutter, self.keep_side_point) {
             self.captured = Some(target);
             doc.entities[self.target_idx] = new_entity;
         }
@@ -92,15 +91,16 @@ impl Command for TrimEntity {
     }
 }
 
-/// Extend one endpoint of a target [`Line`] to its intersection with a
-/// boundary [`Entity`]. Captures the original for undo.
+/// Extend one endpoint of a target Line or Arc to its nearest cut point with
+/// a boundary [`Entity`] (see [`extend_reach`]). Captures the original for
+/// undo.
 #[derive(Debug)]
 pub struct ExtendEntity {
-    /// Index of the entity (must be a [`Line`]) to extend.
+    /// Index of the entity (a [`Line`] or an Arc) to extend.
     pub target_idx: usize,
     /// Index of the boundary entity (unchanged by the command).
     pub boundary_idx: usize,
-    /// Which endpoint of the target line to extend: `0` = `p1`, `1` = `p2`.
+    /// Which endpoint to extend: `0` = `p1` / arc start, `1` = `p2` / arc end.
     /// Values outside `{0, 1}` are an invariant violation.
     pub extend_endpoint: u8,
     captured: Option<Entity>,
@@ -130,18 +130,9 @@ impl Command for ExtendEntity {
         }
         let target = doc.entities[self.target_idx];
         let boundary = doc.entities[self.boundary_idx];
-        let target_line = match target {
-            Entity::Line(l) => l,
-            _ => return, // Only Line targets supported (see module docs).
-        };
-        let extended = match boundary {
-            Entity::Line(b) => line::extend_line_to_line(target_line, &b, self.extend_endpoint),
-            Entity::Circle(b) => line::extend_line_to_circle(target_line, &b, self.extend_endpoint),
-            _ => None,
-        };
-        if let Some(new_line) = extended {
+        if let Some((extended, _)) = extend_reach(&target, &boundary, self.extend_endpoint) {
             self.captured = Some(target);
-            doc.entities[self.target_idx] = Entity::Line(new_line);
+            doc.entities[self.target_idx] = extended;
         }
     }
 
@@ -153,6 +144,59 @@ impl Command for ExtendEntity {
 
     fn label(&self) -> &str {
         "Extend"
+    }
+}
+
+/// Cut points of `target` with `cutter`: points on both entities, where an
+/// arc counts only its span and a line only its segment (LCV-160).
+pub(crate) fn cut_points(target: &Entity, cutter: &Entity) -> Vec<Vec2> {
+    use Entity::{Arc, Circle as Circ, Line as Seg};
+    match (*target, *cutter) {
+        (Seg(a), Seg(b)) => line_line(&a, &b).into_iter().collect(),
+        (Seg(l), Circ(c)) | (Circ(c), Seg(l)) => line_circle(&l, &c),
+        (Seg(l), Arc(a)) | (Arc(a), Seg(l)) => line_arc(&l, &a),
+        (Circ(a), Circ(b)) => circle_circle(&a, &b),
+        (Circ(c), Arc(a)) | (Arc(a), Circ(c)) => circle_arc(&c, &a),
+        (Arc(a), Arc(b)) => arc_arc(&a, &b),
+    }
+}
+
+/// One trim of `target` by `cutter`, keeping the piece around `keep`.
+/// `None` when the pair leaves the target unchanged (no usable cut point).
+pub(crate) fn trim_step(target: &Entity, cutter: &Entity, keep: Vec2) -> Option<Entity> {
+    let pts = cut_points(target, cutter);
+    match *target {
+        Entity::Line(t) => line::trim_line_at_points(t, &pts, keep),
+        Entity::Circle(t) => circle::trim_circle_at_points(&t, &pts, keep),
+        Entity::Arc(t) => arc::trim_arc_at_points(&t, &pts, keep),
+    }
+}
+
+/// Extend endpoint `ep` (`0` = p1 / start, `1` = p2 / end) of a Line or Arc
+/// `target` to its nearest reach on `boundary`. Returns the grown entity and
+/// the travel in mm; `None` for a Circle target or no reachable cut point.
+/// A Line's extension is infinite; an Arc grows along its parent circle.
+pub(crate) fn extend_reach(target: &Entity, boundary: &Entity, ep: u8) -> Option<(Entity, f64)> {
+    match *target {
+        Entity::Line(t) => {
+            let grown = match *boundary {
+                Entity::Line(b) => line::extend_line_to_line(t, &b, ep),
+                Entity::Circle(b) => line::extend_line_to_circle(t, &b, ep),
+                Entity::Arc(b) => line::extend_line_to_arc(t, &b, ep),
+            }?;
+            let (old, new) = if ep == 0 {
+                (t.p1, grown.p1)
+            } else {
+                (t.p2, grown.p2)
+            };
+            Some((Entity::Line(grown), (new - old).length()))
+        }
+        Entity::Arc(t) => {
+            let parent = Entity::Circle(Circle::new(t.center, t.r));
+            let pts = cut_points(&parent, boundary);
+            arc::extend_arc(&t, &pts, ep).map(|(a, mm)| (Entity::Arc(a), mm))
+        }
+        Entity::Circle(_) => None,
     }
 }
 
@@ -195,5 +239,53 @@ mod tests {
     fn trim_extend_commands_are_object_safe() {
         let _: Box<dyn Command> = Box::new(TrimEntity::new(0, 1, Vec2::default()));
         let _: Box<dyn Command> = Box::new(ExtendEntity::new(0, 1, 0));
+    }
+
+    /// LCV-160 AC 1 / AC 5 / AC 8 — both commands take an Arc target and
+    /// undo restores it exactly.
+    #[test]
+    fn commands_accept_arc_targets() {
+        use crate::geometry::{Arc, Line};
+        use core::f64::consts::{FRAC_PI_2, PI};
+        let target = Entity::Arc(Arc::new(Vec2::default(), 10.0, 0.0, FRAC_PI_2, true));
+        let wall = Line::new(Vec2::new(-5.0, -20.0), Vec2::new(-5.0, 20.0));
+        let mut doc = Document::default();
+        doc.push_current(target);
+        doc.push_current(Entity::Line(wall));
+        let mut extend = ExtendEntity::new(0, 1, 1);
+        extend.do_(&mut doc);
+        let Entity::Arc(grown) = doc.entities[0] else {
+            panic!("expected Arc")
+        };
+        assert!((grown.end_angle - 2.0 * PI / 3.0).abs() < 1e-9);
+        extend.undo(&mut doc);
+        assert_eq!(doc.entities[0], target);
+        let mut doc = Document::default();
+        doc.push_current(target);
+        doc.push_current(Entity::Line(Line::new(
+            Vec2::default(),
+            Vec2::new(20.0, 20.0),
+        )));
+        let mut trim = TrimEntity::new(0, 1, Vec2::new(10.0, 1.0));
+        trim.do_(&mut doc);
+        let Entity::Arc(kept) = doc.entities[0] else {
+            panic!("expected Arc")
+        };
+        assert_eq!(kept.start_angle, 0.0);
+        assert!((kept.end_angle - PI / 4.0).abs() < 1e-9);
+        trim.undo(&mut doc);
+        assert_eq!(doc.entities[0], target);
+    }
+
+    /// `cut_points` is symmetric in its pair and counts arc spans only.
+    #[test]
+    fn cut_points_span_filtered_and_symmetric() {
+        use crate::geometry::{Arc, Circle};
+        use core::f64::consts::PI;
+        let upper = Entity::Arc(Arc::new(Vec2::default(), 10.0, 0.0, PI, true));
+        let circle = Entity::Circle(Circle::new(Vec2::new(10.0, 0.0), 10.0));
+        assert_eq!(cut_points(&upper, &circle).len(), 1);
+        assert_eq!(cut_points(&circle, &upper), cut_points(&upper, &circle));
+        assert!(extend_reach(&circle, &upper, 0).is_none());
     }
 }

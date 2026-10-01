@@ -27,6 +27,7 @@ use crate::document::{Document, Entity, History, TransformEntities};
 use crate::geometry::{Transform, Vec2};
 use crate::tools::copy::sources_intact;
 use crate::tools::{SelectTool, Tool};
+use std::borrow::Cow;
 
 /// Internal state of [`ScaleTool`].
 #[derive(Debug)]
@@ -57,6 +58,8 @@ pub struct ScaleTool {
     state: ScaleState,
     /// `true` after a commit; cleared by the first `take_successor()`.
     pending_successor: bool,
+    /// A typed value's refusal line (LCV-165 AC7); drained by `take_message()`.
+    message: Option<String>,
 }
 
 impl Default for ScaleTool {
@@ -64,9 +67,13 @@ impl Default for ScaleTool {
         Self {
             state: ScaleState::Idle,
             pending_successor: false,
+            message: None,
         }
     }
 }
+
+/// The line shown when a typed value is refused (LCV-165 AC7).
+const REFUSAL: &str = "Scale factor must be greater than 0.";
 
 /// `true` for a factor SCALE accepts: finite and positive (AC5).
 fn accepted(factor: f64) -> bool {
@@ -125,10 +132,10 @@ impl Tool for ScaleTool {
     }
 
     /// The R14 prompts (AC1, AC3).
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match &self.state {
-            ScaleState::Idle => "SCALE Specify base point:",
-            ScaleState::WaitingFactor { .. } => "SCALE Specify scale factor:",
+            ScaleState::Idle => "SCALE  Specify base point:".into(),
+            ScaleState::WaitingFactor { .. } => "SCALE  Specify scale factor:".into(),
         }
     }
 
@@ -239,6 +246,9 @@ impl Tool for ScaleTool {
     ) -> bool {
         match (input, &self.state) {
             (ToolInput::Distance { value_mm, .. }, ScaleState::WaitingFactor { .. }) => {
+                if !accepted(value_mm) {
+                    self.message = Some(REFUSAL.to_owned());
+                }
                 self.scale_by(value_mm, doc, history)
             }
             _ => match input.as_point() {
@@ -252,6 +262,11 @@ impl Tool for ScaleTool {
                 None => false,
             },
         }
+    }
+
+    /// Single-shot: the refusal of the last typed value (LCV-165 AC7).
+    fn take_message(&mut self) -> Option<String> {
+        self.message.take()
     }
 
     /// Single-shot: `Some(SelectTool)` once after a commit.
@@ -314,10 +329,10 @@ mod tests {
         let mut tool = ScaleTool::default();
         let (mut doc, mut h) = doc_selected();
         assert_eq!(tool.name(), "SCALE");
-        assert_eq!(tool.status_text(), "SCALE Specify base point:");
+        assert_eq!(tool.status_text(), "SCALE  Specify base point:");
         assert_eq!(tool.anchor(), None);
         tool.on_pointer_down(Vec2::new(1.0, 2.0), false, &mut doc, &mut h);
-        assert_eq!(tool.status_text(), "SCALE Specify scale factor:");
+        assert_eq!(tool.status_text(), "SCALE  Specify scale factor:");
         assert_eq!(tool.anchor(), Some(Vec2::new(1.0, 2.0)));
     }
 
@@ -332,7 +347,7 @@ mod tests {
         tool.on_pointer_down(Vec2::new(0.0, 5.0), false, &mut doc, &mut h);
         assert_eq!(doc.entities, before);
         assert!(!h.can_undo());
-        assert_eq!(tool.status_text(), "SCALE Specify base point:");
+        assert_eq!(tool.status_text(), "SCALE  Specify base point:");
     }
 
     /// AC3 — the preview is the selection scaled by the distance base →
@@ -380,7 +395,7 @@ mod tests {
         }
         assert_eq!(h.len(), 1);
         assert_eq!(doc.selection, selection);
-        assert_eq!(tool.status_text(), "SCALE Specify base point:");
+        assert_eq!(tool.status_text(), "SCALE  Specify base point:");
         assert_eq!(tool.take_successor().map(|t| t.name()), Some("Select"));
         assert!(tool.take_successor().is_none());
     }
@@ -413,7 +428,7 @@ mod tests {
         assert!(!tool.on_command_input(on_base, &mut doc, &mut h));
         tool.on_pointer_down(Vec2::new(1.0, 1.0), false, &mut doc, &mut h);
         assert!(!h.can_undo());
-        assert_eq!(tool.status_text(), "SCALE Specify scale factor:");
+        assert_eq!(tool.status_text(), "SCALE  Specify scale factor:");
     }
 
     /// AC6 — a factor of 1, typed or picked, commits nothing; the tool keeps
@@ -427,7 +442,7 @@ mod tests {
         typed(&mut tool, number(1.0 + EPSILON / 2.0), &mut doc, &mut h);
         tool.on_pointer_down(Vec2::new(0.0, 1.0), false, &mut doc, &mut h);
         assert!(!h.can_undo());
-        assert_eq!(tool.status_text(), "SCALE Specify scale factor:");
+        assert_eq!(tool.status_text(), "SCALE  Specify scale factor:");
         assert!(tool.take_successor().is_none());
     }
 

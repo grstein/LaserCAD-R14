@@ -1,8 +1,8 @@
 # LCV-161 — Quadrant, perpendicular, tangent and nearest snaps
 
-- **Status**: Specified
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: 5f9497e..a2c7ea1
 
 ## Problem
 

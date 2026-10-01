@@ -21,7 +21,7 @@ use lasercad::geometry::{Circle, Line, Vec2};
 use serde_json::{Value, json};
 use std::sync::mpsc::{Receiver, Sender, channel};
 
-const DISABLED: &str = "canvas capture is disabled in Agent settings";
+const DISABLED: &str = "canvas capture is disabled in Help > AI Settings…";
 
 fn ctx_and_app() -> (egui::Context, App) {
     let ctx = egui::Context::default();
@@ -317,7 +317,7 @@ fn a_live_model_change_refuses_the_upload() {
     assert_eq!(app.agent.chat.len(), rows, "a no leaves no row");
 }
 
-/// AC 2 — at 800×600 the Agent Settings dialog paints both opt-in checkboxes
+/// AC 2 — at 800×600 the AI Settings dialog paints both opt-in checkboxes
 /// and the exact disclosure sentence.
 #[test]
 fn agent_settings_paints_both_opt_ins_and_the_disclosure() {

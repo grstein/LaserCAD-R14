@@ -309,3 +309,38 @@ fn canvas_opt_ins_default_off_and_round_trip() {
     let back: Settings = serde_json::from_str(&serde_json::to_string(&on).unwrap()).unwrap();
     assert_eq!(back, on);
 }
+
+// ------------------------------------------------------------------
+// LCV-161 — per-kind object snaps
+// ------------------------------------------------------------------
+
+/// LCV-161 AC10 — a settings file without `object_snaps` loads the default
+/// kinds (all on except Nearest).
+#[test]
+fn legacy_json_without_object_snaps_loads_default_kinds() {
+    use crate::geometry::SnapKinds;
+    let s: Settings = serde_json::from_str(r#"{"recent_files":[],"agent_step_budget":12}"#)
+        .expect("legacy JSON must still parse");
+    assert_eq!(s.object_snaps, SnapKinds::default());
+    // A partial `object_snaps` object fills the missing kinds with defaults.
+    let s: Settings =
+        serde_json::from_str(r#"{"object_snaps":{"nearest":true}}"#).expect("partial parses");
+    assert!(s.object_snaps.nearest);
+    assert!(s.object_snaps.endpoint);
+}
+
+/// LCV-161 AC8 — a toggled kind survives a save/load round-trip.
+#[test]
+fn object_snaps_round_trip_keeps_a_toggled_kind() {
+    use crate::geometry::SnapKind;
+    let tmp = std::env::temp_dir().join("lcv161_object_snaps_roundtrip.json");
+    let mut original = Settings::default();
+    original.object_snaps.set(SnapKind::Tangent, false);
+    original.object_snaps.set(SnapKind::Nearest, true);
+    save_to(&original, &tmp).unwrap();
+    let loaded = load_from(&tmp);
+    assert!(!loaded.object_snaps.contains(SnapKind::Tangent));
+    assert!(loaded.object_snaps.contains(SnapKind::Nearest));
+    assert_eq!(loaded, original);
+    let _ = fs::remove_file(&tmp);
+}

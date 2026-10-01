@@ -20,13 +20,21 @@
 use crate::app::App;
 use crate::geometry::Vec2;
 
+/// The on/off mode pill (LCV-184).
+mod pill;
+
+/// Width, in chars, of one coordinate number: sign, four digits, point and
+/// two decimals (LCV-167 AC 6).
+const COORD_WIDTH: usize = 8;
+
 /// Format cursor world-space coordinates for display in the status bar.
 ///
-/// Returns `"X: 123.45mm  Y:  67.89mm"` (values right-aligned in 6 chars, 2
-/// dp, each carrying an explicit `mm` unit — LCV-140 AC 4, millimetres being
-/// canonical everywhere outside `render/camera`) when `pos` is `Some`, or
-/// `"X: —  Y: —"` (em-dash, no unit — there is no value to carry one) when
-/// `pos` is `None`.
+/// Returns `"X: <x>mm  Y: <y>mm"` when `pos` is `Some`: each value to
+/// 2 dp with an explicit `mm` unit (LCV-140 AC 4, millimetres being canonical
+/// everywhere outside `render/camera`), right-aligned to [`COORD_WIDTH`] chars
+/// with figure spaces (U+2007, as wide as a digit) so no digit moves when a
+/// sign appears (LCV-167 AC 6). A value that does not fit grows the string.
+/// Returns `"X: —  Y: —"` (em-dash, no unit) when `pos` is `None`.
 ///
 /// # Examples
 /// ```
@@ -34,13 +42,18 @@ use crate::geometry::Vec2;
 /// use lasercad::geometry::Vec2;
 ///
 /// assert_eq!(format_coords(None), "X: —  Y: —");
-/// let s = format_coords(Some(Vec2::new(123.45, 67.89)));
-/// assert_eq!(s, "X: 123.45mm  Y:  67.89mm");
+/// let s = format_coords(Some(Vec2::new(123.45, -67.89)));
+/// assert_eq!(s, "X: \u{2007}\u{2007}123.45mm  Y: \u{2007}\u{2007}-67.89mm");
 /// ```
 pub fn format_coords(pos: Option<Vec2>) -> String {
+    let pad = |v: f64| {
+        let n = format!("{v:.2}");
+        let fill = COORD_WIDTH.saturating_sub(n.chars().count());
+        format!("{}{n}", "\u{2007}".repeat(fill))
+    };
     match pos {
         None => "X: \u{2014}  Y: \u{2014}".to_owned(),
-        Some(p) => format!("X: {:>6.2}mm  Y: {:>6.2}mm", p.x, p.y),
+        Some(p) => format!("X: {}mm  Y: {}mm", pad(p.x), pad(p.y)),
     }
 }
 
@@ -112,26 +125,24 @@ pub(crate) fn apply_toggle(app: &mut App, mode: Mode) {
     }
 }
 
-/// Return the autosave indicator string (LCV-116 AC 8).
+/// Return the autosave indicator string (LCV-116 AC 8, LCV-167 AC 9).
 ///
-/// Three permanent states, no timer and no animation — a relative
+/// Four permanent states, no timer and no animation — a relative
 /// "saved N seconds ago" would need a repaint every second for the life of the
 /// process and would go stale the moment repaints stopped:
 ///
+/// - the last write failed → `"× autosave failed"`, until a write succeeds;
 /// - a write is pending → `"● autosave pending"`;
 /// - otherwise, at least one write succeeded this session → `"○ autosaved"`;
 /// - otherwise → `"○ no autosave yet"`.
 ///
-/// `write_pending` wins over `ever_saved`: what the operator needs to know is
-/// whether the *current* state of the drawing is on disk.
-///
-/// This does **not** report autosave *failures*. The error behind
-/// `App::write_autosave`'s `false` is
-/// swallowed today (LCV-102); surfacing it is its own demand. What the
-/// indicator distinguishes is "an autosave has happened this session" from
-/// "none has", which is honest with the information available.
-pub(crate) fn format_autosave(write_pending: bool, ever_saved: bool) -> &'static str {
-    if write_pending {
+/// `failed` wins over `write_pending`, which wins over `ever_saved`: what the
+/// operator needs to know is whether the *current* drawing is on disk, and a
+/// failure stays visible until the next write proves otherwise.
+pub(crate) fn format_autosave(failed: bool, write_pending: bool, ever_saved: bool) -> &'static str {
+    if failed {
+        "\u{d7} autosave failed"
+    } else if write_pending {
         "\u{25cf} autosave pending"
     } else if ever_saved {
         "\u{25cb} autosaved"
@@ -156,7 +167,8 @@ pub(crate) const RECOVERY_HOVER_TEXT: &str = "This drawing was restored from a c
 /// Displays — left to right — cursor coordinates, the active tool name
 /// (uppercased), the document entity count, the current-layer dropdown
 /// (LCV-156, `src/ui/layer_combo.rs`), the three clickable mode
-/// indicators `SNAP` / `GRID` / `ORTHO` (LCV-116, always visible, selected iff their flag is on), the autosave
+/// indicators `SNAP` / `GRID` / `ORTHO` (LCV-116, always visible; LCV-184 on/off
+/// pills, filled iff their flag is on), the autosave
 /// indicator, and — only while [`App::title`]'s
 /// `recovered_from_autosave` is set (LCV-138) — a recovery label with an
 /// explanatory tooltip, all separated in the existing style.
@@ -171,7 +183,11 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
     let coord_str = format_coords(app.last_cursor_world);
     let tool_str = app.tool_manager.active_tool_name().to_uppercase();
     let count = app.document.entity_count();
-    let autosave_str = format_autosave(app.dirty_since.is_some(), app.last_autosave_at.is_some());
+    let autosave_str = format_autosave(
+        app.autosave.autosave_failed,
+        app.autosave.dirty_since.is_some(),
+        app.autosave.last_autosave_at.is_some(),
+    );
 
     // At most one indicator can be clicked per frame; the flip is applied
     // after the loop so the borrow of `app` inside it stays shared.
@@ -179,7 +195,8 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
     let mut picked_layer = None;
 
     ui.horizontal(|ui| {
-        ui.label(&coord_str);
+        // LCV-184 AC 5: fixed-width digits, so the readout does not jitter.
+        ui.label(egui::RichText::new(&coord_str).monospace());
         ui.separator();
         ui.label(&tool_str);
         ui.separator();
@@ -189,8 +206,7 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
         for mode in Mode::ALL {
             ui.separator();
             let hint = format!("{} ({})", mode.label(), mode.key_hint());
-            if ui
-                .selectable_label(mode.is_on(app), mode.label())
+            if pill::mode_pill(ui, mode.is_on(app), mode.label())
                 .on_hover_text(hint)
                 .clicked()
             {
@@ -198,7 +214,11 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
             }
         }
         ui.separator();
-        ui.label(autosave_str);
+        if app.autosave.autosave_failed {
+            ui.colored_label(ui.visuals().error_fg_color, autosave_str);
+        } else {
+            ui.label(autosave_str);
+        }
         // LCV-138 AC 4 — distinct from the autosave badge above: this
         // session's document came back from the crash-safety copy at boot.
         // Reading the flag and painting a label/tooltip touches nothing

@@ -6,38 +6,42 @@ fn format_coords_none_returns_dash_placeholder() {
     assert_eq!(format_coords(None), "X: \u{2014}  Y: \u{2014}");
 }
 
-/// LCV-067 AC — positive coordinates are formatted to two decimal places,
-/// right-aligned in a 6-char field. LCV-140 AC 4 — each axis carries an
-/// explicit `mm` unit, directly after the number.
+/// LCV-067 AC — positive coordinates are formatted to two decimal places.
+/// LCV-140 AC 4 — each axis carries an explicit `mm` unit. LCV-167 AC 6 —
+/// right-aligned in 8 chars, padded with figure spaces (U+2007).
 #[test]
 fn format_coords_some_positive_values() {
     let s = format_coords(Some(Vec2::new(123.45, 67.89)));
-    assert_eq!(s, "X: 123.45mm  Y:  67.89mm");
+    assert_eq!(
+        s,
+        "X: \u{2007}\u{2007}123.45mm  Y: \u{2007}\u{2007}\u{2007}67.89mm"
+    );
 }
 
-/// LCV-067 AC — negative x value is formatted correctly (sign included in
-/// the 6-char field, extending it naturally). LCV-140 AC 4 — `mm` unit.
+/// LCV-067 AC — a negative x keeps its sign inside the 8-char field.
 #[test]
 fn format_coords_some_negative_x() {
     let s = format_coords(Some(Vec2::new(-5.0, 0.0)));
-    assert_eq!(s, "X:  -5.00mm  Y:   0.00mm");
+    assert_eq!(
+        s,
+        "X: \u{2007}\u{2007}\u{2007}-5.00mm  Y: \u{2007}\u{2007}\u{2007}\u{2007}0.00mm"
+    );
 }
 
 /// LCV-067 AC — zero coordinates produce all-zero output, not "—".
-/// LCV-140 AC 4 — `mm` unit.
 #[test]
 fn format_coords_some_zero() {
     let s = format_coords(Some(Vec2::new(0.0, 0.0)));
-    assert_eq!(s, "X:   0.00mm  Y:   0.00mm");
+    let pad = "\u{2007}".repeat(4);
+    assert_eq!(s, format!("X: {pad}0.00mm  Y: {pad}0.00mm"));
 }
 
 /// LCV-067 AC — large values are not truncated (no width cap).
 #[test]
 fn format_coords_large_values_not_truncated() {
-    let s = format_coords(Some(Vec2::new(1234.56, 9876.54)));
-    // 1234.56 is 7 chars — the field is at least that wide.
-    assert!(s.contains("1234.56"), "x value present");
-    assert!(s.contains("9876.54"), "y value present");
+    let s = format_coords(Some(Vec2::new(12345.67, 98765.43)));
+    assert!(s.contains("12345.67"), "x value present");
+    assert!(s.contains("98765.43"), "y value present");
 }
 
 /// LCV-140 AC 4 / AC 6 — a six-digit signed coordinate pair renders with
@@ -46,6 +50,54 @@ fn format_coords_large_values_not_truncated() {
 fn format_coords_six_digit_signed_pair_keeps_its_mm_unit() {
     let s = format_coords(Some(Vec2::new(-1234.56, -1234.56)));
     assert_eq!(s, "X: -1234.56mm  Y: -1234.56mm");
+}
+
+/// LCV-167 AC 6 — `(1, -1)` and `(-1234.5, 9999.99)` give strings of equal
+/// char count, so no digit moves when a sign or a digit appears.
+#[test]
+fn format_coords_has_a_fixed_char_count() {
+    let small = format_coords(Some(Vec2::new(1.0, -1.0)));
+    let large = format_coords(Some(Vec2::new(-1234.5, 9999.99)));
+    assert_eq!(
+        small.chars().count(),
+        large.chars().count(),
+        "{small:?} {large:?}"
+    );
+    assert_eq!(
+        small.chars().count(),
+        "X: -1234.50mm  Y:  9999.99mm".chars().count()
+    );
+}
+
+/// LCV-167 AC 6 — the padding inside a number is U+2007, never U+0020: the
+/// only plain spaces are the ones after `X:`/`Y:` and between the axes.
+#[test]
+fn format_coords_pads_with_figure_spaces_only() {
+    let s = format_coords(Some(Vec2::new(1.0, -1.0)));
+    assert_eq!(s.matches('\u{2007}').count(), 7, "{s:?}");
+    assert_eq!(s.matches(' ').count(), 4, "{s:?}");
+    for number in s.split("mm") {
+        let value = number.rsplit(": ").next().unwrap_or_default();
+        assert!(!value.contains(' '), "{value:?} in {s:?}");
+    }
+}
+
+/// LCV-167 AC 6 — laid out in egui's monospace font, the two readouts are
+/// equally wide: the font has a glyph for U+2007 as wide as a digit.
+#[test]
+fn format_coords_lays_out_at_one_width() {
+    let ctx = egui::Context::default();
+    let _ = ctx.run(egui::RawInput::default(), |_| {});
+    let width = |s: String| {
+        ctx.fonts(|f| {
+            f.layout_no_wrap(s, egui::FontId::monospace(12.0), egui::Color32::WHITE)
+                .size()
+                .x
+        })
+    };
+    let small = width(format_coords(Some(Vec2::new(1.0, -1.0))));
+    let large = width(format_coords(Some(Vec2::new(-1234.5, 9999.99))));
+    assert!((small - large).abs() < 0.01, "{small} vs {large}");
 }
 
 // ── LCV-116 (a) — clickable mode indicators ───────────────────────────
@@ -110,7 +162,10 @@ fn toggle_click_flips_only_its_own_flag() {
             }
             assert_eq!(app.document.entity_count(), entities, "no document change");
             assert_eq!(app.history.revision(), revision, "no history entry");
-            assert!(app.dirty_since.is_none(), "no change to dirty_since");
+            assert!(
+                app.autosave.dirty_since.is_none(),
+                "no change to dirty_since"
+            );
         }
     }
 }
@@ -142,14 +197,33 @@ fn a_click_and_its_function_key_agree() {
 
 // ── LCV-116 (b) — autosave indicator ──────────────────────────────────
 
-/// LCV-116 AC 8 — all four input combinations map to the three exact
-/// strings, and "pending" wins over "ever saved".
+/// LCV-116 AC 8 / LCV-167 AC 9 — every input combination maps to one of
+/// the four exact strings, with precedence failed > pending > autosaved >
+/// none.
 #[test]
 fn format_autosave_states() {
-    assert_eq!(format_autosave(true, false), "\u{25cf} autosave pending");
-    assert_eq!(format_autosave(true, true), "\u{25cf} autosave pending");
-    assert_eq!(format_autosave(false, true), "\u{25cb} autosaved");
-    assert_eq!(format_autosave(false, false), "\u{25cb} no autosave yet");
+    for pending in [false, true] {
+        for ever in [false, true] {
+            assert_eq!(
+                format_autosave(true, pending, ever),
+                "\u{d7} autosave failed",
+                "failed wins ({pending}, {ever})"
+            );
+        }
+    }
+    assert_eq!(
+        format_autosave(false, true, false),
+        "\u{25cf} autosave pending"
+    );
+    assert_eq!(
+        format_autosave(false, true, true),
+        "\u{25cf} autosave pending"
+    );
+    assert_eq!(format_autosave(false, false, true), "\u{25cb} autosaved");
+    assert_eq!(
+        format_autosave(false, false, false),
+        "\u{25cb} no autosave yet"
+    );
 }
 
 /// LCV-116 AC 8 — a default app has never autosaved and has nothing
@@ -158,7 +232,11 @@ fn format_autosave_states() {
 fn a_fresh_app_reads_no_autosave_yet() {
     let app = App::default();
     assert_eq!(
-        format_autosave(app.dirty_since.is_some(), app.last_autosave_at.is_some()),
+        format_autosave(
+            app.autosave.autosave_failed,
+            app.autosave.dirty_since.is_some(),
+            app.autosave.last_autosave_at.is_some()
+        ),
         "\u{25cb} no autosave yet"
     );
 }
@@ -195,8 +273,8 @@ fn recovery_label_paints_when_the_flag_is_set_and_touches_nothing_else() {
         },
         ..App::default()
     };
-    let dirty_before = app.dirty_since;
-    let autosave_before = app.last_autosave_at;
+    let dirty_before = app.autosave.dirty_since;
+    let autosave_before = app.autosave.last_autosave_at;
 
     let ctx = egui::Context::default();
     let out = ctx.run(egui::RawInput::default(), |ctx| {
@@ -208,11 +286,11 @@ fn recovery_label_paints_when_the_flag_is_set_and_touches_nothing_else() {
         "the recovery label must paint while the flag is true: {painted:?}"
     );
     assert_eq!(
-        app.dirty_since, dirty_before,
+        app.autosave.dirty_since, dirty_before,
         "rendering the recovery label must not touch dirty_since"
     );
     assert_eq!(
-        app.last_autosave_at, autosave_before,
+        app.autosave.last_autosave_at, autosave_before,
         "rendering the recovery label must not touch last_autosave_at"
     );
 }
@@ -292,12 +370,11 @@ fn the_indicators_are_always_visible() {
     let loop_at = body
         .find("for mode in Mode::ALL {")
         .expect("mode loop present");
-    // The needle omits the `ui` receiver: LCV-140's added `.on_hover_text`
-    // call makes the chain long enough that `rustfmt` puts `ui` alone on
-    // its own line, ahead of `.selectable_label(...)`.
+    // LCV-184 AC 4: the indicator is a `mode_pill`, no longer egui's
+    // `selectable_label`.
     let label_at = body[loop_at..]
-        .find(".selectable_label(mode.is_on(app), mode.label())")
-        .expect("positive control: the selectable_label call is in the loop")
+        .find("pill::mode_pill(ui, mode.is_on(app), mode.label())")
+        .expect("positive control: the mode_pill call is in the loop")
         + loop_at;
     assert!(
         !body[loop_at..label_at].contains("app."),

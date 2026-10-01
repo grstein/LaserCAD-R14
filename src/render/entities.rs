@@ -1,39 +1,31 @@
 //! Entity painter: line, circle, and arc rendering.
 //!
-//! Walks `&[Entity]` and emits the right egui `Painter` calls for each
-//! variant: lines as line segments, circles via `Painter::circle_stroke`,
-//! arcs tessellated to polylines.
+//! Walks the document's entities and strokes each one through
+//! [`crate::render::stroke_entity`]: a line segment, or one path whose chord
+//! count follows the on-screen radius (LCV-164 AC 5, `render/tessellate.rs`).
 //!
 //! Every entity is stroked in its layer's color (LCV-156 AC 3) at the width
 //! in [`PaintOptions`]; selection and preview paint their own overlays.
 //!
 //! Introduced by demand LCV-035.
 
-use crate::document::{Document, Entity};
+use crate::document::Document;
 use crate::geometry::{Arc, Vec2};
 use crate::render::Camera;
 
 /// Rendering options for the entity painter.
 ///
-/// - `stroke_width`: line width in pixels applied to all entities.
-/// - `arc_segments`: number of polyline segments per full circle for arc
-///   tessellation (clamped to `>= 2` by [`arc_polyline`]).
-///
-/// Default: 1-px stroke and 64 segments (same as v1; ~5.6° per segment, visually crisp at 1 mm/px).
+/// Default: a 1 pt stroke. The chord count of curves is no option: it
+/// follows the zoom (LCV-164 AC 5, replacing LCV-035's fixed 64).
 #[derive(Debug, Clone, Copy)]
 pub struct PaintOptions {
-    /// Stroke width in pixels applied to all entities.
+    /// Stroke width in points applied to all entities.
     pub stroke_width: f32,
-    /// Arc tessellation segment count (for a full circle).
-    pub arc_segments: usize,
 }
 
 impl Default for PaintOptions {
     fn default() -> Self {
-        Self {
-            stroke_width: 1.0,
-            arc_segments: 64,
-        }
+        Self { stroke_width: 1.0 }
     }
 }
 
@@ -41,14 +33,7 @@ impl Default for PaintOptions {
 ///
 /// `rect` is the viewport's screen-space rectangle; its origin is added to
 /// every projected point so shapes land in the correct painter clip rect.
-///
-/// Iterates `entities` and dispatches on the variant:
-/// - **Line**: `painter.line_segment([p1, p2], stroke)` (both endpoints
-///   converted via world→screen).
-/// - **Circle**: `painter.circle_stroke(center_px, radius_px, stroke)` where
-///   `radius_px = circle.r / camera.mm_per_px`.
-/// - **Arc**: tessellate with [`arc_polyline`], convert each point to screen,
-///   and emit consecutive line_segment calls.
+/// Each entity is one shape (see [`crate::render::stroke_entity`]).
 pub fn draw_entities(
     painter: &egui::Painter,
     rect: egui::Rect,
@@ -59,26 +44,7 @@ pub fn draw_entities(
     for (i, entity) in doc.entities.iter().enumerate() {
         let [r, g, b] = doc.layer_color(i);
         let stroke = egui::Stroke::new(options.stroke_width, egui::Color32::from_rgb(r, g, b));
-        match entity {
-            Entity::Line(line) => {
-                let p1 = world_to_screen_offset(rect, camera, line.p1);
-                let p2 = world_to_screen_offset(rect, camera, line.p2);
-                painter.line_segment([p1, p2], stroke);
-            }
-            Entity::Circle(circle) => {
-                let center = world_to_screen_offset(rect, camera, circle.center);
-                let radius_px = (circle.r / camera.mm_per_px) as f32;
-                painter.circle_stroke(center, radius_px, stroke);
-            }
-            Entity::Arc(arc) => {
-                let points = arc_polyline(arc, options.arc_segments);
-                for i in 0..points.len().saturating_sub(1) {
-                    let p1 = world_to_screen_offset(rect, camera, points[i]);
-                    let p2 = world_to_screen_offset(rect, camera, points[i + 1]);
-                    painter.line_segment([p1, p2], stroke);
-                }
-            }
-        }
+        crate::render::stroke_entity(painter, rect, camera, entity, stroke);
     }
 }
 
@@ -115,27 +81,18 @@ pub fn arc_polyline(arc: &Arc, segments: usize) -> Vec<Vec2> {
     points
 }
 
-/// Convert a world-space point to screen space, offset by `rect.min`.
-///
-/// Private helper: `camera.world_to_screen(w) + rect.min.to_vec2()`.
-/// Every Phase-3 demand (grid, bed, entities) needs this same translation.
-fn world_to_screen_offset(rect: egui::Rect, camera: &Camera, w: Vec2) -> egui::Pos2 {
-    camera.world_to_screen(w) + rect.min.to_vec2()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::document::Entity;
     use crate::geometry::{Circle, EPSILON, Line};
     use core::f64::consts::FRAC_PI_2;
 
-    /// AC#2 — `PaintOptions::default()` returns `arc_segments == 64` and a
-    /// non-zero stroke width.
+    /// `PaintOptions::default()` has a non-zero stroke width (LCV-035 AC 2's
+    /// fixed 64 arc segments is replaced by LCV-164 AC 5).
     #[test]
     fn paint_options_default_is_sensible() {
-        let opts = PaintOptions::default();
-        assert_eq!(opts.arc_segments, 64);
-        assert!(opts.stroke_width > 0.0);
+        assert!(PaintOptions::default().stroke_width > 0.0);
     }
 
     /// AC#5 — `arc_polyline` returns `n + 1` points for `n >= 2`.

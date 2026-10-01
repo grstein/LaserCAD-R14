@@ -7,9 +7,9 @@
 //!   before the `CentralPanel` so egui shrinks the canvas to what is left.
 //! - [`draw_agent_side_panel`] — the AI assistant panel (LCV-080), only when
 //!   `agent.panel_open`.
-//! - [`draw_dialogs`] — About, Keyboard shortcuts (LCV-116), Agent Settings,
+//! - [`draw_dialogs`] — About, Keyboard Shortcuts (LCV-116), AI Settings,
 //!   the error modal, the discard-confirmation dialog (LCV-113) and the Bed
-//!   size… dialog (LCV-114), rendered after the `CentralPanel` so they float
+//!   Size… dialog (LCV-114), rendered after the `CentralPanel` so they float
 //!   above the canvas.
 //!
 //! No key is read here: `src/app/input.rs` is the single keyboard gate
@@ -17,7 +17,8 @@
 //!
 //! MUST NOT import `eframe` or `rfd`.
 
-use super::{App, draw_bed_dialog, draw_discard_dialog};
+use super::{App, Dialog, draw_bed_dialog, draw_discard_dialog, topmost};
+use crate::ui::DialogKey;
 
 /// Render the four fixed panels that frame the viewport.
 pub fn draw_chrome(ctx: &egui::Context, app: &mut App) {
@@ -33,69 +34,24 @@ pub fn draw_chrome(ctx: &egui::Context, app: &mut App) {
         crate::ui::draw_command_line(ui, app);
     });
 
+    let rail_frame = egui::Frame::side_top_panel(&ctx.style()).inner_margin(RAIL_MARGIN);
     egui::SidePanel::left("toolbar")
         .resizable(false)
-        .exact_width(toolbar_width(ctx))
+        .exact_width(RAIL_WIDTH)
+        .frame(rail_frame)
         .show(ctx, |ui| {
             crate::ui::draw_toolbar(ui, app);
         });
 }
 
-/// Cap on the tool rail's outer width, in points (LCV-140 AC 2): its eleven
-/// `TOOLS` labels never need more than this to render in full at any
-/// reasonable font.
-const TOOLBAR_WIDTH_CEILING: f32 = 120.0;
+/// The tool rail's frame inner margin, in points, on every side (LCV-183).
+const RAIL_MARGIN: f32 = 4.0;
 
-/// The tool rail's fixed outer width — "outer" in the same sense
-/// `SidePanel::exact_width`'s own doc comment uses, i.e. including the
-/// panel's frame margin.
-///
-/// Sized to exactly fit the widest of the `TOOLS` labels and the agent
-/// toggle's own label ([`crate::ui::toolbar::AGENT_TOGGLE_LABEL`]), measured
-/// at the *current* button text style — so a label never wraps onto a
-/// second line inside its `SelectableLabel` (egui wraps rather than elides
-/// button text by default) — plus the button padding and the panel's own
-/// frame margin on both sides, two points of slack for text-layout rounding
-/// at the boundary, and never wider than [`TOOLBAR_WIDTH_CEILING`] (AC 2).
-///
-/// Recomputed from `ctx.style()` / `ctx.fonts()` on every call, mirroring
-/// `agent_panel_width_ceiling`'s "never cached" rule (a font or style change
-/// between frames must be reflected immediately).
-fn toolbar_width(ctx: &egui::Context) -> f32 {
-    let labels = crate::ui::toolbar::TOOLS
-        .iter()
-        .map(|entry| entry.label)
-        .chain(std::iter::once(crate::ui::toolbar::AGENT_TOGGLE_LABEL));
-    toolbar_width_for(ctx, labels)
-}
-
-/// The width computation itself, parameterised over the label set so a unit
-/// test can hand it a synthetic over-wide label and prove
-/// [`TOOLBAR_WIDTH_CEILING`]'s clamp actually binds.
-///
-/// LCV-140 review, mutation testing: the shipped `TOOLS` labels never come
-/// close to 120pt, so a test built only from [`toolbar_width`] cannot tell
-/// the ceiling constant being raised, or the `.min(TOOLBAR_WIDTH_CEILING)`
-/// clamp being deleted, from the real behaviour — both mutations left every
-/// test green. `tests::toolbar_width_for_clamps_a_synthetic_over_wide_label`
-/// below closes that gap.
-fn toolbar_width_for<'a>(ctx: &egui::Context, labels: impl Iterator<Item = &'a str>) -> f32 {
-    let style = ctx.style();
-    let font_id = egui::TextStyle::Button.resolve(&style);
-    let widest_text = labels
-        .map(|label| {
-            ctx.fonts(|f| {
-                f.layout_no_wrap(label.to_owned(), font_id.clone(), egui::Color32::WHITE)
-                    .size()
-                    .x
-            })
-        })
-        .fold(0.0_f32, f32::max);
-    let button_padding = style.spacing.button_padding.x * 2.0;
-    let frame_margin = egui::Frame::side_top_panel(&style).inner_margin;
-    let outer = widest_text + button_padding + frame_margin.left + frame_margin.right + 2.0;
-    outer.min(TOOLBAR_WIDTH_CEILING)
-}
+/// The tool rail's fixed outer width, in points (LCV-183 AC 8: at most 80):
+/// two 32 pt button columns, the 4 pt gap between them
+/// (`crate::ui::toolbar::RAIL_GAP`) and [`RAIL_MARGIN`] on both sides.
+/// "Outer" as in `SidePanel::exact_width`'s own doc comment.
+const RAIL_WIDTH: f32 = 2.0 * 32.0 + crate::ui::toolbar::RAIL_GAP + 2.0 * RAIL_MARGIN;
 
 /// Width the agent panel opens at before the ceiling narrows it (LCV-080's
 /// original default).
@@ -144,65 +100,70 @@ pub fn draw_agent_side_panel(ctx: &egui::Context, app: &mut App) {
 /// LCV-116, LCV-156).
 ///
 /// Called after the `CentralPanel` so the windows float above the canvas.
-pub fn draw_dialogs(ctx: &egui::Context, app: &mut App) {
-    crate::ui::about_dialog(ctx, &mut app.about_open);
-    crate::ui::shortcuts_dialog(ctx, &mut app.shortcuts_open);
-    agent_settings_dialog(ctx, app);
-    error_modal(ctx, app);
-    draw_discard_dialog(ctx, app);
-    draw_bed_dialog(ctx, app);
-    crate::ui::draw_layers_dialog(ctx, app);
+/// `key`, taken by `input.rs::take_dialog_key`, goes to the topmost dialog
+/// only (LCV-169 AC 1).
+pub fn draw_dialogs(ctx: &egui::Context, app: &mut App, key: Option<DialogKey>) {
+    let top = topmost(app);
+    let key_for = |d: Dialog| key.filter(|_| top == Some(d));
+    crate::ui::about_dialog(ctx, &mut app.about_open, key_for(Dialog::About));
+    let shortcuts_key = key_for(Dialog::Shortcuts);
+    crate::ui::shortcuts_dialog(ctx, &mut app.shortcuts_open, shortcuts_key);
+    agent_settings_dialog(ctx, app, key_for(Dialog::AiSettings));
+    error_modal(ctx, app, key_for(Dialog::Error));
+    draw_discard_dialog(ctx, app, key_for(Dialog::Discard));
+    draw_bed_dialog(ctx, app, key_for(Dialog::Bed));
+    crate::ui::draw_layers_dialog(ctx, app, key_for(Dialog::Layers));
 }
 
-/// The Agent Settings window (LCV-076). Persists the settings when the window
-/// closes, whether by the × button, the Done button (LCV-141 AC 6), or
+/// The AI Settings window (LCV-076). Persists the settings when the window
+/// closes, whether by the × button, the Close button (LCV-141 AC 6), or
 /// programmatically.
-fn agent_settings_dialog(ctx: &egui::Context, app: &mut App) {
+fn agent_settings_dialog(ctx: &egui::Context, app: &mut App, key: Option<DialogKey>) {
     let was_open = app.agent_settings_open;
-    // Set from inside the content closure below when Done is clicked. Kept
+    // Set from inside the content closure below when Close is clicked. Kept
     // separate from `agent_settings_open` itself: `Window::open` already
     // borrows that field for the whole `.show()` call, so a second mutable
     // borrow of the same field from the content closure would not compile —
-    // this is the one new piece of state the Done button needs, read only
+    // this is the one new piece of state the Close button needs, read only
     // after every borrow above has ended (LCV-141 AC 6).
-    let mut done_clicked = false;
+    let mut close_clicked = false;
     {
         // The window borrows `agent_settings_open` and `settings` mutably for
         // its whole lifetime; `App::persist_settings` needs `&App`, so the
         // borrows are scoped and the write happens after they end (LCV-119).
         let open = &mut app.agent_settings_open;
         let settings = &mut app.settings;
-        egui::Window::new("Agent Settings")
+        egui::Window::new("AI Settings")
             .open(open)
             .resizable(false)
             .collapsible(false)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
             .show(ctx, |ui| {
                 // LCV-141 AC 7: bounded scrolling, so a form that grows in a
-                // later demand scrolls instead of pushing Done off the bottom
+                // later demand scrolls instead of pushing Close off the bottom
                 // of the window (ADR 0009).
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    done_clicked = crate::agent::draw_agent_settings(ui, settings).done_clicked;
+                    close_clicked = crate::agent::draw_agent_settings(ui, settings).close_clicked;
                 });
             });
     }
-    // Done runs the exact same close as the × button: it only ever sets the
+    // Close runs the exact same close as the × button: it only ever sets the
     // same flag the window's own `Window::open` would have set, and the one
     // guard below fires either way — never a second, parallel persistence
     // path (AC 6).
-    if done_clicked {
+    if close_clicked || key.is_some() {
         app.agent_settings_open = false;
     }
-    // Save on dialog close (× button, Done, or programmatic close).
+    // Save on dialog close (× button, Close, or programmatic close).
     if was_open && !app.agent_settings_open {
         app.persist_settings();
     }
 }
 
 /// The error modal (LCV-062) — rendered last so it floats above everything.
-fn error_modal(ctx: &egui::Context, app: &mut App) {
+fn error_modal(ctx: &egui::Context, app: &mut App, key: Option<DialogKey>) {
     if let Some(msg) = app.error_message.clone()
-        && crate::ui::error_dialog(ctx, "Error", &msg)
+        && crate::ui::error_dialog(ctx, "Error", &msg, key)
     {
         app.error_message = None;
     }
@@ -211,40 +172,6 @@ fn error_modal(ctx: &egui::Context, app: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// LCV-140 AC 2, mutation-testing follow-up — an over-wide synthetic
-    /// label forces the ceiling clamp to actually bind: this fails if
-    /// `TOOLBAR_WIDTH_CEILING` is raised (the returned width would then
-    /// exceed today's 120.0), and fails if `.min(TOOLBAR_WIDTH_CEILING)` is
-    /// deleted (the returned width would be the synthetic label's own huge
-    /// natural size). The real `toolbar_width(ctx)` — built only from the
-    /// shipped `TOOLS` labels, which never reach the ceiling — cannot prove
-    /// either.
-    #[test]
-    fn toolbar_width_for_clamps_a_synthetic_over_wide_label() {
-        let ctx = egui::Context::default();
-        // Fonts are not available until the first `Context::run` (egui-0.29.1
-        // `context.rs::Context::fonts`); one empty pass is enough to prime them.
-        let _ = ctx.run(egui::RawInput::default(), |_| {});
-
-        let huge_label = "M".repeat(400);
-        let width = toolbar_width_for(&ctx, std::iter::once(huge_label.as_str()));
-
-        // The expected value is AC 2's own number, 120.0 — hard-coded on
-        // purpose, never `TOOLBAR_WIDTH_CEILING` itself: comparing against
-        // that symbol would make this assertion true for *any* value the
-        // constant holds (raising it to 300 would just move both sides of
-        // the comparison together), which is exactly the mutation this test
-        // exists to catch.
-        assert_eq!(
-            width, 120.0,
-            "an over-wide label must clamp to exactly AC 2's 120pt ceiling, got {width}"
-        );
-        assert_eq!(
-            width, TOOLBAR_WIDTH_CEILING,
-            "positive control: 120.0 must actually be today's TOOLBAR_WIDTH_CEILING"
-        );
-    }
 
     /// LCV-105 — the agent side panel is skipped entirely while the panel is
     /// closed, which is what keeps the canvas full-width by default.
@@ -312,12 +239,12 @@ mod tests {
         );
     }
 
-    /// The body of `if done_clicked { .. }` inside `agent_settings_dialog`,
+    /// The body of `if close_clicked { .. }` inside `agent_settings_dialog`,
     /// brace-matched — the same slicing idiom `src/agent/panel.rs::busy_block`
     /// uses for LCV-129's Cancel button, so a line moved out of the guarded
     /// block is no longer in *this* string even though it is still in the file.
-    fn done_clicked_block(implementation: &str) -> String {
-        let head = concat!("if done_", "clicked {");
+    fn close_clicked_block(implementation: &str) -> String {
+        let head = concat!("if close_", "clicked || key.is_some() {");
         let start = implementation
             .find(head)
             .unwrap_or_else(|| panic!("agent_settings_dialog must guard a `{head}` block"))
@@ -335,27 +262,27 @@ mod tests {
                 _ => {}
             }
         }
-        panic!("the done_clicked block is never closed — panels.rs does not parse");
+        panic!("the close_clicked block is never closed — panels.rs does not parse");
     }
 
-    /// LCV-141 AC 6 — **source scan**: Done's whole effect is setting the same
+    /// LCV-141 AC 6 — **source scan**: Close's whole effect is setting the same
     /// flag `Window::open` sets for ×, not a second call into
     /// `App::persist_settings`. The one persist call below — reached through
     /// `was_open && !app.agent_settings_open`, which is true after *either*
-    /// path — is what actually saves, and this pins that Done does not also
+    /// path — is what actually saves, and this pins that Close does not also
     /// reach it directly.
     #[test]
-    fn ac6_done_only_sets_the_shared_close_flag_source_scan() {
+    fn ac6_close_only_sets_the_shared_close_flag_source_scan() {
         let implementation = implementation_code();
-        let block = done_clicked_block(&implementation);
+        let block = close_clicked_block(&implementation);
 
         assert!(
             block.contains(concat!("agent_settings", "_open = false")),
-            "AC 6: the done_clicked block must set the same flag × sets: {block}"
+            "AC 6: the close_clicked block must set the same flag × sets: {block}"
         );
 
         let witness =
-            "if done_clicked { app.agent_settings_open = false; app.persist_settings(); }";
+            "if close_clicked { app.agent_settings_open = false; app.persist_settings(); }";
         let forbidden = concat!("persist_", "settings");
         assert!(
             witness.contains(forbidden),
@@ -363,7 +290,7 @@ mod tests {
         );
         assert!(
             !block.contains(forbidden),
-            "AC 6: Done must not call `{forbidden}` itself — that is the shared \
+            "AC 6: Close must not call `{forbidden}` itself — that is the shared \
              guard's job, reached the same way × reaches it: {block}"
         );
     }
@@ -392,7 +319,7 @@ mod tests {
         let ctx = egui::Context::default();
         let mut app = App::default();
         let _ = ctx.run(egui::RawInput::default(), |ctx| {
-            draw_dialogs(ctx, &mut app);
+            draw_dialogs(ctx, &mut app, None);
         });
         assert!(!app.about_open);
         assert!(!app.agent_settings_open);

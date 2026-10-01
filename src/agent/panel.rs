@@ -37,7 +37,7 @@ use crate::app::App;
 /// Colour of an action / outcome row (AC 2).
 ///
 /// A cool accent, deliberately neither the `#d0d0d0` the theme gives assistant
-/// prose (`src/ui/theme.rs::apply_theme`) nor the red an `error` row uses, so
+/// prose (`src/ui/theme.rs::apply_theme`) nor the `error_fg_color` an `error` row uses, so
 /// the §D5 renumbering sentence is findable in a column of chat at a glance.
 /// `the_row_colours_are_distinct_under_the_real_theme` pins all three apart.
 const TOOL_COLOR: egui::Color32 = egui::Color32::from_rgb(120, 190, 255);
@@ -212,7 +212,10 @@ fn draw_chat_row(ui: &mut egui::Ui, role: &str, content: &str) {
             ui.add(egui::Label::new(content).wrap());
         }
         "error" => {
-            ui.add(egui::Label::new(egui::RichText::new(content).color(egui::Color32::RED)).wrap());
+            // `status.error`, which `ui::theme::apply_theme` writes into egui's
+            // own `error_fg_color` (LCV-167 AC 7).
+            let colour = ui.visuals().error_fg_color;
+            ui.add(egui::Label::new(egui::RichText::new(content).color(colour)).wrap());
         }
         "tool" => {
             // One `ui.add` per row in a vertical layout, so two consecutive

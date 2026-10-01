@@ -8,6 +8,8 @@
 
 use std::collections::VecDeque;
 
+use super::{CommandInput, ToolKind, parse};
+
 /// The command-line recall ring: a 50-entry, oldest-evicted transcript of
 /// submitted command-line text, with an independent Up/Down recall cursor.
 ///
@@ -102,6 +104,18 @@ impl CommandHistory {
     /// `true` if no entry has ever been pushed (or all pushes were blank).
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
+    }
+
+    /// The newest entry that parses to a tool word, for the empty-Enter
+    /// repeat (LCV-165 AC 4, AC 5). Agent lines (`:` / `/ai`), points,
+    /// numbers, toggles and unknown words never parse to a tool, so they are
+    /// skipped; `None` when no tool word is left. Reads the ring only: the
+    /// recall cursor is untouched.
+    pub fn last_tool(&self) -> Option<ToolKind> {
+        self.entries.iter().rev().find_map(|e| match parse(e) {
+            CommandInput::Tool(kind) => Some(kind),
+            _ => None,
+        })
     }
 }
 
@@ -255,5 +269,44 @@ mod tests {
         let mut h = CommandHistory::default();
         assert_eq!(h.older(), None);
         assert_eq!(h.newer(), None);
+    }
+
+    fn ring(entries: &[&str]) -> CommandHistory {
+        let mut h = CommandHistory::default();
+        for e in entries {
+            h.push(e);
+        }
+        h
+    }
+
+    /// LCV-165 AC 4 — the newest tool word wins over later points and
+    /// numbers.
+    #[test]
+    fn last_tool_skips_points_and_numbers() {
+        assert_eq!(ring(&["l", "0,0", "10"]).last_tool(), Some(ToolKind::Line));
+    }
+
+    /// LCV-165 AC 5 — agent prompts are skipped, never repeated.
+    #[test]
+    fn last_tool_skips_agent_prompts() {
+        let h = ring(&["c", ":draw box", "/ai hi"]);
+        assert_eq!(h.last_tool(), Some(ToolKind::Circle));
+        assert_eq!(ring(&[":draw"]).last_tool(), None);
+    }
+
+    /// LCV-165 AC 5 — toggles and unknown words are not tool words.
+    #[test]
+    fn last_tool_is_none_without_a_tool_word() {
+        assert_eq!(ring(&["grid", "hello"]).last_tool(), None);
+        assert_eq!(CommandHistory::default().last_tool(), None);
+    }
+
+    /// LCV-165 — reading the last tool leaves the recall cursor alone.
+    #[test]
+    fn last_tool_does_not_move_the_cursor() {
+        let mut h = ring(&["l", "c"]);
+        assert_eq!(h.older().as_deref(), Some("c"));
+        assert_eq!(h.last_tool(), Some(ToolKind::Circle));
+        assert_eq!(h.older().as_deref(), Some("l"));
     }
 }

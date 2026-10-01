@@ -11,6 +11,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::geometry::SnapKinds;
 use crate::util::{DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM, clamp_bed_mm};
 
 pub(crate) use crate::io::settings_store::{load_from, platform_path, save_to};
@@ -121,6 +122,11 @@ pub struct Settings {
     /// `agent::memory::clamp_context_tokens` (ADR 0007 §D7).
     #[serde(default = "default_agent_context_tokens")]
     pub agent_context_tokens: u32,
+
+    /// Object-snap kinds enabled under View > Object snap (LCV-161). F3
+    /// stays the master switch. A file predating LCV-161 loads the defaults.
+    #[serde(default)]
+    pub object_snaps: SnapKinds,
 }
 
 fn default_agent_endpoint() -> String {
@@ -161,6 +167,7 @@ impl Default for Settings {
             agent_allow_canvas_capture: false,
             agent_model_supports_vision: false,
             agent_context_tokens: default_agent_context_tokens(),
+            object_snaps: SnapKinds::default(),
         }
     }
 }

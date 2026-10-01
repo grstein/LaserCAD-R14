@@ -234,7 +234,7 @@ fn invalid_height_keeps_the_text_and_re_prompts() {
         assert_eq!(app.history.len(), 0);
         assert_eq!(
             app.tool_manager.active_status_text(),
-            "TEXT Height must be between 0.1 and 2000 mm. Specify height <5>:",
+            "TEXT  Height must be between 0.1 and 2000 mm. Specify height <5>:",
             "{bad} must show the retry prompt"
         );
     }
@@ -303,7 +303,7 @@ fn raw_input_is_not_parsed() {
     assert_eq!(app.tool_manager.active_tool_name(), "TEXT");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "TEXT Specify height <5>:"
+        "TEXT  Specify height <5>:"
     );
 
     submit_command(&ctx, &mut app, "10");
@@ -366,7 +366,7 @@ fn escape_mid_flow_commits_nothing_and_clears_the_field() {
     assert_eq!(app.history.len(), 0, "cancelling commits nothing");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "TEXT Specify start point:"
+        "TEXT  Specify start point:"
     );
 }
 
@@ -380,16 +380,22 @@ fn escape_mid_flow_commits_nothing_and_clears_the_field() {
 #[test]
 fn text_commit_marks_the_document_dirty() {
     let (ctx, mut app, viewport) = boot();
-    assert!(app.dirty_since.is_none(), "a fresh document is clean");
+    assert!(
+        app.autosave.dirty_since.is_none(),
+        "a fresh document is clean"
+    );
 
     app.tool_manager.set_tool(Box::new(TextTool::default()));
     click_anchor(&ctx, &mut app, viewport);
     submit_command(&ctx, &mut app, "HELLO");
-    assert!(app.dirty_since.is_none(), "a phase advance commits nothing");
+    assert!(
+        app.autosave.dirty_since.is_none(),
+        "a phase advance commits nothing"
+    );
 
     submit_command(&ctx, &mut app, "10");
     assert!(
-        app.dirty_since.is_some(),
+        app.autosave.dirty_since.is_some(),
         "the committed text must arm the autosave debounce"
     );
 }

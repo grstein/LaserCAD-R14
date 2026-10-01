@@ -1,9 +1,10 @@
 //! The `CentralPanel` viewport: painting, pointer routing, and camera actions.
 //!
-//! [`draw`] is the whole canvas phase of a frame — camera sync, the render
-//! pipeline (grid, bed, entities, selection, preview, snap marker), pointer
-//! events into the active tool, wheel zoom and middle-drag pan. It is called
-//! once per frame from [`App::update_ui`](super::App::update_ui).
+//! [`draw`] is the whole canvas phase of a frame — camera sync, middle-drag
+//! pan, pointer events into the active tool and wheel zoom, then the render
+//! pipeline (grid, bed, entities, selection, preview, snap marker, cursor;
+//! `viewport/paint.rs`). It is called once per frame from
+//! [`App::update_ui`](super::App::update_ui).
 //!
 //! No key is read here: `src/app/input.rs` is the single keyboard gate
 //! (LCV-103 / ADR 0002 §A6). A `ctx.input(|i| i.key_*)` call in this file is a
@@ -13,11 +14,15 @@
 
 use super::{App, apply_ortho, resolve_snap};
 use crate::document::Document;
+use crate::geometry::Vec2;
 use crate::render::Camera;
 use crate::tools::{PointerButton, PointerEvent};
 
 /// Factor applied per mouse-wheel notch. `> 1.0` zooms in; `< 1.0` zooms out.
 const WHEEL_ZOOM_FACTOR: f64 = 1.1;
+
+mod paint;
+use paint::paint;
 
 /// Render the canvas and route pointer input for one frame.
 pub fn draw(ctx: &egui::Context, app: &mut App) {
@@ -28,19 +33,36 @@ pub fn draw(ctx: &egui::Context, app: &mut App) {
         // Sync the camera's viewport size before any draw call consumes it.
         app.camera.viewport_size_px = [rect.width(), rect.height()];
 
-        paint(ui, rect, app);
-
-        // --- pointer / camera interaction (LCV-032 / LCV-041) ---
-        if response.hovered()
-            && let Some(hover_pos) = response.hover_pos()
-        {
-            handle_hover(ctx, app, rect, hover_pos);
+        // Boot, Open and a new bed size frame the bed once the viewport has
+        // a size to frame it in (LCV-164 AC 7).
+        if app.frame_bed_pending && rect.width() > 0.0 && rect.height() > 0.0 {
+            app.camera.frame_bed(app.document.bed_mm);
+            app.frame_bed_pending = false;
         }
 
         // Middle-button pan.
         if response.dragged_by(egui::PointerButton::Middle) {
             handle_pan(&mut app.camera, response.drag_delta());
         }
+
+        // Picks are screen points: the tool turns them into mm at this zoom.
+        app.tool_manager.set_pick_scale(app.camera.mm_per_px);
+
+        // Input before painting (DESIGN.md F1, LCV-162 AC 4): the snap glyph
+        // and the crosshair come from this frame's pointer, not the last.
+        // `cursor` is the resolved world point, `None` off the canvas.
+        let cursor = response
+            .hover_pos()
+            .filter(|_| response.hovered())
+            .map(|hover_pos| handle_hover(ctx, app, rect, hover_pos));
+
+        // The crosshair replaces the OS cursor over the canvas (AC 1). egui
+        // resets the icon every frame, so off the canvas it is the arrow.
+        if cursor.is_some() {
+            ctx.set_cursor_icon(egui::CursorIcon::None);
+        }
+
+        paint(ui, rect, app, cursor);
 
         // Ask for a follow-up frame only while the canvas is live — see
         // `viewport_is_live` and AGENTS.md §Event flow → Repaint policy. The
@@ -69,62 +91,15 @@ fn viewport_is_live(response: &egui::Response, app: &App) -> bool {
     response.hovered() || response.dragged() || !app.preview_entities.is_empty()
 }
 
-/// Paint the canvas background and the whole render pipeline into `rect`.
-///
-/// Paint order (LCV-137 AC 1): canvas background, bed background fill, the
-/// grid (when enabled), the bed border and exterior overlay, entities,
-/// selection, preview, snap marker. The bed's fill is painted BEFORE the
-/// grid and its border/overlay AFTER, so the grid's lines land on top of the
-/// fill and are visible inside the bed rather than painted over by it — the
-/// two halves of what used to be one `draw_bed` call, split for this order
-/// (LCV-137 AC 2, `src/render/bed.rs`).
-fn paint(ui: &egui::Ui, rect: egui::Rect, app: &mut App) {
-    let painter = ui.painter_at(rect);
-    painter.rect_filled(rect, 0.0, crate::ui::CANVAS_BG);
-    painter.rect_stroke(
-        rect,
-        0.0,
-        egui::Stroke::new(1.0_f32, egui::Color32::from_gray(64)),
-    );
-
-    // The bed is the document's, rebuilt every frame (LCV-114 AC 4/AC 15):
-    // no cached copy, so a `SetBedSize` shows up on the very next frame.
-    let bed = crate::render::Bed::from_size_mm(app.document.bed_mm);
-    crate::render::draw_bed_fill(&painter, rect, &app.camera, &bed);
-
-    if app.grid_enabled {
-        crate::render::draw_grid(&painter, rect, &app.camera);
-    }
-
-    crate::render::draw_bed(&painter, rect, &app.camera, &bed);
-    crate::render::draw_entities(
-        &painter,
-        rect,
-        &app.camera,
-        &app.document,
-        crate::render::PaintOptions::default(),
-    );
-    crate::render::draw_selection_highlight(
-        &painter,
-        rect,
-        &app.camera,
-        &app.document.entities,
-        &app.document.selection,
-    );
-
-    // Update preview from tool (LCV-040 AC#9).
-    app.preview_entities = app.tool_manager.preview();
-
-    crate::render::draw_preview(&painter, rect, &app.camera, &app.preview_entities);
-
-    if let Some(snap) = &app.active_snap {
-        crate::render::draw_snap_marker(&painter, rect, &app.camera, snap);
-    }
-}
-
 /// Resolve the cursor position and route pointer events while the viewport is
 /// hovered: snap, ortho lock, press / move / release, and wheel zoom.
-fn handle_hover(ctx: &egui::Context, app: &mut App, rect: egui::Rect, hover_pos: egui::Pos2) {
+/// Returns the resolved world point, after snap and Ortho.
+fn handle_hover(
+    ctx: &egui::Context,
+    app: &mut App,
+    rect: egui::Rect,
+    hover_pos: egui::Pos2,
+) -> Vec2 {
     // `hover_pos` is global (the whole window); `rect.min` is the viewport's
     // own origin, which is nonzero whenever a panel claims space before the
     // `CentralPanel` — always, since the menubar and toolbar always do, and
@@ -136,8 +111,15 @@ fn handle_hover(ctx: &egui::Context, app: &mut App, rect: egui::Rect, hover_pos:
 
     // `resolve_snap` takes the global `hover_pos` plus `rect` and does this
     // same subtraction internally.
-    if app.snap_enabled {
-        app.active_snap = resolve_snap(hover_pos, rect, &app.camera, &app.document.entities);
+    // No running snap while an entity pick is pending (LCV-162 AC 11): R14
+    // has no osnap at "Select objects", and a snap would move the pick off
+    // the pointer by up to the 12 pt snap aperture.
+    if app.tool_manager.wants_entity_pick() {
+        app.active_snap = None;
+    } else if app.snap_enabled {
+        let (anchor, kinds) = (app.tool_manager.anchor(), app.settings.object_snaps);
+        let entities = &app.document.entities;
+        app.active_snap = resolve_snap(hover_pos, rect, &app.camera, entities, anchor, kinds);
     }
     let world_pos = app
         .active_snap
@@ -154,6 +136,13 @@ fn handle_hover(ctx: &egui::Context, app: &mut App, rect: egui::Rect, hover_pos:
         world_pos
     };
     app.last_cursor_world = Some(world_pos);
+
+    // A right press is Enter on an empty line (LCV-165 AC 6, reversing
+    // LCV-041 AC 4): finish, accept or repeat — the field's text is ignored
+    // and no tool ever sees it as a point.
+    if ctx.input(|i| i.pointer.button_pressed(egui::PointerButton::Secondary)) {
+        super::submit(app, "");
+    }
 
     // Pointer events (LCV-041).
     if ctx.input(|i| i.pointer.primary_pressed()) {
@@ -197,6 +186,7 @@ fn handle_hover(ctx: &egui::Context, app: &mut App, rect: egui::Rect, hover_pos:
         };
         handle_wheel_zoom(&mut app.camera, local_pos, factor);
     }
+    world_pos
 }
 
 /// Hand one pointer event to the active tool.
@@ -215,7 +205,7 @@ fn send_pointer(app: &mut App, event: PointerEvent) {
 /// so the hand-over below cannot swallow it.
 pub(super) fn poll_successor(app: &mut App) {
     if let Some(message) = app.tool_manager.take_message() {
-        app.command_feedback = message;
+        app.say(super::Severity::Info, message);
     }
     if let Some(t) = app.tool_manager.take_successor() {
         app.tool_manager.set_tool(t);

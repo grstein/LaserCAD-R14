@@ -25,6 +25,17 @@ use crate::app::App;
 use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History};
 use crate::geometry::Vec2;
+use crate::tools::Mark;
+use std::borrow::Cow;
+
+/// Entity pick aperture in screen points (LCV-162, DESIGN.md §5): an entity
+/// within this distance of the cursor can be picked; the pickbox side is
+/// twice this. Tools turn it into mm with the live zoom.
+pub const PICK_APERTURE_PT: f64 = 5.0;
+
+/// How far, in screen points, a Select press must move before it becomes a
+/// box drag (LCV-162, DESIGN.md §5).
+pub const DRAG_THRESHOLD_PT: f64 = 2.0;
 
 /// Tool trait: state-machine interface for drawing and modify tools.
 ///
@@ -99,12 +110,12 @@ pub trait Tool {
     /// Context-sensitive status bar text for the current tool state.
     ///
     /// Defaults to `self.name()`. Override to return richer prompts that
-    /// reflect the tool's internal state (e.g.
-    /// `"LINE Specify next point (Enter to finish):"`). The literals are the
-    /// R14 prompt table in the LCV-111 demand, AC 17; `src/ui/command_line.rs`
-    /// is the only consumer.
-    fn status_text(&self) -> &'static str {
-        self.name()
+    /// reflect the tool's internal state, in the grammar
+    /// `VERB  Specify <thing> [Opt/Opt] <default>:` (DESIGN.md §7). A `Cow`
+    /// so a prompt can carry a runtime value, e.g. a formatted default
+    /// (LCV-165 AC 2); `src/ui/command_line.rs` is the only consumer.
+    fn status_text(&self) -> Cow<'_, str> {
+        Cow::Borrowed(self.name())
     }
 
     /// The anchor point for ortho / snap constraints: the last committed
@@ -120,10 +131,32 @@ pub trait Tool {
         None
     }
 
+    /// True while this tool waits for an entity pick (Select idle, TRIM,
+    /// EXTEND): the canvas then paints the pickbox and resolves no running
+    /// snap (LCV-162 AC 5, AC 11). Defaults to `false`: a point pick.
+    fn wants_entity_pick(&self) -> bool {
+        false
+    }
+
+    /// The live zoom in mm per screen point, forwarded by
+    /// [`ToolManager::set_pick_scale`](super::ToolManager::set_pick_scale)
+    /// (LCV-162). An entity-picking tool multiplies [`PICK_APERTURE_PT`] and
+    /// [`DRAG_THRESHOLD_PT`] by it. The default ignores it.
+    fn set_pick_scale(&mut self, _mm_per_pt: f64) {}
+
     /// Preview geometry for the current tool state. Returns an empty vector
     /// if the tool has no in-progress preview. The returned entities are
     /// painted with a translucent amber stroke by `draw_preview` (LCV-037).
     fn preview(&self) -> Vec<Entity>;
+
+    /// Styled canvas feedback for this frame (ADR 0013), a pure query at
+    /// paint time. `cursor` is the world point sent as this frame's `Move`,
+    /// or `None` off the canvas or after Esc; `Hover`/`Danger` marks are
+    /// returned only for `Some`. The default wraps [`Self::preview`] as
+    /// [`Mark::Preview`], so a tool that does not override it paints as before.
+    fn feedback(&self, _doc: &Document, _cursor: Option<Vec2>) -> Vec<Mark> {
+        self.preview().into_iter().map(Mark::Preview).collect()
+    }
 
     /// Reset the tool to idle state. Called on Escape press or tool switch.
     /// Clears any in-progress state and preview geometry.
@@ -185,6 +218,13 @@ pub trait Tool {
     fn take_message(&mut self) -> Option<String> {
         None
     }
+
+    /// True when the tool is at rest, waiting for a command: an empty Enter
+    /// then repeats the last command word (LCV-165 AC 4). Only SELECT at
+    /// rest overrides this; the default is `false`.
+    fn at_rest(&self) -> bool {
+        false
+    }
 }
 
 #[cfg(test)]
@@ -229,7 +269,7 @@ mod tests {
         ];
         let mut tools: Vec<Box<dyn Tool>> = vec![
             Box::new(SelectTool::default()),
-            Box::new(TrimTool),
+            Box::new(TrimTool::default()),
             Box::new(ExtendTool::default()),
             Box::new(DeleteTool),
         ];

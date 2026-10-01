@@ -1,5 +1,5 @@
 //! LCV-141 — the agent panel stays within the right third, and Agent
-//! Settings gets a Done button, a live-edit sentence and a bounded
+//! Settings gets a Close button, a live-edit sentence and a bounded
 //! `ScrollArea`.
 //!
 //! ## AC 1-3: the width ceiling
@@ -20,9 +20,9 @@
 //! busy and non-busy state, plus real Send/Cancel/`×` clicks through the
 //! pointer-click convention (ADR 0002 §A4 rule 3).
 //!
-//! ## AC 6-7: Agent Settings' Done button and its `ScrollArea`
+//! ## AC 6-7: AI Settings' Close button and its `ScrollArea`
 //!
-//! A real click on Done and a real click on `×`, each against a test-owned
+//! A real click on Close and a real click on `×`, each against a test-owned
 //! `settings_path`, asserting identical persisted bytes and identical `App`
 //! state afterward; a bounded-scrolling test at 800×600 with the shipped
 //! four-field form, and a growth-probe variant proving the `ScrollArea`, not
@@ -552,7 +552,7 @@ fn ac5_closing_the_panel_restores_the_canvas_width() {
 }
 
 // ---------------------------------------------------------------------------
-// AC 6 — Agent Settings: Done matches × exactly
+// AC 6 — AI Settings: Close matches × exactly
 // ---------------------------------------------------------------------------
 
 /// A private, empty directory under the system temp dir, named after the
@@ -564,7 +564,7 @@ fn tempdir(name: &str) -> PathBuf {
     dir
 }
 
-/// Open the Agent Settings dialog, edit one field so there is something to
+/// Open the AI Settings dialog, edit one field so there is something to
 /// persist, and settle two frames.
 fn open_and_edit(ctx: &egui::Context, app: &mut App) {
     app.agent_settings_open = true;
@@ -577,11 +577,11 @@ fn open_and_edit(ctx: &egui::Context, app: &mut App) {
     });
 }
 
-/// AC 6 — a real click on Done, and a real click on `×`, against a
+/// AC 6 — a real click on Close, and a real click on `×`, against a
 /// test-owned `settings_path`, produce identical persisted bytes and
 /// identical `App` state afterward.
 ///
-/// Mutation this catches: a `Done` handler that calls `persist_settings()`
+/// Mutation this catches: a `Close` handler that calls `persist_settings()`
 /// itself (a second, parallel path) instead of setting the same
 /// `agent_settings_open = false` the × button sets — this test cannot tell
 /// those apart by *effect*, but `ac6_done_and_close_share_one_guard_source_scan`
@@ -600,7 +600,7 @@ fn ac6_done_closes_and_persists_exactly_like_the_close_button() {
         open_and_edit(&ctx, &mut app);
 
         let runs = paint::painted_runs(&ctx, &mut app);
-        let done = locate(&runs, "Done");
+        let done = locate(&runs, "Close");
         let _ = ctx.run(
             raw_input_at([1280.0, 800.0], vec![egui::Event::PointerMoved(done)]),
             |c| app.update_ui(c),
@@ -609,8 +609,8 @@ fn ac6_done_closes_and_persists_exactly_like_the_close_button() {
             app.update_ui(c)
         });
 
-        assert!(!app.agent_settings_open, "Done must close the window");
-        let bytes = std::fs::read_to_string(&path).expect("Done must persist the settings");
+        assert!(!app.agent_settings_open, "Close must close the window");
+        let bytes = std::fs::read_to_string(&path).expect("Close must persist the settings");
         let _ = std::fs::remove_dir_all(&dir);
         (bytes, app.settings.clone(), app.agent_settings_open)
     };
@@ -629,7 +629,7 @@ fn ac6_done_closes_and_persists_exactly_like_the_close_button() {
         // The window's own `×`, top-right of its title bar — painted as two
         // strokes, not text (see `window_close_button_pos`), and distinct
         // from the agent panel's `×`, which is closed in this test.
-        let close = window_close_button_pos(&ctx, "Agent Settings");
+        let close = window_close_button_pos(&ctx, "AI Settings");
         let _ = ctx.run(
             raw_input_at([1280.0, 800.0], vec![egui::Event::PointerMoved(close)]),
             |c| app.update_ui(c),
@@ -646,11 +646,11 @@ fn ac6_done_closes_and_persists_exactly_like_the_close_button() {
 
     assert_eq!(
         via_done.0, via_close.0,
-        "Done and × must persist byte-identical settings"
+        "Close and × must persist byte-identical settings"
     );
     assert_eq!(
         via_done.1, via_close.1,
-        "Done and × must leave identical App-side settings state"
+        "Close and × must leave identical App-side settings state"
     );
     assert_eq!(via_done.2, via_close.2);
 }
@@ -678,8 +678,8 @@ fn ac6_the_live_edit_sentence_is_painted_alongside_the_existing_warning() {
         "the existing plaintext warning must still be painted: {flat:?}"
     );
     assert!(
-        flat.iter().any(|t| t == "Done"),
-        "the Done button must be painted: {flat:?}"
+        flat.iter().any(|t| t == "Close"),
+        "the Close button must be painted: {flat:?}"
     );
 }
 
@@ -688,7 +688,7 @@ fn ac6_the_live_edit_sentence_is_painted_alongside_the_existing_warning() {
 // ---------------------------------------------------------------------------
 
 /// AC 7 — at 800×600, the shipped four-field form's rows, both sentences and
-/// Done are all painted without needing to scroll: the real dialog, through
+/// Close are all painted without needing to scroll: the real dialog, through
 /// the real `App`.
 #[test]
 fn ac7_the_shipped_form_fits_at_800x600_without_scrolling() {
@@ -706,7 +706,7 @@ fn ac7_the_shipped_form_fits_at_800x600_without_scrolling() {
         "API Key",
         "Steps per turn",
         "Changes apply immediately and are saved when this window closes.",
-        "Done",
+        "Close",
     ] {
         assert!(
             flat.iter().any(|t| t == label),
@@ -716,15 +716,15 @@ fn ac7_the_shipped_form_fits_at_800x600_without_scrolling() {
 }
 
 /// AC 7 — a growth probe: a synthetic filler, added only inside this test,
-/// pushes the form's content height past the window's available height. Done
+/// pushes the form's content height past the window's available height. Close
 /// is not painted at the default (top) scroll position, and becomes painted
 /// once the same `ScrollArea` is scrolled to its bottom — proving the
 /// `ScrollArea`, not window growth, is what would absorb a fifth field, and
-/// that Done stays reachable.
+/// that Close stays reachable.
 ///
 /// A hand-built `Window` + `ScrollArea`, not the production
 /// `agent_settings_dialog` (private to `src/app/panels.rs`): the filler must
-/// sit inside the *same* scroll surface as the real form's Done button, ahead
+/// sit inside the *same* scroll surface as the real form's Close button, ahead
 /// of it, which only a caller of `draw_agent_settings` can arrange. The sizing
 /// this reproduces — an unresizable `Window`'s baked `default_size` capping a
 /// `ScrollArea` body regardless of screen size — is ADR 0009 decision 1's
@@ -762,7 +762,7 @@ fn ac7_a_growth_probe_is_reachable_only_by_scrolling() {
                     }
                     scroll.show(ui, |ui| {
                         // The synthetic fifth field: enough filler rows ahead
-                        // of the real form to push its Done button below any
+                        // of the real form to push its Close button below any
                         // plausible window height at this egui pin (ADR 0009:
                         // 426pt hard cap on a `Window` + `ScrollArea` body).
                         for i in 0..80 {
@@ -778,14 +778,14 @@ fn ac7_a_growth_probe_is_reachable_only_by_scrolling() {
     ctx.set_pixels_per_point(1.0);
     let mut settings = lasercad::io::settings::Settings::default();
 
-    // Two frames at the top of the scroll (default offset 0): Done must not
+    // Two frames at the top of the scroll (default offset 0): Close must not
     // be painted — the overflow is real, not a fluke of an unsettled Window.
     let _ = frame(&ctx, &mut settings, None);
     let out = frame(&ctx, &mut settings, None);
     let runs = paint::runs_in(&out.shapes);
     assert!(
-        !runs.iter().any(|r| r.text.trim() == "Done"),
-        "control: the probe's filler must really push Done out of view at the \
+        !runs.iter().any(|r| r.text.trim() == "Close"),
+        "control: the probe's filler must really push Close out of view at the \
          top of the scroll"
     );
     assert!(
@@ -796,20 +796,20 @@ fn ac7_a_growth_probe_is_reachable_only_by_scrolling() {
 
     // One frame requests a jump to the bottom (a huge offset clamps to the
     // maximum); one more settles at the now-persisted, clamped position —
-    // Done is reachable.
+    // Close is reachable.
     let _ = frame(&ctx, &mut settings, Some(100_000.0));
     let out = frame(&ctx, &mut settings, None);
     let runs = paint::runs_in(&out.shapes);
     assert!(
-        runs.iter().any(|r| r.text.trim() == "Done"),
-        "Done must be reachable by scrolling within the dialog's own bounds"
+        runs.iter().any(|r| r.text.trim() == "Close"),
+        "Close must be reachable by scrolling within the dialog's own bounds"
     );
 }
 
 /// AC 7 — against the **real** `App` and the real
 /// `src/app/panels.rs::agent_settings_dialog`, not the hand-built `Window` +
 /// `ScrollArea` above: at a screen too short for the shipped form to fit at
-/// all — `800x150`, well under the dialog's own content height — `Done` is
+/// all — `800x150`, well under the dialog's own content height — `Close` is
 /// not painted at the default (top) scroll position, and becomes painted
 /// after a real pointer hover over the dialog plus a real
 /// `egui::Event::MouseWheel` scroll. Nothing here builds a second `Window`;
@@ -824,7 +824,7 @@ fn ac7_a_growth_probe_is_reachable_only_by_scrolling() {
 /// never calls that function, but this one goes red: the real `Window` is
 /// `.resizable(false)` and un-scrolled, so its content either paints nothing
 /// past the fold with no way to reach it, or the `Window` grows past the
-/// screen and gets constrained there, and `Done` never becomes reachable
+/// screen and gets constrained there, and `Close` never becomes reachable
 /// however the wheel spins.
 #[test]
 fn ac7_the_real_settings_dialog_scrolls_to_reach_done() {
@@ -843,14 +843,14 @@ fn ac7_the_real_settings_dialog_scrolls_to_reach_done() {
          be visible at the default (top) scroll offset"
     );
     assert!(
-        !runs.iter().any(|r| r.text.trim() == "Done"),
+        !runs.iter().any(|r| r.text.trim() == "Close"),
         "control: at {screen:?} the shipped form must really overflow the \
-         window — Done must not be reachable without scrolling"
+         window — Close must not be reachable without scrolling"
     );
 
     let dialog = ctx
-        .memory(|m| m.area_rect(egui::Id::new("Agent Settings")))
-        .expect("the Agent Settings window must be placed by now");
+        .memory(|m| m.area_rect(egui::Id::new("AI Settings")))
+        .expect("the AI Settings window must be placed by now");
     let inside = dialog.center();
 
     // One frame hovers the dialog and sends a real downward scroll: many
@@ -877,8 +877,8 @@ fn ac7_the_real_settings_dialog_scrolls_to_reach_done() {
     // shape the growth probe above documents for its own forced offset.
     let runs = painted_runs_at(&ctx, &mut app, screen, Vec::new());
     assert!(
-        runs.iter().any(|r| r.text.trim() == "Done"),
+        runs.iter().any(|r| r.text.trim() == "Close"),
         "a real hover plus a real MouseWheel scroll over the real dialog \
-         must reach Done"
+         must reach Close"
     );
 }

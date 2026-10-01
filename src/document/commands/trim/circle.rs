@@ -1,7 +1,7 @@
 //! Circle-target trim helper.
 //!
-//! Owns the single case where the target is a [`Circle`] and the cutter is
-//! a [`Line`]: the circle is replaced by an [`Arc`] spanning the half that
+//! Owns the case where the target is a [`Circle`]: given two cut points from
+//! any cutter, the circle is replaced by an [`Arc`] spanning the side that
 //! contains `keep_side_point`. A tangent (one intersection) is a no-op
 //! because a circle cannot be split at a tangent — matches AutoCAD's
 //! behavior.
@@ -10,21 +10,20 @@
 //! routine.
 
 use crate::document::Entity;
-use crate::geometry::{Arc, Circle, EPSILON, Line, Vec2, line_circle};
+use crate::geometry::{Arc, Circle, EPSILON, Vec2};
 
-/// Trim a [`Circle`] target by a [`Line`] cutter. Requires two intersection
-/// points; returns an [`Entity::Arc`] spanning the side containing `keep`.
-/// Returns `None` for a tangent (single point) or no intersection.
-pub(crate) fn trim_circle_by_line(target: &Circle, cutter: &Line, keep: Vec2) -> Option<Entity> {
-    let pts = line_circle(cutter, target);
-    if pts.len() != 2 {
+/// Trim a [`Circle`] target at its cut points (LCV-160 AC 3). Requires
+/// exactly two points; returns the CCW [`Entity::Arc`] between them that
+/// holds `keep`. `None` for zero, one (tangent) or more points.
+pub(crate) fn trim_circle_at_points(target: &Circle, pts: &[Vec2], keep: Vec2) -> Option<Entity> {
+    if pts.len() != 2 || pts[0].approx_eq(pts[1], EPSILON) {
         return None;
     }
     // Order intersections by angle ascending so the "first" arc goes CCW
     // from a -> b. Both angles sit in `(-π, π]` (atan2 range).
     let mut angled: Vec<(f64, Vec2)> = pts
-        .into_iter()
-        .map(|p| {
+        .iter()
+        .map(|&p| {
             let v = p - target.center;
             (v.y.atan2(v.x), p)
         })
@@ -120,5 +119,24 @@ mod tests {
         assert!((arc.start_angle - PI).abs() <= EPSILON);
         assert!(arc.end_angle.abs() <= EPSILON);
         assert!(arc.ccw);
+    }
+
+    /// LCV-160 AC 3 — two cut points give the arc holding the click; one
+    /// point (tangent) or none is a no-op.
+    #[test]
+    fn trim_circle_at_points_needs_two_points() {
+        use super::trim_circle_at_points;
+        let circle = Circle::new(Vec2::default(), 10.0);
+        let (a, b) = (
+            Vec2::new(5.0, 75f64.sqrt()),
+            Vec2::new(5.0, -(75f64.sqrt())),
+        );
+        let got = trim_circle_at_points(&circle, &[a, b], Vec2::new(-10.0, 0.0));
+        let arc = as_arc(&got.expect("two points"));
+        assert!(arc.contains_angle(PI));
+        assert!(arc.start_point().approx_eq(a, 1e-9) && arc.end_point().approx_eq(b, 1e-9));
+        let keep = Vec2::new(-10.0, 0.0);
+        assert!(trim_circle_at_points(&circle, &[a], keep).is_none());
+        assert!(trim_circle_at_points(&circle, &[], keep).is_none());
     }
 }

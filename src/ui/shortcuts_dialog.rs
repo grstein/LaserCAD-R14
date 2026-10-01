@@ -19,6 +19,7 @@
 
 use egui::{Align2, Context, Window};
 
+use crate::ui::DialogKey;
 use crate::ui::toolbar::TOOLS;
 
 /// One group of bindings in the keyboard-shortcuts dialog. `pub` (not
@@ -55,7 +56,11 @@ pub const SHORTCUT_GROUPS: &[ShortcutGroup] = &[
     },
     ShortcutGroup {
         heading: "Edit",
-        rows: &[("Ctrl+Z", "Undo"), ("Ctrl+Y", "Redo")],
+        rows: &[
+            ("Ctrl+Z", "Undo"),
+            ("Ctrl+Y", "Redo"),
+            ("Ctrl+A", "Select All"),
+        ],
     },
     ShortcutGroup {
         heading: "View",
@@ -156,7 +161,7 @@ fn render_column(ui: &mut egui::Ui, sections: &[Section]) {
     }
 }
 
-/// Render the Keyboard shortcuts dialog (LCV-116 AC 11).
+/// Render the Keyboard Shortcuts dialog (LCV-116 AC 11).
 ///
 /// Follows [`crate::ui::dialogs::about_dialog`]: opened/closed through `open`;
 /// centre-anchored, not collapsible. Laid out in **two columns**
@@ -177,22 +182,40 @@ fn render_column(ui: &mut egui::Ui, sections: &[Section]) {
 ///
 /// Read-only: no widget changes application state, and it reads no key. `F1`
 /// is dispatched in `src/ui/shortcuts.rs` like `F3` / `F7` / `F8`, not here.
-pub fn shortcuts_dialog(ctx: &Context, open: &mut bool) {
-    Window::new("Keyboard shortcuts")
+/// The `Close` row below the `ScrollArea` (LCV-169 AC 4) and a handed-in
+/// [`DialogKey`] (AC 1) clear `open`, the same flag egui's × clears, and
+/// nothing else.
+pub fn shortcuts_dialog(ctx: &Context, open: &mut bool, key: Option<DialogKey>) {
+    let mut close = false;
+    Window::new("Keyboard Shortcuts")
         .open(open)
         .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
         .default_height(ctx.screen_rect().height() - 80.0)
         .resizable(false)
         .collapsible(false)
         .show(ctx, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                let (left, right) = split_into_columns(sections());
-                ui.columns(2, |columns| {
-                    render_column(&mut columns[0], &left);
-                    render_column(&mut columns[1], &right);
+            // The scroll viewport, plus the margin its clip extends past it,
+            // ends one Close row above the screen bottom: the `ScrollArea`
+            // absorbs the row, and Close stays on screen at the ADR 0009
+            // sizes (LCV-169 AC 4). The table keeps its own clip, apart from
+            // the Close row's.
+            let close_row = ui.spacing().interact_size.y + ui.spacing().item_spacing.y;
+            let reserve = close_row + ui.visuals().clip_rect_margin;
+            let room = ctx.screen_rect().bottom() - ui.cursor().top() - reserve;
+            egui::ScrollArea::vertical()
+                .max_height(room)
+                .show(ui, |ui| {
+                    let (left, right) = split_into_columns(sections());
+                    ui.columns(2, |columns| {
+                        render_column(&mut columns[0], &left);
+                        render_column(&mut columns[1], &right);
+                    });
                 });
-            });
+            close = ui.button("Close").clicked();
         });
+    if close || key.is_some() {
+        *open = false;
+    }
 }
 
 /// One `binding`/`description` row, drawn as a plain two-column line.
@@ -219,13 +242,13 @@ mod tests {
         let ctx = egui::Context::default();
         let mut open = true;
         let _out = ctx.run(egui::RawInput::default(), |ctx| {
-            shortcuts_dialog(ctx, &mut open);
+            shortcuts_dialog(ctx, &mut open, None);
         });
         assert!(open);
 
         let mut closed = false;
         let _out = ctx.run(egui::RawInput::default(), |ctx| {
-            shortcuts_dialog(ctx, &mut closed);
+            shortcuts_dialog(ctx, &mut closed, None);
         });
         assert!(!closed);
     }
@@ -317,6 +340,7 @@ mod tests {
             ("File", "Ctrl+Shift+S", "Save As"),
             ("Edit", "Ctrl+Z", "Undo"),
             ("Edit", "Ctrl+Y", "Redo"),
+            ("Edit", "Ctrl+A", "Select All"),
             ("View", "F", "Zoom extents"),
             ("View", "Ctrl+0", "Zoom extents"),
             ("Modes", "F3", "Snap"),
@@ -375,6 +399,8 @@ mod tests {
             ("Ctrl+Shift+S", &["Key::S", "modifiers.shift"]),
             ("Ctrl+Z", &["Key::Z"]),
             ("Ctrl+Y", &["Key::Y"]),
+            // `Key::A` alone also matches the bare Arc tool key.
+            ("Ctrl+A", &["Key::A if !wants_kbd"]),
             ("F", &["Key::F)"]),
             ("Ctrl+0", &["Key::Num0"]),
             ("F3", &["Key::F3"]),
@@ -444,7 +470,8 @@ mod tests {
 
     /// LCV-116 AC 16 — no widget in the dialog changes application state: the
     /// function never sees an `App`, so there is nothing for it to mutate but
-    /// the `open` flag egui's × owns.
+    /// the `open` flag egui's × owns. Since LCV-169 AC 4 its one button,
+    /// `Close`, writes that same flag and nothing else.
     #[test]
     fn the_shortcuts_dialog_changes_no_app_state() {
         let implementation = implementation_source();
@@ -464,7 +491,16 @@ mod tests {
             body.contains(".open(open)"),
             "positive control: egui's × owns the open flag"
         );
-        for forbidden in ["App", "app.", ".clicked()", "ui.button("] {
+        assert_eq!(
+            body.matches("ui.button(").count(),
+            1,
+            "the one button is Close (LCV-169 AC 4)"
+        );
+        assert!(
+            body.contains("if close || key.is_some() {\n        *open = false;\n    }"),
+            "Close and a dialog key only clear the open flag"
+        );
+        for forbidden in ["App", "app."] {
             assert!(
                 !body.contains(forbidden),
                 "the shortcuts dialog is read-only; it must not contain {forbidden}"

@@ -1,6 +1,7 @@
+use super::recent::recent_labels;
 use super::*;
 use crate::document::Entity;
-use crate::geometry::Line;
+use crate::geometry::{Line, Vec2};
 
 fn run_menubar(app: &mut App) {
     let ctx = egui::Context::default();
@@ -208,7 +209,7 @@ fn recent_labels_disambiguates_only_the_colliding_subset() {
 // `tests/it/app/document_title_and_file_feedback.rs::open_recent_entry_hover_text_paints_the_full_path`.
 
 // -----------------------------------------------------------------------
-// LCV-104 — Tools menu, Help > Agent settings
+// LCV-104 — Tools menu, Help > AI Settings…
 // -----------------------------------------------------------------------
 
 /// LCV-104 AC#5 — the bar renders its top-level menus (File, Edit, View,
@@ -262,7 +263,7 @@ fn fit_to_bed_follows_a_resized_document_bed() {
     assert!(app.camera.center_world != framed_default);
 }
 
-/// LCV-114 AC 14 — `Bed size…` sits in the File menu directly above
+/// LCV-114 AC 14 — `Bed Size…` sits in the File menu directly above
 /// `Exit`, with a separator between them. The haystack is bounded to
 /// `file_menu`'s body, so this test's own source cannot satisfy it, and
 /// the neighbouring entries are asserted positively: an ordering scan
@@ -272,47 +273,47 @@ fn file_menu_has_bed_size_directly_above_exit() {
     let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/ui/menubar.rs"));
     let start = src.find("fn file_menu(").expect("file_menu must exist");
     let end = src[start..]
-        .find("\nfn recent_submenu(")
-        .expect("file_menu must be followed by recent_submenu")
+        .find("\nfn edit_menu(")
+        .expect("file_menu must be followed by edit_menu")
         + start;
     let body = &src[start..end];
     let save_as = body.find("\"Save As…").expect("Save As… must be present");
-    let bed = body.find("\"Bed size…").expect("Bed size… must be present");
+    let bed = body.find("\"Bed Size…").expect("Bed Size… must be present");
     let exit = body.find("\"Exit\"").expect("Exit must be present");
     assert!(
         save_as < bed && bed < exit,
-        "order: Save As…, Bed size…, Exit"
+        "order: Save As…, Bed Size…, Exit"
     );
     assert!(
         body[bed..exit].contains("ui.separator();"),
-        "Bed size… must be separated from Exit"
+        "Bed Size… must be separated from Exit"
     );
     assert!(
         body[save_as..bed].contains("ui.separator();"),
-        "Bed size… must be separated from the save entries"
+        "Bed Size… must be separated from the save entries"
     );
 }
 
-/// LCV-156 AC 10 — `Export layers` sits with the save entries, directly
-/// below `Save As…` and above the separator before `Bed size…`, and runs
+/// LCV-156 AC 10 — `Export Layers` sits with the save entries, directly
+/// below `Save As…` and above the separator before `Bed Size…`, and runs
 /// the per-layer export. Bounded to `file_menu`'s body.
 #[test]
 fn file_menu_has_export_layers_below_save_as() {
     let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/ui/menubar.rs"));
     let start = src.find("fn file_menu(").expect("file_menu must exist");
     let end = src[start..]
-        .find("\nfn recent_submenu(")
-        .expect("file_menu must be followed by recent_submenu")
+        .find("\nfn edit_menu(")
+        .expect("file_menu must be followed by edit_menu")
         + start;
     let body = &src[start..end];
     let save_as = body.find("\"Save As…").expect("Save As… present");
     let export = body
-        .find("\"Export layers\"")
-        .expect("Export layers present");
-    let bed = body.find("\"Bed size…").expect("Bed size… present");
+        .find("\"Export Layers\"")
+        .expect("Export Layers present");
+    let bed = body.find("\"Bed Size…").expect("Bed Size… present");
     assert!(
         save_as < export && export < bed,
-        "order: Save As…, Export layers, Bed size…"
+        "order: Save As…, Export Layers, Bed Size…"
     );
     assert!(!body[save_as..export].contains("ui.separator();"));
     assert!(body[export..bed].contains("crate::io::action_export_layers(app)"));
@@ -340,12 +341,12 @@ fn help_agent_settings_sets_flag() {
     assert!(app.agent_settings_open);
 }
 
-// ── LCV-116 (d) — the View menu, and Help > Keyboard shortcuts… ───────
+// ── LCV-116 (d) — the View menu, and Help > Keyboard Shortcuts… ───────
 
 /// LCV-116 AC 19 — the View menu's contents are pinned: the three actions
 /// LCV-116 did **not** add (`Zoom In`, `Zoom Out`, `Fit to Bed`, already
 /// shipped and backed by `do_zoom_in` / `do_zoom_out` / `do_fit_to_bed`),
-/// then the three mode checkboxes, `Ortho\tF8` last. Bounded to
+/// then the three mode check rows, `Ortho` (`F8`) last (LCV-166 rows). Bounded to
 /// `fn view_menu`, so this test's own body cannot satisfy the scan.
 #[test]
 fn view_menu_items_are_stable() {
@@ -354,9 +355,9 @@ fn view_menu_items_are_stable() {
         "\"Zoom In\"",
         "\"Zoom Out\"",
         "\"Fit to Bed\"",
-        "\"Grid\\tF7\"",
-        "\"Snap\\tF3\"",
-        "\"Ortho\\tF8\"",
+        "\"Grid\", \"F7\"",
+        "\"Snap\", \"F3\"",
+        "\"Ortho\", \"F8\"",
     ];
     let mut last = 0usize;
     for item in expected {
@@ -373,20 +374,23 @@ fn view_menu_items_are_stable() {
 
 /// LCV-116 AC 18 — the Ortho checkbox is bound to the same flag `F8` and
 /// the status-bar `ORTHO` indicator flip; it sits immediately below
-/// `Snap\tF3`, and nothing else in the View menu writes it.
+/// `Snap` (`F3`), and nothing else in the View menu writes it.
 #[test]
 fn ortho_checkbox_flips_the_same_flag_as_f8() {
     let body = view_menu_body();
     let snap = body
-        .find("ui.checkbox(&mut app.snap_enabled, \"Snap\\tF3\");")
+        .find("check_row(ui, &mut app.snap_enabled, \"Snap\", \"F3\");")
         .expect("positive control: the Snap checkbox is present");
     let ortho = body
-        .find("ui.checkbox(&mut app.ortho_enabled, \"Ortho\\tF8\");")
+        .find("check_row(ui, &mut app.ortho_enabled, \"Ortho\", \"F8\");")
         .expect("the Ortho checkbox must be bound to app.ortho_enabled");
-    assert!(snap < ortho, "Ortho sits immediately below Snap");
-    let after_snap = snap + "ui.checkbox(&mut app.snap_enabled, \"Snap\\tF3\");".len();
     assert!(
-        !body[after_snap..ortho].contains("ui.checkbox("),
+        snap < ortho,
+        "Ortho sits below Snap (the Object Snap submenu is between them)"
+    );
+    let after_snap = snap + "check_row(ui, &mut app.snap_enabled, \"Snap\", \"F3\");".len();
+    assert!(
+        !body[after_snap..ortho].contains("check_row("),
         "nothing may sit between the Snap and Ortho checkboxes"
     );
 
@@ -404,7 +408,7 @@ fn ortho_checkbox_flips_the_same_flag_as_f8() {
     assert!(menu.ortho_enabled, "both paths turn ortho on from default");
 }
 
-/// LCV-116 AC 12 — `Help > Keyboard shortcuts…` opens the dialog and sits
+/// LCV-116 AC 12 — `Help > Keyboard Shortcuts…` opens the dialog and sits
 /// above `About`.
 #[test]
 fn help_keyboard_shortcuts_sits_above_about() {
@@ -421,10 +425,10 @@ fn help_keyboard_shortcuts_sits_above_about() {
         + start;
     let body = &src[start..end];
     let shortcuts = body
-        .find("\"Keyboard shortcuts")
+        .find("\"Keyboard Shortcuts")
         .expect("the Help menu must offer the shortcuts dialog");
     let about = body.find("\"About\"").expect("positive control: About");
-    assert!(shortcuts < about, "Keyboard shortcuts… sits above About");
+    assert!(shortcuts < about, "Keyboard Shortcuts… sits above About");
     assert!(
         body[shortcuts..about].contains("do_shortcuts(app)"),
         "the item must call do_shortcuts"

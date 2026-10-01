@@ -75,7 +75,8 @@ const TOOL_KEYS: &[(Key, ToolKind)] = &[
 ///
 /// - Single-letter tool keys are suppressed when `wants_kbd` is `true` or any
 ///   modifier is held.
-/// - `Ctrl+Z/Y/N/O/S` and F1 / F3 / F7 / F8 fire unconditionally.
+/// - `Ctrl+Z/Y/N/O/S` and F1 / F3 / F7 / F8 fire unconditionally;
+///   `Ctrl+A` only while `wants_kbd` is `false` (LCV-166 AC 9).
 ///
 /// Returns `true` when this key was consumed by a shortcut (LCV-111 AC 22).
 /// Deliberately **not** `#[must_use]`: the LCV-070 and LCV-104 suites call it
@@ -107,6 +108,11 @@ pub fn dispatch_shortcuts(key: Key, modifiers: Modifiers, wants_kbd: bool, app: 
             }
             Key::S => {
                 app.action_save();
+                return true;
+            }
+            // Ctrl+A — select all (LCV-166); a focused text field keeps it.
+            Key::A if !wants_kbd => {
+                crate::ui::menubar::do_select_all(app);
                 return true;
             }
             _ => {}

@@ -10,8 +10,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::app::App;
+use crate::app::{App, Severity};
 use crate::document::{Document, file_key};
+use crate::io::file_actions::outside_bed_phrase;
 use crate::io::svg::export_layer_svg;
 
 /// The per-layer files for `doc` saved as `mother`: `<stem>-<file_key>.svg`
@@ -35,17 +36,24 @@ pub fn layer_exports(doc: &Document, mother: &Path) -> Vec<(PathBuf, String)> {
 
 /// Write the [`layer_exports`] plan for the current file, overwriting any
 /// existing file, and list the written file names in
-/// `app.command_feedback`. An unsaved drawing is asked to be saved first
+/// `app.command_feedback`, as a Warning with the out-of-bed count appended
+/// when exported entities leave the bed (LCV-168 AC 3). An unsaved drawing is asked to be saved first
 /// (AC 11); an empty plan writes nothing and says so (AC 12). A write
 /// failure stops at that file and sets `app.error_message`.
 pub fn action_export_layers(app: &mut App) {
     let Some(mother) = app.current_file.clone() else {
-        app.command_feedback = "Save the drawing first, then export its layers.".to_owned();
+        app.say(
+            Severity::Warning,
+            "Save the drawing first, then export its layers.",
+        );
         return;
     };
     let plan = layer_exports(&app.document, &mother);
     if plan.is_empty() {
-        app.command_feedback = "Nothing to export: no layer has Output on and entities.".to_owned();
+        app.say(
+            Severity::Warning,
+            "Nothing to export: no layer has Output on and entities.",
+        );
         return;
     }
     let mut written = Vec::with_capacity(plan.len());
@@ -57,5 +65,11 @@ pub fn action_export_layers(app: &mut App) {
         let name = path.file_name().map(|n| n.to_string_lossy().into_owned());
         written.push(name.unwrap_or_default());
     }
-    app.command_feedback = format!("Exported layers: {}", written.join(", "));
+    let exported = format!("Exported layers: {}", written.join(", "));
+    // Only the plan's layers: Output on (an empty layer has nothing to count).
+    let doc = &app.document;
+    match doc.outside_bed_count(|id| doc.layer(id).is_some_and(|l| l.output)) {
+        0 => app.say(Severity::Info, exported),
+        n => app.say(Severity::Warning, exported + &outside_bed_phrase(n)),
+    }
 }

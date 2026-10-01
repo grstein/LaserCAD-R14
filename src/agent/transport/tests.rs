@@ -298,7 +298,7 @@ fn status_401_is_unauthorized() {
         shown.contains("Authentication failed (HTTP 401)"),
         "{shown}"
     );
-    assert!(shown.contains("Check Help > Agent settings."), "{shown}");
+    assert!(shown.contains("Check Help > AI Settings…"), "{shown}");
     assert_no_key(&shown);
 }
 
@@ -645,7 +645,7 @@ fn ac2_a_timeout_says_exactly_what_the_operator_must_read() {
         concat!(
             "The endpoint did not answer within 120 s. It may be slow, ",
             "unreachable, or the endpoint URL may be wrong — check ",
-            "Help > Agent settings, or press Cancel and try a shorter prompt."
+            "Help > AI Settings…, or press Cancel and try a shorter prompt."
         )
     );
     assert_no_key(&shown);

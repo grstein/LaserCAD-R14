@@ -13,8 +13,10 @@ use crate::app::App;
 use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History};
 use crate::geometry::Vec2;
-use crate::tools::Tool;
+use crate::tools::feedback::FeedbackGate;
 use crate::tools::pointer_event::{PointerButton, PointerEvent};
+use crate::tools::{Mark, Tool};
+use std::borrow::Cow;
 
 /// Owner of the active tool, routes pointer and key events.
 ///
@@ -23,6 +25,11 @@ use crate::tools::pointer_event::{PointerButton, PointerEvent};
 pub struct ToolManager {
     /// The currently active tool. Never `None` — the app always has a tool.
     active: Box<dyn Tool>,
+    /// The live zoom in mm per screen point, as last set by
+    /// [`Self::set_pick_scale`]; `1.0` (the default camera) until then.
+    mm_per_pt: f64,
+    /// Esc mute of the hover and danger feedback (LCV-163 AC 9).
+    gate: FeedbackGate,
 }
 
 impl std::fmt::Debug for ToolManager {
@@ -44,7 +51,11 @@ impl ToolManager {
     /// assert_eq!(manager.active_tool_name(), "Select");
     /// ```
     pub fn new(initial: Box<dyn Tool>) -> Self {
-        Self { active: initial }
+        Self {
+            active: initial,
+            mm_per_pt: 1.0,
+            gate: FeedbackGate::default(),
+        }
     }
 
     /// Replace the active tool. Calls `cancel()` on the old tool before
@@ -58,9 +69,33 @@ impl ToolManager {
     /// manager.set_tool(Box::new(SelectTool::default()));
     /// assert_eq!(manager.active_tool_name(), "Select");
     /// ```
-    pub fn set_tool(&mut self, tool: Box<dyn Tool>) {
+    ///
+    /// The new tool gets the stored pick scale before its first event
+    /// (LCV-162), so a pick right after a switch uses the live zoom.
+    pub fn set_tool(&mut self, mut tool: Box<dyn Tool>) {
         self.active.cancel();
+        tool.set_pick_scale(self.mm_per_pt);
         self.active = tool;
+    }
+
+    /// Store the live zoom in mm per screen point and forward it to the
+    /// active tool (LCV-162). Called every frame by the viewport before any
+    /// pointer event.
+    pub fn set_pick_scale(&mut self, mm_per_pt: f64) {
+        self.mm_per_pt = mm_per_pt;
+        self.active.set_pick_scale(mm_per_pt);
+    }
+
+    /// True while the active tool waits for an entity pick (LCV-162 AC 5):
+    /// the canvas paints the pickbox and resolves no running snap.
+    pub fn wants_entity_pick(&self) -> bool {
+        self.active.wants_entity_pick()
+    }
+
+    /// The entity pick aperture in mm at the stored zoom:
+    /// [`PICK_APERTURE_PT`](crate::tools::PICK_APERTURE_PT) × mm per point.
+    pub fn pick_aperture_mm(&self) -> f64 {
+        crate::tools::PICK_APERTURE_PT * self.mm_per_pt
     }
 
     /// Name of the currently active tool (delegates to `active.name()`).
@@ -86,6 +121,7 @@ impl ToolManager {
     ) {
         match event {
             PointerEvent::Move { world_pos } => {
+                self.gate.on_move(*world_pos);
                 self.active.on_pointer_move(*world_pos, doc);
             }
             PointerEvent::Press {
@@ -138,8 +174,12 @@ impl ToolManager {
             .on_pointer_up(pos, false, &mut app.document, &mut app.history);
     }
 
-    /// Route a keyboard event to the active tool.
+    /// Route a keyboard event to the active tool. Escape also mutes the
+    /// hover and danger feedback until the pointer moves (LCV-163 AC 9).
     pub fn handle_key(&mut self, key: egui::Key, app: &mut App) {
+        if key == egui::Key::Escape {
+            self.gate.on_escape();
+        }
         self.active.on_key(key, app);
     }
 
@@ -148,6 +188,12 @@ impl ToolManager {
     /// [`Tool::wants_raw_input`].
     pub fn wants_raw_input(&self) -> bool {
         self.active.wants_raw_input()
+    }
+
+    /// True when the active tool is at rest (LCV-165 AC 4). Delegates to
+    /// [`Tool::at_rest`].
+    pub fn at_rest(&self) -> bool {
+        self.active.at_rest()
     }
 
     /// Forward one submitted, unparsed command-line string to the active
@@ -164,12 +210,18 @@ impl ToolManager {
         self.active.preview()
     }
 
+    /// The active tool's styled canvas feedback at `cursor` (ADR 0013), with
+    /// `cursor` passed as `None` while Esc has muted it (LCV-163 AC 9).
+    pub fn feedback(&self, doc: &Document, cursor: Option<Vec2>) -> Vec<Mark> {
+        self.active.feedback(doc, self.gate.cursor(cursor))
+    }
+
     /// Context-sensitive prompt text for the command-line widget (LCV-068).
     ///
     /// Delegates to `active.status_text()`. When `SelectTool` is active this
     /// returns R14's idle prompt `"Command:"`; the drawing tools return a
     /// per-phase prompt (LCV-111 AC 17).
-    pub fn active_status_text(&self) -> &'static str {
+    pub fn active_status_text(&self) -> Cow<'_, str> {
         self.active.status_text()
     }
 
@@ -401,6 +453,15 @@ mod tests {
         assert_eq!(*ups.borrow(), 1, "middle release must be no-op");
     }
 
+    /// LCV-165 AC 4 — the manager is at rest under SELECT, not under LINE.
+    #[test]
+    fn tool_manager_at_rest_follows_the_active_tool() {
+        let mut manager = ToolManager::default();
+        assert!(manager.at_rest());
+        manager.set_tool(Box::new(crate::tools::LineTool::default()));
+        assert!(!manager.at_rest());
+    }
+
     /// LCV-068 AC#5 / LCV-111 AC 17, AC 18 — `active_status_text` returns
     /// R14's idle prompt `"Command:"` when `SelectTool` is active.
     #[test]
@@ -417,8 +478,8 @@ mod tests {
             fn name(&self) -> &'static str {
                 "Prompt"
             }
-            fn status_text(&self) -> &'static str {
-                "LINE: Click start point"
+            fn status_text(&self) -> Cow<'_, str> {
+                "LINE: Click start point".into()
             }
             fn on_pointer_down(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
             fn on_pointer_move(&mut self, _: Vec2, _: &mut Document) {}
@@ -432,6 +493,25 @@ mod tests {
 
         let manager = ToolManager::new(Box::new(PromptTool));
         assert_eq!(manager.active_status_text(), "LINE: Click start point");
+    }
+
+    /// LCV-165 AC 2 — the manager hands an owned prompt through unchanged.
+    #[test]
+    fn tool_manager_hands_an_owned_prompt_through() {
+        let mut manager = ToolManager::default();
+        manager.set_tool(Box::new(crate::tools::TextTool::default()));
+        let mut doc = Document::default();
+        let mut history = History::default();
+        let press = PointerEvent::Press {
+            world_pos: Vec2::new(0.0, 0.0),
+            button: PointerButton::Primary,
+            shift: false,
+        };
+        manager.on_pointer_event(&press, &mut doc, &mut history);
+        manager.on_raw_input("HELLO", &mut doc, &mut history);
+        let prompt = manager.active_status_text();
+        assert_eq!(prompt, "TEXT  Specify height <5>:");
+        assert!(matches!(prompt, Cow::Owned(_)), "{prompt:?}");
     }
 
     /// LCV-068 AC#6 / LCV-111 AC 2 — `on_command_input` delegates the
@@ -513,6 +593,124 @@ mod tests {
             manager.anchor(),
             Some(Vec2::new(1.0, 2.0)),
             "anchor should be the first click point"
+        );
+    }
+
+    /// A tool that records the last pick scale it was handed.
+    struct ScaleProbe {
+        scale: Rc<RefCell<Option<f64>>>,
+        picks: bool,
+    }
+    impl Tool for ScaleProbe {
+        fn name(&self) -> &'static str {
+            "Probe"
+        }
+        fn on_pointer_down(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
+        fn on_pointer_move(&mut self, _: Vec2, _: &mut Document) {}
+        fn on_pointer_up(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
+        fn on_key(&mut self, _: egui::Key, _: &mut App) {}
+        fn preview(&self) -> Vec<Entity> {
+            vec![]
+        }
+        fn cancel(&mut self) {}
+        fn wants_entity_pick(&self) -> bool {
+            self.picks
+        }
+        fn set_pick_scale(&mut self, mm_per_pt: f64) {
+            *self.scale.borrow_mut() = Some(mm_per_pt);
+        }
+    }
+
+    fn probe(picks: bool) -> (ScaleProbe, Rc<RefCell<Option<f64>>>) {
+        let scale = Rc::new(RefCell::new(None));
+        let tool = ScaleProbe {
+            scale: scale.clone(),
+            picks,
+        };
+        (tool, scale)
+    }
+
+    /// LCV-162 AC 7 — `set_pick_scale` reaches the active tool, and the
+    /// aperture in mm is `PICK_APERTURE_PT` times the scale (5 mm at the
+    /// default 1 mm/pt).
+    #[test]
+    fn set_pick_scale_forwards_and_scales_the_aperture() {
+        let (tool, scale) = probe(true);
+        let mut manager = ToolManager::new(Box::new(tool));
+        assert_eq!(manager.pick_aperture_mm(), 5.0);
+        manager.set_pick_scale(20.0);
+        assert_eq!(*scale.borrow(), Some(20.0));
+        assert_eq!(manager.pick_aperture_mm(), 100.0);
+        manager.set_pick_scale(0.05);
+        assert_eq!(
+            manager.pick_aperture_mm(),
+            crate::tools::PICK_APERTURE_PT * 0.05
+        );
+    }
+
+    /// LCV-162 AC 7–9 — a tool switched in gets the stored scale at once,
+    /// without waiting for the next frame.
+    #[test]
+    fn set_tool_forwards_the_stored_scale() {
+        let mut manager = ToolManager::default();
+        manager.set_pick_scale(0.05);
+        let (tool, scale) = probe(false);
+        manager.set_tool(Box::new(tool));
+        assert_eq!(*scale.borrow(), Some(0.05));
+    }
+
+    /// LCV-162 AC 5/AC 6 — `wants_entity_pick` delegates; the trait default
+    /// is `false` (a point pick).
+    #[test]
+    fn wants_entity_pick_delegates_with_a_false_default() {
+        let (tool, _) = probe(true);
+        assert!(ToolManager::new(Box::new(tool)).wants_entity_pick());
+        let (tool, _) = probe(false);
+        assert!(!ToolManager::new(Box::new(tool)).wants_entity_pick());
+        let line = ToolManager::new(Box::new(crate::tools::LineTool::default()));
+        assert!(!line.wants_entity_pick());
+        assert_eq!(crate::tools::DRAG_THRESHOLD_PT, 2.0);
+    }
+
+    /// LCV-163 AC 9 — after Escape the tool sees no cursor at the same
+    /// point; a move to another point hands it the cursor again.
+    #[test]
+    fn escape_mutes_feedback_until_the_pointer_moves() {
+        struct Probe;
+        impl Tool for Probe {
+            fn name(&self) -> &'static str {
+                "Probe"
+            }
+            fn on_pointer_down(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
+            fn on_pointer_move(&mut self, _: Vec2, _: &mut Document) {}
+            fn on_pointer_up(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
+            fn on_key(&mut self, _: egui::Key, _: &mut App) {}
+            fn preview(&self) -> Vec<Entity> {
+                vec![]
+            }
+            fn cancel(&mut self) {}
+            fn feedback(&self, _: &Document, cursor: Option<Vec2>) -> Vec<Mark> {
+                cursor.map(|_| Mark::Hover(0)).into_iter().collect()
+            }
+        }
+        let mut manager = ToolManager::new(Box::new(Probe));
+        let (mut app, mut doc, mut hist) =
+            (App::default(), Document::default(), History::default());
+        let (a, b) = (Vec2::new(1.0, 1.0), Vec2::new(2.0, 1.0));
+        let mv = |world_pos| PointerEvent::Move { world_pos };
+        manager.on_pointer_event(&mv(a), &mut doc, &mut hist);
+        assert_eq!(manager.feedback(&doc, Some(a)), vec![Mark::Hover(0)]);
+        manager.handle_key(egui::Key::Escape, &mut app);
+        assert!(manager.feedback(&doc, Some(a)).is_empty(), "muted");
+        manager.on_pointer_event(&mv(a), &mut doc, &mut hist);
+        assert!(manager.feedback(&doc, Some(a)).is_empty(), "same point");
+        manager.on_pointer_event(&mv(b), &mut doc, &mut hist);
+        assert_eq!(manager.feedback(&doc, Some(b)), vec![Mark::Hover(0)]);
+        manager.handle_key(egui::Key::Enter, &mut app);
+        assert_eq!(
+            manager.feedback(&doc, Some(b)),
+            vec![Mark::Hover(0)],
+            "only Esc mutes"
         );
     }
 }

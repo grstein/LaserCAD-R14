@@ -25,6 +25,35 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 - Thinking models (such as DeepSeek in thinking mode) keep their reasoning across tool calls and turns: the agent sends a tool-call reply's `reasoning_content` back verbatim with it, within the turn and when memory replays the batch later; plain-text replies and providers that send none are unchanged. See LCV-154.
 - The agent's batch drawing tool (`create_drawing`) now accepts items that set another entity type's keys to `null`, as its published schema invites; a non-null value names the keys the item's type takes. Fewer refused batches, fewer fallbacks to one call per entity. See LCV-185.
 
+## [0.5.0] - 2026-09-30
+
+### Added
+
+- `Edit > Delete` erases the selection, and `Ctrl+A` selects everything, as `Edit > Select All` does, unless the command line has focus. `View > Zoom Extents` frames the drawing, as `F` does, and `View > Zoom All` frames the bed and the drawing together. See LCV-166.
+- Save and Save As confirm the file they wrote and the bed it was written for, e.g. `Saved part.svg (400 × 297.5 mm)`. When any geometry lies outside the bed, that line, and the `Export Layers` file list, turns into a warning such as `— 2 entities outside the bed`; the files are still written unchanged. See LCV-168.
+
+### Changed
+
+- Menus show an icon beside New, Open, Save, Undo, Redo, the zoom commands and every tool, a check mark beside each mode or object snap that is on, and their keyboard shortcuts in one right-aligned column. Erasing objects (`ERASE`, `Edit > Delete` or the Delete key) is now one undo step. See LCV-166.
+- The tool rail shows AutoCAD-style line icons instead of words, in two columns: drawing tools on the left, editing tools on the right, and the `AI` toggle (formerly `Agent`) below them. The rail is narrower (76 points) and no longer scrolls at 800×600. Hovering a tool shows its name, key and command word, e.g. `Line — L · LINE`. See LCV-183.
+- A flatter, calmer dark theme: windows and menus have no drop shadow, one thin border and slightly rounded corners. SNAP, GRID and ORTHO in the status bar are pills that are clearly filled when on and outlined when off, segments are separated by thin rules, and the coordinates use a fixed-width font. The command prompt shows the command word in blue and options such as `[Yes/No] <N>` dimmed, and the command field's border turns blue while it has keyboard focus. See LCV-184.
+- A more legible canvas: the minor grid is brighter and crisp, a small marker shows the machine origin (0,0), and each snap marker has a dark edge plus its kind's name (`endpoint`, `midpoint`, …) beside it. Circles and arcs stay smooth at every zoom and cost less when tiny. The bed is framed on startup, after Open and after a bed-size change. See LCV-164.
+- Consistent wording and status: menu items and window titles use Title Case (`Export Layers`, `Bed Size…`, `Keyboard Shortcuts…`, `Object Snap`, `Restore Default`). The LLM feature has one name, AI: the settings are `Help > AI Settings…` (formerly `Agent settings…`), and an AI turn's undo step reads `AI: <prompt>`. Status-bar coordinates keep a steady width while the cursor moves. Errors in the AI panel and `! ` lines in the command dock use a readable red, and the status bar shows `× autosave failed` in that red until the next autosave succeeds. See LCV-167.
+- Clearer command dock: errors are red, refused input is orange and results such as `DIST` or `SNAP on` are in the normal text colour. Every prompt reads `VERB  Specify …` with its options and default, e.g. `TEXT  Specify height <5>:` and `ERASE  Select objects:`. Enter on an empty command line with nothing in progress repeats the last command, and right-clicking the canvas acts as Enter (finish, accept or repeat) instead of doing nothing. `SCALE` and `ROTATE` say why a typed value was refused, e.g. `Scale factor must be greater than 0.`. See LCV-165.
+- Dialogs answer the keyboard: Enter presses the topmost dialog's main button (OK, Apply, Save) and Escape its Cancel or Close, without touching the command line or the active tool. Every dialog ends with a Cancel or Close button that does what its title-bar × does; AI Settings' `Done` is now `Close`. The unsaved-changes prompt offers `Save`, `Discard` (in red text) and `Cancel`; Save saves the drawing first and continues only if the save worked. See LCV-169.
+
+## [0.4.0] - 2026-09-30
+
+### Added
+
+- Quadrant, Perpendicular, Tangent and Nearest object snaps, each with its R14 marker (diamond, right-angle mark, circle with a tangent bar, hourglass). Perpendicular and Tangent work from the active tool's last point. `View > Object snap` turns each snap kind on or off and remembers the choice; all are on except Nearest, and F3 still switches snapping as a whole. See LCV-161.
+
+### Changed
+
+- Canvas feedback shows what a click will do. A selection box dragged left to right (window) has a solid outline, right to left (crossing) a dashed one. The object Select, `TRIM` or `EXTEND` would pick is drawn thicker in its layer colour. `TRIM` shows the piece it will remove, and `ERASE` the selected objects, dashed in red; the click removes exactly that. Esc or leaving the canvas hides the highlight until the pointer moves. See LCV-163.
+- The canvas cursor is an R14 crosshair: two light-gray lines across the whole canvas that sit on the snapped (or Ortho) point, with the system cursor hidden over the canvas. While a tool waits for you to pick an object (Select, `TRIM`, `EXTEND`) a small square pickbox surrounds the crosshair and object snaps stay off, as in R14's "Select objects". Picking now uses screen distance: an object within 5 points of the cursor is picked and a press must move 2 points to start a selection box, at any zoom (before, 5 mm and 2 mm in the drawing). Canvas feedback no longer lags one frame behind the pointer. See LCV-162.
+- `TRIM` and `EXTEND` work with arcs: an arc can be trimmed and extended, and lines, circles and arcs can be cut or extended against an arc. A circle can be trimmed by another circle or an arc. `EXTEND` grows an arc along its own circle, never into a full turn. A `TRIM` click that meets several cutters is now one undo step. See LCV-160.
+
 ## [0.3.0] - 2026-09-30
 
 ### Added

@@ -323,3 +323,70 @@ fn draw_grid_does_not_panic_on_degenerate_cameras() {
         }
     });
 }
+
+/// LCV-164 AC 1 — at 1 and 1.5 pixels per point every grid line is 1 pt
+/// wide, in a grid token, with its fixed coordinate on a physical pixel
+/// centre (fraction .5), even for a viewport and camera off the pixel grid.
+#[test]
+fn ac1_grid_lines_are_one_point_tokens_on_pixel_centres() {
+    use crate::render::palette::{GRID_MAJOR, GRID_MINOR};
+    for ppp in [1.0_f32, 1.5] {
+        let camera = Camera {
+            center_world: Vec2::new(3.3, 7.7),
+            mm_per_px: 0.37,
+            viewport_size_px: [800.0, 600.0],
+        };
+        let rect =
+            egui::Rect::from_min_size(egui::Pos2::new(37.3, 52.1), egui::Vec2::new(800.0, 600.0));
+        let ctx = egui::Context::default();
+        ctx.set_pixels_per_point(ppp);
+        let out = ctx.run(egui::RawInput::default(), |ctx| {
+            assert_eq!(
+                ctx.pixels_per_point(),
+                ppp,
+                "control: the frame runs at {ppp} ppp"
+            );
+            let painter = ctx.layer_painter(egui::LayerId::new(
+                egui::Order::Background,
+                egui::Id::new("lcv164-ac1"),
+            ));
+            draw_grid(&painter, rect, &camera);
+        });
+
+        let (mut minor, mut major) = (0, 0);
+        for clipped in &out.shapes {
+            let egui::Shape::LineSegment { points, stroke } = &clipped.shape else {
+                continue;
+            };
+            assert_eq!(stroke.width, 1.0, "ppp={ppp}: grid line width");
+            let solid = egui::epaint::ColorMode::Solid;
+            if stroke.color == solid(GRID_MINOR) {
+                minor += 1;
+            } else if stroke.color == solid(GRID_MAJOR) {
+                major += 1;
+            } else {
+                panic!(
+                    "ppp={ppp}: grid line in {:?}, not a grid token",
+                    stroke.color
+                );
+            }
+            let [a, b] = *points;
+            let fixed = if a.x == b.x {
+                a.x
+            } else {
+                assert_eq!(a.y, b.y, "grid lines are axis-aligned");
+                a.y
+            };
+            let physical = fixed * ppp;
+            let fraction = physical - physical.floor();
+            assert!(
+                (fraction - 0.5).abs() < 1e-3,
+                "ppp={ppp}: line at {fixed} pt = {physical} px is not on a pixel centre"
+            );
+        }
+        assert!(
+            minor > 0 && major > 0,
+            "ppp={ppp}: minor={minor}, major={major}"
+        );
+    }
+}

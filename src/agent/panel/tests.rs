@@ -246,7 +246,7 @@ fn the_row_colours_are_distinct_under_the_real_theme() {
     let visuals = ctx.style().visuals.clone();
     let prose = visuals.text_color();
     let warn = visuals.warn_fg_color;
-    let error = egui::Color32::RED;
+    let error = visuals.error_fg_color;
     for (a, b) in [
         (super::TOOL_COLOR, prose),
         (super::TOOL_COLOR, warn),

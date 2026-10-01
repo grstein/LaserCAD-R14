@@ -48,8 +48,8 @@ fn frame(ctx: &egui::Context, app: &mut App, events: Vec<egui::Event>) {
     let _ = ctx.run(raw_input_at(SCREEN, events), |c| app.update_ui(c));
 }
 
-/// AC 8 — "Context tokens" is one integer field in Agent Settings: a real
-/// click and typed value, closed with Done, is persisted by the LCV-141 path.
+/// AC 8 — "Context tokens" is one integer field in AI Settings: a real
+/// click and typed value, closed with Close, is persisted by the LCV-141 path.
 #[test]
 fn ac8_the_context_tokens_edit_persists_through_done() {
     let dir = std::env::temp_dir().join("lcv153_context_tokens");
@@ -77,9 +77,9 @@ fn ac8_the_context_tokens_edit_persists_through_done() {
     assert_eq!(app.settings.agent_context_tokens, 64_000);
 
     let runs = paint::painted_runs(&ctx, &mut app);
-    click(&ctx, &mut app, locate(&runs, "Done"));
-    assert!(!app.agent_settings_open, "Done closes the dialog");
-    let saved = std::fs::read_to_string(&path).expect("Done persists the settings");
+    click(&ctx, &mut app, locate(&runs, "Close"));
+    assert!(!app.agent_settings_open, "Close closes the dialog");
+    let saved = std::fs::read_to_string(&path).expect("Close persists the settings");
     let _ = std::fs::remove_dir_all(&dir);
     assert!(saved.contains("\"agent_context_tokens\": 64000"), "{saved}");
 }

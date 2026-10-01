@@ -25,32 +25,28 @@
 //!
 //! MUST NOT import `eframe`, `rfd` or `crate::ui`.
 
-use super::{App, apply_ortho, handle_zoom_extents};
+mod dispatch;
+
+use super::{App, Severity};
 use crate::agent::{Route, classify};
 use crate::cmdline::{CommandInput, ToggleKind, ToolInput, ZoomKind, parse};
-use crate::geometry::{EPSILON, Vec2};
 use crate::render::Camera;
 use crate::tools;
-
-/// Feedback shown when `@dx,dy` arrives with no anchor to add it to.
-const NO_BASE_POINT: &str = "No base point for relative input.";
-
-/// Feedback shown when a bare distance could not be given a direction.
-const NO_DIRECTION: &str = "No direction for distance input — move the cursor or type X,Y.";
+use dispatch::{NO_BASE_POINT, direct_distance, send};
 
 /// Feedback for a line addressed to an agent that has no API key (AC 6).
 ///
 /// The leading `! ` is part of the message: it is the one command-line answer
 /// that reports a missing *configuration* rather than a rejected input, and it
 /// names where to fix it.
-const AGENT_UNAVAILABLE: &str = "! Agent unavailable: set the API key in Help > Agent settings";
+const AGENT_UNAVAILABLE: &str = "! AI unavailable: set the API key in Help > AI Settings…";
 
 /// Feedback for a prefix with no prompt behind it (AC 4). Nothing is sent.
-const AGENT_EMPTY_PROMPT: &str = "Agent prompt is empty.";
+const AGENT_EMPTY_PROMPT: &str = "AI prompt is empty.";
 
 /// Feedback for a second turn while one is in flight (AC 10). One turn at a
 /// time (ADR 0007 §Revisit criteria): this refuses, it does not queue.
-const AGENT_BUSY: &str = "Agent is busy — wait for the current turn to finish.";
+const AGENT_BUSY: &str = "AI is busy — wait for the current turn to finish.";
 
 /// How much of the prompt the command line echoes back before cutting it.
 const ECHO_CHARS: usize = 60;
@@ -115,7 +111,7 @@ pub fn submit(app: &mut App, raw: &str) {
         Route::Cad => {}
         Route::Agent(prompt) => return to_agent(app, &prompt),
         Route::Unavailable => {
-            app.command_feedback = AGENT_UNAVAILABLE.to_owned();
+            app.say(Severity::Error, AGENT_UNAVAILABLE);
             return;
         }
     }
@@ -131,18 +127,35 @@ pub fn submit(app: &mut App, raw: &str) {
             Some(anchor) => send(app, ToolInput::Point(anchor + delta)),
             // Deterministic refusal (product decision 2): no anchor means the
             // offset designates nothing. Invent no origin.
-            None => app.command_feedback = NO_BASE_POINT.to_owned(),
+            None => app.say(Severity::Warning, NO_BASE_POINT),
         },
         CommandInput::Distance(value_mm) => {
             let along = direct_distance(app, value_mm);
             send(app, ToolInput::Distance { value_mm, along });
         }
         // AC 14 — "Enter finishes the polyline" stays alive now that the
-        // command line usually holds keyboard focus.
-        CommandInput::Empty => super::input::route_to_tool(app, egui::Key::Enter),
+        // command line usually holds keyboard focus; at rest it repeats.
+        CommandInput::Empty => empty_enter(app),
         CommandInput::Unknown(text) => {
-            app.command_feedback = format!("Unknown command: \"{text}\"")
+            app.say(Severity::Warning, format!("Unknown command: \"{text}\""))
         }
+    }
+}
+
+/// Enter on an empty line (LCV-165 AC 4, AC 5; ADR 0003 §B5 amendment).
+///
+/// While the active tool is at rest (SELECT idle) it starts the newest tool
+/// word in the recall ring, as if it had been typed, and pushes nothing;
+/// with none left it does nothing. Otherwise Enter goes to the tool, which
+/// finishes or accepts. The keyboard gate calls this for an Enter that
+/// reaches it with the field unfocused, so both paths repeat alike.
+pub(super) fn empty_enter(app: &mut App) {
+    if !app.tool_manager.at_rest() {
+        return super::input::route_to_tool(app, egui::Key::Enter);
+    }
+    if let Some(kind) = app.command_history.last_tool() {
+        app.command_feedback.clear();
+        app.tool_manager.set_tool(tools::make(kind));
     }
 }
 
@@ -174,14 +187,14 @@ pub(crate) fn agent_available(app: &App) -> bool {
 /// their typo.
 fn to_agent(app: &mut App, prompt: &str) {
     if prompt.is_empty() {
-        app.command_feedback = AGENT_EMPTY_PROMPT.to_owned();
+        app.say(Severity::Warning, AGENT_EMPTY_PROMPT);
         return;
     }
     if app.agent.busy {
-        app.command_feedback = AGENT_BUSY.to_owned();
+        app.say(Severity::Warning, AGENT_BUSY);
         return;
     }
-    app.command_feedback = format!("→ agent: \"{}\"", echo(prompt));
+    app.say(Severity::Info, format!("→ AI: \"{}\"", echo(prompt)));
     app.agent.panel_open = true;
     super::start_turn(app, prompt);
 }
@@ -200,49 +213,6 @@ fn echo(prompt: &str) -> String {
     out
 }
 
-/// Hand one resolved input to the active tool, then poll succession exactly
-/// as the pointer path does (AC 6), so `m` ⏎ `0,0` ⏎ `@10,0` ⏎ hands back to
-/// `SelectTool`. On refusal nothing is mutated and AC 15's message is set.
-fn send(app: &mut App, input: ToolInput) {
-    let consumed = app
-        .tool_manager
-        .on_command_input(input, &mut app.document, &mut app.history);
-    if consumed {
-        super::viewport::poll_successor(app);
-        return;
-    }
-    app.command_feedback = match input {
-        ToolInput::Distance { along: None, .. } => NO_DIRECTION.to_owned(),
-        _ => format!(
-            "{} does not accept that input.",
-            app.tool_manager.active_tool_name()
-        ),
-    };
-}
-
-/// Resolve direct-distance entry (AC 11): `value_mm` along the anchor→cursor
-/// direction, ortho applied to that direction when F8 is on.
-///
-/// `None` — refuse — unless *all* of: the tool has an anchor, the pointer has
-/// entered the viewport at least once, and the (post-ortho) cursor is farther
-/// than `EPSILON` from the anchor. A negative `value_mm` is legal and places
-/// the point on the opposite ray, which is R14 behaviour.
-fn direct_distance(app: &App, value_mm: f64) -> Option<Vec2> {
-    let anchor = app.tool_manager.anchor()?;
-    let cursor = app.last_cursor_world?;
-    let cursor = if app.ortho_enabled {
-        apply_ortho(anchor, cursor)
-    } else {
-        cursor
-    };
-    let delta = cursor - anchor;
-    let length = delta.length();
-    if length <= EPSILON {
-        return None;
-    }
-    Some(anchor + delta * (value_mm / length))
-}
-
 /// Flip one drawing aid — identical semantics to F3 / F7 / F8 — and report
 /// the new state as `SNAP on` / `GRID off` / … (AC 10).
 fn toggle(app: &mut App, kind: ToggleKind) {
@@ -253,7 +223,7 @@ fn toggle(app: &mut App, kind: ToggleKind) {
     };
     *flag = !*flag;
     let state = if *flag { "on" } else { "off" };
-    app.command_feedback = format!("{name} {state}");
+    app.say(Severity::Info, format!("{name} {state}"));
 }
 
 /// Typed zoom. Shares [`Camera::ZOOM_STEP`] with the View menu (AC 16) so the
@@ -262,10 +232,7 @@ fn zoom(app: &mut App, kind: ZoomKind) {
     match kind {
         ZoomKind::In => app.camera.zoom_in(Camera::ZOOM_STEP),
         ZoomKind::Out => app.camera.zoom_out(Camera::ZOOM_STEP),
-        ZoomKind::Extents => {
-            let viewport_size = app.camera.viewport_size_px;
-            handle_zoom_extents(&mut app.camera, &app.document, viewport_size);
-        }
+        ZoomKind::Extents => crate::ui::menubar::do_zoom_extents(app),
     }
 }
 

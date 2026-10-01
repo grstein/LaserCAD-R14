@@ -39,18 +39,18 @@ fn co_places_multiple_copies_on_the_source_layer() {
     submit_command(&ctx, &mut app, "co");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "COPY Specify base point:"
+        "COPY  Specify base point:"
     );
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "COPY Specify second point:"
+        "COPY  Specify second point:"
     );
     submit_command(&ctx, &mut app, "@10,0");
     submit_command(&ctx, &mut app, "@20,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "COPY Specify second point:",
+        "COPY  Specify second point:",
         "COPY stays armed after a placement"
     );
 
@@ -61,7 +61,7 @@ fn co_places_multiple_copies_on_the_source_layer() {
     assert_eq!(app.tool_manager.active_tool_name(), "COPY");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "COPY Specify base point:"
+        "COPY  Specify base point:"
     );
 
     assert_eq!(app.document.entity_count(), 3);

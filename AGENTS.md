@@ -130,6 +130,7 @@ UI directives: `DESIGN.md`.
 - 0007 agent turn mutates the live document (fence, flat group, budgets) · 0008 tests run `--no-fail-fast`
 - 0009 dialog body capped at 426pt · 0010 declarative drawing batch tool · 0011 canvas observation raster
 - 0012 document layers, mother SVG with one `<g>` per layer, one export file per layer
+- 0013 tools describe canvas feedback as styled marks (`Tool::feedback`)
 
 A reversed ADR gets a `**Superseded**` header; ADR text keeps its original line citations.
 Product principles: `docs/product/README.md`. Roadmap: `PLAN.md`. User-visible changes: `CHANGELOG.md`.

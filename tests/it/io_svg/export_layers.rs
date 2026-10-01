@@ -6,11 +6,11 @@
 
 use std::path::{Path, PathBuf};
 
-use lasercad::app::App;
+use lasercad::app::{App, Severity};
 use lasercad::document::{AddLayer, Command, Document, Entity, LayerId};
 use lasercad::geometry::{Arc, Circle, Line, Vec2};
-use lasercad::io::svg::{export_layer_svg, import_svg};
-use lasercad::io::{action_export_layers, layer_exports};
+use lasercad::io::svg::{export_layer_svg, export_svg, import_svg};
+use lasercad::io::{action_export_layers, action_save, layer_exports};
 
 fn tempdir(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("lcv156_{name}"));
@@ -173,4 +173,98 @@ fn nothing_to_export_writes_nothing_and_says_so() {
         "{}",
         app.command_feedback
     );
+}
+
+/// A line that leaves a 300 × 180 bed past its right edge.
+fn off_bed_line() -> Entity {
+    Entity::Line(Line::new(Vec2::new(250.0, 10.0), Vec2::new(320.0, 10.0)))
+}
+
+/// An `App` exporting `document` beside `dir/<mother>`.
+fn exporting_app(dir: &Path, mother: &str, document: Document) -> App {
+    App {
+        document,
+        current_file: Some(dir.join(mother)),
+        ..App::default()
+    }
+}
+
+/// LCV-168 AC 3 — an out-of-bed entity on an exported layer turns the file
+/// list into a Warning with the count appended; one on an Output-off layer
+/// only leaves it Info with no suffix.
+#[test]
+fn export_warns_only_about_exported_layers_outside_the_bed() {
+    let dir = tempdir("lcv168_export_warning");
+    let (mut document, cut, _) = layered_doc();
+    document.push_entity(off_bed_line(), cut);
+    let mut app = exporting_app(&dir, "sign.svg", document);
+
+    action_export_layers(&mut app);
+
+    assert_eq!(
+        app.command_feedback,
+        "Exported layers: sign-Cut.svg, sign-Fine_mark.svg — 1 entity outside the bed"
+    );
+    assert_eq!(app.command_feedback_severity, Severity::Warning);
+
+    let (mut document, ..) = layered_doc();
+    let off = document
+        .layer_by_name("Off")
+        .expect("layered_doc has Off")
+        .id;
+    document.push_entity(off_bed_line(), off);
+    let mut app = exporting_app(&dir, "plate.svg", document);
+
+    action_export_layers(&mut app);
+
+    assert_eq!(
+        app.command_feedback,
+        "Exported layers: plate-Cut.svg, plate-Fine_mark.svg"
+    );
+    assert_eq!(app.command_feedback_severity, Severity::Info);
+}
+
+/// LCV-168 AC 4 — with geometry outside the bed, Save still writes the
+/// mother byte for byte as `export_svg`, and Export Layers writes every
+/// layer file byte for byte as its `layer_exports` text.
+#[test]
+fn out_of_bed_geometry_is_written_unchanged() {
+    let dir = tempdir("lcv168_bytes");
+    let (mut document, cut, mark) = layered_doc();
+    document.push_entity(off_bed_line(), cut);
+    document.push_entity(
+        Entity::Circle(Circle::new(Vec2::new(5.0, 175.0), 20.0)),
+        mark,
+    );
+    let mut app = exporting_app(&dir, "sign.svg", document);
+
+    action_save(&mut app);
+    action_export_layers(&mut app);
+
+    assert!(app.error_message.is_none());
+    let mother = std::fs::read(dir.join("sign.svg")).unwrap();
+    assert_eq!(mother, export_svg(&app.document).into_bytes());
+    let plan = layer_exports(&app.document, &dir.join("sign.svg"));
+    assert_eq!(plan.len(), 2);
+    for (path, svg) in plan {
+        assert_eq!(std::fs::read(&path).unwrap(), svg.into_bytes(), "{path:?}");
+    }
+}
+
+/// LCV-168 AC 5 — an Export Layers whose files cannot be written shows no
+/// file list and no out-of-bed warning; the error dialog gets
+/// `error_message`, as before.
+#[test]
+fn failed_export_announces_nothing() {
+    let (mut document, cut, _) = layered_doc();
+    document.push_entity(off_bed_line(), cut);
+    let missing = Path::new("/nonexistent_dir_lcv168");
+    let mut app = exporting_app(missing, "sign.svg", document);
+    app.say(Severity::Error, "sentinel");
+
+    action_export_layers(&mut app);
+
+    assert!(app.error_message.is_some(), "the export must fail");
+    assert_eq!(app.command_feedback, "sentinel");
+    assert_eq!(app.command_feedback_severity, Severity::Error);
 }

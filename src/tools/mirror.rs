@@ -31,6 +31,7 @@ use crate::document::{Document, Entity, History, TransformEntities};
 use crate::geometry::{Transform, Vec2};
 use crate::tools::copy::sources_intact;
 use crate::tools::{SelectTool, Tool};
+use std::borrow::Cow;
 
 /// Internal state of [`MirrorTool`].
 #[derive(Debug)]
@@ -99,11 +100,13 @@ impl Tool for MirrorTool {
     }
 
     /// The R14 prompts (AC1, AC3, AC5).
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match &self.state {
-            MirrorState::FirstPoint => "MIRROR Specify first point of mirror line:",
-            MirrorState::SecondPoint { .. } => "MIRROR Specify second point of mirror line:",
-            MirrorState::Confirm { .. } => "MIRROR Erase source objects? [Yes/No] <N>:",
+            MirrorState::FirstPoint => "MIRROR  Specify first point of mirror line:".into(),
+            MirrorState::SecondPoint { .. } => {
+                "MIRROR  Specify second point of mirror line:".into()
+            }
+            MirrorState::Confirm { .. } => "MIRROR  Erase source objects? [Yes/No] <N>:".into(),
         }
     }
 
@@ -320,20 +323,20 @@ mod tests {
         assert_eq!(tool.name(), "MIRROR");
         assert_eq!(
             tool.status_text(),
-            "MIRROR Specify first point of mirror line:"
+            "MIRROR  Specify first point of mirror line:"
         );
         assert!(!tool.wants_raw_input());
         tool.on_pointer_down(Vec2::new(1.0, 2.0), false, &mut doc, &mut h);
         assert_eq!(
             tool.status_text(),
-            "MIRROR Specify second point of mirror line:"
+            "MIRROR  Specify second point of mirror line:"
         );
         assert_eq!(tool.anchor(), Some(Vec2::new(1.0, 2.0)));
         assert!(!tool.wants_raw_input());
         tool.on_pointer_down(Vec2::new(1.0, 5.0), false, &mut doc, &mut h);
         assert_eq!(
             tool.status_text(),
-            "MIRROR Erase source objects? [Yes/No] <N>:"
+            "MIRROR  Erase source objects? [Yes/No] <N>:"
         );
         assert_eq!(tool.anchor(), None);
         assert!(tool.wants_raw_input());
@@ -352,7 +355,7 @@ mod tests {
         assert!(!h.can_undo());
         assert_eq!(
             tool.status_text(),
-            "MIRROR Specify first point of mirror line:"
+            "MIRROR  Specify first point of mirror line:"
         );
     }
 
@@ -388,7 +391,7 @@ mod tests {
         assert!(tool.on_command_input(ToolInput::Point(near), &mut doc, &mut h));
         assert_eq!(
             tool.status_text(),
-            "MIRROR Specify second point of mirror line:"
+            "MIRROR  Specify second point of mirror line:"
         );
         assert!(!h.can_undo());
     }

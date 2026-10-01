@@ -122,7 +122,7 @@ pub struct TurnState {
     pub tally: TurnMetrics,
     /// The turn's effective step limit, snapshotted when it was armed.
     pub limit: u32,
-    /// The label of the turn's history group: `Agent:` plus the prompt.
+    /// The label of the turn's history group: `AI:` plus the prompt.
     pub label: String,
     /// The turn's user message as the model gets it: the prompt, prefixed
     /// when the drawing changed since the last turn (LCV-153 AC 7).
@@ -233,14 +233,14 @@ fn effective_step_limit(settings: &Settings) -> u32 {
     crate::agent::clamp_step_budget(settings.agent_step_budget)
 }
 
-/// The undo-stack label for a turn: `Agent:` and the prompt, trimmed and cut to
+/// The undo-stack label for a turn: `AI:` and the prompt, trimmed and cut to
 /// [`LABEL_CHARS`] characters with an `…` when it did not fit (AC 10).
 ///
 /// Counted in `char`s, not bytes: the prompt is whatever the operator typed,
 /// and slicing a UTF-8 string at byte 40 panics on the first accented word.
 fn turn_label(prompt: &str) -> String {
     let trimmed = prompt.trim();
-    let mut label = String::from("Agent: ");
+    let mut label = String::from("AI: ");
     label.extend(trimmed.chars().take(LABEL_CHARS));
     if trimmed.chars().nth(LABEL_CHARS).is_some() {
         label.push('…');

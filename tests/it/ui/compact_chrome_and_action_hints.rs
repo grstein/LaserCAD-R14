@@ -7,9 +7,11 @@
 //!   (the *table-derived inventory* half — every `TOOLS` entry, not just a
 //!   sample — lives in `src/ui/toolbar.rs::tests::tool_hover_text_traces_to_its_own_entry`,
 //!   which has access to the crate-private `TOOLS`/`ToolEntry` this binary
-//!   does not); the rail's outer-width cap and full-label rendering, proven
-//!   by a real `PanelState` read plus a painted-text line table; a real
-//!   click per mode plus the agent toggle.
+//!   does not); the rail's outer-width cap, proven by a real `PanelState`
+//!   read; a real click per mode plus the agent toggle. LCV-183 amended the
+//!   rail to icon buttons (no labels, 80 pt cap, `AI` toggle), so the rail
+//!   tests here find buttons by position and the toggle by its `AI` text;
+//!   the full rail layout lives in `tests/it/ui/icon_tool_rail.rs`.
 //! - AC 4-6: the `mm` unit, painted (the preset badge retired with
 //!   LCV-156); layout-bounds
 //!   measurements at 800x600 / 1024x600 / 1280x800, agent panel both closed
@@ -23,7 +25,7 @@
 
 use crate::harness;
 
-use harness::paint::{self, Run, group_into_lines, painted_runs_at, scoped_runs, texts};
+use harness::paint::{self, Run, painted_runs_at};
 use harness::{SCREEN, raw_input_at};
 use lasercad::app::App;
 use lasercad::document::Entity;
@@ -75,10 +77,9 @@ fn click_events(pos: egui::Pos2) -> Vec<egui::Event> {
     ]
 }
 
-/// Click `label` on a settled frame: a warm-up `PointerMoved`, then the
+/// Click `pos` on a settled frame: a warm-up `PointerMoved`, then the
 /// press/release pair.
-fn click(ctx: &egui::Context, app: &mut App, screen: [f32; 2], runs: &[Run], label: &str) {
-    let pos = locate(runs, label);
+fn click(ctx: &egui::Context, app: &mut App, screen: [f32; 2], pos: egui::Pos2) {
     let _ = ctx.run(
         raw_input_at(screen, vec![egui::Event::PointerMoved(pos)]),
         |c| app.update_ui(c),
@@ -149,13 +150,30 @@ fn assert_contained_and_non_overlapping(runs: &[&Run]) {
     }
 }
 
-/// The sixteen `TOOLS` labels, in display order — the same tool set
-/// `src/ui/toolbar.rs::tests::toolbar_table_is_the_v030_tool_set` pins from the
-/// other side of the crate boundary.
-const TOOL_LABELS: [&str; 16] = [
-    "Select", "Line", "Polyline", "Rect", "Circle", "Arc", "Text", "Move", "Copy", "Rotate",
-    "Mirror", "Scale", "Trim", "Extend", "Delete", "Dist",
-];
+/// The toolbar panel's outer rect, as egui stored it last frame.
+fn rail_rect(ctx: &egui::Context) -> egui::Rect {
+    egui::containers::panel::PanelState::load(ctx, egui::Id::new("toolbar"))
+        .expect("the toolbar panel must have stored its state by now")
+        .rect
+}
+
+/// Centre of the rail button at `(column, row)` — 4 pt frame margin, 32 pt
+/// buttons, 4 pt gaps (LCV-183; pinned by `tests/it/ui/icon_tool_rail.rs`).
+fn rail_button(ctx: &egui::Context, column: usize, row: usize) -> egui::Pos2 {
+    let step = 36.0;
+    rail_rect(ctx).min + egui::vec2(20.0 + column as f32 * step, 20.0 + row as f32 * step)
+}
+
+/// A point inside the rail's `AI` toggle text, painted exactly once there.
+fn rail_ai(ctx: &egui::Context, runs: &[Run]) -> egui::Pos2 {
+    let rail = rail_rect(ctx);
+    let inside: Vec<Run> = runs
+        .iter()
+        .filter(|r| rail.contains(r.pos))
+        .cloned()
+        .collect();
+    locate(&inside, "AI")
+}
 
 // ---------------------------------------------------------------------------
 // AC 1-3 — hover hints, painted (a representative sample; the full table is
@@ -164,19 +182,17 @@ const TOOL_LABELS: [&str; 16] = [
 
 /// AC 1 / AC 3 — `Select` (no shortcut) and `Line` (shortcut `L`) each paint
 /// their own, distinct hover tooltip when actually hovered — proof by
-/// rendering, not by reading `src/ui/toolbar.rs`.
+/// rendering, not by reading `src/ui/toolbar.rs`. Format since LCV-183.
 #[test]
 fn ac1_ac3_toolbar_hover_text_paints_for_a_tool_with_and_without_a_shortcut() {
-    for (label, expect_contains) in [("Select", "no keyboard shortcut"), ("Line", "shortcut: L")] {
+    for (row, tooltip) in [(0, "Select — SELECT"), (1, "Line — L · LINE")] {
         let (ctx, mut app) = ctx_and_app();
-        let runs = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
-        let pos = locate(&runs, label);
+        let _ = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
+        let pos = rail_button(&ctx, 0, row);
         let hover = hover_runs_at(&ctx, &mut app, SCREEN, pos);
         assert!(
-            hover
-                .iter()
-                .any(|r| r.text.starts_with(label) && r.text.contains(expect_contains)),
-            "hovering {label:?} must paint a tooltip containing {expect_contains:?}: {:?}",
+            hover.iter().any(|r| r.text.trim() == tooltip),
+            "hovering row {row} must paint the tooltip {tooltip:?}: {:?}",
             hover.iter().map(|r| &r.text).collect::<Vec<_>>()
         );
     }
@@ -201,7 +217,7 @@ fn ac3_mode_indicator_hover_text_names_its_own_key() {
     }
 }
 
-/// AC 3 — the agent toggle paints the short visible text label `"Agent"` —
+/// AC 3 — the agent toggle paints the short visible text `"AI"` (LCV-183) —
 /// never the old icon-only `"🤖"` — and keeps its pre-existing `"AI
 /// Assistant"` hover text.
 #[test]
@@ -212,7 +228,7 @@ fn ac3_agent_toggle_shows_a_visible_label_and_keeps_its_hover_text() {
         !runs.iter().any(|r| r.text.contains('\u{1F916}')),
         "the old icon-only toggle must be gone"
     );
-    let pos = locate(&runs, "Agent");
+    let pos = rail_ai(&ctx, &runs);
     let hover = hover_runs_at(&ctx, &mut app, SCREEN, pos);
     assert!(
         hover.iter().any(|r| r.text.trim() == "AI Assistant"),
@@ -225,62 +241,50 @@ fn ac3_agent_toggle_shows_a_visible_label_and_keeps_its_hover_text() {
 // AC 1-2 — the rail: reachability, order, width cap, full-label rendering
 // ---------------------------------------------------------------------------
 
-/// AC 1 / AC 2 — the toolbar `SidePanel`'s own persisted outer rect never
-/// exceeds 120pt, and every one of the sixteen `TOOLS` labels plus the agent
-/// toggle paints in full, in order, one per visual line — proof that nothing
-/// wrapped, elided or fell back to an icon.
+/// AC 2 (as amended by LCV-183 AC 8) — the toolbar `SidePanel`'s own
+/// persisted outer rect is at most 80pt wide.
 #[test]
-fn ac1_ac2_toolbar_width_is_capped_and_every_label_renders_whole_in_order() {
+fn ac2_toolbar_width_is_capped() {
     let (ctx, mut app) = ctx_and_app();
-    let runs = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
-
-    let rect = egui::containers::panel::PanelState::load(&ctx, egui::Id::new("toolbar"))
-        .expect("the toolbar panel must have stored its state by now")
-        .rect;
+    let _ = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
+    let width = rail_rect(&ctx).width();
     assert!(
-        rect.width() <= 120.0 + 0.5,
-        "the tool rail must be at most 120pt wide, got {}",
-        rect.width()
-    );
-
-    let (scoped, _) = scoped_runs(&runs, "Select");
-    let lines = texts(&group_into_lines(&scoped));
-    let mut expected: Vec<Vec<String>> = TOOL_LABELS.iter().map(|l| vec![l.to_string()]).collect();
-    expected.push(vec!["Agent".to_owned()]);
-    assert_eq!(
-        lines, expected,
-        "the rail must show all sixteen tools, in order, then the agent toggle, none truncated"
+        width <= 80.0 + 0.5,
+        "the tool rail must be at most 80pt wide, got {width}"
     );
 }
 
-/// AC 2 — a normal-height window shows every entry with nothing scrolled out
-/// of view; a cramped one scrolls instead of squeezing or clipping content
-/// away — the first row stays visible at the default (top) scroll offset,
-/// and strictly fewer rows than the tools plus the agent toggle paint.
+/// AC 2 — a normal-height window shows the whole rail, down to the `AI`
+/// toggle, fully inside its clip; a cramped one scrolls instead of squeezing
+/// — the first button still answers at the default (top) scroll offset and
+/// the toggle is out of view.
 #[test]
 fn ac2_scrolling_activates_only_when_the_rail_has_no_room() {
+    let fully_visible = |ctx: &egui::Context, runs: &[Run]| {
+        let rail = rail_rect(ctx);
+        runs.iter().any(|r| {
+            rail.contains(r.pos) && r.text.trim() == "AI" && r.pos.y + r.height <= r.clip.bottom()
+        })
+    };
     let (ctx, mut app) = ctx_and_app();
     let runs = painted_runs_at(&ctx, &mut app, [1280.0, 800.0], Vec::new());
-    let (scoped, _) = scoped_runs(&runs, "Select");
-    let ample = texts(&group_into_lines(&scoped));
-    assert_eq!(
-        ample.len(),
-        TOOL_LABELS.len() + 1,
-        "at ample height all sixteen tools plus the agent toggle must be visible: {ample:?}"
+    assert!(
+        fully_visible(&ctx, &runs),
+        "at ample height the whole rail must be visible"
     );
 
+    let cramped = [1280.0, 220.0];
     let (ctx2, mut app2) = ctx_and_app();
-    let runs2 = painted_runs_at(&ctx2, &mut app2, [1280.0, 220.0], Vec::new());
-    let (scoped2, _) = scoped_runs(&runs2, "Select");
-    let cramped = texts(&group_into_lines(&scoped2));
+    let runs2 = painted_runs_at(&ctx2, &mut app2, cramped, Vec::new());
     assert!(
-        cramped.len() < TOOL_LABELS.len() + 1,
-        "a cramped window must scroll some rows out of view rather than squeeze them all in: {cramped:?}"
+        !fully_visible(&ctx2, &runs2),
+        "a cramped window must scroll the toggle out of view rather than squeeze the rail"
     );
-    assert_eq!(
-        cramped.first(),
-        Some(&vec!["Select".to_owned()]),
-        "the first row must still be visible at the default (top) scroll offset"
+    let pos = rail_button(&ctx2, 0, 0);
+    let hover = hover_runs_at(&ctx2, &mut app2, cramped, pos);
+    assert!(
+        hover.iter().any(|r| r.text.trim() == "Select — SELECT"),
+        "the first button must still be at the top of the cramped rail"
     );
 }
 
@@ -295,10 +299,12 @@ fn ac2_a_real_wheel_scroll_reaches_a_row_hidden_by_the_cramped_rail() {
     let screen = [1280.0, 220.0];
     let runs = painted_runs_at(&ctx, &mut app, screen, Vec::new());
     assert!(
-        !runs.iter().any(|r| r.text.trim() == "Agent"),
+        !runs
+            .iter()
+            .any(|r| r.text.trim() == "AI" && r.pos.y + r.height <= r.clip.bottom()),
         "control: the agent toggle must start out of view in this cramped fixture"
     );
-    let hover_point = locate(&runs, "Select");
+    let hover_point = rail_button(&ctx, 0, 0);
 
     // A real hover over the rail, then many small downward-scroll ticks —
     // each under egui's smoothing threshold, so the whole delta lands within
@@ -319,7 +325,9 @@ fn ac2_a_real_wheel_scroll_reaches_a_row_hidden_by_the_cramped_rail() {
     let after = painted_runs_at(&ctx, &mut app, screen, Vec::new());
 
     assert!(
-        after.iter().any(|r| r.text.trim() == "Agent"),
+        after
+            .iter()
+            .any(|r| r.text.trim() == "AI" && r.pos.y + r.height <= r.clip.bottom()),
         "a real wheel scroll over the rail must reveal the row hidden before \
          it: {:?}",
         after.iter().map(|r| &r.text).collect::<Vec<_>>()
@@ -330,7 +338,7 @@ fn ac2_a_real_wheel_scroll_reaches_a_row_hidden_by_the_cramped_rail() {
 /// cursor, because it is not resizable.
 ///
 /// A *drag*-based width assertion cannot distinguish `.resizable(false)`
-/// from `.resizable(true)` here: `src/app/panels.rs::toolbar_width` is
+/// from `.resizable(true)` here: `src/app/panels.rs::RAIL_WIDTH` is
 /// applied through `SidePanel::exact_width`, which pins the panel's whole
 /// `width_range` to a single point regardless of `resizable` — any drag delta
 /// is clamped straight back to that one point (egui-0.29.1
@@ -352,9 +360,7 @@ fn ac2_a_real_wheel_scroll_reaches_a_row_hidden_by_the_cramped_rail() {
 fn ac2_the_rail_shows_no_resize_cursor_because_it_is_not_resizable() {
     let (ctx, mut app) = ctx_and_app();
     let _ = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
-    let rect = egui::containers::panel::PanelState::load(&ctx, egui::Id::new("toolbar"))
-        .expect("the toolbar panel must have stored its state by now")
-        .rect;
+    let rect = rail_rect(&ctx);
     let edge = egui::pos2(rect.right(), rect.center().y);
 
     let out = ctx.run(
@@ -377,9 +383,9 @@ fn ac2_the_rail_shows_no_resize_cursor_because_it_is_not_resizable() {
 #[test]
 fn ac1_ac7_clicking_a_toolbar_button_activates_its_tool_and_commits_nothing() {
     let (ctx, mut app) = ctx_and_app();
-    let runs = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
+    let _ = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
     let before = app.history.revision();
-    click(&ctx, &mut app, SCREEN, &runs, "Circle");
+    click(&ctx, &mut app, SCREEN, rail_button(&ctx, 0, 4));
     assert_eq!(app.tool_manager.active_tool_name(), "CIRCLE");
     assert_eq!(
         app.history.revision(),
@@ -396,7 +402,7 @@ fn ac3_ac7_clicking_a_mode_indicator_flips_only_its_own_flag_once() {
     assert!(app.grid_enabled);
     assert!(!app.ortho_enabled);
     let runs = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
-    click(&ctx, &mut app, SCREEN, &runs, "SNAP");
+    click(&ctx, &mut app, SCREEN, locate(&runs, "SNAP"));
     assert!(!app.snap_enabled, "one click must flip snap off");
     assert!(app.grid_enabled, "grid must not move");
     assert!(!app.ortho_enabled, "ortho must not move");
@@ -408,7 +414,7 @@ fn ac3_ac7_clicking_the_agent_toggle_opens_the_panel_once() {
     let (ctx, mut app) = ctx_and_app();
     assert!(!app.agent.panel_open);
     let runs = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
-    click(&ctx, &mut app, SCREEN, &runs, "Agent");
+    click(&ctx, &mut app, SCREEN, rail_ai(&ctx, &runs));
     assert!(app.agent.panel_open, "one click must open the panel");
 }
 
@@ -424,7 +430,8 @@ fn ac4_coordinate_readout_carries_an_explicit_mm_unit() {
     let runs = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
     assert!(
         runs.iter()
-            .any(|r| r.text.trim() == "X: 123.45mm  Y:  67.89mm"),
+            .any(|r| r.text.trim()
+                == "X: \u{2007}\u{2007}123.45mm  Y: \u{2007}\u{2007}\u{2007}67.89mm"),
         "the coordinate readout must show an explicit mm unit: {:?}",
         runs.iter().map(|r| &r.text).collect::<Vec<_>>()
     );
@@ -547,18 +554,24 @@ fn ac7_hover_only_frames_leave_document_history_and_dirty_state_untouched() {
 
     let entities_before = app.document.entity_count();
     let revision_before = app.history.revision();
-    let dirty_before = app.dirty_since;
+    let dirty_before = app.autosave.dirty_since;
     let panel_open_before = app.agent.panel_open;
     let snap_before = app.snap_enabled;
 
-    for label in ["Select", "Line", "Delete", "Agent", "SNAP", "GRID", "ORTHO"] {
-        let pos = locate(&runs, label);
+    let mut points = vec![
+        rail_button(&ctx, 0, 0),
+        rail_button(&ctx, 0, 1),
+        rail_button(&ctx, 1, 7),
+        rail_ai(&ctx, &runs),
+    ];
+    points.extend(["SNAP", "GRID", "ORTHO"].map(|label| locate(&runs, label)));
+    for pos in points {
         let _ = hover_runs_at(&ctx, &mut app, SCREEN, pos);
     }
 
     assert_eq!(app.document.entity_count(), entities_before);
     assert_eq!(app.history.revision(), revision_before);
-    assert_eq!(app.dirty_since, dirty_before);
+    assert_eq!(app.autosave.dirty_since, dirty_before);
     assert_eq!(app.agent.panel_open, panel_open_before);
     assert_eq!(app.snap_enabled, snap_before);
 }

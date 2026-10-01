@@ -252,7 +252,7 @@ mod tests {
             let app = app_with(allow, supports, [800.0, 600.0]);
             assert_eq!(
                 capture(&app, &CaptureFrame::View),
-                AgentOutcome::Refused("canvas capture is disabled in Agent settings".into()),
+                AgentOutcome::Refused(CAPTURE_DISABLED.into()),
                 "({allow}, {supports})"
             );
         }

@@ -97,7 +97,7 @@ fn app_default_has_no_persistence_paths() {
     assert_eq!(app.autosave_path, None);
 }
 
-/// LCV-114 AC 14 — the Bed size… modal starts closed.
+/// LCV-114 AC 14 — the Bed Size… modal starts closed.
 #[test]
 fn app_default_has_no_bed_dialog() {
     assert_eq!(App::default().bed_dialog, None);
@@ -485,7 +485,7 @@ fn some_line() -> Line {
 #[test]
 fn app_default_last_synced_revision_is_zero() {
     let app = App::default();
-    assert_eq!(app.last_synced_revision, 0);
+    assert_eq!(app.autosave.last_synced_revision, 0);
 }
 
 /// AC 9 — the regression test for the defect this demand fixes: tools
@@ -496,14 +496,14 @@ fn app_default_last_synced_revision_is_zero() {
 #[test]
 fn direct_history_commit_marks_document_dirty() {
     let mut app = App::default();
-    assert!(app.dirty_since.is_none());
+    assert!(app.autosave.dirty_since.is_none());
 
     app.history
         .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
     app.sync_dirty();
 
     assert!(
-        app.dirty_since.is_some(),
+        app.autosave.dirty_since.is_some(),
         "a history.commit bypassing App::commit must still dirty the document"
     );
 }
@@ -517,11 +517,14 @@ fn sync_dirty_is_idempotent_without_mutation() {
         .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
 
     app.sync_dirty();
-    let first = app.dirty_since.expect("first sync must arm dirty_since");
+    let first = app
+        .autosave
+        .dirty_since
+        .expect("first sync must arm dirty_since");
 
     app.sync_dirty();
     assert_eq!(
-        app.dirty_since,
+        app.autosave.dirty_since,
         Some(first),
         "a second sync with no new revision must not move the instant"
     );
@@ -535,15 +538,15 @@ fn mark_clean_clears_and_resyncs() {
     app.history
         .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
     app.sync_dirty();
-    assert!(app.dirty_since.is_some());
+    assert!(app.autosave.dirty_since.is_some());
 
     app.mark_clean();
-    assert!(app.dirty_since.is_none());
-    assert_eq!(app.last_synced_revision, app.history.revision());
+    assert!(app.autosave.dirty_since.is_none());
+    assert_eq!(app.autosave.last_synced_revision, app.history.revision());
 
     app.sync_dirty();
     assert!(
-        app.dirty_since.is_none(),
+        app.autosave.dirty_since.is_none(),
         "no new revision since mark_clean, so sync_dirty must stay clean"
     );
 }
@@ -556,11 +559,14 @@ fn undo_marks_document_dirty() {
         .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
     app.sync_dirty();
     app.mark_clean();
-    assert!(app.dirty_since.is_none());
+    assert!(app.autosave.dirty_since.is_none());
 
     assert!(app.history.undo(&mut app.document));
     app.sync_dirty();
-    assert!(app.dirty_since.is_some(), "undo must dirty the document");
+    assert!(
+        app.autosave.dirty_since.is_some(),
+        "undo must dirty the document"
+    );
 }
 
 /// AC 10 — redo re-dirties the document.
@@ -572,11 +578,14 @@ fn redo_marks_document_dirty() {
     app.history.undo(&mut app.document);
     app.sync_dirty();
     app.mark_clean();
-    assert!(app.dirty_since.is_none());
+    assert!(app.autosave.dirty_since.is_none());
 
     assert!(app.history.redo(&mut app.document));
     app.sync_dirty();
-    assert!(app.dirty_since.is_some(), "redo must dirty the document");
+    assert!(
+        app.autosave.dirty_since.is_some(),
+        "redo must dirty the document"
+    );
 }
 
 /// AC 11 — a no-op undo on a clean, empty history must not dirty it.
@@ -585,7 +594,7 @@ fn no_op_undo_does_not_dirty() {
     let mut app = App::default();
     assert!(!app.history.undo(&mut app.document));
     app.sync_dirty();
-    assert!(app.dirty_since.is_none());
+    assert!(app.autosave.dirty_since.is_none());
 }
 
 /// AC 12 — replacing `history` with a fresh one and calling `mark_clean`
@@ -598,15 +607,15 @@ fn replacing_history_then_mark_clean_stays_clean() {
     app.history
         .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
     app.sync_dirty();
-    assert!(app.dirty_since.is_some());
+    assert!(app.autosave.dirty_since.is_some());
 
     app.history = History::default();
     app.mark_clean();
-    assert!(app.dirty_since.is_none());
+    assert!(app.autosave.dirty_since.is_none());
 
     app.sync_dirty();
     assert!(
-        app.dirty_since.is_none(),
+        app.autosave.dirty_since.is_none(),
         "a fresh History at revision 0 must not re-dirty after mark_clean"
     );
 }

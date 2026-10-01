@@ -2,7 +2,7 @@
 //!
 //! Splits the candidate-collection helpers off [`super`] to keep both files
 //! under the 300-LOC kernel cap. Nothing here is `pub` outside the `snap`
-//! module — callers go through [`super::snap`].
+//! module — callers go through [`super::snap_query`].
 
 use crate::geometry::intersect::{circle_circle, line_circle, line_line};
 use crate::geometry::vec2::Vec2;
@@ -15,7 +15,7 @@ pub(super) struct Candidate {
     pub kind: SnapKind,
     pub primary_idx: usize,
     pub secondary_idx: Option<usize>,
-    /// Filled in by [`super::snap`] after distance filtering.
+    /// Filled in by [`super::snap_query`] after distance filtering.
     pub distance: f64,
 }
 
@@ -42,7 +42,7 @@ pub(super) fn collect_single_entity_candidates(entities: &[SnapEntity], out: &mu
 }
 
 /// Push intersection candidates for every unordered pair of entities.
-/// Arc-involving pairs are skipped (documented limitation in [`super::snap`]).
+/// Arc-involving pairs are skipped (documented limitation in [`super::snap_query`]).
 pub(super) fn collect_intersection_candidates(entities: &[SnapEntity], out: &mut Vec<Candidate>) {
     for i in 0..entities.len() {
         for j in (i + 1)..entities.len() {
@@ -86,7 +86,7 @@ fn push_pair_intersections(
     }
 }
 
-fn make_candidate(point: Vec2, kind: SnapKind, primary_idx: usize) -> Candidate {
+pub(super) fn make_candidate(point: Vec2, kind: SnapKind, primary_idx: usize) -> Candidate {
     Candidate {
         point,
         kind,

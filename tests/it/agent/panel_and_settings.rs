@@ -290,7 +290,7 @@ fn ac6_the_api_key_reaches_no_transcript_row() {
 // ── AC 8 / AC 9 / AC 10: the settings dialog draws its four fields ──────────
 
 /// AC 8 / AC 9 / AC 10 — **headless frame**: the four-field form draws inside
-/// the real `Agent Settings` window, through `src/app/panels.rs`, and an idle
+/// the real `AI Settings` window, through `src/app/panels.rs`, and an idle
 /// frame changes nothing. Which fields exist and what the warning says are the
 /// bounded scans in `src/agent/settings_ui.rs`.
 #[test]
@@ -324,14 +324,14 @@ fn ac8_ac9_ac10_the_settings_dialog_draws_headless_frame() {
 /// the key itself is painted nowhere at all.
 ///
 /// **LCV-141 note**: the expected set below gained its last two lines — the
-/// live-edit sentence and the Done button — the two additions that demand
+/// live-edit sentence and the Close button — the two additions that demand
 /// makes to this exact dialog (its AC 6). ADR 0009 decision 2 is why the fix
 /// is here rather than around it: a paint assertion that claims a surface
 /// shows *nothing else* must be updated the moment intentional content is
 /// added, or it certifies the old screen as still correct.
 ///
 /// **LCV-143 note**: two more lines, for the same reason — the System prompt
-/// row with its Restore default button, and the editor, which paints the whole
+/// row with its Restore Default button, and the editor, which paints the whole
 /// built-in prompt as one multi-line galley.
 ///
 /// **LCV-145 note**: three more lines — the two canvas opt-in checkboxes and
@@ -373,10 +373,10 @@ fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
                 "When both are on, the agent may send a picture of the drawing ",
                 "(not the window) to the configured provider and model."
             )],
-            vec!["System prompt", "Restore default"],
+            vec!["System prompt", "Restore Default"],
             vec![lasercad::agent::DEFAULT_PROMPT],
             vec!["Changes apply immediately and are saved when this window closes."],
-            vec!["Done"],
+            vec!["Close"],
         ],
         "the form paints its labels, its values and both sentences, in order, \
          and paints nothing else"

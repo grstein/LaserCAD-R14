@@ -36,8 +36,10 @@
 mod autosave;
 mod bed_dialog;
 mod cmdline;
+mod dialog_order;
 mod discard;
 mod document_title;
+mod feedback;
 mod file_ops;
 mod init;
 mod input;
@@ -62,12 +64,14 @@ pub use agent_poll::{AGENT_CANCELLED_MESSAGE, AGENT_LOST_MESSAGE, cancel_turn, p
 pub use agent_state::AgentState;
 pub use agent_turn::{AGENT_FENCE_REFUSAL, TurnFence, TurnState, arm_turn, config_for, start_turn};
 pub use agent_worker::{TurnConfig, run_agent_turn};
-pub use autosave::{autosave_due, schedule_flush_repaint};
+pub use autosave::{AutosaveState, autosave_due, schedule_flush_repaint};
 pub use bed_dialog::{apply_bed_dialog_result, draw_bed_dialog};
 pub(crate) use cmdline::agent_available;
 pub use cmdline::submit;
-pub use discard::{apply_dialog_result, draw_discard_dialog, poll_close_request};
+pub use dialog_order::{Dialog, sync_dialog_order, topmost};
+pub use discard::{DiscardChoice, apply_discard_choice, draw_discard_dialog, poll_close_request};
 pub use document_title::DocumentTitleState;
+pub use feedback::Severity;
 pub use file_ops::PendingAction;
 pub use input::process_input;
 pub use layers::LayersDialog;
@@ -75,8 +79,6 @@ pub use ortho::apply_ortho;
 pub use snap::{resolve_snap, suppress_snap_if_disabled};
 pub use unsaved_guard::UnsavedGuard;
 pub use viewport::{handle_pan, handle_wheel_zoom, handle_zoom_extents};
-
-use std::time::Instant;
 
 use crate::cmdline::CommandHistory;
 use crate::document::{Command, Document, Entity, History};
@@ -118,31 +120,16 @@ pub struct App {
     /// (ADR 0006). `None` means this process neither writes nor deletes an
     /// autosave file — the state `App::default()` leaves it in.
     pub autosave_path: Option<std::path::PathBuf>,
-    /// Set to `Some(Instant::now())` the first time the document is dirtied
-    /// after the last autosave flush (or after startup). Cleared back to
-    /// `None` after each successful autosave write.
-    pub dirty_since: Option<Instant>,
-    /// The `history.revision()` value last observed by [`App::sync_dirty`] /
-    /// [`App::mark_clean`]. Comparing against this — not against
-    /// `history.len()`, which is not monotonic across an undo-then-commit —
-    /// is how `sync_dirty` detects "something changed since the last
-    /// autosave" for every mutation source at once: tools that call
-    /// `history.commit` directly, the agent's commit sites, and undo/redo
-    /// (ADR 0002 §B).
-    pub last_synced_revision: u64,
-    /// When the last **successful** autosave write happened this session, or
-    /// `None` when none has (LCV-116 AC 7). Written in exactly one place —
-    /// `src/app/autosave.rs` — and only on the `Ok` branch, so a failed write
-    /// cannot claim a save the operator does not have. Read only by the
-    /// status-bar indicator; no control flow depends on it.
-    pub last_autosave_at: Option<Instant>,
+    /// The autosave dirty signal and its outcome (`src/app/autosave.rs`,
+    /// ADR 0004 §"The `src/app/mod.rs` seam", LCV-169).
+    pub autosave: AutosaveState,
     /// Controls visibility of the About dialog.
     pub about_open: bool,
     /// Controls visibility of the Keyboard shortcuts dialog (LCV-116 AC 11).
     /// Set by `F1` and by `Help > Keyboard shortcuts…`; cleared by egui's own
     /// × through `Window::open`.
     pub shortcuts_open: bool,
-    /// Controls visibility of the Agent Settings dialog.
+    /// Controls visibility of the AI Settings dialog.
     pub agent_settings_open: bool,
     /// Draft `[width, height]` of the Bed size… modal, or `None` when it is
     /// closed (LCV-114). The document's bed is only touched when OK is
@@ -150,6 +137,9 @@ pub struct App {
     pub bed_dialog: Option<[f64; 2]>,
     /// The open Layers… dialog, `None` when closed (LCV-156, `src/app/layers.rs`).
     pub layers_dialog: Option<LayersDialog>,
+    /// The open dialogs, oldest first; the last takes Enter and Escape
+    /// (LCV-169, `src/app/dialog_order.rs`).
+    pub dialog_order: Vec<Dialog>,
     /// Text buffer for the command-line widget (LCV-068).
     pub command_line_input: String,
     /// The 50-entry command recall ring walked by ArrowUp / ArrowDown while
@@ -162,6 +152,8 @@ pub struct App {
     /// reads it. Cleared at the top of every [`submit`] and by the widget's
     /// Escape branch, so a stale error is always dismissible.
     pub command_feedback: String,
+    /// How the dock paints `command_feedback`; written only by [`App::say`].
+    pub command_feedback_severity: Severity,
     /// One-shot focus request for the command-line widget (LCV-111 AC 20).
     /// Set by the keyboard gate when an unbound character is typed while the
     /// field is unfocused; consumed with `std::mem::take` by the widget,
@@ -179,6 +171,9 @@ pub struct App {
     pub grid_enabled: bool,
     /// Whether ortho mode is active. Toggled by F8 (LCV-070/LCV-053). Defaults to false.
     pub ortho_enabled: bool,
+    /// Frame the bed on the next frame whose viewport has area (LCV-164 AC 7): set by
+    /// `App::new`, Open and the Bed dialog's OK; cleared by `viewport::draw`.
+    pub frame_bed_pending: bool,
     /// The agent's UI-side state: chat transcript, panel visibility, the
     /// in-flight turn's channel and fence (ADR 0004 §"The `src/app/mod.rs`
     /// seam", LCV-136). `agent_settings_open` stays here on `App` — it is one
@@ -228,9 +223,11 @@ impl App {
     /// and must stay one: every phase below lives in its own file, and new
     /// frame work joins one of them rather than this list.
     pub fn update_ui(&mut self, ctx: &egui::Context) {
-        // The two — and only two — keyboard readers (ADR 0002 §A6): the
-        // shortcut table, then the focus gate. Both run before any panel so
-        // Escape cancels the tool in the same frame the command line clears.
+        // The keyboard readers (ADR 0002 §A6), all before any panel: the
+        // dialog key for the topmost dialog (LCV-169), the shortcut table,
+        // then the focus gate, so Escape cancels the tool in the same frame
+        // the command line clears.
+        let dialog_key = input::take_dialog_key(ctx, self);
         let shortcut_fired = crate::ui::process_shortcuts(ctx, self);
         process_input(ctx, self, shortcut_fired);
         // Clear snap each frame when snap is disabled (LCV-070 AC#16).
@@ -269,7 +266,7 @@ impl App {
         // Window close button (LCV-113): cancel the close and park
         // `PendingAction::Exit` when the document is dirty.
         poll_close_request(ctx, self);
-        panels::draw_dialogs(ctx, self);
+        panels::draw_dialogs(ctx, self, dialog_key);
         // Native window title (LCV-138), last, so it reflects this frame's own changes above; sends nothing unless the title actually changed (AC 2, no new repaint call site).
         document_title::update_title(ctx, self);
     }

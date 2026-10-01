@@ -9,6 +9,7 @@ pub mod copy;
 pub mod delete;
 pub mod dist;
 pub mod extend;
+pub mod feedback;
 pub mod line;
 pub mod manager;
 pub mod mirror;
@@ -29,6 +30,7 @@ pub use copy::CopyTool;
 pub use delete::DeleteTool;
 pub use dist::DistTool;
 pub use extend::ExtendTool;
+pub use feedback::Mark;
 pub use line::LineTool;
 pub use manager::ToolManager;
 pub use mirror::MirrorTool;
@@ -40,7 +42,7 @@ pub use rotate::RotateTool;
 pub use scale::ScaleTool;
 pub use select::SelectTool;
 pub use text::TextTool;
-pub use tool::Tool;
+pub use tool::{DRAG_THRESHOLD_PT, PICK_APERTURE_PT, Tool};
 pub use trim::TrimTool;
 
 use crate::cmdline::ToolKind;
@@ -63,7 +65,7 @@ pub fn make(kind: ToolKind) -> Box<dyn Tool> {
         ToolKind::Arc => Box::new(ArcTool::default()),
         ToolKind::Move => Box::new(MoveTool::default()),
         ToolKind::Delete => Box::new(DeleteTool),
-        ToolKind::Trim => Box::new(TrimTool),
+        ToolKind::Trim => Box::new(TrimTool::default()),
         ToolKind::Extend => Box::new(ExtendTool::default()),
         ToolKind::Text => Box::new(TextTool::default()),
         ToolKind::Copy => Box::new(CopyTool::default()),

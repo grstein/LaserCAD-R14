@@ -47,22 +47,23 @@ impl Default for App {
             settings: Settings::default(),
             settings_path: None,
             autosave_path: None,
-            dirty_since: None,
-            last_synced_revision: 0,
-            last_autosave_at: None,
+            autosave: super::AutosaveState::default(),
             about_open: false,
             shortcuts_open: false,
             agent_settings_open: false,
             bed_dialog: None,
             layers_dialog: None,
+            dialog_order: Vec::new(),
             command_line_input: String::new(),
             command_history: CommandHistory::default(),
             command_feedback: String::new(),
+            command_feedback_severity: super::Severity::Warning,
             focus_command_line: false,
             command_line_focused: false,
             snap_enabled: true,
             grid_enabled: true,
             ortho_enabled: false,
+            frame_bed_pending: false,
             agent: AgentState::default(),
             current_file: None,
             title: DocumentTitleState::default(),
@@ -105,7 +106,9 @@ impl App {
     ///   envelope's own `bed_mm` wins, and `title.recovered_from_autosave` is
     ///   set (LCV-138 AC 4) — the only place in the tree that sets it;
     /// - otherwise seeds the blank document's bed from
-    ///   `settings.default_bed_mm` (LCV-114 AC 11).
+    ///   `settings.default_bed_mm` (LCV-114 AC 11);
+    /// - asks the first sized frame to frame the bed (`frame_bed_pending`,
+    ///   LCV-164 AC 7), the autosaved one included.
     ///
     /// A platform that supplies no config or data directory degrades to
     /// defaults, never to a panic: an unresolved path is the same `None` the
@@ -136,6 +139,7 @@ impl App {
         } else {
             app.document.bed_mm = app.settings.clamped_default_bed_mm();
         }
+        app.frame_bed_pending = true;
         app
     }
 }
@@ -377,5 +381,17 @@ mod tests {
                 out.push(path);
             }
         }
+    }
+
+    /// LCV-164 AC 7 — boot (which is also where an autosave is recovered)
+    /// asks the first frame with a viewport to frame the bed. `App::new`
+    /// cannot run in a test (ADR 0002 §A2), so this is a scan of its body.
+    #[test]
+    fn boot_asks_to_frame_the_bed() {
+        let body = app_new_body();
+        assert!(
+            body.contains(concat!("app.frame_bed", "_pending = true;")),
+            "App::new must set frame_bed_pending (LCV-164 AC 7)"
+        );
     }
 }

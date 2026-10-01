@@ -50,7 +50,7 @@ pub enum TransportError {
     /// The call ran out of the window it was given, at the connect or at any
     /// later point up to the last byte of the body.
     #[error(
-        "The endpoint did not answer within {secs} s. It may be slow, unreachable, or the endpoint URL may be wrong — check Help > Agent settings, or press Cancel and try a shorter prompt."
+        "The endpoint did not answer within {secs} s. It may be slow, unreachable, or the endpoint URL may be wrong — check Help > AI Settings…, or press Cancel and try a shorter prompt."
     )]
     Timeout {
         /// The window that elapsed, in whole seconds.
@@ -59,7 +59,7 @@ pub enum TransportError {
 
     /// HTTP 401: the key is missing, wrong, or refused by this endpoint.
     #[error(
-        "Authentication failed (HTTP 401): the API key is missing, invalid, or not accepted by this endpoint. Check Help > Agent settings."
+        "Authentication failed (HTTP 401): the API key is missing, invalid, or not accepted by this endpoint. Check Help > AI Settings…"
     )]
     Unauthorized,
 

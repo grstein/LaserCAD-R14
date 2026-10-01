@@ -19,6 +19,7 @@ use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History};
 use crate::geometry::Vec2;
 use crate::tools::{SelectTool, Tool};
+use std::borrow::Cow;
 
 /// Internal state of [`DistTool`].
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -58,10 +59,10 @@ impl Tool for DistTool {
         "DIST"
     }
 
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match self.state {
-            DistState::Idle => "DIST Specify first point:",
-            DistState::WaitingSecond { .. } => "DIST Specify second point:",
+            DistState::Idle => "DIST  Specify first point:".into(),
+            DistState::WaitingSecond { .. } => "DIST  Specify second point:".into(),
         }
     }
 
@@ -191,10 +192,10 @@ mod tests {
         let mut tool = DistTool::default();
         let (mut doc, mut hist) = (Document::default(), History::default());
         assert_eq!(tool.name(), "DIST");
-        assert_eq!(tool.status_text(), "DIST Specify first point:");
+        assert_eq!(tool.status_text(), "DIST  Specify first point:");
         assert_eq!(tool.anchor(), None);
         click(&mut tool, Vec2::new(1.0, 2.0), &mut doc, &mut hist);
-        assert_eq!(tool.status_text(), "DIST Specify second point:");
+        assert_eq!(tool.status_text(), "DIST  Specify second point:");
         assert_eq!(tool.anchor(), Some(Vec2::new(1.0, 2.0)));
     }
 
@@ -261,7 +262,7 @@ mod tests {
         let (mut doc, mut hist) = (Document::default(), History::default());
         click(&mut tool, Vec2::new(1.0, 1.0), &mut doc, &mut hist);
         tool.on_key(egui::Key::Escape, &mut App::default());
-        assert_eq!(tool.status_text(), "DIST Specify first point:");
+        assert_eq!(tool.status_text(), "DIST  Specify first point:");
         assert_eq!(tool.anchor(), None);
         assert_eq!(tool.take_message(), None);
         assert!(tool.take_successor().is_none());

@@ -19,7 +19,8 @@ use crate::geometry::Vec2;
 pub enum PointerButton {
     /// Left / primary button — the main draw button.
     Primary,
-    /// Right / secondary button — reserved for context menus.
+    /// Right / secondary button — never reaches a tool: the viewport turns
+    /// a right press into Enter on an empty line (LCV-165 AC 6).
     Secondary,
     /// Middle button / wheel click — reserved for pan (handled outside tools).
     Middle,

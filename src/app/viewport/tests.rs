@@ -132,8 +132,15 @@ fn the_canvas_repaint_is_guarded_by_the_predicate() {
     );
 
     let paint = draw
-        .find("paint(ui, rect, app);")
+        .find("paint(ui, rect, app, cursor);")
         .expect("positive control: draw must paint");
+    let hover = draw
+        .find("handle_hover(ctx, app, rect, hover_pos)")
+        .expect("positive control: draw must route the pointer");
+    assert!(
+        hover < paint,
+        "LCV-162 AC 4: input is handled before painting (DESIGN.md F1)"
+    );
     let pan = draw
         .find("handle_pan(&mut app.camera, response.drag_delta());")
         .expect("positive control: draw must handle the middle-drag pan");
@@ -255,11 +262,11 @@ fn every_repaint_request_in_src_is_conditional() {
 /// absence assertion cannot pass vacuously.
 #[test]
 fn the_canvas_bed_comes_from_the_document() {
-    let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/app/viewport.rs"));
-    let cfg_test_at = src
-        .find("\n#[cfg(test)]")
-        .expect("viewport.rs must have a test module to bound the scan");
-    let implementation = &src[..cfg_test_at];
+    // `paint` lives in `viewport/paint.rs` since LCV-162 (LOC-cap seam).
+    let implementation = implementation_or_all(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/app/viewport/paint.rs"
+    )));
     assert!(
         implementation.contains("crate::render::draw_bed(&painter, rect, &app.camera, &bed)"),
         "positive control: the canvas must draw the bed"
@@ -360,6 +367,9 @@ fn zoom_extents_noop_on_zero_area_viewport() {
 enum Kind {
     Rect(egui::Rect, f32),
     Line,
+    /// A path shape: its point count and whether it is closed (LCV-164: the
+    /// origin marker is an open three-point path).
+    Path(usize, bool),
 }
 
 /// Flatten `shape` into `out`, recursing into `Shape::Vec` — the only
@@ -370,6 +380,7 @@ fn flatten_shape(shape: &egui::Shape, out: &mut Vec<Kind>) {
     match shape {
         egui::Shape::Rect(r) => out.push(Kind::Rect(r.rect, r.stroke.width)),
         egui::Shape::LineSegment { .. } => out.push(Kind::Line),
+        egui::Shape::Path(p) => out.push(Kind::Path(p.points.len(), p.closed)),
         egui::Shape::Vec(shapes) => shapes.iter().for_each(|s| flatten_shape(s, out)),
         _ => {}
     }
@@ -385,8 +396,9 @@ fn close_rect(a: egui::Rect, b: egui::Rect) -> bool {
 
 /// LCV-137 AC 1/AC 2 — paint order inside the private `paint()`: canvas
 /// background, bed fill, the grid (when enabled), the bed border plus
-/// exterior overlay, then — on this fixture's empty document, empty
-/// selection and absent snap — nothing else. Toggling `grid_enabled`
+/// exterior overlay, the origin marker (LCV-164 AC 4, a path), then — on
+/// this fixture's empty document, empty selection and absent snap —
+/// nothing else. Toggling `grid_enabled`
 /// off removes the grid lines and nothing else.
 ///
 /// `paint` is called directly (it is private, and this is its own
@@ -435,7 +447,7 @@ fn ac1_ac2_grid_paints_between_bed_fill_and_bed_border_and_toggles_off() {
         let ctx = egui::Context::default();
         ctx.set_pixels_per_point(1.0);
         let out = ctx.run(egui::RawInput::default(), |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| paint(ui, rect, &mut app));
+            egui::CentralPanel::default().show(ctx, |ui| paint(ui, rect, &mut app, None));
         });
 
         let mut kinds: Vec<Kind> = Vec::new();
@@ -468,6 +480,17 @@ fn ac1_ac2_grid_paints_between_bed_fill_and_bed_border_and_toggles_off() {
             .map(|(i, _)| i)
             .collect();
 
+        // LCV-164 AC 4 — the origin marker, the one open three-point path,
+        // paints after the bed border (and so after the grid).
+        let origin_idx = kinds
+            .iter()
+            .position(|k| matches!(k, Kind::Path(3, false)))
+            .expect("LCV-164 AC 4: the origin marker must paint");
+        assert!(
+            bed_border_idx < origin_idx,
+            "LCV-164 AC 4: the origin marker must paint after the bed border"
+        );
+
         if grid_enabled {
             let first_line = *line_indices
                 .first()
@@ -496,7 +519,7 @@ fn ac1_ac2_grid_paints_between_bed_fill_and_bed_border_and_toggles_off() {
             .iter()
             .filter_map(|k| match k {
                 Kind::Rect(r, w) => Some((*r, *w)),
-                Kind::Line => None,
+                Kind::Line | Kind::Path(..) => None,
             })
             .collect();
         rects_by_toggle.push(rects_only);
@@ -531,7 +554,12 @@ fn ac3_wheel_zoom_call_site_subtracts_the_viewport_origin_source_scan() {
         env!("CARGO_MANIFEST_DIR"),
         "/src/app/viewport.rs"
     )));
-    let signature = "fn handle_hover(ctx: &egui::Context, app: &mut App, rect: egui::Rect, hover_pos: egui::Pos2) {";
+    let signature = "fn handle_hover(
+    ctx: &egui::Context,
+    app: &mut App,
+    rect: egui::Rect,
+    hover_pos: egui::Pos2,
+) -> Vec2 {";
     let body = implementation
         .split_once(signature)
         .expect("AC 3: handle_hover must exist with that exact signature")

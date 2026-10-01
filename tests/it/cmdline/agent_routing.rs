@@ -175,7 +175,7 @@ fn raw_input_wins_over_the_agent_prefix() {
     assert_eq!(app.tool_manager.active_tool_name(), "TEXT");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "TEXT Specify height <5>:",
+        "TEXT  Specify height <5>:",
         "the prefixed line was consumed as the string, not routed"
     );
     assert!(!app.agent.busy, "no turn may be armed from raw input");
@@ -205,12 +205,12 @@ fn raw_input_wins_for_the_slash_ai_prefix_too() {
     submit(&mut app, "/ai hello");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "TEXT Specify height <5>:"
+        "TEXT  Specify height <5>:"
     );
     submit(&mut app, ":10");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "TEXT Height must be between 0.1 and 2000 mm. Specify height <5>:",
+        "TEXT  Height must be between 0.1 and 2000 mm. Specify height <5>:",
         "`:10` was offered to the height parser, not to the agent"
     );
     assert!(!app.agent.busy);
@@ -241,7 +241,7 @@ fn a_bare_colon_does_not_finish_a_polyline() {
 
     submit(&mut app, ":");
 
-    assert_eq!(app.command_feedback, "Agent prompt is empty.");
+    assert_eq!(app.command_feedback, "AI prompt is empty.");
     assert_eq!(
         app.tool_manager.anchor(),
         Some(Vec2::new(20.0, 0.0)),
@@ -280,8 +280,8 @@ fn without_a_key_a_prefixed_line_is_refused_verbatim() {
     assert_eq!(
         app.command_feedback,
         concat!(
-            "! Agent unavailable: set the API key in ",
-            "Help > Agent settings"
+            "! AI unavailable: set the API key in ",
+            "Help > AI Settings…"
         )
     );
     assert!(!app.agent.busy);
@@ -333,7 +333,7 @@ fn a_send_is_unmistakable() {
 
     assert_eq!(
         app.command_feedback,
-        concat!("\u{2192} agent: ", "\"draw a 20 mm square at 10,10\"")
+        concat!("\u{2192} AI: ", "\"draw a 20 mm square at 10,10\"")
     );
     assert!(app.agent.panel_open, "the panel opens itself");
     assert_eq!(
@@ -355,7 +355,7 @@ fn a_long_prompt_is_echoed_truncated() {
 
     let echoed = app
         .command_feedback
-        .trim_start_matches(concat!("\u{2192} ", "agent: \""))
+        .trim_start_matches(concat!("\u{2192} ", "AI: \""))
         .trim_end_matches('"');
     assert_eq!(echoed.chars().count(), 61, "60 characters and the …");
     assert!(echoed.ends_with('…'));
@@ -455,7 +455,7 @@ fn a_second_turn_is_refused_not_queued() {
     assert_eq!(
         app.command_feedback,
         concat!(
-            "Agent is busy ",
+            "AI is busy ",
             "\u{2014} wait for the current turn to finish."
         )
     );

@@ -110,7 +110,7 @@ fn text_tool_at_height_prompt(ctx: &egui::Context, app: &mut App, viewport: egui
     submit_command(ctx, app, "HI"); // WaitingText -> WaitingHeight
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "TEXT Specify height <5>:"
+        "TEXT  Specify height <5>:"
     );
     assert!(
         !app.tool_manager.preview().is_empty(),
@@ -255,7 +255,7 @@ fn enter_commits_text_tool() {
 /// double dispatch would land on a no-op and this test would not move.
 /// `LineTool::on_key` still resets the tool to `Idle` on `Enter`
 /// (`src/tools/line.rs`), so an extra, gate-broken call is visible: the
-/// prompt would read `"LINE Specify first point:"` a beat early instead of
+/// prompt would read `"LINE  Specify first point:"` a beat early instead of
 /// chaining to the next segment.
 #[test]
 fn enter_reaches_the_tool_exactly_once_while_focused() {
@@ -267,7 +267,7 @@ fn enter_reaches_the_tool_exactly_once_while_focused() {
     tap(&ctx, &mut app, egui::Key::Enter, none());
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify next point (Enter to finish):",
+        "LINE  Specify next point <Enter to finish>:",
         "a double-dispatched Enter would also hit LineTool::on_key and cancel back to Idle"
     );
 
@@ -281,7 +281,7 @@ fn enter_reaches_the_tool_exactly_once_while_focused() {
     );
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify next point (Enter to finish):",
+        "LINE  Specify next point <Enter to finish>:",
         "LINE chains after a commit; a double dispatch would cancel it to Idle instead"
     );
 }
@@ -367,6 +367,26 @@ fn delete_removes_selection_when_unfocused() {
         "Delete must reach SelectTool"
     );
     assert!(app.history.can_undo());
+}
+
+/// Delete in Select undoes in one step, like ERASE and Edit > Delete (LCV-166).
+#[test]
+fn delete_in_select_undoes_in_one_step() {
+    let (ctx, mut app, _viewport) = boot();
+    with_lines(&mut app, 2);
+    app.history = lasercad::document::History::default();
+    app.document.selection.set([0, 1]);
+    app.tool_manager.set_tool(Box::new(SelectTool::default()));
+
+    tap(&ctx, &mut app, egui::Key::Delete, none());
+    app.history.undo(&mut app.document);
+
+    assert_eq!(
+        app.document.entity_count(),
+        2,
+        "one undo restores both lines"
+    );
+    assert!(!app.history.can_undo(), "the delete was a single step");
 }
 
 // ---------------------------------------------------------------------------

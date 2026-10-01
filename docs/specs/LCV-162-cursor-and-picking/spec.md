@@ -1,8 +1,8 @@
 # LCV-162 — Crosshair cursor and screen-space picking
 
-- **Status**: Specified
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: 86b52b0..5804bdb
 
 ## Problem
 
@@ -46,6 +46,8 @@ selection. DESIGN.md §5 and §6 carry the gap tags this spec closes.
    a box drag, and SHALL NOT before, at the same two zoom levels.
 10. WHEN the pointer leaves the canvas THE SYSTEM SHALL paint no crosshair or pickbox and restore
     the default OS cursor.
+11. WHILE the active tool waits for an entity pick THE SYSTEM SHALL resolve no running snap and
+    paint no snap glyph (R14: no osnap at "Select objects"; user decision 2026-09-30).
 
 ## Out of scope
 

@@ -18,6 +18,10 @@ use crate::io::settings::Settings;
 /// Minimum width of every text field, in logical pixels.
 const FIELD_MIN_WIDTH: f32 = 320.0;
 
+/// The system prompt editor's `egui::Id` source (LCV-169 AC 1): Enter stays
+/// a newline while this editor has focus.
+pub const SYSTEM_PROMPT_ID: &str = "agent_system_prompt";
+
 /// Minimum width of a grid column, so the label column of the field grid and
 /// of the budget grid line up despite being two separate grids.
 const LABEL_COL_WIDTH: f32 = 110.0;
@@ -44,7 +48,7 @@ const STEP_BUDGET_HELP: &str = "How many tool calls one prompt may make. More st
                                 bigger drawing per prompt, and more API calls.";
 
 /// States that edits are live and persist on close (LCV-141 AC 6), next to
-/// the Done button that is a second way to trigger that same close — never a
+/// the Close button that is a second way to trigger that same close — never a
 /// different semantics: the dialog stays live-edit, persist-on-close.
 const LIVE_EDIT_NOTE: &str = "Changes apply immediately and are saved when this window closes.";
 
@@ -56,7 +60,7 @@ const CANVAS_DISCLOSURE: &str = "When both are on, the agent may send a picture 
 const PROMPT_ROWS: usize = 6;
 
 /// Tallest the system-prompt editor may get: a long prompt scrolls inside it
-/// rather than pushing Done down the 426pt dialog body (ADR 0009).
+/// rather than pushing Close down the 426pt dialog body (ADR 0009).
 const PROMPT_MAX_HEIGHT: f32 = 110.0;
 
 /// What one frame of the form reported.
@@ -66,13 +70,13 @@ pub struct AgentSettingsFrame {
     /// [`draw_agent_settings`] always reported, now carried on a named field
     /// instead of being the whole return value.
     pub changed: bool,
-    /// `true` if the Done button (LCV-141 AC 6) was clicked this frame. The
+    /// `true` if the Close button (LCV-141 AC 6) was clicked this frame. The
     /// caller — `src/app/panels.rs::agent_settings_dialog` — closes the
     /// window through the exact same path it already runs for the × button:
     /// same `persist_settings()` call, same `was_open &&
     /// !app.agent_settings_open` guard, never a second, parallel persistence
     /// path.
-    pub done_clicked: bool,
+    pub close_clicked: bool,
 }
 
 /// Draw the agent-settings form into `ui`.
@@ -94,7 +98,7 @@ pub struct AgentSettingsFrame {
 /// - **Allow canvas capture** / **Model supports images** — the two LCV-145
 ///   opt-ins, followed by [`CANVAS_DISCLOSURE`].
 /// - **System prompt** — a multiline editor over the *effective* prompt
-///   (`prompt::resolve`), with a **Restore default** button (LCV-143). The
+///   (`prompt::resolve`), with a **Restore Default** button (LCV-143). The
 ///   text is copied into a per-frame buffer, so only a real edit writes
 ///   `Some(text)` — opening the dialog creates no override — and the button,
 ///   drawn before the editor, sets `None` so the built-in text shows on the
@@ -105,8 +109,8 @@ pub struct AgentSettingsFrame {
 /// [`AgentSettingsFrame::changed`] is `true` if **any** of the eight fields
 /// changed this frame, `false` otherwise — `agent_settings_dialog` persists on
 /// close, so the flag is what tells the operator's edit apart from an idle
-/// frame. [`AgentSettingsFrame::done_clicked`] is `true` the one frame the new
-/// Done button (AC 6) is clicked.
+/// frame. [`AgentSettingsFrame::close_clicked`] is `true` the one frame the new
+/// Close button (AC 6) is clicked.
 ///
 /// The slider clamps as it draws (`SliderClamping::Always`), so a settings file
 /// hand-edited to `5000` is written back as `4096` on the first frame the dialog
@@ -193,21 +197,25 @@ pub fn draw_agent_settings(ui: &mut egui::Ui, settings: &mut Settings) -> AgentS
     changed |= prompt_editor(ui, settings);
 
     ui.add(egui::Label::new(egui::RichText::new(LIVE_EDIT_NOTE).small()).wrap());
-    let done_clicked = ui.button("Done").clicked();
+    let close_clicked = ui.button("Close").clicked();
 
     AgentSettingsFrame {
         changed,
-        done_clicked,
+        close_clicked,
     }
 }
 
-/// The System prompt row: label, Restore default, then the editor. Returns
+/// The System prompt row: label, Restore Default, then the editor. Returns
 /// whether either changed `settings.agent_system_prompt`.
+///
+/// The editor carries the fixed id [`SYSTEM_PROMPT_ID`]: while it has focus,
+/// `src/app/input.rs::take_dialog_key` leaves Enter to it, so Enter inserts
+/// a newline instead of closing the dialog (LCV-169 AC 1).
 fn prompt_editor(ui: &mut egui::Ui, settings: &mut Settings) -> bool {
     let mut changed = false;
     ui.horizontal(|ui| {
         ui.label("System prompt");
-        if ui.button("Restore default").clicked() {
+        if ui.button("Restore Default").clicked() {
             settings.agent_system_prompt = None;
             changed = true;
         }
@@ -219,7 +227,7 @@ fn prompt_editor(ui: &mut egui::Ui, settings: &mut Settings) -> bool {
         .show(ui, |ui| {
             ui.add(
                 egui::TextEdit::multiline(&mut text)
-                    .id_salt("agent_system_prompt")
+                    .id(egui::Id::new(SYSTEM_PROMPT_ID))
                     .desired_width(f32::INFINITY)
                     .desired_rows(PROMPT_ROWS),
             )
