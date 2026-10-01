@@ -79,5 +79,5 @@
   src/render/raster.rs)
 - [x] T29 Docs: `AGENTS.md` export bullets plus ADR 0015 in the list, and coverage rows (files:
   AGENTS.md, docs/research/svg-spec-coverage.md)
-- [ ] T30 CHANGELOG: ellipses and elliptical arcs open, edit, snap and export natively (files:
+- [x] T30 CHANGELOG: ellipses and elliptical arcs open, edit, snap and export natively (files:
   CHANGELOG.md)
