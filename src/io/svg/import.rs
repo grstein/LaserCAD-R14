@@ -6,7 +6,7 @@
 //!
 //! | Outcome | Elements (SVG namespace unless noted) | Report |
 //! |---|---|---|
-//! | import | `line`, `circle`, `ellipse`, `path` | `<element> (invalid attribute)` (LCV-174); properties; per `path`: curves not imported yet, `path (data error)`, or `path (unsupported data)` with no `d` |
+//! | import | `line`, `circle`, `ellipse`, `rect`, `path` | `<element> (invalid attribute)` (LCV-174); properties; per `path`: curves not imported yet, `path (data error)`, or `path (unsupported data)` with no `d` |
 //! | descend | `svg`, `g`, `a` | properties, then the children |
 //! | never rendered | `defs symbol clipPath mask marker pattern linearGradient radialGradient filter` | name, iff it has an element child other than `style` |
 //! | hidden | `display:none` (subtree included), or an imported element with `visibility` `hidden`/`collapse` (LCV-175) | `hidden (display:none)`, `hidden (visibility)` |

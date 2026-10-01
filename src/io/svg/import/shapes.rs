@@ -1,13 +1,17 @@
-//! Basic shapes on import (LCV-174, SVG 2 ch. 10): `<line>`, `<circle>`
-//! and `<ellipse>` (LCV-176) as world entities, one [`Shape`] per element.
+//! Basic shapes on import (LCV-174, SVG 2 ch. 10): `<line>`, `<circle>`,
+//! `<ellipse>` (LCV-176) and `<rect>` as world entities, one [`Shape`] per
+//! element. A `<rect>` becomes its equivalent path data and goes through
+//! [`path_entities`], so it maps like a `<path>`.
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use super::conic::{Conic, conic_entity};
+use super::path::path_entities;
 use super::to_world;
 use crate::document::entity::Entity;
 use crate::geometry::{Circle, Line, Vec2};
 use crate::io::svg::length::{parse_length, to_user};
+use crate::io::svg::path_data::{PathData, Segment};
 use crate::io::svg::viewport::Ctx;
 
 /// Which viewport side a `%` length refers to (LCV-173 AC 10).
@@ -99,14 +103,27 @@ pub(super) struct Shape {
 /// `<name> (invalid attribute)` note (AC 3).
 pub(super) fn import_shape(name: &str, n: roxmltree::Node<'_, '_>, ctx: &Ctx, bed_h: f64) -> Shape {
     let (drawn, invalid) = match name {
-        "line" => (line(n, ctx, bed_h).map(Some), "line (invalid attribute)"),
-        "circle" => (circle(n, ctx, bed_h), "circle (invalid attribute)"),
-        "ellipse" => (ellipse(n, ctx, bed_h), "ellipse (invalid attribute)"),
+        "line" => (
+            line(n, ctx, bed_h).map(|e| vec![e]),
+            "line (invalid attribute)",
+        ),
+        "circle" => (
+            circle(n, ctx, bed_h).map(Vec::from_iter),
+            "circle (invalid attribute)",
+        ),
+        "ellipse" => (
+            ellipse(n, ctx, bed_h).map(Vec::from_iter),
+            "ellipse (invalid attribute)",
+        ),
+        "rect" => (
+            rect(n, ctx).map(|d| path_entities(&d, ctx, bed_h).0),
+            "rect (invalid attribute)",
+        ),
         _ => return Shape::default(),
     };
     match drawn {
-        Ok(entity) => Shape {
-            entities: entity.into_iter().collect(),
+        Ok(entities) => Shape {
+            entities,
             notes: Vec::new(),
         },
         Err(Invalid) => Shape {
@@ -163,6 +180,36 @@ fn ellipse(n: roxmltree::Node<'_, '_>, ctx: &Ctx, bed_h: f64) -> Result<Option<E
         return Ok(None);
     }
     Ok(conic(ctx, center, (rx, ry), bed_h))
+}
+
+/// A `<rect>` as its SVG 2 §10.2 equivalent path; empty when `width` or
+/// `height` is missing or 0 (AC 2).
+fn rect(n: roxmltree::Node<'_, '_>, ctx: &Ctx) -> Result<PathData, Invalid> {
+    let at = point(n, "x", "y", ctx)?;
+    let w = attr(n, "width", Axis::X, ctx).size()?.unwrap_or(0.0);
+    let h = attr(n, "height", Axis::Y, ctx).size()?.unwrap_or(0.0);
+    if w == 0.0 || h == 0.0 {
+        return Ok(PathData::default());
+    }
+    Ok(rect_path(at, w, h))
+}
+
+/// The four sides of the rect at `at`, `w` × `h`, from the top-left corner
+/// clockwise in SVG space (AC 4).
+fn rect_path(at: Vec2, w: f64, h: f64) -> PathData {
+    let corners = [
+        at,
+        at + Vec2::new(w, 0.0),
+        at + Vec2::new(w, h),
+        at + Vec2::new(0.0, h),
+    ];
+    let segments = (0..4)
+        .map(|i| Segment::Line(corners[i], corners[(i + 1) % 4]))
+        .collect();
+    PathData {
+        segments,
+        error: false,
+    }
 }
 
 /// The axis-aligned ellipse `center`, `(rx, ry)` (user space) as a world

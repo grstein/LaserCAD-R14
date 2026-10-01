@@ -22,7 +22,7 @@
   - `rect` is no longer in the ignored report. Rewrite the LCV-171 `[("rect",1)]` unit
     assertions to use `<image>`.
   (files: tests/it/io_svg/shapes.rs, src/io/svg/import/tests.rs)
-- [ ] T6 [AC2, AC3, AC4, AC10] Impl: `rect_path` (sharp) feeds `path_entities`; `classify`
+- [x] T6 [AC2, AC3, AC4, AC10] Impl: `rect_path` (sharp) feeds `path_entities`; `classify`
   marks `rect` as `Import`. Widen the `PathData` constructors to `pub(in crate::io::svg)`.
   (files: src/io/svg/import/shapes.rs, src/io/svg/import/walk.rs, src/io/svg/path_data.rs)
 - [ ] T7 [AC5] Test: `resolve_radii` unit table covering only-rx, only-ry, `auto`, `AUTO`, both
