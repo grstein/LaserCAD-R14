@@ -1,12 +1,13 @@
 //! Path segments to world entities (LCV-172): lines, circular and elliptical
-//! arcs (LCV-176), and the report labels of what is not imported yet.
+//! arcs (LCV-176), Béziers (LCV-177), and the report labels of what is not
+//! imported.
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use super::conic::{center_arc, conic_entity};
 use super::to_world;
 use crate::document::entity::Entity;
-use crate::geometry::{Arc, EPSILON, Line, Vec2};
+use crate::geometry::{Arc, Bezier, EPSILON, Line, Vec2};
 use crate::io::svg::path_data::{PathData, Segment};
 use crate::io::svg::viewport::Ctx;
 
@@ -20,7 +21,12 @@ use crate::io::svg::viewport::Ctx;
 /// [`conic_entity`] (LCV-176 AC 1). Lengths and radii are compared with
 /// [`EPSILON`] after the mirror. Under a similarity of scale `s` a circular
 /// arc's radius is `rx · s` and a reflection flips its sweep (LCV-173 AC 6);
-/// under any other map it is the exact elliptical arc (LCV-176 AC 3).
+/// under any other map it is the exact elliptical arc (LCV-176 AC 3). A
+/// Bézier maps point by point under any CTM; one whose points all lie within
+/// [`EPSILON`] of its start is labelled [`DEGENERATE_CURVE`] (LCV-177 AC 4).
+/// The report label of a Bézier segment whose points all coincide.
+const DEGENERATE_CURVE: &str = "path curve (degenerate)";
+
 pub(super) fn path_entities(
     data: &PathData,
     ctx: &Ctx,
@@ -57,10 +63,25 @@ pub(super) fn path_entities(
                     entities.extend(conic.and_then(|k| conic_entity(ctx, k, bed_h)));
                 }
             }
-            Segment::Cubic(_) | Segment::Quad(_) => labels.push("path curve"),
+            Segment::Cubic(p) => {
+                note_curve(Bezier::Cubic(p.map(world)), &mut entities, &mut labels)
+            }
+            Segment::Quad(p) => {
+                note_curve(Bezier::Quadratic(p.map(world)), &mut entities, &mut labels);
+            }
         }
     }
     (entities, labels)
+}
+
+/// Push `b` as an entity, or [`DEGENERATE_CURVE`] when every point lies
+/// within [`EPSILON`] of its start.
+fn note_curve(b: Bezier, entities: &mut Vec<Entity>, labels: &mut Vec<&'static str>) {
+    if b.points().iter().all(|p| p.distance(b.start()) < EPSILON) {
+        labels.push(DEGENERATE_CURVE);
+    } else {
+        entities.push(Entity::Bezier(b));
+    }
 }
 
 /// The circular arc of radius `rx` from `s` to `e` (world points, already
@@ -191,19 +212,24 @@ mod tests {
         assert!((a.center.x - 15.0).abs() < EPSILON && (a.center.y - 50.0).abs() < EPSILON);
     }
 
-    /// AC 7 — a curve imports nothing and is labelled; an elliptical arc
-    /// imports an ellipse (LCV-176 AC 1).
+    /// An elliptical arc imports an ellipse (LCV-176 AC 1); a curve imports
+    /// a Bézier (LCV-177 AC 1, AC 3), or only a label when degenerate (AC 4).
     #[test]
-    fn curves_are_labelled_and_ellipses_imported() {
+    fn curves_and_ellipses_are_imported() {
         assert!(matches!(
             entities("M 0 0 A 10 5 0 0 1 10 0"),
             (es, labels) if labels.is_empty() && matches!(es.as_slice(), [Entity::Ellipse(_)])
         ));
+        let w = |x: f64, y: f64| Vec2::new(x, BED_H - y);
         assert_eq!(
-            entities("M 0 0 C 1 1 2 2 3 3 L 3 10 q 1 1 2 2"),
+            entities("M 0 0 C 1 1 2 2 3 3 L 3 10 q 1 1 2 2 Q 5 12 5 12"),
             (
-                vec![line([3.0, 3.0], [3.0, 10.0])],
-                vec!["path C", "path Q"]
+                vec![
+                    Entity::Bezier(Bezier::Cubic([w(0., 0.), w(1., 1.), w(2., 2.), w(3., 3.)])),
+                    line([3.0, 3.0], [3.0, 10.0]),
+                    Entity::Bezier(Bezier::Quadratic([w(3., 10.), w(4., 11.), w(5., 12.)])),
+                ],
+                vec![DEGENERATE_CURVE]
             )
         );
     }

@@ -21,8 +21,8 @@
 //! A `path`'s `d` is read with the full SVG 2 path-data grammar (LCV-172,
 //! `super::path_data`): `M L H V Z A`, absolute or relative, every subpath.
 //! [`path::path_entities`] turns it into lines, circular and elliptical
-//! arcs; `C S Q T` import nothing and are reported (`path C`, …) until
-//! LCV-177. A syntax error keeps the segments before it and reports
+//! arcs, and `C S Q T` into Bézier entities (LCV-177); a curve whose points
+//! all coincide is reported `path curve (degenerate)`. A syntax error keeps the segments before it and reports
 //! `path (data error)`. A circle or circular arc under a non-similar
 //! transform imports as the exact ellipse or elliptical arc ([`conic`],
 //! LCV-176).
@@ -138,7 +138,7 @@ pub struct ImportedSvg {
     /// What the file held that was not imported, as `(label, count)` in
     /// order of first occurrence, one entry per label (LCV-171 AC 8):
     /// skipped element names, path labels (`path (unsupported data)`,
-    /// `path (data error)`, `path C`, …), and unapplied
+    /// `path (data error)`, `path curve (degenerate)`, …), and unapplied
     /// property names. Empty for a file LaserCAD wrote.
     pub report: Vec<(String, usize)>,
 }
