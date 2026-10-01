@@ -11,5 +11,6 @@ mod import_report;
 mod layers_roundtrip;
 mod mirror_arc;
 mod orientation;
+mod path_grammar;
 mod preset_roundtrip;
 mod roundtrip_props;

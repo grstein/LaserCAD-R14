@@ -34,7 +34,7 @@
       `path (data error)`; `A 0 0 …` imports a line; `M 0 0 L 10 10` imports a line. Also drop
       `MalformedPath` from the corpus kind list (files: src/io/svg/import/tests.rs,
       tests/it/io_svg/import.rs, tests/it/io_svg/corpus/expected.rs)
-- [ ] T11 [AC7] Test (integration): a file with one path mixing `L`, `C`, `q`, `T` and an
+- [x] T11 [AC7] Test (integration): a file with one path mixing `L`, `C`, `q`, `T` and an
       elliptical `A` imports the lines at the right world points and reports `path C`, `path Q`,
       `path T` and `path elliptical arc` once each, in order (files: tests/it/io_svg/path_grammar.rs,
       tests/it/io_svg/mod.rs)
