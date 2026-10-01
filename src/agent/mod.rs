@@ -47,6 +47,9 @@ pub use loop_::{
 // (ADR 0007 §D8). Re-exported here so that file needs no deep path.
 pub(crate) use loop_::agent_loop;
 
+pub mod repeat;
+pub use repeat::RefusedCalls;
+
 pub mod memory;
 pub use memory::{Memory, TurnEnd};
 
