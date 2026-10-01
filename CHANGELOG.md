@@ -15,6 +15,7 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ### Changed
 
+- Agent refusals now say how to fix the call: every refused argument or document check reads `<tool> <path>: <reason>; expected <form>` (for example `delete_entity index: 7 is out of range; expected 0..=2 (the drawing has 3 entities)`, or an unknown layer listing the layers that exist), and a call that repeats, byte for byte, one already refused in the turn is answered with the first refusal instead of running again; it still counts as a step. See LCV-192.
 - The agent now sees its step budget: every batch of tool calls ends with the steps left this turn, and a reply that asks for more calls than are left is answered "not run" with one more chance to fit or report, instead of ending the turn at once. A second overrun in a row still ends it. See LCV-189.
 
 ### Fixed
