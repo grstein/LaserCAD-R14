@@ -16,8 +16,18 @@
 
 use super::SVG_NS;
 use super::report::Report;
+use crate::document::LayerId;
 use crate::io::svg::css::{Decl, Rule, Sheet, declarations, parse_sheet};
 use crate::io::svg::css_color::parse_css_color;
+use crate::io::svg::layers::Slot;
+
+/// The report label of an element `display:none` hides, subtree included
+/// (AC 7).
+const HIDDEN_DISPLAY: &str = "hidden (display:none)";
+
+/// The report label of an imported element whose `visibility` is `hidden`
+/// or `collapse` (AC 7).
+const HIDDEN_VISIBILITY: &str = "hidden (visibility)";
 
 /// A `stroke` or `fill` value after the cascade.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -104,6 +114,30 @@ impl Style {
     /// The resolved fill color, if it is a color.
     pub(super) fn fill(&self) -> Option<[u8; 3]> {
         self.resolve(self.fill)
+    }
+
+    /// Where an entity styled `self` belongs: `layer` (its innermost layer
+    /// group) if any, else its stroke color, else its fill color (AC 8, AC 9),
+    /// else the first layer (AC 10).
+    pub(super) fn slot(&self, layer: Option<LayerId>) -> Slot {
+        match (layer, self.stroke().or_else(|| self.fill())) {
+            (Some(id), _) => Slot::Layer(id),
+            (None, Some(rgb)) => Slot::Color(rgb),
+            (None, None) => Slot::First,
+        }
+    }
+
+    /// The report label when an element styled `self` is not imported (AC 7):
+    /// `display:none` hides any element with its subtree; `visibility` hides
+    /// an `imported` (geometry) element only, so a descendant may revert it.
+    pub(super) fn hidden(&self, imported: bool) -> Option<&'static str> {
+        if self.display_none {
+            Some(HIDDEN_DISPLAY)
+        } else if self.invisible && imported {
+            Some(HIDDEN_VISIBILITY)
+        } else {
+            None
+        }
     }
 
     fn resolve(&self, paint: Paint) -> Option<[u8; 3]> {

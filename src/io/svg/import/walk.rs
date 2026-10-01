@@ -11,7 +11,7 @@ use super::{SVG_NS, SvgImportError, parse_circle, parse_line};
 use crate::document::LayerId;
 use crate::document::entity::Entity;
 use crate::io::svg::css::Sheet;
-use crate::io::svg::layers::{LayerReader, STRAY_LAYER};
+use crate::io::svg::layers::{LayerReader, Slot};
 use crate::io::svg::matrix::parse_transform;
 use crate::io::svg::path_data::parse_path_data;
 use crate::io::svg::viewport::{Ctx, nested};
@@ -34,14 +34,6 @@ const NON_UNIFORM_CIRCLE: &str = "circle (non-uniform transform)";
 /// The report label of a nested `<svg>`, imported without clipping
 /// (LCV-173 AC 9).
 const UNCLIPPED_SVG: &str = "svg (not clipped)";
-
-/// The report label of an element `display:none` hides, subtree included
-/// (LCV-175 AC 7).
-const HIDDEN_DISPLAY: &str = "hidden (display:none)";
-
-/// The report label of an imported element whose `visibility` is `hidden`
-/// or `collapse` (LCV-175 AC 7).
-const HIDDEN_VISIBILITY: &str = "hidden (visibility)";
 
 /// What the walk does with one element (the table in [`super`]'s docs).
 enum Kind {
@@ -82,7 +74,8 @@ fn is_style(node: roxmltree::Node<'_, '_>) -> bool {
 /// Traversal state: geometry and membership so far, layers so far.
 pub(super) struct Walk {
     pub(super) entities: Vec<Entity>,
-    pub(super) entity_layers: Vec<LayerId>,
+    /// Where each entity belongs, resolved by [`LayerReader::finish`].
+    pub(super) slots: Vec<Slot>,
     pub(super) layers: LayerReader,
     pub(super) report: Report,
     /// The document's `<style>` rules (LCV-175).
@@ -95,7 +88,7 @@ impl Walk {
     pub(super) fn new(bed_h: f64) -> Self {
         Self {
             entities: Vec::new(),
-            entity_layers: Vec::new(),
+            slots: Vec::new(),
             layers: LayerReader::default(),
             report: Report::default(),
             sheet: Sheet::default(),
@@ -121,7 +114,9 @@ impl Walk {
             let mut inner_style = *style;
             if matches!(kind, Kind::Import | Kind::Descend) {
                 inner_style = style.child(child, &self.sheet, &mut self.report);
-                if self.hidden(child, &kind, &inner_style)? {
+                if let Some(label) = inner_style.hidden(matches!(kind, Kind::Import)) {
+                    self.layers.enter(child)?; // A hidden layer group still declares its layer.
+                    self.report.note(label);
                     continue;
                 }
                 self.report.note_properties(child);
@@ -135,6 +130,7 @@ impl Walk {
                 };
                 self.report.note(label);
             }
+            let slot = inner_style.slot(layer);
             let entity = match kind {
                 Kind::Import => match (inner_ctx, name) {
                     (None, _) => None,
@@ -147,7 +143,7 @@ impl Walk {
                         circle
                     }
                     (Some(c), _) => {
-                        self.path(child, layer, &c);
+                        self.path(child, slot, &c);
                         None
                     }
                 },
@@ -171,31 +167,11 @@ impl Walk {
                 }
             };
             if let Some(entity) = entity {
-                self.push(entity, layer);
+                self.slots.push(slot);
+                self.entities.push(entity);
             }
         }
         Ok(())
-    }
-
-    /// Whether `node`, styled `style`, is hidden and noted (LCV-175 AC 7):
-    /// `display:none` hides it with its subtree, though a layer group still
-    /// declares its layer; `visibility` hides an imported element only.
-    fn hidden(
-        &mut self,
-        node: roxmltree::Node<'_, '_>,
-        kind: &Kind,
-        style: &Style,
-    ) -> Result<bool, SvgImportError> {
-        let label = if style.display_none {
-            self.layers.enter(node)?;
-            HIDDEN_DISPLAY
-        } else if style.invisible && matches!(kind, Kind::Import) {
-            HIDDEN_VISIBILITY
-        } else {
-            return Ok(false);
-        };
-        self.report.note(label);
-        Ok(true)
     }
 
     /// The context of `node`'s content: its `transform` composed inside
@@ -231,26 +207,20 @@ impl Walk {
 
     /// Import a `<path>`: every entity its `d` draws, every report label
     /// (LCV-172 AC 2, AC 7, AC 8).
-    fn path(&mut self, node: roxmltree::Node<'_, '_>, layer: Option<LayerId>, ctx: &Ctx) {
+    fn path(&mut self, node: roxmltree::Node<'_, '_>, slot: Slot, ctx: &Ctx) {
         let Some(d) = node.attribute("d") else {
             self.report.note(UNSUPPORTED_PATH);
             return;
         };
         let data = parse_path_data(d);
         let (entities, labels) = path_entities(&data, ctx, self.bed_h);
-        for entity in entities {
-            self.push(entity, layer);
-        }
+        self.slots.extend(entities.iter().map(|_| slot));
+        self.entities.extend(entities);
         for label in labels {
             self.report.note(label);
         }
         if data.error {
             self.report.note(PATH_DATA_ERROR);
         }
-    }
-
-    fn push(&mut self, entity: Entity, layer: Option<LayerId>) {
-        self.entities.push(entity);
-        self.entity_layers.push(layer.unwrap_or(STRAY_LAYER));
     }
 }

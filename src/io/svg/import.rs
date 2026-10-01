@@ -37,9 +37,11 @@
 //! whatever bed the open document happens to be on.
 //!
 //! Layer groups are read too (LCV-156, ADR 0012 §4, see [`super::layers`]):
-//! each entity belongs to its innermost enclosing `<g data-layer>`; geometry
-//! outside any layer group goes to the file's first layer, and a file with no
-//! layer group (a v0.2 file) gets the default `Cut` layer.
+//! each entity belongs to its innermost enclosing `<g data-layer>`. Geometry
+//! outside any layer group goes to the layer of its stroke (else fill)
+//! color, a new `#rrggbb` layer when none has it, or, uncolored, to the
+//! file's first layer; a file with no layer group gets the default `Cut`
+//! layer only for uncolored geometry or none at all (LCV-175).
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`. — LCV-057,
 //! Y mirror by LCV-100, bed by LCV-114, layers by LCV-156.
@@ -121,8 +123,9 @@ pub struct ImportedSvg {
     /// The bed size declared by the file's root `<svg>`, or the default bed
     /// when it declares none.
     pub bed_mm: [f64; 2],
-    /// The file's layers in document order (the default `Cut` layer when it
-    /// declares none).
+    /// The file's layers in document order, then the `#rrggbb` layers its
+    /// stray colors made (the default `Cut` layer first when it declares none
+    /// and some geometry is uncolored, or it is empty).
     pub layers: Vec<Layer>,
     /// The layer marked `data-current="1"`, else the first layer.
     pub current_layer: LayerId,
@@ -176,13 +179,13 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
     if let Some(ctx) = walk.local(root, &header.ctx) {
         walk.collect(root, None, &ctx, &style)?;
     }
-    let (layers, current_layer) = walk.layers.finish();
+    let (layers, current_layer, entity_layers) = walk.layers.finish(&walk.slots);
     Ok(ImportedSvg {
         entities: walk.entities,
         bed_mm,
         layers,
         current_layer,
-        entity_layers: walk.entity_layers,
+        entity_layers,
         report: walk.report.finish(),
     })
 }

@@ -7,14 +7,15 @@
 //! the `stroke` attribute, else inherited from the nearest `<g>`/`<svg>`
 //! ancestor (AC 16); `data-output` is `0`/`1` (absent = `1`);
 //! duplicate name keys or colors are refused. Anything else is
-//! [`SvgImportError::MalformedLayer`].
+//! [`SvgImportError::MalformedLayer`]. Geometry outside every layer group is
+//! placed by color in [`LayerReader::finish`] (LCV-175).
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use super::css_color::parse_css_color;
 use super::import::SvgImportError;
 use super::import::report::style_decls;
-use crate::document::layer::{check_fields, color_hex};
+use crate::document::layer::{check_fields, color_hex, name_key};
 use crate::document::{Layer, LayerId};
 
 /// Stroke width of every layer group, in mm.
@@ -120,19 +121,63 @@ impl LayerReader {
         Ok(Some(id))
     }
 
-    /// The layers and current layer; the default `Cut` layer when the file
-    /// declared none. The first layer is always `LayerId(0)`, which is where
-    /// geometry outside any layer group belongs.
-    pub(super) fn finish(self) -> (Vec<Layer>, LayerId) {
-        let layers = if self.layers.is_empty() {
-            vec![Layer::default_cut()]
-        } else {
-            self.layers
-        };
-        let first = layers[0].id; // Non-empty by construction just above.
-        (layers, self.current.unwrap_or(first))
+    /// The layers, the current layer and each slot's layer (ADR 0012 §4,
+    /// LCV-175 AC 8–10). The default `Cut` layer comes first when the file
+    /// declared none and some slot is [`Slot::First`] or no slot has a
+    /// color; each [`Slot::Color`] takes the first layer of that exact color,
+    /// else a new `#rrggbb` layer (Output on) appended in order of first
+    /// appearance. The first layer is `LayerId(0)` (ids are positions).
+    pub(super) fn finish(self, slots: &[Slot]) -> (Vec<Layer>, LayerId, Vec<LayerId>) {
+        let mut layers = self.layers;
+        let first = slots.contains(&Slot::First);
+        let colored = slots.iter().any(|s| matches!(s, Slot::Color(_)));
+        if layers.is_empty() && (first || !colored) {
+            layers.push(Layer::default_cut());
+        }
+        let mut ids = Vec::with_capacity(slots.len());
+        for slot in slots {
+            ids.push(match *slot {
+                Slot::Layer(id) => id,
+                Slot::First => LayerId(0),
+                Slot::Color(rgb) => color_layer(&mut layers, rgb),
+            });
+        }
+        (layers, self.current.unwrap_or(LayerId(0)), ids)
     }
 }
 
-/// The layer geometry outside any layer group lands on (ADR 0012 §4).
-pub(super) const STRAY_LAYER: LayerId = LayerId(0);
+/// Where one imported entity belongs, resolved by [`LayerReader::finish`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Slot {
+    /// Inside a `<g data-layer>`: that layer.
+    Layer(LayerId),
+    /// Outside any layer group, with this stroke (else fill) color.
+    Color([u8; 3]),
+    /// Outside any layer group, uncolored: the first layer.
+    First,
+}
+
+/// The first layer colored `rgb`, else a new one named `#rrggbb` (then
+/// `#rrggbb 2`, … while the name key is taken) with Output on.
+fn color_layer(layers: &mut Vec<Layer>, rgb: [u8; 3]) -> LayerId {
+    if let Some(layer) = layers.iter().find(|l| l.color == rgb) {
+        return layer.id;
+    }
+    let hex = color_hex(rgb);
+    let taken = |name: &str| layers.iter().any(|l| name_key(&l.name) == name_key(name));
+    let mut name = hex.clone();
+    for n in 2.. {
+        if !taken(&name) {
+            break;
+        }
+        name = format!("{hex} {n}");
+    }
+    let id = LayerId(layers.len() as u32);
+    layers.push(Layer {
+        id,
+        name,
+        color: rgb,
+        output: true,
+    });
+    id
+}
