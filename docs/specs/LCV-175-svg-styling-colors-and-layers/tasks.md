@@ -5,7 +5,7 @@
       and note `style rule (unsupported selector)`; `@import url(x);` and `@media print { … }`
       are skipped and noted `style @import` / `style @media`; comments stripped; an unterminated
       block notes `style rule (malformed)` (files: src/io/svg/css.rs, src/io/svg/mod.rs)
-- [ ] T2 [AC3] [AC4] `css::parse_sheet`, `Rule`, `Selector`, `Specificity`, `declarations`
+- [x] T2 [AC3] [AC4] `css::parse_sheet`, `Rule`, `Selector`, `Specificity`, `declarations`
       (`!important`, ASCII case-insensitive names) (files: src/io/svg/css.rs)
 - [ ] T3 `report::style_decls` delegates to `css::declarations`; no behaviour change, LCV-171
       tests stay green (files: src/io/svg/import/report.rs)
