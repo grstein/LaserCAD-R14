@@ -11,6 +11,7 @@
 //! no document type. The system prompt is never stored (LCV-143 resolves it per
 //! turn) and nothing here is ever persisted.
 
+use crate::agent::attachment::ATTACHED_IMAGE_ELIDED;
 use crate::agent::wire::{ChatMessage, Content, ContentPart};
 
 /// `Settings::agent_context_tokens` when the operator has not chosen.
@@ -65,9 +66,22 @@ pub enum TurnEnd {
 /// One turn's memory entry: `user`, then `batches`, then the closing
 /// assistant text `end` dictates. A cancelled turn keeps no batches (AC 6).
 /// A stopped turn's error loses a trailing full stop, so the sentence that
-/// wraps it ends in exactly one.
-pub fn turn_record(user: &str, batches: Vec<ChatMessage>, end: &TurnEnd) -> Vec<ChatMessage> {
-    let mut record = vec![ChatMessage::user(user)];
+/// wraps it ends in exactly one. A turn that carried an attached `image`
+/// keeps `[user, image elided]` parts in its place (LCV-199 AC 6).
+pub fn turn_record(
+    user: &str,
+    image: bool,
+    batches: Vec<ChatMessage>,
+    end: &TurnEnd,
+) -> Vec<ChatMessage> {
+    let mut record = vec![if image {
+        ChatMessage::user_parts(vec![
+            ContentPart::text(user),
+            ContentPart::text(ATTACHED_IMAGE_ELIDED),
+        ])
+    } else {
+        ChatMessage::user(user)
+    }];
     let closing = match end {
         TurnEnd::Done { text } => text.clone(),
         TurnEnd::Stopped { error } => format!("Turn stopped: {}.", error.trim_end_matches('.')),
@@ -266,11 +280,27 @@ mod tests {
         let end = TurnEnd::Done {
             text: "drawn".to_owned(),
         };
-        let record = turn_record("draw it", batches.clone(), &end);
+        let record = turn_record("draw it", false, batches.clone(), &end);
         let mut expected = vec![ChatMessage::user("draw it")];
         expected.extend(batches);
         expected.push(reply("drawn"));
         assert_eq!(record, expected);
+    }
+
+    /// LCV-199 AC 6 — a turn that carried an attached image keeps the
+    /// placeholder beside its prompt, never the image.
+    #[test]
+    fn an_image_turn_keeps_the_placeholder() {
+        let end = TurnEnd::Done { text: "ok".into() };
+        let record = turn_record("from the sketch", true, Vec::new(), &end);
+        assert_eq!(
+            record[0],
+            ChatMessage::user_parts(vec![
+                ContentPart::text("from the sketch"),
+                ContentPart::text("image elided"),
+            ])
+        );
+        assert_eq!(record[0].image_count(), 0);
     }
 
     /// AC 5 — a failed turn keeps its batches and closes with the error.
@@ -280,7 +310,7 @@ mod tests {
         let end = TurnEnd::Stopped {
             error: "transport error: 503".to_owned(),
         };
-        let record = turn_record("go", batches.clone(), &end);
+        let record = turn_record("go", false, batches.clone(), &end);
         let mut expected = vec![ChatMessage::user("go")];
         expected.extend(batches);
         expected.push(reply("Turn stopped: transport error: 503."));
@@ -289,7 +319,7 @@ mod tests {
         let end = TurnEnd::Stopped {
             error: "Agent turn ended without a reply.".to_owned(),
         };
-        let record = turn_record("go", Vec::new(), &end);
+        let record = turn_record("go", false, Vec::new(), &end);
         assert_eq!(
             record.last(),
             Some(&reply("Turn stopped: Agent turn ended without a reply."))
@@ -300,7 +330,7 @@ mod tests {
     #[test]
     fn a_cancelled_turn_is_user_and_the_cancelled_text() {
         let batches = turn("x", "r")[1..3].to_vec();
-        let record = turn_record("go", batches, &TurnEnd::Cancelled);
+        let record = turn_record("go", false, batches, &TurnEnd::Cancelled);
         assert_eq!(record, vec![ChatMessage::user("go"), reply(CANCELLED_TEXT)]);
     }
 
@@ -312,7 +342,7 @@ mod tests {
             TurnEnd::Stopped { error: "e".into() },
             TurnEnd::Cancelled,
         ] {
-            let record = turn_record("u", turn("x", "r")[1..3].to_vec(), &end);
+            let record = turn_record("u", false, turn("x", "r")[1..3].to_vec(), &end);
             assert!(!record.is_empty());
             assert!(record.iter().all(|m| m.role != "system"), "{end:?}");
         }

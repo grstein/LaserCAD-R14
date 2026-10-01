@@ -136,6 +136,8 @@ pub struct TurnState {
     pub(crate) verify: VerifyState,
     /// The turn's named group marks; only `start` when armed (LCV-198).
     pub(crate) checkpoints: Checkpoints,
+    /// The turn's user message carried an attached image (LCV-199).
+    pub(crate) image: bool,
 }
 
 /// The longest prompt prefix an undo label carries (AC 10).
@@ -177,6 +179,7 @@ fn arm_with_limit(app: &mut App, prompt: &str, limit: u32) -> Sender<AgentEvent>
         fed_at: 0,
         verify: VerifyState::default(),
         checkpoints: Checkpoints::default(),
+        image: false,
     };
     tx
 }

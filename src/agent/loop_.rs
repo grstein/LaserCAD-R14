@@ -189,8 +189,10 @@ where
     let (mut overran, mut reminded) = (false, false);
     // The call ids whose images ride the next send (LCV-187).
     let mut shown: Vec<String> = Vec::new();
+    // Everything from here on followed the turn's user message (LCV-199).
+    let from = messages.len();
     loop {
-        let message = send_images(send_fn, dispatch_fn, messages, &mut shown)?;
+        let message = send_images(send_fn, dispatch_fn, messages, from, &mut shown)?;
         match (message.tool_calls, message.content) {
             (Some(calls), content) if !calls.is_empty() => {
                 let over = steps.dispatched + calls.len() > budget;
@@ -215,7 +217,13 @@ where
                 }
                 let fenced = run_batch(dispatch_fn, messages, &calls, &mut shown, &mut steps)?;
                 if fenced {
-                    return last_word(send_images(send_fn, dispatch_fn, messages, &mut shown)?);
+                    return last_word(send_images(
+                        send_fn,
+                        dispatch_fn,
+                        messages,
+                        from,
+                        &mut shown,
+                    )?);
                 }
             }
             (_, Some(text)) => {

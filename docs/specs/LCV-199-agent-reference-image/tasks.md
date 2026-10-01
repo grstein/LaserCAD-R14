@@ -10,7 +10,7 @@
 - [x] T4 [AC2] [AC7] `TurnConfig.image` + redacted `Debug`; `drive_turn` builds the parts user
   message. Unit tests: image request shape, and no-image requests byte-identical
   (files: src/app/agent_worker.rs, src/app/agent_worker/tests.rs)
-- [ ] T5 [AC2] [AC6] `send_images` consent and capture split; `turn_record` keeps `image elided`.
+- [x] T5 [AC2] [AC6] `send_images` consent and capture split; `turn_record` keeps `image elided`.
   Unit tests: an attached image asks nothing, a later capture still asks, memory holds the
   placeholder (files: src/agent/loop_/images.rs, src/agent/memory.rs, src/app/agent_memory.rs)
 - [ ] T6 [AC4] [AC5] `agent_attach.rs` (`attach_image`, `poll_attach_request`, `take_for_send`) and

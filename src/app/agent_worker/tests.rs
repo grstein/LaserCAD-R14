@@ -1493,7 +1493,7 @@ fn each_request_is_a_byte_prefix_of_the_next_turn() {
     };
     assert_eq!(batches.len(), 6, "two batches and the elided image message");
     assert!(batches.iter().all(|m| m.image_count() == 0));
-    let memory = turn_record("draw", batches, &done);
+    let memory = turn_record("draw", false, batches, &done);
     let (_, _, turn2) = scripted("wider", &with_memory(memory), vec![Some(text("t"))]);
     let next = wire(&turn2[0]);
     for (n, request) in turn1.iter().enumerate() {
@@ -1535,7 +1535,7 @@ fn reasoning_content_rides_with_its_tool_call_batch() {
     let done = TurnEnd::Done {
         text: result.expect("text ends the turn"),
     };
-    let memory = turn_record("go", batches, &done);
+    let memory = turn_record("go", false, batches, &done);
     let closing = memory.last().expect("a closing text");
     assert_eq!(
         wire(std::slice::from_ref(closing)),
@@ -1852,4 +1852,20 @@ fn turn_config_debug_prints_the_image_size_only() {
     let shown = format!("{:?}", with_image(crate::agent::ImageKind::Png, &[0xAB; 5]));
     assert!(shown.contains("bytes_len: 5"), "{shown}");
     assert!(!shown.contains("171"), "{shown}");
+}
+
+/// AC 6 — inside the turn the attached image rides one request; the next
+/// carries the user message exactly as memory records it.
+#[test]
+fn the_next_request_carries_the_user_message_as_memory_keeps_it() {
+    let config = with_image(crate::agent::ImageKind::Png, b"\x89PNG");
+    let replies = vec![Some(batch(&[("query_selection", "")])), Some(text("t"))];
+    let (_, _, requests) = scripted("trace it", &config, replies);
+    assert_eq!(requests[0][1].image_count(), 1);
+    let done = TurnEnd::Done { text: "t".into() };
+    assert_eq!(
+        requests[1][1],
+        turn_record("trace it", true, Vec::new(), &done)[0]
+    );
+    assert!(requests[1].iter().all(|m| m.image_count() == 0));
 }
