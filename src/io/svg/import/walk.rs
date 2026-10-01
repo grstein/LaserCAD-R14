@@ -96,6 +96,8 @@ pub(super) struct Walk<'a, 'input> {
     pub(super) index: Index<'a, 'input>,
     /// The `<use>` elements being expanded, outermost first.
     pub(super) uses: Vec<roxmltree::Node<'a, 'input>>,
+    /// Entities pushed while `uses` is non-empty (LCV-178 AC 9).
+    pub(super) instanced: usize,
 }
 
 impl<'a, 'input> Walk<'a, 'input> {
@@ -110,6 +112,7 @@ impl<'a, 'input> Walk<'a, 'input> {
             bed_h,
             index,
             uses: Vec::new(),
+            instanced: 0,
         }
     }
 
@@ -256,6 +259,9 @@ impl<'a, 'input> Walk<'a, 'input> {
 
     /// Append `entities` on `slot` and note each of `labels`.
     fn push(&mut self, entities: Vec<Entity>, labels: &[&str], slot: Slot) {
+        if !self.uses.is_empty() {
+            self.instanced += entities.len();
+        }
         self.slots.extend(entities.iter().map(|_| slot));
         self.entities.extend(entities);
         for label in labels {

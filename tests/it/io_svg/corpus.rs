@@ -65,6 +65,7 @@ fn variant(e: &SvgImportError) -> &'static str {
         SvgImportError::NoSvgRoot => "NoSvgRoot",
         SvgImportError::MalformedBedDimension { .. } => "MalformedBedDimension",
         SvgImportError::MalformedLayer { .. } => "MalformedLayer",
+        SvgImportError::LimitExceeded(_) => "LimitExceeded",
     }
 }
 

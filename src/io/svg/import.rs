@@ -107,6 +107,10 @@ pub enum SvgImportError {
         /// Why it was refused.
         reason: String,
     },
+    /// `<use>` expansion past a hostile-file guard (LCV-178 AC 9): the
+    /// named limit, `use nesting depth 32` or `100000 instanced entities`.
+    #[error("import refused: exceeds the {0} limit")]
+    LimitExceeded(&'static str),
 }
 
 /// The result of a successful [`import_svg`]: the geometry, its layers, and

@@ -21,6 +21,12 @@ const UNRESOLVED: &str = "use (unresolved)";
 /// The report label of a `<use>` that would re-enter itself (AC 7).
 const CYCLE: &str = "use (cycle)";
 
+/// The deepest `<use>` nesting imported (AC 9).
+const MAX_DEPTH: usize = 32;
+
+/// The most entities `<use>` instances may create in one file (AC 9).
+const MAX_INSTANCED: usize = 100_000;
+
 /// The deprecated XLink namespace of `xlink:href`.
 const XLINK_NS: &str = "http://www.w3.org/1999/xlink";
 
@@ -51,7 +57,9 @@ impl<'a, 'input> Walk<'a, 'input> {
     /// `transform` composed) and computed style `style`, on `layer`, the one
     /// the `<use>` lands on (AC 5). A `symbol` or `svg` target walks its
     /// children in its viewport; any other is imported as in place, so a
-    /// nested `<use>` recurses (AC 6).
+    /// nested `<use>` recurses (AC 6). Nesting deeper than [`MAX_DEPTH`] or
+    /// more than [`MAX_INSTANCED`] instanced entities refuse the file
+    /// (AC 9).
     pub(super) fn expand(
         &mut self,
         use_: Node<'a, 'input>,
@@ -70,6 +78,9 @@ impl<'a, 'input> Walk<'a, 'input> {
         let Some(inner) = instance_ctx(use_, target, ctx) else {
             return Ok(());
         };
+        if self.uses.len() >= MAX_DEPTH {
+            return Err(SvgImportError::LimitExceeded("use nesting depth 32"));
+        }
         self.uses.push(use_);
         let done = match target.tag_name().name() {
             "symbol" | "svg" => {
@@ -79,7 +90,11 @@ impl<'a, 'input> Walk<'a, 'input> {
             _ => self.element(target, layer, &inner, style),
         };
         self.uses.pop();
-        done
+        done?;
+        match self.instanced > MAX_INSTANCED {
+            true => Err(SvgImportError::LimitExceeded("100000 instanced entities")),
+            false => Ok(()),
+        }
     }
 
     /// `LayerReader::enter`, except inside an instance, which stays on the

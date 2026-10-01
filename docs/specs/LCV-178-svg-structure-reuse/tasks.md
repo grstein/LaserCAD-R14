@@ -32,7 +32,7 @@
 - [x] T11 [AC9] Test: 33 nested uses fail with `LimitExceeded` naming `depth 32`; 32 pass; a
       six-level ×10 fan-out (10⁶ lines) fails naming `100000` within the test's normal run time;
       100 000 plain lines without `use` still import (files: tests/it/io_svg/reuse.rs)
-- [ ] T12 [AC9] `SvgImportError::LimitExceeded`, depth check, `instanced` budget
+- [x] T12 [AC9] `SvgImportError::LimitExceeded`, depth check, `instanced` budget
       (files: src/io/svg/import.rs, src/io/svg/import/walk.rs)
 - [ ] T13 [AC9] Test: `action_open_path` on a depth-33 file leaves the document, title and
       entities unchanged and surfaces the error (files: tests/it/app/document_title_and_file_feedback.rs)

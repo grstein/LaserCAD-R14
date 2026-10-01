@@ -24,11 +24,12 @@
 use lasercad::document::layer::parse_color_hex;
 
 /// The `SvgImportError` variant names an `error` record may name.
-pub const ERROR_VARIANTS: [&str; 4] = [
+pub const ERROR_VARIANTS: [&str; 5] = [
     "XmlParse",
     "NoSvgRoot",
     "MalformedBedDimension",
     "MalformedLayer",
+    "LimitExceeded",
 ];
 
 /// One expected layer, in document order.
