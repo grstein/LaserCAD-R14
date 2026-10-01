@@ -859,3 +859,23 @@ fn lcv196_ac8_closed_and_step_deg_refusals_name_their_forms() {
         "create_drawing entities[1].step_deg: not a number; expected a number in degrees"
     );
 }
+
+/// LCV-196 — a batch `text` height is refused outside the TEXT command's
+/// 0.1 to 2000 mm, in the item refusal shape; both bounds are accepted.
+#[test]
+fn lcv196_a_text_height_outside_the_text_command_range_is_refused() {
+    use crate::text::layout::{MAX_HEIGHT_MM, MIN_HEIGHT_MM};
+    let text = |h: f64| json!({"type": "text", "x": 0, "y": 0, "height": h, "text": "A"});
+    for h in [0.0, 0.05, 2000.5, -1.0] {
+        assert_eq!(
+            err(batch(json!([text(h)]))),
+            format!(
+                "create_drawing entities[0].height: {h} is out of range; \
+                 expected a number in mm from 0.1 to 2000"
+            )
+        );
+    }
+    for h in [MIN_HEIGHT_MM, MAX_HEIGHT_MM] {
+        assert!(!items(json!([text(h)])).is_empty(), "{h} is accepted");
+    }
+}

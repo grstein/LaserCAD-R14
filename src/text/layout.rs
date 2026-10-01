@@ -31,6 +31,14 @@ use crate::text::hershey::{CAP_HEIGHT_HERSHEY, advance_width, glyph_strokes};
 /// `text` item both use; neither varies it (LCV-196 AC4).
 pub const DEFAULT_SPACING_FACTOR: f64 = 1.0;
 
+/// Minimum text height, in mm, for the `TEXT` command and the batch `text`
+/// item alike — roughly one laser kerf. Below it, adjacent Hershey strokes
+/// fuse into an unreadable scorch.
+pub const MIN_HEIGHT_MM: f64 = 0.1;
+/// Maximum text height, in mm — `BED_MAX_MM` (LCV-114). Text taller than the
+/// largest possible bed cannot be cut and would wreck zoom-extents.
+pub const MAX_HEIGHT_MM: f64 = 2000.0;
+
 /// Lay out `text` as a sequence of [`Entity::Line`] strokes in mm-space.
 ///
 /// # Parameters

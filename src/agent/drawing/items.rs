@@ -10,6 +10,7 @@ use super::keys::{self, EntityType};
 use super::{DrawingItem, MAX_DRAWING_ENTITIES, TOOL, arg, cut};
 use crate::agent::tools::{ToolCallError, expected_form, validate_r};
 use crate::geometry::{EPSILON, Vec2};
+use crate::text::layout::{MAX_HEIGHT_MM, MIN_HEIGHT_MM};
 
 mod array;
 pub(super) use array::Step;
@@ -96,7 +97,7 @@ pub(super) fn item(index: usize, value: &Value, earlier: &[Shape]) -> Result<Sha
         },
         "text" => Shape::Text {
             origin: Vec2::new(f.num("x")?, f.num("y")?),
-            height: f.positive("height")?,
+            height: text_height(&f)?,
             text: text(&f)?,
         },
         name => array::array(&f, name == "polar_array", earlier)?,
@@ -196,6 +197,16 @@ fn rect(f: &Fields) -> Result<Shape, ToolCallError> {
         height,
         radius,
     })
+}
+
+/// The `TEXT` command's height range, `MIN_HEIGHT_MM..=MAX_HEIGHT_MM`.
+fn text_height(f: &Fields) -> Result<f64, ToolCallError> {
+    let h = f.num("height")?;
+    if !(MIN_HEIGHT_MM..=MAX_HEIGHT_MM).contains(&h) {
+        let form = format!("a number in mm from {MIN_HEIGHT_MM} to {MAX_HEIGHT_MM}");
+        return Err(arg(f.at("height"), &format!("{h} is out of range"), &form));
+    }
+    Ok(h)
 }
 
 /// 1..=256 characters, none of them a control character.

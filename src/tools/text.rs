@@ -18,7 +18,7 @@ use crate::app::App;
 use crate::cmdline::parse_number;
 use crate::document::{Document, Entity, History, commands::CreateEntities};
 use crate::geometry::Vec2;
-use crate::text::layout::{DEFAULT_SPACING_FACTOR, layout_text};
+use crate::text::layout::{DEFAULT_SPACING_FACTOR, MAX_HEIGHT_MM, MIN_HEIGHT_MM, layout_text};
 use crate::tools::Tool;
 use std::borrow::Cow;
 
@@ -27,12 +27,6 @@ use std::borrow::Cow;
 /// the `WaitingHeight` placement preview (AC 9): TEXT does not remember a
 /// previous height (§Out of scope), so the preview always shows this value.
 const DEFAULT_TEXT_HEIGHT_MM: f64 = 5.0;
-/// Minimum accepted height, in mm — roughly one laser kerf. Below it,
-/// adjacent Hershey strokes fuse into an unreadable scorch.
-const MIN_HEIGHT_MM: f64 = 0.1;
-/// Maximum accepted height, in mm — `BED_MAX_MM` (LCV-114). Text taller than
-/// the largest possible bed cannot be cut and would wreck zoom-extents.
-const MAX_HEIGHT_MM: f64 = 2000.0;
 
 #[derive(Debug)]
 enum TextToolState {
