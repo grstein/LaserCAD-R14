@@ -61,5 +61,5 @@
   column; check marks in the slot; no hand-drawn arrows; View order) and §8 (Ctrl+A, Zoom
   Extents and Zoom All in the menu). Spec note: AC 10's gate class reads "no" per AC 9 (files:
   DESIGN.md, docs/specs/LCV-166-menus-and-navigation/spec.md)
-- [ ] T16 CHANGELOG: menu icons and an aligned shortcut column, Edit > Delete, View > Zoom
+- [x] T16 CHANGELOG: menu icons and an aligned shortcut column, Edit > Delete, View > Zoom
   Extents and Zoom All, Ctrl+A (files: CHANGELOG.md)
