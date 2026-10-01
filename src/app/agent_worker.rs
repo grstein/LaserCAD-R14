@@ -135,8 +135,8 @@ where
     // A refusal is a tool result, not a failure (ADR 0007 §D2a), and so is a
     // malformed call (§D15); a `Fenced` answer is read by `agent_loop` (§D14).
     // An upload check names the turn's endpoint and model, never its key
-    // (ADR 0011 item 10); a note and a model reply ride as non-step actions
-    // (LCV-187, LCV-193). A call repeating a refused one is answered from the
+    // (ADR 0011 item 10); a note, a model reply and the after-batch feedback
+    // ask ride as non-step actions (LCV-187, LCV-193, LCV-195). A call repeating a refused one is answered from the
     // first refusal, still as a step (LCV-192 AC 4).
     let mut refused = RefusedCalls::default();
     let mut dispatch_fn = |dispatch: Dispatch<'_>| match dispatch {
@@ -158,6 +158,7 @@ where
         }),
         Dispatch::Note(text) => ask(AgentAction::Note(text.to_owned())),
         Dispatch::Replied { captures } => ask(AgentAction::Replied { captures }),
+        Dispatch::Feedback => ask(AgentAction::Feedback),
     };
     let result = agent_loop(send_fn, &mut dispatch_fn, &mut messages, config.step_limit);
     // What memory keeps of this turn: whole batches, no image (§D3, ADR 0011).

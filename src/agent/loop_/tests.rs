@@ -221,7 +221,12 @@ fn a_tool_round_appends_an_assistant_turn_and_a_matching_tool_turn() {
                 text_reply("Line created.")
             }
         },
-        &mut |_| Ok(AgentOutcome::Ok("Line created: ….".into())),
+        &mut |dispatch| {
+            Ok(AgentOutcome::Ok(match dispatch {
+                Dispatch::Tool { .. } => "Line created: ….".into(),
+                _ => String::new(),
+            }))
+        },
         &mut messages,
         AGENT_STEP_BUDGET_DEFAULT,
     );
@@ -680,7 +685,7 @@ fn the_fence_stop_send_is_authorised_and_elided_too() {
                 notes.push(text.to_owned());
                 Ok(AgentOutcome::Ok(text.to_owned()))
             }
-            Dispatch::Replied { .. } => Ok(AgentOutcome::Ok(String::new())),
+            Dispatch::Replied { .. } | Dispatch::Feedback => Ok(AgentOutcome::Ok(String::new())),
             Dispatch::Tool { .. } => {
                 tools += 1;
                 Ok(if tools == 1 {
@@ -1297,7 +1302,7 @@ fn a_run_batch_asks_feedback_once_after_its_last_call() {
         Some(&mut feedback),
         10,
     );
-    assert_eq!(r.result.unwrap(), "done");
+    assert_eq!(r.result.as_deref().unwrap(), "done");
     assert_eq!(
         fed_events(&r),
         [

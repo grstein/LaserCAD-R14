@@ -23,7 +23,10 @@ pub(super) struct Steps {
 /// `tool` result per call, then one `user` message carrying the batch's
 /// images, if any; each image's call id goes into `shown`. Once a call is
 /// answered [`AgentOutcome::Fenced`] the rest get [`FENCE_STOP_PLACEHOLDER`]
-/// undispatched. Returns whether the batch was fenced.
+/// undispatched. A batch that ran to its end unfenced asks
+/// [`Dispatch::Feedback`] once, after its last call, and appends a non-empty
+/// answer to the last result before the steps-left line (LCV-195). Returns
+/// whether the batch was fenced.
 pub(super) fn run_batch<D>(
     dispatch_fn: &mut D,
     messages: &mut Vec<ChatMessage>,
@@ -54,6 +57,11 @@ where
             }
         };
         if i + 1 == calls.len() && !fenced {
+            let text = dispatch_fn(Dispatch::Feedback)?.into_text();
+            if !text.is_empty() {
+                result.push('\n');
+                result.push_str(&text);
+            }
             let left = steps.budget - steps.dispatched;
             result.push_str(&steps_left_line(left, steps.limit));
         }

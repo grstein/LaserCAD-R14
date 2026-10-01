@@ -83,6 +83,11 @@ pub(crate) enum Dispatch<'a> {
         /// Authorised image parts the answered request carried.
         captures: u32,
     },
+    /// What to tell the model about the drawing after a batch that ran to
+    /// its end unfenced (LCV-195): asked once, after its last call. Not a
+    /// step; a non-empty text goes on the last tool result before the
+    /// steps-left line.
+    Feedback,
 }
 
 // ── Error ────────────────────────────────────────────────────────────────────
@@ -142,7 +147,8 @@ impl std::error::Error for AgentError {}
 /// batch and wave it through. An overrunning batch is answered "not run" call
 /// by call and the model gets one more reply; a second overrun in a row ends
 /// the turn [`AgentError::IterationLimitExceeded`] (ADR 0007 §D13, LCV-189). A
-/// batch that runs ends its last result with the steps left.
+/// batch that runs unfenced asks [`Dispatch::Feedback`] once (LCV-195) and
+/// ends its last result with the answer's text, if any, then the steps left.
 ///
 /// `dispatch_fn` receives [`Dispatch::Tool`] and returns the
 /// outcome whose text becomes the `tool`-role result. It is the caller's

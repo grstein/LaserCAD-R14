@@ -20,7 +20,7 @@ Prerequisites: LCV-187, LCV-189, LCV-190 Done on `agent-harness`.
   (files: src/agent/loop_/tests.rs)
 - [x] T6 [AC4] `AgentAction::Feedback`, plus an `answer_act` arm that answers `Ok("")` uncounted
   (files: src/agent/bridge/action.rs, src/app/agent_poll.rs)
-- [ ] T7 [AC1][AC5] `Dispatch::Feedback`, the append in `run_batch`, and the worker arm
+- [x] T7 [AC1][AC5] `Dispatch::Feedback`, the append in `run_batch`, and the worker arm
   (files: src/agent/loop_.rs, src/agent/loop_/batch.rs, src/app/agent_worker.rs)
 - [ ] T8 [AC1][AC2][AC4][AC6] Test (headless app):
   - Setting on, `create_line` → `feedback` gives the exact `Drawing now: 1 entity, X …, Y … mm.

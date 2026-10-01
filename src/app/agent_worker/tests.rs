@@ -35,6 +35,11 @@ impl Applier {
     }
 
     fn ask(&mut self, action: AgentAction) -> Result<AgentOutcome, AgentError> {
+        // The after-batch feedback ask (LCV-195) is answered as with the
+        // setting off, and not recorded: these tests are about the steps.
+        if matches!(action, AgentAction::Feedback) && !self.cancel {
+            return Ok(AgentOutcome::Ok(String::new()));
+        }
         self.seen.push(action.clone());
         if self.cancel {
             return Err(AgentError::Cancelled);
@@ -47,9 +52,13 @@ impl Applier {
         Ok(agent_apply::apply(&mut self.app, &action))
     }
 
-    /// What `ask` saw, minus the non-step `Replied` rendezvous (LCV-193).
+    /// What `ask` saw, minus the non-step rendezvous (LCV-193, LCV-195).
     fn steps(&self) -> Vec<AgentAction> {
-        self.seen.iter().filter(|a| !is_reply(a)).cloned().collect()
+        self.seen
+            .iter()
+            .filter(|a| !is_rendezvous(a))
+            .cloned()
+            .collect()
     }
 
     fn entities(&self) -> usize {
@@ -57,9 +66,10 @@ impl Applier {
     }
 }
 
-/// Is `action` the non-step `Replied` rendezvous (LCV-193)?
-fn is_reply(action: &AgentAction) -> bool {
-    matches!(action, AgentAction::Replied { .. })
+/// Is `action` a non-step rendezvous these tests skip: a model reply
+/// (LCV-193) or the after-batch feedback ask (LCV-195)?
+fn is_rendezvous(action: &AgentAction) -> bool {
+    matches!(action, AgentAction::Replied { .. } | AgentAction::Feedback)
 }
 
 // ── The turn, over a real socket ─────────────────────────────────────────
@@ -836,7 +846,7 @@ fn fenced_turn_with(
         })
     };
     let mut ask = |action: AgentAction| {
-        asks += usize::from(!is_reply(&action));
+        asks += usize::from(!is_rendezvous(&action));
         Ok(AgentOutcome::Fenced(
             crate::app::AGENT_FENCE_REFUSAL.to_owned(),
         ))
@@ -916,7 +926,7 @@ fn malformed_calls_reach_ask_and_the_turn_continues() {
     };
     let mut asked = Vec::new();
     let mut ask = |action: AgentAction| {
-        if is_reply(&action) {
+        if is_rendezvous(&action) {
             return Ok(AgentOutcome::Ok(String::new()));
         }
         asked.push(action.clone());
@@ -976,7 +986,7 @@ fn a_malformed_call_counts_as_a_step() {
     };
     let mut asks = 0usize;
     let mut ask = |action: AgentAction| {
-        asks += usize::from(!is_reply(&action));
+        asks += usize::from(!is_rendezvous(&action));
         Ok(AgentOutcome::Refused("bad".into()))
     };
     let (result, _) = drive_turn("go", &cfg("sys", 2), &mut send_fn, &mut ask);
@@ -1121,7 +1131,7 @@ fn no_prompt_raises_the_step_budget() {
         };
         let mut asks = 0usize;
         let mut ask = |action: AgentAction| {
-            asks += usize::from(!is_reply(&action));
+            asks += usize::from(!is_rendezvous(&action));
             Ok(AgentOutcome::Ok("none".into()))
         };
         let (result, _) = drive_turn("go", &cfg(system, 2), &mut send_fn, &mut ask);
@@ -1323,7 +1333,7 @@ fn the_upload_check_names_endpoint_and_model_never_the_key() {
     };
     let mut asked = Vec::new();
     let mut ask = |action: AgentAction| {
-        if !is_reply(&action) {
+        if !is_rendezvous(&action) {
             asked.push(action.clone());
         }
         Ok(match action {
@@ -1602,7 +1612,9 @@ fn a_cut_batch_is_dropped_and_an_unsent_image_is_elided() {
                 text: "Canvas".into(),
                 png: vec![9],
             }),
-            AgentAction::Replied { .. } => Ok(AgentOutcome::Ok(String::new())),
+            AgentAction::Replied { .. } | AgentAction::Feedback => {
+                Ok(AgentOutcome::Ok(String::new()))
+            }
             _ => Err(AgentError::Cancelled),
         }
     };
@@ -1623,7 +1635,8 @@ fn a_cut_batch_is_dropped_and_an_unsent_image_is_elided() {
 /// LCV-193 AC 3 — each successful send reaches `ask` as one `Replied`, after
 /// the send and its image notes, carrying the authorised images that
 /// request carried: 0, then 1, then 0 for a withheld upload. A failed send
-/// is no reply.
+/// is no reply. Each run batch's `Dispatch::Feedback` reaches `ask` as
+/// `AgentAction::Feedback`, after its last call (LCV-195).
 #[test]
 fn every_reply_reaches_ask_as_replied_with_its_captures() {
     let mut sends = 0usize;
@@ -1667,10 +1680,12 @@ fn every_reply_reaches_ask_as_replied_with_its_captures() {
         [
             AgentAction::Replied { captures: 0 },
             capture.clone(),
+            AgentAction::Feedback,
             upload.clone(),
             AgentAction::Note("Canvas image for call call_0 sent.".into()),
             AgentAction::Replied { captures: 1 },
             capture,
+            AgentAction::Feedback,
             upload,
             AgentAction::Note("Canvas image for call call_0 withheld (permission changed).".into()),
             AgentAction::Replied { captures: 0 },
