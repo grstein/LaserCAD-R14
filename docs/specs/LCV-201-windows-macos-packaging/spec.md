@@ -1,6 +1,6 @@
 # LCV-201 — Windows and macOS packaging
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-180
 - **Implementation**: -
 
