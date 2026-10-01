@@ -6,7 +6,7 @@
 - [x] T2 [AC2, AC3] Test first: `FontBook::from_files` resolves `"Nope, Liberation Sans"`,
   `sans-serif`, bold/italic nearest face, unknown family → `substituted`, `empty()` → `None`;
   then `FontBook` (files: `src/text/fonts.rs`, `src/text/mod.rs`)
-- [ ] T3 [AC1, AC4, AC8] Test first: glyph `l` of the bundled font is closed contours of lines,
+- [x] T3 [AC1, AC4, AC8] Test first: glyph `l` of the bundled font is closed contours of lines,
   `o` holds quadratics, advances match `hmtx`, an unmapped char (`é`) is `missing` with glyph 0's
   advance; then `outline.rs` (files: `src/text/outline.rs`, `src/text/mod.rs`)
 - [ ] T4 [AC1] Test first: `<text x="10" y="20" font-size="10">l</text>` under a `translate` and

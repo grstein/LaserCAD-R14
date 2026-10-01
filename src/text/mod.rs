@@ -18,7 +18,9 @@ pub mod fonts;
 pub mod hershey;
 pub mod hershey_data;
 pub mod layout;
+pub mod outline;
 
 pub use fonts::{FaceId, FontBook};
 pub use hershey::CAP_HEIGHT_HERSHEY;
 pub use layout::layout_text;
+pub use outline::{Glyph, Seg, glyph};
