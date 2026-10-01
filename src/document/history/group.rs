@@ -58,6 +58,33 @@ impl History {
         Some(sealed)
     }
 
+    /// How many commands the open group holds; 0 when none is open. A
+    /// checkpoint of an agent turn is this count (LCV-198).
+    pub fn group_len(&self) -> usize {
+        self.group.as_ref().map_or(0, |g| g.commands.len())
+    }
+
+    /// Undo, newest first, every command of the open group past `mark` and
+    /// drop them (ADR 0007 §D12, LCV-198). Redo stays empty (every grouped
+    /// commit cleared it, and undo/redo seal the group) and the revision bumps once when at least one command was undone. Returns
+    /// how many were undone: 0 with no group or `mark >= group_len()`. The
+    /// group stays open, and nothing below it on the undo stack is touched.
+    pub fn rewind_group(&mut self, mark: usize, doc: &mut Document) -> usize {
+        let Some(group) = self.group.as_mut() else {
+            return 0;
+        };
+        if mark >= group.commands.len() {
+            return 0;
+        }
+        let undone = group.commands.split_off(mark);
+        let count = undone.len();
+        for mut cmd in undone.into_iter().rev() {
+            cmd.undo(doc);
+        }
+        self.revision += 1;
+        count
+    }
+
     /// Is a group armed? The fence's second witness (ADR 0007 §D14): every
     /// seal and every document replacement leaves this `false`.
     pub fn group_open(&self) -> bool {

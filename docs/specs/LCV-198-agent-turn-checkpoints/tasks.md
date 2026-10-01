@@ -2,7 +2,7 @@
 
 - [x] T1 Seam, no behavior change: move the group `impl` block of `History` to `history/group.rs`
   (files: src/document/history.rs, src/document/history/group.rs)
-- [ ] T2 [AC2] [AC6] `History::group_len` and `rewind_group`, with unit tests: reverse order, one
+- [x] T2 [AC2] [AC6] `History::group_len` and `rewind_group`, with unit tests: reverse order, one
   revision bump, no-op past `group_len` or with no group, `end_group` after a rewind seals only
   the survivors and nothing when none survive (files: src/document/history/group.rs,
   src/document/history/tests.rs)
