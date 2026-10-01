@@ -27,7 +27,7 @@
       `<defs><style>.cls-1{stroke:#f00}</style></defs>` file, `style` over `.cls` over attribute,
       `currentColor` via an ancestor `color`, invalid color report entry
       (files: tests/it/io_svg/styling.rs)
-- [ ] T9 [AC8] [AC9] [AC10] Test: stray red line reuses a declared `#ff0000` layer; two stray
+- [x] T9 [AC8] [AC9] [AC10] Test: stray red line reuses a declared `#ff0000` layer; two stray
       colors append `#0000ff`, `#00aa00` in first-appearance order with Output on; `stroke:none;
       fill:blue` goes to `#0000ff`; an unstyled line goes to the first layer; a file with no layer
       and all colored geometry has no `Cut`; a mixed one has `Cut` first and a red stray on it;
