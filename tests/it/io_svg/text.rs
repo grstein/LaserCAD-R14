@@ -7,13 +7,17 @@ use std::path::{Path, PathBuf};
 use lasercad::io::svg::{ImportedSvg, export_svg, import_svg, import_svg_with};
 use lasercad::text::FontBook;
 
-/// A fresh book of the bundled Regular and Bold faces.
+/// A fresh book of the bundled Regular, Bold and Italic faces.
 fn book() -> FontBook {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fonts");
-    let files: Vec<PathBuf> = ["LCVTestSans-Regular.ttf", "LCVTestSans-Bold.ttf"]
-        .iter()
-        .map(|f| dir.join(f))
-        .collect();
+    let files: Vec<PathBuf> = [
+        "LCVTestSans-Regular.ttf",
+        "LCVTestSans-Bold.ttf",
+        "LCVTestSans-Italic.ttf",
+    ]
+    .iter()
+    .map(|f| dir.join(f))
+    .collect();
     FontBook::from_files(&files)
 }
 

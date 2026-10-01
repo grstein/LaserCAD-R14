@@ -1,5 +1,5 @@
-LCV Test Sans (tests/fixtures/fonts/LCVTestSans-{Regular,Bold}.ttf) is a
-Modified Version of Liberation Sans 2.1.5 Regular and Bold, made for the
+LCV Test Sans (tests/fixtures/fonts/LCVTestSans-{Regular,Bold,Italic}.ttf) is
+a Modified Version of Liberation Sans 2.1.5 Regular, Bold and Italic, made for the
 LaserCAD test suite (LCV-179): subset with fontTools `pyftsubset` to ASCII
 U+0020-U+007E without hinting, and renamed, because "Liberation" is a
 Reserved Font Name under the license below. The original copyright notices

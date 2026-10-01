@@ -687,4 +687,16 @@ mod tests {
         let svg = page(r#"<text x="10" y="50">l<x:tspan xmlns:x="urn:x">l</x:tspan></text>"#);
         assert_eq!(svg.entities, one);
     }
+
+    /// AC 2 — `italic` and `oblique` pick the italic face.
+    #[test]
+    fn font_style_picks_the_italic_face() {
+        let l = |attrs: &str| page(&format!(r#"<text x="10" y="50" {attrs}>l</text>"#));
+        let upright = l("").entities;
+        let italic = l(r#"font-style="italic""#).entities;
+        assert_ne!(italic, upright);
+        assert_eq!(l(r#"font-style="oblique""#).entities, italic);
+        assert_eq!(l(r#"style="font-style: Oblique 10deg""#).entities, italic);
+        assert_eq!(l(r#"font-style="normal""#).entities, upright);
+    }
 }

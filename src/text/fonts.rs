@@ -207,17 +207,22 @@ fn split_families(value: &str) -> Vec<(String, bool)> {
 pub(crate) mod tests {
     use super::*;
 
-    /// The bundled OFL test font, "LCV Test Sans" Regular and Bold.
+    /// The bundled OFL test font, "LCV Test Sans" Regular, Bold and Italic.
     pub(crate) fn book() -> FontBook {
         let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fonts");
         FontBook::from_files(&[
             dir.join("LCVTestSans-Regular.ttf"),
             dir.join("LCVTestSans-Bold.ttf"),
+            dir.join("LCVTestSans-Italic.ttf"),
         ])
     }
 
     fn bold(book: &FontBook, id: FaceId) -> bool {
         book.with_face(id, |f| f.is_bold()).unwrap()
+    }
+
+    fn italic(book: &FontBook, id: FaceId) -> bool {
+        book.with_face(id, |f| f.is_italic()).unwrap()
     }
 
     /// AC 2 — the first installed family of a list, case-insensitively.
@@ -257,8 +262,11 @@ pub(crate) mod tests {
         assert!(pick(600, false));
         assert!(!pick(400, false));
         assert!(!pick(100, false));
-        assert!(!pick(400, true), "no italic face: the regular one");
-        assert!(pick(700, true), "no bold italic face: the bold one");
+        assert!(!pick(400, true), "the italic face is not bold");
+        let face = |w, it| book.face("LCV Test Sans", w, it).unwrap().0;
+        assert!(italic(&book, face(400, true)));
+        assert!(!italic(&book, face(400, false)));
+        assert!(!italic(&book, face(700, false)));
     }
 
     /// AC 3 — no listed family installed: the sans-serif default, substituted.
