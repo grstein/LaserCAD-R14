@@ -13,7 +13,7 @@
 - [x] T4 [AC8] Test (unit): `M 0 0 L 10 0 L 5` keeps the first line and sets `error`; `L 1 1`
       (no leading `M`) and `M 0 0 Z 5` are errors; empty and whitespace-only `d` give no segments
       and no error (files: src/io/svg/path_data.rs)
-- [ ] T5 [AC2] [AC8] `parse_path_data` and the segment enum: command loop, current point, subpath
+- [x] T5 [AC2] [AC8] `parse_path_data` and the segment enum: command loop, current point, subpath
       start, emitting a segment only once it has fully parsed (files: src/io/svg/path_data.rs)
 - [ ] T6 [AC9] Test: two exported arc `d` strings joined into one `d` import as the same two
       arcs as when imported separately (the existing golden-path and half-turn tests already pin

@@ -4,6 +4,7 @@
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use crate::geometry::Vec2;
+use lexer::Lexer;
 
 mod lexer;
 
@@ -46,9 +47,107 @@ pub(super) struct PathData {
 }
 
 /// Resolve `d` into absolute segments (AC 1, AC 2, AC 8).
+///
+/// Extra argument groups repeat the previous command (`M`/`m` as `L`/`l`).
+/// A segment is emitted only once all its arguments have parsed, so a syntax
+/// error keeps every earlier segment ("render up to the error", SVG 2).
+/// Data that does not start with `M`/`m`, or a number after `Z`/`z`, is an
+/// error; empty data is not.
 pub(super) fn parse_path_data(d: &str) -> PathData {
-    let _ = d;
-    PathData::default()
+    let mut lx = Lexer::new(d);
+    let mut out = PathData::default();
+    let mut pen = Pen::default();
+    let mut prev: Option<u8> = None;
+    loop {
+        let cmd = match (lx.command(), prev) {
+            (Some(c), _) => c,
+            (None, _) if lx.at_end() => break,
+            (None, Some(p)) if !matches!(p, b'Z' | b'z') && lx.number_ahead() => match p {
+                b'M' => b'L',
+                b'm' => b'l',
+                p => p,
+            },
+            (None, _) => {
+                out.error = true;
+                break;
+            }
+        };
+        if prev.is_none() && !matches!(cmd, b'M' | b'm') {
+            out.error = true;
+            break;
+        }
+        match pen.step(&mut lx, cmd) {
+            Some(seg) => out.segments.extend(seg),
+            None => {
+                out.error = true;
+                break;
+            }
+        }
+        prev = Some(cmd);
+    }
+    out
+}
+
+/// The current point and the start of the current subpath.
+#[derive(Debug, Default)]
+struct Pen {
+    cur: Vec2,
+    start: Vec2,
+}
+
+impl Pen {
+    /// Read `cmd`'s arguments and advance; `None` at a syntax error (the pen
+    /// is then unchanged), else the segment drawn, if any.
+    fn step(&mut self, lx: &mut Lexer<'_>, cmd: u8) -> Option<Option<Segment>> {
+        let base = if cmd.is_ascii_lowercase() {
+            self.cur
+        } else {
+            Vec2::new(0.0, 0.0)
+        };
+        let point = |lx: &mut Lexer<'_>| -> Option<Vec2> {
+            let x = lx.number()?;
+            let y = lx.number()?;
+            Some(Vec2::new(base.x + x, base.y + y))
+        };
+        let skip = |lx: &mut Lexer<'_>, controls: usize| -> Option<Vec2> {
+            for _ in 0..controls {
+                point(lx)?;
+            }
+            point(lx)
+        };
+        let from = self.cur;
+        let seg = match cmd.to_ascii_uppercase() {
+            b'M' => {
+                let to = point(lx)?;
+                self.start = to;
+                self.cur = to;
+                return Some(None);
+            }
+            b'L' => Segment::Line(from, point(lx)?),
+            b'H' => Segment::Line(from, Vec2::new(base.x + lx.number()?, from.y)),
+            b'V' => Segment::Line(from, Vec2::new(from.x, base.y + lx.number()?)),
+            b'Z' => Segment::Line(from, self.start),
+            b'A' => {
+                let (rx, ry, _rotation) = (lx.number()?, lx.number()?, lx.number()?);
+                let (large, sweep) = (lx.flag()?, lx.flag()?);
+                let to = point(lx)?;
+                Segment::Arc { from, to, rx, ry, large, sweep }
+            }
+            b'C' => skipped("path C", skip(lx, 2)?),
+            b'S' => skipped("path S", skip(lx, 1)?),
+            b'Q' => skipped("path Q", skip(lx, 1)?),
+            b'T' => skipped("path T", skip(lx, 0)?),
+            _ => return None,
+        };
+        self.cur = match seg {
+            Segment::Line(_, to) | Segment::Arc { to, .. } | Segment::Skipped { to, .. } => to,
+        };
+        Some(Some(seg))
+    }
+}
+
+fn skipped(label: &'static str, to: Vec2) -> Segment {
+    Segment::Skipped { label, to }
 }
 
 #[cfg(test)]
