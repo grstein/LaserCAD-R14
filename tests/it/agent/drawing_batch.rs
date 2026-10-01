@@ -534,3 +534,95 @@ fn lcv185_ac6_the_schema_has_no_union_keywords() {
         assert!(!keys.iter().any(|k| k == banned), "{banned} in the schema");
     }
 }
+
+/// The refusal text `create_drawing` answers for these whole arguments.
+fn refused_args(args: Value) -> String {
+    match dispatch(args) {
+        AgentAction::Malformed { reason, .. } => reason,
+        other => panic!("accepted: {other:?}"),
+    }
+}
+
+/// LCV-192 AC 1 — every `create_drawing` refusal is
+/// `create_drawing <path>: <reason>; expected <form>`, pinned exactly.
+#[test]
+fn lcv192_ac1_create_drawing_refusals_name_path_reason_and_form() {
+    let circle = json!({"type": "circle", "cx": 0, "cy": 0, "r": 1});
+    let list = "expected a list of 1 to 1000 entity objects";
+    let types = r#"expected "line", "circle" or "arc""#;
+    let mut seventeen: Vec<Value> = (0..20).map(|_| circle.clone()).collect();
+    seventeen[17]["r"] = json!(-3);
+    let cases = [
+        (
+            json!({"version": 1, "entities": [circle], "extra": 0}),
+            "create_drawing extra: unknown key; expected version, entities or layer".to_owned(),
+        ),
+        (
+            json!([1, 2]),
+            "create_drawing (root): not an object; expected a JSON object".to_owned(),
+        ),
+        (
+            json!({"entities": [circle]}),
+            "create_drawing version: missing; expected the integer 1".to_owned(),
+        ),
+        (
+            json!({"version": 2, "entities": [circle]}),
+            "create_drawing version: unsupported value; expected the integer 1".to_owned(),
+        ),
+        (
+            json!({"version": 1, "entities": []}),
+            format!("create_drawing entities: has 0 items; {list}"),
+        ),
+        (
+            json!({"version": 1, "entities": vec![circle.clone(); 1001]}),
+            format!("create_drawing entities: has 1001 items; {list}"),
+        ),
+        (
+            json!({"version": 1, "entities": {}}),
+            format!("create_drawing entities: not a list; {list}"),
+        ),
+        (
+            json!({"version": 1, "entities": [circle, 7]}),
+            "create_drawing entities[1]: not an object; \
+             expected an object with a type and that type's keys"
+                .to_owned(),
+        ),
+        (
+            json!({"version": 1, "entities": [{"cx": 0}]}),
+            format!("create_drawing entities[0].type: missing; {types}"),
+        ),
+        (
+            json!({"version": 1, "entities": [{"type": "polyline"}]}),
+            format!("create_drawing entities[0].type: unknown type; {types}"),
+        ),
+        (
+            json!({"version": 1, "entities": [{"type": "circle", "cx": 0, "cy": 0, "r": 1, "x2": 4}]}),
+            "create_drawing entities[0].x2: not a circle key; \
+             expected null or a circle key (cx, cy, r)"
+                .to_owned(),
+        ),
+        (
+            json!({"version": 1, "entities": [{"type": "arc", "radius": 4}]}),
+            "create_drawing entities[0].radius: unknown key; \
+             expected an arc key (cx, cy, r, start_deg, end_deg, ccw)"
+                .to_owned(),
+        ),
+        (
+            json!({"version": 1, "entities": [{"type": "line", "x1": 0, "y1": "0", "x2": 1, "y2": 1}]}),
+            "create_drawing entities[0].y1: not a number; expected a number in mm".to_owned(),
+        ),
+        (
+            json!({"version": 1, "entities": [{"type": "circle", "cx": 0, "cy": 0}]}),
+            "create_drawing entities[0].r: missing; expected a positive number in mm".to_owned(),
+        ),
+        (
+            json!({"version": 1, "entities": seventeen}),
+            "create_drawing entities[17].r: -3 is out of range; \
+             expected a positive number in mm"
+                .to_owned(),
+        ),
+    ];
+    for (args, want) in cases {
+        assert_eq!(refused_args(args.clone()), want, "{args:.80}");
+    }
+}
