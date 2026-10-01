@@ -55,5 +55,5 @@ Prerequisites: LCV-187, LCV-189, LCV-190 Done on `agent-harness`.
   (files: AGENTS.md, CHANGELOG.md)
 - [x] T15 Docs: append plan.md's "ADR amendment" to ADR 0007 as the next free `Amended (n)`
   (files: docs/adr/0007-agent-turn-mutates-the-live-document.md)
-- [ ] T16 `scripts/mutants.sh` on the diff (`src/agent/loop_*`, `agent_feedback.rs`). Kill the
+- [x] T16 `scripts/mutants.sh` on the diff (`src/agent/loop_*`, `agent_feedback.rs`). Kill the
   survivors or justify them in the commit body.
