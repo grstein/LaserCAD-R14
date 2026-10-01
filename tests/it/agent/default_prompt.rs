@@ -419,3 +419,54 @@ fn the_create_drawing_paragraph_names_the_new_types() {
         assert!(folded.contains(needle), "{needle} missing from: {folded}");
     }
 }
+
+/// LCV-197 AC 1 — a VERIFY section, before REPLY STYLE, tells the model to
+/// derive a short checklist of measurable requirements from the request and,
+/// after drawing, check each item with a verification call, fixing failures
+/// before it replies.
+#[test]
+fn the_prompt_asks_for_a_checklist_verified_after_drawing() {
+    let folded = DEFAULT_PROMPT
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    let section = folded
+        .split_once("VERIFY ")
+        .map(|(_, rest)| rest)
+        .expect("a VERIFY section");
+    assert!(
+        folded.find("VERIFY ") < folded.find("REPLY STYLE"),
+        "VERIFY precedes REPLY STYLE"
+    );
+    let section = section.split_once("REPLY STYLE").map_or(section, |s| s.0);
+    for needle in [
+        "short checklist of measurable requirements",
+        "after drawing",
+        "measure",
+        "check_drawing",
+        "capture_canvas",
+        "Fix every item that fails before you reply",
+    ] {
+        assert!(section.contains(needle), "`{needle}` missing: {section}");
+    }
+}
+
+/// LCV-197 AC 2 — REPLY STYLE says a reply that changed the drawing ends
+/// with each checklist item marked pass or fail.
+#[test]
+fn the_reply_style_ends_with_each_check_marked() {
+    let folded = DEFAULT_PROMPT
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    let section = folded
+        .split_once("REPLY STYLE ")
+        .map(|(_, rest)| rest)
+        .expect("a REPLY STYLE section");
+    assert!(
+        section.contains(
+            "When you changed the drawing, end the reply with each checklist item marked pass or fail"
+        ),
+        "{section}"
+    );
+}

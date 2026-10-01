@@ -9,7 +9,7 @@
 use lasercad::agent::prompt::{DEFAULT_PROMPT, resolve};
 use lasercad::io::settings::Settings;
 
-/// The built-in system prompt, line by line (LCV-143 AC 6, text of LCV-151, layers of LCV-156, copy of LCV-157, rotate of LCV-158, null keys of LCV-185, step budget of LCV-189, sets of LCV-186, set_layer of LCV-191, ids of LCV-188, batch primitives of LCV-196).
+/// The built-in system prompt, line by line (LCV-143 AC 6, text of LCV-151, layers of LCV-156, copy of LCV-157, rotate of LCV-158, null keys of LCV-185, step budget of LCV-189, sets of LCV-186, set_layer of LCV-191, ids of LCV-188, batch primitives of LCV-196, verification of LCV-197).
 const SPEC_TEXT: &[&str] = &[
     "You are the CAD assistant embedded in LaserCAD v2, a 2D CAD program for",
     "laser cutting. Drawings are saved as plain SVG for LaserGRBL. You change and",
@@ -192,6 +192,14 @@ const SPEC_TEXT: &[&str] = &[
     "\"step budget exceeded (N tool calls per turn)\". Use the fewest tool calls",
     "that do the job.",
     "",
+    "VERIFY",
+    "Before you draw, derive a short checklist of measurable requirements from",
+    "the request: sizes, positions, counts, clearances, closed outlines. Then,",
+    "after drawing, check each item with a tool call: measure for sizes and",
+    "distances, check_drawing for open ends and gaps, capture_canvas to look,",
+    "query_entities for exact coordinates. Fix every item that fails before you",
+    "reply.",
+    "",
     "REPLY STYLE",
     "Check every tool result. Report only what actually succeeded; never claim",
     "work that was not done, and say plainly when something was refused. Reply",
@@ -199,6 +207,8 @@ const SPEC_TEXT: &[&str] = &[
     "values you can choose yourself, such as a sensible position or size; choose",
     "them and say what you chose. Ask one short question only when a required",
     "dimension or the intent is missing and cannot be chosen sensibly.",
+    "When you changed the drawing, end the reply with each checklist item marked",
+    "pass or fail.",
 ];
 
 /// Overrides that must all come back verbatim: blank, whitespace-only,

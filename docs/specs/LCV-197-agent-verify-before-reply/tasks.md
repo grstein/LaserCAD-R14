@@ -3,7 +3,7 @@
 Prerequisites: LCV-190, LCV-194, LCV-195 Done on `agent-harness`. If LCV-195 is not Done, first
 do LCV-195 T1 (the `loop_/batch.rs` seam) as T0 here.
 
-- [ ] T1 [AC1][AC2] Test, then the `DEFAULT_PROMPT` checklist paragraph (derive measurable checks
+- [x] T1 [AC1][AC2] Test, then the `DEFAULT_PROMPT` checklist paragraph (derive measurable checks
   from the request, verify each with `measure`, `check_drawing` or `capture_canvas`, fix failures
   before replying) and the reply-style line (end with each check marked pass or fail)
   (files: src/agent/prompt.rs, tests/it/agent/default_prompt.rs)
