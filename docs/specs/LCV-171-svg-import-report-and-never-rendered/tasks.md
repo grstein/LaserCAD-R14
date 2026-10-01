@@ -51,7 +51,7 @@
 - [x] T15 [AC11] `.expected` gains `ignored <count> <label…>` lines (count first, label to end of
       line); the runner compares the report in order, and no `ignored` line means an empty report;
       parser tests for both (files: tests/it/io_svg/corpus/expected.rs, tests/it/io_svg/corpus.rs)
-- [ ] T16 [AC11] [AC3] Fixture `inkscape-defs`: Inkscape namespaces, `<sodipodi:namedview>`,
+- [x] T16 [AC11] [AC3] Fixture `inkscape-defs`: Inkscape namespaces, `<sodipodi:namedview>`,
       `<metadata>`, `<defs>` holding a `<path>` and a `<linearGradient><stop/>`, a layer `<g>` with
       `transform="translate(0,0)"`, a line and a circle-arc path using
       `style="fill:none;stroke:#000"`, and an `<image>`. Expectation by hand: two entities on the
