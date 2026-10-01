@@ -59,6 +59,8 @@ fn square_button(ui: &mut egui::Ui, selected: bool) -> (egui::Rect, egui::Respon
 
 /// Draw-group icons (Select … Text).
 pub(crate) mod draw;
+/// Menu-row icons and the check mark (LCV-166).
+pub(crate) mod menu;
 /// Modify-group icons (Move … Dist).
 pub(crate) mod modify;
 
@@ -174,6 +176,25 @@ mod tests {
         ("dist", modify::dist),
     ];
 
+    /// The menu-row glyphs (LCV-166), checked by the same rules.
+    const MENU_ICONS: [(&str, IconFn); 10] = [
+        ("new_file", menu::new_file),
+        ("open", menu::open),
+        ("save", menu::save),
+        ("undo", menu::undo),
+        ("redo", menu::redo),
+        ("zoom_in", menu::zoom_in),
+        ("zoom_out", menu::zoom_out),
+        ("zoom_extents", menu::zoom_extents),
+        ("fit_bed", menu::fit_bed),
+        ("check", menu::check),
+    ];
+
+    /// Rail and menu icons together.
+    fn all_icons() -> Vec<(&'static str, IconFn)> {
+        ICONS.iter().chain(MENU_ICONS.iter()).copied().collect()
+    }
+
     /// A colour no theme token uses, so a shape painted in it came from the
     /// stroke the test handed in.
     const INK: egui::Color32 = egui::Color32::from_rgb(1, 2, 3);
@@ -231,11 +252,12 @@ mod tests {
         fill == egui::Color32::TRANSPARENT || fill == INK
     }
 
-    /// AC 1 — each icon paints something, and only line-art vector shapes:
-    /// no text, mesh (image/texture) or callback.
+    /// AC 1 (and LCV-166 AC 2/3 for the menu glyphs) — each icon paints
+    /// something, and only line-art vector shapes: no text, mesh
+    /// (image/texture) or callback.
     #[test]
     fn ac1_icons_paint_only_vector_shapes() {
-        for (name, icon) in ICONS {
+        for (name, icon) in all_icons() {
             let shapes = paint(icon);
             assert!(!shapes.is_empty(), "{name}: the icon must paint something");
             for shape in &shapes {
@@ -265,7 +287,7 @@ mod tests {
     #[test]
     fn ac1_icons_use_the_stroke_and_stay_inside_the_square() {
         let bounds = square().expand(ICON_STROKE / 2.0 + 0.01);
-        for (name, icon) in ICONS {
+        for (name, icon) in all_icons() {
             for shape in paint(icon) {
                 let ok = match &shape {
                     egui::Shape::LineSegment { stroke, .. } => {
@@ -315,10 +337,11 @@ mod tests {
         sig
     }
 
-    /// AC 2 — no two tools paint the same icon.
+    /// AC 2 — no two tools paint the same icon, nor two menu glyphs, nor a
+    /// menu glyph and a tool (LCV-166).
     #[test]
     fn ac2_every_icon_is_distinct() {
-        let sigs: Vec<(&str, Vec<String>)> = ICONS
+        let sigs: Vec<(&str, Vec<String>)> = all_icons()
             .iter()
             .map(|(name, icon)| (*name, signature(&paint(*icon))))
             .collect();

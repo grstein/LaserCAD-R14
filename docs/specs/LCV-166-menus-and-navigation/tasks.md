@@ -11,7 +11,7 @@
   Grid/Snap/Ortho while on. The slot is empty for Save As, Export Layers, Zoom All, and
   Grid/Snap/Ortho while off. The label x is the same across a menu, submenu titles included
   (files: tests/it/ui/menu_rows.rs, tests/it/ui/mod.rs)
-- [ ] T3 [AC2] [AC3] Glyphs `new_file`, `open`, `save`, `undo`, `redo`, `zoom_in`, `zoom_out`,
+- [x] T3 [AC2] [AC3] Glyphs `new_file`, `open`, `save`, `undo`, `redo`, `zoom_in`, `zoom_out`,
   `zoom_extents`, `fit_bed` and `check` on the 20-unit grid. Unit tests: each paints at least one
   shape inside its square, and no two paint the same shapes (files: src/ui/icons/menu.rs,
   src/ui/icons.rs)
