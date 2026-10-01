@@ -38,7 +38,7 @@ use crate::harness;
 use harness::paint::{self, Run};
 use harness::raw_input;
 use lasercad::app::{App, DocumentTitleState, PendingAction, Severity};
-use lasercad::document::{CreateLine, Document};
+use lasercad::document::{AddLayer, Command, CreateLine, Document, Entity};
 use lasercad::geometry::{Line, Vec2};
 use lasercad::ui::DialogResult;
 use std::path::PathBuf;
@@ -706,4 +706,46 @@ fn save_announces_the_file_and_bed_as_info() {
     app.action_save();
     assert_eq!(app.command_feedback, "Saved half.svg (400 × 297.5 mm)");
     assert_eq!(app.command_feedback_severity, Severity::Info);
+}
+
+/// A line on `[400, 400]` that leaves the bed past its left edge.
+fn off_bed_line() -> Entity {
+    Entity::Line(Line::new(Vec2::new(-5.0, 10.0), Vec2::new(50.0, 10.0)))
+}
+
+/// LCV-168 AC 2 — out-of-bed entities turn the Save line into a Warning with
+/// the count appended, singular for one, and an Output-off layer's entity
+/// still counts (the mother file holds it).
+#[test]
+fn save_warns_about_entities_outside_the_bed() {
+    let dir = tempdir("lcv168_save_warning");
+    let mut app = saving_app(&dir, "one.svg", [400.0, 400.0]);
+    let cut = app.document.current_layer();
+    app.document.push_entity(off_bed_line(), cut);
+    app.document.push_entity(Entity::Line(some_line()), cut);
+
+    app.action_save();
+
+    assert_eq!(app.error_message, None, "the save must succeed");
+    assert_eq!(
+        app.command_feedback,
+        "Saved one.svg (400 × 400 mm) — 1 entity outside the bed"
+    );
+    assert_eq!(app.command_feedback_severity, Severity::Warning);
+
+    let mut app = saving_app(&dir, "two.svg", [400.0, 400.0]);
+    let cut = app.document.current_layer();
+    let mut add = AddLayer::new("Off", [9, 9, 9], false);
+    add.do_(&mut app.document);
+    let off = add.id().expect("allocated by do_");
+    app.document.push_entity(off_bed_line(), cut);
+    app.document.push_entity(off_bed_line(), off);
+
+    app.action_save();
+
+    assert_eq!(
+        app.command_feedback,
+        "Saved two.svg (400 × 400 mm) — 2 entities outside the bed"
+    );
+    assert_eq!(app.command_feedback_severity, Severity::Warning);
 }

@@ -14,7 +14,7 @@
 - [x] T5 [AC1] Test: Save As success path — `write_mother` then `announce_saved` on a tempdir
   path gives the Info line; the source-scan test pins that both actions call both helpers
   (files: src/io/file_actions/tests.rs)
-- [ ] T6 [AC2] Test: Save with one and with two out-of-bed entities → Warning with
+- [x] T6 [AC2] Test: Save with one and with two out-of-bed entities → Warning with
   ` — 1 entity outside the bed` / ` — 2 entities outside the bed`; an Output-off layer's
   entity still counts (files: tests/it/app/document_title_and_file_feedback.rs)
 - [ ] T7 [AC2] Warning severity + suffix in `announce_saved` (files: src/io/file_actions.rs)
