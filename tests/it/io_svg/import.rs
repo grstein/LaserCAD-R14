@@ -11,7 +11,9 @@ use lasercad::io::svg::{SvgImportError, export_svg, import_svg};
 use std::f64::consts::{FRAC_PI_2, PI};
 
 fn svg_wrap(inner: &str) -> String {
-    format!(r#"<svg xmlns="http://www.w3.org/2000/svg">{inner}</svg>"#)
+    format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="400mm" height="400mm" viewBox="0 0 400 400">{inner}</svg>"#
+    )
 }
 
 /// AC 7 — `<line>` element parsed to Entity::Line with correct coordinates.

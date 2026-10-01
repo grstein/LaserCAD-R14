@@ -41,6 +41,8 @@
 //! Y mirror by LCV-100, bed by LCV-114, layers by LCV-156.
 
 use super::header::parse_root;
+use super::length::{parse_length, to_user};
+use super::viewport::Ctx;
 use crate::document::entity::Entity;
 use crate::document::{Document, Layer, LayerId};
 use crate::geometry::{Circle, Line, Vec2};
@@ -159,10 +161,11 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
     if root.tag_name().name() != "svg" || root.tag_name().namespace() != Some(SVG_NS) {
         return Err(SvgImportError::NoSvgRoot);
     }
-    let bed_mm = parse_root(root)?.bed_mm;
+    let header = parse_root(root)?;
+    let bed_mm = header.bed_mm;
     let mut walk = Walk::new(bed_mm[1]);
     walk.report.note_properties(root);
-    walk.collect(root, None)?;
+    walk.collect(root, None, &header.ctx)?;
     let (layers, current_layer) = walk.layers.finish();
     Ok(ImportedSvg {
         entities: walk.entities,
@@ -174,27 +177,48 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
     })
 }
 
-fn parse_line(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Entity, SvgImportError> {
-    let (x1, y1) = (attr_f64(n, "line", "x1")?, attr_f64(n, "line", "y1")?);
-    let (x2, y2) = (attr_f64(n, "line", "x2")?, attr_f64(n, "line", "y2")?);
-    let (p1, p2) = (
-        Vec2::new(x1, flip_y(y1, bed_h)),
-        Vec2::new(x2, flip_y(y2, bed_h)),
-    );
-    Ok(Entity::Line(Line::new(p1, p2)))
+/// Which viewport side a `%` length refers to (LCV-173 AC 10).
+#[derive(Debug, Clone, Copy)]
+enum Axis {
+    /// The viewport width (`x1`, `x2`, `cx`).
+    X,
+    /// The viewport height (`y1`, `y2`, `cy`).
+    Y,
+    /// The normalized diagonal `√(w² + h²) / √2` (`r`).
+    Diag,
 }
 
-fn parse_circle(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Entity, SvgImportError> {
-    let (cx, cy) = (attr_f64(n, "circle", "cx")?, attr_f64(n, "circle", "cy")?);
-    let r = attr_f64(n, "circle", "r")?;
+/// `p` in current user units to a world point: through `ctx.ctm` onto the
+/// bed, then un-mirrored around `bed_h`.
+fn to_world(ctx: &Ctx, p: Vec2, bed_h: f64) -> Vec2 {
+    let q = ctx.ctm.apply(p);
+    Vec2::new(q.x, flip_y(q.y, bed_h))
+}
+
+fn parse_line(n: roxmltree::Node<'_, '_>, ctx: &Ctx, bed_h: f64) -> Result<Entity, SvgImportError> {
+    let len = |a, axis| attr_len(n, "line", a, axis, ctx);
+    let p1 = Vec2::new(len("x1", Axis::X)?, len("y1", Axis::Y)?);
+    let p2 = Vec2::new(len("x2", Axis::X)?, len("y2", Axis::Y)?);
+    Ok(Entity::Line(Line::new(
+        to_world(ctx, p1, bed_h),
+        to_world(ctx, p2, bed_h),
+    )))
+}
+
+fn parse_circle(
+    n: roxmltree::Node<'_, '_>,
+    ctx: &Ctx,
+    bed_h: f64,
+) -> Result<Entity, SvgImportError> {
+    let len = |a, axis| attr_len(n, "circle", a, axis, ctx);
+    let c = Vec2::new(len("cx", Axis::X)?, len("cy", Axis::Y)?);
+    let r = len("r", Axis::Diag)?;
     if r <= 0.0 {
         let v = n.attribute("r").unwrap_or("").to_string();
         return Err(malformed("circle", "r", v));
     }
-    Ok(Entity::Circle(Circle::new(
-        Vec2::new(cx, flip_y(cy, bed_h)),
-        r,
-    )))
+    let s = ctx.ctm.det().abs().sqrt();
+    Ok(Entity::Circle(Circle::new(to_world(ctx, c, bed_h), r * s)))
 }
 
 fn malformed(element: &'static str, attr: &'static str, value: String) -> SvgImportError {
@@ -205,14 +229,24 @@ fn malformed(element: &'static str, attr: &'static str, value: String) -> SvgImp
     }
 }
 
-fn attr_f64(
+/// Attribute `a` of `n` as a length in user units, `%` resolved against
+/// `ctx.viewport` along `axis` (LCV-173 AC 10).
+fn attr_len(
     n: roxmltree::Node<'_, '_>,
     el: &'static str,
     a: &'static str,
+    axis: Axis,
+    ctx: &Ctx,
 ) -> Result<f64, SvgImportError> {
     let raw = n.attribute(a).unwrap_or("");
-    raw.parse::<f64>()
-        .map_err(|_| malformed(el, a, raw.to_string()))
+    let len = parse_length(raw).ok_or_else(|| malformed(el, a, raw.to_string()))?;
+    let [w, h] = ctx.viewport;
+    let reference = match axis {
+        Axis::X => w,
+        Axis::Y => h,
+        Axis::Diag => w.hypot(h) / core::f64::consts::SQRT_2,
+    };
+    Ok(to_user(len, reference))
 }
 
 #[cfg(test)]

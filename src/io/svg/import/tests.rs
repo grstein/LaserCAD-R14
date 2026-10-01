@@ -3,19 +3,39 @@ use crate::document::{Layer, LayerId};
 use crate::geometry::{Arc, EPSILON};
 use core::f64::consts::{FRAC_PI_2, PI};
 
+/// Millimetres per px (96 px = 1 in): a unitless length is px (LCV-173).
+const MM_PER_PX: f64 = 25.4 / 96.0;
+
+/// A root `<svg>` around a literal, on a 400 mm bed whose user unit is 1 mm,
+/// as LaserCAD writes it.
+macro_rules! root {
+    ($inner:literal) => {
+        concat!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="400mm" height="400mm" viewBox="0 0 400 400">"#,
+            $inner,
+            "</svg>"
+        )
+    };
+}
+
 // Golden fixtures below are in the LCV-100 convention: SVG Y-down with the
 // bed as the canvas, i.e. world Y = 400 − SVG Y.
-const LINE_SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><line x1="1.0000" y1="2.0000" x2="11.0000" y2="7.0000"/></svg>"#;
-const ARC_CCW_Q: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M 10.0000 400.0000 A 10.0000 10.0000 0 0 0 0.0000 390.0000"/></svg>"#;
-const ARC_LARGE: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M 110.0000 300.0000 A 10.0000 10.0000 0 1 0 100.0000 310.0000"/></svg>"#;
-const ARC_CW_Q: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M 0.0000 390.0000 A 10.0000 10.0000 0 0 1 10.0000 400.0000"/></svg>"#;
-const PATH_MALFORMED: &str =
-    r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M 0 0 A notanumber 10 0 0 1 5 5"/></svg>"#;
-const MIXED_SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><line x1="1" y1="2" x2="3" y2="4"/><rect/><circle cx="5" cy="5" r="3"/></svg>"#;
-const G_GROUPS_SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"><g><line x1="0" y1="0" x2="10" y2="10"/></g><g/><g/></svg>"#;
+const LINE_SVG: &str = root!(r#"<line x1="1.0000" y1="2.0000" x2="11.0000" y2="7.0000"/>"#);
+const ARC_CCW_Q: &str =
+    root!(r#"<path d="M 10.0000 400.0000 A 10.0000 10.0000 0 0 0 0.0000 390.0000"/>"#);
+const ARC_LARGE: &str =
+    root!(r#"<path d="M 110.0000 300.0000 A 10.0000 10.0000 0 1 0 100.0000 310.0000"/>"#);
+const ARC_CW_Q: &str =
+    root!(r#"<path d="M 0.0000 390.0000 A 10.0000 10.0000 0 0 1 10.0000 400.0000"/>"#);
+const PATH_MALFORMED: &str = root!(r#"<path d="M 0 0 A notanumber 10 0 0 1 5 5"/>"#);
+const MIXED_SVG: &str =
+    root!(r#"<line x1="1" y1="2" x2="3" y2="4"/><rect/><circle cx="5" cy="5" r="3"/>"#);
+const G_GROUPS_SVG: &str = root!(r#"<g><line x1="0" y1="0" x2="10" y2="10"/></g><g/><g/>"#);
 
 fn svg(inner: &str) -> String {
-    format!(r#"<svg xmlns="http://www.w3.org/2000/svg">{inner}</svg>"#)
+    format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="400mm" height="400mm" viewBox="0 0 400 400">{inner}</svg>"#
+    )
 }
 
 fn only_arc(src: &str) -> Arc {
@@ -309,25 +329,35 @@ fn import_reads_bed_from_width_height() {
     assert!((l.p1.x - 10.0).abs() < EPSILON);
 }
 
-/// LCV-114 AC 8b — with no `width`/`height`, the `viewBox` is the bed and
-/// the mirror axis.
+/// LCV-114 AC 8b, LCV-173 AC 2 — with no `width`/`height`, the `viewBox`
+/// read as px is the bed and the mirror axis.
 #[test]
 fn import_reads_bed_from_viewbox_when_dimensions_absent() {
     let src = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 180"><circle cx="5" cy="130" r="3"/></svg>"#;
     let imported = import_svg(src).unwrap();
-    assert_eq!(imported.bed_mm, [300.0, 180.0]);
+    let bed = imported.bed_mm;
+    assert!(
+        (bed[0] - 300.0 * MM_PER_PX).abs() < EPSILON
+            && (bed[1] - 180.0 * MM_PER_PX).abs() < EPSILON
+    );
     let Entity::Circle(c) = imported.entities[0] else {
         panic!("not a circle")
     };
-    assert!((c.center.y - 50.0).abs() < EPSILON, "cy = {}", c.center.y);
+    assert!(
+        (c.center.y - 50.0 * MM_PER_PX).abs() < EPSILON,
+        "cy = {}",
+        c.center.y
+    );
+    assert!((c.r - 3.0 * MM_PER_PX).abs() < EPSILON);
 }
 
-/// LCV-114 AC 8c — the back-compat guard: `LINE_SVG` carries neither a
-/// dimension pair nor a `viewBox`, so it keeps importing exactly as it did
-/// before this demand, at the default bed.
+/// LCV-114 AC 8c, LCV-173 AC 4 — a root with neither a dimension pair nor
+/// a `viewBox` sits on the default bed, one user unit being 1 px.
 #[test]
 fn import_falls_back_to_default_when_both_absent() {
-    let imported = import_svg(LINE_SVG).unwrap();
+    let src =
+        r#"<svg xmlns="http://www.w3.org/2000/svg"><line x1="1" y1="2" x2="11" y2="7"/></svg>"#;
+    let imported = import_svg(src).unwrap();
     assert_eq!(
         imported.bed_mm,
         [
@@ -338,7 +368,8 @@ fn import_falls_back_to_default_when_both_absent() {
     let Entity::Line(l) = imported.entities[0] else {
         panic!("not a line")
     };
-    assert!((l.p1.y - 398.0).abs() < EPSILON);
+    assert!((l.p1.x - MM_PER_PX).abs() < EPSILON);
+    assert!((l.p1.y - (400.0 - 2.0 * MM_PER_PX)).abs() < EPSILON);
 }
 
 /// LCV-114 AC 8 — the accepted numeric forms reach the importer, not just
@@ -348,7 +379,12 @@ fn import_accepts_mm_suffix_and_whitespace() {
     let src = r#"<svg xmlns="http://www.w3.org/2000/svg" width=" 300.5 mm " height="180MM"/>"#;
     assert_eq!(import_svg(src).unwrap().bed_mm, [300.5, 180.0]);
     let bare = r#"<svg xmlns="http://www.w3.org/2000/svg" width="300" height="180"/>"#;
-    assert_eq!(import_svg(bare).unwrap().bed_mm, [300.0, 180.0]);
+    let bed = import_svg(bare).unwrap().bed_mm;
+    let px = [300.0 * MM_PER_PX, 180.0 * MM_PER_PX];
+    assert!(
+        (bed[0] - px[0]).abs() < EPSILON && (bed[1] - px[1]).abs() < EPSILON,
+        "unitless is px: {bed:?}"
+    );
 }
 
 /// LCV-114 AC 9 — one assertion per rejection case; each names the
@@ -359,12 +395,12 @@ fn import_rejects_zero_negative_oversized_and_garbage_dimensions() {
     for (attrs, attr, raw) in [
         (r#"width="0" height="180""#, "width", "0"),
         (r#"width="-300" height="180""#, "width", "-300"),
-        (r#"width="5000" height="180""#, "width", "5000"),
+        (r#"width="5000mm" height="180""#, "width", "5000mm"),
         (r#"width="banana" height="180""#, "width", "banana"),
         (r#"width="300" height="0""#, "height", "0"),
         (r#"width="300" height="inf""#, "height", "inf"),
-        (r#"viewBox="0 0 5000 180""#, "viewBox", "0 0 5000 180"),
-        (r#"viewBox="10 0 300 180""#, "viewBox", "10 0 300 180"),
+        (r#"viewBox="0 0 9000 180""#, "viewBox", "0 0 9000 180"),
+        (r#"viewBox="0 0 0 180""#, "viewBox", "0 0 0 180"),
     ] {
         let src = format!(
             r#"<svg xmlns="http://www.w3.org/2000/svg" {attrs}><line x1="0" y1="0" x2="1" y2="1"/></svg>"#

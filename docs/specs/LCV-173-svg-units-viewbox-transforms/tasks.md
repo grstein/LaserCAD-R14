@@ -19,7 +19,7 @@
   tests/it/app/document_title_and_file_feedback.rs, tests/it/ui/discard_dialog_pointer_click.rs)
 - [x] T8 [AC10] Test: `x1 y1 x2 y2 cx cy r` with units and `%` (x by width, y by height, r by
   normalized diagonal), `em` (files: tests/it/io_svg/units_viewbox.rs)
-- [ ] T9 [AC10] `attr_len` with `Axis`, `parse_line`/`parse_circle` take `&Ctx` and map through
+- [x] T9 [AC10] `attr_len` with `Axis`, `parse_line`/`parse_circle` take `&Ctx` and map through
   `ctm`; rewrite `import/tests.rs` unitless-root cases (files: src/io/svg/import.rs,
   src/io/svg/import/tests.rs)
 - [ ] T10 [AC5, AC8] Test: nested transformed groups on lines, circles and paths; an invalid

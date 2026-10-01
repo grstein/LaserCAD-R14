@@ -11,6 +11,7 @@ use crate::document::LayerId;
 use crate::document::entity::Entity;
 use crate::io::svg::layers::{LayerReader, STRAY_LAYER};
 use crate::io::svg::path_data::parse_path_data;
+use crate::io::svg::viewport::Ctx;
 
 /// The report label of a `<path>` with no `d` (LCV-171 AC 6).
 const UNSUPPORTED_PATH: &str = "path (unsupported data)";
@@ -69,11 +70,13 @@ impl Walk {
     }
 
     /// Append `node`'s recognised geometry on `layer` (the innermost enclosing
-    /// layer group; `None` = outside any, which means the first layer).
+    /// layer group; `None` = outside any, which means the first layer), with
+    /// `ctx` the context of `node`'s children.
     pub(super) fn collect(
         &mut self,
         node: roxmltree::Node<'_, '_>,
         layer: Option<LayerId>,
+        ctx: &Ctx,
     ) -> Result<(), SvgImportError> {
         let bed_h = self.bed_h;
         for child in node.children().filter(|n| n.is_element()) {
@@ -84,8 +87,8 @@ impl Walk {
             }
             let entity = match kind {
                 Kind::Import => match name {
-                    "line" => Some(parse_line(child, bed_h)?),
-                    "circle" => Some(parse_circle(child, bed_h)?),
+                    "line" => Some(parse_line(child, ctx, bed_h)?),
+                    "circle" => Some(parse_circle(child, ctx, bed_h)?),
                     _ => {
                         self.path(child, layer);
                         None
@@ -93,7 +96,7 @@ impl Walk {
                 },
                 Kind::Descend => {
                     let inner = self.layers.enter(child)?.or(layer);
-                    self.collect(child, inner)?;
+                    self.collect(child, inner, ctx)?;
                     None
                 }
                 Kind::NeverRendered => {
