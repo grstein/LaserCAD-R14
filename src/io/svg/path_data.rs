@@ -6,7 +6,7 @@
 use crate::geometry::Vec2;
 use lexer::Lexer;
 
-mod lexer;
+pub(super) mod lexer;
 
 /// One drawn segment of a path, absolute, in SVG coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -35,7 +35,8 @@ const UNCLIPPED_SVG: &str = "svg (not clipped)";
 
 /// What the walk does with one element (the table in [`super`]'s docs).
 enum Kind {
-    /// `line`, `circle`, `ellipse`, `rect`, `path`: turned into entities.
+    /// `line`, `circle`, `ellipse`, `rect`, `polyline`, `polygon`, `path`:
+    /// turned into entities.
     Import,
     /// `svg`, `g`, `a`: its children are walked (AC 2).
     Descend,
@@ -54,7 +55,7 @@ fn classify(node: roxmltree::Node<'_, '_>) -> Kind {
         return Kind::Silent;
     }
     match node.tag_name().name() {
-        "line" | "circle" | "ellipse" | "rect" | "path" => Kind::Import,
+        "line" | "circle" | "ellipse" | "rect" | "polyline" | "polygon" | "path" => Kind::Import,
         "svg" | "g" | "a" => Kind::Descend,
         "defs" | "symbol" | "clipPath" | "mask" | "marker" | "pattern" | "linearGradient"
         | "radialGradient" | "filter" => Kind::NeverRendered,

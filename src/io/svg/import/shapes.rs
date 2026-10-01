@@ -1,7 +1,8 @@
 //! Basic shapes on import (LCV-174, SVG 2 ch. 10): `<line>`, `<circle>`,
-//! `<ellipse>` (LCV-176) and `<rect>` as world entities, one [`Shape`] per
-//! element. A `<rect>` becomes its equivalent path data and goes through
-//! [`path_entities`], so it maps like a `<path>`.
+//! `<ellipse>` (LCV-176), `<rect>`, `<polyline>` and `<polygon>` as world
+//! entities, one [`Shape`] per element. A `<rect>` and the `points` shapes
+//! ([`points`]) become their equivalent path data and go through
+//! [`path_entities`], so they map like a `<path>` (AC 9).
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
@@ -13,10 +14,13 @@ use crate::geometry::{Circle, Line, Vec2};
 use crate::io::svg::length::{parse_length, to_user};
 use crate::io::svg::path_data::{PathData, Segment};
 use crate::io::svg::viewport::Ctx;
+use points::poly;
+
+mod points;
 
 /// Which viewport side a `%` length refers to (LCV-173 AC 10).
 #[derive(Debug, Clone, Copy)]
-pub(super) enum Axis {
+enum Axis {
     /// The viewport width (`x1`, `x2`, `cx`, `x`, `width`, `rx`).
     X,
     /// The viewport height (`y1`, `y2`, `cy`, `y`, `height`, `ry`).
@@ -27,7 +31,7 @@ pub(super) enum Axis {
 
 /// One geometry attribute as read.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(super) enum Attr {
+enum Attr {
     /// Not given.
     Missing,
     /// A length in user units.
@@ -38,7 +42,7 @@ pub(super) enum Attr {
 
 /// Attribute `name` of `n` as a length in user units, `%` resolved against
 /// `ctx.viewport` along `axis` (LCV-173 AC 10).
-pub(super) fn attr(n: roxmltree::Node<'_, '_>, name: &str, axis: Axis, ctx: &Ctx) -> Attr {
+fn attr(n: roxmltree::Node<'_, '_>, name: &str, axis: Axis, ctx: &Ctx) -> Attr {
     let Some(raw) = n.attribute(name) else {
         return Attr::Missing;
     };
@@ -119,6 +123,8 @@ pub(super) fn import_shape(name: &str, n: roxmltree::Node<'_, '_>, ctx: &Ctx, be
             rect(n, ctx).map(|d| path_entities(&d, ctx, bed_h).0),
             "rect (invalid attribute)",
         ),
+        "polyline" => return poly(n, false, "polyline (data error)", ctx, bed_h),
+        "polygon" => return poly(n, true, "polygon (data error)", ctx, bed_h),
         _ => return Shape::default(),
     };
     match drawn {
@@ -169,17 +175,10 @@ fn circle(n: roxmltree::Node<'_, '_>, ctx: &Ctx, bed_h: f64) -> Result<Option<En
 /// either is 0, or the mapped ellipse is degenerate.
 fn ellipse(n: roxmltree::Node<'_, '_>, ctx: &Ctx, bed_h: f64) -> Result<Option<Entity>, Invalid> {
     let center = point(n, "cx", "cy", ctx)?;
-    let rx = radius(n, "rx", Axis::X, ctx).size()?;
-    let ry = radius(n, "ry", Axis::Y, ctx).size()?;
-    let (rx, ry) = match (rx, ry) {
-        (Some(rx), Some(ry)) => (rx, ry),
-        (Some(r), None) | (None, Some(r)) => (r, r),
-        (None, None) => return Ok(None),
-    };
-    if rx == 0.0 || ry == 0.0 {
-        return Ok(None);
-    }
-    Ok(conic(ctx, center, (rx, ry), bed_h))
+    let (rx, ry) = radii(n, ctx, f64::INFINITY, f64::INFINITY)?;
+    Ok((rx > 0.0)
+        .then(|| conic(ctx, center, (rx, ry), bed_h))
+        .flatten())
 }
 
 /// A `<rect>` as its SVG 2 §10.2 equivalent path; empty when `width` or
@@ -195,8 +194,9 @@ fn rect(n: roxmltree::Node<'_, '_>, ctx: &Ctx) -> Result<PathData, Invalid> {
     Ok(rect_path(at, w, h, radii))
 }
 
-/// The used corner radii of a `w` × `h` `<rect>` (AC 5): `rx` and `ry`
-/// read with `auto` as missing, then [`resolve_radii`].
+/// The used radii of a `w` × `h` `<rect>` (AC 5), or of an `<ellipse>`
+/// with infinite sides: `rx` and `ry` read with `auto` as missing, then
+/// [`resolve_radii`].
 fn radii(n: roxmltree::Node<'_, '_>, ctx: &Ctx, w: f64, h: f64) -> Result<(f64, f64), Invalid> {
     let rx = radius(n, "rx", Axis::X, ctx).size()?;
     let ry = radius(n, "ry", Axis::Y, ctx).size()?;

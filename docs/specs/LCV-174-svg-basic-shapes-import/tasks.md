@@ -45,7 +45,7 @@
   - An odd count or a bad token keeps the earlier pairs and reports `(data error)`.
   - Neither element is reported as ignored.
   (files: tests/it/io_svg/shapes.rs)
-- [ ] T12 [AC7, AC8, AC10] Impl: `points_path` reuses the path-data number reader (widened);
+- [x] T12 [AC7, AC8, AC10] Impl: `points_path` reuses the path-data number reader (widened);
   `classify` marks `polyline|polygon` as `Import`. If `shapes.rs` passes 200 LOC, split it into
   `shapes/points.rs`.
   (files: src/io/svg/import/shapes.rs, src/io/svg/path_data/lexer.rs, src/io/svg/import/walk.rs)

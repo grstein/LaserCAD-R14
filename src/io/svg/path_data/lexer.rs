@@ -1,18 +1,19 @@
 //! The SVG 2 path-data lexer (LCV-172 AC 1): command letters, numbers and
 //! flags read from a `&str` cursor, with commas and whitespace as separators.
+//! Its number reader also parses `<polyline>`/`<polygon>` `points` (LCV-174).
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
 /// A cursor over one `d` attribute.
 #[derive(Debug)]
-pub(super) struct Lexer<'a> {
+pub(in crate::io::svg) struct Lexer<'a> {
     src: &'a str,
     pos: usize,
 }
 
 impl<'a> Lexer<'a> {
     /// A cursor at the start of `d`.
-    pub(super) fn new(src: &'a str) -> Self {
+    pub(in crate::io::svg) fn new(src: &'a str) -> Self {
         Self { src, pos: 0 }
     }
 
@@ -29,7 +30,7 @@ impl<'a> Lexer<'a> {
 
     /// The next number (SVG 2 grammar: sign, digits, `.`, exponent); `None`
     /// at a syntax error or a non-finite value.
-    pub(super) fn number(&mut self) -> Option<f64> {
+    pub(in crate::io::svg) fn number(&mut self) -> Option<f64> {
         self.skip_separators();
         let start = self.pos;
         self.eat(|c| c == b'+' || c == b'-');
@@ -63,7 +64,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Whether only separators remain.
-    pub(super) fn at_end(&mut self) -> bool {
+    pub(in crate::io::svg) fn at_end(&mut self) -> bool {
         self.skip_separators();
         self.peek().is_none()
     }
