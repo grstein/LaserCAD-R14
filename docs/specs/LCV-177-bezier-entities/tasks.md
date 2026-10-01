@@ -49,7 +49,7 @@
 - [x] T17 [AC11, AC12] Test: exact strings for a cubic and a quadratic on a non-default bed
   height; `GOLDEN` unchanged; the audit's `check_path` accepts `M … C …` and `M … Q …` (files:
   tests/it/io_svg/bezier.rs, tests/it/io_svg/mod.rs, tests/it/io_svg/export_audit.rs)
-- [ ] T18 [AC11] `encode_entity` Bézier arm; then `scripts/mutants.sh` on `export.rs` and
+- [x] T18 [AC11] `encode_entity` Bézier arm; then `scripts/mutants.sh` on `export.rs` and
   `geometry/bezier*` (files: src/io/svg/export.rs)
 - [ ] T19 [AC1, AC2, AC3, AC4] Test through `import_svg`: `C`/`c`; `S` after `C`, after `S`,
   after `L` (current point); `Q`/`q`; `T` after `Q`, after `T`, after `C` (current point);

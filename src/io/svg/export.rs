@@ -28,7 +28,7 @@ use super::layers::open_group;
 use crate::document::entity::Entity;
 use crate::document::state::Document;
 use crate::document::{Layer, LayerId};
-use crate::geometry::Ellipse;
+use crate::geometry::{Bezier, Ellipse, Vec2};
 use crate::util::flip_y;
 use core::f64::consts::PI;
 
@@ -162,8 +162,20 @@ fn encode_entity(entity: &Entity, bed_height_mm: f64) -> String {
             )
         }
         Entity::Ellipse(e) => encode_ellipse(e, bed_height_mm),
-        Entity::Bezier(_) => String::new(),
+        Entity::Bezier(b) => encode_bezier(b, bed_height_mm),
     }
+}
+
+/// One `M … C …` (cubic) or `M … Q …` (quadratic) path, every control
+/// point with `y` mirrored (ADR 0016).
+fn encode_bezier(b: &Bezier, bed_height_mm: f64) -> String {
+    let op = match b {
+        Bezier::Quadratic(_) => 'Q',
+        Bezier::Cubic(_) => 'C',
+    };
+    let xy = |p: &Vec2| format!("{:.4} {:.4}", p.x, flip_y(p.y, bed_height_mm));
+    let rest: Vec<String> = b.points().iter().skip(1).map(xy).collect();
+    format!("<path d=\"M {} {op} {}\"/>", xy(&b.start()), rest.join(" "))
 }
 
 /// Encode an ellipse (ADR 0015 §5): a full one as `<ellipse>`, rotated by
