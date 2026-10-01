@@ -35,25 +35,6 @@ pub enum ToolCallError {
         /// The accepted type and range, usually [`expected_form`] of the key.
         expected: String,
     },
-    /// A `create_drawing` root-level failure (ADR 0010 §3). `field` is a root
-    /// key, `arguments`, or `entities[i]` when the item is not an object.
-    #[error("create_drawing {field}: {reason}")]
-    DrawingRoot {
-        /// The failing path, never a payload value.
-        field: String,
-        /// Human-readable explanation, read by the model as the tool result.
-        reason: String,
-    },
-    /// A `create_drawing` entity failure (ADR 0010 §3).
-    #[error("create_drawing entities[{index}].{field}: {reason}")]
-    DrawingItem {
-        /// Zero-based index of the failing entity.
-        index: usize,
-        /// The failing key; an unknown one is cut to 64 characters.
-        field: String,
-        /// Human-readable explanation, read by the model as the tool result.
-        reason: String,
-    },
 }
 
 impl ToolCallError {

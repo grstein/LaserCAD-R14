@@ -142,7 +142,8 @@ fn ac3_an_invalid_batch_is_one_refused_step_and_changes_nothing() {
     let answer = push_act(&tx, batch(Value::Array(entities)));
     idle(&ctx, &mut app);
 
-    let reason = "create_drawing entities[17].r: -3 is out of range";
+    let reason =
+        "create_drawing entities[17].r: -3 is out of range; expected a positive number in mm";
     assert_eq!(
         answer.try_recv().unwrap(),
         AgentOutcome::Refused(reason.into())
@@ -386,22 +387,23 @@ fn lcv185_ac1_a_null_foreign_key_is_ignored() {
 }
 
 /// LCV-185 AC 2 — a foreign key with any non-null value refuses the batch,
-/// naming the key, the item's type and the keys that type takes.
+/// naming the key, the item's type and the keys that type takes (wording
+/// per LCV-192 AC 1).
 #[test]
 fn lcv185_ac2_a_non_null_foreign_key_is_refused_with_the_type_keys() {
     let cases = [
-        ("line", "r", json!(5), "a line takes x1, y1, x2, y2"),
-        ("circle", "start_deg", json!(0), "a circle takes cx, cy, r"),
+        ("line", "r", json!(5), "a line key (x1, y1, x2, y2)"),
+        ("circle", "start_deg", json!(0), "a circle key (cx, cy, r)"),
         (
             "arc",
             "x1",
             json!(1),
-            "an arc takes cx, cy, r, start_deg, end_deg, ccw",
+            "an arc key (cx, cy, r, start_deg, end_deg, ccw)",
         ),
-        ("line", "cx", json!(0), "a line takes x1, y1, x2, y2"),
-        ("circle", "ccw", json!(false), "a circle takes cx, cy, r"),
+        ("line", "cx", json!(0), "a line key (x1, y1, x2, y2)"),
+        ("circle", "ccw", json!(false), "a circle key (cx, cy, r)"),
     ];
-    for (kind, foreign, value, takes) in cases {
+    for (kind, foreign, value, own) in cases {
         let mut item = own_items().into_iter().find(|i| i["type"] == kind).unwrap();
         item[foreign] = value.clone();
         let mut items = vec![own_items()[1].clone(), own_items()[0].clone()];
@@ -409,8 +411,8 @@ fn lcv185_ac2_a_non_null_foreign_key_is_refused_with_the_type_keys() {
         assert_eq!(
             refusal(Value::Array(items)),
             format!(
-                "create_drawing entities[2].{foreign}: not {} {kind} key; {takes}",
-                &takes[..takes.find(' ').unwrap()]
+                "create_drawing entities[2].{foreign}: not {} {kind} key; expected null or {own}",
+                &own[..own.find(' ').unwrap()]
             ),
             "{kind} with {foreign}: {value}"
         );
@@ -420,12 +422,13 @@ fn lcv185_ac2_a_non_null_foreign_key_is_refused_with_the_type_keys() {
     circle["x2"] = json!("");
     assert_eq!(
         refusal(json!([circle])),
-        "create_drawing entities[0].x2: not a circle key; a circle takes cx, cy, r"
+        "create_drawing entities[0].x2: not a circle key; \
+         expected null or a circle key (cx, cy, r)"
     );
 }
 
 /// LCV-185 AC 3 — a key no type publishes keeps the `unknown key` refusal,
-/// even when its value is `null`.
+/// even when its value is `null` (wording per LCV-192 AC 1).
 #[test]
 fn lcv185_ac3_an_unpublished_key_is_still_unknown() {
     for value in [json!(1), Value::Null] {
@@ -433,7 +436,8 @@ fn lcv185_ac3_an_unpublished_key_is_still_unknown() {
         line["radius"] = value.clone();
         assert_eq!(
             refusal(json!([line])),
-            "create_drawing entities[0].radius: unknown key",
+            "create_drawing entities[0].radius: unknown key; \
+             expected a line key (x1, y1, x2, y2)",
             "radius: {value}"
         );
     }

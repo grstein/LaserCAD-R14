@@ -14,7 +14,7 @@
 
 use serde_json::Value;
 
-use crate::agent::tools::{ToolCallError, validate_r};
+use crate::agent::tools::{ToolCallError, expected_form, validate_r};
 
 mod schema;
 pub use schema::{layer_schema, schema};
@@ -65,6 +65,9 @@ pub const MAX_DRAWING_ENTITIES: usize = 1000;
 /// Longest layer name a creation tool accepts, in characters (ADR 0012 §6).
 pub const MAX_LAYER_NAME_CHARS: usize = 64;
 
+/// The tool every refusal here names.
+const TOOL: &str = "create_drawing";
+
 /// Longest unknown-key name echoed back in an error, in characters.
 const KEY_ECHO_CHARS: usize = 64;
 
@@ -98,46 +101,38 @@ pub fn layer_arg(args: &Value) -> Result<Option<String>, String> {
 /// Parse the arguments of one `create_drawing` call into its items.
 ///
 /// Pure. Checks, in order: the root is an object whose keys are `version`,
-/// `entities` and optionally `layer` (checked by [`layer_arg`]); `version` is the integer 1; `entities` holds
-/// 1..=[`MAX_DRAWING_ENTITIES`] items; then each item in turn.
+/// `entities` and optionally `layer` (checked by [`layer_arg`]); `version` is
+/// the integer 1; `entities` holds 1..=[`MAX_DRAWING_ENTITIES`] items; then
+/// each item in turn.
 ///
 /// # Errors
 ///
-/// The first shape failure, as [`ToolCallError::DrawingRoot`] or
-/// [`ToolCallError::DrawingItem`].
+/// The first shape failure, as a [`ToolCallError::Arg`] whose path is a root
+/// key, `(root)`, `entities[i]` or `entities[i].key` (LCV-192).
 pub fn parse(args: &Value) -> Result<Vec<DrawingItem>, ToolCallError> {
-    let root = |field: &str, reason: &str| ToolCallError::DrawingRoot {
-        field: field.to_owned(),
-        reason: reason.to_owned(),
-    };
+    let root = |field: &str, reason: &str| ToolCallError::arg(TOOL, field, reason);
     let obj = args
         .as_object()
-        .ok_or_else(|| root("arguments", "must be a JSON object"))?;
+        .ok_or_else(|| root("(root)", "not an object"))?;
     if let Some(key) = obj
         .keys()
         .find(|k| !["version", "entities", "layer"].contains(&k.as_str()))
     {
-        return Err(root(&cut(key), "unknown key"));
+        return Err(arg(cut(key), "unknown key", "version, entities or layer"));
     }
     let version = obj
         .get("version")
         .ok_or_else(|| root("version", "missing"))?;
     if version.as_u64() != Some(1) {
-        return Err(root("version", "must be the integer 1"));
+        return Err(root("version", "unsupported value"));
     }
     let entities = obj
         .get("entities")
         .ok_or_else(|| root("entities", "missing"))?
         .as_array()
-        .ok_or_else(|| root("entities", "must be an array"))?;
+        .ok_or_else(|| root("entities", "not a list"))?;
     if entities.is_empty() || entities.len() > MAX_DRAWING_ENTITIES {
-        return Err(root(
-            "entities",
-            &format!(
-                "must hold 1..={MAX_DRAWING_ENTITIES} items, got {}",
-                entities.len()
-            ),
-        ));
+        return Err(root("entities", &format!("has {} items", entities.len())));
     }
     entities
         .iter()
@@ -148,58 +143,47 @@ pub fn parse(args: &Value) -> Result<Vec<DrawingItem>, ToolCallError> {
 
 /// One entity: an object, a known `type`, that type's keys (another type's
 /// key only as `null`), finite numbers, a boolean `ccw`, and the shared
-/// radius rule.
+/// radius rule. Every refusal's path is `entities[index].key`.
 fn item(index: usize, value: &Value) -> Result<DrawingItem, ToolCallError> {
-    let fail = |field: &str, reason: String| ToolCallError::DrawingItem {
-        index,
-        field: field.to_owned(),
-        reason,
-    };
-    let obj = value
-        .as_object()
-        .ok_or_else(|| ToolCallError::DrawingRoot {
-            field: format!("entities[{index}]"),
-            reason: "must be a JSON object".to_owned(),
-        })?;
-    let kind = obj
-        .get("type")
-        .ok_or_else(|| fail("type", "missing".to_owned()))?;
+    let at = |key: &str| format!("entities[{index}].{key}");
+    let fail = |key: &str, reason: &str| arg(at(key), reason, expected_form(key));
+    let obj = value.as_object().ok_or_else(|| {
+        let form = "an object with a type and that type's keys";
+        arg(format!("entities[{index}]"), "not an object", form)
+    })?;
+    let kind = obj.get("type").ok_or_else(|| fail("type", "missing"))?;
     let Some(&(kind_name, keys)) = ENTITY_KEYS.iter().find(|(t, _)| Some(*t) == kind.as_str())
     else {
-        let reason = r#"must be "line", "circle" or "arc""#.to_owned();
-        return Err(fail("type", reason));
+        return Err(fail("type", "unknown type"));
     };
+    let a = if kind_name == "arc" { "an" } else { "a" };
+    let own_keys = format!("{a} {kind_name} key ({})", keys.join(", "));
     // A key of another type is tolerated only as `null` (ADR 0010 §2).
     let own = |k: &str| k == "type" || keys.contains(&k);
     for (key, value) in obj.iter().filter(|(k, _)| !own(k)) {
         if !ENTITY_KEYS.iter().any(|(_, k)| k.contains(&key.as_str())) {
-            return Err(fail(&cut(key), "unknown key".to_owned()));
+            return Err(arg(at(&cut(key)), "unknown key", &own_keys));
         } else if !value.is_null() {
-            let takes = keys.join(", ");
-            let a = if kind_name == "arc" { "an" } else { "a" };
-            return Err(fail(
-                key,
-                format!("not {a} {kind_name} key; {a} {kind_name} takes {takes}"),
-            ));
+            let reason = format!("not {a} {kind_name} key");
+            return Err(arg(at(key), &reason, &format!("null or {own_keys}")));
         }
     }
-    for key in keys {
-        if !obj.contains_key(*key) {
-            return Err(fail(key, "missing".to_owned()));
-        }
+    if let Some(key) = keys.iter().find(|k| !obj.contains_key(**k)) {
+        return Err(fail(key, "missing"));
     }
     let num = |key: &str| {
         obj.get(key)
             .and_then(Value::as_f64)
             .filter(|n| n.is_finite())
-            .ok_or_else(|| fail(key, "must be a finite number".to_owned()))
+            .ok_or_else(|| fail(key, "not a number"))
     };
     let radius = || {
         let r = num("r")?;
-        match validate_r("create_drawing", r) {
-            Ok(()) => Ok(r),
-            Err(e) => Err(fail("r", reason_of(e))),
-        }
+        validate_r(TOOL, r).map_err(|e| match e {
+            ToolCallError::Arg { reason, .. } => fail("r", &reason),
+            other => other,
+        })?;
+        Ok(r)
     };
     Ok(match kind.as_str() {
         Some("line") => DrawingItem::Line {
@@ -223,16 +207,18 @@ fn item(index: usize, value: &Value) -> Result<DrawingItem, ToolCallError> {
             ccw: obj
                 .get("ccw")
                 .and_then(Value::as_bool)
-                .ok_or_else(|| fail("ccw", "must be a boolean".to_owned()))?,
+                .ok_or_else(|| fail("ccw", "not a boolean"))?,
         },
     })
 }
 
-/// The reason of the shared radius check, without its scalar-tool framing.
-fn reason_of(e: ToolCallError) -> String {
-    match e {
-        ToolCallError::Arg { reason, .. } => reason,
-        other => other.to_string(),
+/// A `create_drawing` refusal at `path` with its own expected form.
+fn arg(path: String, reason: &str, expected: &str) -> ToolCallError {
+    ToolCallError::Arg {
+        tool: TOOL.to_owned(),
+        path,
+        reason: reason.to_owned(),
+        expected: expected.to_owned(),
     }
 }
 
@@ -283,11 +269,11 @@ mod tests {
     fn zero_and_a_thousand_and_one_entities_are_refused() {
         assert_eq!(
             err(batch(circles(0))),
-            "create_drawing entities: must hold 1..=1000 items, got 0"
+            "create_drawing entities: has 0 items; expected a list of 1 to 1000 entity objects"
         );
         assert_eq!(
             err(batch(circles(1001))),
-            "create_drawing entities: must hold 1..=1000 items, got 1001"
+            "create_drawing entities: has 1001 items; expected a list of 1 to 1000 entity objects"
         );
     }
 
@@ -295,23 +281,23 @@ mod tests {
     fn the_root_key_set_is_exactly_version_and_entities() {
         assert_eq!(
             err(json!({"entities": circles(1)})),
-            "create_drawing version: missing"
+            "create_drawing version: missing; expected the integer 1"
         );
         assert_eq!(
             err(json!({"version": 1})),
-            "create_drawing entities: missing"
+            "create_drawing entities: missing; expected a list of 1 to 1000 entity objects"
         );
         assert_eq!(
             err(json!({"version": 1, "entities": circles(1), "extra": 0})),
-            "create_drawing extra: unknown key"
+            "create_drawing extra: unknown key; expected version, entities or layer"
         );
         assert_eq!(
             err(json!([1, 2])),
-            "create_drawing arguments: must be a JSON object"
+            "create_drawing (root): not an object; expected a JSON object"
         );
         assert_eq!(
             err(json!({"version": 1, "entities": {}})),
-            "create_drawing entities: must be an array"
+            "create_drawing entities: not a list; expected a list of 1 to 1000 entity objects"
         );
     }
 
@@ -320,7 +306,7 @@ mod tests {
         for bad in [json!(2), json!("1"), json!(1.0), json!(0), json!(null)] {
             assert_eq!(
                 err(json!({"version": bad, "entities": circles(1)})),
-                "create_drawing version: must be the integer 1",
+                "create_drawing version: unsupported value; expected the integer 1",
                 "version {bad}"
             );
         }
@@ -334,7 +320,7 @@ mod tests {
         item["bogus"] = json!(1);
         assert_eq!(
             err(batch(json!([item]))),
-            "create_drawing entities[0].bogus: unknown key"
+            "create_drawing entities[0].bogus: unknown key; expected a circle key (cx, cy, r)"
         );
         let long = "k".repeat(200);
         let mut item = circle(0);
@@ -342,7 +328,10 @@ mod tests {
         let e = err(batch(json!([item])));
         assert_eq!(
             e,
-            format!("create_drawing entities[0].{}: unknown key", "k".repeat(64))
+            format!(
+                "create_drawing entities[0].{}: unknown key; expected a circle key (cx, cy, r)",
+                "k".repeat(64)
+            )
         );
         assert!(!e.contains(&"k".repeat(65)));
     }
@@ -351,30 +340,30 @@ mod tests {
     fn a_missing_key_a_wrong_type_and_a_non_boolean_ccw_are_refused() {
         assert_eq!(
             err(batch(json!([{"type": "circle", "cx": 0, "cy": 0}]))),
-            "create_drawing entities[0].r: missing"
+            "create_drawing entities[0].r: missing; expected a positive number in mm"
         );
         assert_eq!(
             err(batch(
                 json!([{"type": "line", "x1": 0, "y1": "0", "x2": 1, "y2": 1}])
             )),
-            "create_drawing entities[0].y1: must be a finite number"
+            "create_drawing entities[0].y1: not a number; expected a number in mm"
         );
         assert_eq!(
             err(batch(json!([{"type": "arc", "cx": 0, "cy": 0, "r": 1,
                 "start_deg": 0, "end_deg": 90, "ccw": "true"}]))),
-            "create_drawing entities[0].ccw: must be a boolean"
+            "create_drawing entities[0].ccw: not a boolean; expected true or false"
         );
         assert_eq!(
             err(batch(json!([{"cx": 0, "cy": 0, "r": 1}]))),
-            "create_drawing entities[0].type: missing"
+            r#"create_drawing entities[0].type: missing; expected "line", "circle" or "arc""#
         );
         assert_eq!(
             err(batch(json!([{"type": "polyline"}]))),
-            "create_drawing entities[0].type: must be \"line\", \"circle\" or \"arc\""
+            r#"create_drawing entities[0].type: unknown type; expected "line", "circle" or "arc""#
         );
         assert_eq!(
             err(batch(json!([7]))),
-            "create_drawing entities[0]: must be a JSON object"
+            "create_drawing entities[0]: not an object; expected an object with a type and that type's keys"
         );
     }
 
@@ -382,12 +371,12 @@ mod tests {
     fn a_zero_or_negative_radius_is_refused_with_the_scalar_wording() {
         assert_eq!(
             err(batch(json!([{"type": "circle", "cx": 0, "cy": 0, "r": 0}]))),
-            "create_drawing entities[0].r: 0 is out of range"
+            "create_drawing entities[0].r: 0 is out of range; expected a positive number in mm"
         );
         assert_eq!(
             err(batch(json!([{"type": "arc", "cx": 0, "cy": 0, "r": -3,
                 "start_deg": 0, "end_deg": 90, "ccw": true}]))),
-            "create_drawing entities[0].r: -3 is out of range"
+            "create_drawing entities[0].r: -3 is out of range; expected a positive number in mm"
         );
     }
 
@@ -398,7 +387,9 @@ mod tests {
             items[bad]["r"] = json!(-3);
             assert_eq!(
                 err(batch(Value::Array(items))),
-                format!("create_drawing entities[{bad}].r: -3 is out of range")
+                format!(
+                    "create_drawing entities[{bad}].r: -3 is out of range; expected a positive number in mm"
+                )
             );
         }
     }

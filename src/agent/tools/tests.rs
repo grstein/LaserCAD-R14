@@ -141,7 +141,7 @@
         assert_eq!(a, AgentAction::CreateDrawing { layer: None, items: vec![
             crate::agent::DrawingItem::Circle { cx: 1.0, cy: 2.0, r: 3.0 }] });
         let e = err("create_drawing", json!({"version":2,"entities":[]}));
-        assert_eq!(e.to_string(), "create_drawing version: must be the integer 1");
+        assert_eq!(e.to_string(), "create_drawing version: unsupported value; expected the integer 1");
     }
     #[test]
     fn tool_definitions_arc_ccw_is_boolean() {
