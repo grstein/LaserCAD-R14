@@ -6,7 +6,7 @@
 - [x] T4 [AC3] Test: one `Dispatch::Replied { captures }` per successful send, after it returns; `captures` = image parts the request carried, 0 when the upload was withheld; none when `send_fn` errs; `Replied` does not change the steps-left line; update exhaustive `Dispatch` matches (files: src/agent/loop_/tests.rs)
 - [x] T5 [AC3] `Dispatch::Replied` sent from `send_images`; the worker ignores its outcome and propagates only `Err` (files: src/agent/loop_.rs or src/agent/loop_/images.rs)
 - [x] T6 [AC3] Test: `drive_turn` hands `Replied` to `ask` as `AgentAction::Replied { captures }`; update `asks` counters and `seen` vectors that now see it (files: src/app/agent_worker/tests.rs)
-- [ ] T7 [AC3] `AgentAction::Replied { captures: u32 }` + `tool_name` arm; `drive_turn` mapping (files: src/agent/bridge/action.rs, src/app/agent_worker.rs)
+- [x] T7 [AC3] `AgentAction::Replied { captures: u32 }` + `tool_name` arm; `drive_turn` mapping (files: src/agent/bridge/action.rs, src/app/agent_worker.rs)
 - [ ] T8 [AC2] Refactor: `TurnState.tally: TurnMetrics` replaces `steps` and `applied`; mechanical rename at every read site, one commit so it compiles (files: src/app/agent_turn.rs, src/app/agent_poll.rs, src/agent/panel.rs + the tests reading `turn.steps`/`turn.applied`)
 - [ ] T9 [AC1] [AC3] Test: `Replied` is answered `Ok`, gets no row, is not a step (progress row unchanged) and is answered even after the fence tripped; step `Act`s tally refused and repeated (LCV-192 repeat) (files: tests/it/agent/turn_metrics.rs, tests/it/agent/mod.rs)
 - [ ] T10 [AC1] [AC3] Extract `answer_act` from `poll_agent_rx`; `Replied` arm; `tally.step` on step `Act`s; `repeat::is_repeat` (files: src/app/agent_poll.rs, src/agent/repeat.rs)

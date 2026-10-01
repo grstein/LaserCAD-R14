@@ -82,6 +82,7 @@ pub fn poll_agent_rx(app: &mut App) {
                         app.agent.chat.push(("note".to_owned(), text.clone()));
                         AgentOutcome::Ok(text.clone())
                     }
+                    AgentAction::Replied { .. } => AgentOutcome::Ok(String::new()),
                     _ => apply_fenced(app, &action),
                 };
                 if reply.send(outcome).is_err() {
