@@ -251,3 +251,111 @@ fn set_layer_refuses_bad_arguments_naming_the_field() {
         assert_eq!(err.to_string(), format!("set_layer {want}"), "{args}");
     }
 }
+
+/// Three circles on the current layer (Cut), plus the Mark layer.
+fn app_with_three_circles() -> (App, LayerId) {
+    let (mut app, mark) = app_with_mark();
+    for cx in [0, 10, 20] {
+        apply(
+            &mut app,
+            &action("create_circle", json!({"cx":cx,"cy":0,"r":1})),
+        );
+    }
+    (app, mark)
+}
+
+fn layers_of(app: &App) -> Vec<Option<LayerId>> {
+    (0..app.document.entity_count())
+        .map(|i| app.document.entity_layer(i))
+        .collect()
+}
+
+/// LCV-191 AC 1 — every listed entity moves, indices in any order, as one
+/// command; the current layer is untouched.
+#[test]
+fn set_layer_moves_every_listed_entity_as_one_command() {
+    let (mut app, mark) = app_with_three_circles();
+    let cut = LayerId(0);
+    let r0 = app.history.revision();
+    let out = apply(
+        &mut app,
+        &action("set_layer", json!({"indices":[2,0],"layer":"mark"})),
+    );
+    assert_eq!(
+        out,
+        AgentOutcome::Ok(
+            r#"Moved 2 entities to layer "Mark". The drawing now has 3 entities."#.into()
+        )
+    );
+    assert_eq!(layers_of(&app), vec![Some(mark), Some(cut), Some(mark)]);
+    assert_eq!(app.history.revision(), r0 + 1);
+    assert_eq!(app.document.current_layer(), cut);
+    assert!(app.history.undo(&mut app.document));
+    assert_eq!(layers_of(&app), vec![Some(cut); 3]);
+}
+
+/// LCV-191 AC 2 — entities already on the layer are left and counted; when
+/// all are, the call succeeds and commits nothing.
+#[test]
+fn set_layer_leaves_entities_already_there() {
+    let (mut app, mark) = app_with_three_circles();
+    let cut = LayerId(0);
+    apply(
+        &mut app,
+        &action("set_layer", json!({"indices":[1],"layer":"Mark"})),
+    );
+    let r1 = app.history.revision();
+    let out = apply(
+        &mut app,
+        &action("set_layer", json!({"indices":[1,2],"layer":"Mark"})),
+    );
+    assert_eq!(
+        out.text(),
+        r#"Moved 1 entity to layer "Mark" (1 already there). The drawing now has 3 entities."#
+    );
+    assert_eq!(app.history.revision(), r1 + 1);
+    assert_eq!(layers_of(&app), vec![Some(cut), Some(mark), Some(mark)]);
+
+    let r2 = app.history.revision();
+    let out = apply(
+        &mut app,
+        &action("set_layer", json!({"indices":[2,1],"layer":"MARK"})),
+    );
+    assert_eq!(
+        out,
+        AgentOutcome::Ok(r#"2 entities already on layer "Mark"; nothing committed."#.into())
+    );
+    assert_eq!(app.history.revision(), r2, "no empty undo step");
+    assert_eq!(layers_of(&app), vec![Some(cut), Some(mark), Some(mark)]);
+}
+
+/// LCV-191 AC 3, AC 4 — an unknown layer or an out-of-range index is
+/// refused and nothing changes.
+#[test]
+fn set_layer_refuses_an_unknown_layer_or_index() {
+    let (mut app, _) = app_with_three_circles();
+    let r0 = app.history.revision();
+    let out = apply(
+        &mut app,
+        &action("set_layer", json!({"indices":[0],"layer":"Engrave"})),
+    );
+    assert_eq!(
+        out,
+        AgentOutcome::Refused(
+            r#"set_layer layer: unknown layer "Engrave"; expected one of "Cut", "Mark""#.into()
+        )
+    );
+    let out = apply(
+        &mut app,
+        &action("set_layer", json!({"indices":[0,3],"layer":"Mark"})),
+    );
+    let AgentOutcome::Refused(text) = out else {
+        panic!("{out:?}")
+    };
+    assert!(
+        text.starts_with("set_layer indices[1]: 3 is out of range"),
+        "{text}"
+    );
+    assert_eq!(app.history.revision(), r0);
+    assert_eq!(layers_of(&app), vec![Some(LayerId(0)); 3]);
+}
