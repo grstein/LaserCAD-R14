@@ -35,7 +35,7 @@ Prerequisites: LCV-187, LCV-189, LCV-190 Done on `agent-harness`.
 - [x] T9 [AC1][AC2][AC4] `agent_feedback.rs::{feedback, summary}`, `TurnState::fed_at`, and the
   real `answer_act` arm (files: src/app/agent_feedback.rs, src/app/agent_turn.rs,
   src/app/agent_poll.rs)
-- [ ] T10 [AC3][AC5] Test:
+- [x] T10 [AC3][AC5] Test:
   - Setting on with both opt-ins → `Observed` with a PNG. In the loop it is labelled with the last
     call's id, `AuthorizeUpload` is asked before the next send, and a `Canvas image for call <id>
     sent.` note follows.

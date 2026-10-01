@@ -1424,3 +1424,94 @@ fn a_cancelled_feedback_ends_the_turn() {
     );
     assert_eq!(r.requests.len(), 1);
 }
+
+/// A feedback that observes: the summary text and [`PNG`].
+fn observed_feedback() -> Result<AgentOutcome, AgentError> {
+    Ok(AgentOutcome::Observed {
+        text: "Drawing now: 1 entity.".into(),
+        png: PNG.to_vec(),
+    })
+}
+
+/// LCV-195 AC 3, AC 5 — an observed feedback appends its text like any
+/// feedback and rides its image under the last call's id: the upload is
+/// authorised before the next send, a `sent` note follows it, and the steps
+/// count only the tool calls.
+#[test]
+fn an_observed_feedback_rides_under_the_last_call_id() {
+    let mut feedback = observed_feedback;
+    let r = run_fed(
+        |n| match n {
+            1 => named_calls(&["query_entities", "create_line"]),
+            _ => text_reply("seen"),
+        },
+        yes,
+        Some(&mut feedback),
+        10,
+    );
+    assert_eq!(r.result.as_deref().unwrap(), "seen");
+    assert_eq!(r.tools, 2);
+    assert_eq!(
+        tool_texts(&r.messages),
+        [
+            "ok",
+            "ok\nDrawing now: 1 entity.\nSteps left this turn: 8 of 10."
+        ]
+    );
+    let sent: Vec<ChatMessage> = serde_json::from_str(&r.requests[1]).unwrap();
+    assert_eq!(
+        sent[5],
+        ChatMessage::user_parts(vec![
+            ContentPart::text("canvas image for tool call call_1"),
+            ContentPart::png(PNG),
+        ])
+    );
+    assert_eq!(
+        fed_events(&r),
+        [
+            "send 1",
+            "tool query_entities",
+            "tool create_line",
+            "feedback",
+            "authorise",
+            "send 2",
+            "note Canvas image for call call_1 sent.",
+        ]
+    );
+}
+
+/// LCV-195 AC 3 — when the last call itself captured, both images ride
+/// under its id, each labelled and each noted.
+#[test]
+fn a_capture_and_an_observed_feedback_are_both_labelled_and_noted() {
+    let mut feedback = observed_feedback;
+    let r = run_fed(
+        |n| match n {
+            1 => named_calls(&["capture_canvas"]),
+            _ => text_reply("seen"),
+        },
+        yes,
+        Some(&mut feedback),
+        10,
+    );
+    assert_eq!(r.result.as_deref().unwrap(), "seen");
+    let sent: Vec<ChatMessage> = serde_json::from_str(&r.requests[1]).unwrap();
+    let label = || ContentPart::text("canvas image for tool call call_0");
+    assert_eq!(
+        sent[4],
+        ChatMessage::user_parts(vec![
+            label(),
+            ContentPart::png(PNG),
+            label(),
+            ContentPart::png(PNG)
+        ])
+    );
+    assert_eq!(r.authorisations, 1);
+    assert_eq!(
+        notes(&r),
+        [
+            "Canvas image for call call_0 sent.",
+            "Canvas image for call call_0 sent."
+        ]
+    );
+}

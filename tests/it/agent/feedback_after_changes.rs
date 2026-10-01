@@ -103,3 +103,58 @@ fn two_check_kinds_are_joined_with_a_semicolon() {
     );
     assert_eq!(app.agent.turn.tally.steps, 2);
 }
+
+/// Both canvas opt-ins, live.
+fn allow(app: &mut App, allow: bool, supports: bool) {
+    app.settings.agent_allow_canvas_capture = allow;
+    app.settings.agent_model_supports_vision = supports;
+}
+
+const SUMMARY: &str =
+    "Drawing now: 1 entity, X 10.000..50.000 mm, Y 10.000..30.000 mm. CHECK: 2 open ends";
+
+/// AC 3, AC 5 — with both opt-ins on, the feedback observes: the summary,
+/// then the drawing frame's capture text, and a PNG. Still not a step.
+#[test]
+fn with_both_opt_ins_feedback_observes_the_drawing() {
+    let (mut app, tx) = fed_turn(true);
+    allow(&mut app, true, true);
+    answer(&mut app, &tx, line(10.0, 10.0, 50.0, 30.0));
+
+    let got = answer(&mut app, &tx, AgentAction::Feedback);
+
+    let AgentOutcome::Observed { text, png } = got else {
+        panic!("expected Observed, got {got:?}");
+    };
+    let (summary, capture) = text.split_once('\n').expect("summary, then capture");
+    assert_eq!(summary, SUMMARY);
+    assert!(capture.starts_with("Canvas 1024×"), "{capture}");
+    assert!(png.starts_with(b"\x89PNG"), "a PNG");
+    assert_eq!(app.agent.turn.tally.steps, 1, "the line alone");
+    assert_eq!(app.agent.turn.tally.applied, 1);
+}
+
+/// AC 3 — with either opt-in off, the feedback is the text alone.
+#[test]
+fn with_one_opt_in_off_feedback_is_text_only() {
+    for (on_allow, on_supports) in [(true, false), (false, true)] {
+        let (mut app, tx) = fed_turn(true);
+        allow(&mut app, on_allow, on_supports);
+        answer(&mut app, &tx, line(10.0, 10.0, 50.0, 30.0));
+        assert_eq!(answer(&mut app, &tx, AgentAction::Feedback), ok(SUMMARY));
+    }
+}
+
+/// AC 3 — an empty drawing gets no image.
+#[test]
+fn an_empty_drawing_gets_no_image() {
+    let (mut app, tx) = fed_turn(true);
+    allow(&mut app, true, true);
+    answer(&mut app, &tx, line(10.0, 10.0, 50.0, 30.0));
+    answer(&mut app, &tx, AgentAction::Delete { index: 0 });
+    assert_eq!(
+        answer(&mut app, &tx, AgentAction::Feedback),
+        ok("Drawing now: 0 entities. CHECK: no problems found.")
+    );
+    assert_eq!(app.agent.turn.tally.steps, 2);
+}
