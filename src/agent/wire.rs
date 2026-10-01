@@ -477,7 +477,10 @@ mod tests {
             r#"{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,/9j/"}}"#
         );
         let bytes = [0x89, b'P', b'N', b'G'];
-        assert_eq!(ContentPart::png(&bytes), ContentPart::image("image/png", &bytes));
+        assert_eq!(
+            ContentPart::png(&bytes),
+            ContentPart::image("image/png", &bytes)
+        );
     }
 
     /// LCV-145 AC 10/11 — `replace_images` swaps every image part, in every
