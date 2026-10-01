@@ -339,6 +339,9 @@ fn ac8_ac9_ac10_the_settings_dialog_draws_headless_frame() {
 ///
 /// **LCV-153 note**: one more line — the Context tokens field, under the step
 /// budget's sentence.
+///
+/// **LCV-195 note**: two more lines — the Feedback after changes checkbox and
+/// its hint, under the canvas disclosure.
 #[test]
 fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
     let (ctx, mut app) = ctx_and_app();
@@ -372,6 +375,11 @@ fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
             vec![concat!(
                 "When both are on, the agent may send a picture of the drawing ",
                 "(not the window) to the configured provider and model."
+            )],
+            vec!["Feedback after changes"],
+            vec![concat!(
+                "After each reply that changes the drawing, tell the agent its ",
+                "size and CHECK result."
             )],
             vec!["System prompt", "Restore Default"],
             vec![lasercad::agent::DEFAULT_PROMPT],

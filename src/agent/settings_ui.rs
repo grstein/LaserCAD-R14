@@ -17,7 +17,8 @@ use crate::io::settings::Settings;
 
 mod copy;
 use copy::{
-    CANVAS_DISCLOSURE, LIVE_EDIT_NOTE, MODEL_HINT, PLAINTEXT_KEY_WARNING, STEP_BUDGET_HELP,
+    CANVAS_DISCLOSURE, FEEDBACK_HINT, LIVE_EDIT_NOTE, MODEL_HINT, PLAINTEXT_KEY_WARNING,
+    STEP_BUDGET_HELP,
 };
 
 /// Minimum width of every text field, in logical pixels.
@@ -76,6 +77,7 @@ pub struct AgentSettingsFrame {
 ///   `settings.agent_context_tokens` (LCV-153).
 /// - **Allow canvas capture** / **Model supports images** — the two LCV-145
 ///   opt-ins, followed by [`CANVAS_DISCLOSURE`].
+/// - **Feedback after changes** — the LCV-195 opt-in, followed by its hint.
 /// - **System prompt** — a multiline editor over the *effective* prompt
 ///   (`prompt::resolve`), with a **Restore Default** button (LCV-143). The
 ///   text is copied into a per-frame buffer, so only a real edit writes
@@ -172,6 +174,11 @@ pub fn draw_agent_settings(ui: &mut egui::Ui, settings: &mut Settings) -> AgentS
         )
         .changed();
     ui.add(egui::Label::new(egui::RichText::new(CANVAS_DISCLOSURE).small()).wrap());
+
+    // LCV-195: off by default; read live after each reply.
+    let feedback = &mut settings.agent_feedback_after_changes;
+    changed |= ui.checkbox(feedback, "Feedback after changes").changed();
+    ui.add(egui::Label::new(egui::RichText::new(FEEDBACK_HINT).small()).wrap());
 
     changed |= prompt_editor(ui, settings);
 

@@ -49,7 +49,7 @@ Prerequisites: LCV-187, LCV-189, LCV-190 Done on `agent-harness`.
   src/agent/loop_/batch.rs)
 - [x] T12 [AC7] Test: Agent Settings shows the checkbox `Feedback after changes` and the hint text,
   and toggling it sets `changed` (files: src/agent/settings_ui/tests.rs)
-- [ ] T13 [AC7] The checkbox and hint (files: src/agent/settings_ui.rs,
+- [x] T13 [AC7] The checkbox and hint (files: src/agent/settings_ui.rs,
   src/agent/settings_ui/copy.rs)
 - [ ] T14 Docs: AGENTS.md purity list (`loop_/batch.rs`, `settings_ui/copy.rs`); CHANGELOG line
   (files: AGENTS.md, CHANGELOG.md)

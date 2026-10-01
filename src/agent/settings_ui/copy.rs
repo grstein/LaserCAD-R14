@@ -27,3 +27,7 @@ pub(super) const LIVE_EDIT_NOTE: &str =
 /// What the two canvas opt-ins together allow (LCV-145 AC 2, ADR 0011).
 pub(super) const CANVAS_DISCLOSURE: &str = "When both are on, the agent may send a picture of the drawing \
      (not the window) to the configured provider and model.";
+
+/// The hint under `Feedback after changes` (LCV-195 AC 7).
+pub(super) const FEEDBACK_HINT: &str =
+    "After each reply that changes the drawing, tell the agent its size and CHECK result.";
