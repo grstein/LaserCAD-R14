@@ -2,6 +2,7 @@
 
 mod bed_dialog;
 mod canvas_legibility;
+mod check_dialog;
 mod compact_chrome_and_action_hints;
 mod cursor_and_picking;
 mod dialog_keyboard;
