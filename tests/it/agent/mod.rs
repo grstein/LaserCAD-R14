@@ -5,6 +5,7 @@ mod check_drawing;
 mod default_prompt;
 mod drawing_batch;
 mod entity_ids;
+mod feedback_after_changes;
 mod layers;
 mod measure;
 mod memory;
