@@ -50,6 +50,6 @@
       `ignored 1 path (data error)`), `path-curves` (a Bézier and an elliptical arc reported)
       (files: tests/fixtures/svg/path-radii.{svg,expected}, tests/fixtures/svg/path-error.{svg,expected},
       tests/fixtures/svg/path-curves.{svg,expected})
-- [ ] T15 Coverage doc path-data rows marked done by LCV-172, with Béziers and ellipses pointing at
+- [x] T15 Coverage doc path-data rows marked done by LCV-172, with Béziers and ellipses pointing at
       LCV-176/177. CHANGELOG `Changed`: Open reads every path command and reports the curves it
       can't import yet (files: docs/research/svg-spec-coverage.md, CHANGELOG.md)

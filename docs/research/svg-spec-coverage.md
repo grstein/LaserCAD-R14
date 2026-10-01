@@ -47,7 +47,7 @@ Legend used below: ✅ supported · ◐ partial · ❌ missing · ⛔ out of sco
   - Entities: `<line>`, `<circle>`, and circular arcs as `<path d="M … A r r 0 large sweep …"/>`.
   - Numbers use `{:.4}` mm, and Y is mirrored via `util::flip_y`.
 - **Import**: `io/svg/import.rs::import_svg`, `Walk::collect`, `parse_line`, `parse_circle`,
-  `parse_path`, plus `io/svg/header.rs::parse_bed` and `io/svg/layers.rs::LayerReader`.
+  `path_data.rs::parse_path_data` and `import/path.rs::path_entities` (LCV-172), plus `io/svg/header.rs::parse_bed` and `io/svg/layers.rs::LayerReader`.
   - Parsing uses `roxmltree`.
   - It reads back what the exporter writes and little else.
 
@@ -99,15 +99,15 @@ The owning spec is the Draft that brings the feature to the target (§6).
 
 | Feature | Export | Import | Target / note | Spec |
 |---|---|---|---|---|
-| Grammar: commas, compact form (`M10,20A5…`), exponents, glued flags, implicit repeated commands | ✅ writes a subset | ❌ splits on whitespace and needs exactly `M x y A …` (11 tokens) | The full SVG 2 path-data BNF | 172 |
-| `M`/`m` | ✅ `M` | ◐ `m` is read as **absolute** | Absolute and relative | 172 |
-| `L`/`l`, `H`/`h`, `V`/`v`, `Z`/`z` | — (lines are `<line>`) | ❌ the path is skipped silently | Lines. `Z` closes to the subpath start; SVG 2's "segment-completing" close rule applies. | 172 |
-| Multiple subpaths in one `d` | — | ❌ everything after the 11th token is **dropped silently** | Every subpath | 172 |
-| `A`/`a`, circular (rx = ry, φ = 0) | ✅ | ◐ absolute only | OK | 172 |
-| `A`, elliptical (rx ≠ ry or φ ≠ 0) | — | ❌ `MalformedPath` rejects the file | Native elliptical arc | 172, 176 |
-| Arc out-of-range correction (rx = 0 → line, negative r → absolute value, λ > 1 → scale radii by √λ) | — | ❌ chord > 2r + 1e-9 fails with `MalformedPath` | Implementation Notes, "Correction of out-of-range radii" | 172 |
-| `C`/`c`, `S`/`s`, `Q`/`q`, `T`/`t` Béziers | ⛔ by contract today | ❌ skipped silently | Native Bézier entities; the smooth-command reflection rules apply. | 172, 177 |
-| Error handling | — | a bad arc fails the whole file; other paths are skipped silently | Spec: "render up to (but not including) the command containing the first error". LaserCAD imports up to the error and **reports** it. | 172 |
+| Grammar: commas, compact form (`M10,20A5…`), exponents, glued flags, implicit repeated commands | ✅ writes a subset | ✅ done by LCV-172 (`io/svg/path_data.rs`) | The full SVG 2 path-data BNF | 172 |
+| `M`/`m` | ✅ `M` | ✅ done by LCV-172 | Absolute and relative | 172 |
+| `L`/`l`, `H`/`h`, `V`/`v`, `Z`/`z` | — (lines are `<line>`) | ✅ done by LCV-172; zero-length segments draw nothing | Lines. `Z` closes to the subpath start; SVG 2's "segment-completing" close rule applies. | 172 |
+| Multiple subpaths in one `d` | — | ✅ done by LCV-172 | Every subpath | 172 |
+| `A`/`a`, circular (rx = ry; φ ignored) | ✅ | ✅ done by LCV-172, absolute and relative | OK | 172 |
+| `A`, elliptical (rx ≠ ry) | — | ◐ LCV-172: imports nothing, reported as `path elliptical arc` | Native elliptical arc | 176 |
+| Arc out-of-range correction (rx = 0 → line, negative r → absolute value, λ > 1 → scale radii by √λ) | — | ✅ done by LCV-172; equal endpoints omit the arc | Implementation Notes, "Correction of out-of-range radii" | 172 |
+| `C`/`c`, `S`/`s`, `Q`/`q`, `T`/`t` Béziers | ⛔ by contract today | ◐ LCV-172: import nothing, advance the current point, reported as `path C`/`S`/`Q`/`T` | Native Bézier entities; the smooth-command reflection rules apply. | 177 |
+| Error handling | — | ✅ done by LCV-172: segments before the error are imported, `path (data error)` is reported, the file opens | Spec: "render up to (but not including) the command containing the first error". LaserCAD imports up to the error and **reports** it. | 172 |
 | `pathLength` | — | — | ⛔ affects dashing and text-on-path only | — |
 
 ### 3.5 Basic shapes (ch. 10)
@@ -146,9 +146,10 @@ The owning spec is the Draft that brings the feature to the target (§6).
 **Import** (`src/io/svg/import.rs`, `header.rs`). The behaviors below contradict the target. Each
 one becomes an acceptance criterion of the owning spec:
 
-1. `parse_path` reads relative `m`/`a` as absolute. A file from another tool opens with wrong
-   geometry and no error. (LCV-172)
-2. `parse_path` ignores every token after the 11th, which drops subpaths silently. (LCV-172)
+1. ~~`parse_path` reads relative `m`/`a` as absolute. A file from another tool opens with wrong
+   geometry and no error.~~ **Done by LCV-172**: the full SVG 2 path-data grammar.
+2. ~~`parse_path` ignores every token after the 11th, which drops subpaths silently.~~ **Done by
+   LCV-172**: every subpath is imported.
 3. ~~`Walk::collect` descends into every unknown element, so geometry inside `defs`, `symbol`,
    `clipPath`, `mask`, `marker` and `pattern` is imported as cut geometry.~~ **Done by LCV-171**:
    only `svg`, `g` and `a` are descended into; never-rendered elements import nothing and are
@@ -158,9 +159,9 @@ one becomes an acceptance criterion of the owning spec:
    report.~~ **Done by LCV-171**: `ImportedSvg::report`, shown on the command line after Open.
 6. `parse_circle` rejects `r = 0`, and a missing `x1`/`cx`… is an error. The spec says "not
    rendered" and "default 0". (LCV-174)
-7. `parse_path` rejects a chord longer than `2r + EPSILON` (1e-9), where the spec scales the radii
+7. ~~`parse_path` rejects a chord longer than `2r + EPSILON` (1e-9), where the spec scales the radii
    up. *Suspected*, to be confirmed by a test: a semicircular arc may fail to reopen after the
-   `{:.4}` rounding in `encode_entity`. (LCV-172)
+   `{:.4}` rounding in `encode_entity`.~~ **Done by LCV-172**: SVG 2 §F.6.6 applies to every arc.
 8. `header.rs::parse_bed` rejects every unit except `mm` and any viewBox not at `0 0`. (LCV-173)
 
 Existing tests that pin these behaviors (for example "silently skips non-arc paths" and "rejects

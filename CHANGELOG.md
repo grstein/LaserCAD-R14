@@ -10,6 +10,7 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ### Changed
 
+- Open reads every SVG path command: `M L H V Z A`, absolute or relative, every subpath of a `d`, and compact data from Inkscape, Illustrator or LightBurn (commas, `1-2.5.5`, exponents, glued arc flags). Arcs with out-of-range radii are corrected as SVG 2 says (a zero radius draws a line), and a circular arc imports whatever its rotation. Curves it cannot import yet (`C S Q T` Béziers, elliptical arcs) import nothing and are reported (`path C`, `path elliptical arc`, …). A path with a syntax error keeps what comes before the error, reports `path (data error)`, and no longer fails the whole file. See LCV-172.
 - Open and Open Recent say what an SVG import ignored, on the command line: for example `Ignored: 2 image, 1 transform`. Elements LaserCAD does not import (images, text, rectangles, …), path data it cannot read, and properties it does not apply yet (`transform`, `fill`, `opacity`, …) are counted. Geometry inside elements that are never drawn (`<defs>`, `<clipPath>`, `<mask>`, `<marker>`, `<pattern>`, …) is no longer imported as cut geometry. A file whose root is not an SVG-namespace `<svg>` (a missing `xmlns` included) is refused. See LCV-171.
 - A layer name with a control character (a tab, a bell, …) is refused with the reason: in the Layers dialog, by the agent, and when a drawing or SVG is opened (the SVG import reports a malformed layer). Such a name used to be written raw into the SVG, giving a file no program could reopen. See LCV-170.
 
