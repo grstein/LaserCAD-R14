@@ -161,3 +161,93 @@ fn query_entities_reports_each_entity_layer() {
         "{text}"
     );
 }
+
+/// LCV-191 AC 1 — `set_layer {indices, layer}` parses into one set action
+/// carrying the layer name, indices in the order given.
+#[test]
+fn set_layer_parses_into_a_layer_set() {
+    use lasercad::agent::SetOp;
+    assert_eq!(
+        action("set_layer", json!({"indices":[3,0,1],"layer":"Mark"})),
+        AgentAction::Set {
+            indices: vec![3, 0, 1],
+            op: SetOp::Layer {
+                layer: "Mark".into()
+            },
+        }
+    );
+    assert_eq!(
+        action("set_layer", json!({"indices":[0],"layer":"m"})).tool_name(),
+        "set_layer"
+    );
+}
+
+/// LCV-191 AC 1, AC 4 — a missing or malformed `layer`, a missing
+/// `indices`, any `index`, and each bad list are refused naming the field.
+#[test]
+fn set_layer_refuses_bad_arguments_naming_the_field() {
+    let name = "expected the name of an existing layer, 1 to 64 characters";
+    let list = "expected a list of 1 to 1000 distinct entity indices";
+    let index = "expected a non-negative integer (an index from query_entities)";
+    let too_many: Vec<usize> = (0..1001).collect();
+    let cases = [
+        (json!({"indices":[0]}), format!("layer: missing; {name}")),
+        (
+            json!({"indices":[0],"layer":7}),
+            format!("layer: not a string; {name}"),
+        ),
+        (
+            json!({"indices":[0],"layer":""}),
+            format!("layer: has 0 characters; {name}"),
+        ),
+        (
+            json!({"indices":[0],"layer":"x".repeat(65)}),
+            format!("layer: has 65 characters; {name}"),
+        ),
+        (json!({"layer":"Mark"}), format!("indices: missing; {list}")),
+        (
+            json!({"indices":null,"layer":"Mark"}),
+            format!("indices: missing; {list}"),
+        ),
+        (
+            json!({"index":0,"layer":"Mark"}),
+            "index: not accepted; expected indices instead".to_owned(),
+        ),
+        (
+            json!({"index":0,"indices":[0],"layer":"Mark"}),
+            "index: not accepted; expected indices instead".to_owned(),
+        ),
+        (
+            json!({"indices":[],"layer":"Mark"}),
+            format!("indices: empty list; {list}"),
+        ),
+        (
+            json!({"indices":too_many,"layer":"Mark"}),
+            format!("indices: has 1001 entries; {list}"),
+        ),
+        (
+            json!({"indices":3,"layer":"Mark"}),
+            format!("indices: not a list; {list}"),
+        ),
+        (
+            json!({"indices":[0,4,2,4],"layer":"Mark"}),
+            "indices[3]: duplicate of indices[1]; expected distinct indices".to_owned(),
+        ),
+        (
+            json!({"indices":[0,-1],"layer":"Mark"}),
+            format!("indices[1]: -1 is not an index; {index}"),
+        ),
+        (
+            json!({"indices":[1.5],"layer":"Mark"}),
+            format!("indices[0]: 1.5 is not an index; {index}"),
+        ),
+        (
+            json!({"indices":[0,"2"],"layer":"Mark"}),
+            format!("indices[1]: not a number; {index}"),
+        ),
+    ];
+    for (args, want) in cases {
+        let err = parse_tool_call("set_layer", &args).expect_err("refused");
+        assert_eq!(err.to_string(), format!("set_layer {want}"), "{args}");
+    }
+}
