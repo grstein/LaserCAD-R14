@@ -1,0 +1,21 @@
+# LCV-177 AC 1..4 — cubic and quadratic Béziers, absolute and relative, with
+# S/T reflection and under a transform. One user unit = 1 mm, world y = 100 - svg y.
+bed 100 100
+# Every stroke is red and no layer is declared, so one `#ff0000` layer.
+layer "#ff0000" #ff0000 output=1 current=1
+# M 10 10 C 20 0 30 20 40 10.
+cubic 0 10 90 20 100 30 80 40 90
+# S 60 0 70 10: the first control reflects (30, 20) about (40, 10) to (50, 0).
+cubic 0 40 90 50 100 60 100 70 90
+# M 10 50 Q 20 40 30 50.
+quadratic 0 10 50 20 60 30 50
+# T 50 50: the control reflects (20, 40) about (30, 50) to (40, 60).
+quadratic 0 30 50 40 40 50 50
+# m 10 80 c 5 -5 10 5 15 0: (10, 80) (15, 75) (20, 85) (25, 80).
+cubic 0 10 20 15 25 20 15 25 20
+# q 5 5 10 0 from (25, 80): (25, 80) (30, 85) (35, 80).
+quadratic 0 25 20 30 15 35 20
+# translate(60 60) scale(2) maps (0, 0) (5, 10) (10, 0) to (60, 60) (70, 80) (80, 60).
+quadratic 0 60 40 70 20 80 40
+# Every point at (90, 90): nothing imported, reported.
+ignored 1 path curve (degenerate)

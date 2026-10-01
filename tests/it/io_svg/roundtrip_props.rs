@@ -3,8 +3,8 @@
 //! Random documents survive `import_svg(&export_svg(doc))`: a random bed; one
 //! to five layers with random names (XML-special characters, spaces and
 //! non-ASCII included), colors, Output flags, order and current layer; lines,
-//! circles, arcs, ellipses and elliptical arcs (LCV-176) spread over those
-//! layers. Bed, layers, current layer and
+//! circles, arcs, ellipses and elliptical arcs (LCV-176), cubic and quadratic
+//! Béziers (LCV-177) spread over those layers. Bed, layers, current layer and
 //! each entity's layer come back. The file groups entities by layer, so they
 //! return in layer order, stable within a layer. Every case exercises the Y
 //! mirror around the document's own bed height and the arc sweep-flag inversion.
@@ -29,10 +29,13 @@
 //! radii differ by at least 5 % so the rotation is well defined, and arcs
 //! keep [`CHORD_CLEARANCE`] from a parametric half turn on their smaller
 //! radius, so the import never rescales them (SVG 2 §F.6.6).
+//!
+//! A Bézier's file form is its control points, so each comes back within
+//! `FORMAT_TOL` and the degree is kept (LCV-177 AC 13).
 
 use core::f64::consts::{PI, SQRT_2, TAU};
 use lasercad::document::{Document, Entity, Layer, LayerId};
-use lasercad::geometry::{Arc, Circle, Ellipse, EllipseSpan, Line, Vec2};
+use lasercad::geometry::{Arc, Bezier, Circle, Ellipse, EllipseSpan, Line, Vec2};
 use lasercad::io::svg::{export_svg, import_svg};
 use lasercad::util::{BED_MAX_MM, BED_MIN_MM};
 use proptest::prelude::*;
@@ -139,11 +142,26 @@ fn ellipse(bed: [f64; 2]) -> impl Strategy<Value = Entity> {
         })
 }
 
+/// A cubic or quadratic Bézier with every point on the bed.
+fn bezier(bed: [f64; 2]) -> impl Strategy<Value = Entity> {
+    let p = move || point_in(bed);
+    prop_oneof![
+        (p(), p(), p()).prop_map(|(a, b, c)| Entity::Bezier(Bezier::Quadratic([a, b, c]))),
+        (p(), p(), p(), p()).prop_map(|(a, b, c, d)| Entity::Bezier(Bezier::Cubic([a, b, c, d]))),
+    ]
+}
+
 fn entity(bed: [f64; 2], clear_of_diameter: bool) -> impl Strategy<Value = Entity> {
     let line = (point_in(bed), point_in(bed)).prop_map(|(a, b)| Entity::Line(Line::new(a, b)));
     let circle =
         (point_in(bed), 0.001..1000.0f64).prop_map(|(c, r)| Entity::Circle(Circle::new(c, r)));
-    prop_oneof![line, circle, arc(bed, clear_of_diameter), ellipse(bed)]
+    prop_oneof![
+        line,
+        circle,
+        arc(bed, clear_of_diameter),
+        ellipse(bed),
+        bezier(bed)
+    ]
 }
 
 /// A layer name: a random run of XML-special, space, punctuation and
@@ -269,6 +287,10 @@ fn same_entity(want: &Entity, got: &Entity) -> Result<(), String> {
                 && (half_turn || (w.sweep_angle() > PI) == (g.sweep_angle() > PI))
         }
         (Entity::Ellipse(w), Entity::Ellipse(g)) => same_ellipse(w, g),
+        (Entity::Bezier(w), Entity::Bezier(g)) => {
+            w.points().len() == g.points().len()
+                && w.points().iter().zip(g.points()).all(|(a, b)| near(*a, *b))
+        }
         _ => false,
     };
     if ok {

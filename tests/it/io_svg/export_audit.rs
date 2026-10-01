@@ -3,7 +3,7 @@
 //! same document, and is byte-identical to the pre-LCV-170 output.
 
 use lasercad::document::{Document, Entity, Layer, LayerId};
-use lasercad::geometry::{Arc, Circle, Ellipse, EllipseSpan, Line, Vec2};
+use lasercad::geometry::{Arc, Bezier, Circle, Ellipse, EllipseSpan, Line, Vec2};
 use lasercad::io::svg::{export_layer_svg, export_svg};
 use std::f64::consts::PI;
 
@@ -84,13 +84,22 @@ fn ellipse(x: f64, y: f64, radii: (f64, f64), rotation: f64, span: Option<Ellips
     ))
 }
 
+fn cubic(p: [(f64, f64); 4]) -> Entity {
+    Entity::Bezier(Bezier::Cubic(p.map(|(x, y)| Vec2::new(x, y))))
+}
+
+fn quadratic(p: [(f64, f64); 3]) -> Entity {
+    Entity::Bezier(Bezier::Quadratic(p.map(|(x, y)| Vec2::new(x, y))))
+}
+
 fn span(start: f64, end: f64, ccw: bool) -> Option<EllipseSpan> {
     Some(EllipseSpan { start, end, ccw })
 }
 
 /// The audit set (AC 5): an empty document; each entity kind, including
 /// small, large, clockwise, half-turn and off-bed arcs, and plain, turned
-/// and partial ellipses (LCV-176); layers with Output on
+/// and partial ellipses (LCV-176), cubic and quadratic Béziers, closed and
+/// off-bed (LCV-177); layers with Output on
 /// and off, an empty layer and a current layer that is not the first; names
 /// with `& < > " '` and non-ASCII characters.
 fn audit_set() -> Vec<(&'static str, Document)> {
@@ -113,8 +122,17 @@ fn audit_set() -> Vec<(&'static str, Document)> {
             ellipse(120.0, 60.0, (15.5, 30.25), 0.7, None),
             ellipse(60.0, 150.0, (25.0, 10.0), -0.4, span(0.3, 4.0, true)),
             ellipse(60.0, 150.0, (25.0, 10.0), 2.0, span(1.0, -1.5, false)),
+            cubic([(10.0, 10.0), (20.5, 80.0), (60.0, -5.25), (90.123_4, 30.0)]),
+            cubic([
+                (200.0, 100.0),
+                (260.0, 40.0),
+                (260.0, 160.0),
+                (200.0, 100.0),
+            ]),
+            quadratic([(5.0, 5.0), (150.0, 250.0), (295.0, 5.0)]),
+            quadratic([(-20.0, 0.0), (0.001, 1.0), (20.0, 0.0)]),
         ],
-        vec![LayerId(0); 14],
+        vec![LayerId(0); 18],
     )
     .expect("one default layer");
     let layered = Document::from_parts(
@@ -131,8 +149,9 @@ fn audit_set() -> Vec<(&'static str, Document)> {
             circle(200.0, 150.0, 25.0),
             arc(30.0, 40.0, 8.0, 0.25, 4.0, true),
             line(12.3456, 0.0, 12.3456, 300.0),
+            quadratic([(1.0, 2.0), (3.0, 4.0), (5.0, 2.0)]),
         ],
-        vec![LayerId(0), LayerId(3), LayerId(1), LayerId(3)],
+        vec![LayerId(0), LayerId(3), LayerId(1), LayerId(3), LayerId(0)],
     )
     .expect("valid layer set");
     vec![
@@ -444,6 +463,12 @@ fn audit_documents_survive_export_and_reopen() {
                             near(label, "end", ge, we);
                         }
                         (got, want) => assert_eq!(got, want, "{label}: full vs arc"),
+                    }
+                }
+                (Entity::Bezier(g), Entity::Bezier(w)) => {
+                    assert_eq!(g.points().len(), w.points().len(), "{label}: degree");
+                    for (gp, wp) in g.points().iter().zip(w.points()) {
+                        near(label, "control point", *gp, *wp);
                     }
                 }
                 _ => panic!("{label}: kind {got:?} vs {want:?}"),

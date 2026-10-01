@@ -13,6 +13,8 @@
 //! arc 1 cx cy r start_deg end_deg ccw|cw
 //! ellipse 0 cx cy rx ry rotation_deg [start_deg end_deg ccw|cw]
 //!                                            # LCV-176: span angles parametric
+//! cubic 0 x0 y0 x1 y1 x2 y2 x3 y3           # LCV-177: control points in order
+//! quadratic 0 x0 y0 x1 y1 x2 y2
 //! error MalformedLayer                      # alone: import must fail so
 //! ignored 2 path (unsupported data)         # LCV-171: one import-report entry,
 //!                                            # count first, label to end of line;
@@ -68,6 +70,12 @@ pub enum ExpEntity {
         ry: f64,
         rotation: f64,
         span: Option<(f64, f64, bool)>,
+    },
+    /// LCV-177: `p` is the control points' `x y` pairs in order, 6 values
+    /// for a quadratic, 8 for a cubic.
+    Bezier {
+        layer: usize,
+        p: Vec<f64>,
     },
 }
 
@@ -125,6 +133,11 @@ pub fn parse(text: &str) -> Result<Expected, String> {
             }
             "arc" => entities.push(arc(rest).map_err(at)?),
             "ellipse" => entities.push(ellipse(rest).map_err(at)?),
+            "cubic" | "quadratic" => {
+                let count = if head == "cubic" { 8 } else { 6 };
+                let (layer, p) = indexed(rest, count).map_err(at)?;
+                entities.push(ExpEntity::Bezier { layer, p });
+            }
             "ignored" => report.push(ignored(rest).map_err(at)?),
             "error" if rest.len() == 1 && ERROR_VARIANTS.contains(&rest[0].as_str()) => {
                 error = Some(rest[0].clone());
@@ -150,7 +163,8 @@ pub fn parse(text: &str) -> Result<Expected, String> {
         ExpEntity::Line { layer, .. }
         | ExpEntity::Circle { layer, .. }
         | ExpEntity::Arc { layer, .. }
-        | ExpEntity::Ellipse { layer, .. } => *layer,
+        | ExpEntity::Ellipse { layer, .. }
+        | ExpEntity::Bezier { layer, .. } => *layer,
     };
     if let Some(e) = entities.iter().find(|e| layer_of(e) >= layers.len()) {
         return Err(format!("entity names missing layer {}", layer_of(e)));
@@ -343,6 +357,33 @@ fn parses_ellipse_records() {
         ]
     );
     assert!(parse("bed 1 1\nlayer \"C\" #ff0000 output=1 current=1\nellipse 0 1 2 3\n").is_err());
+}
+
+/// LCV-177: a cubic and a quadratic record; a wrong count is an error.
+#[test]
+fn parses_bezier_records() {
+    let text = "bed 10 10\nlayer \"Cut\" #ff0000 output=1 current=1\n\
+        cubic 0 1 2 3 4 5 6 7 8\n\
+        quadratic 0 1 2 3 4 5 6\n";
+    let Expected::Doc { entities, .. } = parse(text).unwrap() else {
+        panic!("expected a document");
+    };
+    assert_eq!(
+        entities,
+        [
+            ExpEntity::Bezier {
+                layer: 0,
+                p: vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+            },
+            ExpEntity::Bezier {
+                layer: 0,
+                p: vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            },
+        ]
+    );
+    let head = "bed 1 1\nlayer \"C\" #ff0000 output=1 current=1\n";
+    assert!(parse(&format!("{head}cubic 0 1 2 3 4 5 6\n")).is_err());
+    assert!(parse(&format!("{head}quadratic 0 1 2 3 4 5 6 7 8\n")).is_err());
 }
 
 #[test]

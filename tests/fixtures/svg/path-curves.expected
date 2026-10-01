@@ -1,9 +1,11 @@
-# LCV-172 AC 7 — a cubic Bézier imports nothing, moves the current point to
-# its endpoint, and is reported. LCV-176 AC 1 — the elliptical arc
+# LCV-172 AC 7, LCV-177 AC 1 — a cubic Bézier imports as a cubic entity and
+# moves the current point to its endpoint. LCV-176 AC 1 — the elliptical arc
 # (rx 20 != ry 10) imports as an elliptical arc. World y = 100 - svg y.
 bed 100 100
 # LCV-175: every stroke is red and no layer is declared, so one `#ff0000` layer.
 layer "#ff0000" #ff0000 output=1 current=1
+# M 10 10 C 20 0 30 20 40 10, mirrored.
+cubic 0 10 90 20 100 30 80 40 90
 # After C, the current point is (40, 10); L 40 30.
 line 0 40 90 40 70
 # A 20 10 0 0 1 80 30 from (40, 30): the chord is the major axis (lambda = 1),
@@ -13,4 +15,3 @@ line 0 40 90 40 70
 ellipse 0 60 70 20 10 0 -180 0 cw
 # After A, the current point is (80, 30); L 80 50.
 line 0 80 70 80 50
-ignored 1 path C

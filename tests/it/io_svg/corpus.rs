@@ -202,6 +202,12 @@ fn compare_entities(doc: &Document, want: &[ExpEntity]) -> Vec<String> {
                     && same_angle(e.rotation, *rotation)
                     && spans
             }
+            (Entity::Bezier(b), ExpEntity::Bezier { layer, p }) => {
+                let got: Vec<f64> = b.points().iter().flat_map(|q| [q.x, q.y]).collect();
+                layer_index(i) == Some(*layer)
+                    && got.len() == p.len()
+                    && got.iter().zip(p).all(|(a, b)| close(*a, *b))
+            }
             _ => false,
         };
         if !ok {

@@ -60,7 +60,7 @@
 - [x] T21 [AC1, AC4] `path_entities` maps curve points through the CTM and `flip_y`, notes the
   degenerate label; LCV-172 unit tests expecting `path C|S|Q|T` rewritten (files:
   src/io/svg/import/path.rs, src/io/svg/import/tests.rs)
-- [ ] T22 [AC13] Test: a proptest round trip of cubics and quadratics on random layers within
+- [x] T22 [AC13] Test: a proptest round trip of cubics and quadratics on random layers within
   `FORMAT_TOL`, kind preserved; a corpus `cubic`/`quadratic` record, one fixture pair, and the
   LCV-172 fixtures that expected `ignored … path C|S|Q|T` updated (files:
   tests/it/io_svg/roundtrip_props.rs, tests/it/io_svg/corpus/expected.rs,
