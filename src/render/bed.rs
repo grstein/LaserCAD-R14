@@ -124,6 +124,7 @@ pub fn draw_bed(painter: &egui::Painter, rect: egui::Rect, camera: &Camera, bed:
         bed_screen_rect,
         0.0,
         egui::Stroke::new(1.5_f32, egui::Color32::from_gray(160)),
+        egui::StrokeKind::Middle,
     );
 
     // Draw a dark translucent overlay outside the bed area.
@@ -261,7 +262,8 @@ mod tests {
     #[test]
     fn draw_bed_does_not_panic_on_degenerate_inputs() {
         let ctx = egui::Context::default();
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             let painter = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Background,
                 egui::Id::new("test_bed"),

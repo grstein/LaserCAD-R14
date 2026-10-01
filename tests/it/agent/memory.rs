@@ -38,14 +38,14 @@ fn locate(runs: &[Run], label: &str) -> egui::Pos2 {
 /// Hover `pos` for a frame, then click it.
 fn click(ctx: &egui::Context, app: &mut App, pos: egui::Pos2) {
     let hover = vec![egui::Event::PointerMoved(pos)];
-    let _ = ctx.run(raw_input_at(SCREEN, hover), |c| app.update_ui(c));
-    let _ = ctx.run(raw_input_at(SCREEN, click_events(pos)), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input_at(SCREEN, hover), |ui| app.update_ui(ui));
+    let _ = ctx.run_ui(raw_input_at(SCREEN, click_events(pos)), |ui| {
+        app.update_ui(ui)
     });
 }
 
 fn frame(ctx: &egui::Context, app: &mut App, events: Vec<egui::Event>) {
-    let _ = ctx.run(raw_input_at(SCREEN, events), |c| app.update_ui(c));
+    let _ = ctx.run_ui(raw_input_at(SCREEN, events), |ui| app.update_ui(ui));
 }
 
 /// AC 8 — "Context tokens" is one integer field in AI Settings: a real
@@ -68,12 +68,10 @@ fn ac8_the_context_tokens_edit_persists_through_done() {
     let runs = paint::painted_runs(&ctx, &mut app);
     assert!(runs.iter().any(|r| r.text.trim() == "Context tokens"));
     click(&ctx, &mut app, locate(&runs, "128000"));
+    // No Enter: it is the dialog's own Close (LCV-169), and the click below
+    // landed on the fading window under egui 0.29. The field updates while
+    // editing.
     frame(&ctx, &mut app, vec![egui::Event::Text("64000".to_owned())]);
-    frame(
-        &ctx,
-        &mut app,
-        harness::key_events(egui::Key::Enter, egui::Modifiers::NONE),
-    );
     assert_eq!(app.settings.agent_context_tokens, 64_000);
 
     let runs = paint::painted_runs(&ctx, &mut app);

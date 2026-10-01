@@ -24,8 +24,14 @@ use recent::recent_submenu;
 use row::{check_row, menu_row, slot_text};
 
 /// Render the menubar strip.  Must be the first panel in `App::update`.
+///
+/// Menus close only on a click outside them or on `ui.close()`, as egui 0.29's
+/// `menu::bar` did: the toggle rows (Grid, Snap, Object Snap, Ortho) keep their
+/// menu open, and every action row closes its own (LCV-180).
 pub fn draw_menubar(ui: &mut egui::Ui, app: &mut App) {
-    egui::menu::bar(ui, |ui| {
+    let config =
+        egui::menu::MenuConfig::new().close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside);
+    egui::MenuBar::new().config(config).ui(ui, |ui| {
         file_menu(ui, app);
         edit_menu(ui, app);
         view_menu(ui, app);
@@ -42,27 +48,27 @@ fn file_menu(ui: &mut egui::Ui, app: &mut App) {
         // whether to act immediately or park the action. Save is not
         // destructive and keeps calling `action_save` directly.
         if menu_row(ui, Some(menu::new_file), "New", "Ctrl+N").clicked() {
-            ui.close_menu();
+            ui.close();
             app.request_new();
         }
         if menu_row(ui, Some(menu::open), "Open…", "Ctrl+O").clicked() {
-            ui.close_menu();
+            ui.close();
             app.request_open();
         }
         let recent = slot_text(ui, "Open Recent");
         ui.menu_button(recent, |ui| recent_submenu(ui, app));
         if menu_row(ui, Some(menu::save), "Save", "Ctrl+S").clicked() {
-            ui.close_menu();
+            ui.close();
             app.action_save();
         }
         if menu_row(ui, None, "Save As…", "Ctrl+Shift+S").clicked() {
-            ui.close_menu();
+            ui.close();
             app.action_save_as();
         }
         // LCV-156 AC 10: one LaserGRBL file per Output layer, beside the
         // saved drawing; no dialog, the file names go to the feedback line.
         if menu_row(ui, None, "Export Layers", "").clicked() {
-            ui.close_menu();
+            ui.close();
             crate::io::action_export_layers(app);
         }
         ui.separator();
@@ -70,12 +76,12 @@ fn file_menu(ui: &mut egui::Ui, app: &mut App) {
         // the File menu. Opening it only parks a draft; nothing is committed
         // until OK (see `src/app/bed_dialog.rs`).
         if menu_row(ui, None, "Bed Size…", "").clicked() {
-            ui.close_menu();
+            ui.close();
             app.bed_dialog = Some(app.document.bed_mm);
         }
         ui.separator();
         if menu_row(ui, None, "Exit", "").clicked() {
-            ui.close_menu();
+            ui.close();
             if app.request_exit() {
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
@@ -90,7 +96,7 @@ fn edit_menu(ui: &mut egui::Ui, app: &mut App) {
             menu_row(ui, Some(menu::undo), "Undo", "Ctrl+Z")
         });
         if undo.inner.clicked() {
-            ui.close_menu();
+            ui.close();
             app.history.undo(&mut app.document);
         }
         let can_redo = app.history.can_redo();
@@ -98,7 +104,7 @@ fn edit_menu(ui: &mut egui::Ui, app: &mut App) {
             menu_row(ui, Some(menu::redo), "Redo", "Ctrl+Y")
         });
         if redo.inner.clicked() {
-            ui.close_menu();
+            ui.close();
             app.history.redo(&mut app.document);
         }
         // LCV-166: erase the selection, one undo step, as ERASE does.
@@ -107,12 +113,12 @@ fn edit_menu(ui: &mut egui::Ui, app: &mut App) {
             menu_row(ui, Some(modify::delete), "Delete", "Del")
         });
         if delete.inner.clicked() {
-            ui.close_menu();
+            ui.close();
             tools::delete::commit_delete(&mut app.document, &mut app.history);
         }
         ui.separator();
         if menu_row(ui, None, "Select All", "Ctrl+A").clicked() {
-            ui.close_menu();
+            ui.close();
             do_select_all(app);
         }
     });
@@ -121,24 +127,24 @@ fn edit_menu(ui: &mut egui::Ui, app: &mut App) {
 fn view_menu(ui: &mut egui::Ui, app: &mut App) {
     ui.menu_button("View", |ui| {
         if menu_row(ui, Some(menu::zoom_in), "Zoom In", "").clicked() {
-            ui.close_menu();
+            ui.close();
             do_zoom_in(app);
         }
         if menu_row(ui, Some(menu::zoom_out), "Zoom Out", "").clicked() {
-            ui.close_menu();
+            ui.close();
             do_zoom_out(app);
         }
         // LCV-166 AC 5: Zoom Extents (`F`) and Zoom All before Fit to Bed.
         if menu_row(ui, Some(menu::zoom_extents), "Zoom Extents", "F").clicked() {
-            ui.close_menu();
+            ui.close();
             do_zoom_extents(app);
         }
         if menu_row(ui, None, "Zoom All", "").clicked() {
-            ui.close_menu();
+            ui.close();
             do_zoom_all(app);
         }
         if menu_row(ui, Some(menu::fit_bed), "Fit to Bed", "").clicked() {
-            ui.close_menu();
+            ui.close();
             do_fit_to_bed(app);
         }
         ui.separator();
@@ -160,7 +166,7 @@ fn view_menu(ui: &mut egui::Ui, app: &mut App) {
 fn format_menu(ui: &mut egui::Ui, app: &mut App) {
     ui.menu_button("Format", |ui| {
         if menu_row(ui, None, "Layers…", "").clicked() {
-            ui.close_menu();
+            ui.close();
             app.open_layers_dialog();
         }
     });
@@ -171,13 +177,13 @@ fn tools_menu(ui: &mut egui::Ui, app: &mut App) {
         for entry in TOOLS {
             let key = entry.shortcut.unwrap_or_default();
             if menu_row(ui, Some(entry.icon), entry.label, key).clicked() {
-                ui.close_menu();
+                ui.close();
                 app.tool_manager.set_tool(tools::make(entry.kind));
             }
         }
         // CHECK is a one-shot command, not a tool: its row sits after TOOLS.
         if menu_row(ui, Some(modify::check_drawing), "Check", "").clicked() {
-            ui.close_menu();
+            ui.close();
             app.run_check();
         }
     });
@@ -186,15 +192,15 @@ fn tools_menu(ui: &mut egui::Ui, app: &mut App) {
 fn help_menu(ui: &mut egui::Ui, app: &mut App) {
     ui.menu_button("Help", |ui| {
         if menu_row(ui, None, "Keyboard Shortcuts\u{2026}", "F1").clicked() {
-            ui.close_menu();
+            ui.close();
             do_shortcuts(app);
         }
         if menu_row(ui, None, "About", "").clicked() {
-            ui.close_menu();
+            ui.close();
             do_about(app);
         }
         if menu_row(ui, None, "AI Settings…", "").clicked() {
-            ui.close_menu();
+            ui.close();
             do_agent_settings(app);
         }
     });

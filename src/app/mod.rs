@@ -86,7 +86,7 @@ pub use layers::LayersDialog;
 pub use ortho::apply_ortho;
 pub use snap::{resolve_snap, suppress_snap_if_disabled};
 pub use unsaved_guard::UnsavedGuard;
-pub use viewport::{handle_pan, handle_wheel_zoom, handle_zoom_extents};
+pub use viewport::{VIEWPORT_ID, handle_pan, handle_wheel_zoom, handle_zoom_extents};
 
 use crate::cmdline::CommandHistory;
 use crate::document::{Command, Document, Entity, History};
@@ -228,12 +228,13 @@ impl App {
 
     /// The whole frame body (ADR 0002 §A1).
     ///
-    /// [`eframe::App::update`] delegates here and does nothing else; headless
+    /// [`eframe::App::ui`] delegates here and does nothing else; headless
     /// regression tests drive this method directly through
-    /// [`egui::Context::run`] (`tests/harness/mod.rs`). It is an orchestrator
+    /// [`egui::Context::run_ui`] (`tests/harness/mod.rs`). It is an orchestrator
     /// and must stay one: every phase below lives in its own file, and new
     /// frame work joins one of them rather than this list.
-    pub fn update_ui(&mut self, ctx: &egui::Context) {
+    pub fn update_ui(&mut self, ui: &mut egui::Ui) {
+        let ctx = &ui.ctx().clone();
         // The keyboard readers (ADR 0002 §A6), all before any panel: the
         // dialog key for the topmost dialog (LCV-169), the shortcut table,
         // then the focus gate, so Escape cancels the tool in the same frame
@@ -245,7 +246,7 @@ impl App {
         suppress_snap_if_disabled(self.snap_enabled, &mut self.active_snap);
 
         crate::ui::apply_theme(ctx);
-        panels::draw_chrome(ctx, self);
+        panels::draw_chrome(ui, self);
 
         // Poll agent background thread (LCV-080).
         poll_agent_rx(self);
@@ -261,9 +262,9 @@ impl App {
             // in `tests/it/agent/turn.rs`.
             ctx.request_repaint();
         }
-        panels::draw_agent_side_panel(ctx, self);
+        panels::draw_agent_side_panel(ui, self);
 
-        viewport::draw(ctx, self);
+        viewport::draw(ui, self);
 
         // Dirty signal, then the autosave flush (ADR 0002 §B): exactly one
         // `sync_dirty` per frame, unconditional, immediately before the check.
@@ -288,8 +289,8 @@ impl eframe::App for App {
     /// can drive it without an `eframe::Frame` (ADR 0002 §A1). Nothing else
     /// may be added here: a future demand that needs `&mut eframe::Frame`
     /// passes a narrowed value into `update_ui` instead.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.update_ui(ctx);
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.update_ui(ui);
     }
 }
 

@@ -1,6 +1,6 @@
 //! LCV-180 — dependency refresh. The renderer stays `glow`, the agent
 //! transport stays blocking on `native-tls`, and `tokio` is never a direct
-//! dependency. Scans of `Cargo.toml` and `Cargo.lock`, read fresh from disk.
+//! dependency. Scans of `Cargo.toml`, read fresh from disk, and of `cargo tree`.
 
 use std::fs;
 use std::path::Path;
@@ -22,18 +22,37 @@ fn dependency_line(manifest: &str, name: &str) -> String {
         .to_owned()
 }
 
-/// LCV-180 AC 5 — the lock file resolves no `wgpu` crate: eframe runs on glow.
+/// LCV-180 AC 5 — the resolved build graph holds no `wgpu` crate: eframe runs
+/// on glow. `Cargo.lock` lists every optional dependency of every feature, so
+/// the check asks `cargo tree -e normal` for what is actually compiled.
 #[test]
-fn cargo_lock_resolves_no_wgpu() {
-    let lock = read("Cargo.lock");
-    for line in lock.lines() {
-        let Some(name) = line.strip_prefix("name = ") else {
-            continue;
-        };
-        let name = name.trim_matches('"');
+fn build_graph_resolves_no_wgpu() {
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
+    let out = std::process::Command::new(cargo)
+        .args([
+            "tree",
+            "-e",
+            "normal",
+            "--locked",
+            "--offline",
+            "--prefix",
+            "none",
+        ])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .output()
+        .unwrap_or_else(|e| panic!("cargo tree must run: {e}"));
+    assert!(
+        out.status.success(),
+        "cargo tree failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let tree = String::from_utf8_lossy(&out.stdout);
+    assert!(tree.contains("egui_glow"), "eframe must build egui_glow");
+    for line in tree.lines() {
+        let name = line.split_whitespace().next().unwrap_or_default();
         assert!(
             !name.starts_with("wgpu") && name != "egui-wgpu",
-            "Cargo.lock must not resolve {name}"
+            "the build graph must not resolve {name}"
         );
     }
 }

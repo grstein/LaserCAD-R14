@@ -76,8 +76,20 @@ pub fn key_events(key: egui::Key, modifiers: egui::Modifiers) -> Vec<egui::Event
     ]
 }
 
-/// One frame of raw input at an arbitrary screen size. `modifiers` is taken
+/// One frame of raw input at an arbitrary screen size. The modifiers are taken
 /// from the first key event so `ctx.input(|i| i.modifiers)` agrees with it.
+/// egui 0.36 has no `RawInput::modifiers` and keeps the last
+/// `Event::ModifiersChanged` across frames, so every frame that carries events
+/// starts with one, `NONE` included, as each 0.29 frame carried its own. A
+/// frame with no events stays empty: any event asks egui for a repaint, and
+/// the idle-repaint tests need a frame that carries nothing (LCV-180).
+///
+/// A frame with no events is the pointer resting, so it also advances egui's
+/// clock by [`REST_DT`] instead of 1/60 s: egui 0.36 stamps
+/// `last_move_time` on every `PointerMoved` and holds a tooltip back for
+/// `tooltip_delay` (0.5 s) after it, where 0.29 only counted a measured
+/// velocity. Frames with events keep the 1/60 s step, so a press and its
+/// release in the next frame stay a click (LCV-180).
 ///
 /// The screen is a parameter because a layout claim is only true at a size:
 /// `tests/it/ui/shortcuts_dialog_fits.rs` makes the same claim at three of
@@ -90,16 +102,25 @@ pub fn raw_input_at(screen: [f32; 2], events: Vec<egui::Event>) -> egui::RawInpu
             _ => None,
         })
         .unwrap_or(egui::Modifiers::NONE);
+    let mut all = Vec::with_capacity(events.len() + 1);
+    if !events.is_empty() {
+        all.push(egui::Event::ModifiersChanged(modifiers));
+    }
+    all.extend(events);
     egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(
             egui::Pos2::ZERO,
             egui::vec2(screen[0], screen[1]),
         )),
-        modifiers,
-        events,
+        predicted_dt: if all.is_empty() { REST_DT } else { 1.0 / 60.0 },
+        events: all,
         ..Default::default()
     }
 }
+
+/// Seconds an event-less frame advances egui's clock: past egui's 0.5 s
+/// `tooltip_delay`, short of its 0.8 s `max_click_duration`.
+pub const REST_DT: f32 = 0.6;
 
 /// [`raw_input_at`] at the default [`SCREEN`].
 pub fn raw_input(events: Vec<egui::Event>) -> egui::RawInput {
@@ -110,7 +131,43 @@ pub fn raw_input(events: Vec<egui::Event>) -> egui::RawInput {
 pub fn frame(ctx: &egui::Context, app: &mut App, events: Vec<egui::Event>) {
     // `FullOutput` is `#[must_use]`; headless tests assert on `App` state, not
     // on the paint output.
-    let _ = ctx.run(raw_input(events), |ctx| app.update_ui(ctx));
+    let _ = ctx.run_ui(raw_input(events), |ui| app.update_ui(ui));
+}
+
+/// Run event-less frames until the canvas rect stops moving, and return it.
+/// egui 0.36 sizes a bottom panel from its previous frame's content, so the
+/// command-line dock reaches its final height only on the third frame; egui
+/// 0.29 laid it out on the first. Reads the rect inside each frame.
+pub fn settle(ctx: &egui::Context, app: &mut App) -> egui::Rect {
+    let mut last = egui::Rect::NOTHING;
+    for _ in 0..6 {
+        let mut canvas = egui::Rect::NOTHING;
+        let _ = ctx.run_ui(raw_input(vec![]), |ui| {
+            let c = &ui.ctx().clone();
+            app.update_ui(ui);
+            canvas = canvas_rect(c);
+        });
+        if canvas == last {
+            break;
+        }
+        last = canvas;
+    }
+    last
+}
+
+/// The area id of the `egui::Window` titled `title`. egui 0.36 derives it
+/// from the title's `Atoms::text()`, an `Option`, so it is
+/// `Id::new(Some(title))`, no longer `Id::new(title)` as in 0.29.
+pub fn window_id(title: &str) -> egui::Id {
+    egui::Id::new(Some(title))
+}
+
+/// The canvas rect of the last frame `ctx` ran: the viewport widget's own
+/// response, read back through its stable id (`lasercad::app::VIEWPORT_ID`).
+/// `Rect::NOTHING` before the first frame.
+pub fn canvas_rect(ctx: &egui::Context) -> egui::Rect {
+    ctx.read_response(egui::Id::new(lasercad::app::VIEWPORT_ID))
+        .map_or(egui::Rect::NOTHING, |r| r.rect)
 }
 
 /// Drive one frame containing a single complete key tap.

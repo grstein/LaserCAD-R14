@@ -137,7 +137,8 @@ fn ac3_grid_lines_cover_up_to_each_edge_of_a_nonzero_origin_viewport() {
             let rect = egui::Rect::from_min_size(rect_min, egui::Vec2::new(800.0, 600.0));
 
             let ctx = egui::Context::default();
-            let out = ctx.run(egui::RawInput::default(), |ctx| {
+            let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+                let ctx = &ui.ctx().clone();
                 let painter = ctx.layer_painter(egui::LayerId::new(
                     egui::Order::Background,
                     egui::Id::new("ac3-edges"),
@@ -247,7 +248,8 @@ fn ac5_a_grid_line_passes_through_a_known_world_point_at_every_zoom_and_origin()
             let expected = camera.world_to_screen(known_point) + rect.min.to_vec2();
 
             let ctx = egui::Context::default();
-            let out = ctx.run(egui::RawInput::default(), |ctx| {
+            let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+                let ctx = &ui.ctx().clone();
                 let painter = ctx.layer_painter(egui::LayerId::new(
                     egui::Order::Background,
                     egui::Id::new("ac5"),
@@ -290,7 +292,8 @@ fn line_passes_through(a: egui::Pos2, b: egui::Pos2, expected: egui::Pos2, toler
 #[test]
 fn draw_grid_does_not_panic_on_degenerate_cameras() {
     let ctx = egui::Context::default();
-    let _ = ctx.run(egui::RawInput::default(), |ctx| {
+    let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+        let ctx = &ui.ctx().clone();
         let painter = ctx.layer_painter(egui::LayerId::new(
             egui::Order::Background,
             egui::Id::new("test"),
@@ -340,7 +343,8 @@ fn ac1_grid_lines_are_one_point_tokens_on_pixel_centres() {
             egui::Rect::from_min_size(egui::Pos2::new(37.3, 52.1), egui::Vec2::new(800.0, 600.0));
         let ctx = egui::Context::default();
         ctx.set_pixels_per_point(ppp);
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             assert_eq!(
                 ctx.pixels_per_point(),
                 ppp,
@@ -359,10 +363,9 @@ fn ac1_grid_lines_are_one_point_tokens_on_pixel_centres() {
                 continue;
             };
             assert_eq!(stroke.width, 1.0, "ppp={ppp}: grid line width");
-            let solid = egui::epaint::ColorMode::Solid;
-            if stroke.color == solid(GRID_MINOR) {
+            if stroke.color == GRID_MINOR {
                 minor += 1;
-            } else if stroke.color == solid(GRID_MAJOR) {
+            } else if stroke.color == GRID_MAJOR {
                 major += 1;
             } else {
                 panic!(

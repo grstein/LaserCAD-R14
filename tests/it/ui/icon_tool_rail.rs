@@ -77,7 +77,7 @@ fn ctx_and_app() -> (egui::Context, App) {
 fn rail_rect(ctx: &egui::Context) -> egui::Rect {
     egui::containers::panel::PanelState::load(ctx, egui::Id::new("toolbar"))
         .expect("the toolbar panel must have stored its state")
-        .rect
+        .outer_rect
 }
 
 /// Centre of the button at `(column, row)` in a rail at `rail`, unscrolled.
@@ -95,7 +95,7 @@ fn frame_shapes(
     screen: [f32; 2],
     events: Vec<egui::Event>,
 ) -> (Vec<Run>, Vec<egui::Shape>) {
-    let out = ctx.run(raw_input_at(screen, events), |c| app.update_ui(c));
+    let out = ctx.run_ui(raw_input_at(screen, events), |ui| app.update_ui(ui));
     let runs = runs_in(&out.shapes);
     let mut leaves = Vec::new();
     let mut stack: Vec<egui::Shape> = out.shapes.into_iter().map(|c| c.shape).collect();
@@ -110,7 +110,7 @@ fn frame_shapes(
 
 /// Rects painted in the selected fill inside the rail.
 fn selected_fills(ctx: &egui::Context, shapes: &[egui::Shape]) -> Vec<egui::Rect> {
-    let fill = ctx.style().visuals.selection.bg_fill;
+    let fill = ctx.global_style().visuals.selection.bg_fill;
     let rail = rail_rect(ctx);
     shapes
         .iter()
@@ -144,6 +144,8 @@ fn tooltip_at(screen: [f32; 2], pos: egui::Pos2) -> Vec<String> {
     let (ctx, mut app) = ctx_and_app();
     let _ = painted_runs_at(&ctx, &mut app, screen, Vec::new());
     let _ = painted_runs_at(&ctx, &mut app, screen, vec![egui::Event::PointerMoved(pos)]);
+    // egui 0.36 sizes a new tooltip invisibly on its first frame: rest twice.
+    let _ = painted_runs_at(&ctx, &mut app, screen, Vec::new());
     let runs = painted_runs_at(&ctx, &mut app, screen, Vec::new());
     runs.iter().map(|r| r.text.trim().to_owned()).collect()
 }
@@ -319,6 +321,7 @@ fn ac9_a_wheel_scroll_reveals_the_ai_toggle_on_a_short_window() {
     events.extend((0..200).map(|_| egui::Event::MouseWheel {
         unit: egui::MouseWheelUnit::Point,
         delta: egui::vec2(0.0, -7.0),
+        phase: egui::TouchPhase::Move,
         modifiers: egui::Modifiers::NONE,
     }));
     let _ = painted_runs_at(&ctx, &mut app, screen, events);

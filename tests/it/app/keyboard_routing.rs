@@ -70,9 +70,10 @@ fn boot() -> (egui::Context, App, egui::Rect) {
     let ctx = egui::Context::default();
     let mut app = App::default();
     let mut viewport = egui::Rect::NOTHING;
-    let _ = ctx.run(raw_input(vec![]), |c| {
-        app.update_ui(c);
-        viewport = c.available_rect();
+    let _ = ctx.run_ui(raw_input(vec![]), |ui| {
+        let c = &ui.ctx().clone();
+        app.update_ui(ui);
+        viewport = crate::harness::canvas_rect(c);
     });
     (ctx, app, viewport)
 }
@@ -87,7 +88,7 @@ fn focus_command_line(ctx: &egui::Context, app: &mut App, viewport: egui::Rect) 
     frame(ctx, app, vec![egui::Event::PointerMoved(pos)]); // warm-up
     frame(ctx, app, click_events(pos));
     assert!(
-        ctx.wants_keyboard_input(),
+        ctx.egui_wants_keyboard_input(),
         "the command-line TextEdit must hold keyboard focus for a gate test"
     );
 }
@@ -160,9 +161,9 @@ fn f8_toggles_ortho_exactly_once_per_press() {
     let mut app = App::default();
     assert!(!app.ortho_enabled, "ortho starts off");
 
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         raw_input(key_events(egui::Key::F8, egui::Modifiers::NONE)),
-        |ctx| app.update_ui(ctx),
+        |ui| app.update_ui(ui),
     );
     assert!(
         app.ortho_enabled,
@@ -414,7 +415,7 @@ fn text_event_gated_by_focus() {
 
     // The seed also asked for focus, granted at the end of that frame.
     assert!(
-        ctx.wants_keyboard_input(),
+        ctx.egui_wants_keyboard_input(),
         "typing must focus the command line (LCV-111 AC 21)"
     );
 

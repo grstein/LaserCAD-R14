@@ -80,12 +80,12 @@ fn click_events(pos: egui::Pos2) -> Vec<egui::Event> {
 /// Click `pos` on a settled frame: a warm-up `PointerMoved`, then the
 /// press/release pair.
 fn click(ctx: &egui::Context, app: &mut App, screen: [f32; 2], pos: egui::Pos2) {
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         raw_input_at(screen, vec![egui::Event::PointerMoved(pos)]),
-        |c| app.update_ui(c),
+        |ui| app.update_ui(ui),
     );
-    let _ = ctx.run(raw_input_at(screen, click_events(pos)), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input_at(screen, click_events(pos)), |ui| {
+        app.update_ui(ui)
     });
 }
 
@@ -104,11 +104,13 @@ fn hover_runs_at(
     screen: [f32; 2],
     pos: egui::Pos2,
 ) -> Vec<Run> {
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         raw_input_at(screen, vec![egui::Event::PointerMoved(pos)]),
-        |c| app.update_ui(c),
+        |ui| app.update_ui(ui),
     );
-    let out = ctx.run(raw_input_at(screen, Vec::new()), |c| app.update_ui(c));
+    // egui 0.36 sizes a new tooltip invisibly on its first frame: rest twice.
+    let _ = ctx.run_ui(raw_input_at(screen, Vec::new()), |ui| app.update_ui(ui));
+    let out = ctx.run_ui(raw_input_at(screen, Vec::new()), |ui| app.update_ui(ui));
     paint::runs_in(&out.shapes)
 }
 
@@ -154,7 +156,7 @@ fn assert_contained_and_non_overlapping(runs: &[&Run]) {
 fn rail_rect(ctx: &egui::Context) -> egui::Rect {
     egui::containers::panel::PanelState::load(ctx, egui::Id::new("toolbar"))
         .expect("the toolbar panel must have stored its state by now")
-        .rect
+        .outer_rect
 }
 
 /// Centre of the rail button at `(column, row)` — 4 pt frame margin, 32 pt
@@ -317,6 +319,7 @@ fn ac2_a_real_wheel_scroll_reaches_a_row_hidden_by_the_cramped_rail() {
     events.extend((0..200).map(|_| egui::Event::MouseWheel {
         unit: egui::MouseWheelUnit::Point,
         delta: egui::vec2(0.0, -7.0),
+        phase: egui::TouchPhase::Move,
         modifiers: egui::Modifiers::NONE,
     }));
     let _ = painted_runs_at(&ctx, &mut app, screen, events);
@@ -363,9 +366,9 @@ fn ac2_the_rail_shows_no_resize_cursor_because_it_is_not_resizable() {
     let rect = rail_rect(&ctx);
     let edge = egui::pos2(rect.right(), rect.center().y);
 
-    let out = ctx.run(
+    let out = ctx.run_ui(
         raw_input_at(SCREEN, vec![egui::Event::PointerMoved(edge)]),
-        |c| app.update_ui(c),
+        |ui| app.update_ui(ui),
     );
     assert_eq!(
         out.platform_output.cursor_icon,
@@ -450,7 +453,7 @@ fn assert_status_bar_fits(screen: [f32; 2]) {
 
     let rect = egui::containers::panel::PanelState::load(&ctx, egui::Id::new("statusbar"))
         .expect("the status bar must have stored its state by now")
-        .rect;
+        .outer_rect;
     assert!(
         rect.height() <= 56.0,
         "at {screen:?}: the status bar must be at most 56pt tall, got {}",

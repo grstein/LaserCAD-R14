@@ -40,7 +40,7 @@ allow = [
     "MPL-2.0",
     # egui's bundled fonts (epaint_default_fonts).
     "OFL-1.1",
-    "LicenseRef-UFL-1.0",
+    "Ubuntu-font-1.0",
 ]
 confidence-threshold = 0.9
 

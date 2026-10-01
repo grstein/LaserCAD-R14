@@ -88,7 +88,7 @@ pub trait Tool {
     /// [`Self::on_raw_input`], and `src/ui/command_line.rs` keeps the field
     /// focused every frame — which is also why no keyboard-gate exception is
     /// needed for raw mode: a focused field already makes
-    /// `ctx.wants_keyboard_input()` suppress the bare tool-activation keys.
+    /// `ctx.egui_wants_keyboard_input()` suppress the bare tool-activation keys.
     ///
     /// The default is `false`. [`TextTool`](super::TextTool) is the only
     /// implementor.

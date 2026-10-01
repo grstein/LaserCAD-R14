@@ -62,11 +62,7 @@ fn scene() -> Scene {
     let ctx = egui::Context::default();
     let mut app = App::default();
     app.tool_manager.set_tool(Box::new(LineTool::default()));
-    let mut canvas = egui::Rect::NOTHING;
-    let _ = ctx.run(harness::raw_input(vec![]), |c| {
-        app.update_ui(c);
-        canvas = c.available_rect();
-    });
+    let canvas = harness::settle(&ctx, &mut app);
     let pos = canvas.center();
     frame(&ctx, &mut app, vec![egui::Event::PointerMoved(pos)]);
     let a0 = app

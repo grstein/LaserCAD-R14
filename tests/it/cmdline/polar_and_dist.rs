@@ -134,9 +134,10 @@ fn clicked_dist_reports_and_returns_to_select() {
     let ctx = egui::Context::default();
     let mut app = App::default();
     let mut viewport = egui::Rect::NOTHING;
-    let _ = ctx.run(raw_input(vec![]), |c| {
-        app.update_ui(c);
-        viewport = c.available_rect();
+    let _ = ctx.run_ui(raw_input(vec![]), |ui| {
+        let c = &ui.ctx().clone();
+        app.update_ui(ui);
+        viewport = crate::harness::canvas_rect(c);
     });
     app.snap_enabled = false;
     app.grid_enabled = false;

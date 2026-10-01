@@ -8,27 +8,27 @@ commit, then T8–T13 one each, then T14. Each commit passes `scripts/gate.sh` a
       `default-features = false` with `"glow"`, `winit` is declared, Cargo.toml has no `tokio`,
       and reqwest has `"blocking"` and `"native-tls"`. It fails until T2 and T12
       (files: tests/it/repo/dependencies.rs, tests/it/repo/mod.rs)
-- [ ] T2 [AC1] [AC5] egui/eframe 0.36 plus `winit = "0.30"` with its comment. App shell:
+- [x] T2 [AC1] [AC5] egui/eframe 0.36 plus `winit = "0.30"` with its comment. App shell:
       `App::ui`, `update_ui(&mut Ui)`, `Panel`/`CentralPanel::show(ui, …)`, `content_rect`,
       `global_style`. deny.toml gets `Ubuntu-font-1.0` (files: Cargo.toml, Cargo.lock, deny.toml,
       src/lib.rs, src/app/mod.rs, src/app/panels.rs, src/app/viewport.rs, src/app/input.rs)
-- [ ] T3 [AC3] Render: `StrokeKind` on `rect_stroke`, `CornerRadius`, `TextStyle` resolution
+- [x] T3 [AC3] Render: `StrokeKind` on `rect_stroke`, `CornerRadius`, `TextStyle` resolution
       through `global_style` (files: src/render/bed.rs, src/render/cursor.rs,
       src/app/viewport/paint.rs, src/render/snaps/label.rs)
-- [ ] T4 [AC3] UI: theme (`CornerRadius`/`Margin`/`Shadow`), `MenuBar` with `close_menu` removed,
+- [x] T4 [AC3] UI: theme (`CornerRadius`/`Margin`/`Shadow`), `MenuBar` with `close_menu` removed,
       Object Snap kept open with `CloseOnClickOutside`, `clip_rect_margin`, statusbar pill and
       toolbar (files: src/ui/theme.rs, src/ui/menubar.rs, src/ui/menubar/recent.rs,
       src/ui/menubar/object_snap.rs, src/ui/shortcuts_dialog.rs, src/ui/statusbar/pill.rs,
       src/ui/toolbar.rs, src/ui/statusbar.rs, src/ui/command_line.rs, src/ui/icons.rs)
-- [ ] T5 [AC3] Agent panel: Panel API, `Frame` and style renames; `panel.rs` stays ≤300 by
+- [x] T5 [AC3] Agent panel: Panel API, `Frame` and style renames; `panel.rs` stays ≤300 by
       moving a helper into `src/agent/panel/` if needed (files: src/agent/panel.rs,
       src/agent/settings_ui.rs)
-- [ ] T6 [AC3] Test harness and call sites: `run_ui`, `Event::ModifiersChanged` in
+- [x] T6 [AC3] Test harness and call sites: `run_ui`, `Event::ModifiersChanged` in
       `raw_input_at`, `harness::canvas_rect` via `viewport::VIEWPORT_ID` and `read_response`.
       Sweep `ctx.run`→`run_ui` in `tests/it/**` and `src/**/tests.rs`, plus `RawInput`
       literals without `modifiers`. Change no expected value (files: tests/harness/mod.rs,
       tests/harness/paint.rs, the call sites as found)
-- [ ] T7 [AC3] Paint triage: run every `harness::paint` user. Fix each drift in
+- [x] T7 [AC3] Paint triage: run every `harness::paint` user. Fix each drift in
       `src/ui/theme.rs` first. Change an expectation that cannot be restored only together with
       a CHANGELOG line and a DESIGN.md note. List each such change in the commit body
       (files: src/ui/theme.rs, CHANGELOG.md, DESIGN.md)

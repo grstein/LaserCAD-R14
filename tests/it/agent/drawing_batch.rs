@@ -727,9 +727,10 @@ fn lcv196_ac4_batch_text_equals_the_text_command() {
     let ctx = egui::Context::default();
     let mut app = App::default();
     let mut viewport = egui::Rect::NOTHING;
-    let _ = ctx.run(raw_input(vec![]), |c| {
-        app.update_ui(c);
-        viewport = c.available_rect();
+    let _ = ctx.run_ui(raw_input(vec![]), |ui| {
+        let c = &ui.ctx().clone();
+        app.update_ui(ui);
+        viewport = crate::harness::canvas_rect(c);
     });
     tap(&ctx, &mut app, egui::Key::D, egui::Modifiers::NONE);
     let p = viewport.center();

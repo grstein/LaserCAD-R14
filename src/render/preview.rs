@@ -117,7 +117,8 @@ mod tests {
         mut paint: impl FnMut(&egui::Painter, egui::Rect, &Camera),
     ) -> Vec<([egui::Pos2; 2], f32, egui::Color32)> {
         let ctx = egui::Context::default();
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             let painter = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Background,
                 egui::Id::new("test_dashed"),
@@ -132,10 +133,9 @@ mod tests {
         out.shapes
             .iter()
             .filter_map(|c| match &c.shape {
-                egui::Shape::LineSegment { points, stroke } => match stroke.color {
-                    egui::epaint::ColorMode::Solid(k) => Some((*points, stroke.width, k)),
-                    egui::epaint::ColorMode::UV(_) => None,
-                },
+                egui::Shape::LineSegment { points, stroke } => {
+                    Some((*points, stroke.width, stroke.color))
+                }
                 _ => None,
             })
             .collect()
@@ -183,7 +183,8 @@ mod tests {
     #[test]
     fn draw_preview_function_exists() {
         let ctx = egui::Context::default();
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             let painter = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Background,
                 egui::Id::new("test_preview"),
@@ -208,7 +209,8 @@ mod tests {
         assert_eq!(preview_entities.len(), 0);
 
         let ctx = egui::Context::default();
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             let painter = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Background,
                 egui::Id::new("test_empty_preview"),
@@ -234,7 +236,8 @@ mod tests {
 
         // Call draw_preview and ensure it doesn't panic.
         let ctx = egui::Context::default();
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             let painter = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Background,
                 egui::Id::new("test_non_empty_preview"),
@@ -282,7 +285,8 @@ mod tests {
     #[test]
     fn draw_preview_does_not_panic_on_degenerate_camera() {
         let ctx = egui::Context::default();
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             let painter = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Background,
                 egui::Id::new("test_degenerate"),

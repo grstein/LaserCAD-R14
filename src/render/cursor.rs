@@ -57,7 +57,7 @@ pub fn draw_pickbox(
 ) {
     let square = pickbox_rect(screen_of(rect, camera, cursor), aperture_pt);
     let stroke = egui::Stroke::new(CURSOR_STROKE_PT, cursor_color());
-    painter.rect_stroke(square, 0.0, stroke);
+    painter.rect_stroke(square, 0.0, stroke, egui::StrokeKind::Middle);
 }
 
 #[cfg(test)]

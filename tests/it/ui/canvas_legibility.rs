@@ -28,7 +28,8 @@ fn painted(paint: impl FnOnce(&egui::Painter)) -> Vec<Shape> {
     let ctx = egui::Context::default();
     ctx.set_pixels_per_point(1.0);
     let mut paint = Some(paint);
-    let out = ctx.run(egui::RawInput::default(), |ctx| {
+    let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+        let ctx = &ui.ctx().clone();
         let painter = ctx.layer_painter(egui::LayerId::new(
             egui::Order::Background,
             egui::Id::new("lcv164"),
@@ -243,8 +244,8 @@ fn ac4_origin_marker_paints_before_the_entities() {
         .push_current(Entity::Circle(Circle::new(Vec2::new(0.0, 0.0), 30.0)));
     let mut shapes = Vec::new();
     for _ in 0..2 {
-        let out = ctx.run(crate::harness::raw_input(Vec::new()), |ctx| {
-            app.update_ui(ctx)
+        let out = ctx.run_ui(crate::harness::raw_input(Vec::new()), |ui| {
+            app.update_ui(ui)
         });
         shapes.clear();
         for clipped in out.shapes {

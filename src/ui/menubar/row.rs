@@ -84,8 +84,8 @@ mod tests {
     /// return the label's first-glyph x and every path's visual bounds.
     fn paint(add: impl Fn(&mut egui::Ui)) -> (f32, Vec<egui::Rect>) {
         let ctx = egui::Context::default();
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| {
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            egui::CentralPanel::default().show(ui, |ui| {
                 let layout = egui::Layout::top_down_justified(egui::Align::LEFT);
                 ui.with_layout(layout, &add);
             });

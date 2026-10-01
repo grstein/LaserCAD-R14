@@ -16,7 +16,7 @@ pub(super) fn recent_submenu(ui: &mut egui::Ui, app: &mut App) {
     let labels = recent_labels(&recent);
     for (entry, label) in recent.iter().zip(labels.iter()) {
         if menu_row(ui, None, label, "").on_hover_text(entry).clicked() {
-            ui.close_menu();
+            ui.close();
             // Deliberately not `crate::io::open_recent`: that function
             // promotes the entry to the front of the list *before* the file
             // is even read, so a missing or malformed file would still

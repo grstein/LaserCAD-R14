@@ -306,7 +306,7 @@ fn typing_l_while_focused_types_an_l_and_does_not_start_line() {
     let (ctx, mut app) = boot();
     // Seed focus with a character that is not a bound shortcut.
     type_command(&ctx, &mut app, "z");
-    assert!(ctx.wants_keyboard_input(), "the field must hold focus");
+    assert!(ctx.egui_wants_keyboard_input(), "the field must hold focus");
 
     let mut events = key_events(egui::Key::L, none());
     events.push(egui::Event::Text("l".to_owned()));
@@ -331,7 +331,7 @@ fn typing_a_digit_focuses_and_seeds_the_field() {
         "not \"55\" — one character, one copy"
     );
     assert!(
-        ctx.wants_keyboard_input(),
+        ctx.egui_wants_keyboard_input(),
         "the widget must have consumed the one-shot focus request"
     );
     assert!(

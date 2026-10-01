@@ -38,8 +38,8 @@ fn run_form(ctx: &egui::Context, settings: &mut Settings, events: Vec<egui::Even
         events,
         ..Default::default()
     };
-    let _ = ctx.run(input, |ctx| {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    let _ = ctx.run_ui(input, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             changed = draw_agent_settings(ui, settings).changed;
         });
     });
@@ -106,8 +106,8 @@ fn no_input_returns_false() {
     let ctx = egui::Context::default();
     let mut settings = Settings::default();
     let mut changed = false;
-    let _output = ctx.run(egui::RawInput::default(), |ctx| {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    let _output = ctx.run_ui(egui::RawInput::default(), |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             changed = draw_agent_settings(ui, &mut settings).changed;
         });
     });
@@ -246,8 +246,8 @@ fn ac10_the_form_stays_within_its_width_with_both_sentences() {
         )),
         ..Default::default()
     };
-    let _ = ctx.run(input, |ctx| {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    let _ = ctx.run_ui(input, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             // A scope, because a panel's own `min_rect` is the whole panel.
             size = ui
                 .scope(|ui| {
@@ -415,8 +415,8 @@ fn painted_texts(
         events,
         ..Default::default()
     };
-    let output = ctx.run(input, |ctx| {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    let output = ctx.run_ui(input, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             changed |= draw_agent_settings(ui, settings).changed;
         });
     });

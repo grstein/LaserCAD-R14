@@ -372,7 +372,7 @@ fn ctrl_a_is_left_to_the_focused_command_line() {
     let mut app = two_lines_first_selected();
     harness::type_command(&ctx, &mut app, "z");
     assert!(
-        ctx.wants_keyboard_input(),
+        ctx.egui_wants_keyboard_input(),
         "the command line must hold focus"
     );
     let tool = app.tool_manager.active_tool_name().to_owned();

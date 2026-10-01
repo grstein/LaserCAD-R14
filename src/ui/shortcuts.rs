@@ -21,7 +21,7 @@ use crate::tools;
 /// `Event::Text`, so pressing `l` starts LINE instead of also typing an `l`
 /// into the command line (LCV-111 AC 22).
 pub fn process_shortcuts(ctx: &egui::Context, app: &mut App) -> bool {
-    let wants_kbd = ctx.wants_keyboard_input();
+    let wants_kbd = ctx.egui_wants_keyboard_input();
     let key_events: Vec<(Key, Modifiers)> = ctx.input(|i| {
         i.events
             .iter()

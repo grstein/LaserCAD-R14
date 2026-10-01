@@ -77,7 +77,7 @@ pub fn take_dialog_key(ctx: &egui::Context, app: &mut App) -> Option<DialogKey> 
 /// before the panels is what lets `Escape` cancel the active tool in the same
 /// frame the command-line widget clears its own buffer.
 ///
-/// `ctx.wants_keyboard_input()` read here reports the focus established during
+/// `ctx.egui_wants_keyboard_input()` read here reports the focus established during
 /// the **previous** frame — that one-frame lag is egui's documented behaviour,
 /// not a bug (ADR 0002).
 ///
@@ -87,7 +87,7 @@ pub fn take_dialog_key(ctx: &egui::Context, app: &mut App) -> Option<DialogKey> 
 /// for one keystroke, so without this flag `l` would start LINE *and* type an
 /// `l` into the command line (LCV-111 AC 22).
 pub fn process_input(ctx: &egui::Context, app: &mut App, shortcut_fired: bool) {
-    let wants_kbd = ctx.wants_keyboard_input();
+    let wants_kbd = ctx.egui_wants_keyboard_input();
 
     // Ungated: Escape cancels the active tool even while the operator is
     // typing into a text field.

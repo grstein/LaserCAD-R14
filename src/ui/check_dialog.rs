@@ -18,6 +18,7 @@ pub fn check_dialog(ctx: &egui::Context, report: &mut Option<Vec<String>>) {
     let mut close = false;
     egui::Window::new("Check")
         .open(&mut open)
+        .default_height(super::DIALOG_HEIGHT)
         .resizable(false)
         .collapsible(false)
         .show(ctx, |ui| {

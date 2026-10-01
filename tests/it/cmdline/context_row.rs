@@ -53,8 +53,8 @@ fn ctx_and_app() -> (egui::Context, App) {
     let ctx = egui::Context::default();
     ctx.set_pixels_per_point(1.0);
     let mut app = App::default();
-    let _ = ctx.run(raw_input_at([800.0, 600.0], Vec::new()), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input_at([800.0, 600.0], Vec::new()), |ui| {
+        app.update_ui(ui)
     });
     (ctx, app)
 }
@@ -84,17 +84,18 @@ fn click_events(pos: egui::Pos2) -> Vec<egui::Event> {
 /// click itself.
 fn click_viewport_centre(ctx: &egui::Context, app: &mut App, screen: [f32; 2]) {
     let mut viewport = egui::Rect::NOTHING;
-    let _ = ctx.run(raw_input_at(screen, Vec::new()), |c| {
-        app.update_ui(c);
-        viewport = c.available_rect();
+    let _ = ctx.run_ui(raw_input_at(screen, Vec::new()), |ui| {
+        let c = &ui.ctx().clone();
+        app.update_ui(ui);
+        viewport = crate::harness::canvas_rect(c);
     });
     let centre = viewport.center();
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         raw_input_at(screen, vec![egui::Event::PointerMoved(centre)]),
-        |c| app.update_ui(c),
+        |ui| app.update_ui(ui),
     );
-    let _ = ctx.run(raw_input_at(screen, click_events(centre)), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input_at(screen, click_events(centre)), |ui| {
+        app.update_ui(ui)
     });
 }
 
@@ -106,11 +107,11 @@ fn dock_and_editor_rects(
     app: &mut App,
     screen: [f32; 2],
 ) -> (egui::Rect, egui::Rect) {
-    let _ = ctx.run(raw_input_at(screen, Vec::new()), |c| app.update_ui(c));
-    let _ = ctx.run(raw_input_at(screen, Vec::new()), |c| app.update_ui(c));
+    let _ = ctx.run_ui(raw_input_at(screen, Vec::new()), |ui| app.update_ui(ui));
+    let _ = ctx.run_ui(raw_input_at(screen, Vec::new()), |ui| app.update_ui(ui));
     let dock = egui::containers::panel::PanelState::load(ctx, command_line_panel_id())
         .expect("the command-line dock must have stored its panel state by now")
-        .rect;
+        .outer_rect;
     let editor = ctx
         .read_response(editor_id())
         .expect("the editor must have painted a response by now")
@@ -253,12 +254,16 @@ fn ac2_a_long_feedback_message_is_bounded_stored_verbatim_and_tooltips_on_hover(
         .expect("the feedback run must be findable by its full text");
     let pos = egui::pos2(target.pos.x + 2.0, target.pos.y + target.height / 2.0);
 
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         harness::raw_input_at([800.0, 600.0], vec![egui::Event::PointerMoved(pos)]),
-        |c| app.update_ui(c),
+        |ui| app.update_ui(ui),
     );
-    let out = ctx.run(harness::raw_input_at([800.0, 600.0], Vec::new()), |c| {
-        app.update_ui(c)
+    // egui 0.36 sizes a new tooltip invisibly on its first frame: rest twice.
+    let _ = ctx.run_ui(harness::raw_input_at([800.0, 600.0], Vec::new()), |ui| {
+        app.update_ui(ui)
+    });
+    let out = ctx.run_ui(harness::raw_input_at([800.0, 600.0], Vec::new()), |ui| {
+        app.update_ui(ui)
     });
     let hover_runs = runs_in(&out.shapes);
     let after = hover_runs.iter().filter(|r| r.text == long).count();
@@ -285,12 +290,16 @@ fn ac2_a_short_feedback_message_never_tooltips_on_hover() {
         .expect("the short feedback must paint");
     let pos = egui::pos2(target.pos.x + 2.0, target.pos.y + target.height / 2.0);
 
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         harness::raw_input_at([800.0, 600.0], vec![egui::Event::PointerMoved(pos)]),
-        |c| app.update_ui(c),
+        |ui| app.update_ui(ui),
     );
-    let out = ctx.run(harness::raw_input_at([800.0, 600.0], Vec::new()), |c| {
-        app.update_ui(c)
+    // egui 0.36 sizes a new tooltip invisibly on its first frame: rest twice.
+    let _ = ctx.run_ui(harness::raw_input_at([800.0, 600.0], Vec::new()), |ui| {
+        app.update_ui(ui)
+    });
+    let out = ctx.run_ui(harness::raw_input_at([800.0, 600.0], Vec::new()), |ui| {
+        app.update_ui(ui)
     });
     let hover_runs = runs_in(&out.shapes);
     let after = hover_runs.iter().filter(|r| r.text == "SNAP on").count();
