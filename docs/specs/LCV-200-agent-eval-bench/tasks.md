@@ -13,7 +13,7 @@
   (files: tests/fixtures/agent-bench/plate-holes/*, tests/fixtures/agent-bench/box-face-tabs/*)
 - [x] T5 [AC1] Fixtures `gear-outline`, `text-label` (files: tests/fixtures/agent-bench/gear-outline/*,
   tests/fixtures/agent-bench/text-label/*)
-- [ ] T6 [AC1] [AC2] [AC4] [AC5] Bench loader, the suite-has-four test, and the replay test per task.
+- [x] T6 [AC1] [AC2] [AC4] [AC5] Bench loader, the suite-has-four test, and the replay test per task.
   Replay prints the JSON line and asserts `expected.json`, which is recorded once from this run
   and committed (files: tests/it/agent/bench.rs, tests/it/agent/mod.rs, tests/fixtures/agent-bench/*/expected.json)
 - [ ] T7 [AC6] Defect recording (one hole missing) and the test: IoU and passed count are both
