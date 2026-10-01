@@ -29,7 +29,7 @@ const ARC_CW_Q: &str =
     root!(r#"<path d="M 0.0000 390.0000 A 10.0000 10.0000 0 0 1 10.0000 400.0000"/>"#);
 const PATH_MALFORMED: &str = root!(r#"<path d="M 0 0 A notanumber 10 0 0 1 5 5"/>"#);
 const MIXED_SVG: &str =
-    root!(r#"<line x1="1" y1="2" x2="3" y2="4"/><rect/><circle cx="5" cy="5" r="3"/>"#);
+    root!(r#"<line x1="1" y1="2" x2="3" y2="4"/><image/><circle cx="5" cy="5" r="3"/>"#);
 const G_GROUPS_SVG: &str = root!(r#"<g><line x1="0" y1="0" x2="10" y2="10"/></g><g/><g/>"#);
 
 fn svg(inner: &str) -> String {
@@ -277,7 +277,7 @@ fn unknown_elements_are_skipped_and_reported() {
     let es = imported.entities;
     assert_eq!(es.len(), 2);
     assert!(matches!(es[0], Entity::Line(_)) && matches!(es[1], Entity::Circle(_)));
-    assert_eq!(imported.report, [("rect".to_owned(), 1)]);
+    assert_eq!(imported.report, [("image".to_owned(), 1)]);
 }
 
 #[test]
@@ -589,16 +589,15 @@ fn never_rendered_elements_without_element_children_are_not_reported() {
 #[test]
 fn other_svg_elements_are_skipped_and_reported_with_counts() {
     let inner = format!(
-        r##"<image href="x.png"/><text>{A_LINE}</text><use href="#l"/><switch>{A_LINE}</switch><image/><rect width="1" height="1"/><style>line {{}}</style><script/><foreignObject>{A_LINE}</foreignObject><text/>"##
+        r##"<image href="x.png"/><text>{A_LINE}</text><use href="#l"/><switch>{A_LINE}</switch><image/><image width="1" height="1"/><style>line {{}}</style><script/><foreignObject>{A_LINE}</foreignObject><text/>"##
     );
     let imported = import_svg(&svg(&inner)).unwrap();
     assert!(imported.entities.is_empty());
     let want = [
-        entry("image", 2),
+        entry("image", 3),
         entry("text", 2),
         entry("use", 1),
         entry("switch", 1),
-        entry("rect", 1),
         entry("script", 1),
         entry("foreignObject", 1),
     ];

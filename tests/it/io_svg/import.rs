@@ -147,12 +147,12 @@ fn non_arc_path_imports_its_line() {
     assert!(matches!(entities[0], Entity::Line(_)));
 }
 
-/// AC 16 — `<rect>` and other unknown elements are silently skipped.
+/// AC 16 — unknown elements (`<image>`; `<rect>` imports since LCV-174) are skipped.
 #[test]
 fn unknown_elements_silently_skipped() {
     let src = svg_wrap(
         r#"<line x1="0" y1="0" x2="1" y2="1"/>
-           <rect width="10" height="10"/>
+           <image width="10" height="10"/>
            <circle cx="5" cy="5" r="3"/>"#,
     );
     let entities = import_svg(&src).unwrap().entities;

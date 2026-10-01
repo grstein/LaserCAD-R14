@@ -90,3 +90,38 @@ fn an_invalid_attribute_skips_the_element_and_is_reported() {
         ]
     );
 }
+
+/// AC 4, AC 10 — a sharp `<rect>` is four lines in equivalent-path order
+/// (top-left corner first, clockwise in SVG space); a missing `x`/`y` is 0
+/// (AC 1); `rect` is no longer reported.
+#[test]
+fn a_sharp_rect_imports_four_lines() {
+    let (es, report) =
+        page(r#"<rect x="10" y="20" width="30" height="40"/><rect width="5" height="2"/>"#);
+    assert!(report.is_empty(), "{report:?}");
+    assert_eq!(
+        es,
+        [
+            line((10.0, 20.0), (40.0, 20.0)),
+            line((40.0, 20.0), (40.0, 60.0)),
+            line((40.0, 60.0), (10.0, 60.0)),
+            line((10.0, 60.0), (10.0, 20.0)),
+            line((0.0, 0.0), (5.0, 0.0)),
+            line((5.0, 0.0), (5.0, 2.0)),
+            line((5.0, 2.0), (0.0, 2.0)),
+            line((0.0, 2.0), (0.0, 0.0)),
+        ]
+    );
+}
+
+/// AC 2, AC 3 — a zero or missing `width`/`height` draws nothing
+/// unreported; a negative or unparseable one is reported.
+#[test]
+fn a_degenerate_rect_is_skipped_and_only_an_invalid_one_reported() {
+    let (es, report) = page(
+        r#"<rect width="0" height="5"/><rect width="5" height="0"/><rect height="5"/>
+           <rect width="5"/><rect/><rect width="-1" height="5"/><rect width="5" height="x"/>"#,
+    );
+    assert!(es.is_empty(), "{es:?}");
+    assert_eq!(report, [entry("rect (invalid attribute)", 2)]);
+}

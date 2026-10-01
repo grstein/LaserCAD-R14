@@ -16,7 +16,7 @@
 - [x] T4 [AC3] Refactor: remove `SvgImportError::MalformedAttribute`, `malformed` and `attr_f64`,
   and drop the kind from the corpus error table.
   (files: src/io/svg/import.rs, tests/it/io_svg/corpus.rs, tests/it/io_svg/corpus_expected.rs)
-- [ ] T5 [AC4, AC10] Test:
+- [x] T5 [AC4, AC10] Test:
   - A sharp `<rect>` gives four lines in equivalent-path order (top-left, clockwise in SVG space).
   - `width`/`height` 0 or missing imports nothing, unreported. `width="-1"` is reported.
   - `rect` is no longer in the ignored report. Rewrite the LCV-171 `[("rect",1)]` unit
