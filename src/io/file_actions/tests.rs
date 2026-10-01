@@ -196,7 +196,7 @@ fn open_via_the_dialog_adopts_the_file_bed_and_leaves_the_seed_alone() {
         "action_open must adopt the file's bed and layers (AC 10, LCV-156 AC 9)"
     );
     assert!(
-        body.contains("app.document = document;"),
+        body.contains("app.document = document.ids_after(&app.document);"),
         "positive control: the opened document is installed"
     );
     assert!(
