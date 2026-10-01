@@ -1,6 +1,6 @@
 # LCV-174 — SVG basic shapes on import
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-173, LCV-176
 - **Implementation**: -
 
