@@ -240,3 +240,46 @@ fn par_none_with_unequal_scales_is_non_uniform() {
         [entry("circle (non-uniform transform)", 1)]
     );
 }
+
+/// AC 9 — a nested `<svg>` maps its `viewBox` onto its `x y width height`
+/// per `preserveAspectRatio`, its own `transform` applies in the parent
+/// space, its content is imported whole (no clipping), and it is reported.
+#[test]
+fn nested_svg_is_a_further_mapping_unclipped_and_reported() {
+    // viewBox 10 × 10 onto (10, 20, 40, 20), xMaxYMid meet: scale 2, content
+    // 20 × 20 pushed right: (0, 0) → (30, 20). Then translate(1 2), then the
+    // group's translate(5 5).
+    let (es, report) = page(
+        r#"<g transform="translate(5 5)">
+             <svg x="10" y="20" width="40" height="20" viewBox="0 0 10 10"
+                  preserveAspectRatio="xMaxYMid meet" transform="translate(1 2)">
+               <line x1="0" y1="0" x2="10" y2="10"/>
+               <line x1="0" y1="0" x2="20" y2="0"/>
+               <circle cx="5" cy="5" r="1"/>
+             </svg>
+           </g>"#,
+    );
+    assert_eq!(report, [entry("svg (not clipped)", 1)]);
+    assert_line(&es[0], w(36.0, 27.0), w(56.0, 47.0));
+    // Past the nested viewport's right edge (x = 55 in the page): kept.
+    assert_line(&es[1], w(36.0, 27.0), w(76.0, 27.0));
+    let c = circle(&es[2]);
+    assert!(
+        c.center.approx_eq(w(46.0, 37.0), TOL) && (c.r - 2.0).abs() < TOL,
+        "{c:?}"
+    );
+}
+
+/// AC 9, AC 10 — without a viewBox a nested `<svg>` only translates by
+/// `x y` (`%` of the parent viewport); `width`/`height` default to 100% and
+/// are the viewport its own `%` lengths resolve against.
+#[test]
+fn nested_svg_without_view_box_translates_and_sets_the_viewport() {
+    let (es, report) = page(
+        r#"<svg x="10%" y="5"><line x1="0" y1="0" x2="1" y2="0"/></svg>
+           <svg x="50" width="50%" height="20"><line x1="0" y1="0" x2="100%" y2="100%"/></svg>"#,
+    );
+    assert_eq!(report, [entry("svg (not clipped)", 2)]);
+    assert_line(&es[0], w(10.0, 5.0), w(11.0, 5.0));
+    assert_line(&es[1], w(50.0, 0.0), w(100.0, 20.0));
+}

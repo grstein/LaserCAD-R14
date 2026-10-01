@@ -34,7 +34,7 @@
 - [x] T13 [AC6, AC7] Circle similarity check in `parse_circle`; `path_entities` maps segments
   through `ctm` (`rx·s`, `sweep ^= det < 0`, non-similar arc → report, point advances) (files:
   src/io/svg/import.rs, src/io/svg/import/path.rs, src/io/svg/import/walk.rs)
-- [ ] T14 [AC9] Test: nested `<svg>` with `x y width height viewBox preserveAspectRatio` and a
+- [x] T14 [AC9] Test: nested `<svg>` with `x y width height viewBox preserveAspectRatio` and a
   transform, content imported unclipped, report `svg (not clipped)` (files:
   tests/it/io_svg/transforms.rs)
 - [ ] T15 [AC9] `viewport::nested` and the walk's nested `svg` arm (files:
