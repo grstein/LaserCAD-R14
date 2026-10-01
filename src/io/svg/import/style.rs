@@ -71,11 +71,7 @@ impl Style {
         sheet: &Sheet,
         report: &mut Report,
     ) -> Self {
-        let mut ranked: Vec<_> = (sheet.rules.iter().enumerate())
-            .filter_map(|(i, rule)| Some((rule.specificity_for(node)?, i, rule)))
-            .collect();
-        ranked.sort_by_key(|&(spec, i, _)| (spec, i));
-        let rules: Vec<&Rule> = ranked.into_iter().map(|(.., rule)| rule).collect();
+        let rules = matching(node, sheet);
         let values = |prop| candidates(node, &rules, prop);
         let mut invalid = |prop: &str| report.note(&format!("{prop} (invalid color)"));
         let stroke = cascade(&values("stroke"), self.stroke, paint, || invalid("stroke"));
@@ -147,6 +143,25 @@ impl Style {
             Paint::Current => self.color,
         }
     }
+}
+
+/// The rules of `sheet` matching `node`, lowest precedence first.
+fn matching<'s>(node: roxmltree::Node<'_, '_>, sheet: &'s Sheet) -> Vec<&'s Rule> {
+    let mut ranked: Vec<_> = (sheet.rules.iter().enumerate())
+        .filter_map(|(i, rule)| Some((rule.specificity_for(node)?, i, rule)))
+        .collect();
+    ranked.sort_by_key(|&(spec, i, _)| (spec, i));
+    ranked.into_iter().map(|(.., rule)| rule).collect()
+}
+
+/// `node`'s own highest-precedence declared value of `prop` (from `style`,
+/// `sheet` rules or the presentation attribute), unvalidated and trimmed;
+/// `None` when it declares none (LCV-179 text properties).
+pub(super) fn declared(node: roxmltree::Node<'_, '_>, sheet: &Sheet, prop: &str) -> Option<String> {
+    let rules = matching(node, sheet);
+    candidates(node, &rules, prop)
+        .first()
+        .map(|v| v.trim().to_owned())
 }
 
 /// `prop`'s declared values for `node`, highest precedence first (module

@@ -8,6 +8,7 @@
 //! |---|---|---|
 //! | import | `line`, `circle`, `ellipse`, `rect`, `polyline`, `polygon`, `path` | `<element> (invalid attribute)`, `polyline (data error)`, `polygon (data error)` (LCV-174); properties; per `path`: curves not imported yet, `path (data error)`, or `path (unsupported data)` with no `d` |
 //! | descend | `svg`, `g`, `a` | properties, then the children |
+//! | outlines | `text`, its `tspan` and `a`: glyph outlines in the named font ([`text`], LCV-179) | properties; `text (no font)` |
 //! | switch | `switch`: its first SVG element child whose conditions pass (LCV-178) | `switch (branch skipped)` per other SVG element child |
 //! | instance | `use`: a copy of its same-document `#id` target at `x`/`y`, a `symbol` in its viewport ([`reuse`], LCV-178) | `use (unresolved)`, `use (cycle)` |
 //! | conditions fail | any SVG element with a non-empty `requiredExtensions`, or a `systemLanguage` without `en`/`en-*` ([`conditions`]), subtree included | `<element> (conditions)` |
@@ -56,6 +57,7 @@ use super::viewport::Ctx;
 use crate::document::entity::Entity;
 use crate::document::{Document, Layer, LayerId};
 use crate::geometry::Vec2;
+use crate::text::FontBook;
 use crate::util::flip_y;
 use reuse::Index;
 use style::{Style, collect_sheet};
@@ -68,6 +70,7 @@ pub(super) mod report;
 mod reuse;
 mod shapes;
 mod style;
+mod text;
 mod walk;
 
 /// The SVG namespace URI; only elements in it are SVG (LCV-171 AC 1).
@@ -166,8 +169,14 @@ impl ImportedSvg {
 /// What is skipped lands in the report (module docs). The bed comes from the root header
 /// (see [`parse_root`]) and is the axis every Y is un-mirrored around.
 /// Returns the first error encountered, having mutated nothing: the caller's
-/// document is untouched on `Err` (LCV-114 AC 9).
+/// document is untouched on `Err` (LCV-114 AC 9). `<text>` finds no font
+/// and is reported `text (no font)`; see [`import_svg_with`].
 pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
+    import_svg_with(src, &FontBook::empty())
+}
+
+/// [`import_svg`], drawing `<text>` with the faces of `fonts` (LCV-179).
+pub fn import_svg_with(src: &str, fonts: &FontBook) -> Result<ImportedSvg, SvgImportError> {
     let doc = roxmltree::Document::parse(src)?;
     let root = doc.root_element();
     if root.tag_name().name() != "svg" || root.tag_name().namespace() != Some(SVG_NS) {
@@ -175,7 +184,7 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
     }
     let header = parse_root(root)?;
     let bed_mm = header.bed_mm;
-    let mut walk = Walk::new(bed_mm[1], Index::build(root));
+    let mut walk = Walk::new(bed_mm[1], Index::build(root), fonts);
     walk.report.note_properties(root);
     walk.sheet = collect_sheet(root, &mut walk.report);
     let style = Style::root().child(root, &walk.sheet, &mut walk.report);

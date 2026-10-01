@@ -9,7 +9,7 @@
 - [x] T3 [AC1, AC4, AC8] Test first: glyph `l` of the bundled font is closed contours of lines,
   `o` holds quadratics, advances match `hmtx`, an unmapped char (`é`) is `missing` with glyph 0's
   advance; then `outline.rs` (files: `src/text/outline.rs`, `src/text/mod.rs`)
-- [ ] T4 [AC1] Test first: `<text x="10" y="20" font-size="10">l</text>` under a `translate` and
+- [x] T4 [AC1] Test first: `<text x="10" y="20" font-size="10">l</text>` under a `translate` and
   `scale` imports closed contours whose bbox matches the glyph scaled by size/upem with origin at
   (10,20) through the CTM; then `import_text`, the walk arm and `import_svg_with`
   (files: `src/io/svg/import/text.rs`, `src/io/svg/import/walk.rs`, `src/io/svg/import.rs`)

@@ -586,7 +586,8 @@ fn never_rendered_elements_without_element_children_are_not_reported() {
 /// AC 5 — every other SVG element is skipped with its subtree and reported
 /// by name, repeats counted under one entry in first-occurrence order; a
 /// `<style>` is read by the cascade and silent (LCV-175). `use` and
-/// `switch` are handled since LCV-178.
+/// `switch` are handled since LCV-178; `text` is imported as outlines
+/// since LCV-179, and without a font reported as `text (no font)`.
 #[test]
 fn other_svg_elements_are_skipped_and_reported_with_counts() {
     let inner = format!(
@@ -596,7 +597,7 @@ fn other_svg_elements_are_skipped_and_reported_with_counts() {
     assert!(imported.entities.is_empty());
     let want = [
         entry("image", 3),
-        entry("text", 2),
+        entry("text (no font)", 2),
         entry("script", 1),
         entry("foreignObject", 1),
     ];

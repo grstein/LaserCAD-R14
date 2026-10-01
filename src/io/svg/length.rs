@@ -102,6 +102,34 @@ pub(super) fn to_user(len: Length, ref_len: f64) -> f64 {
     }
 }
 
+/// A CSS `font-size` value in user units given the parent's size `parent`
+/// (LCV-179): a length (`em` and `%` of `parent`, `ex` half an `em`), an
+/// absolute keyword `xx-small`…`xx-large` (9, 10, 13, 16, 18, 24, 32), or
+/// `larger`/`smaller` (× or ÷ 1.2). `None` when invalid or negative.
+pub(super) fn font_size(raw: &str, parent: f64) -> Option<f64> {
+    let keyword = match raw.trim().to_ascii_lowercase().as_str() {
+        "xx-small" => 9.0,
+        "x-small" => 10.0,
+        "small" => 13.0,
+        "medium" => 16.0,
+        "large" => 18.0,
+        "x-large" => 24.0,
+        "xx-large" => 32.0,
+        "larger" => parent * 1.2,
+        "smaller" => parent / 1.2,
+        _ => {
+            let len = parse_length(raw)?;
+            let size = match len.unit {
+                Unit::Em => len.value * parent,
+                Unit::Ex => len.value * parent / 2.0,
+                _ => to_user(len, parent),
+            };
+            return (size >= 0.0).then_some(size);
+        }
+    };
+    Some(keyword)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -162,6 +190,30 @@ mod tests {
         assert!(close(user("10 Px"), 10.0));
         assert!(close(user("1e1pX"), 10.0));
         assert!(close(user("-.5E1"), -5.0));
+    }
+
+    /// LCV-179 — font sizes: lengths, `em`/`ex`/`%` of the parent,
+    /// keywords; negative and junk refused.
+    #[test]
+    fn font_sizes_resolve_against_the_parent() {
+        let size = |raw| font_size(raw, 20.0);
+        for (raw, want) in [
+            ("12", 12.0),
+            ("12px", 12.0),
+            ("1in", 96.0),
+            ("2em", 40.0),
+            ("1ex", 10.0),
+            ("50%", 10.0),
+            ("xx-small", 9.0),
+            ("X-Large", 24.0),
+            ("larger", 24.0),
+            ("smaller", 20.0 / 1.2),
+        ] {
+            assert!(close(size(raw).unwrap(), want), "{raw}");
+        }
+        for raw in ["-1", "big", ""] {
+            assert_eq!(size(raw), None, "{raw}");
+        }
     }
 
     /// AC 1 — junk, unknown units and non-finite numbers are refused.

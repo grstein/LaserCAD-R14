@@ -18,6 +18,7 @@ use crate::io::svg::layers::{LayerReader, Slot};
 use crate::io::svg::matrix::parse_transform;
 use crate::io::svg::path_data::parse_path_data;
 use crate::io::svg::viewport::{Ctx, nested};
+use crate::text::FontBook;
 
 /// The report label of a `<path>` with no `d` (LCV-171 AC 6).
 const UNSUPPORTED_PATH: &str = "path (unsupported data)";
@@ -55,6 +56,8 @@ enum Kind {
     Switch,
     /// `use`: an instance of the element it references ([`super::reuse`]).
     Use,
+    /// `text`: glyph outlines ([`super::text`], LCV-179).
+    Text,
     /// Any other SVG element: skipped with its subtree (AC 5).
     Other,
 }
@@ -69,6 +72,7 @@ fn classify(node: roxmltree::Node<'_, '_>) -> Kind {
         "svg" | "g" | "a" => Kind::Descend,
         "switch" => Kind::Switch,
         "use" => Kind::Use,
+        "text" => Kind::Text,
         "defs" | "symbol" | "clipPath" | "mask" | "marker" | "pattern" | "linearGradient"
         | "radialGradient" | "filter" => Kind::NeverRendered,
         "title" | "desc" | "metadata" | "style" => Kind::Silent,
@@ -91,7 +95,9 @@ pub(super) struct Walk<'a, 'input> {
     pub(super) report: Report,
     /// The document's `<style>` rules (LCV-175).
     pub(super) sheet: Sheet,
-    bed_h: f64,
+    pub(super) bed_h: f64,
+    /// The faces `<text>` is drawn with (LCV-179).
+    pub(super) fonts: &'a FontBook,
     /// The document's elements by `id`, for `<use>` (LCV-178).
     pub(super) index: Index<'a, 'input>,
     /// The `<use>` elements being expanded, outermost first.
@@ -103,7 +109,7 @@ pub(super) struct Walk<'a, 'input> {
 
 impl<'a, 'input> Walk<'a, 'input> {
     /// An empty walk that un-mirrors Y around `bed_h`.
-    pub(super) fn new(bed_h: f64, index: Index<'a, 'input>) -> Self {
+    pub(super) fn new(bed_h: f64, index: Index<'a, 'input>, fonts: &'a FontBook) -> Self {
         Self {
             entities: Vec::new(),
             slots: Vec::new(),
@@ -111,6 +117,7 @@ impl<'a, 'input> Walk<'a, 'input> {
             report: Report::default(),
             sheet: Sheet::default(),
             bed_h,
+            fonts,
             index,
             uses: Vec::new(),
             instanced: 0,
@@ -154,7 +161,7 @@ impl<'a, 'input> Walk<'a, 'input> {
         let mut inner_style = *style;
         if matches!(
             kind,
-            Kind::Import | Kind::Descend | Kind::Switch | Kind::Use
+            Kind::Import | Kind::Descend | Kind::Switch | Kind::Use | Kind::Text
         ) {
             inner_style = style.child(child, &self.sheet, &mut self.report);
             if let Some(label) = inner_style.hidden(matches!(kind, Kind::Import)) {
@@ -201,6 +208,7 @@ impl<'a, 'input> Walk<'a, 'input> {
                 }
             }
             (Kind::Use, Some(c)) => self.expand(child, layer, &c, &inner_style)?,
+            (Kind::Text, Some(c)) => self.text(child, layer, &c, &inner_style),
             (Kind::NeverRendered, _) => {
                 if child.children().any(|n| n.is_element() && !is_style(n)) {
                     self.report.note(name);
@@ -259,7 +267,7 @@ impl<'a, 'input> Walk<'a, 'input> {
     }
 
     /// Append `entities` on `slot` and note each of `labels`.
-    fn push(&mut self, entities: Vec<Entity>, labels: &[&str], slot: Slot) {
+    pub(super) fn push(&mut self, entities: Vec<Entity>, labels: &[&str], slot: Slot) {
         if !self.uses.is_empty() {
             self.instanced += entities.len();
         }
