@@ -29,7 +29,7 @@
       (files: tests/it/io_svg/reuse.rs, tests/it/io_svg/mod.rs)
 - [x] T10 [AC1]–[AC8] Walk `use` arm, `uses` stack, symbol-children walk
       (files: src/io/svg/import/walk.rs)
-- [ ] T11 [AC9] Test: 33 nested uses fail with `LimitExceeded` naming `depth 32`; 32 pass; a
+- [x] T11 [AC9] Test: 33 nested uses fail with `LimitExceeded` naming `depth 32`; 32 pass; a
       six-level ×10 fan-out (10⁶ lines) fails naming `100000` within the test's normal run time;
       100 000 plain lines without `use` still import (files: tests/it/io_svg/reuse.rs)
 - [ ] T12 [AC9] `SvgImportError::LimitExceeded`, depth check, `instanced` budget

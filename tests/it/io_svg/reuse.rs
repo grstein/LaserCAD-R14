@@ -153,3 +153,55 @@ fn an_unresolved_reference_is_skipped_and_reported() {
     assert!(svg.entities.is_empty(), "{:?}", svg.entities);
     assert_eq!(svg.report, [("use (unresolved)".to_owned(), 3)]);
 }
+
+/// A file of `n` nested `<use>` around one line: `u1 → line`, `uk → u(k-1)`,
+/// and a drawn `<use>` of `u(n-1)`.
+fn nested_uses(n: usize) -> String {
+    let mut defs = format!(r#"<line id="u0" {LINE}/>"#);
+    for k in 1..n {
+        defs += &format!(r##"<use id="u{k}" href="#u{}"/>"##, k - 1);
+    }
+    format!(r##"<defs>{defs}</defs><use href="#u{}"/>"##, n - 1)
+}
+
+/// The import error of a 100 mm page holding `inner`, as `Debug` text.
+fn refused(inner: &str) -> String {
+    let src = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="100mm" viewBox="0 0 100 100">{inner}</svg>"#
+    );
+    match import_svg(&src) {
+        Ok(svg) => panic!("imported {} entities", svg.entities.len()),
+        Err(e) => format!("{e:?}: {e}"),
+    }
+}
+
+/// AC 9 — 32 nested `<use>` import; 33 refuse the file, naming the limit.
+#[test]
+fn use_nesting_is_capped_at_depth_32() {
+    assert_eq!(page(&nested_uses(32)).entities.len(), 1);
+    let err = refused(&nested_uses(33));
+    assert!(err.starts_with("LimitExceeded"), "{err}");
+    assert!(err.contains("depth 32"), "{err}");
+}
+
+/// AC 9 — a six-level ×10 fan-out (10⁶ lines) refuses the file once it
+/// passes 100 000 instanced entities, without expanding the rest.
+#[test]
+fn a_use_fan_out_is_refused_past_100000_entities() {
+    let mut defs = format!(r#"<g id="g0"><line {LINE}/></g>"#);
+    for k in 1..=6 {
+        let uses = format!(r##"<use href="#g{}"/>"##, k - 1).repeat(10);
+        defs += &format!(r#"<g id="g{k}">{uses}</g>"#);
+    }
+    let err = refused(&format!(r##"<defs>{defs}</defs><use href="#g6"/>"##));
+    assert!(err.starts_with("LimitExceeded"), "{err}");
+    assert!(err.contains("100000"), "{err}");
+}
+
+/// AC 9 — the entity cap applies to instances only: 100 000 plain lines
+/// import.
+#[test]
+fn plain_geometry_is_not_capped() {
+    let lines = format!("<line {LINE}/>").repeat(100_000);
+    assert_eq!(page(&lines).entities.len(), 100_000);
+}
