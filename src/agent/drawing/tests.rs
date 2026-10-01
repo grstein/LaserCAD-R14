@@ -814,3 +814,48 @@ fn lcv196_ac6_a_polar_arc_copy_keeps_ccw_and_rotates_its_endpoints() {
         }
     }
 }
+
+// ── LCV-196 T14: mutation survivors ──────────────────────────────────────
+
+/// Vertex k is taken mod `sides`: the first vertex of a 0° polygon is exact,
+/// and the last side ends exactly where the first begins.
+#[test]
+fn lcv196_ac3_a_polygon_closes_on_its_exact_first_vertex() {
+    let got = items(json!([{"type": "polygon", "cx": 0, "cy": 0, "r": 10, "sides": 5}]));
+    let ends = |i: &DrawingItem| match *i {
+        DrawingItem::Line { x1, y1, x2, y2 } => ((x1, y1), (x2, y2)),
+        _ => panic!("{i:?} is not a line"),
+    };
+    let (first, last) = (ends(&got[0]), ends(&got[4]));
+    assert_eq!(first.0, (10.0, 0.0));
+    assert_eq!(last.1, first.0);
+}
+
+/// A side omitted at `EPSILON` long, not only at zero.
+#[test]
+fn lcv196_ac2_a_side_of_epsilon_length_is_omitted() {
+    let thin = json!({"type": "rect", "x": 1, "y": 2, "width": 1e-9, "height": 4});
+    let x2 = 1.0 + 1e-9;
+    assert_close(
+        &items(json!([thin])),
+        &[line(x2, 2.0, x2, 6.0), line(1.0, 6.0, 1.0, 2.0)],
+    );
+}
+
+/// `closed` and `step_deg` refusals carry their own forms.
+#[test]
+fn lcv196_ac8_closed_and_step_deg_refusals_name_their_forms() {
+    let mut open = polyline(&[(0.0, 0.0), (1.0, 0.0)], false);
+    open["closed"] = json!("yes");
+    assert_eq!(
+        err(batch(json!([open]))),
+        "create_drawing entities[0].closed: not a boolean; expected true or false"
+    );
+    let c = json!({"type": "circle", "cx": 0, "cy": 0, "r": 1});
+    let polar = json!({"type": "polar_array", "of": [0], "count": 2, "cx": 0, "cy": 0,
+        "step_deg": "x"});
+    assert_eq!(
+        err(batch(json!([c, polar]))),
+        "create_drawing entities[1].step_deg: not a number; expected a number in degrees"
+    );
+}
