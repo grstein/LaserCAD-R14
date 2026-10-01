@@ -397,3 +397,78 @@ fn ac12_a_zero_budget_is_clamped_to_the_minimum() {
     run_form(&ctx, &mut settings, Vec::new());
     assert_eq!(settings.agent_step_budget, AGENT_STEP_BUDGET_MIN);
 }
+
+// ── LCV-195: Feedback after changes ──────────────────────────────────────
+
+/// Every text galley one form frame painted, with its top-left corner.
+fn painted_texts(
+    ctx: &egui::Context,
+    settings: &mut Settings,
+    events: Vec<egui::Event>,
+) -> (bool, Vec<(String, egui::Pos2)>) {
+    let mut changed = false;
+    let input = egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(1280.0, 800.0),
+        )),
+        events,
+        ..Default::default()
+    };
+    let output = ctx.run(input, |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            changed |= draw_agent_settings(ui, settings).changed;
+        });
+    });
+    fn walk(shape: &egui::Shape, out: &mut Vec<(String, egui::Pos2)>) {
+        match shape {
+            egui::Shape::Text(t) => out.push((t.galley.text().to_owned(), t.pos)),
+            egui::Shape::Vec(shapes) => shapes.iter().for_each(|s| walk(s, out)),
+            _ => {}
+        }
+    }
+    let mut texts = Vec::new();
+    for clipped in &output.shapes {
+        walk(&clipped.shape, &mut texts);
+    }
+    (changed, texts)
+}
+
+/// LCV-195 AC 7 — the form paints the `Feedback after changes` checkbox and
+/// its hint; clicking the label turns the setting on and reports `changed`.
+#[test]
+fn the_feedback_checkbox_and_hint_are_painted_and_toggle() {
+    let ctx = egui::Context::default();
+    ctx.set_pixels_per_point(1.0);
+    let mut settings = Settings::default();
+    let _ = painted_texts(&ctx, &mut settings, Vec::new());
+    let (_, texts) = painted_texts(&ctx, &mut settings, Vec::new());
+    let find = |want: &str| {
+        texts
+            .iter()
+            .find(|(t, _)| t.trim() == want)
+            .map(|(_, p)| *p)
+    };
+    assert!(find("Allow canvas capture").is_some(), "positive control");
+    let hint =
+        "After each reply that changes the drawing, tell the agent its size and CHECK result.";
+    assert!(find(hint).is_some(), "the hint is painted");
+    let at = find("Feedback after changes").expect("the checkbox label is painted");
+    assert!(!settings.agent_feedback_after_changes, "off by default");
+
+    let pos = at + egui::vec2(4.0, 4.0);
+    let button = |pressed| egui::Event::PointerButton {
+        pos,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: egui::Modifiers::NONE,
+    };
+    let _ = painted_texts(&ctx, &mut settings, vec![egui::Event::PointerMoved(pos)]);
+    let (pressed, _) = painted_texts(&ctx, &mut settings, vec![button(true)]);
+    let (released, _) = painted_texts(&ctx, &mut settings, vec![button(false)]);
+    assert!(
+        settings.agent_feedback_after_changes,
+        "the click turned it on"
+    );
+    assert!(pressed || released, "and the toggle was reported");
+}
