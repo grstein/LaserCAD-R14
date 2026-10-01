@@ -37,8 +37,10 @@ pub fn draw_bed_dialog(ctx: &egui::Context, app: &mut App) {
         return;
     };
     let mut result = None;
+    let mut open = true;
 
     egui::Window::new("Bed Size")
+        .open(&mut open)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
         .resizable(false)
         .collapsible(false)
@@ -63,6 +65,9 @@ pub fn draw_bed_dialog(ctx: &egui::Context, app: &mut App) {
         });
 
     app.bed_dialog = Some(draft);
+    if !open {
+        result = result.or(Some(DialogResult::Cancelled)); // × = Cancel (LCV-169 AC 4)
+    }
     if let Some(result) = result
         && apply_bed_dialog_result(app, result)
     {

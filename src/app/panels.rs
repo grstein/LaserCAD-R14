@@ -110,17 +110,17 @@ pub fn draw_dialogs(ctx: &egui::Context, app: &mut App) {
 }
 
 /// The AI Settings window (LCV-076). Persists the settings when the window
-/// closes, whether by the × button, the Done button (LCV-141 AC 6), or
+/// closes, whether by the × button, the Close button (LCV-141 AC 6), or
 /// programmatically.
 fn agent_settings_dialog(ctx: &egui::Context, app: &mut App) {
     let was_open = app.agent_settings_open;
-    // Set from inside the content closure below when Done is clicked. Kept
+    // Set from inside the content closure below when Close is clicked. Kept
     // separate from `agent_settings_open` itself: `Window::open` already
     // borrows that field for the whole `.show()` call, so a second mutable
     // borrow of the same field from the content closure would not compile —
-    // this is the one new piece of state the Done button needs, read only
+    // this is the one new piece of state the Close button needs, read only
     // after every borrow above has ended (LCV-141 AC 6).
-    let mut done_clicked = false;
+    let mut close_clicked = false;
     {
         // The window borrows `agent_settings_open` and `settings` mutably for
         // its whole lifetime; `App::persist_settings` needs `&App`, so the
@@ -134,21 +134,21 @@ fn agent_settings_dialog(ctx: &egui::Context, app: &mut App) {
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
             .show(ctx, |ui| {
                 // LCV-141 AC 7: bounded scrolling, so a form that grows in a
-                // later demand scrolls instead of pushing Done off the bottom
+                // later demand scrolls instead of pushing Close off the bottom
                 // of the window (ADR 0009).
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    done_clicked = crate::agent::draw_agent_settings(ui, settings).done_clicked;
+                    close_clicked = crate::agent::draw_agent_settings(ui, settings).close_clicked;
                 });
             });
     }
-    // Done runs the exact same close as the × button: it only ever sets the
+    // Close runs the exact same close as the × button: it only ever sets the
     // same flag the window's own `Window::open` would have set, and the one
     // guard below fires either way — never a second, parallel persistence
     // path (AC 6).
-    if done_clicked {
+    if close_clicked {
         app.agent_settings_open = false;
     }
-    // Save on dialog close (× button, Done, or programmatic close).
+    // Save on dialog close (× button, Close, or programmatic close).
     if was_open && !app.agent_settings_open {
         app.persist_settings();
     }
@@ -233,12 +233,12 @@ mod tests {
         );
     }
 
-    /// The body of `if done_clicked { .. }` inside `agent_settings_dialog`,
+    /// The body of `if close_clicked { .. }` inside `agent_settings_dialog`,
     /// brace-matched — the same slicing idiom `src/agent/panel.rs::busy_block`
     /// uses for LCV-129's Cancel button, so a line moved out of the guarded
     /// block is no longer in *this* string even though it is still in the file.
-    fn done_clicked_block(implementation: &str) -> String {
-        let head = concat!("if done_", "clicked {");
+    fn close_clicked_block(implementation: &str) -> String {
+        let head = concat!("if close_", "clicked {");
         let start = implementation
             .find(head)
             .unwrap_or_else(|| panic!("agent_settings_dialog must guard a `{head}` block"))
@@ -256,27 +256,27 @@ mod tests {
                 _ => {}
             }
         }
-        panic!("the done_clicked block is never closed — panels.rs does not parse");
+        panic!("the close_clicked block is never closed — panels.rs does not parse");
     }
 
-    /// LCV-141 AC 6 — **source scan**: Done's whole effect is setting the same
+    /// LCV-141 AC 6 — **source scan**: Close's whole effect is setting the same
     /// flag `Window::open` sets for ×, not a second call into
     /// `App::persist_settings`. The one persist call below — reached through
     /// `was_open && !app.agent_settings_open`, which is true after *either*
-    /// path — is what actually saves, and this pins that Done does not also
+    /// path — is what actually saves, and this pins that Close does not also
     /// reach it directly.
     #[test]
-    fn ac6_done_only_sets_the_shared_close_flag_source_scan() {
+    fn ac6_close_only_sets_the_shared_close_flag_source_scan() {
         let implementation = implementation_code();
-        let block = done_clicked_block(&implementation);
+        let block = close_clicked_block(&implementation);
 
         assert!(
             block.contains(concat!("agent_settings", "_open = false")),
-            "AC 6: the done_clicked block must set the same flag × sets: {block}"
+            "AC 6: the close_clicked block must set the same flag × sets: {block}"
         );
 
         let witness =
-            "if done_clicked { app.agent_settings_open = false; app.persist_settings(); }";
+            "if close_clicked { app.agent_settings_open = false; app.persist_settings(); }";
         let forbidden = concat!("persist_", "settings");
         assert!(
             witness.contains(forbidden),
@@ -284,7 +284,7 @@ mod tests {
         );
         assert!(
             !block.contains(forbidden),
-            "AC 6: Done must not call `{forbidden}` itself — that is the shared \
+            "AC 6: Close must not call `{forbidden}` itself — that is the shared \
              guard's job, reached the same way × reaches it: {block}"
         );
     }

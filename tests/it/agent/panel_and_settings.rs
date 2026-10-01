@@ -324,7 +324,7 @@ fn ac8_ac9_ac10_the_settings_dialog_draws_headless_frame() {
 /// the key itself is painted nowhere at all.
 ///
 /// **LCV-141 note**: the expected set below gained its last two lines — the
-/// live-edit sentence and the Done button — the two additions that demand
+/// live-edit sentence and the Close button — the two additions that demand
 /// makes to this exact dialog (its AC 6). ADR 0009 decision 2 is why the fix
 /// is here rather than around it: a paint assertion that claims a surface
 /// shows *nothing else* must be updated the moment intentional content is
@@ -376,7 +376,7 @@ fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
             vec!["System prompt", "Restore Default"],
             vec![lasercad::agent::DEFAULT_PROMPT],
             vec!["Changes apply immediately and are saved when this window closes."],
-            vec!["Done"],
+            vec!["Close"],
         ],
         "the form paints its labels, its values and both sentences, in order, \
          and paints nothing else"

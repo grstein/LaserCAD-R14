@@ -11,7 +11,7 @@
   src/ui/dialogs.rs, src/app/panels.rs)
 - [x] T4 [AC4] Keyboard Shortcuts gets a `Close` row below its `ScrollArea`;
   `shortcuts_dialog_fits.rs` stays green unchanged (files: src/ui/shortcuts_dialog.rs)
-- [ ] T5 [AC4] AI Settings `Done` → `Close` (same close path); Bed Size gets a × = Cancel;
+- [x] T5 [AC4] AI Settings `Done` → `Close` (same close path); Bed Size gets a × = Cancel;
   update the Done-keyed tests (files: src/agent/settings_ui.rs, src/app/bed_dialog.rs,
   tests/it/agent/panel_and_settings.rs)
 - [ ] T6 [AC4] Test: a click on each dialog's title-bar × leaves the same state as its

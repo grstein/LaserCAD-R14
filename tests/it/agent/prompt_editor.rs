@@ -77,11 +77,11 @@ fn click(ctx: &egui::Context, app: &mut App, pos: egui::Pos2) -> Vec<Run> {
     )
 }
 
-/// Click Done and return what the test-owned file persisted.
+/// Click Close and return what the test-owned file persisted.
 fn done(ctx: &egui::Context, app: &mut App) -> Settings {
     let runs = run(ctx, app, Vec::new());
-    let _ = click(ctx, app, locate(&runs, "Done"));
-    assert!(!app.agent_settings_open, "Done closes the dialog");
+    let _ = click(ctx, app, locate(&runs, "Close"));
+    assert!(!app.agent_settings_open, "Close closes the dialog");
     let path = app.settings_path.clone().expect("a test-owned path");
     let json = std::fs::read_to_string(path).expect("closing persists the settings");
     serde_json::from_str(&json).expect("the persisted settings parse")
@@ -110,7 +110,7 @@ fn ac3_an_untouched_editor_creates_no_override() {
 }
 
 /// AC 3 + AC 4 — text typed across several frames lands verbatim (no trim,
-/// newline kept), persists through Done, and is what a reopened dialog shows.
+/// newline kept), persists through Close, and is what a reopened dialog shows.
 #[test]
 fn ac3_typed_text_persists_verbatim_through_done() {
     let dir = tempdir("typed");
@@ -147,7 +147,7 @@ fn ac3_typed_text_persists_verbatim_through_done() {
 }
 
 /// AC 4 — Restore Default clears the override and the editor shows the
-/// built-in text on the very frame of the click; Done persists `None`.
+/// built-in text on the very frame of the click; Close persists `None`.
 #[test]
 fn ac4_restore_default_clears_the_override_on_the_same_frame() {
     let dir = tempdir("restore");
@@ -216,7 +216,7 @@ fn ac8_every_control_is_reachable_at_800x600_with_a_long_prompt() {
         "Steps per turn",
         "System prompt",
         "Restore Default",
-        "Done",
+        "Close",
     ] {
         assert!(
             contained(&top, label) || contained(&bottom, label),
