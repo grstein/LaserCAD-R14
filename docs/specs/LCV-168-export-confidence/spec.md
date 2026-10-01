@@ -1,8 +1,8 @@
 # LCV-168 — Save and export confidence
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: LCV-156, LCV-165
-- **Implementation**: -
+- **Implementation**: 7930021..f72ebb4
 
 ## Problem
 
