@@ -2,7 +2,7 @@
 //! to end through `import_svg`. The page is 100 mm square with one user unit
 //! = 1 mm, so a world point is `(x, 100 − y)`.
 
-use lasercad::document::Entity;
+use lasercad::document::{Entity, History, MoveEntities};
 use lasercad::geometry::{Line, Vec2};
 use lasercad::io::svg::{ImportedSvg, import_svg};
 
@@ -204,4 +204,23 @@ fn a_use_fan_out_is_refused_past_100000_entities() {
 fn plain_geometry_is_not_capped() {
     let lines = format!("<line {LINE}/>").repeat(100_000);
     assert_eq!(page(&lines).entities.len(), 100_000);
+}
+
+/// AC 12 — two instances of one `<line>` are two independent entities:
+/// moving one leaves the other bit-identical.
+#[test]
+fn instances_are_independent_entities() {
+    let svg = page(&format!(
+        r##"<defs><line id="l" {LINE}/></defs><use href="#l"/><use href="#l" y="10"/>"##
+    ));
+    let mut doc = svg.into_document().unwrap();
+    assert_eq!(doc.entity_count(), 2);
+    let other = doc.entities[1].clone();
+    let mut history = History::default();
+    history.commit(
+        Box::new(MoveEntities::new(vec![0], Vec2::new(3.0, 4.0))),
+        &mut doc,
+    );
+    assert_line(&doc.entities[0], (3.0, -4.0), (8.0, -4.0));
+    assert_eq!(doc.entities[1], other);
 }

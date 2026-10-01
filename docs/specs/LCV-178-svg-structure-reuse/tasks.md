@@ -36,7 +36,7 @@
       (files: src/io/svg/import.rs, src/io/svg/import/walk.rs)
 - [x] T13 [AC9] Test: `action_open_path` on a depth-33 file leaves the document, title and
       entities unchanged and surfaces the error (files: tests/it/app/document_title_and_file_feedback.rs)
-- [ ] T14 [AC12] Test: two `<use>` of one `<line>` give two entities with distinct ids;
+- [x] T14 [AC12] Test: two `<use>` of one `<line>` give two entities with distinct ids;
       committing `MoveEntities` on one leaves the other's geometry bit-identical
       (files: tests/it/io_svg/reuse.rs)
 - [ ] T15 [AC1] [AC3] [AC10] Corpus pairs `inkscape-clones` and `icon-symbols` with hand-written
