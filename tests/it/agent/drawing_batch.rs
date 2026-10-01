@@ -714,3 +714,36 @@ fn lcv196_ac9_an_expanded_batch_is_one_step_one_undo_one_revision() {
     tap(&ctx, &mut app, egui::Key::Z, ctrl());
     assert_eq!(app.document.entity_count(), 1, "one Ctrl+Z, whole batch");
 }
+
+/// LCV-196 AC 4 — a batch `text` item and the `TEXT` command at the same
+/// insertion point, height and string create identical entities.
+#[test]
+fn lcv196_ac4_batch_text_equals_the_text_command() {
+    use crate::harness::{raw_input, submit_command};
+    let ctx = egui::Context::default();
+    let mut app = App::default();
+    let mut viewport = egui::Rect::NOTHING;
+    let _ = ctx.run(raw_input(vec![]), |c| {
+        app.update_ui(c);
+        viewport = c.available_rect();
+    });
+    tap(&ctx, &mut app, egui::Key::D, egui::Modifiers::NONE);
+    let p = viewport.center();
+    frame(&ctx, &mut app, vec![egui::Event::PointerMoved(p)]);
+    let button = |pressed| egui::Event::PointerButton {
+        pos: p,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: egui::Modifiers::NONE,
+    };
+    frame(&ctx, &mut app, vec![button(true), button(false)]);
+    let anchor = app.last_cursor_world.expect("the click sets the anchor");
+    submit_command(&ctx, &mut app, "LaserCAD 1:2");
+    submit_command(&ctx, &mut app, "7.5");
+    let by_command = app.document.entities.clone();
+    assert!(by_command.len() > 20, "control: {}", by_command.len());
+
+    let by_batch = drawn(json!([{"type": "text", "x": anchor.x, "y": anchor.y,
+        "height": 7.5, "text": "LaserCAD 1:2"}]));
+    assert_eq!(by_batch, by_command);
+}

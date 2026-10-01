@@ -46,7 +46,7 @@ Prerequisites: LCV-185, LCV-192 Done; LCV-188 Done (the outcome's `New ids` suff
 - [x] T7 [AC9] Test (headless turn): a batch mixing `rect` and `polar_array` is one step, one undo
   and one revision. The outcome reports the expanded count, the `a..=b` range and the new-id
   suffix (files: tests/it/agent/drawing_batch.rs)
-- [ ] T8 [AC4] Test (headless app): `text` in a batch and the `TEXT` command at the same point,
+- [x] T8 [AC4] Test (headless app): `text` in a batch and the `TEXT` command at the same point,
   height and string create identical entities (files: tests/it/agent/drawing_batch.rs)
 - [ ] T9 [AC6] Test: a polar copy of a CCW arc keeps `ccw`, and its endpoints equal the rotated
   source endpoints within `EPSILON` (files: src/agent/drawing/tests.rs)
