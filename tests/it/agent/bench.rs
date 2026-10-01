@@ -13,9 +13,12 @@
 //! ADR 0006: no per-user path is injected.
 
 use super::bench_score::{Assertion, iou};
-use lasercad::agent::{AgentError, AssistantMessage, ChatMessage};
+use lasercad::agent::{
+    AgentError, AssistantMessage, ChatMessage, chat_completion, tool_definitions,
+};
 use lasercad::app::{App, InlineTurn, TurnConfig, config_for, run_turn_inline};
 use lasercad::document::Document;
+use lasercad::io::settings::Settings;
 use lasercad::io::svg::import_svg;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -251,4 +254,124 @@ fn ac6_a_missing_hole_scores_below_the_clean_recording() {
         clean.iou
     );
     assert!(defect.passed() < clean.passed(), "{defect:?} vs {clean:?}");
+}
+
+/// What the live run says when it has no model to run (AC 8).
+const USAGE: &str =
+    "usage: scripts/agent-bench.sh <settings.json>  (the file must name agent_model)";
+
+/// The live run's settings: the JSON file at `path`, which must name a
+/// non-empty `agent_model`. Anything else is [`USAGE`], before any turn is
+/// configured and so before any request can be sent (AC 8).
+fn live_config(path: Option<&Path>) -> Result<Settings, String> {
+    let text = path
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .ok_or(USAGE)?;
+    let value: serde_json::Value = serde_json::from_str(&text).map_err(|_| USAGE)?;
+    let named = value["agent_model"]
+        .as_str()
+        .is_some_and(|m| !m.trim().is_empty());
+    if !named {
+        return Err(USAGE.to_owned());
+    }
+    serde_json::from_value(value).map_err(|e| format!("{USAGE}: {e}"))
+}
+
+/// AC 8 — no file, an unreadable one, or one naming no model is refused
+/// with the usage line; a file naming a model is the run's settings.
+#[test]
+fn ac8_no_settings_or_no_model_is_refused_with_the_usage_line() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("lcv200-live-config");
+    std::fs::create_dir_all(&dir).expect("a scratch directory");
+    let file = |name: &str, body: &str| {
+        let path = dir.join(name);
+        std::fs::write(&path, body).expect("a scratch file");
+        path
+    };
+    let refused = [
+        dir.join("absent.json"),
+        file("not-json.json", "agent_model = x"),
+        file(
+            "no-model.json",
+            r#"{"agent_endpoint": "https://example.invalid/v1"}"#,
+        ),
+        file("empty-model.json", r#"{"agent_model": " "}"#),
+        file("number-model.json", r#"{"agent_model": 7}"#),
+    ];
+    assert_eq!(live_config(None), Err(USAGE.to_owned()));
+    for path in &refused {
+        assert_eq!(
+            live_config(Some(path)),
+            Err(USAGE.to_owned()),
+            "{}",
+            path.display()
+        );
+    }
+    let named = file(
+        "named.json",
+        r#"{"agent_model": "vendor/model-1", "agent_api_key": "k"}"#,
+    );
+    let settings = live_config(Some(&named)).expect("a named model");
+    assert_eq!(settings.agent_model, "vendor/model-1");
+    assert_eq!(settings.agent_api_key, "k");
+}
+
+/// `model` as a file name: anything outside `[A-Za-z0-9._-]` becomes `_`.
+fn file_key(model: &str) -> String {
+    model
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || "._-".contains(c) {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
+/// AC 7 — the suite against the live model `LASERCAD_BENCH_SETTINGS` names:
+/// one JSON line per task in `target/agent-bench/<model>.jsonl`, and each
+/// task's replies beside it, ready to be promoted to a fixture. Started by
+/// `scripts/agent-bench.sh`; never part of the gate.
+#[test]
+#[ignore = "live model: run scripts/agent-bench.sh <settings.json>"]
+fn agent_bench_live() {
+    let path = std::env::var_os("LASERCAD_BENCH_SETTINGS").map(PathBuf::from);
+    let settings = live_config(path.as_deref()).unwrap_or_else(|usage| panic!("{usage}"));
+    let out = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/agent-bench");
+    std::fs::create_dir_all(&out).expect("target/agent-bench is writable");
+    let key = file_key(&settings.agent_model);
+    let mut lines = String::new();
+    for name in TASKS {
+        let task = load(name);
+        let mut app = App {
+            settings: settings.clone(),
+            ..App::default()
+        };
+        let config = config_for(&app);
+        let tools = tool_definitions(config.vision);
+        let mut replies: Vec<AssistantMessage> = Vec::new();
+        let mut send = |msgs: &[ChatMessage]| {
+            let reply = chat_completion(
+                &config.endpoint,
+                &config.api_key,
+                &config.model,
+                msgs,
+                &tools,
+            )
+            .map_err(|e| AgentError::Transport(e.to_string()))?;
+            replies.push(reply.clone());
+            Ok(reply)
+        };
+        let (score, turn) = run(&task, &mut app, &config, &mut send);
+        let line = json_line(name, &score, &turn);
+        println!("{line}  ({:?})", turn.result.as_ref().map(|_| "done"));
+        lines.push_str(&line);
+        lines.push('\n');
+        let json = serde_json::to_string_pretty(&replies).expect("replies serialize");
+        std::fs::write(out.join(format!("{key}-{name}-replies.json")), json + "\n")
+            .expect("the replies file is writable");
+    }
+    std::fs::write(out.join(format!("{key}.jsonl")), lines).expect("the results file is writable");
 }

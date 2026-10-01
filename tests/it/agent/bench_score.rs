@@ -23,7 +23,8 @@ pub enum Assertion {
     Circles { r: f64, count: usize, tol: f64 },
     /// The drawing's bounding box is `w` × `h` mm, each within `tol`.
     Bbox { w: f64, h: f64, tol: f64 },
-    /// The drawing check finds no open end and no gap (LCV-190).
+    /// The drawing is not empty and its check finds no open end and no gap
+    /// (LCV-190).
     Closed,
     /// The drawing holds at least `n` entities.
     MinEntities { n: usize },
@@ -40,10 +41,13 @@ impl Assertion {
             Self::Bbox { w, h, tol } => doc.bounds().is_some_and(|(lo, hi)| {
                 ((hi.x - lo.x) - w).abs() <= tol && ((hi.y - lo.y) - h).abs() <= tol
             }),
-            Self::Closed => !check_drawing(doc)
-                .findings
-                .iter()
-                .any(|f| matches!(f, Finding::OpenEnd { .. } | Finding::Gap { .. })),
+            Self::Closed => {
+                !doc.entities.is_empty()
+                    && !check_drawing(doc)
+                        .findings
+                        .iter()
+                        .any(|f| matches!(f, Finding::OpenEnd { .. } | Finding::Gap { .. }))
+            }
             Self::MinEntities { n } => doc.entities.len() >= n,
         }
     }
@@ -156,6 +160,7 @@ fn each_assertion_kind_passes_and_fails_where_it_should() {
             false,
         ),
         (r#"{"kind": "closed"}"#, true, false),
+        (r#"{"kind": "min_entities", "n": 0}"#, true, true),
         (r#"{"kind": "min_entities", "n": 5}"#, true, false),
         (r#"{"kind": "min_entities", "n": 3}"#, true, true),
     ];
@@ -165,4 +170,9 @@ fn each_assertion_kind_passes_and_fails_where_it_should() {
         assert_eq!(a.passes(&open), on_open, "{json} on the open drawing");
     }
     assert!(serde_json::from_str::<Assertion>(r#"{"kind": "area"}"#).is_err());
+    let empty = doc(&[]);
+    assert!(
+        !parse(r#"{"kind": "closed"}"#).passes(&empty),
+        "nothing drawn is not closed"
+    );
 }
