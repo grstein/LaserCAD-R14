@@ -40,7 +40,7 @@
       tests/it/io_svg/mod.rs)
 - [x] T12 [AC1] Fuzz: an arbitrary `d` string inside a `<path>` never panics `import_svg` (files:
       tests/it/io_svg/import_fuzz.rs)
-- [ ] T13 [AC10] Fixtures with `.expected` written by hand from the SVG text: `path-relative`
+- [x] T13 [AC10] Fixtures with `.expected` written by hand from the SVG text: `path-relative`
       (`m l h v a` resolve), `path-compact` (`M1-2.5.5`, glued flags, exponents),
       `path-subpaths` (three `M` in one `d`, two closed with `Z`) (files:
       tests/fixtures/svg/path-relative.{svg,expected}, tests/fixtures/svg/path-compact.{svg,expected},
