@@ -3,10 +3,10 @@
 //! `CopyTool` (LCV-157), and the agent CAD registry (LCV-078).
 //!
 //! `DeleteEntities::do_` sorts `indices` descending so each `Vec::remove(i)`
-//! does not invalidate later indices, capturing `(i, entity)` pairs in that
-//! order. `undo` `pop`s the capture (ascending order) and `Vec::insert(i, e)`s
-//! each back into place — low first means higher slots are not shifted. After
-//! undo the capture is empty, so a double-undo is a no-op.
+//! does not invalidate later indices, capturing `(i, entity, layer, id)` in
+//! that order. `undo` `pop`s the capture (ascending order) and inserts each
+//! back into place with its id (ADR 0014) — low first means higher slots are
+//! not shifted. After undo the capture is empty, so a double-undo is a no-op.
 //!
 //! `MoveEntities::do_` translates each indexed entity by `self.delta`; `undo`
 //! by `-self.delta`. Pure `f64` addition is exactly invertible, so the
@@ -24,7 +24,7 @@
 //! MUST NOT import `egui`, `eframe`, or `rfd`. Introduced by demand LCV-024.
 
 use super::Command;
-use crate::document::{Document, Entity, LayerId};
+use crate::document::{Document, Entity, EntityId, LayerId};
 use crate::geometry::Vec2;
 
 /// Remove a set of entities from a [`Document`] and remember them for undo.
@@ -34,9 +34,9 @@ pub struct DeleteEntities {
     /// Indices into [`Document::entities`] to remove. Caller ensures each
     /// index is in range and unique.
     pub indices: Vec<usize>,
-    /// Captured `(original_index, entity, layer)` triples in removal order (descending
+    /// Captured `(original_index, entity, layer, id)` in removal order (descending
     /// by original index). `undo` drains via `pop`, yielding ascending order.
-    captured_entities: Vec<(usize, Entity, LayerId)>,
+    captured_entities: Vec<(usize, Entity, LayerId, EntityId)>,
 }
 
 impl DeleteEntities {
@@ -58,16 +58,16 @@ impl Command for DeleteEntities {
         sorted.sort_unstable_by(|a, b| b.cmp(a));
         for i in sorted {
             debug_assert!(i < doc.entities.len(), "DeleteEntities: index OOR");
-            let (removed, layer) = doc.remove_entity(i);
-            self.captured_entities.push((i, removed, layer));
+            let (removed, layer, id) = doc.remove_entity(i);
+            self.captured_entities.push((i, removed, layer, id));
         }
     }
 
     fn undo(&mut self, doc: &mut Document) {
         // `pop` yields ascending original-index order — the right order for
         // `Vec::insert(i, e)`. After the loop the capture is empty.
-        while let Some((i, entity, layer)) = self.captured_entities.pop() {
-            doc.insert_entity(i, entity, layer);
+        while let Some((i, entity, layer, id)) = self.captured_entities.pop() {
+            doc.insert_entity(i, entity, layer, id);
         }
     }
 

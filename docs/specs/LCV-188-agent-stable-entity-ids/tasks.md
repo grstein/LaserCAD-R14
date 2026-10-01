@@ -12,7 +12,7 @@
   CopyEntities, TransformEntities (in place and keep_source), DeleteEntities (non-contiguous
   set), Move, Trim, Extend; a mixed `History` sequence gives the same id list after undo-all/redo-all
   (files: tests/it/document/entity_ids.rs)
-- [ ] T5 [AC3] `remove_entity` returns the id, `insert_entity` takes it; `DeleteEntities` captures
+- [x] T5 [AC3] `remove_entity` returns the id, `insert_entity` takes it; `DeleteEntities` captures
   and restores it; update the other `remove_entity` callers (files: src/document/state.rs, src/document/commands/edit.rs, src/document/commands/create.rs)
 - [ ] T6 [AC3] `IdLedger` + `push_entity_as` (debug-assert: below `next_id`, not live); ledger in
   `CreateLine/Circle/Arc` and `CreateEntities` (files: src/document/state/ids.rs, src/document/commands/create.rs)

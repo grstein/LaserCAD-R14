@@ -193,23 +193,24 @@ impl Document {
         self.push_entity(entity, self.current_layer);
     }
 
-    /// Insert `entity` at `index` on layer `layer`.
-    pub fn insert_entity(&mut self, index: usize, entity: Entity, layer: LayerId) {
+    /// Insert `entity` at `index` on layer `layer` with the `id` it had when
+    /// [`Document::remove_entity`] took it out (undo of a delete).
+    pub fn insert_entity(&mut self, index: usize, entity: Entity, layer: LayerId, id: EntityId) {
         debug_assert!(self.layer(layer).is_some(), "insert_entity: unknown layer");
-        let id = self.fresh_id();
+        self.debug_restorable(id);
         self.entities.insert(index, entity);
         self.entity_layers.insert(index, layer);
         self.entity_ids.insert(index, id);
         self.debug_lockstep();
     }
 
-    /// Remove and return entity `index` with its layer.
-    pub fn remove_entity(&mut self, index: usize) -> (Entity, LayerId) {
+    /// Remove and return entity `index` with its layer and id.
+    pub fn remove_entity(&mut self, index: usize) -> (Entity, LayerId, EntityId) {
         let entity = self.entities.remove(index);
         let layer = self.entity_layers.remove(index);
-        self.entity_ids.remove(index);
+        let id = self.entity_ids.remove(index);
         self.debug_lockstep();
-        (entity, layer)
+        (entity, layer, id)
     }
 
     /// Keep only the first `len` entities.
@@ -367,7 +368,9 @@ mod tests {
             .expect("valid parts");
         doc.push_entity(a_line(), LayerId(3));
         doc.push_current(a_line());
-        doc.insert_entity(1, a_line(), LayerId(3));
+        doc.push_current(a_line());
+        let (line, _, id) = doc.remove_entity(2);
+        doc.insert_entity(1, line, LayerId(3), id);
         assert_eq!(doc.entity_layer(0), Some(LayerId(3)));
         assert_eq!(doc.entity_layer(1), Some(LayerId(3)));
         assert_eq!(doc.entity_layer(2), Some(LayerId(0)));

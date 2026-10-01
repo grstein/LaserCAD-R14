@@ -27,6 +27,13 @@ impl Document {
         self.entity_ids.iter().position(|&e| e == id)
     }
 
+    /// Debug-check that `id` was handed out before and is not live, so
+    /// putting it back cannot duplicate an id.
+    pub(super) fn debug_restorable(&self, id: EntityId) {
+        debug_assert!(id.0 < self.next_id, "restored id {id} never handed out");
+        debug_assert!(self.index_of(id).is_none(), "restored id {id} is live");
+    }
+
     /// Take the next id; the counter never goes back.
     pub(super) fn fresh_id(&mut self) -> EntityId {
         let id = EntityId(self.next_id);
