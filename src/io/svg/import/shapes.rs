@@ -188,11 +188,11 @@ fn rect(n: roxmltree::Node<'_, '_>, ctx: &Ctx) -> Result<PathData, Invalid> {
     let at = point(n, "x", "y", ctx)?;
     let w = attr(n, "width", Axis::X, ctx).size()?.unwrap_or(0.0);
     let h = attr(n, "height", Axis::Y, ctx).size()?.unwrap_or(0.0);
-    let _radii = radii(n, ctx, w, h)?;
+    let radii = radii(n, ctx, w, h)?;
     if w == 0.0 || h == 0.0 {
         return Ok(PathData::default());
     }
-    Ok(rect_path(at, w, h))
+    Ok(rect_path(at, w, h, radii))
 }
 
 /// The used corner radii of a `w` × `h` `<rect>` (AC 5): `rx` and `ry`
@@ -220,18 +220,33 @@ fn resolve_radii(rx: Option<f64>, ry: Option<f64>, w: f64, h: f64) -> (f64, f64)
     }
 }
 
-/// The four sides of the rect at `at`, `w` × `h`, from the top-left corner
-/// clockwise in SVG space (AC 4).
-fn rect_path(at: Vec2, w: f64, h: f64) -> PathData {
-    let corners = [
-        at,
-        at + Vec2::new(w, 0.0),
-        at + Vec2::new(w, h),
-        at + Vec2::new(0.0, h),
+/// The equivalent path of the rect at `at`, `w` × `h`, corner radii
+/// `(rx, ry)` (SVG 2 §10.2): from the top side clockwise in SVG space, each
+/// side followed by its quarter-arc corner when `rx > 0` (AC 4, AC 6). A
+/// side of length 0 is dropped later by [`path_entities`].
+fn rect_path(at: Vec2, w: f64, h: f64, (rx, ry): (f64, f64)) -> PathData {
+    let (x0, y0, x1, y1) = (at.x, at.y, at.x + w, at.y + h);
+    let sides = [
+        (Vec2::new(x0 + rx, y0), Vec2::new(x1 - rx, y0)),
+        (Vec2::new(x1, y0 + ry), Vec2::new(x1, y1 - ry)),
+        (Vec2::new(x1 - rx, y1), Vec2::new(x0 + rx, y1)),
+        (Vec2::new(x0, y1 - ry), Vec2::new(x0, y0 + ry)),
     ];
-    let segments = (0..4)
-        .map(|i| Segment::Line(corners[i], corners[(i + 1) % 4]))
-        .collect();
+    let mut segments = Vec::with_capacity(8);
+    for (i, &(a, b)) in sides.iter().enumerate() {
+        segments.push(Segment::Line(a, b));
+        if rx > 0.0 {
+            segments.push(Segment::Arc {
+                from: b,
+                to: sides[(i + 1) % 4].0,
+                rx,
+                ry,
+                phi: 0.0,
+                large: false,
+                sweep: true,
+            });
+        }
+    }
     PathData {
         segments,
         error: false,

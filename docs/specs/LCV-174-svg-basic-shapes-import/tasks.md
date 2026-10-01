@@ -36,7 +36,7 @@
   - Unequal radii give four quarter elliptical arcs (LCV-176 entity).
   - A `<rect>` matches its equivalent `<path>` entity by entity.
   (files: tests/it/io_svg/shapes.rs)
-- [ ] T10 [AC6] Impl: rounded `rect_path`, with the four `A` corners per SVG 2 §10.2.
+- [x] T10 [AC6] Impl: rounded `rect_path`, with the four `A` corners per SVG 2 §10.2.
   (files: src/io/svg/import/shapes.rs)
 - [ ] T11 [AC7, AC8, AC10] Test:
   - A polyline gives one line per distinct pair. Duplicate points are skipped, and one point
