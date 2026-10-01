@@ -1,8 +1,8 @@
 # LCV-195 — Agent feedback after mutation
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: LCV-187, LCV-189, LCV-190
-- **Implementation**: -
+- **Implementation**: 7268247..2ffde58
 
 ## Problem
 

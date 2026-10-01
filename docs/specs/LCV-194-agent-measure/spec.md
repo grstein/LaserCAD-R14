@@ -1,8 +1,8 @@
 # LCV-194 — Agent measure tool
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: LCV-188, LCV-190, LCV-192
-- **Implementation**: -
+- **Implementation**: 09af355..5957575
 
 ## Problem
 
