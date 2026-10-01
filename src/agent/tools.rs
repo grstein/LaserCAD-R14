@@ -47,7 +47,8 @@ mod transform;
 /// OpenAI function-calling schemas. Order: create_line(0) create_circle(1)
 /// create_arc(2) delete_entity(3) move_entity(4) copy_entity(5)
 /// rotate_entity(6) mirror_entity(7) scale_entity(8) set_layer(9)
-/// query_entities(10) query_selection(11) check_drawing(12) create_drawing(13).
+/// query_entities(10) query_selection(11) check_drawing(12) measure(13)
+/// create_drawing(14).
 ///
 /// The two queries and `check_drawing` take no arguments at all — an explicitly empty
 /// `properties` / `required` pair rather than an absent `parameters`, because

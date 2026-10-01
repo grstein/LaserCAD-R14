@@ -19,8 +19,8 @@
     /// `..._is_five` asserting `7` is a lie a reader has to read the body to
     /// catch.
     #[test]
-    fn tool_definitions_array_length_is_fourteen() {
-        assert_eq!(tool_definitions(false).as_array().unwrap().len(), 14);
+    fn tool_definitions_array_length_is_fifteen() {
+        assert_eq!(tool_definitions(false).as_array().unwrap().len(), 15);
     }
     /// AC 13 — the order is part of the contract: every other schema test and
     /// `transport.rs`'s wire assertions index into this array.
@@ -29,7 +29,7 @@
         let d = tool_definitions(false);
         let n = ["create_line","create_circle","create_arc","delete_entity","move_entity",
                  "copy_entity","rotate_entity","mirror_entity","scale_entity","set_layer",
-                 "query_entities","query_selection","check_drawing","create_drawing"];
+                 "query_entities","query_selection","check_drawing","measure","create_drawing"];
         for (i, nm) in n.iter().enumerate() { assert_eq!(d[i]["function"]["name"], *nm); }
         assert_eq!(d[n.len()], Value::Null, "and nothing after them");
     }
@@ -43,7 +43,7 @@
     #[test]
     fn every_creation_tool_takes_an_optional_string_layer() {
         let d = tool_definitions(false);
-        for i in [0, 1, 2, 13] {
+        for i in [0, 1, 2, 14] {
             let layer = &d[i]["function"]["parameters"]["properties"]["layer"];
             assert_eq!(layer["type"], "string", "{}", d[i]["function"]["name"]);
             assert!(layer["description"].as_str().is_some_and(|t| t.contains("existing layer")));
@@ -152,16 +152,16 @@
         assert!(!names(&off).contains(&"capture_canvas".to_owned()));
         let on = tool_definitions(true);
         let mut expected = names(&off);
-        expected.insert(13, "capture_canvas".to_owned());
+        expected.insert(14, "capture_canvas".to_owned());
         assert_eq!(names(&on), expected);
-        let params = &on[13]["function"]["parameters"];
+        let params = &on[14]["function"]["parameters"];
         let mm = json!({"type":"number"});
         assert_eq!(*params, json!({"type":"object","properties":{
             "frame":{"type":"string","enum":["view","drawing","region"]},
             "x0":mm,"y0":mm,"x1":mm,"y1":mm},"required":[]}));
-        assert_eq!(on[14]["function"]["name"], "create_drawing");
+        assert_eq!(on[15]["function"]["name"], "create_drawing");
         for (i, tool) in off.as_array().unwrap().iter().enumerate() {
-            let j = if i < 13 { i } else { i + 1 };
+            let j = if i < 14 { i } else { i + 1 };
             assert_eq!(on[j], *tool, "tool {i} unchanged");
         }
     }
@@ -575,7 +575,7 @@
             let required = params["required"].as_array().unwrap();
             assert!(!required.contains(&json!("id")) && !required.contains(&json!("ids")));
         }
-        for i in [0, 1, 2, 10, 11, 12, 13] {
+        for i in [0, 1, 2, 10, 11, 12, 14] {
             assert!(d[i]["function"]["parameters"]["properties"]["ids"].is_null(), "schema {i}");
         }
     }
@@ -667,5 +667,35 @@
         ];
         for (args, want) in cases {
             assert_eq!(err("measure", args.clone()).to_string(), want, "{args}");
+        }
+    }
+
+    /// LCV-194 AC 8 — `measure` sits after `check_drawing`, `create_drawing`
+    /// stays last, and the schema is flat: a query enum, `{x, y}` points,
+    /// integer indices or string ids, only `query` required, no `oneOf`.
+    #[test]
+    fn measure_schema_is_flat_and_after_check_drawing() {
+        let d = tool_definitions(false);
+        assert_eq!(d[12]["function"]["name"], "check_drawing");
+        assert_eq!(d[13]["function"]["name"], "measure");
+        assert_eq!(d[14]["function"]["name"], "create_drawing");
+        let params = &d[13]["function"]["parameters"];
+        let props = &params["properties"];
+        assert_eq!(props["query"],
+            json!({"type":"string","enum":["distance","length","bbox","intersections","angle"]}));
+        assert_eq!(props["points"]["type"], "array");
+        assert_eq!(props["points"]["items"]["properties"],
+            json!({"x":{"type":"number"},"y":{"type":"number"}}));
+        assert_eq!(props["indices"]["items"]["type"], "integer");
+        assert_eq!(props["ids"]["items"]["type"], "string");
+        assert_eq!(props.as_object().unwrap().len(), 4);
+        assert_eq!(params["required"], json!(["query"]));
+        let text = params.to_string();
+        for bad in ["oneOf", "anyOf", "allOf", "const", "additionalProperties"] {
+            assert!(!text.contains(bad), "{bad} in {text}");
+        }
+        for q in ["distance", "length", "bbox", "intersections", "angle"] {
+            let about = d[13]["function"]["description"].as_str().unwrap();
+            assert!(about.contains(q), "{q} undescribed");
         }
     }

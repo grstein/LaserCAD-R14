@@ -34,7 +34,7 @@ Prerequisites: LCV-188, LCV-190, LCV-192 Done on `agent-harness`.
   (files: src/agent/bridge/action/measure.rs, src/agent/bridge/action.rs, src/agent/bridge.rs)
 - [x] T7 [AC8] `tools/measure.rs::parse` and the `parse_tool_call` arm
   (files: src/agent/tools/measure.rs, src/agent/tools.rs)
-- [ ] T8 [AC8][AC9] The schema entry after `check_drawing`, the `expected_form` rows, and the
+- [x] T8 [AC8][AC9] The schema entry after `check_drawing`, the `expected_form` rows, and the
   registry-order test (files: src/agent/tools/schema.rs, src/agent/tools/args.rs,
   src/agent/tools/tests.rs)
 - [ ] T9 [AC1–AC6][AC8] Test (apply), exact strings for every query on a fixture document:
