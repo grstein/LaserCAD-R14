@@ -16,7 +16,7 @@
       (files: src/io/svg/import/style.rs)
 - [x] T5 [AC1] [AC2] [AC5] [AC6] [AC11] `Style`, `Style::root`, `Style::child`, `collect_sheet`
       (files: src/io/svg/import/style.rs, src/io/svg/import.rs)
-- [ ] T6 [AC7] Test: `display:none` on a `<g>` hides its subtree (one `hidden (display:none)`);
+- [x] T6 [AC7] Test: `display:none` on a `<g>` hides its subtree (one `hidden (display:none)`);
       `visibility:hidden` on a `<g>` hides its lines but a `visibility:visible` child imports;
       `collapse` = `hidden`; a `display:none` `<g data-layer>` still declares its layer
       (files: tests/it/io_svg/styling.rs, tests/it/io_svg/mod.rs)

@@ -14,5 +14,6 @@ mod orientation;
 mod path_grammar;
 mod preset_roundtrip;
 mod roundtrip_props;
+mod styling;
 mod transforms;
 mod units_viewbox;
