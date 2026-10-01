@@ -10,7 +10,7 @@
 - [x] T4 [AC2, AC3] Test: root bed rules (absolute pair, relative/absent → viewBox as px, default,
   out-of-range refusal); rewrite `header.rs` unit tests to SVG 2 units (files:
   src/io/svg/header.rs)
-- [ ] T5 [AC2, AC3, AC4] `header.rs::parse_root -> Root { bed_mm, ctx }`, viewBox mapped onto the
+- [x] T5 [AC2, AC3, AC4] `header.rs::parse_root -> Root { bed_mm, ctx }`, viewBox mapped onto the
   bed rect in mm; `import_svg` uses it (files: src/io/svg/header.rs, src/io/svg/import.rs)
 - [ ] T6 [AC11] Test: reopen `export_svg` output for a mixed document and compare entities by
   `f64::to_bits`; fix the four unitless fixtures outside `io_svg` to `200mm` (files:

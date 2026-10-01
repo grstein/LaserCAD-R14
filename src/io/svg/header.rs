@@ -1,99 +1,96 @@
-//! The root `<svg>` header: the bed size a file declares (LCV-114 AC 8/AC 9).
+//! The root `<svg>` header (LCV-114, LCV-173): the bed size a file declares
+//! and the map from its user units onto that bed.
 //!
-//! Split out of `import.rs` so both stay well inside the 300-line cap
-//! (ADR 0004). One public function, [`parse_bed`]; everything else is the
-//! numeric grammar it accepts.
-//!
-//! Millimetres are canonical (AGENTS.md), so the grammar is deliberately
-//! narrow: a bare number or a number with an optional, case-insensitive `mm`
-//! suffix, with whitespace tolerated around both. `pt`, `in`, `px`, `%` and
-//! unitless-with-scale headers are **not** accepted — silently reading `210`
-//! user units as 210 mm is the same class of bug this demand exists to kill.
+//! Lengths follow SVG 2 (see [`super::length`]): any absolute unit, unitless
+//! being px at 96 px = 1 in. Millimetres stay canonical: a `mm` side is taken
+//! as written, and LaserCAD's own `viewBox="0 0 W H"` on a `W mm × H mm` bed
+//! maps with scale exactly 1 (LCV-173 AC 11).
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use super::import::SvgImportError;
-use crate::geometry::EPSILON;
+use super::length::{PX_PER_MM, parse_length};
+use super::matrix::Matrix;
+use super::viewport::{Ctx, par, parse_view_box, view_box_map};
 use crate::util::{BED_MAX_MM, BED_MIN_MM, DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
 
-/// Read the bed size `[width, height]` in mm from a root `<svg>` element.
-///
-/// Precedence (AC 8):
-/// 1. `width` **and** `height` both present → that pair is the bed;
-/// 2. otherwise a `viewBox="0 0 W H"` → `W`/`H` are the bed;
-/// 3. otherwise `[DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM]` — a constant,
-///    never the currently open document's bed, so an import result never
-///    depends on hidden state (LCV-114 product decision 5).
-///
-/// Any of the three attributes that is *present* is validated even when
-/// precedence means it goes unused: a header this module cannot honour is
-/// reported rather than half-read. Out-of-range values are rejected, not
-/// clamped (AC 9) — a 5000 mm canvas quietly held to 2000 mm would place every
-/// coordinate wrongly while still looking plausible.
-pub fn parse_bed(root: roxmltree::Node<'_, '_>) -> Result<[f64; 2], SvgImportError> {
-    let width = dimension(root, "width")?;
-    let height = dimension(root, "height")?;
-    let view_box = view_box(root)?;
-    Ok(match (width, height, view_box) {
-        (Some(w), Some(h), _) => [w, h],
-        (_, _, Some(vb)) => vb,
-        _ => [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM],
-    })
+/// What the root `<svg>` declares.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct Root {
+    /// The bed `[width, height]` in mm.
+    pub(super) bed_mm: [f64; 2],
+    /// The walk's starting context: root user units onto the bed, Y-down.
+    pub(super) ctx: Ctx,
 }
 
-/// One length attribute: `Ok(None)` when absent, `Err` when present but not a
-/// usable bed dimension.
-fn dimension(
-    root: roxmltree::Node<'_, '_>,
+/// Read the bed and the root context from a root `<svg>` element.
+///
+/// The bed (LCV-173 AC 2) is `width` × `height` when both are absolute;
+/// otherwise the `viewBox` size read as px; otherwise
+/// `[DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM]` — a constant, never the
+/// open document's bed (LCV-114 product decision 5). A side outside
+/// `BED_MIN_MM ..= BED_MAX_MM` is refused, never clamped (AC 3).
+///
+/// The viewBox is mapped onto the bed rect per `preserveAspectRatio` (AC 4);
+/// without one, one user unit is 1 px. A present side that does not parse,
+/// or a viewBox that is not four finite numbers with positive size, is an
+/// error even when unused: a header this module cannot honour is reported,
+/// never half-read.
+pub(super) fn parse_root(root: roxmltree::Node<'_, '_>) -> Result<Root, SvgImportError> {
+    let width = side(root, "width")?;
+    let height = side(root, "height")?;
+    let view_box = match root.attribute("viewBox") {
+        Some(raw) => Some(parse_view_box(raw).ok_or_else(|| bad("viewBox", raw))?),
+        None => None,
+    };
+    let bed_mm = match (width, height, view_box) {
+        (Some((w, wa)), Some((h, ha)), _) => [checked(w, "width", wa)?, checked(h, "height", ha)?],
+        (_, _, Some(vb)) => {
+            let raw = root.attribute("viewBox").unwrap_or_default();
+            [
+                checked(vb[2] / PX_PER_MM, "viewBox", raw)?,
+                checked(vb[3] / PX_PER_MM, "viewBox", raw)?,
+            ]
+        }
+        _ => [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM],
+    };
+    let ctx = match view_box {
+        Some(vb) => Ctx {
+            ctm: view_box_map(
+                vb,
+                [0.0, 0.0, bed_mm[0], bed_mm[1]],
+                par(root.attribute("preserveAspectRatio")),
+            ),
+            viewport: [vb[2], vb[3]],
+        },
+        None => Ctx {
+            ctm: Matrix::scale(1.0 / PX_PER_MM, 1.0 / PX_PER_MM),
+            viewport: bed_mm.map(|mm| mm * PX_PER_MM),
+        },
+    };
+    Ok(Root { bed_mm, ctx })
+}
+
+/// One root side: `Ok(None)` when absent or relative (`%`, `em`, `ex`),
+/// its mm and raw text when absolute, `Err` when it does not parse.
+fn side<'a>(
+    root: roxmltree::Node<'a, '_>,
     attr: &'static str,
-) -> Result<Option<f64>, SvgImportError> {
+) -> Result<Option<(f64, &'a str)>, SvgImportError> {
     let Some(raw) = root.attribute(attr) else {
         return Ok(None);
     };
-    parse_mm(raw).map(Some).ok_or_else(|| bad(attr, raw))
+    let len = parse_length(raw).ok_or_else(|| bad(attr, raw))?;
+    Ok(len.to_mm().map(|mm| (mm, raw)))
 }
 
-/// The `viewBox`, restricted to the `"0 0 W H"` shape this app writes.
-///
-/// A non-zero origin would need a transform stack (explicitly out of scope),
-/// so it is an error rather than a silent offset.
-fn view_box(root: roxmltree::Node<'_, '_>) -> Result<Option<[f64; 2]>, SvgImportError> {
-    let Some(raw) = root.attribute("viewBox") else {
-        return Ok(None);
-    };
-    let tok: Vec<&str> = raw
-        .split([',', ' ', '\t', '\n', '\r'])
-        .filter(|t| !t.is_empty())
-        .collect();
-    if tok.len() != 4 {
-        return Err(bad("viewBox", raw));
+/// `mm` when it is a usable bed side, else the error naming `attr`.
+fn checked(mm: f64, attr: &'static str, raw: &str) -> Result<f64, SvgImportError> {
+    if (BED_MIN_MM..=BED_MAX_MM).contains(&mm) {
+        Ok(mm)
+    } else {
+        Err(bad(attr, raw))
     }
-    let origin_at_zero = tok[..2]
-        .iter()
-        .all(|t| t.parse::<f64>().is_ok_and(|v| v.abs() < EPSILON));
-    let (Some(w), Some(h)) = (parse_mm(tok[2]), parse_mm(tok[3])) else {
-        return Err(bad("viewBox", raw));
-    };
-    if !origin_at_zero {
-        return Err(bad("viewBox", raw));
-    }
-    Ok(Some([w, h]))
-}
-
-/// The accepted numeric grammar: optional whitespace, a number, an optional
-/// case-insensitive `mm`, optional whitespace — and the result must be a
-/// usable bed dimension (finite, inside `BED_MIN_MM ..= BED_MAX_MM`).
-///
-/// `NaN` and the infinities fail the range test rather than propagating:
-/// `RangeInclusive::contains` is false for `NaN`.
-fn parse_mm(raw: &str) -> Option<f64> {
-    let t = raw.trim();
-    let t = match t.len().checked_sub(2) {
-        Some(cut) if t[cut..].eq_ignore_ascii_case("mm") => t[..cut].trim_end(),
-        _ => t,
-    };
-    let v = t.parse::<f64>().ok()?;
-    (BED_MIN_MM..=BED_MAX_MM).contains(&v).then_some(v)
 }
 
 fn bad(attr: &'static str, value: &str) -> SvgImportError {
@@ -111,7 +108,7 @@ mod tests {
     fn bed_of(attrs: &str) -> Result<[f64; 2], SvgImportError> {
         let src = format!(r#"<svg xmlns="http://www.w3.org/2000/svg" {attrs}/>"#);
         let doc = roxmltree::Document::parse(&src).expect("fixture must be valid XML");
-        parse_bed(doc.root_element())
+        parse_root(doc.root_element()).map(|root| root.bed_mm)
     }
 
     fn attr_of(e: &SvgImportError) -> &'static str {

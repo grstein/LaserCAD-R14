@@ -28,7 +28,7 @@
 //! sweep flag and the centre-selection sign is inverted accordingly.
 //!
 //! The mirror axis is the **file's own** bed height, read from the root
-//! `<svg>` header by [`super::header::parse_bed`] (LCV-114): a file authored
+//! `<svg>` header by [`super::header::parse_root`] (LCV-114, LCV-173): a file authored
 //! at 300 × 180 must land back on the world coordinates it was exported from,
 //! whatever bed the open document happens to be on.
 //!
@@ -40,7 +40,7 @@
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`. — LCV-057,
 //! Y mirror by LCV-100, bed by LCV-114, layers by LCV-156.
 
-use super::header::parse_bed;
+use super::header::parse_root;
 use crate::document::entity::Entity;
 use crate::document::{Document, Layer, LayerId};
 use crate::geometry::{Circle, Line, Vec2};
@@ -150,7 +150,7 @@ impl ImportedSvg {
 ///
 /// Depth-first traversal; `<line>`, `<circle>`, `<path>` → entities.
 /// What is skipped lands in the report (module docs). The bed comes from the root header
-/// (see [`parse_bed`]) and is the axis every Y is un-mirrored around.
+/// (see [`parse_root`]) and is the axis every Y is un-mirrored around.
 /// Returns the first error encountered, having mutated nothing: the caller's
 /// document is untouched on `Err` (LCV-114 AC 9).
 pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
@@ -159,7 +159,7 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
     if root.tag_name().name() != "svg" || root.tag_name().namespace() != Some(SVG_NS) {
         return Err(SvgImportError::NoSvgRoot);
     }
-    let bed_mm = parse_bed(root)?;
+    let bed_mm = parse_root(root)?.bed_mm;
     let mut walk = Walk::new(bed_mm[1]);
     walk.report.note_properties(root);
     walk.collect(root, None)?;
