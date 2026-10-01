@@ -4,7 +4,7 @@
 //! 1 mm, so a world point is `(x, 100 − y)`.
 
 use lasercad::document::Entity;
-use lasercad::geometry::{Circle, Vec2};
+use lasercad::geometry::{Arc, Circle, Vec2};
 use lasercad::io::svg::import_svg;
 
 const TOL: f64 = 1e-9;
@@ -117,4 +117,126 @@ fn a_singular_transform_imports_nothing_and_is_reported() {
     );
     assert!(es.is_empty(), "{es:?}");
     assert_eq!(report, [entry("transform (singular)", 2)]);
+}
+
+fn arc(e: &Entity) -> Arc {
+    match e {
+        Entity::Arc(a) => *a,
+        other => panic!("not an arc: {other:?}"),
+    }
+}
+
+/// `a`'s centre, radius, endpoints (world) and handedness.
+fn assert_arc(a: Arc, center: Vec2, r: f64, from: Vec2, to: Vec2, ccw: bool) {
+    let ok = a.center.approx_eq(center, TOL)
+        && (a.r - r).abs() < TOL
+        && a.start_point().approx_eq(from, TOL)
+        && a.end_point().approx_eq(to, TOL)
+        && a.ccw == ccw;
+    assert!(
+        ok,
+        "{a:?}: want centre {center:?} r {r} {from:?} → {to:?} ccw {ccw}"
+    );
+}
+
+/// AC 6 — a circle under rotation and uniform scale, and under a
+/// reflection: centre mapped, radius scaled.
+#[test]
+fn circles_under_similarities() {
+    let (es, report) = page(
+        r#"<g transform="translate(50 50) rotate(30) scale(2)"><circle cx="0" cy="0" r="5"/></g>
+           <g transform="translate(60 0) scale(-1,1)"><circle cx="10" cy="20" r="3"/></g>"#,
+    );
+    assert!(report.is_empty(), "{report:?}");
+    let c = circle(&es[0]);
+    assert!(
+        c.center.approx_eq(w(50.0, 50.0), TOL) && (c.r - 10.0).abs() < TOL,
+        "{c:?}"
+    );
+    let c = circle(&es[1]);
+    assert!(
+        c.center.approx_eq(w(50.0, 20.0), TOL) && (c.r - 3.0).abs() < TOL,
+        "{c:?}"
+    );
+}
+
+/// AC 6 — a path arc under a uniform scale keeps its handedness with the
+/// radius scaled; under a reflection (either axis) `ccw` is inverted.
+#[test]
+fn arcs_under_similarities() {
+    // Untransformed: (10, 50) → (30, 50), r 10, sweep 1: clockwise over the
+    // top of the screen, centre (20, 50).
+    let d = r#"<path d="M 10 50 A 10 10 0 0 1 30 50"/>"#;
+    let (es, report) = page(&format!(
+        r#"<g transform="translate(0,-50) scale(2)">{d}</g>
+           <g transform="translate(100 0) scale(-1 1)">{d}</g>
+           <g transform="translate(0 100) scale(1 -1)">{d}</g>"#
+    ));
+    assert!(report.is_empty(), "{report:?}");
+    assert_arc(
+        arc(&es[0]),
+        w(40.0, 50.0),
+        20.0,
+        w(20.0, 50.0),
+        w(60.0, 50.0),
+        false,
+    );
+    // Mirrored in x: (90, 50) → (70, 50) still over the top, now
+    // counter-clockwise.
+    assert_arc(
+        arc(&es[1]),
+        w(80.0, 50.0),
+        10.0,
+        w(90.0, 50.0),
+        w(70.0, 50.0),
+        true,
+    );
+    // Mirrored in y: (10, 50) → (30, 50) under the bottom, counter-clockwise.
+    let a = arc(&es[2]);
+    assert_arc(a, w(20.0, 50.0), 10.0, w(10.0, 50.0), w(30.0, 50.0), true);
+    let low = a.bbox().0.y;
+    assert!(
+        (low - 40.0).abs() < TOL,
+        "the bulge is below the chord: {a:?}"
+    );
+}
+
+/// AC 7 — under a non-uniform scale or a skew a circle or arc imports
+/// nothing and is reported; the path's current point still advances.
+#[test]
+fn circles_and_arcs_under_non_similarities_are_reported() {
+    let (es, report) = page(
+        r#"<g transform="scale(2 1)">
+             <circle cx="10" cy="10" r="5"/>
+             <path d="M 10 50 A 10 10 0 0 1 30 50 L 40 50"/>
+           </g>
+           <circle transform="skewX(20)" cx="10" cy="10" r="5"/>"#,
+    );
+    assert_eq!(es.len(), 1, "{es:?}");
+    assert_line(&es[0], w(60.0, 50.0), w(80.0, 50.0));
+    assert_eq!(
+        report,
+        [
+            entry("circle (non-uniform transform)", 2),
+            entry("arc (non-uniform transform)", 1),
+        ]
+    );
+}
+
+/// AC 7 — `preserveAspectRatio="none"` with unequal scales is a
+/// non-uniform map too.
+#[test]
+fn par_none_with_unequal_scales_is_non_uniform() {
+    let src = r#"<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="50mm" viewBox="0 0 100 100" preserveAspectRatio="none"><circle cx="50" cy="50" r="5"/><line x1="0" y1="100" x2="100" y2="0"/></svg>"#;
+    let imported = import_svg(src).unwrap();
+    assert_eq!(imported.entities.len(), 1);
+    assert_line(
+        &imported.entities[0],
+        Vec2::new(0.0, 0.0),
+        Vec2::new(100.0, 50.0),
+    );
+    assert_eq!(
+        imported.report,
+        [entry("circle (non-uniform transform)", 1)]
+    );
 }

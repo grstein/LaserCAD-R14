@@ -28,7 +28,7 @@
 - [x] T11 [AC5, AC8] Walk: compose each element's `transform` into the child `Ctx`, the invalid
   and singular labels, drop `transform` from `REPORTED_PROPERTIES` (files:
   src/io/svg/import/walk.rs, src/io/svg/import/report.rs)
-- [ ] T12 [AC6, AC7] Test: circle and arc under rotate/uniform scale/reflection (radius scaled,
+- [x] T12 [AC6, AC7] Test: circle and arc under rotate/uniform scale/reflection (radius scaled,
   `ccw` inverted on reflection) and under non-uniform scale/skew (nothing imported, report
   `circle|arc (non-uniform transform)`) (files: tests/it/io_svg/transforms.rs)
 - [ ] T13 [AC6, AC7] Circle similarity check in `parse_circle`; `path_entities` maps segments
