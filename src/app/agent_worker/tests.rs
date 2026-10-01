@@ -39,12 +39,27 @@ impl Applier {
         if self.cancel {
             return Err(AgentError::Cancelled);
         }
+        // A reply is a rendezvous, not a step (LCV-193): answered `Ok`
+        // without touching the document, as `agent_poll` does.
+        if matches!(action, AgentAction::Replied { .. }) {
+            return Ok(AgentOutcome::Ok(String::new()));
+        }
         Ok(agent_apply::apply(&mut self.app, &action))
+    }
+
+    /// What `ask` saw, minus the non-step `Replied` rendezvous (LCV-193).
+    fn steps(&self) -> Vec<AgentAction> {
+        self.seen.iter().filter(|a| !is_reply(a)).cloned().collect()
     }
 
     fn entities(&self) -> usize {
         self.app.document.entity_count()
     }
+}
+
+/// Is `action` the non-step `Replied` rendezvous (LCV-193)?
+fn is_reply(action: &AgentAction) -> bool {
+    matches!(action, AgentAction::Replied { .. })
 }
 
 // ── The turn, over a real socket ─────────────────────────────────────────
@@ -287,7 +302,7 @@ fn multi_step_turn_sends_the_whole_conversation_back() {
     assert_eq!(reply, "Done.");
     assert_eq!(applier.entities(), 1, "the tool call really was dispatched");
     assert_eq!(
-        applier.seen,
+        applier.steps(),
         [AgentAction::CreateLine {
             layer: None,
             x1: 0.0,
@@ -532,7 +547,7 @@ fn every_tool_call_becomes_one_ask_in_order() {
 
     assert_eq!(reply, "Done.");
     assert_eq!(
-        applier.seen,
+        applier.steps(),
         [
             AgentAction::CreateLine {
                 layer: None,
@@ -820,8 +835,8 @@ fn fenced_turn_with(
             _ => text("a third send must never happen"),
         })
     };
-    let mut ask = |_action: AgentAction| {
-        asks += 1;
+    let mut ask = |action: AgentAction| {
+        asks += usize::from(!is_reply(&action));
         Ok(AgentOutcome::Fenced(
             crate::app::AGENT_FENCE_REFUSAL.to_owned(),
         ))
@@ -901,6 +916,9 @@ fn malformed_calls_reach_ask_and_the_turn_continues() {
     };
     let mut asked = Vec::new();
     let mut ask = |action: AgentAction| {
+        if is_reply(&action) {
+            return Ok(AgentOutcome::Ok(String::new()));
+        }
         asked.push(action.clone());
         match action {
             AgentAction::Malformed { reason, .. } => Ok(AgentOutcome::Refused(reason)),
@@ -957,8 +975,8 @@ fn a_malformed_call_counts_as_a_step() {
         })
     };
     let mut asks = 0usize;
-    let mut ask = |_: AgentAction| {
-        asks += 1;
+    let mut ask = |action: AgentAction| {
+        asks += usize::from(!is_reply(&action));
         Ok(AgentOutcome::Refused("bad".into()))
     };
     let (result, _) = drive_turn("go", &cfg("sys", 2), &mut send_fn, &mut ask);
@@ -1002,20 +1020,17 @@ fn a_repeated_refused_call_is_answered_with_the_first_refusal() {
     let first = "delete_entity index: 7 is out of range; \
                  expected an index once the drawing has entities (it has 0)";
     let repeat = format!("repeated call, refused before: {first}; change the arguments");
-    assert_eq!(applier.seen.len(), 3, "the repeat still reaches ask");
-    assert_eq!(applier.seen[0], AgentAction::Delete { index: 7 });
+    let seen = applier.steps();
+    assert_eq!(seen.len(), 3, "the repeat still reaches ask");
+    assert_eq!(seen[0], AgentAction::Delete { index: 7 });
     assert_eq!(
-        applier.seen[1],
+        seen[1],
         AgentAction::Malformed {
             tool: "delete_entity".to_owned(),
             reason: repeat.clone(),
         }
     );
-    assert_eq!(
-        applier.seen[2],
-        AgentAction::Delete { index: 7 },
-        "other bytes"
-    );
+    assert_eq!(seen[2], AgentAction::Delete { index: 7 }, "other bytes");
 
     let results: Vec<String> = last
         .iter()
@@ -1071,7 +1086,7 @@ fn one_set_layer_call_over_five_entities_is_one_step() {
         &mut |action| applier.ask(action),
     );
     assert_eq!(result.ok().as_deref(), Some("done"));
-    assert_eq!(applier.seen.len(), 1, "one ask for the whole set");
+    assert_eq!(applier.steps().len(), 1, "one ask for the whole set");
     let tool = last
         .iter()
         .rfind(|m| m.role == "tool")
@@ -1105,8 +1120,8 @@ fn no_prompt_raises_the_step_budget() {
             ]))
         };
         let mut asks = 0usize;
-        let mut ask = |_: AgentAction| {
-            asks += 1;
+        let mut ask = |action: AgentAction| {
+            asks += usize::from(!is_reply(&action));
             Ok(AgentOutcome::Ok("none".into()))
         };
         let (result, _) = drive_turn("go", &cfg(system, 2), &mut send_fn, &mut ask);
@@ -1308,7 +1323,9 @@ fn the_upload_check_names_endpoint_and_model_never_the_key() {
     };
     let mut asked = Vec::new();
     let mut ask = |action: AgentAction| {
-        asked.push(action.clone());
+        if !is_reply(&action) {
+            asked.push(action.clone());
+        }
         Ok(match action {
             AgentAction::CaptureCanvas(_) => AgentOutcome::Observed {
                 text: "Canvas".into(),
@@ -1585,6 +1602,7 @@ fn a_cut_batch_is_dropped_and_an_unsent_image_is_elided() {
                 text: "Canvas".into(),
                 png: vec![9],
             }),
+            AgentAction::Replied { .. } => Ok(AgentOutcome::Ok(String::new())),
             _ => Err(AgentError::Cancelled),
         }
     };
@@ -1598,4 +1616,74 @@ fn a_cut_batch_is_dropped_and_an_unsent_image_is_elided() {
             .concat()
             .contains(crate::agent::loop_::IMAGE_ELIDED)
     );
+}
+
+// ── LCV-193: every model reply reaches `ask` ─────────────────────────────
+
+/// LCV-193 AC 3 — each successful send reaches `ask` as one `Replied`, after
+/// the send and its image notes, carrying the authorised images that
+/// request carried: 0, then 1, then 0 for a withheld upload. A failed send
+/// is no reply.
+#[test]
+fn every_reply_reaches_ask_as_replied_with_its_captures() {
+    let mut sends = 0usize;
+    let mut send_fn = |_: &[ChatMessage]| {
+        sends += 1;
+        match sends {
+            1 | 2 => Ok(batch(&[("capture_canvas", "{}")])),
+            3 => Ok(text("done")),
+            _ => Err(AgentError::Transport("503".into())),
+        }
+    };
+    let (mut asked, mut uploads) = (Vec::new(), 0);
+    let mut ask = |action: AgentAction| {
+        asked.push(action.clone());
+        Ok(match action {
+            AgentAction::CaptureCanvas(_) => AgentOutcome::Observed {
+                text: "Canvas".into(),
+                png: vec![1, 2, 3],
+            },
+            AgentAction::AuthorizeUpload { .. } => {
+                uploads += 1;
+                if uploads == 1 {
+                    AgentOutcome::Ok("yes".into())
+                } else {
+                    AgentOutcome::Refused("no".into())
+                }
+            }
+            _ => AgentOutcome::Ok(String::new()),
+        })
+    };
+    let config = config("https://example.invalid/v1", "vision/model", 8);
+    let (result, _) = drive_turn("look", &config, &mut send_fn, &mut ask);
+    assert_eq!(result.expect("text ends the turn"), "done");
+    let upload = AgentAction::AuthorizeUpload {
+        endpoint: "https://example.invalid/v1".into(),
+        model: "vision/model".into(),
+    };
+    let capture = AgentAction::CaptureCanvas(crate::agent::CaptureFrame::View);
+    assert_eq!(
+        asked,
+        [
+            AgentAction::Replied { captures: 0 },
+            capture.clone(),
+            upload.clone(),
+            AgentAction::Note("Canvas image for call call_0 sent.".into()),
+            AgentAction::Replied { captures: 1 },
+            capture,
+            upload,
+            AgentAction::Note("Canvas image for call call_0 withheld (permission changed).".into()),
+            AgentAction::Replied { captures: 0 },
+        ]
+    );
+
+    let mut asked = Vec::new();
+    let mut fail = |_: &[ChatMessage]| Err(AgentError::Transport("503".into()));
+    let mut ask = |action: AgentAction| {
+        asked.push(action);
+        Ok(AgentOutcome::Ok(String::new()))
+    };
+    let (result, _) = drive_turn("look", &config, &mut fail, &mut ask);
+    assert!(matches!(result, Err(AgentError::Transport(_))));
+    assert!(asked.is_empty(), "a failed send is no reply: {asked:?}");
 }

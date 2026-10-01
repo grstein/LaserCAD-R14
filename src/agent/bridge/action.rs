@@ -157,6 +157,13 @@ pub enum AgentAction {
     /// once its request returned (LCV-187, ADR 0011 item 10). **Not a
     /// step**, like `AuthorizeUpload`; answered `Ok`.
     Note(String),
+    /// The model answered one request, which carried `captures` authorised
+    /// canvas images (LCV-193). **Not a step**, like `AuthorizeUpload`;
+    /// answered `Ok` with no transcript row.
+    Replied {
+        /// Authorised image parts the answered request carried.
+        captures: u32,
+    },
     /// Append a whole validated batch as one command (LCV-144, ADR 0010).
     CreateDrawing {
         /// The entities, in order; 1..=1000, already shape-checked.
@@ -203,9 +210,10 @@ impl AgentAction {
             Self::Set { op, .. } => op.tool_name(),
             Self::QueryEntities => "query_entities",
             Self::QuerySelection => "query_selection",
-            Self::CaptureCanvas(_) | Self::AuthorizeUpload { .. } | Self::Note(_) => {
-                "capture_canvas"
-            }
+            Self::CaptureCanvas(_)
+            | Self::AuthorizeUpload { .. }
+            | Self::Note(_)
+            | Self::Replied { .. } => "capture_canvas",
             Self::CreateDrawing { .. } => "create_drawing",
             Self::Malformed { tool, .. } => tool,
         }
@@ -337,6 +345,7 @@ mod tests {
                 "capture_canvas",
             ),
             (A::Note("n".into()), "capture_canvas"),
+            (A::Replied { captures: 1 }, "capture_canvas"),
             (
                 A::CreateDrawing {
                     items: vec![],
