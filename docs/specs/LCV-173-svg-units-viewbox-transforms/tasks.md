@@ -5,7 +5,7 @@
 - [x] T2 [AC5] Test + code: `Matrix` (`then`, `apply`, `det`, `similarity_scale`) and
   `parse_transform` for the six functions, comma/space separators, composition order, invalid →
   `None` (files: src/io/svg/matrix.rs, src/io/svg/mod.rs)
-- [ ] T3 [AC4] Test + code: `par` parser and `view_box_map` for all nine aligns × meet/slice, plus
+- [x] T3 [AC4] Test + code: `par` parser and `view_box_map` for all nine aligns × meet/slice, plus
   `none`, with an offset origin (files: src/io/svg/viewport.rs, src/io/svg/mod.rs)
 - [ ] T4 [AC2, AC3] Test: root bed rules (absolute pair, relative/absent → viewBox as px, default,
   out-of-range refusal); rewrite `header.rs` unit tests to SVG 2 units (files:

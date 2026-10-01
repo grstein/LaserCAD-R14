@@ -13,6 +13,7 @@ mod layers;
 mod length;
 mod matrix;
 mod path_data;
+mod viewport;
 
 pub use export::{export_layer_svg, export_svg};
 pub use import::{ImportedSvg, SvgImportError, import_svg};
