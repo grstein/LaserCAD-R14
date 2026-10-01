@@ -283,3 +283,25 @@ fn nested_svg_without_view_box_translates_and_sets_the_viewport() {
     assert_line(&es[0], w(10.0, 5.0), w(11.0, 5.0));
     assert_line(&es[1], w(50.0, 0.0), w(100.0, 20.0));
 }
+
+/// AC 5, AC 8, LCV-171 AC 7 — a `transform` style declaration (any ASCII
+/// case) is applied like the attribute and wins over it (SVG 2); an
+/// unparseable one is reported and ignored.
+#[test]
+fn a_css_transform_is_applied_and_wins_over_the_attribute() {
+    let (es, report) = page(
+        r#"<g style="transform:translate(10,10)"><line x1="1" y1="1" x2="2" y2="1"/></g>
+           <g transform="translate(50,50)" style="fill:none; TRANSFORM : scale(2)">
+             <line x1="1" y1="1" x2="2" y2="1"/></g>
+           <g style="transform: none" transform="translate(5,5)"><line x1="1" y1="1" x2="2" y2="1"/></g>"#,
+    );
+    assert!(report.is_empty(), "{report:?}");
+    assert_line(&es[0], w(11.0, 11.0), w(12.0, 11.0));
+    assert_line(&es[1], w(2.0, 2.0), w(4.0, 2.0));
+    assert_line(&es[2], w(1.0, 1.0), w(2.0, 1.0));
+
+    let (es, report) =
+        page(r#"<g style="transform: rotate(45deg)"><line x1="1" y1="1" x2="2" y2="1"/></g>"#);
+    assert_eq!(report, [entry("transform (invalid)", 1)]);
+    assert_line(&es[0], w(1.0, 1.0), w(2.0, 1.0));
+}

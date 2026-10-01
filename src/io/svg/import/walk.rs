@@ -5,7 +5,7 @@
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use super::path::path_entities;
-use super::report::Report;
+use super::report::{Report, style_decls};
 use super::{SVG_NS, SvgImportError, parse_circle, parse_line};
 use crate::document::LayerId;
 use crate::document::entity::Entity;
@@ -148,12 +148,23 @@ impl Walk {
     }
 
     /// The context of `node`'s content: its `transform` composed inside
-    /// `ctx` (LCV-173 AC 5). An unparseable `transform` counts as absent and
-    /// is reported (AC 8); a singular result renders nothing, so it is
-    /// reported and `None`.
+    /// `ctx` (LCV-173 AC 5). The last `transform` style declaration (ASCII
+    /// case-insensitive) wins over the attribute, and CSS `none` is no
+    /// transform. An unparseable `transform` counts as absent and is
+    /// reported (AC 8); a singular result renders nothing, so it is reported
+    /// and `None`.
     pub(super) fn local(&mut self, node: roxmltree::Node<'_, '_>, ctx: &Ctx) -> Option<Ctx> {
-        let Some(raw) = node.attribute("transform") else {
-            return Some(*ctx);
+        let styled = style_decls(node)
+            .rev()
+            .find(|(prop, _)| prop.eq_ignore_ascii_case("transform"))
+            .map(|(_, value)| value);
+        let raw = match styled {
+            Some(css) if css.eq_ignore_ascii_case("none") => return Some(*ctx),
+            Some(css) => css,
+            None => match node.attribute("transform") {
+                Some(attr) => attr,
+                None => return Some(*ctx),
+            },
         };
         let Some(m) = parse_transform(raw) else {
             self.report.note(INVALID_TRANSFORM);
