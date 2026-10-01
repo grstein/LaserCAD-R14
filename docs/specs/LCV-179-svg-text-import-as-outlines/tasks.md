@@ -41,7 +41,7 @@
   (files: `tests/it/io_svg/text.rs`, `tests/fixtures/svg/text-outlines.svg`)
 - [x] T14 [AC12] Test first: the same file through two fresh `FontBook::from_files` imports
   identical entities (`==` on the vectors) (files: `tests/it/io_svg/text.rs`)
-- [ ] T15 Mutation run on `src/text/{fonts,outline}.rs` and `import/text.rs`; kill or justify
+- [x] T15 Mutation run on `src/text/{fonts,outline}.rs` and `import/text.rs`; kill or justify
   survivors in the review notes (files: tests above as needed)
 - [ ] T16 CHANGELOG: "Open SVG: text becomes cuttable outlines in the named installed font;
   substitutions and unsupported text features appear in the import report" (files: `CHANGELOG.md`)

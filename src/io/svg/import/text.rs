@@ -635,4 +635,56 @@ mod tests {
         let stroked = page(r#"<text x="10" y="50" fill="none" stroke="red">l</text>"#);
         assert!(!stroked.entities.is_empty());
     }
+
+    /// AC 6 — a `dx` list shifts each character from the pen.
+    #[test]
+    fn a_dx_list_shifts_from_the_pen() {
+        let es = page(r#"<text x="10" dx="5 5" y="50" font-size="20.48">ll</text>"#).entities;
+        let s = 20.48 / UPEM;
+        let got = per_l(&es, 2);
+        assert_box(got[0], placed_box('l', 15.0, 50.0, s));
+        assert_box(got[1], placed_box('l', 20.0 + 455.0 * s, 50.0, s));
+    }
+
+    /// AC 5 — an `x` alone starts a chunk too.
+    #[test]
+    fn an_x_alone_starts_a_chunk() {
+        let es = page(
+            r#"<text x="10" y="50" font-size="20.48" text-anchor="end">l<tspan x="60">l</tspan></text>"#,
+        )
+        .entities;
+        let s = 20.48 / UPEM;
+        let got = per_l(&es, 2);
+        assert_box(got[0], placed_box('l', 10.0 - 455.0 * s, 50.0, s));
+        assert_box(got[1], placed_box('l', 60.0 - 455.0 * s, 50.0, s));
+    }
+
+    /// AC 2 — `font-weight` picks the bold face for `bold`, `bolder` and
+    /// 700, the regular one otherwise; `inherit` defers to the parent.
+    #[test]
+    fn font_weight_picks_the_face() {
+        let l = |attrs: &str| page(&format!(r#"<text x="10" y="50" {attrs}>l</text>"#));
+        let regular = l("").entities;
+        let bold = l(r#"font-weight="bold""#).entities;
+        assert_ne!(bold, regular);
+        for w in ["bolder", "700", "BOLD"] {
+            assert_eq!(l(&format!(r#"font-weight="{w}""#)).entities, bold, "{w}");
+        }
+        for w in ["normal", "400", "lighter", "junk"] {
+            assert_eq!(l(&format!(r#"font-weight="{w}""#)).entities, regular, "{w}");
+        }
+        let inherited = page(
+            r#"<g font-weight="bold" font-family="LCV Test Sans"><text x="10" y="50" font-weight="inherit" font-family="inherit">l</text></g>"#,
+        );
+        assert_eq!(inherited.entities, bold);
+        assert!(inherited.report.is_empty(), "{:?}", inherited.report);
+    }
+
+    /// Only SVG `tspan`/`a` children are laid out.
+    #[test]
+    fn foreign_children_are_not_laid_out() {
+        let one = page(r#"<text x="10" y="50">l</text>"#).entities;
+        let svg = page(r#"<text x="10" y="50">l<x:tspan xmlns:x="urn:x">l</x:tspan></text>"#);
+        assert_eq!(svg.entities, one);
+    }
 }

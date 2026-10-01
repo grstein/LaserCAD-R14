@@ -38,7 +38,8 @@ pub(super) fn layout(advances: &[f64], anchors: &[f64], pos: &[[Option<f64>; 4]]
     let mut origins: Vec<Vec2> = Vec::with_capacity(advances.len());
     let mut start = 0;
     for (i, (advance, [x, y, dx, dy])) in advances.iter().zip(pos).enumerate() {
-        if i > 0 && (x.is_some() || y.is_some()) {
+        // The first chunk is empty when the first character starts one.
+        if x.is_some() || y.is_some() {
             shift(&mut origins[start..], anchors[start], pen.x);
             start = i;
         }

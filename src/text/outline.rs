@@ -195,22 +195,28 @@ mod tests {
         assert_eq!(g.advance.to_bits(), 1536.0_f64.to_bits());
     }
 
-    /// An open contour is closed with a line; a zero-length line is dropped.
+    /// An open contour is closed with a line; a zero-length line is dropped;
+    /// each `move_to` starts a contour; cubics are kept.
     #[test]
     fn collector_closes_open_contours_and_drops_zero_lines() {
         let mut c = Collector::default();
-        c.move_to(0.0, 0.0);
-        c.line_to(0.0, 0.0);
-        c.line_to(10.0, 0.0);
-        c.quad_to(10.0, 10.0, 0.0, 10.0);
+        c.move_to(1.0, 2.0);
+        c.line_to(1.0, 2.0);
+        c.line_to(10.0, 2.0);
+        c.quad_to(10.0, 10.0, 1.0, 10.0);
         c.move_to(5.0, 5.0);
+        c.curve_to(6.0, 7.0, 8.0, 7.0, 9.0, 5.0);
         c.close();
         let v = |x, y| Vec2::new(x, y);
-        let want = vec![
-            Seg::Line(v(0.0, 0.0), v(10.0, 0.0)),
-            Seg::Quad([v(10.0, 0.0), v(10.0, 10.0), v(0.0, 10.0)]),
-            Seg::Line(v(0.0, 10.0), v(0.0, 0.0)),
+        let first = vec![
+            Seg::Line(v(1.0, 2.0), v(10.0, 2.0)),
+            Seg::Quad([v(10.0, 2.0), v(10.0, 10.0), v(1.0, 10.0)]),
+            Seg::Line(v(1.0, 10.0), v(1.0, 2.0)),
         ];
-        assert_eq!(c.contours, vec![want]);
+        let second = vec![
+            Seg::Cubic([v(5.0, 5.0), v(6.0, 7.0), v(8.0, 7.0), v(9.0, 5.0)]),
+            Seg::Line(v(9.0, 5.0), v(5.0, 5.0)),
+        ];
+        assert_eq!(c.contours, vec![first, second]);
     }
 }

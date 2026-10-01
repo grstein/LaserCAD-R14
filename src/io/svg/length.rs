@@ -205,7 +205,12 @@ mod tests {
             ("1ex", 10.0),
             ("50%", 10.0),
             ("xx-small", 9.0),
+            ("x-small", 10.0),
+            ("small", 13.0),
+            ("medium", 16.0),
+            ("large", 18.0),
             ("X-Large", 24.0),
+            ("xx-large", 32.0),
             ("larger", 24.0),
             ("smaller", 20.0 / 1.2),
         ] {
