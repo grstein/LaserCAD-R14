@@ -925,7 +925,7 @@ fn malformed_calls_reach_ask_and_the_turn_continues() {
     assert!(
         reasons[0]
             .1
-            .starts_with("tool `create_line` arguments are not valid JSON: "),
+            .starts_with("create_line (root): not valid JSON ("),
         "{:?}",
         reasons[0]
     );
@@ -1075,12 +1075,36 @@ fn the_argument_cap_is_inclusive_and_applies_to_every_tool() {
             over,
             AgentAction::Malformed {
                 tool: tool.to_owned(),
-                reason: format!("tool `{tool}` arguments exceed 1048576 bytes"),
+                reason: format!(
+                    "{tool} (root): arguments exceed 1048576 bytes; \
+                     expected at most 1048576 bytes"
+                ),
             },
             "{tool} one byte over"
         );
     }
     assert_eq!(MAX_TOOL_ARGUMENT_BYTES, 1_048_576);
+}
+
+/// LCV-192 AC 3 — invalid JSON is refused in the shape with path `(root)`,
+/// carrying serde's message, which names a position and never the payload.
+#[test]
+fn invalid_json_is_refused_at_the_root_in_the_shape() {
+    for bad in ["{", r#"{"x1": 0,"#, "[1, 2", "nonsense"] {
+        let serde = serde_json::from_str::<serde_json::Value>(bad)
+            .expect_err("not JSON")
+            .to_string();
+        assert_eq!(
+            to_action("create_line", bad),
+            AgentAction::Malformed {
+                tool: "create_line".to_owned(),
+                reason: format!(
+                    "create_line (root): not valid JSON ({serde}); expected a JSON object"
+                ),
+            },
+            "{bad}"
+        );
+    }
 }
 
 // ── LCV-145: the vision flag and the upload check ────────────────────────
