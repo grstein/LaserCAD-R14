@@ -8,7 +8,7 @@ Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/
   (files: src/document/check/tests.rs)
 - [x] T2 [AC2][AC3] `check_drawing`, `CheckReport`, `Finding`; endpoint collection, meet test,
   greedy nearest-first gap pairing (files: src/document/check.rs, src/document/mod.rs)
-- [ ] T3 [AC4] Test: duplicates — reversed line, same circle, CW arc vs its CCW twin, three copies
+- [x] T3 [AC4] Test: duplicates — reversed line, same circle, CW arc vs its CCW twin, three copies
   → two findings against the lowest index, different span → none, a doubled open line still shows
   its open ends (files: src/document/check/tests.rs)
 - [ ] T4 [AC4] Duplicate detection with CCW-normalised arcs; later duplicates leave the endpoint

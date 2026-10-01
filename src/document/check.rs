@@ -30,6 +30,15 @@ pub enum Finding {
         /// Distance between the two endpoints, mm.
         width: f64,
     },
+    /// An entity with the same geometry as a lower-indexed one.
+    Duplicate {
+        /// The later entity.
+        index: usize,
+        /// The lowest entity it duplicates.
+        of: usize,
+        /// The later entity's start point (a circle's centre), mm.
+        at: Vec2,
+    },
 }
 
 /// Endpoints closer than this (mm) that do not meet form a gap.

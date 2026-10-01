@@ -181,3 +181,115 @@ fn output_off_layer_is_ignored() {
     doc.push_entity(arc(100.0, 100.0, 10.0, 0.0, PI, true), off);
     assert_eq!(check_drawing(&doc), CheckReport::default());
 }
+
+fn duplicates(r: &CheckReport) -> Vec<(usize, usize)> {
+    r.findings
+        .iter()
+        .filter_map(|f| match f {
+            Finding::Duplicate { index, of, .. } => Some((*index, *of)),
+            _ => None,
+        })
+        .collect()
+}
+
+/// AC 4 — a line drawn the other way round duplicates the first; the finding
+/// sits at the later line's start.
+#[test]
+fn reversed_line_is_a_duplicate() {
+    let doc = doc_of(&[line(10.0, 10.0, 50.0, 10.0), line(50.0, 10.0, 10.0, 10.0)]);
+    let r = check_drawing(&doc);
+    assert!(r.findings.contains(&Finding::Duplicate {
+        index: 1,
+        of: 0,
+        at: p(50.0, 10.0)
+    }));
+}
+
+/// AC 4 — the same circle twice is a duplicate, located at its centre.
+#[test]
+fn same_circle_is_a_duplicate() {
+    let doc = doc_of(&[circle(100.0, 100.0, 20.0), circle(100.0, 100.0, 20.0)]);
+    let r = check_drawing(&doc);
+    assert_eq!(
+        r.findings,
+        vec![Finding::Duplicate {
+            index: 1,
+            of: 0,
+            at: p(100.0, 100.0)
+        }]
+    );
+}
+
+/// AC 4 — a circle with another radius or centre is no duplicate.
+#[test]
+fn different_circle_is_not_a_duplicate() {
+    let doc = doc_of(&[
+        circle(100.0, 100.0, 20.0),
+        circle(100.0, 100.0, 20.1),
+        circle(100.1, 100.0, 20.0),
+        circle(100.0, 100.1, 20.0),
+    ]);
+    assert_eq!(check_drawing(&doc), CheckReport::default());
+}
+
+/// AC 4 — a CW arc duplicates its CCW twin over the same span.
+#[test]
+fn cw_arc_duplicates_its_ccw_twin() {
+    let doc = doc_of(&[
+        arc(100.0, 100.0, 10.0, 0.0, FRAC_PI_2, true),
+        arc(100.0, 100.0, 10.0, FRAC_PI_2, 0.0, false),
+    ]);
+    assert_eq!(duplicates(&check_drawing(&doc)), vec![(1, 0)]);
+}
+
+/// AC 4 — two arcs over the same angles but different directions, or over a
+/// different span, are not duplicates.
+#[test]
+fn different_span_is_not_a_duplicate() {
+    let doc = doc_of(&[
+        arc(100.0, 100.0, 10.0, 0.0, FRAC_PI_2, true),
+        arc(100.0, 100.0, 10.0, 0.0, FRAC_PI_2, false),
+        arc(100.0, 100.0, 10.0, 0.0, PI / 3.0, true),
+        arc(100.0, 100.0, 11.0, 0.0, FRAC_PI_2, true),
+        arc(100.0, 101.0, 10.0, 0.0, FRAC_PI_2, true),
+    ]);
+    assert!(duplicates(&check_drawing(&doc)).is_empty());
+}
+
+/// AC 4 — a line that differs at one end is no duplicate.
+#[test]
+fn line_differing_at_one_end_is_not_a_duplicate() {
+    let doc = doc_of(&[line(10.0, 10.0, 50.0, 10.0), line(10.0, 10.0, 50.0, 10.1)]);
+    assert!(duplicates(&check_drawing(&doc)).is_empty());
+    let doc = doc_of(&[line(10.0, 10.0, 50.0, 10.0), line(10.1, 10.0, 50.0, 10.0)]);
+    assert!(duplicates(&check_drawing(&doc)).is_empty());
+}
+
+/// AC 4 — three copies give two findings, both against the lowest index.
+#[test]
+fn three_copies_point_at_the_lowest_index() {
+    let l = line(10.0, 10.0, 50.0, 10.0);
+    let r = check_drawing(&doc_of(&[l, l, l]));
+    assert_eq!(duplicates(&r), vec![(1, 0), (2, 0)]);
+}
+
+/// AC 2/4 — a doubled open line still shows its own open ends: the later copy
+/// leaves the endpoint analysis instead of closing the first.
+#[test]
+fn doubled_open_line_keeps_its_open_ends() {
+    let doc = doc_of(&[line(10.0, 10.0, 50.0, 10.0), line(10.0, 10.0, 50.0, 10.0)]);
+    let r = check_drawing(&doc);
+    assert_eq!(open_ends(&r), vec![(0, p(10.0, 10.0)), (0, p(50.0, 10.0))]);
+    assert_eq!(duplicates(&r), vec![(1, 0)]);
+}
+
+/// AC 4 — a closed contour drawn twice reports one duplicate per side and
+/// no open end.
+#[test]
+fn doubled_rectangle_reports_duplicates_only() {
+    let mut entities = rectangle(0.0);
+    entities.extend(rectangle(0.0));
+    let r = check_drawing(&doc_of(&entities));
+    assert_eq!(duplicates(&r), vec![(4, 0), (5, 1), (6, 2), (7, 3)]);
+    assert_eq!(r.findings.len(), 4);
+}
