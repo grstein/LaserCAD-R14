@@ -1,0 +1,29 @@
+[
+  {
+    "tool_calls": [
+      {
+        "id": "call_9",
+        "type": "function",
+        "function": {
+          "name": "create_drawing",
+          "arguments": "{\"version\":1,\"entities\":[{\"type\":\"rect\",\"x\":40,\"y\":40,\"width\":70,\"height\":20,\"corner_radius\":3},{\"type\":\"text\",\"x\":50,\"y\":45,\"height\":10,\"text\":\"LASER\"}]}"
+        }
+      }
+    ]
+  },
+  {
+    "tool_calls": [
+      {
+        "id": "call_10",
+        "type": "function",
+        "function": {
+          "name": "query_entities",
+          "arguments": "{}"
+        }
+      }
+    ]
+  },
+  {
+    "content": "Drew the 70 x 20 mm label with 3 mm corners and LASER 10 mm tall; query_entities lists the frame and the strokes: pass."
+  }
+]

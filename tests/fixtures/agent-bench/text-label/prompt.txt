@@ -1,0 +1,1 @@
+Draw a 70 x 20 mm label outline with its lower-left corner at (40, 40) and 3 mm rounded corners, and engrave the text LASER 10 mm tall with its baseline starting at (50, 45).

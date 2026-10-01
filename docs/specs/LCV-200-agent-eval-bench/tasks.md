@@ -11,7 +11,7 @@
   tests/it/agent/mod.rs)
 - [x] T4 [AC1] Fixtures `plate-holes`, `box-face-tabs`: prompt, reference, assertions, replies
   (files: tests/fixtures/agent-bench/plate-holes/*, tests/fixtures/agent-bench/box-face-tabs/*)
-- [ ] T5 [AC1] Fixtures `gear-outline`, `text-label` (files: tests/fixtures/agent-bench/gear-outline/*,
+- [x] T5 [AC1] Fixtures `gear-outline`, `text-label` (files: tests/fixtures/agent-bench/gear-outline/*,
   tests/fixtures/agent-bench/text-label/*)
 - [ ] T6 [AC1] [AC2] [AC4] [AC5] Bench loader, the suite-has-four test, and the replay test per task.
   Replay prints the JSON line and asserts `expected.json`, which is recorded once from this run
