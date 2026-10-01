@@ -21,7 +21,7 @@
   nothing, pick distance is `f64::INFINITY`, trim/extend return nothing, export writes nothing,
   narration writes `ellipse`. Mechanical; later tasks replace each arm. This breaks the 1–3 files
   rule; accepted, because the compiler forces it (files: those the compiler lists)
-- [ ] T8 [AC4] Test on painted shapes: an ellipse and an elliptical arc at two zooms. Every vertex
+- [x] T8 [AC4] Test on painted shapes: an ellipse and an elliptical arc at two zooms. Every vertex
   is on the curve, chord deviation ≤ 0.5 px, the stroke is the layer colour, and the selection halo
   and hover paint it (files: tests/it/app/ellipse_paint.rs, tests/it/app/mod.rs)
 - [ ] T9 [AC4] `ellipse_polyline(e, 0.5·mm_per_px)` in the entity, selection and dashed painters
