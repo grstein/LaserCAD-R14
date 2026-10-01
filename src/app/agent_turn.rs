@@ -40,6 +40,7 @@
 
 use super::agent_worker::{TurnConfig, ask_ui, run_agent_turn};
 use crate::agent::{AgentError, AgentEvent, TurnMetrics, prompt};
+use crate::app::agent_verify::VerifyState;
 use crate::app::{App, agent_memory};
 use crate::io::settings::Settings;
 use std::sync::mpsc::{Sender, channel};
@@ -130,6 +131,8 @@ pub struct TurnState {
     /// `tally.applied` when the turn last answered a feedback ask (LCV-195):
     /// feedback is given only when it has moved since.
     pub fed_at: u32,
+    /// Whether the turn verified what it applied (LCV-197).
+    pub(crate) verify: VerifyState,
 }
 
 /// The longest prompt prefix an undo label carries (AC 10).
@@ -169,6 +172,7 @@ fn arm_with_limit(app: &mut App, prompt: &str, limit: u32) -> Sender<AgentEvent>
         label,
         user,
         fed_at: 0,
+        verify: VerifyState::default(),
     };
     tx
 }

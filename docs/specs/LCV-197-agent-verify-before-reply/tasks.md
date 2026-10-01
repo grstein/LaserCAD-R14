@@ -16,7 +16,7 @@ do LCV-195 T1 (the `loop_/batch.rs` seam) as T0 here.
   - a query-only turn → never due.
 
   (files: src/app/agent_verify.rs)
-- [ ] T3 [AC3][AC7] `VerifyState`, `is_verification`, `TurnState::verify`
+- [x] T3 [AC3][AC7] `VerifyState`, `is_verification`, `TurnState::verify`
   (files: src/app/agent_verify.rs, src/app/agent_turn.rs, src/app/mod.rs)
 - [ ] T4 [AC3][AC4] `AgentAction::VerifyDue`, plus the `answer_act` arm (yes → `reminded`, the note
   row `Asked the agent to verify its work.`, `Ok`; no → `Refused`; never counted) and
