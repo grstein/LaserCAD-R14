@@ -81,8 +81,8 @@ fn drive(
             sends += 1;
             send(sends)
         },
-        &mut |_| {
-            dispatches += 1;
+        &mut |dispatch| {
+            dispatches += usize::from(matches!(dispatch, Dispatch::Tool { .. }));
             Ok(AgentOutcome::Ok("ok".into()))
         },
         &mut messages,
@@ -193,8 +193,8 @@ fn text_only_response_returns_ok() {
     let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
     let result = agent_loop(
         &mut |_| text_reply("Done."),
-        &mut |_| {
-            dispatches += 1;
+        &mut |dispatch| {
+            dispatches += usize::from(matches!(dispatch, Dispatch::Tool { .. }));
             Ok(AgentOutcome::Ok("ok".into()))
         },
         &mut messages,
@@ -318,7 +318,10 @@ fn tool_dispatch_error_stops_batch() {
     let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
     let result = agent_loop(
         &mut |_| call_reply(3),
-        &mut |_| {
+        &mut |dispatch| {
+            if !matches!(dispatch, Dispatch::Tool { .. }) {
+                return Ok(AgentOutcome::Ok(String::new()));
+            }
             seen += 1;
             if seen == 2 {
                 Err(AgentError::ToolDispatch("fail".into()))
@@ -402,6 +405,10 @@ fn run(
             Dispatch::Note(text) => {
                 events.borrow_mut().push(format!("note {text}"));
                 Ok(AgentOutcome::Ok(text.to_owned()))
+            }
+            Dispatch::Replied { captures } => {
+                events.borrow_mut().push(format!("replied {captures}"));
+                Ok(AgentOutcome::Ok(String::new()))
             }
             Dispatch::Tool { name, .. } => {
                 tools += 1;
@@ -646,6 +653,7 @@ fn the_fence_stop_send_is_authorised_and_elided_too() {
                 notes.push(text.to_owned());
                 Ok(AgentOutcome::Ok(text.to_owned()))
             }
+            Dispatch::Replied { .. } => Ok(AgentOutcome::Ok(String::new())),
             Dispatch::Tool { .. } => {
                 tools += 1;
                 Ok(if tools == 1 {
@@ -1052,10 +1060,12 @@ fn a_delivered_image_is_noted_sent_after_the_send() {
         r.events,
         [
             "send 1",
+            "replied 0",
             "authorise",
             "send 2",
             "note Canvas image for call call_0 sent.",
             "note Canvas image for call call_2 sent.",
+            "replied 2",
         ]
     );
 }
@@ -1086,8 +1096,9 @@ fn a_withheld_image_is_noted_withheld() {
             ["Canvas image for call call_0 withheld (permission changed)."],
             "send ok: {ok}"
         );
+        let last_note = r.events.iter().rev().find(|e| e.starts_with("note "));
         assert_eq!(
-            r.events.last().map(String::as_str),
+            last_note.map(String::as_str),
             Some("note Canvas image for call call_0 withheld (permission changed).")
         );
     }
@@ -1103,6 +1114,7 @@ fn a_failed_send_notes_the_image_not_delivered() {
         r.events,
         [
             "send 1",
+            "replied 0",
             "authorise",
             "send 2",
             "note Canvas image for call call_0 not delivered (request failed).",
@@ -1140,7 +1152,7 @@ fn no_image_or_a_cancelled_check_notes_nothing() {
         AGENT_STEP_BUDGET_DEFAULT,
     );
     assert!(matches!(r.result, Err(AgentError::Cancelled)));
-    assert_eq!(r.events, ["send 1", "authorise"]);
+    assert_eq!(r.events, ["send 1", "replied 0", "authorise"]);
 }
 
 /// LCV-187 AC 6 — a note is not a step: after two noted images the next
@@ -1154,5 +1166,80 @@ fn a_note_is_not_a_step() {
     assert_eq!(
         tool_texts(&r.messages)[3],
         "ok\nSteps left this turn: 252 of 256."
+    );
+}
+
+// ── LCV-193: every model reply is counted ────────────────────────────────
+
+/// The `Replied` captures of a run, in order.
+fn replies(r: &Run) -> Vec<&str> {
+    r.events
+        .iter()
+        .filter_map(|e| e.strip_prefix("replied "))
+        .collect()
+}
+
+/// LCV-193 AC 3 — one `Replied` per successful send, dispatched after the
+/// send returns and after its image notes, carrying the image parts that
+/// request carried (here: none, then two).
+#[test]
+fn each_successful_send_dispatches_one_replied_after_it_returns() {
+    let r = two_captures(text_reply("seen"));
+    assert_eq!(r.result.as_deref().unwrap(), "seen");
+    assert_eq!(replies(&r), ["0", "2"]);
+    assert_eq!(r.events.last().map(String::as_str), Some("replied 2"));
+    assert_eq!(r.events[..2], ["send 1", "replied 0"]);
+}
+
+/// LCV-193 AC 3 — a withheld upload sent no image: its reply has zero
+/// captures.
+#[test]
+fn a_withheld_upload_replies_with_zero_captures() {
+    let r = run(
+        |n| match n {
+            1 => named_calls(&["capture_canvas"]),
+            _ => text_reply("blind"),
+        },
+        || Ok(AgentOutcome::Refused("no".into())),
+        AGENT_STEP_BUDGET_DEFAULT,
+    );
+    assert_eq!(r.result.as_deref().unwrap(), "blind");
+    assert_eq!(replies(&r), ["0", "0"]);
+}
+
+/// LCV-193 AC 3 — a failed send is not a reply: no `Replied` for it.
+#[test]
+fn a_failed_send_dispatches_no_replied() {
+    let r = run(
+        |_| Err(AgentError::Transport("down".into())),
+        yes,
+        AGENT_STEP_BUDGET_DEFAULT,
+    );
+    assert!(matches!(r.result, Err(AgentError::Transport(_))));
+    assert!(replies(&r).is_empty(), "{:?}", r.events);
+    let r = two_captures(Err(AgentError::Transport("503".into())));
+    assert_eq!(replies(&r), ["0"], "only the first send got a reply");
+}
+
+/// LCV-193 AC 3 — a reply is not a step: three replies and three steps
+/// still leave the budget the tool calls alone left.
+#[test]
+fn a_reply_is_not_a_step() {
+    let r = run(
+        |n| match n {
+            1 | 2 => named_calls(&["query_entities"]),
+            _ => text_reply("done"),
+        },
+        yes,
+        3,
+    );
+    assert_eq!(r.result.as_deref().unwrap(), "done");
+    assert_eq!(replies(&r).len(), 3);
+    assert_eq!(
+        tool_texts(&r.messages),
+        [
+            "ok\nSteps left this turn: 2 of 3.",
+            "ok\nSteps left this turn: 1 of 3."
+        ]
     );
 }

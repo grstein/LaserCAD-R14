@@ -74,6 +74,13 @@ pub(crate) enum Dispatch<'a> {
     /// A transcript note: what happened to one canvas image once its request
     /// returned (LCV-187). Not a step; its answer is not read.
     Note(&'a str),
+    /// The model answered one request (LCV-193): `captures` is the number of
+    /// image parts that request carried with its upload authorised. Not a
+    /// step; its answer is not read.
+    Replied {
+        /// Authorised image parts the answered request carried.
+        captures: u32,
+    },
 }
 
 // ── Error ────────────────────────────────────────────────────────────────────

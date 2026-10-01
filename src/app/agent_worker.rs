@@ -157,6 +157,7 @@ where
             model: config.model.clone(),
         }),
         Dispatch::Note(text) => ask(AgentAction::Note(text.to_owned())),
+        Dispatch::Replied { .. } => Ok(AgentOutcome::Ok(String::new())),
     };
     let result = agent_loop(send_fn, &mut dispatch_fn, &mut messages, config.step_limit);
     // What memory keeps of this turn: whole batches, no image (§D3, ADR 0011).
