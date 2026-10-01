@@ -5,7 +5,7 @@
       `1e`, `-`, `2` as a flag, and `1e999` (non-finite) (files: src/io/svg/path_data/lexer.rs)
 - [x] T2 [AC1] Lexer: cursor, `command()`, `number()`, `flag()`, separator skipping (files:
       src/io/svg/path_data/lexer.rs, src/io/svg/path_data.rs, src/io/svg/mod.rs)
-- [ ] T3 [AC1] [AC2] Test (unit, `path_data.rs`): absolute and relative `M L H V Z A` resolve to
+- [x] T3 [AC1] [AC2] Test (unit, `path_data.rs`): absolute and relative `M L H V Z A` resolve to
       the expected absolute segments; implicit repetition (`L 1 1 2 2`, `M 0 0 1 1` → move + line,
       `m 1 1 2 2` → relative line); several subpaths; `Z` then `l` starts at the subpath start;
       `C S Q T c s q t` advance the current point to their endpoint and emit `Skipped` with the
