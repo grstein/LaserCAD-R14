@@ -44,7 +44,18 @@ pub(super) fn geometry(entity: &Entity) -> String {
             a.r,
             sweep(a.start_angle, a.end_angle, a.ccw)
         ),
-        Entity::Ellipse(e) => format!("center {} mm", pt(e.center.x, e.center.y)),
+        Entity::Ellipse(e) => {
+            let span = e.span.map_or(String::new(), |s| {
+                format!(", {}", sweep(s.start, s.end, s.ccw))
+            });
+            format!(
+                "center {} mm, rx = {:.3}, ry = {:.3} mm, rotation_deg = {:.3}{span}",
+                pt(e.center.x, e.center.y),
+                e.rx,
+                e.ry,
+                e.rotation.to_degrees()
+            )
+        }
     }
 }
 

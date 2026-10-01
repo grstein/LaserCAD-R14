@@ -74,7 +74,7 @@
   tests/fixtures/svg/ellipses.{svg,expected})
 - [x] T27 [AC13] Test: `query_entities` lists a full ellipse and an arc with kind `ellipse`,
   centre, rx, ry, rotation_deg and start/end/direction (files: tests/it/agent/turn.rs)
-- [ ] T28 [AC13] The narration arm, a prompt line saying ellipses are read-only with parametric
+- [x] T28 [AC13] The narration arm, a prompt line saying ellipses are read-only with parametric
   angles, and the raster arm (files: src/app/agent_narrate.rs, src/agent/prompt.rs,
   src/render/raster.rs)
 - [ ] T29 Docs: `AGENTS.md` export bullets plus ADR 0015 in the list, and coverage rows (files:

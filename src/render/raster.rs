@@ -54,7 +54,13 @@ pub fn rasterize(
                 };
                 canvas.arc((a.center.x, a.center.y), a.r, start, sweep);
             }
-            Entity::Ellipse(_) => {}
+            Entity::Ellipse(e) => {
+                // Half a pixel of chord deviation, every vertex on the curve.
+                let pts = e.polyline(0.5 / canvas.sx.max(canvas.sy));
+                for pair in pts.windows(2) {
+                    canvas.segment((pair[0].x, pair[0].y), (pair[1].x, pair[1].y), INK);
+                }
+            }
         }
     }
     canvas.pixels
@@ -205,7 +211,7 @@ fn clip(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::{Arc, Circle, Line, Vec2};
+    use crate::geometry::{Arc, Circle, Ellipse, EllipseSpan, Line, Vec2};
 
     const BED: [f64; 2] = [100.0, 100.0];
 
@@ -296,6 +302,21 @@ mod tests {
         let at = |x: usize, y_up: usize| px[(100 - y_up) * 101 + x];
         assert_eq!(at(50, 80), INK, "top of the arc");
         assert_eq!(at(50, 20), WHITE, "bottom is outside the sweep");
+    }
+
+    /// LCV-176 — an elliptical arc inks its own sweep at its vertices and
+    /// nothing on the other side.
+    #[test]
+    fn elliptical_arc_draws_only_its_sweep() {
+        let world = [0.0, 0.0, 100.0, 100.0];
+        let span = EllipseSpan::new(0.0, std::f64::consts::PI, true);
+        let e = Ellipse::new(Vec2::new(50.0, 50.0), 40.0, 20.0, 0.0, Some(span));
+        let px = decoded(&[Entity::Ellipse(e)], world, 101, 101);
+        let at = |x: usize, y_up: usize| px[(100 - y_up) * 101 + x];
+        assert_eq!(at(50, 70), INK, "top of the arc");
+        assert_eq!(at(90, 50), INK, "start vertex");
+        assert_eq!(at(10, 50), INK, "end vertex");
+        assert_eq!(at(50, 30), WHITE, "bottom is outside the sweep");
     }
 
     #[test]

@@ -60,6 +60,8 @@ const SPEC_TEXT: &[&str] = &[
     "",
     "query_entities {}: list every entity with its index, kind, geometry in mm",
     "and layer, plus the bed size and the layers. Changes nothing.",
+    "Ellipses (kind ellipse) are read-only to you: no tool creates one. Their",
+    "start and end angles are parametric, not polar.",
     "",
     "query_selection {}: list the indices of the entities the operator has",
     "selected. Changes nothing.",
