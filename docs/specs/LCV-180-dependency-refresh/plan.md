@@ -34,7 +34,7 @@ and thiserror 2.0.21 need only `cargo update`: caret requirements stay.
   do not count). **9**: calloop, calloop-wayland-source, getrandom, linux-raw-sys, quick-xml,
   rustix, smithay-client-toolkit, thiserror, thiserror-impl. Target set probed with the pin:
   **9** (getrandom and quick-xml leave; hashbrown 0.16/0.17 and syn 2/3 arrive); 10 without it.
-- AC 8: stripped release binary **11,455,704 B**; cap **13,174,059 B**; probe estimate ≈12.9 MB.
+- AC 8: stripped release binary **11,455,704 B**; cap **13,174,059 B** (15 %; raised to 20 % = **13,746,845 B** at /implement, see spec AC 8); probe estimate ≈12.9 MB.
 - AC 10: `directories` 5.0.1 resolves `$XDG_CONFIG_HOME|~/.config/lasercad` (settings) and
   `$XDG_DATA_HOME|~/.local/share/lasercad` (autosave). 6.0.0 resolves the same in a
   side-by-side probe, with and without the XDG variables.

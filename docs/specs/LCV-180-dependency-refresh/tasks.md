@@ -49,9 +49,9 @@ commit, then T8–T13 one each, then T14. Each commit passes `scripts/gate.sh` a
 - [x] T12 [AC6] reqwest 0.13 with native-tls (plan §TLS). The transport tests stay unchanged and
       T1 passes. If `transport.rs` changes, run `scripts/mutants.sh` on it
       (files: Cargo.toml, Cargo.lock)
-- [ ] T13 [AC1] [AC7] [AC8] [AC9] Run `cargo update`, then `cargo update -p flate2 --precise
+- [x] T13 [AC1] [AC7] [AC8] [AC9] Run `cargo update`, then `cargo update -p flate2 --precise
       1.1.9`. Drop the quick-xml ignores from deny.toml. Record the duplicate count (≤9), the
-      stripped binary bytes (≤13,174,059), `cargo deny check` and the gate in the commit body
+      stripped binary bytes (≤13,746,845 after the AC 8 amendment; measured 13,258,720), `cargo deny check` and the gate in the commit body
       (files: Cargo.lock, deny.toml)
 - [x] T14 CHANGELOG: GUI stack moves to egui/eframe 0.36 (glow), rfd 0.17 and reqwest 0.13
       (files: CHANGELOG.md)
