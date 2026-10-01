@@ -2,7 +2,8 @@
 //!
 //! Arbitrary text, and exported SVG that is truncated or has a span replaced
 //! by XML-ish noise, must come back as `Ok` or `Err` — never a panic. The
-//! importer reads files from disk, so it sees whatever a user opens.
+//! importer reads files from disk, so it sees whatever a user opens. So does
+//! an arbitrary `d` inside a `<path>` (LCV-172).
 
 use lasercad::document::{Document, Entity, Layer, LayerId};
 use lasercad::geometry::{Arc, Circle, Line, Vec2};
@@ -89,6 +90,32 @@ fn noise() -> impl Strategy<Value = String> {
     .prop_map(|parts| parts.concat())
 }
 
+/// Path-data fragments: every command letter, separators, number pieces,
+/// glued flags, extreme and non-finite numbers (LCV-172).
+fn path_token() -> impl Strategy<Value = String> {
+    prop_oneof![
+        prop::sample::select(vec![
+            "M", "m", "L", "l", "H", "h", "V", "v", "Z", "z", "A", "a", "C", "c", "S", "s", "Q",
+            "q", "T", "t", " ", ",", "\t", "-", "+", ".", "e", "E", "0", "1", "1110", "1e999",
+            "NaN", "inf", "x",
+        ])
+        .prop_map(str::to_owned),
+        any::<f64>().prop_map(|v| v.to_string()),
+        "[0-9.eE+-]{1,6}",
+    ]
+}
+
+/// `d` as an attribute value inside an otherwise valid file.
+fn path_svg(d: &str) -> String {
+    let d = d
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('"', "&quot;");
+    format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="100mm"><path d="{d}"/></svg>"#
+    )
+}
+
 /// Largest char boundary of `s` that is `<= at`.
 fn floor_boundary(s: &str, at: usize) -> usize {
     (0..=at.min(s.len()))
@@ -126,5 +153,19 @@ proptest! {
         let end = floor_boundary(&svg, start + len);
         let mutated = format!("{}{}{}", &svg[..start], patch, &svg[end..]);
         let _ = import_svg(&mutated);
+    }
+
+    /// LCV-172 AC 1/AC 8 — any `d` built from path tokens opens: a path
+    /// data error is reported, it never fails the file or panics.
+    #[test]
+    fn import_never_fails_on_path_token_data(parts in prop::collection::vec(path_token(), 0..24)) {
+        let imported = import_svg(&path_svg(&parts.concat()));
+        prop_assert!(imported.is_ok(), "{:?}", imported.err());
+    }
+
+    /// LCV-172 — an arbitrary `d` string never panics the importer.
+    #[test]
+    fn import_never_panics_on_arbitrary_path_data(d in any::<String>()) {
+        let _ = import_svg(&path_svg(&d));
     }
 }

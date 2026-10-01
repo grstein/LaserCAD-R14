@@ -38,7 +38,7 @@
       elliptical `A` imports the lines at the right world points and reports `path C`, `path Q`,
       `path T` and `path elliptical arc` once each, in order (files: tests/it/io_svg/path_grammar.rs,
       tests/it/io_svg/mod.rs)
-- [ ] T12 [AC1] Fuzz: an arbitrary `d` string inside a `<path>` never panics `import_svg` (files:
+- [x] T12 [AC1] Fuzz: an arbitrary `d` string inside a `<path>` never panics `import_svg` (files:
       tests/it/io_svg/import_fuzz.rs)
 - [ ] T13 [AC10] Fixtures with `.expected` written by hand from the SVG text: `path-relative`
       (`m l h v a` resolve), `path-compact` (`M1-2.5.5`, glued flags, exponents),
