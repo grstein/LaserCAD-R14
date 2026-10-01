@@ -27,7 +27,7 @@ Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/
   revision, selection, undo depth and dirty flag unchanged; a line+arc contour exported and
   re-imported through `io::svg` reports nothing (files: tests/it/cmdline/check_command.rs,
   tests/it/cmdline/mod.rs)
-- [ ] T10 [AC1] `CommandInput::Check` and the word `check` (parse test included) (files:
+- [x] T10 [AC1] `CommandInput::Check` and the word `check` (parse test included) (files:
   src/cmdline/mod.rs, src/cmdline/parse.rs)
 - [ ] T11 [AC1][AC8] `App::check_report` field and its default (files: src/app/mod.rs,
   src/app/init.rs)
