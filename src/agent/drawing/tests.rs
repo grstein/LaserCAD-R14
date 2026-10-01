@@ -774,3 +774,42 @@ fn lcv196_ac8_the_cap_counts_the_expansion_before_building_it() {
         format!("create_drawing entities: expands to 0 entities; {form}")
     );
 }
+
+/// LCV-196 AC 6 — a polar copy of an arc keeps its orientation, and its
+/// endpoints are the source endpoints rotated about the centre.
+#[test]
+fn lcv196_ac6_a_polar_arc_copy_keeps_ccw_and_rotates_its_endpoints() {
+    use crate::geometry::{Arc, EPSILON, Transform, Vec2};
+    let as_arc = |item: &DrawingItem| match *item {
+        DrawingItem::Arc {
+            cx,
+            cy,
+            r,
+            start,
+            end,
+            ccw,
+        } => Arc::new(Vec2::new(cx, cy), r, start, end, ccw),
+        ref other => panic!("{other:?}"),
+    };
+    for ccw in [true, false] {
+        let got = items(json!([
+            {"type": "arc", "cx": 7, "cy": -2, "r": 3, "start_deg": 10, "end_deg": 130, "ccw": ccw},
+            {"type": "polar_array", "of": [0], "count": 3, "cx": 1, "cy": 2, "step_deg": 37}
+        ]));
+        let source = as_arc(&got[0]);
+        for k in 1..3 {
+            let copy = as_arc(&got[k]);
+            let turn = Transform::Rotate {
+                base: Vec2::new(1.0, 2.0),
+                angle: (37.0 * k as f64).to_radians(),
+            };
+            assert_eq!(copy.ccw, ccw, "copy {k}");
+            assert!(
+                copy.start_point()
+                    .distance(turn.point(source.start_point()))
+                    < EPSILON
+            );
+            assert!(copy.end_point().distance(turn.point(source.end_point())) < EPSILON);
+        }
+    }
+}

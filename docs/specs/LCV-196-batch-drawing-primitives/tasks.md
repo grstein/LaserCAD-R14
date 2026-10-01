@@ -48,7 +48,7 @@ Prerequisites: LCV-185, LCV-192 Done; LCV-188 Done (the outcome's `New ids` suff
   suffix (files: tests/it/agent/drawing_batch.rs)
 - [x] T8 [AC4] Test (headless app): `text` in a batch and the `TEXT` command at the same point,
   height and string create identical entities (files: tests/it/agent/drawing_batch.rs)
-- [ ] T9 [AC6] Test: a polar copy of a CCW arc keeps `ccw`, and its endpoints equal the rotated
+- [x] T9 [AC6] Test: a polar copy of a CCW arc keeps `ccw`, and its endpoints equal the rotated
   source endpoints within `EPSILON` (files: src/agent/drawing/tests.rs)
 - [ ] T10 [AC10] Test: the schema lists the 9 types and every new key with its JSON type (`points`
   items `{x, y}`, `of` integer array). A recursive scan finds no
