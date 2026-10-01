@@ -52,7 +52,7 @@ do LCV-195 T1 (the `loop_/batch.rs` seam) as T0 here.
   (files: tests/it/agent/verify_before_reply.rs)
 - [x] T9 [AC5] Test: memory after a reminded turn holds neither the reminder nor the interim reply
   (files: tests/it/agent/verify_before_reply.rs)
-- [ ] T10 Docs: AGENTS.md purity list (`loop_/verify.rs`); CHANGELOG line
+- [x] T10 Docs: AGENTS.md purity list (`loop_/verify.rs`); CHANGELOG line
   (files: AGENTS.md, CHANGELOG.md)
 - [ ] T11 `scripts/mutants.sh` on the diff (`src/agent/loop_*`, `agent_verify.rs`). Kill the
   survivors or justify them in the commit body.
