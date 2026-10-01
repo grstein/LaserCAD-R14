@@ -373,8 +373,8 @@ fn recovered_badge_paints_with_its_hover_text_and_touches_nothing_else() {
     ctx.set_pixels_per_point(1.0);
     boot(&ctx, &mut app);
 
-    let dirty_before = app.dirty_since;
-    let autosave_before = app.last_autosave_at;
+    let dirty_before = app.autosave.dirty_since;
+    let autosave_before = app.autosave.last_autosave_at;
 
     let runs = paint::painted_runs(&ctx, &mut app);
     assert!(
@@ -396,11 +396,11 @@ fn recovered_badge_paints_with_its_hover_text_and_touches_nothing_else() {
     );
 
     assert_eq!(
-        app.dirty_since, dirty_before,
+        app.autosave.dirty_since, dirty_before,
         "rendering the recovery label must not touch dirty_since"
     );
     assert_eq!(
-        app.last_autosave_at, autosave_before,
+        app.autosave.last_autosave_at, autosave_before,
         "rendering the recovery label must not touch last_autosave_at"
     );
 }

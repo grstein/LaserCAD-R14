@@ -237,7 +237,7 @@ fn snapshot(app: &App) -> Snapshot {
         selection: app.document.selection.clone(),
         revision: app.history.revision(),
         current_file: app.current_file.clone(),
-        dirty_since: app.dirty_since,
+        dirty_since: app.autosave.dirty_since,
     }
 }
 
@@ -261,7 +261,7 @@ fn assert_unchanged(app: &App, before: &Snapshot) {
         "Cancel must not touch current_file"
     );
     assert_eq!(
-        app.dirty_since, before.dirty_since,
+        app.autosave.dirty_since, before.dirty_since,
         "Cancel must not touch the dirty signal"
     );
 }

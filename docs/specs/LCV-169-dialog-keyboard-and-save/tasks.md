@@ -1,6 +1,6 @@
 # LCV-169 — Tasks
 
-- [ ] T1 Seam: if `src/app/mod.rs` is ≥ 290 implementation lines, move the autosave fields into
+- [x] T1 Seam: if `src/app/mod.rs` is ≥ 290 implementation lines, move the autosave fields into
   `AutosaveState` in `app/autosave.rs` with no behaviour change; else tick with "not needed"
   (files: src/app/mod.rs, src/app/autosave.rs, src/app/init.rs)
 - [ ] T2 [AC4] [AC5] Test first: open each of the seven dialogs; its painted button runs are

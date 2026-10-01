@@ -25,6 +25,34 @@ use super::App;
 /// 800 ms matches LaserCAD v1 (ADR 0002 §B).
 const AUTOSAVE_DEBOUNCE: Duration = Duration::from_millis(800);
 
+/// The autosave half of [`App`]'s state, grouped the way `agent: AgentState`
+/// is (ADR 0004 §"The `src/app/mod.rs` seam", LCV-169). Every field is written
+/// only in this file; `Default` is the clean, never-saved state.
+#[derive(Debug, Default)]
+pub struct AutosaveState {
+    /// Set to `Some(Instant::now())` the first time the document is dirtied
+    /// after the last autosave flush (or after startup). Cleared back to
+    /// `None` after each successful autosave write.
+    pub dirty_since: Option<Instant>,
+    /// The `history.revision()` value last observed by [`App::sync_dirty`](super::App::sync_dirty) /
+    /// [`App::mark_clean`](super::App::mark_clean). Comparing against this — not against
+    /// `history.len()`, which is not monotonic across an undo-then-commit —
+    /// is how `sync_dirty` detects "something changed since the last
+    /// autosave" for every mutation source at once: tools that call
+    /// `history.commit` directly, the agent's commit sites, and undo/redo
+    /// (ADR 0002 §B).
+    pub last_synced_revision: u64,
+    /// When the last **successful** autosave write happened this session, or
+    /// `None` when none has (LCV-116 AC 7). Written in exactly one place —
+    /// `src/app/autosave.rs` — and only on the `Ok` branch, so a failed write
+    /// cannot claim a save the operator does not have. Read only by the
+    /// status-bar indicator; no control flow depends on it.
+    pub last_autosave_at: Option<Instant>,
+    /// The last autosave write to a real autosave location failed (LCV-167 AC 9);
+    /// set and cleared only by `src/app/autosave.rs`.
+    pub autosave_failed: bool,
+}
+
 /// Is an armed dirty timer old enough to flush? `dirty_since` is `None` when
 /// the document is clean; `Some(t)` means it has been unsaved-dirty since
 /// `t`. `now` is a parameter (not `Instant::now()` internally) so the
@@ -43,7 +71,7 @@ pub fn autosave_due(dirty_since: Option<Instant>, now: Instant) -> bool {
 /// immediately after the single [`App::sync_dirty`](super::App::sync_dirty)
 /// call so the flush sees this frame's mutations.
 pub fn flush_if_due(app: &mut App) {
-    if autosave_due(app.dirty_since, Instant::now()) {
+    if autosave_due(app.autosave.dirty_since, Instant::now()) {
         // Two statements, not one: `record_autosave_outcome(app, app.write_autosave())`
         // borrows `app` mutably and immutably in the same expression.
         let wrote = app.write_autosave();
@@ -72,9 +100,9 @@ pub fn flush_if_due(app: &mut App) {
 ///   debounce would spin. The next document change re-arms it.
 fn record_autosave_outcome(app: &mut App, wrote: bool) {
     if wrote {
-        app.last_autosave_at = Some(Instant::now());
+        app.autosave.last_autosave_at = Some(Instant::now());
     }
-    app.autosave_failed = !wrote && app.persists_autosave();
+    app.autosave.autosave_failed = !wrote && app.persists_autosave();
     app.mark_clean();
 }
 
@@ -90,7 +118,7 @@ fn record_autosave_outcome(app: &mut App, wrote: bool) {
 /// The delay is the debounce's remainder, so the follow-up frame arrives just
 /// as the write becomes due rather than immediately.
 pub fn schedule_flush_repaint(ctx: &egui::Context, app: &App) {
-    if let Some(since) = app.dirty_since {
+    if let Some(since) = app.autosave.dirty_since {
         ctx.request_repaint_after(AUTOSAVE_DEBOUNCE.saturating_sub(since.elapsed()));
     }
 }
@@ -109,9 +137,9 @@ impl App {
     /// intervening mutation is a no-op the second time.
     pub(super) fn sync_dirty(&mut self) {
         let revision = self.history.revision();
-        if revision != self.last_synced_revision {
-            self.dirty_since.get_or_insert_with(Instant::now);
-            self.last_synced_revision = revision;
+        if revision != self.autosave.last_synced_revision {
+            self.autosave.dirty_since.get_or_insert_with(Instant::now);
+            self.autosave.last_synced_revision = revision;
         }
     }
 
@@ -127,8 +155,8 @@ impl App {
     /// document that was just loaded or reset. Call this **after** any
     /// `history` replacement, never before.
     pub fn mark_clean(&mut self) {
-        self.dirty_since = None;
-        self.last_synced_revision = self.history.revision();
+        self.autosave.dirty_since = None;
+        self.autosave.last_synced_revision = self.history.revision();
     }
 }
 
@@ -164,9 +192,9 @@ mod tests {
     #[test]
     fn flush_is_a_noop_while_clean() {
         let mut app = App::default();
-        assert!(app.dirty_since.is_none());
+        assert!(app.autosave.dirty_since.is_none());
         flush_if_due(&mut app);
-        assert!(app.dirty_since.is_none());
+        assert!(app.autosave.dirty_since.is_none());
     }
 
     /// LCV-119 — the case ADR 0002 §A4 rule 2 used to forbid outright: a
@@ -177,18 +205,24 @@ mod tests {
     #[test]
     fn a_due_flush_with_no_injected_path_writes_nothing_and_still_settles() {
         let mut app = App {
-            dirty_since: Instant::now().checked_sub(Duration::from_secs(5)),
+            autosave: AutosaveState {
+                dirty_since: Instant::now().checked_sub(Duration::from_secs(5)),
+                ..AutosaveState::default()
+            },
             ..App::default()
         };
-        assert!(autosave_due(app.dirty_since, Instant::now()));
+        assert!(autosave_due(app.autosave.dirty_since, Instant::now()));
 
         flush_if_due(&mut app);
 
         assert!(
-            app.last_autosave_at.is_none(),
+            app.autosave.last_autosave_at.is_none(),
             "a pathless App must not claim a save it did not make"
         );
-        assert!(app.dirty_since.is_none(), "but the debounce is cleared");
+        assert!(
+            app.autosave.dirty_since.is_none(),
+            "but the debounce is cleared"
+        );
     }
 
     /// LCV-116 AC 7 — a successful write stamps `last_autosave_at` and clears
@@ -196,18 +230,21 @@ mod tests {
     #[test]
     fn last_autosave_at_is_set_only_on_success() {
         let mut app = App {
-            dirty_since: Some(Instant::now()),
+            autosave: AutosaveState {
+                dirty_since: Some(Instant::now()),
+                ..AutosaveState::default()
+            },
             ..App::default()
         };
-        assert!(app.last_autosave_at.is_none());
+        assert!(app.autosave.last_autosave_at.is_none());
 
         record_autosave_outcome(&mut app, true);
 
         assert!(
-            app.last_autosave_at.is_some(),
+            app.autosave.last_autosave_at.is_some(),
             "an Ok write must stamp the timestamp"
         );
-        assert!(app.dirty_since.is_none(), "and clear the debounce");
+        assert!(app.autosave.dirty_since.is_none(), "and clear the debounce");
     }
 
     /// LCV-116 AC 7 / LCV-102 AC 18 — a **failed** write stamps nothing but
@@ -215,18 +252,21 @@ mod tests {
     #[test]
     fn a_failed_write_clears_the_debounce_without_claiming_a_save() {
         let mut app = App {
-            dirty_since: Some(Instant::now()),
+            autosave: AutosaveState {
+                dirty_since: Some(Instant::now()),
+                ..AutosaveState::default()
+            },
             ..App::default()
         };
 
         record_autosave_outcome(&mut app, false);
 
         assert!(
-            app.last_autosave_at.is_none(),
+            app.autosave.last_autosave_at.is_none(),
             "a failed write must not claim a save the operator does not have"
         );
         assert!(
-            app.dirty_since.is_none(),
+            app.autosave.dirty_since.is_none(),
             "but the debounce is still cleared (LCV-102 AC 18)"
         );
     }
@@ -239,11 +279,11 @@ mod tests {
             autosave_path: Some(std::path::PathBuf::from("autosave.json")),
             ..App::default()
         };
-        assert!(!app.autosave_failed);
+        assert!(!app.autosave.autosave_failed);
         record_autosave_outcome(&mut app, false);
-        assert!(app.autosave_failed, "a real write failed");
+        assert!(app.autosave.autosave_failed, "a real write failed");
         record_autosave_outcome(&mut app, true);
-        assert!(!app.autosave_failed, "a success clears it");
+        assert!(!app.autosave.autosave_failed, "a success clears it");
     }
 
     /// LCV-167 AC 9 — a process that persists nothing is never "failed".
@@ -251,7 +291,7 @@ mod tests {
     fn a_pathless_flush_is_never_flagged_failed() {
         let mut app = App::default();
         record_autosave_outcome(&mut app, false);
-        assert!(!app.autosave_failed);
+        assert!(!app.autosave.autosave_failed);
     }
 
     /// LCV-116 AC 7 — a second successful write moves the timestamp forward,
@@ -260,16 +300,16 @@ mod tests {
     fn a_later_success_moves_the_timestamp_forward() {
         let mut app = App::default();
         record_autosave_outcome(&mut app, true);
-        let first = app.last_autosave_at.expect("stamped");
+        let first = app.autosave.last_autosave_at.expect("stamped");
         std::thread::sleep(Duration::from_millis(2));
         record_autosave_outcome(&mut app, true);
-        assert!(app.last_autosave_at.expect("stamped") > first);
+        assert!(app.autosave.last_autosave_at.expect("stamped") > first);
     }
 
     /// LCV-116 AC 7 — `App::default()` has never autosaved.
     #[test]
     fn default_app_has_no_autosave_timestamp() {
-        assert!(App::default().last_autosave_at.is_none());
+        assert!(App::default().autosave.last_autosave_at.is_none());
     }
 
     /// LCV-116 AC 7 — the seam `record_autosave_outcome` exists for
@@ -326,7 +366,7 @@ mod tests {
             .expect("schedule_flush_repaint must exist");
         let body = &implementation[start..];
         assert!(
-            body.contains("if let Some(since) = app.dirty_since {"),
+            body.contains("if let Some(since) = app.autosave.dirty_since {"),
             "the repaint must be guarded on a pending write"
         );
         assert!(

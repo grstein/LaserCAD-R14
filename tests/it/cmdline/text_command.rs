@@ -380,16 +380,22 @@ fn escape_mid_flow_commits_nothing_and_clears_the_field() {
 #[test]
 fn text_commit_marks_the_document_dirty() {
     let (ctx, mut app, viewport) = boot();
-    assert!(app.dirty_since.is_none(), "a fresh document is clean");
+    assert!(
+        app.autosave.dirty_since.is_none(),
+        "a fresh document is clean"
+    );
 
     app.tool_manager.set_tool(Box::new(TextTool::default()));
     click_anchor(&ctx, &mut app, viewport);
     submit_command(&ctx, &mut app, "HELLO");
-    assert!(app.dirty_since.is_none(), "a phase advance commits nothing");
+    assert!(
+        app.autosave.dirty_since.is_none(),
+        "a phase advance commits nothing"
+    );
 
     submit_command(&ctx, &mut app, "10");
     assert!(
-        app.dirty_since.is_some(),
+        app.autosave.dirty_since.is_some(),
         "the committed text must arm the autosave debounce"
     );
 }

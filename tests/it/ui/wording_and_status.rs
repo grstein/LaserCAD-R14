@@ -334,16 +334,19 @@ fn ac9_a_failed_autosave_shows_until_the_next_write_succeeds() {
     app.autosave_path = Some(blocked);
     let due = || std::time::Instant::now().checked_sub(std::time::Duration::from_secs(5));
 
-    app.dirty_since = due();
+    app.autosave.dirty_since = due();
     let shapes = text_shapes(&ctx, &mut app);
-    assert!(app.autosave_failed, "the write into a directory fails");
+    assert!(
+        app.autosave.autosave_failed,
+        "the write into a directory fails"
+    );
     assert_eq!(
         colours_of(&shapes, "\u{d7} autosave failed"),
         vec![STATUS_ERROR]
     );
 
     app.autosave_path = Some(dir.join("ok.json"));
-    app.dirty_since = due();
+    app.autosave.dirty_since = due();
     let runs = settle(&ctx, &mut app);
     let _ = locate(&runs, "\u{25cb} autosaved");
     assert!(!runs.iter().any(|r| r.text.contains("autosave failed")));
@@ -354,8 +357,9 @@ fn ac9_a_failed_autosave_shows_until_the_next_write_succeeds() {
 #[test]
 fn ac9_a_pathless_flush_never_shows_failed() {
     let (ctx, mut app) = ctx_and_app();
-    app.dirty_since = std::time::Instant::now().checked_sub(std::time::Duration::from_secs(5));
+    app.autosave.dirty_since =
+        std::time::Instant::now().checked_sub(std::time::Duration::from_secs(5));
     let runs = settle(&ctx, &mut app);
-    assert!(app.dirty_since.is_none(), "control: the flush ran");
+    assert!(app.autosave.dirty_since.is_none(), "control: the flush ran");
     let _ = locate(&runs, "\u{25cb} no autosave yet");
 }

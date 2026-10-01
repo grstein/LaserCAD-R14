@@ -1,4 +1,5 @@
 use super::*;
+use crate::app::AutosaveState;
 use crate::document::{CreateLine, Entity};
 use crate::geometry::{Line, Vec2};
 use std::path::Path;
@@ -358,11 +359,14 @@ fn action_new_resets_current_file() {
 #[test]
 fn action_new_clears_dirty_since() {
     let mut app = App {
-        dirty_since: Some(Instant::now()),
+        autosave: AutosaveState {
+            dirty_since: Some(Instant::now()),
+            ..AutosaveState::default()
+        },
         ..App::default()
     };
     action_new(&mut app);
-    assert!(app.dirty_since.is_none());
+    assert!(app.autosave.dirty_since.is_none());
 }
 
 /// LCV-113 AC 4 — action_new marks the fresh document safe to discard
@@ -466,13 +470,16 @@ fn action_save_clears_dirty_since() {
 
     let mut app = App {
         current_file: Some(tmp.clone()),
-        dirty_since: Some(Instant::now()),
+        autosave: AutosaveState {
+            dirty_since: Some(Instant::now()),
+            ..AutosaveState::default()
+        },
         ..App::default()
     };
 
     action_save(&mut app);
 
-    assert!(app.dirty_since.is_none());
+    assert!(app.autosave.dirty_since.is_none());
     let _ = std::fs::remove_file(&tmp);
 }
 

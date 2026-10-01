@@ -63,7 +63,7 @@ pub use agent_poll::{AGENT_CANCELLED_MESSAGE, AGENT_LOST_MESSAGE, cancel_turn, p
 pub use agent_state::AgentState;
 pub use agent_turn::{AGENT_FENCE_REFUSAL, TurnFence, TurnState, arm_turn, config_for, start_turn};
 pub use agent_worker::{TurnConfig, run_agent_turn};
-pub use autosave::{autosave_due, schedule_flush_repaint};
+pub use autosave::{AutosaveState, autosave_due, schedule_flush_repaint};
 pub use bed_dialog::{apply_bed_dialog_result, draw_bed_dialog};
 pub(crate) use cmdline::agent_available;
 pub use cmdline::submit;
@@ -77,8 +77,6 @@ pub use ortho::apply_ortho;
 pub use snap::{resolve_snap, suppress_snap_if_disabled};
 pub use unsaved_guard::UnsavedGuard;
 pub use viewport::{handle_pan, handle_wheel_zoom, handle_zoom_extents};
-
-use std::time::Instant;
 
 use crate::cmdline::CommandHistory;
 use crate::document::{Command, Document, Entity, History};
@@ -120,27 +118,9 @@ pub struct App {
     /// (ADR 0006). `None` means this process neither writes nor deletes an
     /// autosave file — the state `App::default()` leaves it in.
     pub autosave_path: Option<std::path::PathBuf>,
-    /// Set to `Some(Instant::now())` the first time the document is dirtied
-    /// after the last autosave flush (or after startup). Cleared back to
-    /// `None` after each successful autosave write.
-    pub dirty_since: Option<Instant>,
-    /// The `history.revision()` value last observed by [`App::sync_dirty`] /
-    /// [`App::mark_clean`]. Comparing against this — not against
-    /// `history.len()`, which is not monotonic across an undo-then-commit —
-    /// is how `sync_dirty` detects "something changed since the last
-    /// autosave" for every mutation source at once: tools that call
-    /// `history.commit` directly, the agent's commit sites, and undo/redo
-    /// (ADR 0002 §B).
-    pub last_synced_revision: u64,
-    /// When the last **successful** autosave write happened this session, or
-    /// `None` when none has (LCV-116 AC 7). Written in exactly one place —
-    /// `src/app/autosave.rs` — and only on the `Ok` branch, so a failed write
-    /// cannot claim a save the operator does not have. Read only by the
-    /// status-bar indicator; no control flow depends on it.
-    pub last_autosave_at: Option<Instant>,
-    /// The last autosave write to a real `autosave_path` failed (LCV-167 AC 9);
-    /// set and cleared only by `src/app/autosave.rs`.
-    pub autosave_failed: bool,
+    /// The autosave dirty signal and its outcome (`src/app/autosave.rs`,
+    /// ADR 0004 §"The `src/app/mod.rs` seam", LCV-169).
+    pub autosave: AutosaveState,
     /// Controls visibility of the About dialog.
     pub about_open: bool,
     /// Controls visibility of the Keyboard shortcuts dialog (LCV-116 AC 11).

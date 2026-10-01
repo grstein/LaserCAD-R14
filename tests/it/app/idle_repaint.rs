@@ -47,7 +47,7 @@ use crate::harness;
 use std::time::{Duration, Instant};
 
 use harness::{frame, raw_input, tap};
-use lasercad::app::App;
+use lasercad::app::{App, AutosaveState};
 
 /// The autosave debounce, mirrored. `AUTOSAVE_DEBOUNCE` is private to
 /// `src/app/autosave.rs`, where a unit test pins its value, so a drift fails
@@ -105,7 +105,7 @@ fn boot(app: App) -> (egui::Context, App, egui::Rect) {
 fn an_idle_app_asks_for_no_repaint() {
     let (ctx, mut app, _canvas) = boot(App::default());
     assert!(
-        app.last_cursor_world.is_none() && app.dirty_since.is_none() && !app.agent.busy,
+        app.last_cursor_world.is_none() && app.autosave.dirty_since.is_none() && !app.agent.busy,
         "precondition: nothing about this app is live"
     );
 
@@ -194,7 +194,10 @@ fn a_pointer_outside_the_canvas_lets_the_app_idle() {
 #[test]
 fn a_pending_autosave_still_wakes_an_idle_app() {
     let (ctx, mut app, _canvas) = boot(App {
-        dirty_since: Some(Instant::now()),
+        autosave: AutosaveState {
+            dirty_since: Some(Instant::now()),
+            ..AutosaveState::default()
+        },
         ..App::default()
     });
 
@@ -207,7 +210,7 @@ fn a_pending_autosave_still_wakes_an_idle_app() {
         );
     }
     assert!(
-        app.dirty_since.is_some(),
+        app.autosave.dirty_since.is_some(),
         "control: the debounce must not have elapsed during the test"
     );
 }
@@ -254,7 +257,7 @@ fn a_live_preview_keeps_asking_for_frames_with_the_pointer_away() {
         );
     }
     assert!(
-        !app.preview_entities.is_empty() && app.dirty_since.is_none(),
+        !app.preview_entities.is_empty() && app.autosave.dirty_since.is_none(),
         "controls: the preview is still up, and the first click committed nothing, \
          so the delay above cannot be an autosave wake-up"
     );
@@ -315,7 +318,7 @@ fn a_middle_drag_keeps_asking_for_frames() {
     let _ = frame_delay(&ctx, &mut app, vec![]);
 
     assert!(
-        app.preview_entities.is_empty() && app.dirty_since.is_none(),
+        app.preview_entities.is_empty() && app.autosave.dirty_since.is_none(),
         "controls: no tool preview and nothing dirty, so neither of the \
          other two terms can be the one answering"
     );

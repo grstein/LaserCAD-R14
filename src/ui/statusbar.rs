@@ -184,9 +184,9 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
     let tool_str = app.tool_manager.active_tool_name().to_uppercase();
     let count = app.document.entity_count();
     let autosave_str = format_autosave(
-        app.autosave_failed,
-        app.dirty_since.is_some(),
-        app.last_autosave_at.is_some(),
+        app.autosave.autosave_failed,
+        app.autosave.dirty_since.is_some(),
+        app.autosave.last_autosave_at.is_some(),
     );
 
     // At most one indicator can be clicked per frame; the flip is applied
@@ -214,7 +214,7 @@ pub fn draw_statusbar(ui: &mut egui::Ui, app: &mut App) {
             }
         }
         ui.separator();
-        if app.autosave_failed {
+        if app.autosave.autosave_failed {
             ui.colored_label(ui.visuals().error_fg_color, autosave_str);
         } else {
             ui.label(autosave_str);

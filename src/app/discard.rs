@@ -181,7 +181,7 @@ mod tests {
         let revision = app.history.revision();
         let current_file = app.current_file.clone();
         let saved_revision = app.guard.saved_revision;
-        let dirty_since = app.dirty_since;
+        let dirty_since = app.autosave.dirty_since;
 
         let out = ctx.run(egui::RawInput::default(), |ctx| {
             apply_dialog_result(ctx, &mut app, DialogResult::Cancelled);
@@ -192,7 +192,7 @@ mod tests {
         assert_eq!(app.history.revision(), revision);
         assert_eq!(app.current_file, current_file);
         assert_eq!(app.guard.saved_revision, saved_revision);
-        assert_eq!(app.dirty_since, dirty_since);
+        assert_eq!(app.autosave.dirty_since, dirty_since);
         assert!(
             !out.viewport_output[&egui::ViewportId::ROOT]
                 .commands

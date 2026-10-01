@@ -73,14 +73,17 @@ fn rendering_the_bar_mutates_no_document_state() {
     // would still be far inside the 800 ms debounce.
     frame(&ctx, &mut app, vec![]);
     let revision = app.history.revision();
-    let dirty = app.dirty_since;
+    let dirty = app.autosave.dirty_since;
     let entities = app.document.entity_count();
 
     frame(&ctx, &mut app, vec![]);
 
     assert_eq!(app.document.entity_count(), entities);
     assert_eq!(app.history.revision(), revision, "no history entry");
-    assert_eq!(app.dirty_since, dirty, "no second writer of dirty_since");
+    assert_eq!(
+        app.autosave.dirty_since, dirty,
+        "no second writer of dirty_since"
+    );
     assert_eq!(entities, 1, "positive control: the line really is there");
 }
 
@@ -153,17 +156,26 @@ fn the_autosave_indicator_states_are_reachable() {
     let mut app = App::default();
 
     frame(&ctx, &mut app, vec![]);
-    assert!(app.dirty_since.is_none(), "fresh: not pending");
-    assert!(app.last_autosave_at.is_none(), "fresh: never saved");
+    assert!(app.autosave.dirty_since.is_none(), "fresh: not pending");
+    assert!(
+        app.autosave.last_autosave_at.is_none(),
+        "fresh: never saved"
+    );
 
     app.commit(Box::new(CreateLine::new(Line::new(
         Vec2::new(0.0, 0.0),
         Vec2::new(10.0, 10.0),
     ))));
     frame(&ctx, &mut app, vec![]);
-    assert!(app.dirty_since.is_some(), "edited: a write is pending");
+    assert!(
+        app.autosave.dirty_since.is_some(),
+        "edited: a write is pending"
+    );
 
     app.mark_clean();
     frame(&ctx, &mut app, vec![]);
-    assert!(app.dirty_since.is_none(), "settled: nothing pending");
+    assert!(
+        app.autosave.dirty_since.is_none(),
+        "settled: nothing pending"
+    );
 }

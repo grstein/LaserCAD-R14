@@ -469,15 +469,21 @@ fn escape_clears_the_field_and_the_feedback_and_cancels_the_tool() {
 #[test]
 fn typed_commit_marks_the_document_dirty() {
     let (ctx, mut app) = boot();
-    assert!(app.dirty_since.is_none(), "a fresh document is clean");
+    assert!(
+        app.autosave.dirty_since.is_none(),
+        "a fresh document is clean"
+    );
 
     submit_command(&ctx, &mut app, "l");
     submit_command(&ctx, &mut app, "0,0");
-    assert!(app.dirty_since.is_none(), "a phase advance commits nothing");
+    assert!(
+        app.autosave.dirty_since.is_none(),
+        "a phase advance commits nothing"
+    );
 
     submit_command(&ctx, &mut app, "100,0");
     assert!(
-        app.dirty_since.is_some(),
+        app.autosave.dirty_since.is_some(),
         "a typed commit must arm the autosave debounce"
     );
 }

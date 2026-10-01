@@ -162,7 +162,10 @@ fn toggle_click_flips_only_its_own_flag() {
             }
             assert_eq!(app.document.entity_count(), entities, "no document change");
             assert_eq!(app.history.revision(), revision, "no history entry");
-            assert!(app.dirty_since.is_none(), "no change to dirty_since");
+            assert!(
+                app.autosave.dirty_since.is_none(),
+                "no change to dirty_since"
+            );
         }
     }
 }
@@ -230,9 +233,9 @@ fn a_fresh_app_reads_no_autosave_yet() {
     let app = App::default();
     assert_eq!(
         format_autosave(
-            app.autosave_failed,
-            app.dirty_since.is_some(),
-            app.last_autosave_at.is_some()
+            app.autosave.autosave_failed,
+            app.autosave.dirty_since.is_some(),
+            app.autosave.last_autosave_at.is_some()
         ),
         "\u{25cb} no autosave yet"
     );
@@ -270,8 +273,8 @@ fn recovery_label_paints_when_the_flag_is_set_and_touches_nothing_else() {
         },
         ..App::default()
     };
-    let dirty_before = app.dirty_since;
-    let autosave_before = app.last_autosave_at;
+    let dirty_before = app.autosave.dirty_since;
+    let autosave_before = app.autosave.last_autosave_at;
 
     let ctx = egui::Context::default();
     let out = ctx.run(egui::RawInput::default(), |ctx| {
@@ -283,11 +286,11 @@ fn recovery_label_paints_when_the_flag_is_set_and_touches_nothing_else() {
         "the recovery label must paint while the flag is true: {painted:?}"
     );
     assert_eq!(
-        app.dirty_since, dirty_before,
+        app.autosave.dirty_since, dirty_before,
         "rendering the recovery label must not touch dirty_since"
     );
     assert_eq!(
-        app.last_autosave_at, autosave_before,
+        app.autosave.last_autosave_at, autosave_before,
         "rendering the recovery label must not touch last_autosave_at"
     );
 }

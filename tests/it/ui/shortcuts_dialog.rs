@@ -117,7 +117,10 @@ fn closing_the_dialog_leaves_no_state_behind() {
     assert_eq!(app.tool_manager.active_tool_name(), tool);
     assert_eq!(app.document.entity_count(), entities);
     assert_eq!(app.history.revision(), revision);
-    assert!(app.dirty_since.is_none(), "opening help dirties nothing");
+    assert!(
+        app.autosave.dirty_since.is_none(),
+        "opening help dirties nothing"
+    );
 
     // And it reopens — the flag is not one-shot.
     tap(&ctx, &mut app, egui::Key::F1, egui::Modifiers::NONE);

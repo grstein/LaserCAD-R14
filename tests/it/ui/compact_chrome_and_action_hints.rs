@@ -554,7 +554,7 @@ fn ac7_hover_only_frames_leave_document_history_and_dirty_state_untouched() {
 
     let entities_before = app.document.entity_count();
     let revision_before = app.history.revision();
-    let dirty_before = app.dirty_since;
+    let dirty_before = app.autosave.dirty_since;
     let panel_open_before = app.agent.panel_open;
     let snap_before = app.snap_enabled;
 
@@ -571,7 +571,7 @@ fn ac7_hover_only_frames_leave_document_history_and_dirty_state_untouched() {
 
     assert_eq!(app.document.entity_count(), entities_before);
     assert_eq!(app.history.revision(), revision_before);
-    assert_eq!(app.dirty_since, dirty_before);
+    assert_eq!(app.autosave.dirty_since, dirty_before);
     assert_eq!(app.agent.panel_open, panel_open_before);
     assert_eq!(app.snap_enabled, snap_before);
 }
