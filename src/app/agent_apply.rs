@@ -172,6 +172,7 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
         } => set::plan(action.tool_name(), indices, op, doc),
         AgentAction::QueryEntities => Planned::Answer(AgentOutcome::Ok(list_entities(doc))),
         AgentAction::QuerySelection => Planned::Answer(AgentOutcome::Ok(list_selection(doc))),
+        AgentAction::CheckDrawing => Planned::Answer(AgentOutcome::Ok(String::new())),
         // One command for the whole batch (ADR 0010 §1, §5).
         AgentAction::CreateDrawing { ref items, .. } => Planned::Batch(
             Box::new(CreateEntities::new(items.iter().map(entity_of).collect()).on_layer(layer)),

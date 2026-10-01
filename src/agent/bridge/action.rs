@@ -141,6 +141,8 @@ pub enum AgentAction {
     QueryEntities,
     /// Read back the current selection. Commits nothing.
     QuerySelection,
+    /// Run the drawing check (LCV-190). Commits nothing.
+    CheckDrawing,
     /// Render the drawing, framed as asked, into a grayscale PNG (LCV-145,
     /// LCV-187, ADR 0011). Commits nothing; one step like any action.
     CaptureCanvas(CaptureFrame),
@@ -210,6 +212,7 @@ impl AgentAction {
             Self::Set { op, .. } => op.tool_name(),
             Self::QueryEntities => "query_entities",
             Self::QuerySelection => "query_selection",
+            Self::CheckDrawing => "check_drawing",
             Self::CaptureCanvas(_)
             | Self::AuthorizeUpload { .. }
             | Self::Note(_)

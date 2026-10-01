@@ -18,8 +18,8 @@
     /// `..._is_five` asserting `7` is a lie a reader has to read the body to
     /// catch.
     #[test]
-    fn tool_definitions_array_length_is_thirteen() {
-        assert_eq!(tool_definitions(false).as_array().unwrap().len(), 13);
+    fn tool_definitions_array_length_is_fourteen() {
+        assert_eq!(tool_definitions(false).as_array().unwrap().len(), 14);
     }
     /// AC 13 — the order is part of the contract: every other schema test and
     /// `transport.rs`'s wire assertions index into this array.
@@ -28,21 +28,21 @@
         let d = tool_definitions(false);
         let n = ["create_line","create_circle","create_arc","delete_entity","move_entity",
                  "copy_entity","rotate_entity","mirror_entity","scale_entity","set_layer",
-                 "query_entities","query_selection","create_drawing"];
+                 "query_entities","query_selection","check_drawing","create_drawing"];
         for (i, nm) in n.iter().enumerate() { assert_eq!(d[i]["function"]["name"], *nm); }
         assert_eq!(d[n.len()], Value::Null, "and nothing after them");
     }
     #[test]
     fn tool_definitions_types_are_function() {
         let d = tool_definitions(false);
-        for i in 0..13 { assert_eq!(d[i]["type"], "function"); }
+        for i in 0..14 { assert_eq!(d[i]["type"], "function"); }
     }
     /// LCV-156 — every creation tool, the batch included, advertises an
     /// optional string `layer` (kills the `layer_schema` mutant, LCV-192).
     #[test]
     fn every_creation_tool_takes_an_optional_string_layer() {
         let d = tool_definitions(false);
-        for i in [0, 1, 2, 12] {
+        for i in [0, 1, 2, 13] {
             let layer = &d[i]["function"]["parameters"]["properties"]["layer"];
             assert_eq!(layer["type"], "string", "{}", d[i]["function"]["name"]);
             assert!(layer["description"].as_str().is_some_and(|t| t.contains("existing layer")));
@@ -79,12 +79,13 @@
         // LCV-191: `set_layer` has no `index` form; both fields are required.
         assert_eq!(req(&d,9), json!(["indices","layer"]));
     }
-    /// AC 13 — both queries declare an **empty** object, not a missing one:
-    /// `properties` is `{}` and `required` is `[]`, both present.
+    /// AC 13 — both queries, and `check_drawing` (LCV-190 AC 9), declare an
+    /// **empty** object, not a missing one: `properties` is `{}` and
+    /// `required` is `[]`, both present.
     #[test]
-    fn the_two_query_schemas_take_no_parameters() {
+    fn the_argument_free_schemas_take_no_parameters() {
         let d = tool_definitions(false);
-        for i in [10, 11] {
+        for i in [10, 11, 12] {
             let params = &d[i]["function"]["parameters"];
             assert_eq!(params["type"], "object", "schema {i}");
             assert_eq!(params["properties"], json!({}), "schema {i}");
@@ -93,12 +94,14 @@
             assert!(params["required"].is_array(), "schema {i} must be [], not null");
         }
     }
-    /// AC 14, AC 15 — both queries parse with **any** arguments object, since
-    /// there is nothing in it to read: `{}`, a stray field, or JSON null.
+    /// AC 14, AC 15 — both queries, and `check_drawing` (LCV-190 AC 9), parse
+    /// with **any** arguments object, since there is nothing in it to read:
+    /// `{}`, a stray field, or JSON null.
     #[test]
-    fn the_two_queries_parse_with_any_arguments() {
+    fn the_argument_free_tools_parse_with_any_arguments() {
         for (nm, expected) in [("query_entities", AgentAction::QueryEntities),
-                               ("query_selection", AgentAction::QuerySelection)] {
+                               ("query_selection", AgentAction::QuerySelection),
+                               ("check_drawing", AgentAction::CheckDrawing)] {
             for args in [json!({}), json!({"ignored":1}), Value::Null] {
                 assert_eq!(ok(nm, args.clone()), expected, "{nm} with {args}");
             }
@@ -148,16 +151,16 @@
         assert!(!names(&off).contains(&"capture_canvas".to_owned()));
         let on = tool_definitions(true);
         let mut expected = names(&off);
-        expected.insert(12, "capture_canvas".to_owned());
+        expected.insert(13, "capture_canvas".to_owned());
         assert_eq!(names(&on), expected);
-        let params = &on[12]["function"]["parameters"];
+        let params = &on[13]["function"]["parameters"];
         let mm = json!({"type":"number"});
         assert_eq!(*params, json!({"type":"object","properties":{
             "frame":{"type":"string","enum":["view","drawing","region"]},
             "x0":mm,"y0":mm,"x1":mm,"y1":mm},"required":[]}));
-        assert_eq!(on[13]["function"]["name"], "create_drawing");
+        assert_eq!(on[14]["function"]["name"], "create_drawing");
         for (i, tool) in off.as_array().unwrap().iter().enumerate() {
-            let j = if i < 12 { i } else { i + 1 };
+            let j = if i < 13 { i } else { i + 1 };
             assert_eq!(on[j], *tool, "tool {i} unchanged");
         }
     }

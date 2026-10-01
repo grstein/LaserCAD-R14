@@ -1,6 +1,7 @@
 //! The LLM agent: turns, panel, settings, prompt, memory, observations.
 
 mod canvas_capture;
+mod check_drawing;
 mod default_prompt;
 mod drawing_batch;
 mod layers;
