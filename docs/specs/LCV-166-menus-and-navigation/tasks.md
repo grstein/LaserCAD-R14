@@ -20,7 +20,7 @@
   icon painted in the slot in the row's text colour) and `check_row` (a check glyph while on,
   flips on click, keeps the menu open). Unit test: the icon's bounding rect lies left of the
   label galley (files: src/ui/menubar/row.rs, src/ui/menubar.rs)
-- [ ] T5 [AC1] [AC2] [AC3] [AC4] Every row in `menubar.rs` and `object_snap.rs` goes through
+- [x] T5 [AC1] [AC2] [AC3] [AC4] Every row in `menubar.rs` and `object_snap.rs` goes through
   `menu_row`/`check_row`. The Tools menu uses `entry.icon`; the submenu titles use `slot_text`.
   `Open Recent ▶` becomes `Open Recent`. The `"Grid\tF7"` source scans in `menubar/tests.rs`
   become label checks (files: src/ui/menubar.rs, src/ui/menubar/object_snap.rs,

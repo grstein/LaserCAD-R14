@@ -1,20 +1,21 @@
 //! File > Open Recent (LCV-138): the submenu and its display labels. Moved
 //! out of `menubar.rs` by LCV-166 T1 with no behaviour change.
 
+use super::row::menu_row;
 use crate::app::App;
 
 pub(super) fn recent_submenu(ui: &mut egui::Ui, app: &mut App) {
     // Clone to release the borrow before calling request_open_path.
     let recent: Vec<String> = crate::io::recent_files(&app.settings).to_owned();
     if recent.is_empty() {
-        ui.add_enabled(false, egui::Button::new("No recent files"));
+        ui.add_enabled_ui(false, |ui| menu_row(ui, None, "No recent files", ""));
         return;
     }
     // Labels disambiguate a colliding basename with one directory of context
     // (LCV-138 AC 5); every entry's tooltip is its full path regardless.
     let labels = recent_labels(&recent);
     for (entry, label) in recent.iter().zip(labels.iter()) {
-        if ui.button(label).on_hover_text(entry).clicked() {
+        if menu_row(ui, None, label, "").on_hover_text(entry).clicked() {
             ui.close_menu();
             // Deliberately not `crate::io::open_recent`: that function
             // promotes the entry to the front of the list *before* the file

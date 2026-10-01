@@ -7,7 +7,9 @@
 //! right edge are measured, not inferred. A row's *icon slot* is the band left
 //! of that first glyph, one row high; a non-text shape whose visual bounding
 //! rect lies wholly inside it is "painted in the slot" — a hover highlight
-//! spans the whole row and never fits.
+//! spans the whole row and never fits. Only shapes painted after the row's
+//! own label count: the popup sits on a later layer than the tool rail it
+//! overlaps, and a row paints its icon after its label.
 
 use crate::harness;
 
@@ -15,24 +17,26 @@ use harness::raw_input;
 use lasercad::app::App;
 
 /// One painted text shape: its string, its galley rect on screen, and the x
-/// of its first glyph (the galley origin plus any leading space).
+/// of its first glyph (the galley origin plus any leading space), plus its
+/// paint order in the frame.
 #[derive(Clone, Debug)]
 pub(crate) struct Text {
+    pub(crate) order: usize,
     pub(crate) text: String,
     pub(crate) rect: egui::Rect,
     pub(crate) label_x: f32,
 }
 
 /// What one frame painted: every text shape and the visual bounds of every
-/// other leaf shape.
+/// other leaf shape, each with its paint order.
 pub(crate) struct Painted {
     pub(crate) texts: Vec<Text>,
-    pub(crate) marks: Vec<egui::Rect>,
+    pub(crate) marks: Vec<(usize, egui::Rect)>,
 }
 
-fn collect(shape: &egui::Shape, out: &mut Painted) {
+fn collect(order: usize, shape: &egui::Shape, out: &mut Painted) {
     match shape {
-        egui::Shape::Vec(inner) => inner.iter().for_each(|s| collect(s, out)),
+        egui::Shape::Vec(inner) => inner.iter().for_each(|s| collect(order, s, out)),
         egui::Shape::Text(t) => {
             let first = t
                 .galley
@@ -42,6 +46,7 @@ fn collect(shape: &egui::Shape, out: &mut Painted) {
                 .map_or(0.0, |g| g.pos.x);
             if !t.galley.text().trim().is_empty() {
                 out.texts.push(Text {
+                    order,
                     text: t.galley.text().to_owned(),
                     rect: t.galley.rect.translate(t.pos.to_vec2()),
                     label_x: t.pos.x + first,
@@ -49,7 +54,7 @@ fn collect(shape: &egui::Shape, out: &mut Painted) {
             }
         }
         egui::Shape::Noop => {}
-        other => out.marks.push(other.visual_bounding_rect()),
+        other => out.marks.push((order, other.visual_bounding_rect())),
     }
 }
 
@@ -60,8 +65,8 @@ pub(crate) fn paint_frame(ctx: &egui::Context, app: &mut App, events: Vec<egui::
         texts: Vec::new(),
         marks: Vec::new(),
     };
-    for clipped in &out.shapes {
-        collect(&clipped.shape, &mut painted);
+    for (order, clipped) in out.shapes.iter().enumerate() {
+        collect(order, &clipped.shape, &mut painted);
     }
     painted
 }
@@ -170,10 +175,15 @@ pub(crate) fn slot(row: &Text) -> egui::Rect {
     )
 }
 
-/// Whether any non-text shape lies wholly inside `row`'s icon slot.
+/// Whether any non-text shape painted after `row`'s label lies wholly
+/// inside its icon slot.
 pub(crate) fn slot_painted(painted: &Painted, row: &Text) -> bool {
     let s = slot(row);
-    s.width() > 4.0 && painted.marks.iter().any(|m| s.contains_rect(*m))
+    s.width() > 4.0
+        && painted
+            .marks
+            .iter()
+            .any(|(order, m)| *order > row.order && s.contains_rect(*m))
 }
 
 /// AC 1 — `rows` of one menu: no tab or hand-drawn arrow in a label, one

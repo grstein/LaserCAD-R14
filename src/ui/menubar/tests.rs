@@ -346,7 +346,7 @@ fn help_agent_settings_sets_flag() {
 /// LCV-116 AC 19 — the View menu's contents are pinned: the three actions
 /// LCV-116 did **not** add (`Zoom In`, `Zoom Out`, `Fit to Bed`, already
 /// shipped and backed by `do_zoom_in` / `do_zoom_out` / `do_fit_to_bed`),
-/// then the three mode checkboxes, `Ortho\tF8` last. Bounded to
+/// then the three mode check rows, `Ortho` (`F8`) last (LCV-166 rows). Bounded to
 /// `fn view_menu`, so this test's own body cannot satisfy the scan.
 #[test]
 fn view_menu_items_are_stable() {
@@ -355,9 +355,9 @@ fn view_menu_items_are_stable() {
         "\"Zoom In\"",
         "\"Zoom Out\"",
         "\"Fit to Bed\"",
-        "\"Grid\\tF7\"",
-        "\"Snap\\tF3\"",
-        "\"Ortho\\tF8\"",
+        "\"Grid\", \"F7\"",
+        "\"Snap\", \"F3\"",
+        "\"Ortho\", \"F8\"",
     ];
     let mut last = 0usize;
     for item in expected {
@@ -374,23 +374,23 @@ fn view_menu_items_are_stable() {
 
 /// LCV-116 AC 18 — the Ortho checkbox is bound to the same flag `F8` and
 /// the status-bar `ORTHO` indicator flip; it sits immediately below
-/// `Snap\tF3`, and nothing else in the View menu writes it.
+/// `Snap` (`F3`), and nothing else in the View menu writes it.
 #[test]
 fn ortho_checkbox_flips_the_same_flag_as_f8() {
     let body = view_menu_body();
     let snap = body
-        .find("ui.checkbox(&mut app.snap_enabled, \"Snap\\tF3\");")
+        .find("check_row(ui, &mut app.snap_enabled, \"Snap\", \"F3\");")
         .expect("positive control: the Snap checkbox is present");
     let ortho = body
-        .find("ui.checkbox(&mut app.ortho_enabled, \"Ortho\\tF8\");")
+        .find("check_row(ui, &mut app.ortho_enabled, \"Ortho\", \"F8\");")
         .expect("the Ortho checkbox must be bound to app.ortho_enabled");
     assert!(
         snap < ortho,
         "Ortho sits below Snap (the Object Snap submenu is between them)"
     );
-    let after_snap = snap + "ui.checkbox(&mut app.snap_enabled, \"Snap\\tF3\");".len();
+    let after_snap = snap + "check_row(ui, &mut app.snap_enabled, \"Snap\", \"F3\");".len();
     assert!(
-        !body[after_snap..ortho].contains("ui.checkbox("),
+        !body[after_snap..ortho].contains("check_row("),
         "nothing may sit between the Snap and Ortho checkboxes"
     );
 
