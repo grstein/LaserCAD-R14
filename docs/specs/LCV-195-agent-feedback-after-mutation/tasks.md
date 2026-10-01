@@ -5,7 +5,7 @@ Prerequisites: LCV-187, LCV-189, LCV-190 Done on `agent-harness`.
 - [x] T1 Refactor (no behaviour change): move the batch body of `agent_loop` to
   `loop_/batch.rs::run_batch`; the loop tests stay green (files: src/agent/loop_.rs,
   src/agent/loop_/batch.rs)
-- [ ] T2 Refactor (no behaviour change): move the `settings_ui.rs` copy constants to
+- [x] T2 Refactor (no behaviour change): move the `settings_ui.rs` copy constants to
   `settings_ui/copy.rs` (files: src/agent/settings_ui.rs, src/agent/settings_ui/copy.rs)
 - [ ] T3 [AC6] Test: a settings file without the field loads it `false`, and the field round-trips
   (files: src/io/settings/tests.rs)

@@ -15,6 +15,11 @@ use crate::agent::memory::{CONTEXT_TOKENS_MAX, CONTEXT_TOKENS_MIN};
 use crate::agent::{AGENT_STEP_BUDGET_MAX, AGENT_STEP_BUDGET_MIN, prompt};
 use crate::io::settings::Settings;
 
+mod copy;
+use copy::{
+    CANVAS_DISCLOSURE, LIVE_EDIT_NOTE, MODEL_HINT, PLAINTEXT_KEY_WARNING, STEP_BUDGET_HELP,
+};
+
 /// Minimum width of every text field, in logical pixels.
 const FIELD_MIN_WIDTH: f32 = 320.0;
 
@@ -29,32 +34,6 @@ const LABEL_COL_WIDTH: f32 = 110.0;
 /// Widest the form may get. The two sentences below are long; without a bound
 /// they would each stretch the dialog to a single line hundreds of pixels wide.
 const FORM_MAX_WIDTH: f32 = 470.0;
-
-/// Hint text in the Model field: the default `Settings::agent_model`, which is
-/// an OpenRouter id and therefore wrong for most other endpoints (AC 8).
-const MODEL_HINT: &str = "anthropic/claude-sonnet-4.6";
-
-/// The plaintext-key warning (AC 10), rendered as an always-visible row under
-/// the API Key field.
-///
-/// ADR 0007 §D10 stores the key in clear text on purpose, and the masked field
-/// above implies the opposite. Never a tooltip, never behind a collapsing
-/// header: a warning the operator has to hover for is a warning they never read.
-const PLAINTEXT_KEY_WARNING: &str = "The API key is stored in plain text in settings.json. \
-                                     Anyone who can read that file can read your key.";
-
-/// What the step budget buys, in one line (AC 9).
-const STEP_BUDGET_HELP: &str = "How many tool calls one prompt may make. More steps means a \
-                                bigger drawing per prompt, and more API calls.";
-
-/// States that edits are live and persist on close (LCV-141 AC 6), next to
-/// the Close button that is a second way to trigger that same close — never a
-/// different semantics: the dialog stays live-edit, persist-on-close.
-const LIVE_EDIT_NOTE: &str = "Changes apply immediately and are saved when this window closes.";
-
-/// What the two canvas opt-ins together allow (LCV-145 AC 2, ADR 0011).
-const CANVAS_DISCLOSURE: &str = "When both are on, the agent may send a picture of the drawing \
-                                 (not the window) to the configured provider and model.";
 
 /// Rows the system-prompt editor asks for before its own scroll area.
 const PROMPT_ROWS: usize = 6;
