@@ -236,3 +236,36 @@ fn a_spent_step_budget_is_not_reminded() {
     let budget = |app: &mut App| app.settings.agent_step_budget = 1;
     unreminded(&replies, budget, |_, _| {}, "Drew a line.");
 }
+
+/// AC 5 — after a reminded turn, memory keeps the tool batch and the final
+/// reply, and holds neither the reminder nor the interim reply.
+#[test]
+fn memory_after_a_reminded_turn_drops_the_reminder_and_the_interim_reply() {
+    let replies = [
+        calls(&[("create_line", LINE)]),
+        text("Interim: drew a line."),
+        text("Drew a line. Length 10 mm: pass."),
+    ];
+    let replies: Vec<&str> = replies.iter().map(String::as_str).collect();
+    let mut turn = Turn::new(&replies, Some(2));
+    let (result, _) = turn.run(|_, _| {});
+    turn.assert_all_sent();
+    assert_eq!(result.as_deref(), Ok("Drew a line. Length 10 mm: pass."));
+    let memory = turn.app.agent.memory.flatten();
+    let texts: Vec<&str> = memory.iter().filter_map(|m| m.text_content()).collect();
+    assert!(
+        memory.iter().any(|m| m.tool_calls.is_some()),
+        "control: the batch is kept: {texts:?}"
+    );
+    assert_eq!(
+        texts.last().copied(),
+        Some("Drew a line. Length 10 mm: pass.")
+    );
+    for text in &texts {
+        assert!(
+            !text.contains("Before you finish"),
+            "reminder kept: {texts:?}"
+        );
+        assert!(!text.contains("Interim"), "interim reply kept: {texts:?}");
+    }
+}

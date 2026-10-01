@@ -50,7 +50,7 @@ do LCV-195 T1 (the `loop_/batch.rs` seam) as T0 here.
   - Step budget 1 spent on the create → no reminder.
 
   (files: tests/it/agent/verify_before_reply.rs)
-- [ ] T9 [AC5] Test: memory after a reminded turn holds neither the reminder nor the interim reply
+- [x] T9 [AC5] Test: memory after a reminded turn holds neither the reminder nor the interim reply
   (files: tests/it/agent/verify_before_reply.rs)
 - [ ] T10 Docs: AGENTS.md purity list (`loop_/verify.rs`); CHANGELOG line
   (files: AGENTS.md, CHANGELOG.md)
