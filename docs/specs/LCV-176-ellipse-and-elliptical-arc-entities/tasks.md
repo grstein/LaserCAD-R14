@@ -31,7 +31,7 @@
   tests/it/app/mod.rs)
 - [x] T11 [AC5] `Rect::{contains,crosses}_ellipse` and the ellipse arms of `hit.rs` (files:
   src/geometry/rect.rs, src/tools/select/hit.rs)
-- [ ] T12 [AC7] Test: near an ellipse arc, Endpoint, Center, Quadrant (only vertices inside the
+- [x] T12 [AC7] Test: near an ellipse arc, Endpoint, Center, Quadrant (only vertices inside the
   span) and Nearest are offered. Intersection, Midpoint, Perpendicular and Tangent are never
   offered, even with an anchor and a crossing line (files: tests/it/app/object_snaps.rs)
 - [ ] T13 [AC7] `SnapEntity::Ellipse`, endpoint/centre candidates, pair intersections skipped

@@ -1,5 +1,6 @@
 //! LCV-161 AC 2, AC 3, AC 9 — Perpendicular and Tangent snaps from the
-//! active tool's anchor, driven through the real `App::update_ui`.
+//! active tool's anchor, driven through the real `App::update_ui`; LCV-176
+//! AC 7, the snap kinds an ellipse offers.
 //!
 //! Every size is in screen pixels converted with the live camera, so the
 //! aperture (12 px) and the gaps between candidates do not depend on the
@@ -11,8 +12,9 @@ use crate::harness;
 
 use harness::frame;
 use lasercad::app::App;
-use lasercad::document::{CreateCircle, CreateLine};
-use lasercad::geometry::{Circle, Line, SnapKind, Vec2};
+use lasercad::document::commands::CreateEntities;
+use lasercad::document::{CreateCircle, CreateLine, Entity};
+use lasercad::geometry::{Circle, Ellipse, EllipseSpan, Line, SnapKind, Vec2};
 use lasercad::tools::LineTool;
 
 /// LINE with its first point placed: the anchor `a` clicked at screen
@@ -181,4 +183,120 @@ fn f3_off_gives_no_snap_at_all() {
     let t = s.tangent_point();
     s.hover(t);
     assert!(s.app.active_snap.is_none());
+}
+
+/// LCV-176 — LINE's anchor clicked on an empty canvas, then an elliptical
+/// arc (index 0) 200 px to its right, and a vertical line (index 1) that
+/// crosses the arc. Returns the scene and the arc.
+fn ellipse_scene() -> (Scene, Ellipse) {
+    let ctx = egui::Context::default();
+    let mut app = App::default();
+    app.tool_manager.set_tool(Box::new(LineTool::default()));
+    let mut canvas = egui::Rect::NOTHING;
+    let _ = ctx.run(harness::raw_input(vec![]), |c| {
+        app.update_ui(c);
+        canvas = c.available_rect();
+    });
+    let pos = canvas.center();
+    let press = |pressed| egui::Event::PointerButton {
+        pos,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: egui::Modifiers::NONE,
+    };
+    frame(&ctx, &mut app, vec![egui::Event::PointerMoved(pos)]);
+    frame(
+        &ctx,
+        &mut app,
+        vec![egui::Event::PointerMoved(pos), press(true), press(false)],
+    );
+    let a = app
+        .tool_manager
+        .anchor()
+        .expect("LINE holds its first point");
+    let px = app.camera.mm_per_px;
+    let c = a + Vec2::new(200.0 * px, 0.0);
+    let span = Some(EllipseSpan::new(-1.0, 2.5, true));
+    let e = Ellipse::new(c, 100.0 * px, 40.0 * px, 0.2, span);
+    let cross = Line::new(
+        c + Vec2::new(-30.0 * px, -200.0 * px),
+        c + Vec2::new(-30.0 * px, 200.0 * px),
+    );
+    app.commit(Box::new(CreateEntities::new(vec![
+        Entity::Ellipse(e),
+        Entity::Line(cross),
+    ])));
+    (
+        Scene {
+            ctx,
+            app,
+            pos,
+            a,
+            px,
+        },
+        e,
+    )
+}
+
+/// LCV-176 AC 7 — near an elliptical arc, Endpoint (span ends), Center,
+/// Quadrant (vertices inside the span) and Nearest are offered.
+#[test]
+fn ellipse_offers_endpoint_center_quadrant_and_nearest() {
+    let (mut s, e) = ellipse_scene();
+    let off = Vec2::new(2.0 * s.px, -3.0 * s.px);
+    let start = e.start_point().expect("arc");
+    s.hover(start + off);
+    assert_snap(&s, SnapKind::Endpoint, start);
+    let end = e.end_point().expect("arc");
+    s.hover(end + off);
+    assert_snap(&s, SnapKind::Endpoint, end);
+    s.hover(e.center + off);
+    assert_snap(&s, SnapKind::Center, e.center);
+    for t in [0.0, core::f64::consts::FRAC_PI_2] {
+        s.hover(e.point(t) + off);
+        assert_snap(&s, SnapKind::Quadrant, e.point(t));
+    }
+    s.hover(e.point(core::f64::consts::PI) + off);
+    assert!(
+        s.app
+            .active_snap
+            .is_none_or(|r| r.kind != SnapKind::Quadrant),
+        "a vertex outside the span is no Quadrant"
+    );
+    s.app.settings.object_snaps.nearest = true;
+    let q = e.point(1.2) + off;
+    s.hover(q);
+    assert_snap(&s, SnapKind::Nearest, e.nearest(q));
+}
+
+/// LCV-176 AC 7 — along the whole parent ellipse, with an anchor and a
+/// crossing line, no Intersection, Midpoint, Perpendicular or Tangent ever
+/// comes from the ellipse, with Nearest off and on.
+#[test]
+fn ellipse_never_offers_other_kinds() {
+    let (mut s, e) = ellipse_scene();
+    let allowed = [
+        SnapKind::Endpoint,
+        SnapKind::Center,
+        SnapKind::Quadrant,
+        SnapKind::Nearest,
+    ];
+    let mut seen = 0;
+    for nearest in [false, true] {
+        s.app.settings.object_snaps.nearest = nearest;
+        for k in 0..240 {
+            let t = f64::from(k) * core::f64::consts::TAU / 240.0;
+            s.hover(e.point(t) + Vec2::new(0.5 * s.px, 0.5 * s.px));
+            let Some(r) = s.app.active_snap else { continue };
+            assert_ne!(r.kind, SnapKind::Intersection, "t={t}: {r:?}");
+            if r.primary_idx == 0 {
+                seen += 1;
+                assert!(allowed.contains(&r.kind), "t={t}: {r:?}");
+            }
+        }
+    }
+    assert!(
+        seen > 100,
+        "positive control: the ellipse snapped {seen} times"
+    );
 }
