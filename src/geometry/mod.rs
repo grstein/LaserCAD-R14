@@ -7,6 +7,7 @@
 //! Submodules arrive with demands LCV-010 .. LCV-017.
 
 pub mod arc;
+pub mod bezier;
 pub mod circle;
 pub mod ellipse;
 pub mod epsilon;
@@ -18,6 +19,7 @@ pub mod transform;
 pub mod vec2;
 
 pub use arc::Arc;
+pub use bezier::Bezier;
 pub use circle::Circle;
 pub use ellipse::{Ellipse, EllipseSpan};
 pub use epsilon::EPSILON;

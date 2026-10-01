@@ -4,7 +4,7 @@
   control polygon far outside the curve, an axis extremum inside (0, 1), and a near-zero leading
   coefficient; `polyline(tol)` vertices on the curve, chord deviation ≤ tol, a straight curve
   gives `n = 1` (files: tests/it/geometry/bezier_props.rs, tests/it/geometry/mod.rs)
-- [ ] T2 [AC5, AC6] `Bezier` and the methods of T1; derivative roots in `solve.rs` (files:
+- [x] T2 [AC5, AC6] `Bezier` and the methods of T1; derivative roots in `solve.rs` (files:
   src/geometry/bezier.rs, src/geometry/bezier/solve.rs, src/geometry/mod.rs)
 - [ ] T3 [AC7, AC9] Test + code: `nearest`/`distance_to_point` (S-curve, a point near an end, a
   point at an off-curve control point) and `crosses_axis_segment` (one, two and zero crossings)
