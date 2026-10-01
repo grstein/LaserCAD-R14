@@ -341,7 +341,15 @@ fn bezier_offers_endpoint_and_nearest() {
     for t in [0.2, 0.7] {
         let q = b.point(t) + off;
         s.hover(q);
-        assert_snap(&s, SnapKind::Nearest, b.nearest(q).1);
+        // The cursor reaches the app through f32 screen points, so the foot
+        // is compared within 1e-4 px rather than `assert_snap`'s 1e-6.
+        let r = s.app.active_snap.expect("a Nearest snap");
+        assert_eq!(r.kind, SnapKind::Nearest, "t={t}");
+        assert!(
+            r.point.approx_eq(b.nearest(q).1, 1e-4 * s.px),
+            "t={t}: {r:?}"
+        );
+        assert!(b.distance_to_point(r.point) <= 1e-9, "t={t}: on the curve");
     }
 }
 

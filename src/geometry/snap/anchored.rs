@@ -15,7 +15,7 @@ use super::{SnapEntity, SnapKind};
 /// Push the world-axis quadrant points of every circle, and of every arc
 /// where the quadrant angle lies inside the sweep; for an ellipse, its axis
 /// vertices inside the span (ADR 0015). Ellipses offer no perpendicular or
-/// tangent points.
+/// tangent points; Béziers offer none of these three (ADR 0016 §5).
 pub(super) fn collect_quadrants(entities: &[SnapEntity], out: &mut Vec<Candidate>) {
     for (idx, e) in entities.iter().enumerate() {
         let (center, r, arc) = match e {
@@ -144,8 +144,7 @@ pub(super) fn collect_nearest(
     for (idx, e) in entities.iter().enumerate() {
         let point = match e {
             SnapEntity::Ellipse(el) => Some(el.nearest(world)),
-            // LCV-177 T13: Nearest arrives with its own task.
-            SnapEntity::Bezier(_) => None,
+            SnapEntity::Bezier(b) => Some(b.nearest(world).1),
             SnapEntity::Line(l) => Some(l.closest_point(world)),
             SnapEntity::Circle(c) => radial_point(c, world, None),
             SnapEntity::Arc(a) => radial_point(&Circle::new(a.center, a.r), world, Some(a))

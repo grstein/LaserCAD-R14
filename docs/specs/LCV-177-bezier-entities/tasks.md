@@ -36,7 +36,7 @@
   and a crossing line (files: tests/it/app/object_snaps.rs)
 - [x] T12 [AC9] `SnapEntity::Bezier`, endpoint candidates, pair intersections skipped (files:
   src/geometry/snap/mod.rs, src/geometry/snap/candidates.rs, src/app/snap.rs)
-- [ ] T13 [AC9] Nearest for Béziers, skipped by perpendicular/tangent (files:
+- [x] T13 [AC9] Nearest for Béziers, skipped by perpendicular/tangent (files:
   src/geometry/snap/anchored.rs)
 - [ ] T14 [AC8] Test: MOVE, COPY, ROTATE, MIRROR and SCALE on a cubic and a quadratic through
   the tools; points equal `Transform::point` of the originals, each undoes as one step (files:
