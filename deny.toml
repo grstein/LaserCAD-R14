@@ -6,7 +6,7 @@ all-features = false
 
 [advisories]
 version = 2
-# Vulnerabilities are always errors in v2. v2 has no "warn" level for
+# Vulnerabilities are always errors in advisories version 2, which has no "warn" level for
 # unmaintained crates, so only direct deps fail; transitive ones (paste,
 # ttf-parser via egui/eframe, 2026-09) are not ours to swap and pass.
 unmaintained = "workspace"

@@ -123,7 +123,7 @@ pub fn parse(raw: &str) -> CommandInput {
 /// | `scale` | `Scale` | `sc` | `Scale` |
 ///
 /// `delete` / `del` / `erase` all reach the same tool: R14 says `ERASE`, the
-/// v2 tool and its menu entry say Delete, so both vocabularies are accepted
+/// tool and its menu entry say Delete, so both vocabularies are accepted
 /// rather than picking a side. **`offset` is deliberately absent**: there is
 /// no `ToolKind::Offset` (the tool was rejected as LCV-054), so the word is
 /// unspellable, not merely unwanted — a word may never be the way a new tool

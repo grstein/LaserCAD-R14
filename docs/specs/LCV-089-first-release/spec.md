@@ -3,7 +3,7 @@
 - **Status**: Done
 - **Depends on**: LCV-085, LCV-086, LCV-088
 - **Implementation**: b936570 — chore(LCV-089): bump Cargo.toml to v0.1.0, finalize CHANGELOG, add release.sh
-- **Note**: b936570 prepared a 0.1.0 release that was never tagged. On 2026-09-28 the user widened the scope (LCV-142..145, 149..153) and authorized the team lead to tag and publish the first release as v0.2.0: the version was bumped, the CHANGELOG got its dated `[0.2.0]` section, `scripts/release.sh` now reads the version from `Cargo.toml`, and the release was published on GitHub (grstein/LaserCAD-R14-V2).
+- **Note**: b936570 prepared a 0.1.0 release that was never tagged. On 2026-09-28 the user widened the scope (LCV-142..145, 149..153) and authorized the team lead to tag and publish the first release as v0.2.0: the version was bumped, the CHANGELOG got its dated `[0.2.0]` section, `scripts/release.sh` now reads the version from `Cargo.toml`, and the release was published on GitHub (grstein/LaserCAD-R14).
 
 ## Problem
 
@@ -113,7 +113,7 @@ AppImage and `.deb` as downloadable assets.
 
 8. `scripts/release.sh` creates an annotated git tag:
    ```
-   git tag -a v0.1.0 -m "LaserCAD v2 0.1.0"
+   git tag -a v0.1.0 -m "LaserCAD 0.1.0"
    ```
    This line (or equivalent using a variable for the version) must appear in the
    script. The script must only attempt this if the tag does not already exist
@@ -134,13 +134,13 @@ AppImage and `.deb` as downloadable assets.
 11. `scripts/release.sh` creates the GitHub release via:
     ```
     gh release create v0.1.0 \
-      --title "LaserCAD v2 0.1.0" \
+      --title "LaserCAD 0.1.0" \
       --notes-file /tmp/release-notes-0.1.0.md \
       dist/lasercad-x86_64.AppImage \
       dist/lasercad_*.deb
     ```
     (exact flag spelling; `--notes-file` path may vary, `dist/lasercad_*.deb` may be
-    expanded via a variable). The `--title` value must be `"LaserCAD v2 0.1.0"`.
+    expanded via a variable). The `--title` value must be `"LaserCAD 0.1.0"`.
 
 12. `scripts/release.sh` prints a post-release checklist to stdout (plain text, at
     minimum three items) after the `gh release create` call. Required items:
@@ -183,7 +183,7 @@ AppImage and `.deb` as downloadable assets.
   and `--notes-file` usage.
 
 - **Static / AC#11**: read `scripts/release.sh`; confirm `gh release create v0.1.0`
-  with `--title "LaserCAD v2 0.1.0"`, `--notes-file`, AppImage, and `.deb` arguments.
+  with `--title "LaserCAD 0.1.0"`, `--notes-file`, AppImage, and `.deb` arguments.
 
 - **Static / AC#12**: read `scripts/release.sh`; confirm the post-release checklist
   block contains at least three items including the three required ones.

@@ -19,7 +19,7 @@
 /// messages are quoted from the constants the code emits, pinned by
 /// `app::agent_worker` tests; the index section is ADR 0007 §D5.
 pub const DEFAULT_PROMPT: &str = "\
-You are the CAD assistant embedded in LaserCAD v2, a 2D CAD program for
+You are the CAD assistant embedded in LaserCAD, a 2D CAD program for
 laser cutting. Drawings are saved as plain SVG for LaserGRBL. You change and
 read the open drawing only by calling the tools below; do not only describe
 how to do it.

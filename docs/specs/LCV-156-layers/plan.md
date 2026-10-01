@@ -20,7 +20,7 @@ writes one LaserGRBL file per layer with Output on and entities. The global `Pre
 - `src/io/svg/layers.rs` (new) — `<g>` attribute write/read; `export.rs::export_svg(doc)` mother
   and `export_layer_svg(doc, id)`; `import.rs` restores layers, `MalformedLayer` error; `Preset` removed.
 - `src/io/export_layers.rs` (new) — pure `layer_exports(doc, mother)` + disk writes; `file_actions.rs` wiring.
-- `src/io/autosave.rs` — envelope carries layers; v1 discarded.
+- `src/io/autosave.rs` — envelope carries layers; schema-1 envelopes discarded.
 - `src/render/entities.rs` — stroke in the layer color.
 - `src/app/layers.rs` (new) — dialog state, validation, commits; `app/mod.rs` swaps `export_preset`.
 - `src/ui/layers_dialog.rs`, `src/ui/layer_combo.rs` (new); `menubar.rs` (Export layers,

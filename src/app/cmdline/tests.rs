@@ -245,7 +245,7 @@ fn empty_is_not_pushed_to_the_ring() {
 /// alone but still resets the recall cursor, so the next Up starts over
 /// at the newest entry.
 ///
-/// v1 parity — `../LaserCAD-R14/src/ui/command-line.ts:193` resets
+/// Original-app parity — its `src/ui/command-line.ts:193` resets
 /// `historyIndex` on every Enter, `:84` refuses to append a blank one.
 /// Ported to Rust by `fix(LCV-110)` 29ac39a, which moved the reset inside
 /// `CommandHistory::push`; this test pins the call site that reaches it.

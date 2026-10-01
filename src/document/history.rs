@@ -32,7 +32,7 @@ use crate::document::{Command, Document};
 
 mod group;
 
-/// Maximum number of commands retained for undo. Matches LaserCAD v1 and
+/// Maximum number of commands retained for undo. Matches the original LaserCAD R14 and
 /// AGENTS.md §"State and mutation".
 pub const HISTORY_DEPTH: usize = 200;
 

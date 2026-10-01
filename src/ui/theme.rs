@@ -1,4 +1,4 @@
-//! Dark CAD theme for LaserCAD v2.
+//! Dark CAD theme for LaserCAD.
 //!
 //! Provides [`CANVAS_BG`] (the dark viewport background colour) and
 //! [`apply_theme`], which configures egui's [`Visuals`] for a

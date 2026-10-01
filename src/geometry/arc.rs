@@ -25,7 +25,7 @@ use core::f64::consts::{FRAC_PI_2, PI, TAU};
 /// An arc in millimeter space, defined by a center, a radius, a start/end
 /// angle pair (radians), and an orientation flag.
 ///
-/// Field names match v1's TypeScript `geometry/arc.ts`
+/// Field names match the original TypeScript `geometry/arc.ts`
 /// (`center`, `r`, `startAngle`, `endAngle`, `ccw`) so the port is easy to
 /// cross-reference. Equality (`==`) is bit-exact `f64` comparison on every
 /// field; tolerance-aware checks should compare each component explicitly.

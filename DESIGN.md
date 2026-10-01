@@ -1,4 +1,4 @@
-# LaserCAD v2 — UI Design Directives
+# LaserCAD — UI Design Directives
 
 These are the UI design directives. They are not the `/design` SDD step, which writes `plan.md`.
 

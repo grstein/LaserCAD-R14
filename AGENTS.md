@@ -1,9 +1,10 @@
-# LaserCAD v2 — Agent Guide (constitution)
+# LaserCAD — Agent Guide (constitution)
 
-Single source of agent rules. `CLAUDE.md` imports this file; area-specific rules
-live in `.claude/rules/` and load only when matching files are touched.
+Single source of agent rules for AI coding assistants and human contributors alike. A local,
+unversioned `.claude/` (agents, skills, area rules) may extend it; this file is what the repository
+promises.
 
-LaserCAD v2 is a 2D micro-CAD for laser cutting, compatible with LaserGRBL: a
+LaserCAD is a 2D micro-CAD for laser cutting, compatible with LaserGRBL: a
 **pure-Rust, single-binary, egui** KISS clone of AutoCAD R14. Preserve precision;
 reject UI or architecture growth that does not improve the CAD → LaserGRBL flow.
 Linux first. All versioned artifacts are English; conversation may be any language.
@@ -37,7 +38,7 @@ Draft ─/specify→ Specified ─/design→ Planned ─/implement→ Done      
   Retired pre-SDD demands live only in git history (`git log -- docs/product/demands`).
 - **Human gates**: the user approves `spec.md` (→ Specified) and `plan.md` + `tasks.md` (→ Planned).
   Product or design questions are asked *then*, never invented during implementation.
-- **Agents** (`.claude/agents/`): `implementer-rust` (opus) executes `tasks.md`; `reviewer-rust`
+- **Agents** (local `.claude/agents/`, not versioned): `implementer-rust` (opus) executes `tasks.md`; `reviewer-rust`
   (fable) reviews the diff against the ACs once, blocking findings only; `architect` (opus) only
   when `/design` finds a module-boundary change or an ADR is needed. Everything else runs in the
   main session via the skills `/specify`, `/design`, `/implement`, `/next`.
@@ -95,11 +96,13 @@ The tree is orientation; `ls` is the inventory.
 - **`rfd` only in `src/io/dialogs.rs`**; dialogs are disarmed outside `crate::run()` (ADR 0005). No test sends Ctrl+O/S.
 - **User paths** resolved once in `App::new()` and injected; `App::default()` persists nothing (ADR 0006).
 - **≤300 implementation LOC per `.rs`** (lines before the column-0 `#[cfg(test)]`), checked by `scripts/loc-cap.sh` (ADR 0004). At 270+, note the seam in `plan.md`.
-- **Repaint** only on the three guarded sites (`.claude/rules/repaint-ui.md`).
+- **Repaint** only on the three guarded sites (`app/mod.rs` while the agent is busy,
+  `app/autosave.rs::schedule_flush_repaint`, `app/viewport.rs::viewport_is_live`), each conditional;
+  pinned by `every_repaint_request_in_src_is_conditional`.
 - No `unwrap`/`expect` in library code without a documented invariant; no `unsafe` without an ADR; no `tokio`. (enforced by `[lints]` in `Cargo.toml`; exceptions need `#[expect(.., reason)]`)
 - `pub` on `mod.rs` re-exports only; doc comments on `pub` items.
 - One test per acceptance criterion. Rendering ACs are proven on painted shapes (`tests/harness/paint.rs`), not source scans.
-- Cite symbols (`file.rs::fn`), never line numbers, in this file and in `.claude/rules/`.
+- Cite symbols (`file.rs::fn`), never line numbers, in this file and in any agent rules.
 
 ### SVG export (LaserGRBL compatibility)
 

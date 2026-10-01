@@ -6,7 +6,7 @@
 
 ## Context
 
-LaserCAD R14 v1 shipped on TypeScript + Vite + Tauri 2.x. The dual-runtime architecture (web bundle + Tauri native) imposed ongoing complexity: a `tauri-bridge.ts` shim, dual codepaths for file IO and persistence (Tauri plugins vs `localStorage` + `Blob`), a CSP that had to allow `ipc:` and external agent endpoints, and a CI matrix that built both web and native artifacts.
+The original LaserCAD R14 shipped on TypeScript + Vite + Tauri 2.x. The dual-runtime architecture (web bundle + Tauri native) imposed ongoing complexity: a `tauri-bridge.ts` shim, dual codepaths for file IO and persistence (Tauri plugins vs `localStorage` + `Blob`), a CSP that had to allow `ipc:` and external agent endpoints, and a CI matrix that built both web and native artifacts.
 
 The project goals favor:
 
@@ -15,11 +15,11 @@ The project goals favor:
 3. **Easy long-term maintenance** — fewer moving parts, fewer languages.
 4. **Linux as the primary target**; Windows and macOS long-term.
 
-A migration plan from v1 to a Rust kernel (with TypeScript glue) was considered but rejected by the user in favor of a green-field v2.
+A migration plan from the TypeScript code to a Rust kernel (with TypeScript glue) was considered but rejected by the user in favor of a green-field rewrite.
 
 ## Decision
 
-LaserCAD v2 is **pure Rust** using **`egui`** as the immediate-mode GUI library, embedded via **`eframe`** for windowing. There is no JavaScript, no TypeScript, no WebView, no Tauri. The crate produces a single native binary.
+LaserCAD is **pure Rust** using **`egui`** as the immediate-mode GUI library, embedded via **`eframe`** for windowing. There is no JavaScript, no TypeScript, no WebView, no Tauri. The crate produces a single native binary.
 
 Companion choices made under this ADR:
 
@@ -45,7 +45,7 @@ Companion choices made under this ADR:
 - We lose HTML/CSS for the UI chrome. egui is themable but visually less polished than CSS by default.
 - We lose Vite HMR. Iteration loop is `cargo run`; `cargo-watch` or `bacon` is the closest substitute. Rust rebuilds are slower than TS, mitigated by incremental compilation.
 - Custom widgets that browser provides for free (rich text edit, native context menus) must be built or borrowed from `egui_extras`.
-- All v1 TypeScript code is discarded as source. It remains reference, not source.
+- All the original TypeScript code is discarded as source. It remains reference, not source.
 
 **Commitments locked in:**
 

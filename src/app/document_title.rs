@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn display_title_covers_the_four_named_cases() {
         let clean_untitled = App::default();
-        assert_eq!(clean_untitled.display_title(), "Untitled.svg - LaserCAD v2");
+        assert_eq!(clean_untitled.display_title(), "Untitled.svg - LaserCAD");
 
         // No `saved_revision` yet, so a non-empty document alone reports
         // unsaved (`App::has_unsaved_changes`'s `None` branch) — pushing an
@@ -111,17 +111,14 @@ mod tests {
             .document
             .entities
             .push(Entity::Line(some_line()));
-        assert_eq!(
-            dirty_untitled.display_title(),
-            "*Untitled.svg - LaserCAD v2"
-        );
+        assert_eq!(dirty_untitled.display_title(), "*Untitled.svg - LaserCAD");
 
         let mut clean_named = App {
             current_file: Some(PathBuf::from("/home/op/drawing.svg")),
             ..App::default()
         };
         clean_named.mark_saved();
-        assert_eq!(clean_named.display_title(), "drawing.svg - LaserCAD v2");
+        assert_eq!(clean_named.display_title(), "drawing.svg - LaserCAD");
 
         // Named, dirty: a real history.commit after mark_saved moves the
         // revision away from what was saved.
@@ -134,7 +131,7 @@ mod tests {
             Box::new(CreateLine::new(some_line())),
             &mut dirty_named.document,
         );
-        assert_eq!(dirty_named.display_title(), "*drawing.svg - LaserCAD v2");
+        assert_eq!(dirty_named.display_title(), "*drawing.svg - LaserCAD");
     }
 
     /// AC 1 — the title never carries the directory: only `Path::file_name`,
@@ -168,7 +165,7 @@ mod tests {
         let mut app = App::default();
         assert_eq!(
             app.title.last_title.as_deref(),
-            Some("Untitled.svg - LaserCAD v2"),
+            Some("Untitled.svg - LaserCAD"),
             "positive control: the constructor must pre-seed the cache"
         );
 
@@ -205,7 +202,7 @@ mod tests {
         assert_eq!(
             out.viewport_output[&egui::ViewportId::ROOT].commands,
             vec![egui::ViewportCommand::Title(
-                "drawing.svg - LaserCAD v2".to_owned()
+                "drawing.svg - LaserCAD".to_owned()
             )],
             "a genuine title change must send exactly one command"
         );

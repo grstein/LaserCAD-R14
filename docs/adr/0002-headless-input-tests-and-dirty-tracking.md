@@ -65,7 +65,7 @@ Four confirmed defects, all downstream of that blind spot:
   `App::commit` (`src/app.rs:154`), but every tool except `TextTool` calls
   `history.commit(cmd, doc)` directly — a deliberate LCV-041 design so tools
   need no `&mut App` (see `src/tools/tool.rs:1-8`). ~20 commit sites bypass the
-  dirty flag. The debounce is also 5 s; v1 parity is 800 ms.
+  dirty flag. The debounce is also 5 s; the original app used 800 ms.
 
 Constraints: `egui`/`eframe` pinned at **0.29.1**, Rust 1.88. `egui_kittest`
 requires egui >= 0.30 and is **out of scope** — the harness must be built from
@@ -473,7 +473,7 @@ so this costs nothing.
   `app.history` with a fresh `History` whose revision is `0`, so clearing
   `dirty_since` without resyncing the revision would re-dirty the document on
   the very next frame.
-- `AUTOSAVE_DEBOUNCE` becomes `Duration::from_millis(800)` (v1 parity).
+- `AUTOSAVE_DEBOUNCE` becomes `Duration::from_millis(800)` (parity with the original app).
 - Extract `pub fn autosave_due(dirty_since: Option<Instant>, now: Instant) -> bool`
   so the debounce is unit-testable without sleeping and without touching disk.
 
@@ -588,7 +588,7 @@ Two constraints on that split:
 - **Dirty-flag via `Document` hashing / `PartialEq` against a snapshot** —
   O(entities) per frame and allocates a full clone. Anti-KISS for a `u64`
   comparison.
-- **Keep the 5 s debounce** — rejected: v1 parity is 800 ms and the demand
+- **Keep the 5 s debounce** — rejected: the original app used 800 ms and the demand
   requires it.
 
 ## Revisit criteria

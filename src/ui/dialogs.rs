@@ -101,7 +101,7 @@ pub fn about_dialog(ctx: &Context, open: &mut bool, key: Option<DialogKey>) {
         .resizable(false)
         .collapsible(false)
         .show(ctx, |ui| {
-            ui.label("LaserCAD v2");
+            ui.label("LaserCAD");
             ui.label(env!("CARGO_PKG_VERSION"));
             ui.label("MIT OR Apache-2.0");
             ui.add_space(8.0);

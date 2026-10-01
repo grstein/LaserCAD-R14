@@ -36,7 +36,7 @@ impl CommandHistory {
     /// the recall cursor still resets to "no recall in progress", exactly as
     /// a non-blank push does.
     ///
-    /// This matches v1: every Enter unconditionally exits recall mode before
+    /// This matches the original app: every Enter unconditionally exits recall mode before
     /// the line is executed (`command-line.ts:192-196` resets
     /// `historyIndex` regardless of whether the line is blank), and
     /// `CommandHistory` is where that behaviour now lives since ADR 0003 §A4
@@ -139,9 +139,9 @@ mod tests {
     }
 
     /// A blank push still resets the cursor mid-recall, even though it
-    /// appends nothing. This is v1 parity, not a stylistic choice: v1's
+    /// appends nothing. This is original-app parity, not a stylistic choice: its
     /// Enter handler resets `historyIndex` unconditionally, before deciding
-    /// whether the line is blank (`../LaserCAD-R14/src/ui/command-line.ts:192-196`).
+    /// whether the line is blank (`src/ui/command-line.ts:192-196` there).
     #[test]
     fn blank_push_still_resets_cursor_mid_recall() {
         let mut h = CommandHistory::default();
@@ -156,7 +156,7 @@ mod tests {
         assert_eq!(
             h.older(),
             Some("c".to_owned()),
-            "a blank push must still reset the cursor (v1 parity: \
+            "a blank push must still reset the cursor (original-app parity: \
              command-line.ts:192-196 resets historyIndex on every Enter)"
         );
     }

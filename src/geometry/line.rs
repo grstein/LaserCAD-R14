@@ -20,7 +20,7 @@ use crate::geometry::vec2::Vec2;
 
 /// A line segment in millimeter space, defined by two endpoints.
 ///
-/// Field names match v1's TypeScript `geometry/line.ts` (`p1`, `p2`) so the
+/// Field names match the original TypeScript `geometry/line.ts` (`p1`, `p2`) so the
 /// port is easy to cross-reference. Equality (`==`) is bit-exact `f64`
 /// comparison on both endpoints; tolerance-aware checks should compare each
 /// endpoint via [`Vec2::approx_eq`].

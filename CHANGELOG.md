@@ -1,12 +1,14 @@
 # Changelog
 
-All notable changes to LaserCAD v2 are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to LaserCAD are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-This is the v2 (green-field, pure Rust + egui) line of LaserCAD R14. The v1 line (TypeScript + Tauri) is maintained in a separate directory and its history is recorded in its own CHANGELOG.
-
-v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it (0.1.0 was bumped in `Cargo.toml` but never tagged).
+v0.2.0 is the first tagged release of LaserCAD; nothing was tagged before it (0.1.0 was bumped in `Cargo.toml` but never tagged).
 
 ## [Unreleased]
+
+### Changed
+
+- The product is now just "LaserCAD": the window title reads `drawing.svg - LaserCAD` and the About dialog says `LaserCAD`. The repository moved to `grstein/LaserCAD-R14`.
 
 ### Fixed
 
@@ -14,12 +16,12 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ## [1.0.0] - 2026-10-01
 
-LaserCAD 1.0 is stable: it does everything LaserCAD R14 v1 did, and files saved with it keep opening and exporting the same way in every 1.x release.
+LaserCAD 1.0 is stable: it covers its whole original scope, and files saved with it keep opening and exporting the same way in every 1.x release.
 
 ### Added
 
 - A user guide, [`docs/user-guide.md`](docs/user-guide.md): every tool with its key and command words, the other commands, typed points, snaps, layers, Export Layers and the AI panel. See LCV-202.
-- [`docs/product/parity-1-0.md`](docs/product/parity-1-0.md) maps each LaserCAD R14 v1 capability to its v2 command or menu and the tests that prove it, and [`docs/release/smoke-1-0.md`](docs/release/smoke-1-0.md) is the checklist run on Linux, Windows and macOS before a release. See LCV-202.
+- [`docs/product/parity-1-0.md`](docs/product/parity-1-0.md) maps each original capability to its command or menu and the tests that prove it, and [`docs/release/smoke-1-0.md`](docs/release/smoke-1-0.md) is the checklist run on Linux, Windows and macOS before a release. See LCV-202.
 
 ### Changed
 
@@ -145,7 +147,7 @@ LaserCAD 1.0 is stable: it does everything LaserCAD R14 v1 did, and files saved 
 
 - Initial scaffold: Cargo project skeleton, agent harness under `.claude/agents/` (six agents), `AGENTS.md`, `CLAUDE.md`, `PLAN.md`, `README.md`, dual MIT/Apache license, empty module tree, ADR 0001 recording the pure-Rust + egui decision, CI workflow scaffold (Linux), bootstrap egui window placeholder. See LCV-001, LCV-002, LCV-003, LCV-004, LCV-005, LCV-006.
 - App shell upgraded to a real CentralPanel viewport (dark canvas placeholder). See LCV-030.
-- Native bootstrap window opens at 1280×800. Its initial title, "LaserCAD v2 — bootstrap", was later renamed to "LaserCAD v2" — see the Changed entry below. See LCV-007.
+- Native bootstrap window opens at 1280×800. Its initial title, "LaserCAD — bootstrap", was later renamed to "LaserCAD" — see the Changed entry below. See LCV-007.
 - Geometry kernel introduces Vec2 and EPSILON. See LCV-010.
 - Geometry kernel adds Line primitive (bbox, closest point, distance helpers). See LCV-011.
 - Geometry kernel adds Circle primitive (bbox, point-at-angle, signed distance, containment). See LCV-012.
@@ -198,7 +200,7 @@ LaserCAD 1.0 is stable: it does everything LaserCAD R14 v1 did, and files saved 
 - The F1 keyboard shortcuts dialog now displays all eight shortcut groups without scrolling: the layout has been split into two columns so that every group is visible at once on any screen from 800×600 and up. Previously only three groups fit on screen, with the other five cut off below the fold and no way to reach them by resizing or maximizing the window. See LCV-133.
 - The F1 keyboard-shortcuts dialog is now sized to the screen instead of egui's baked 420pt cap, and its headroom is asserted in row pitches: the deepest column must clear the body clip by a full 21.00pt row, every painted run must sit inside the body clip, and the window must stay on screen, at 1280×800, 1024×600 and 800×600. Today's content goes from 8.00pt of slack to 145.32pt and 45.32pt respectively. The dialog moved to its own file (`src/ui/shortcuts_dialog.rs`) in a behaviour-inert first commit. The `ScrollArea` was kept as the safety net; the sizing call sits on top of LCV-133's two columns rather than replacing them. On 600-high screens the body clip bottom lands exactly on the screen edge, so the dialog now asserts the window rectangle against the screen rectangle as well as the painted runs. See LCV-134.
 - Command line accepts the full AutoCAD command name for every aliased tool, not just the single-letter shortcut: `line`, `polyline`/`pline`, `rect`/`rectangle`, `circle`, `arc`, `select`, `trim`, `extend`, `move`, `delete`/`del`/`erase` (`text` already worked). See LCV-131.
-- The native window title now names the current drawing, live: the file's basename (never the full path), prefixed with `*` while there are unsaved changes, e.g. `*drawing.svg - LaserCAD v2` or `Untitled.svg - LaserCAD v2` before any file is chosen. A document restored from the crash-safety autosave now shows a "Recovered (not saved)" label in the status bar, with hover text explaining the file on disk is untouched until you save; the label clears once you save or replace the drawing via New/Open(/Recent). File > Open Recent entries that share a file name in different folders now show enough of the parent path to tell them apart, and every entry's hover text shows its full path. See LCV-138.
+- The native window title now names the current drawing, live: the file's basename (never the full path), prefixed with `*` while there are unsaved changes, e.g. `*drawing.svg - LaserCAD` or `Untitled.svg - LaserCAD` before any file is chosen. A document restored from the crash-safety autosave now shows a "Recovered (not saved)" label in the status bar, with hover text explaining the file on disk is untouched until you save; the label clears once you save or replace the drawing via New/Open(/Recent). File > Open Recent entries that share a file name in different folders now show enough of the parent path to tell them apart, and every entry's hover text shows its full path. See LCV-138.
 - The command line is now a two-row dock: a bounded context row shows the prompt and feedback (long text is elided on screen, with the full text available on hover, while the stored text stays byte-exact), and a wide editor sits on its own row beneath it. The context row also carries a live "Destination:" label that shows exactly where Enter will send the current line before you press it: `CAD`, `AI`, `tool input`, `AI unavailable`, `AI prompt empty`, or `AI busy`. Checking or editing the line never sends anything or touches the drawing — the label is a preview, not an action. See LCV-139.
 - Hover hints were added on every toolbar button, the SNAP/GRID/ORTHO mode indicators, the agent toggle and the preset badge, each naming its keyboard shortcut where one exists (or the preset's export semantics). See LCV-140.
 - The agent's system prompt is now shown and editable in `Help > Agent settings`, with a Restore default button that brings back the built-in text. An edited prompt, even a blank one, is used exactly as written from the next agent turn on; tools, the step budget and the drawing-change fence stay enforced whatever the prompt says. See LCV-143.
@@ -210,7 +212,7 @@ LaserCAD 1.0 is stable: it does everything LaserCAD R14 v1 did, and files saved 
 ### Changed
 
 - Settings now load at startup: the recent-files list and the agent configuration persist across restarts. The default agent endpoint is now OpenRouter. See LCV-101.
-- Window title changed from "LaserCAD v2 — bootstrap" to "LaserCAD v2". See LCV-105 (contract originally frozen by LCV-007).
+- Window title changed from "LaserCAD — bootstrap" to "LaserCAD". See LCV-105 (contract originally frozen by LCV-007).
 - Edit > Select All is now undoable: it goes through the same `SelectionCommand` / history path as every other selection change, instead of bypassing it. See LCV-105.
 - CI matrix: the `test` and `build` jobs now run Ubuntu alone on ordinary pushes and pull requests, and run all three platforms (Ubuntu, Windows, macOS) on tag pushes and manual `workflow_dispatch`. The `package` and `release` jobs remain gated on tags only. `workflow_dispatch:` was added to the trigger list so the full matrix can be exercised on demand without cutting a release. See LCV-135.
 - The agent side panel is now hard-capped at one third of the application window's width, recomputed every frame so the ceiling holds after a drag, after the window shrinks, or on the very first frame — previously it could be resized to consume most of the drawing surface. Agent Settings gained a "Done" button (using the same close-and-persist path as `×`) and a one-sentence note that changes apply immediately and persist on close. See LCV-141.

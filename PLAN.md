@@ -1,4 +1,4 @@
-# LaserCAD v2 — Roadmap
+# LaserCAD — Roadmap
 
 Status of every demand lives in `docs/specs/*/spec.md` and is rendered in
 [`docs/product/backlog.md`](docs/product/backlog.md) by `scripts/backlog.sh`. This file holds
@@ -6,8 +6,7 @@ only direction. The workflow is in [`AGENTS.md`](AGENTS.md) §Workflow.
 
 ## Vision
 
-A pure-Rust, single-binary, egui reimplementation of LaserCAD R14 v1: feature parity with
-v1.0.0 plus the TEXT command and an agent that edits the live drawing. KISS AutoCAD R14 clone
+A pure-Rust, single-binary, egui CAD for laser cutting: the original LaserCAD R14 scope plus the TEXT command and an agent that edits the live drawing. KISS AutoCAD R14 clone
 for laser cutting. Linux first; Windows and macOS later.
 
 ## Stack
@@ -45,7 +44,7 @@ Rust (toolchain pinned) · `egui`/`eframe` · `rfd` dialogs · blocking `reqwest
   - v0.8.0 "platform" — 180 dependency refresh (alone, first), 201 Windows/macOS packaging.
   - v0.9.0 "SVG conformance" — 170–179 (planned as 0.9 + 0.10; built on one branch, released together).
   - v1.0.0 — LCV-202.
-  - v1.0.0 — R14 v1 parity, stable SVG contract, multi-OS; after 1.0 an SVG contract change is a major.
+  - v1.0.0 — original-scope parity, stable SVG contract, multi-OS; after 1.0 an SVG contract change is a major.
 - **Not in 0.3**: DXF, blocks/xref, fillet/chamfer/offset, G-code, LCV-146 skills.
 - **Tooling**: LCV-152 and LCV-155 made build and test faster.
 

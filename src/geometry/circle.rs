@@ -21,7 +21,7 @@ use crate::geometry::vec2::Vec2;
 
 /// A circle in millimeter space, defined by a center and a radius.
 ///
-/// Field names match v1's TypeScript `geometry/circle.ts` (`center`, `r`) so
+/// Field names match the original TypeScript `geometry/circle.ts` (`center`, `r`) so
 /// the port is easy to cross-reference. Equality (`==`) is bit-exact `f64`
 /// comparison on the center and the radius; tolerance-aware checks should
 /// compare each component explicitly.

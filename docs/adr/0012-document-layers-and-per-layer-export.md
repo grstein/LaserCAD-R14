@@ -114,4 +114,4 @@ in new `src/ui/layer_combo.rs`. `menubar.rs` loses `preset_submenu`, gains `Expo
   none after this change, and the lockstep `debug_assert`s catch tests that forget.
 - Every Ctrl+Z step is a layer or membership change as the operator sees it, current layer included.
 - The SVG export contract in AGENTS.md changes; v0.2 files lose their preset on open.
-- Pending v1 autosaves are discarded once on upgrade.
+- Pending schema-1 autosaves are discarded once on upgrade.

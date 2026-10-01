@@ -600,7 +600,7 @@ settings` and nothing is spawned.
 *(Rule 4 as shipped in LCV-124 read: `Unknown` → `Route::Agent` when
 `agent_available`, else `Route::Cad`. This ADR recorded that as an "open product
 question, not decided here" and handed it to `product-owner`. Amendment (5)
-closes it: free-form-to-agent is a v1 behaviour this product does not carry
+closes it: free-form-to-agent is an original-app behaviour this product does not carry
 forward — decided on a `team-lead` relay of the user's direction (2026-09-13)
 and confirmed directly by the user on 2026-09-14. The reasoning is cost, not
 purity — the grammar knows only single-letter aliases, so the most ordinary

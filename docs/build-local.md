@@ -1,4 +1,4 @@
-# Building LaserCAD v2 locally (Linux)
+# Building LaserCAD locally (Linux)
 
 This is a from-a-clean-checkout guide, written from an actual run of every step
 below on 2026-09-14 (Fedora Linux 43, x86_64). If a step here ever stops
@@ -7,7 +7,7 @@ it does not replace them.
 
 ## 1. Toolchain
 
-LaserCAD v2 pins its Rust toolchain in [`rust-toolchain.toml`](../rust-toolchain.toml):
+LaserCAD pins its Rust toolchain in [`rust-toolchain.toml`](../rust-toolchain.toml):
 
 ```toml
 [toolchain]

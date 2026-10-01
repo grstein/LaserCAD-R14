@@ -137,7 +137,7 @@ pub trait Command {
 
 /// A [`Command`] that does nothing.
 ///
-/// Two reasons it exists in v2:
+/// Two reasons it exists:
 ///
 /// 1. **History-stack fixture.** LCV-026 exercises push / pop / undo / redo
 ///    semantics; `NoOpCommand` is the smallest value that satisfies the

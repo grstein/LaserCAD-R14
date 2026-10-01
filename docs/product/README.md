@@ -1,10 +1,10 @@
-# LaserCAD v2 — Product Workspace
+# LaserCAD — Product Workspace
 
 This directory holds product principles and the generated backlog. Demand specs live in `docs/specs/`.
 
 ## Product principles
 
-LaserCAD v2 is a focused CAD surface for making simple, precise 2D geometry that exports clean SVG for LaserGRBL. It is not a general-purpose design tool.
+LaserCAD is a focused CAD surface for making simple, precise 2D geometry that exports clean SVG for LaserGRBL. It is not a general-purpose design tool.
 
 Default answers, in priority order:
 
@@ -16,7 +16,7 @@ Default answers, in priority order:
 
 ## Scope target — v0.1.0
 
-Parity with v1.0.0 + the unreleased TEXT command + Agent Harness MVP:
+Parity with the original LaserCAD R14 1.0 + the TEXT command + Agent Harness MVP:
 
 - Drawing tools: Line, Polyline, Rect, Circle, Arc.
 - Modify tools: Select (point + window + crossing), Move, Trim, Extend, Delete.
@@ -24,7 +24,7 @@ Parity with v1.0.0 + the unreleased TEXT command + Agent Harness MVP:
 - Undo/Redo (200-deep).
 - Command line: absolute `X,Y`, relative `@X,Y`, distance, tool aliases, toggles, agent prefix.
 - SVG export: cut / mark / engrave presets, LaserGRBL-compatible.
-- SVG import: strict subset (what v2 emits, plus tolerant whitespace).
+- SVG import: strict subset (what LaserCAD emits, plus tolerant whitespace).
 - TEXT command: ASCII strings as engravable line geometry via Hershey font.
 - Autosave: debounced 800 ms, restore on boot.
 - Native dialogs (Open / Save As).

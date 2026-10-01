@@ -95,7 +95,7 @@ pub fn submit(app: &mut App, raw: &str) {
     // 29ac39a): it resets the recall cursor first, so a blank Enter in the
     // middle of a recall walk drops the operator back at the newest entry.
     //
-    // That split is v1's, verbatim: `../LaserCAD-R14/src/ui/command-line.ts`
+    // That split is the original TypeScript app's, verbatim: its `src/ui/command-line.ts`
     // resets `historyIndex = -1` in the keydown handler (line 193, before it
     // calls `execute`), while `execute` guards `if (!raw) return;` (line 84)
     // ahead of its own `pushCommandHistory`. Cursor always resets, blank never

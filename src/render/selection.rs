@@ -3,7 +3,7 @@
 //! Phase-4 tools (SelectTool, MoveTool, DeleteTool, TrimTool) operate on the
 //! document's [`Selection`]. The operator needs to see which entities are
 //! selected before confirming an action ("the next delete will remove the right
-//! things"). AutoCAD R14 uses colored halos plus grip handles; v2 takes the
+//! things"). AutoCAD R14 uses colored halos plus grip handles; LaserCAD takes the
 //! lightweight route — a thick, semi-transparent blue/cyan stroke drawn over
 //! each selected entity.
 //!

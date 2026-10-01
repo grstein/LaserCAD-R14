@@ -1,7 +1,7 @@
 # Installing LaserCAD
 
 Download the file for your system from the
-[GitHub releases page](https://github.com/grstein/LaserCAD-R14-V2/releases).
+[GitHub releases page](https://github.com/grstein/LaserCAD-R14/releases).
 To build from source instead, see [`build-local.md`](build-local.md).
 
 | System | File |

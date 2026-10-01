@@ -7,10 +7,10 @@
   autosave debounce elapse — a fired autosave writes to the user's real data
   directory."* Nothing else in this ADR changes.
 - **Amended (2)**: 2026-09-13 — LCV-131's refinement read §A2's sentence *"the
-  alias set for LCV-110 is exactly the v1 set"* as a **freeze**. It is not one,
+  alias set for LCV-110 is exactly the original set"* as a **freeze**. It is not one,
   and §A2's own next sentence says so. §A2a is new and states the two axes
   explicitly — variants frozen, letters closed, words open — so the misreading
-  cannot recur, and corrects one factual error in §A2 about v1's `extend`. No
+  cannot recur, and corrects one factual error in §A2 about the original app's `extend`. No
   decision in §A1..§A4 is reversed; nothing in §B..§F changes.
 - **Amended (3)**: 2026-09-14 — §A2a described *how* `src/agent/classifier.rs`
   obeys the single-alias-table rule ("by calling `parse`") and listed it among
@@ -56,7 +56,7 @@
 
 ## Context
 
-Marco 1 is functional parity with v1.0.0. Three of its demands are one feature
+Marco 1 is functional parity with the original app. Three of its demands are one feature
 cut into three slices:
 
 - **LCV-110** — a pure command-line parser: `X,Y`, `@X,Y`, a bare distance,
@@ -190,8 +190,8 @@ Refinements over the brief:
 `parse` is **total** — it returns `Unknown`, never `Err`, never panics. Parsing
 is case-insensitive and trims surrounding whitespace, including around the comma
 (`"10, 20"` parses). `zoom` takes one argument; `ze` is the extents alias. The
-alias set for LCV-110 is exactly the v1 set `l p r c a s t e m text`: EXTEND and
-the `d`/`x` letters have no v1 alias and do not get one now. Following ADR 0002's
+alias set for LCV-110 is exactly the original set `l p r c a s t e m text`: EXTEND and
+the `d`/`x` letters have no original alias and do not get one now. Following ADR 0002's
 precedent for `TOOL_KEYS`: **the variants are the contract; the alias table is
 not frozen** — adding `line`, `x` or `d` later is a table row, not an ADR.
 
@@ -219,11 +219,11 @@ Two axes map text onto those variants, and they are independent:
 - **The letter axis is closed.** `l p r c a s t e m` is the set, and it does not
   grow. A letter is a scarce, memorised, one-keystroke resource shared with the
   bare tool-activation keys (§E), so a new letter is a binding decision, not a
-  row. **`e` is Delete, not Extend** — a v2 decision that deliberately departs
-  from v1, where `e` is `extend` (verified 2026-09-13 in
-  `../LaserCAD-R14/src/ui/command-line.ts`, `TOOL_ALIASES`). §A2's claim that
-  *"EXTEND … has no v1 alias"* is wrong on the facts; the letter is free in v2
-  because v2 reassigned it, not because v1 left it empty. That reassignment
+  row. **`e` is Delete, not Extend** — a decision that deliberately departs
+  from the original TypeScript app, where `e` is `extend` (verified 2026-09-13 in
+  its `src/ui/command-line.ts`, `TOOL_ALIASES`). §A2's claim that
+  *"EXTEND … has no original alias"* is wrong on the facts; the letter is free here
+  because this app reassigned it, not because the original left it empty. That reassignment
   stands and is not revisited here. Extend, Delete and Text are reachable from
   the command line by **word**.
 - **The word axis is open.** A word that spells a command this product already

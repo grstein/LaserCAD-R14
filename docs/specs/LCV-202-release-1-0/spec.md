@@ -6,22 +6,22 @@
 
 ## Problem
 
-A 1.0 version is a promise: the operator can drop LaserCAD R14 v1, files saved today will still
+A 1.0 version is a promise: the operator can drop the original TypeScript app, files saved today will still
 open and export the same way tomorrow, and LaserCAD runs on the OS next to their LaserGRBL. None
-of that is written down or checked today. v1 parity was the v0.1 scope target
-(`docs/product/README.md`), but no table maps each v1 capability to the v2 command and test that
+of that is written down or checked today. Parity with the original app was the v0.1 scope target
+(`docs/product/README.md`), but no table maps each original capability to the command and test that
 prove it. The SVG export contract has grown (layers, ellipses, Béziers) without a freeze point,
 and there is no user guide or release smoke checklist.
 
 ## Stories
 
-- As an operator, I want to know 1.0 does everything v1 did, so that I can uninstall v1.
+- As an operator, I want to know 1.0 does everything the original app did, so that I can uninstall it.
 - As an operator, I want my 1.0 files to stay valid, so that a later update never breaks a job.
 
 ## Acceptance criteria
 
-1. WHEN 1.0 is prepared THE SYSTEM SHALL ship `docs/product/parity-1-0.md`: one row per v1
-   capability from `docs/product/README.md` §Scope target, each naming the v2 command or menu and
+1. WHEN 1.0 is prepared THE SYSTEM SHALL ship `docs/product/parity-1-0.md`: one row per original
+   capability from `docs/product/README.md` §Scope target, each naming the command or menu and
    at least one test that proves it, with no row left empty.
 2. WHEN 1.0 is prepared THE SYSTEM SHALL record in a new ADR that the SVG export contract
    (AGENTS.md §SVG export, ADRs 0012, 0015, 0016) is frozen, and that changing it after 1.0
@@ -53,8 +53,8 @@ and there is no user guide or release smoke checklist.
 ## Open questions
 
 - None. Decided (self-approved per user goal, 2026-09-30):
-  - The v1 source (`../LaserCAD-R14`) is not on this machine. The parity table therefore uses
-    the v1 scope list recorded in `docs/product/README.md`.
+  - The original TypeScript source is not on this machine. The parity table therefore uses
+    the original scope list recorded in `docs/product/README.md`.
   - The freeze takes the next free ADR number, and the contract fixture covers only entity
     kinds that exist at 1.0. A Depends-on spec that ends Rejected drops its entity kind from AC 3.
 
@@ -65,6 +65,6 @@ and there is no user guide or release smoke checklist.
 - **AC 9**: the Linux AppImage and `.deb` are built locally from the 1.0 tree
   (`scripts/build-appimage.sh`, `scripts/build-deb.sh`; T13). The Windows `.zip` and macOS
   `.dmg` pipeline is proven green by LCV-201's dispatch, CI run
-  https://github.com/grstein/LaserCAD-R14-V2/actions/runs/36833345767. Building those two
+  https://github.com/grstein/LaserCAD-R14/actions/runs/36833345767. Building those two
   from the 1.0 commit itself needs one more `workflow_dispatch` (or the tag push), which is the
   user's step before publishing.

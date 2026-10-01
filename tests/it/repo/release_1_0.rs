@@ -1,4 +1,4 @@
-//! LCV-202 — the 1.0 release paperwork: the v1 parity table, the smoke
+//! LCV-202 — the 1.0 release paperwork: the parity table, the smoke
 //! checklist, the README and the version. Text scans of files read fresh
 //! from disk, in the style of `packaging.rs`.
 
@@ -67,13 +67,13 @@ fn backticked(cell: &str) -> Vec<&str> {
 /// `docs/product/README.md` §Scope target, no empty cell, and every test it
 /// cites exists as a `fn` under `src/` or `tests/`.
 #[test]
-fn parity_table_covers_every_v1_capability_with_real_tests() {
+fn parity_table_covers_every_original_capability_with_real_tests() {
     let readme = read("docs/product/README.md");
     let bullets = section(&readme, "Scope target")
         .iter()
         .filter(|l| l.starts_with("- "))
         .count();
-    assert!(bullets > 0, "§Scope target lists the v1 capabilities");
+    assert!(bullets > 0, "§Scope target lists the original capabilities");
     let parity = read("docs/product/parity-1-0.md");
     let lines: Vec<&str> = parity.lines().collect();
     let rows = table_rows(&lines);
@@ -93,7 +93,7 @@ fn parity_table_covers_every_v1_capability_with_real_tests() {
         assert_eq!(
             row.len(),
             3,
-            "capability | v2 command or menu | tests: {row:?}"
+            "capability | command or menu | tests: {row:?}"
         );
         assert!(row.iter().all(|c| !c.is_empty()), "empty cell: {row:?}");
         let tests = backticked(&row[2]);

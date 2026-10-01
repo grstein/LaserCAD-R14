@@ -26,7 +26,7 @@ use crate::geometry::vec2::Vec2;
 /// Axis-aligned rectangle in millimeter space, with `min.x <= max.x` and
 /// `min.y <= max.y` enforced by [`Rect::new`].
 ///
-/// Field names mirror v1's TypeScript `geometry/rect.ts` (`min`, `max`).
+/// Field names mirror the original TypeScript `geometry/rect.ts` (`min`, `max`).
 /// Equality (`==`) is bit-exact `f64` comparison on both corners; no
 /// `Eq` / `Hash` (transitively `f64`).
 #[derive(Copy, Clone, Debug, PartialEq)]

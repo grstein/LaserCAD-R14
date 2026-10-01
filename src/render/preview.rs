@@ -5,7 +5,7 @@
 //! Drawing a line in AutoCAD R14 works like this: the operator clicks the first
 //! point, then a "rubber-band" preview follows the cursor showing what the line
 //! will look like; the second click commits. Same for circles, arcs, polylines.
-//! v2 mirrors this: the active tool (LCV-043 LineTool, LCV-046 CircleTool, etc.)
+//! LaserCAD mirrors this: the active tool (LCV-043 LineTool, LCV-046 CircleTool, etc.)
 //! constructs a `Vec<Entity>` each frame representing the in-progress preview,
 //! and [`draw_preview`] paints those entities with a distinct style.
 //!

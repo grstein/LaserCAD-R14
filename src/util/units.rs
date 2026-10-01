@@ -36,10 +36,10 @@ pub const DEFAULT_BED_WIDTH_MM: f64 = 400.0;
 /// carries neither `width`/`height` nor `viewBox` (LCV-114 AC 8c).
 pub const DEFAULT_BED_HEIGHT_MM: f64 = 400.0;
 
-/// Smallest configurable bed dimension, in millimetres (v1 parity).
+/// Smallest configurable bed dimension, in millimetres (original-app parity).
 pub const BED_MIN_MM: f64 = 1.0;
 
-/// Largest configurable bed dimension, in millimetres (v1 parity).
+/// Largest configurable bed dimension, in millimetres (original-app parity).
 pub const BED_MAX_MM: f64 = 2000.0;
 
 /// Hold one bed dimension inside [`BED_MIN_MM`] ..= [`BED_MAX_MM`].

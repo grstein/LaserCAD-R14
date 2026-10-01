@@ -1,4 +1,4 @@
-# SVG specification coverage — LaserCAD v2
+# SVG specification coverage — LaserCAD
 
 Research note, 2026-09-29. It maps the features of the official SVG specification to what LaserCAD
 exports and imports today. It also records the conformance target the user set, and the Draft

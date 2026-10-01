@@ -181,7 +181,7 @@ fn title_command_fires_only_on_a_real_change() {
         out.viewport_output[&egui::ViewportId::ROOT]
             .commands
             .contains(&egui::ViewportCommand::Title(
-                "*Untitled.svg - LaserCAD v2".to_owned()
+                "*Untitled.svg - LaserCAD".to_owned()
             )),
         "a real change must be visible on the very next frame"
     );
@@ -212,12 +212,12 @@ fn successful_save_clears_the_star_in_the_title() {
     };
     app.history
         .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
-    assert_eq!(app.display_title(), "*drawing.svg - LaserCAD v2");
+    assert_eq!(app.display_title(), "*drawing.svg - LaserCAD");
 
     app.action_save();
 
     assert_eq!(app.error_message, None, "the save must succeed");
-    assert_eq!(app.display_title(), "drawing.svg - LaserCAD v2");
+    assert_eq!(app.display_title(), "drawing.svg - LaserCAD");
 }
 
 /// AC 3 — a failed Save (unwritable path) leaves the title exactly as it was.
@@ -252,12 +252,12 @@ fn successful_open_path_sets_the_title_to_the_new_file() {
         autosave_path: Some(dir.join("autosave.json")),
         ..App::default()
     };
-    assert_eq!(app.display_title(), "Untitled.svg - LaserCAD v2");
+    assert_eq!(app.display_title(), "Untitled.svg - LaserCAD");
 
     app.action_open_path(svg);
 
     assert_eq!(app.error_message, None, "the open must succeed");
-    assert_eq!(app.display_title(), "opened.svg - LaserCAD v2");
+    assert_eq!(app.display_title(), "opened.svg - LaserCAD");
 }
 
 /// AC 3 — a failed Open Recent (missing file) leaves the title unchanged.

@@ -1,6 +1,6 @@
 //! Pure-Rust 2D intersection routines for the kernel.
 //!
-//! This module owns the four canonical intersection cases LaserCAD v2 needs:
+//! This module owns the four canonical intersection cases LaserCAD needs:
 //! segment-segment (strict and infinite-line variants), segment-circle, and
 //! circle-circle. The snap engine (LCV-016) and the future trim/extend tools
 //! (Phase 4) consume these routines; consolidating them here ensures

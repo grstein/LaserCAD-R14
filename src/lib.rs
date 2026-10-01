@@ -1,4 +1,4 @@
-//! LaserCAD v2 library crate.
+//! LaserCAD library crate.
 //!
 //! Module boundaries and rules are documented in `AGENTS.md` at the repository
 //! root. Kernel modules ([`geometry`], [`document`], [`io::svg`], [`text`],
@@ -32,7 +32,7 @@ pub mod util;
 /// rather than copying the literal so the title stays single-sourced; any
 /// future change follows the same route — the constant, its test and the
 /// LCV-007 demand body move together.
-pub const APP_TITLE: &str = "LaserCAD v2";
+pub const APP_TITLE: &str = "LaserCAD";
 
 /// Default native window inner size in screen pixels.
 ///
@@ -60,7 +60,7 @@ pub fn run() -> eframe::Result<()> {
         ..Default::default()
     };
     eframe::run_native(
-        "LaserCAD v2",
+        "LaserCAD",
         native_options,
         Box::new(|_cc| Ok(Box::new(app::App::new()))),
     )
@@ -78,7 +78,7 @@ mod tests {
     /// across the LCV-105 title change.
     #[test]
     fn bootstrap_window_contract() {
-        assert_eq!(APP_TITLE, "LaserCAD v2");
+        assert_eq!(APP_TITLE, "LaserCAD");
         assert_eq!(DEFAULT_WINDOW_SIZE, [1280.0_f32, 800.0_f32]);
     }
 

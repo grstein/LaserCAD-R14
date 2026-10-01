@@ -22,7 +22,7 @@ use std::time::{Duration, Instant};
 use super::App;
 
 /// Debounce delay before an unsaved change triggers an autosave write.
-/// 800 ms matches LaserCAD v1 (ADR 0002 §B).
+/// 800 ms matches the original LaserCAD R14 (ADR 0002 §B).
 const AUTOSAVE_DEBOUNCE: Duration = Duration::from_millis(800);
 
 /// The autosave half of [`App`]'s state, grouped the way `agent: AgentState`
@@ -164,7 +164,7 @@ impl App {
 mod tests {
     use super::*;
 
-    /// LCV-102 AC 15 — the debounce constant matches v1 (800 ms).
+    /// LCV-102 AC 15 — the debounce constant matches the original app (800 ms).
     #[test]
     fn autosave_debounce_is_800ms() {
         assert_eq!(AUTOSAVE_DEBOUNCE, Duration::from_millis(800));

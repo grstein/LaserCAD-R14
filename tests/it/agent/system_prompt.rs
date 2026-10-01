@@ -11,7 +11,7 @@ use lasercad::io::settings::Settings;
 
 /// The built-in system prompt, line by line (LCV-143 AC 6, text of LCV-151, layers of LCV-156, copy of LCV-157, rotate of LCV-158, null keys of LCV-185, step budget of LCV-189, sets of LCV-186, set_layer of LCV-191, ids of LCV-188, batch primitives of LCV-196, verification of LCV-197).
 const SPEC_TEXT: &[&str] = &[
-    "You are the CAD assistant embedded in LaserCAD v2, a 2D CAD program for",
+    "You are the CAD assistant embedded in LaserCAD, a 2D CAD program for",
     "laser cutting. Drawings are saved as plain SVG for LaserGRBL. You change and",
     "read the open drawing only by calling the tools below; do not only describe",
     "how to do it.",

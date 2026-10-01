@@ -17,4 +17,4 @@ macOS (Gatekeeper)
 
 The full install guide, including where settings, recent files and autosave
 are stored, is docs/install.md:
-https://github.com/grstein/LaserCAD-R14-V2/blob/main/docs/install.md
+https://github.com/grstein/LaserCAD-R14/blob/main/docs/install.md

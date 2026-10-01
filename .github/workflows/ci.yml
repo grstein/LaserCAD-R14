@@ -268,7 +268,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "${{ github.ref_name }}" \
-            --title "LaserCAD v2 ${{ github.ref_name }}" \
+            --title "LaserCAD ${{ github.ref_name }}" \
             --notes-file /tmp/release-notes.md \
             dist/lasercad-x86_64.AppImage \
             dist/lasercad_*_amd64.deb \

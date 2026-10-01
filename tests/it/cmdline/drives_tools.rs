@@ -66,7 +66,7 @@ fn assert_near(actual: Vec2, expected: Vec2) {
 /// AC 32 — the roadmap sequence. `l` ⏎ `0,0` ⏎ `@100,0` ⏎ `50` ⏎ with the
 /// cursor resting to the right draws two connected, exact segments.
 ///
-/// This is the single test that says v2 is a CAD program: absolute, relative
+/// This is the single test that says LaserCAD is a CAD program: absolute, relative
 /// and direct-distance entry, one after the other, through the real frame.
 #[test]
 fn roadmap_sequence_draws_two_lines() {
