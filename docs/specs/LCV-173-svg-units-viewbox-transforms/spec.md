@@ -1,8 +1,8 @@
 # LCV-173 — SVG lengths, units, viewBox and transforms
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: LCV-172
-- **Implementation**: -
+- **Implementation**: 03e25bc..2b0c992
 
 ## Problem
 
