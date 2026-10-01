@@ -1,6 +1,6 @@
 # LCV-188 — Tasks
 
-- [ ] T1 Refactor (no behaviour change): move the layer-edit `impl Document` block
+- [x] T1 Refactor (no behaviour change): move the layer-edit `impl Document` block
   (`check_*_layer`, `insert/remove/replace_layer`, `set_current_layer`, `set_entity_layer`) to
   `state/layers.rs` (files: src/document/state.rs, src/document/state/layers.rs)
 - [ ] T2 [AC2] Test: pushes get distinct ids `e1, e2, …`; after a delete, every other entity keeps
