@@ -42,7 +42,7 @@
 - [x] T16 [AC12] Corpus fixtures: `inkscape-px`, `units-pt-in`, `viewbox-offset`,
   `par-slice-xmaxymin`, `nested-transforms` and `nested-svg`, with hand-written `.expected` files
   (files: tests/fixtures/svg/*.svg, tests/fixtures/svg/*.expected)
-- [ ] T17 [AC5] Extend `import_fuzz.rs` with random `transform` and `viewBox` strings (never
+- [x] T17 [AC5] Extend `import_fuzz.rs` with random `transform` and `viewBox` strings (never
   panics) (files: tests/it/io_svg/import_fuzz.rs)
 - [ ] T18 Docs: the coverage note §3/§4 rows and the LCV-171 AC 7 amendment note (files:
   docs/research/svg-spec-coverage.md, docs/specs/LCV-171-svg-import-report-and-never-rendered/spec.md)

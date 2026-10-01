@@ -3,7 +3,8 @@
 //! Arbitrary text, and exported SVG that is truncated or has a span replaced
 //! by XML-ish noise, must come back as `Ok` or `Err` — never a panic. The
 //! importer reads files from disk, so it sees whatever a user opens. So does
-//! an arbitrary `d` inside a `<path>` (LCV-172).
+//! an arbitrary `d` inside a `<path>` (LCV-172), and an arbitrary
+//! `transform`, `viewBox` or `preserveAspectRatio` (LCV-173).
 
 use lasercad::document::{Document, Entity, Layer, LayerId};
 use lasercad::geometry::{Arc, Circle, Line, Vec2};
@@ -116,6 +117,45 @@ fn path_svg(d: &str) -> String {
     )
 }
 
+/// Transform-list fragments: every function name, separators, number
+/// pieces, extreme and non-finite numbers (LCV-173).
+fn transform_token() -> impl Strategy<Value = String> {
+    prop_oneof![
+        prop::sample::select(vec![
+            "matrix", "translate", "scale", "rotate", "skewX", "skewY", "(", ")", " ", ",", "-",
+            ".", "e", "0", "1", "90", "1e308", "1e999", "NaN", "inf", "x",
+        ])
+        .prop_map(str::to_owned),
+        any::<f64>().prop_map(|v| v.to_string()),
+        "[0-9.eE+-]{1,6}",
+    ]
+}
+
+/// `s` escaped for a double-quoted attribute value.
+fn attr(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('"', "&quot;")
+}
+
+/// `transform` on a group and on a nested `<svg>` inside a valid file.
+fn transform_svg(t: &str) -> String {
+    let t = attr(t);
+    format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="100mm"><g transform="{t}"><circle cx="5" cy="5" r="2"/><path d="M 0 0 A 3 3 0 0 1 6 0"/><svg transform="{t}" width="50%"><line x1="0" y1="0" x2="3" y2="4"/></svg></g></svg>"#
+    )
+}
+
+/// `viewBox` and `preserveAspectRatio` on the root, with or without
+/// `width`/`height`, and on a nested `<svg>`.
+fn view_box_svg(vb: &str, par: &str, sized: bool) -> String {
+    let (vb, par) = (attr(vb), attr(par));
+    let size = if sized { r#" width="100mm" height="50mm""# } else { "" };
+    format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg"{size} viewBox="{vb}" preserveAspectRatio="{par}"><circle cx="5" cy="5" r="2"/><svg x="10%" viewBox="{vb}" preserveAspectRatio="{par}"><line x1="0" y1="0" x2="3" y2="4"/></svg></svg>"#
+    )
+}
+
 /// Largest char boundary of `s` that is `<= at`.
 fn floor_boundary(s: &str, at: usize) -> usize {
     (0..=at.min(s.len()))
@@ -167,5 +207,34 @@ proptest! {
     #[test]
     fn import_never_panics_on_arbitrary_path_data(d in any::<String>()) {
         let _ = import_svg(&path_svg(&d));
+    }
+
+    /// LCV-173 AC 5 — any transform list built from tokens opens: an invalid
+    /// or singular one is reported, it never fails the file or panics.
+    #[test]
+    fn import_never_fails_on_transform_tokens(parts in prop::collection::vec(transform_token(), 0..16)) {
+        let imported = import_svg(&transform_svg(&parts.concat()));
+        prop_assert!(imported.is_ok(), "{:?}", imported.err());
+    }
+
+    /// LCV-173 — an arbitrary `transform` string never panics the importer.
+    #[test]
+    fn import_never_panics_on_arbitrary_transform(t in any::<String>()) {
+        let _ = import_svg(&transform_svg(&t));
+    }
+
+    /// LCV-173 — random `viewBox` and `preserveAspectRatio` strings, on a
+    /// sized or unsized root and a nested `<svg>`, never panic the importer.
+    #[test]
+    fn import_never_panics_on_view_box_strings(
+        vb in prop::collection::vec(transform_token(), 0..8),
+        par in prop_oneof![
+            prop::sample::select(vec!["", "none", "xMinYMax slice", "defer xMidYMid meet"])
+                .prop_map(str::to_owned),
+            any::<String>(),
+        ],
+        sized in any::<bool>(),
+    ) {
+        let _ = import_svg(&view_box_svg(&vb.join(" "), &par, sized));
     }
 }
