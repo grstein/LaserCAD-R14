@@ -102,6 +102,12 @@
   `query_entities` lists each id. §Deferred: the stable-id item is that ADR. Set outcomes
   (`agent_apply/set.rs::plan`, LCV-186) report indices and counts instead of §D5's per-entity
   description; an appending outcome ends with its new ids. Nothing else changes.
+- **Amended (15)**: 2026-10-01 — LCV-195: one more non-step rendezvous, `Dispatch::Feedback`,
+  asked once after a tool-call batch that ran to its end unfenced, before the steps-left line.
+  The UI thread answers from the live document. `Ok("")` adds nothing. A non-empty text is
+  appended to the batch's last tool result. `Observed` also attaches its image under the last
+  call's id, through ADR 0011's upload check. It is not a step, is not fenced and is not
+  counted. The worker still holds no document state (§D1).
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
