@@ -45,7 +45,7 @@
 - [x] T13 [AC8] Corpus: hand-written expectations — `inkscape-mm.expected` (layer `#000000`),
       `v02-presets.expected` (three hex layers) (files: tests/fixtures/svg/inkscape-mm.expected,
       tests/fixtures/svg/v02-presets.expected)
-- [ ] T14 [AC3] [AC7] [AC8] Corpus: new pairs `illustrator-classes` (`<style>` classes, one rule
+- [x] T14 [AC3] [AC7] [AC8] Corpus: new pairs `illustrator-classes` (`<style>` classes, one rule
       with a combinator) and `inkscape-hidden-layer` (`style="display:none"` layer)
       (files: tests/fixtures/svg/illustrator-classes.{svg,expected},
       tests/fixtures/svg/inkscape-hidden-layer.{svg,expected})

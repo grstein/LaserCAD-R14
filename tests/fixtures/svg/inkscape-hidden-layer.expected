@@ -1,0 +1,16 @@
+# LCV-175 AC 7, AC 8, AC 9 — Inkscape layers (`inkscape:groupmode="layer"`, no
+# `data-layer`) with the "Draft" layer hidden by `style="display:none"`: none
+# of its geometry imports and it is reported once. The red path and the blue
+# circle land on `#ff0000` and `#0000ff` layers; the last path has `stroke:none`
+# and a green fill, so it lands on `#00aa00` (outline only, `fill` reported).
+# All geometry is colored, so no `Cut`.
+# World y = 100 - svg y.
+bed 100 100
+layer "#ff0000" #ff0000 output=1 current=1
+layer "#0000ff" #0000ff output=1
+layer "#00aa00" #00aa00 output=1
+line 0 10 90 90 90
+circle 1 50 20 5
+line 2 20 10 30 10
+ignored 1 hidden (display:none)
+ignored 1 fill
