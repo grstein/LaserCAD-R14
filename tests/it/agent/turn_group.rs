@@ -454,7 +454,8 @@ fn ac8_every_exit_after_250_acts_finalizes_once() {
         assert!(app.agent.rx.is_none(), "{exit}");
         assert_eq!(app.document.entity_count(), 250, "{exit}: applied stays");
         // Cancel writes its own `note` row first (LCV-129); the undo note is
-        // the one AC 8 counts, and it is written exactly once, last.
+        // the one AC 8 counts, written exactly once, before the metrics note
+        // that closes every turn (LCV-193).
         let undo_notes: Vec<_> = notes(&app)
             .into_iter()
             .filter(|n| n.starts_with("Applied"))
@@ -465,7 +466,7 @@ fn ac8_every_exit_after_250_acts_finalizes_once() {
             "{exit}: exactly one undo note"
         );
         assert_eq!(
-            app.agent.chat.last().map(|(_, t)| t.as_str()),
+            app.agent.chat.iter().rev().nth(1).map(|(_, t)| t.as_str()),
             Some(undo_notes[0]),
             "{exit}"
         );
@@ -538,7 +539,8 @@ fn ac12_the_note_follows_the_seal_not_the_fence() {
         } else {
             "Applied 3 actions before the drawing changed outside this turn."
         };
-        assert_eq!(notes(&app), [expected], "{case}");
+        assert_eq!(notes(&app)[..1], [expected], "{case}");
+        assert_eq!(notes(&app).len(), 2, "{case}: and the metrics note");
         if case == "replaced" {
             assert!(!app.agent.turn.fence.is_tripped(), "not from the fence");
         }

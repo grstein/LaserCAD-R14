@@ -321,7 +321,7 @@ fn the_turn_label_cuts_on_character_boundaries() {
 ///
 /// Every `*_open` flag on `App` is a modal or a panel; a turn that set one
 /// would take the canvas away, which ADR 0007 §D4 names a non-goal. The
-/// scan covers both files that run turn code.
+/// scan covers every file that runs turn code.
 #[test]
 fn no_turn_function_opens_a_dialog() {
     let witness = "app.agent_settings_open = true; app.agent.panel_open = false;";
@@ -347,10 +347,16 @@ fn no_turn_function_opens_a_dialog() {
                 "/src/app/agent_poll.rs"
             )),
         ),
+        (
+            "agent_poll/turn_end.rs",
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/src/app/agent_poll/turn_end.rs"
+            )),
+        ),
     ] {
-        let at = src
-            .find("\n#[cfg(test)]")
-            .expect("a bare #[cfg(test)] marker");
+        // `turn_end.rs` has no test module: all of it is implementation.
+        let at = src.find("\n#[cfg(test)]").unwrap_or(src.len());
         let needle = concat!("_open", " =");
         assert!(
             witness.contains(needle),

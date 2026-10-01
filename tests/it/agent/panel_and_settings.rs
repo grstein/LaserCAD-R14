@@ -272,7 +272,7 @@ fn ac6_the_api_key_reaches_no_transcript_row() {
     assert!(!app.agent.busy, "the turn ended");
     assert_eq!(
         roles(&app),
-        ["user", "tool", "refused", "assistant", "note"],
+        ["user", "tool", "refused", "assistant", "note", "note"],
         "the turn really produced the rows this demand renders"
     );
     for (role, content) in &app.agent.chat {

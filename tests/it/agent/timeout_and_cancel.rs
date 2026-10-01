@@ -145,7 +145,8 @@ fn ac4_a_timed_out_call_ends_the_turn_through_failed() {
         "AC 4: the busy flag falls — LCV-120's latch"
     );
     assert!(app.agent.rx.is_none(), "AC 4: and the channel goes with it");
-    let (role, text) = app.agent.chat.last().expect("a terminal row");
+    // The terminal row, then the metrics note every turn ends with (LCV-193).
+    let (role, text) = app.agent.chat.iter().rev().nth(1).expect("a terminal row");
     assert_eq!(role, "error", "a timeout is a failure, not a note");
     assert_eq!(text, &sentence);
     assert!(
@@ -221,8 +222,11 @@ fn ac5_only_agent_poll_clears_the_busy_flag() {
     let sections = implementation_sections();
 
     for (needle, owner) in [
-        (concat!("agent.busy", " = false"), "app/agent_poll.rs"),
-        (concat!("agent.rx", " = None"), "app/agent_poll.rs"),
+        (
+            concat!("agent.busy", " = false"),
+            "app/agent_poll/turn_end.rs",
+        ),
+        (concat!("agent.rx", " = None"), "app/agent_poll/turn_end.rs"),
         (concat!("agent.busy", " = true"), "app/agent_turn.rs"),
     ] {
         let witness = vec![
@@ -316,8 +320,8 @@ fn ac7_the_cancel_note_is_painted_above_the_undo_note() {
             .iter()
             .map(|(r, _)| r.as_str())
             .collect::<Vec<_>>(),
-        ["user", "tool", "tool", "tool", "note", "note"],
-        "AC 7: no seventh role — a cancel is a note like the undo note is"
+        ["user", "tool", "tool", "tool", "note", "note", "note"],
+        "AC 7: no seventh role — a cancel is a note like the undo note and the metrics are"
     );
     assert_eq!(
         app.agent.chat[4].1, AGENT_CANCELLED_MESSAGE,
@@ -461,9 +465,14 @@ fn ac12_a_cancelled_turn_still_folds_into_one_undo_entry() {
         "AC 12: three commits, one undo entry — the cancel went through end_turn"
     );
     assert_eq!(
-        app.agent.chat.last().map(|(r, t)| (r.as_str(), t.as_str())),
+        app.agent
+            .chat
+            .iter()
+            .rev()
+            .nth(1)
+            .map(|(r, t)| (r.as_str(), t.as_str())),
         Some(("note", "Applied 3 actions — Ctrl+Z undoes the whole turn.")),
-        "and the note says the shape the stack really has"
+        "and the note before the metrics says the shape the stack really has"
     );
 
     harness::tap(&ctx, &mut app, egui::Key::Z, ctrl());

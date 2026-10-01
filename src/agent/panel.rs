@@ -187,9 +187,9 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
 /// | `user` | LCV-123 AC 3 (`app::arm_turn`), and LCV-124 when the prompt arrives from the command line | the prompt, verbatim |
 /// | `tool` | LCV-123 AC 23 (`app::agent_apply::transcribe`) | one action that happened |
 /// | `refused` | LCV-123 AC 23 (same site, plus `app::agent_poll` for a fence refusal) | one action that did not |
-/// | `assistant` | LCV-123 AC 7 (`app::agent_poll::end_turn`) | the model's closing prose |
+/// | `assistant` | LCV-123 AC 7 (`app::agent_poll::turn_end::end_turn`) | the model's closing prose |
 /// | `error` | LCV-123 AC 7 (same site) | the turn failed, and why |
-/// | `note` | LCV-123 AC 11 (`app::agent_poll::finish_turn`) | the turn's undo shape |
+/// | `note` | LCV-123 AC 11 (`app::agent_poll::turn_end::finish_turn`), LCV-193 (`turn_end::end_turn`), LCV-129, LCV-187 | the turn's undo shape, its metrics line, a cancel, an image's fate |
 ///
 /// Why `tool` and `refused` are loud: ADR 0007 §D5 makes the outcome sentence
 /// the *disclosure mechanism* for positional indices shifting under the model
