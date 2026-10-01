@@ -1,8 +1,8 @@
 # LCV-172 — Full SVG path-data grammar
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-171
-- **Implementation**: -
+- **Implementation**: 17aae2b..2444725
 
 ## Problem
 
