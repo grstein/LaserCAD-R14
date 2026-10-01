@@ -237,3 +237,18 @@ fn ac5_plate_holes_replays_to_its_recorded_score() {
 fn ac5_text_label_replays_to_its_recorded_score() {
     assert_replay("text-label", "replies.json", "expected.json");
 }
+
+/// AC 6 — a recording that leaves one hole out scores below the clean one,
+/// on IoU and on assertions passed both, and replays to its own record.
+#[test]
+fn ac6_a_missing_hole_scores_below_the_clean_recording() {
+    let clean = assert_replay("plate-holes", "replies.json", "expected.json");
+    let defect = assert_replay("plate-holes", "replies-defect.json", "expected-defect.json");
+    assert!(
+        defect.iou < clean.iou,
+        "IoU {} vs {}",
+        defect.iou,
+        clean.iou
+    );
+    assert!(defect.passed() < clean.passed(), "{defect:?} vs {clean:?}");
+}

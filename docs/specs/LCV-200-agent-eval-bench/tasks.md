@@ -16,7 +16,7 @@
 - [x] T6 [AC1] [AC2] [AC4] [AC5] Bench loader, the suite-has-four test, and the replay test per task.
   Replay prints the JSON line and asserts `expected.json`, which is recorded once from this run
   and committed (files: tests/it/agent/bench.rs, tests/it/agent/mod.rs, tests/fixtures/agent-bench/*/expected.json)
-- [ ] T7 [AC6] Defect recording (one hole missing) and the test: IoU and passed count are both
+- [x] T7 [AC6] Defect recording (one hole missing) and the test: IoU and passed count are both
   below the clean run (files: tests/fixtures/agent-bench/plate-holes/replies-defect.json,
   tests/fixtures/agent-bench/plate-holes/expected-defect.json, tests/it/agent/bench.rs)
 - [ ] T8 [AC7] [AC8] `live_config` + its usage refusal test; `#[ignore] agent_bench_live` writing
