@@ -223,3 +223,58 @@ fn conic(ctx: &Ctx, center: Vec2, (rx, ry): (f64, f64), bed_h: f64) -> Option<En
     };
     conic_entity(ctx, k, bed_h)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::io::svg::matrix::Matrix;
+
+    /// The resolved radii of `<rect {attrs}/>`, `w` × `h`, in a 200 × 100
+    /// viewport.
+    fn radii_of(attrs: &str, w: f64, h: f64) -> Result<(f64, f64), Invalid> {
+        let src = format!("<rect {attrs}/>");
+        let doc = roxmltree::Document::parse(&src).expect("test XML");
+        let ctx = Ctx {
+            ctm: Matrix::IDENTITY,
+            viewport: [200.0, 100.0],
+        };
+        radii(doc.root_element(), &ctx, w, h)
+    }
+
+    /// AC 5 — SVG 2 §10.2 radius resolution: a missing or `auto` radius is
+    /// the other, both absent is 0, each clamps to half its side, and either
+    /// at 0 makes the rect sharp.
+    #[test]
+    fn rect_radii_resolve_per_svg_2() {
+        let table = [
+            (r#"rx="3""#, (3.0, 3.0)),
+            (r#"ry="4""#, (4.0, 4.0)),
+            (r#"rx="auto" ry="4""#, (4.0, 4.0)),
+            (r#"rx="3" ry=" AUTO ""#, (3.0, 3.0)),
+            ("", (0.0, 0.0)),
+            (r#"rx="auto" ry="auto""#, (0.0, 0.0)),
+            (r#"rx="3" ry="2""#, (3.0, 2.0)),
+            (r#"rx="0" ry="5""#, (0.0, 0.0)),
+            (r#"rx="15""#, (10.0, 15.0)),
+            (r#"rx="50" ry="50""#, (10.0, 20.0)),
+            (r#"rx="5%" ry="5%""#, (10.0, 5.0)),
+        ];
+        for (attrs, want) in table {
+            assert_eq!(radii_of(attrs, 20.0, 40.0), Ok(want), "{attrs}");
+        }
+        assert_eq!(resolve_radii(Some(30.0), None, 20.0, 40.0), (10.0, 20.0));
+    }
+
+    /// AC 3 — a negative or unparseable radius is invalid, `auto` or not.
+    #[test]
+    fn a_negative_or_unparseable_radius_is_invalid() {
+        for attrs in [
+            r#"rx="-1""#,
+            r#"ry="-1" rx="auto""#,
+            r#"rx="x""#,
+            r#"ry="1q2""#,
+        ] {
+            assert_eq!(radii_of(attrs, 20.0, 40.0), Err(Invalid), "{attrs}");
+        }
+    }
+}

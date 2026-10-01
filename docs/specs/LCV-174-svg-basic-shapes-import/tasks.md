@@ -25,7 +25,7 @@
 - [x] T6 [AC2, AC3, AC4, AC10] Impl: `rect_path` (sharp) feeds `path_entities`; `classify`
   marks `rect` as `Import`. Widen the `PathData` constructors to `pub(in crate::io::svg)`.
   (files: src/io/svg/import/shapes.rs, src/io/svg/import/walk.rs, src/io/svg/path_data.rs)
-- [ ] T7 [AC5] Test: `resolve_radii` unit table covering only-rx, only-ry, `auto`, `AUTO`, both
+- [x] T7 [AC5] Test: `resolve_radii` unit table covering only-rx, only-ry, `auto`, `AUTO`, both
   missing, both `auto`, clamp to w/2 and h/2, `%` radius, and a negative rx reported.
   (files: src/io/svg/import/shapes.rs)
 - [ ] T8 [AC5] Impl: `resolve_radii`, with `auto` matched before `attr_len`.
