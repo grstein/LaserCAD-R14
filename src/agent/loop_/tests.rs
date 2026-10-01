@@ -570,7 +570,7 @@ fn a_send_error_still_elides_the_image() {
         r.requests[1].contains("image_url"),
         "the image was sent once"
     );
-    assert!(!r.messages.iter().any(ChatMessage::has_image));
+    assert!(r.messages.iter().all(|m| m.image_count() == 0));
     let json = serde_json::to_string(&r.messages).unwrap();
     assert!(json.contains(IMAGE_ELIDED));
 }

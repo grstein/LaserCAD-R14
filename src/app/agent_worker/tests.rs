@@ -1447,7 +1447,7 @@ fn each_request_is_a_byte_prefix_of_the_next_turn() {
         text: result.expect("text ends the turn"),
     };
     assert_eq!(batches.len(), 6, "two batches and the elided image message");
-    assert!(batches.iter().all(|m| !m.has_image()));
+    assert!(batches.iter().all(|m| m.image_count() == 0));
     let memory = turn_record("draw", batches, &done);
     let (_, _, turn2) = scripted("wider", &with_memory(memory), vec![Some(text("t"))]);
     let next = wire(&turn2[0]);
@@ -1592,7 +1592,7 @@ fn a_cut_batch_is_dropped_and_an_unsent_image_is_elided() {
     let (result, batches) = drive_turn("go", &config, &mut send_fn, &mut ask);
     assert!(matches!(result, Err(AgentError::Cancelled)));
     assert_eq!(batches.len(), 3, "the capture batch and its image message");
-    assert!(batches.iter().all(|m| !m.has_image()));
+    assert!(batches.iter().all(|m| m.image_count() == 0));
     assert!(
         wire(&batches)
             .concat()

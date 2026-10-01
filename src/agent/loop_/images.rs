@@ -25,7 +25,7 @@ where
     D: FnMut(Dispatch<'_>) -> Result<AgentOutcome, AgentError>,
 {
     let mut withheld = false;
-    if messages.iter().any(ChatMessage::has_image) {
+    if messages.iter().any(|m| m.image_count() > 0) {
         let verdict = dispatch_fn(Dispatch::AuthorizeUpload)?;
         withheld = !matches!(verdict, AgentOutcome::Ok(_));
         if withheld {

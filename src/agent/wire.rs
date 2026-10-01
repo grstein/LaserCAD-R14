@@ -165,13 +165,14 @@ impl ChatMessage {
         }
     }
 
-    /// Whether any part of this turn is an image.
-    pub fn has_image(&self) -> bool {
+    /// How many parts of this turn are images.
+    pub fn image_count(&self) -> usize {
         match &self.content {
             Some(Content::Parts(parts)) => parts
                 .iter()
-                .any(|part| matches!(part, ContentPart::ImageUrl { .. })),
-            _ => false,
+                .filter(|part| matches!(part, ContentPart::ImageUrl { .. }))
+                .count(),
+            _ => 0,
         }
     }
 
@@ -454,7 +455,7 @@ mod tests {
                 r#"]}"#
             )
         );
-        assert!(message.has_image());
+        assert_eq!(message.image_count(), 1);
         assert_eq!(message.text_content(), None);
         let back: ChatMessage =
             serde_json::from_str(&serde_json::to_string(&message).unwrap()).unwrap();
@@ -477,7 +478,7 @@ mod tests {
         let before_text = messages[0].clone();
         assert_eq!(replace_images(&mut messages, "gone"), 2);
         assert_eq!(messages[0], before_text);
-        assert!(!messages.iter().any(ChatMessage::has_image));
+        assert!(messages.iter().all(|m| m.image_count() == 0));
         assert_eq!(
             messages[1],
             ChatMessage::user_parts(vec![
@@ -489,8 +490,17 @@ mod tests {
         );
         assert_eq!(replace_images(&mut messages, "gone"), 0, "idempotent");
         assert_eq!(messages[0].text_content(), Some("u"));
-        assert!(!ChatMessage::user("u").has_image());
-        assert!(!ChatMessage::user_parts(vec![ContentPart::text("t")]).has_image());
+        assert_eq!(ChatMessage::user("u").image_count(), 0);
+        assert_eq!(
+            ChatMessage::user_parts(vec![ContentPart::text("t")]).image_count(),
+            0
+        );
+        let two = [
+            ContentPart::png(&[1]),
+            ContentPart::text("t"),
+            ContentPart::png(&[2]),
+        ];
+        assert_eq!(ChatMessage::user_parts(two.to_vec()).image_count(), 2);
     }
 
     /// AC 3 — the wire types stay kernel-pure. Bounded to the implementation
