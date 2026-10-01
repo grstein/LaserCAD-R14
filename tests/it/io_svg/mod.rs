@@ -16,6 +16,7 @@ mod mirror_arc;
 mod orientation;
 mod path_grammar;
 mod preset_roundtrip;
+mod reuse;
 mod roundtrip_props;
 mod shapes;
 mod styling;
