@@ -8,6 +8,8 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-01
+
 ### Added
 
 - Windows and macOS downloads: a portable Windows `.zip` (unzip and run `lasercad.exe`, which no longer opens a console window) and an Apple Silicon macOS `.dmg` with `LaserCAD.app`. Both are unsigned; [`docs/install.md`](docs/install.md) gives the first-run steps (SmartScreen "More info → Run anyway", Gatekeeper right-click → Open) and where settings and autosave are kept. The unused MSI installer script is gone. See LCV-201.
