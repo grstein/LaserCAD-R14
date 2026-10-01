@@ -22,6 +22,8 @@ represented, so import must refuse or report them. The user chose native entitie
    elliptical arc with the segment's endpoints (within `EPSILON`), rotation, side and direction.
 2. WHEN an `<ellipse>` is imported, THE SYSTEM SHALL create a full ellipse (a circle if rx = ry; a
    missing or `auto` radius equals the other); IF rx or ry ≤ 0 THEN skip it and report it.
+   *Amended by LCV-174:* a zero radius is skipped silently, as for `<rect>`; only a negative or
+   unparseable radius is reported as `ellipse (invalid attribute)`.
 3. WHEN a circle or circular arc is under a non-uniform scale or skew, THE SYSTEM SHALL import the
    exact ellipse or elliptical arc (replacing the LCV-173 report).
 4. WHEN an ellipse is painted, THE SYSTEM SHALL draw it with every painted vertex on the curve and
