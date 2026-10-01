@@ -1,3 +1,4 @@
+use super::recent::recent_labels;
 use super::*;
 use crate::document::Entity;
 use crate::geometry::{Line, Vec2};
@@ -272,8 +273,8 @@ fn file_menu_has_bed_size_directly_above_exit() {
     let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/ui/menubar.rs"));
     let start = src.find("fn file_menu(").expect("file_menu must exist");
     let end = src[start..]
-        .find("\nfn recent_submenu(")
-        .expect("file_menu must be followed by recent_submenu")
+        .find("\nfn edit_menu(")
+        .expect("file_menu must be followed by edit_menu")
         + start;
     let body = &src[start..end];
     let save_as = body.find("\"Save As…").expect("Save As… must be present");
@@ -301,8 +302,8 @@ fn file_menu_has_export_layers_below_save_as() {
     let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/ui/menubar.rs"));
     let start = src.find("fn file_menu(").expect("file_menu must exist");
     let end = src[start..]
-        .find("\nfn recent_submenu(")
-        .expect("file_menu must be followed by recent_submenu")
+        .find("\nfn edit_menu(")
+        .expect("file_menu must be followed by edit_menu")
         + start;
     let body = &src[start..end];
     let save_as = body.find("\"Save As…").expect("Save As… present");

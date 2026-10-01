@@ -1,6 +1,6 @@
 # LCV-166 — Tasks
 
-- [ ] T1 Refactor: move `recent_submenu`, `recent_labels`, `basename` and `disambiguated` into
+- [x] T1 Refactor: move `recent_submenu`, `recent_labels`, `basename` and `disambiguated` into
   `menubar/recent.rs` with no behaviour change. `menubar/tests.rs` imports them from there; the
   gate stays green (files: src/ui/menubar.rs, src/ui/menubar/recent.rs, src/ui/menubar/tests.rs)
 - [ ] T2 [AC1] [AC2] [AC3] [AC4] Test first: open File, Edit, View, Tools and Help, plus the
