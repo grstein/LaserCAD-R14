@@ -131,6 +131,7 @@ UI directives: `DESIGN.md`.
 - 0009 dialog body capped at 426pt · 0010 declarative drawing batch tool · 0011 canvas observation raster
 - 0012 document layers, mother SVG with one `<g>` per layer, one export file per layer
 - 0013 tools describe canvas feedback as styled marks (`Tool::feedback`)
+- 0014 stable entity ids `e<N>` beside indices, for the app run, never persisted
 
 A reversed ADR gets a `**Superseded**` header; ADR text keeps its original line citations.
 Product principles: `docs/product/README.md`. Roadmap: `PLAN.md`. User-visible changes: `CHANGELOG.md`.
