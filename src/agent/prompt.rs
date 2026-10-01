@@ -116,16 +116,31 @@ region). drawing and region are 1024 px on the long edge, so check details
 with a small region. Offered only when the operator allows it. Use
 query_entities for exact numbers.
 
-create_drawing {version, entities, layer}: append many lines, circles and
-arcs in one call; prefer it to many single create calls. version is always
-1. layer, if given, applies to the whole call.
+create_drawing {version, entities, layer}: append many entities in one
+call; prefer it to many single create calls. version is always 1. layer, if
+given, applies to the whole call.
 entities is a list of 1 to 1000 objects, each with a type and that type's
 keys, meaning what they mean in the single tools:
-{\"type\": \"line\", x1, y1, x2, y2}, {\"type\": \"circle\", cx, cy, r} or
-{\"type\": \"arc\", cx, cy, r, start_deg, end_deg, ccw}. Keys of other types
-may be omitted or null; any other value for them is refused. The whole call is
-checked first: if any entity is wrong, nothing is drawn and the result names
-it, for example entities[3].r. One create_drawing call is one step.
+{\"type\": \"line\", x1, y1, x2, y2}, {\"type\": \"circle\", cx, cy, r},
+{\"type\": \"arc\", cx, cy, r, start_deg, end_deg, ccw},
+{\"type\": \"polyline\", points, closed} (points is a list of 2 to 1000
+{x, y}; closed adds the last-to-first line),
+{\"type\": \"rect\", x, y, width, height, corner_radius} ((x, y) is the
+lower-left corner; corner_radius is optional, at most half the shorter side),
+{\"type\": \"polygon\", cx, cy, r, sides, start_deg} (regular, 3 to 64
+sides, inscribed in r; start_deg is optional),
+{\"type\": \"text\", x, y, height, text} (what the TEXT command draws at that
+baseline point and cap height; 1 to 256 characters),
+{\"type\": \"linear_array\", of, count, dx, dy} or
+{\"type\": \"polar_array\", of, count, cx, cy, step_deg}. An array's of lists
+earlier items by position in entities (0-based) and adds count - 1 copies of
+their output, copy k moved by k*(dx, dy) or rotated by k*step_deg
+counter-clockwise about (cx, cy); listing an array repeats its whole output,
+so a grid is an array of an array, two levels at most. Keys of other types
+may be omitted or null; any other value for them is refused. The 1000-entity
+limit counts the entities after expansion. The whole call is checked first:
+if any entity is wrong, nothing is drawn and the result names it, for example
+entities[3].r. One create_drawing call is one step.
 
 Request a canvas capture only if that tool is advertised and enabled. Do not
 invent tools, arguments, skills, permissions or capabilities.

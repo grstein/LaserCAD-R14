@@ -377,3 +377,45 @@ fn the_prompt_describes_measure_and_every_query() {
         assert!(folded.contains(needle), "`{needle}` missing from: {folded}");
     }
 }
+
+/// LCV-196 AC 10 — the create_drawing paragraph names every item type and
+/// each new key, says `of` refers to earlier items by position, and that the
+/// 1000-entity limit counts the expanded entities.
+#[test]
+fn the_create_drawing_paragraph_names_the_new_types() {
+    let paragraph = DEFAULT_PROMPT
+        .split("\n\n")
+        .find(|p| words(p).first() == Some(&"create_drawing"))
+        .expect("a create_drawing paragraph");
+    let said = words(paragraph);
+    for word in [
+        "polyline",
+        "rect",
+        "polygon",
+        "text",
+        "linear_array",
+        "polar_array",
+        "points",
+        "closed",
+        "width",
+        "height",
+        "corner_radius",
+        "sides",
+        "start_deg",
+        "of",
+        "count",
+        "dx",
+        "dy",
+        "step_deg",
+    ] {
+        assert!(said.contains(&word), "{word} missing from: {paragraph}");
+    }
+    let folded = paragraph
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
+    for needle in ["earlier items by position", "after expansion"] {
+        assert!(folded.contains(needle), "{needle} missing from: {folded}");
+    }
+}
