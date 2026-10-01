@@ -37,7 +37,7 @@ pub(super) fn by_ids(tool: &str, ids: &[u64], op: &SetOp, doc: &Document) -> Pla
 }
 
 /// The index of every id, in order, or the refusal naming the first unknown.
-fn resolve(tool: &str, ids: &[u64], doc: &Document) -> Result<Vec<usize>, AgentOutcome> {
+pub(super) fn resolve(tool: &str, ids: &[u64], doc: &Document) -> Result<Vec<usize>, AgentOutcome> {
     ids.iter()
         .enumerate()
         .map(|(k, &n)| {

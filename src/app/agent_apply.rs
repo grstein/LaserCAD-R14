@@ -41,6 +41,7 @@ use crate::document::{
 use crate::geometry::{Arc as GeoArc, Circle, Line, Vec2};
 
 mod edit;
+mod measure;
 mod set;
 
 /// The refusal for a capture while either opt-in is off (LCV-145 AC 2).
@@ -181,13 +182,7 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
         AgentAction::CheckDrawing => {
             Planned::Answer(AgentOutcome::Ok(check_drawing(doc).lines().join("\n")))
         }
-        // LCV-194: answered by `measure::answer` from T10 on.
-        AgentAction::Measure(_) => Planned::Answer(AgentOutcome::Refused(refusal(
-            "measure",
-            "query",
-            "not measured yet",
-            "a later build",
-        ))),
+        AgentAction::Measure(ref request) => measure::answer(request, doc),
         // One command for the whole batch (ADR 0010 §1, §5).
         AgentAction::CreateDrawing { ref items, .. } => Planned::Batch(
             Box::new(CreateEntities::new(items.iter().map(entity_of).collect()).on_layer(layer)),

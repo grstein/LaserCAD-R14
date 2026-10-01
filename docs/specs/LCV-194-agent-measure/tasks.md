@@ -49,7 +49,7 @@ Prerequisites: LCV-188, LCV-190, LCV-192 Done on `agent-harness`.
   - an unknown index and an unknown id → refused.
 
   (files: tests/it/agent/measure.rs, tests/it/agent/mod.rs)
-- [ ] T10 [AC1–AC6] `agent_apply/measure.rs::answer` and the `plan` arm
+- [x] T10 [AC1–AC6] `agent_apply/measure.rs::answer` and the `plan` arm
   (files: src/app/agent_apply/measure.rs, src/app/agent_apply.rs)
 - [ ] T11 [AC7] Test (headless turn): `measure` answers and the step tally goes up by one. The
   revision, selection, undo depth and dirty flag are unchanged, and a later `create_line` in the
