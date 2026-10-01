@@ -1,8 +1,8 @@
 # LCV-193 — Agent turn metrics
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: LCV-192
-- **Implementation**: -
+- **Implementation**: f8d74d6..37013eb
 
 ## Problem
 
