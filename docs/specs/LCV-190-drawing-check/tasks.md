@@ -52,5 +52,5 @@ Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/
   src/app/agent_apply.rs, src/agent/prompt.rs, tests/it/agent/system_prompt.rs)
 - [x] T20 Mutation testing: `scripts/mutants.sh <base>` (MUTANTS_TARGET_DIR set); a test for every
   missed mutant (files: src/document/check/tests.rs, tests/it/agent/check_drawing.rs)
-- [ ] T21 DESIGN.md §7: rail bottom row (CHECK beside AI) and the Check window (files: DESIGN.md)
+- [x] T21 DESIGN.md §7: rail bottom row (CHECK beside AI) and the Check window (files: DESIGN.md)
 - [ ] T22 CHANGELOG line (files: CHANGELOG.md)

@@ -213,7 +213,9 @@ clear of the point and the crosshair (`render/snaps/label.rs`, LCV-164).
   theme's 3 pt corners and state fills: flat when idle, `fill.hover` hovered, `fill.selected`
   for the active tool (LCV-184). Two columns: draw (Select … Text) left, modify
   (Move, Copy, Rotate, Mirror, Scale, Trim, Extend, Delete, Dist) right; then a separator and
-  the `AI` toggle (32 pt square, text `AI`, tooltip `AI Assistant`). No group captions. Width
+  a bottom row: the `AI` toggle (32 pt square, text `AI`, tooltip `AI Assistant`) and beside it
+  the CHECK button (32 pt square, magnifier-over-square icon, tooltip `Check — CHECK`; it runs
+  the drawing check and is not in `TOOLS`, LCV-190). No group captions. Width
   fixed at 76 pt (`app/panels.rs::RAIL_WIDTH`); the rail scrolls only when the window is too
   short. Tooltip `<Label> — <key> · <WORD>` or `<Label> — <WORD>` (`tool_hover_text`), e.g.
   `Line — L · LINE`. One table drives the rail, the Tools menu (text labels) and the shortcuts
@@ -271,6 +273,12 @@ clear of the point and the crosshair (`render/snaps/label.rs`, LCV-164).
   prompt `Save`, `Discard`, `Cancel`. A destructive button (`Discard`) paints its text in
   `danger`, never a red fill. Save runs the normal save, then the parked action only if the
   write landed; a failed or cancelled save keeps the drawing and drops the action.
+- **Check window** (`ui/check_dialog.rs`, LCV-190): opened by CHECK when the drawing has
+  findings; title `Check`, not resizable, the report's lines (summary first, then one line per
+  finding) in a scroll area capped so the body stays within 426 pt (ADR 0009), then `Close`.
+  Close and the title-bar × close it; it takes no key, so the command line keeps Enter and
+  Escape. A clean check opens no window and says `CHECK: no problems found.` in **info**; a
+  check with findings puts its summary in the dock as a **warning**. CHECK again refreshes it.
 - **AI Assistant panel** (`agent/panel.rs`): transcript roles per LCV-125 — user, assistant,
   tool (monospace, `agent.tool`), refused (`status.warning`), note (small), error
   (`status.error`, read as egui's `error_fg_color`, LCV-167). No avatars, bubbles or decoration;
