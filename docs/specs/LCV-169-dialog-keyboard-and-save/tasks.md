@@ -14,7 +14,7 @@
 - [x] T5 [AC4] AI Settings `Done` → `Close` (same close path); Bed Size gets a × = Cancel;
   update the Done-keyed tests (files: src/agent/settings_ui.rs, src/app/bed_dialog.rs,
   tests/it/agent/panel_and_settings.rs)
-- [ ] T6 [AC4] Test: a click on each dialog's title-bar × leaves the same state as its
+- [x] T6 [AC4] Test: a click on each dialog's title-bar × leaves the same state as its
   Cancel/Close button (files: tests/it/ui/dialog_keyboard.rs)
 - [ ] T7 [AC6] [AC7] Test first: the Discard dialog paints `Save`, `Discard`, `Cancel` left to
   right; the `Discard` run's colour is `palette::DANGER`; no filled shape uses `DANGER` (files:

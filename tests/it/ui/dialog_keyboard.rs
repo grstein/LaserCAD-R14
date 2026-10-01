@@ -73,10 +73,13 @@ fn window_rect(ctx: &egui::Context, title: &str) -> egui::Rect {
         .unwrap_or_else(|| panic!("`{title}` must be placed"))
 }
 
-/// Two frames (paint.rs trap 7), then the runs painted inside `title`'s
-/// window on the second.
+/// Settling frames, then the runs painted inside `title`'s window on the
+/// last. Two frames paint a new window (paint.rs trap 7); an anchored window
+/// is placed from the previous frame's size, so it settles on the third.
 fn window_runs(ctx: &egui::Context, app: &mut App, title: &str) -> Vec<Run> {
-    let _ = paint::painted_runs(ctx, app);
+    for _ in 0..3 {
+        let _ = paint::painted_runs(ctx, app);
+    }
     let runs = paint::painted_runs(ctx, app);
     let rect = window_rect(ctx, title);
     runs.into_iter().filter(|r| rect.contains(r.pos)).collect()
@@ -93,6 +96,68 @@ fn window_lines(ctx: &egui::Context, app: &mut App, title: &str) -> Vec<Vec<Stri
         "control: the first line is the title bar"
     );
     lines
+}
+
+/// The run reading exactly `label` inside `title`'s window, as a click point.
+fn locate(ctx: &egui::Context, app: &mut App, title: &str, label: &str) -> egui::Pos2 {
+    let runs = window_runs(ctx, app, title);
+    let hits: Vec<&Run> = runs.iter().filter(|r| r.text.trim() == label).collect();
+    assert_eq!(hits.len(), 1, "`{label}` must be painted once in `{title}`");
+    egui::pos2(hits[0].pos.x + 2.0, hits[0].pos.y + hits[0].height / 2.0)
+}
+
+/// The centre of `title`'s title-bar ×. egui 0.29.1 draws it a square
+/// `icon_width` wide, inset by half the bar's spare height from the bar's
+/// right end (`window.rs::close_button_ui`); the bar is centred on the
+/// title run, so the × sits half a bar height in from the window's right.
+fn close_x(ctx: &egui::Context, app: &mut App, title: &str) -> egui::Pos2 {
+    let runs = window_runs(ctx, app, title);
+    let rect = window_rect(ctx, title);
+    let run = runs
+        .iter()
+        .find(|r| r.text.trim() == title)
+        .unwrap_or_else(|| panic!("`{title}` paints its title"));
+    let cy = run.pos.y + run.height / 2.0;
+    egui::pos2(rect.right() - (cy - rect.top()), cy)
+}
+
+/// A real primary click at `pos`: a hover frame, then press and release.
+fn click(ctx: &egui::Context, app: &mut App, pos: egui::Pos2) {
+    harness::frame(ctx, app, vec![egui::Event::PointerMoved(pos)]);
+    let button = |pressed| egui::Event::PointerButton {
+        pos,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: egui::Modifiers::NONE,
+    };
+    harness::frame(ctx, app, vec![button(true), button(false)]);
+}
+
+/// Everything a dialog's Cancel/Close could touch, as one comparable value.
+fn snapshot(app: &App) -> String {
+    format!(
+        "{:?}",
+        (
+            app.about_open,
+            app.shortcuts_open,
+            app.agent_settings_open,
+            app.layers_dialog.is_some(),
+            app.bed_dialog,
+            app.guard.pending_action.is_some(),
+            &app.error_message,
+            app.history.revision(),
+            app.document.bed_mm,
+            app.document.entity_count(),
+        )
+    )
+}
+
+/// Each dialog's Cancel/Close button label.
+fn cancel_label(title: &str) -> &'static str {
+    match title {
+        "Bed Size" | "Discard unsaved changes?" => "Cancel",
+        _ => "Close",
+    }
 }
 
 // ── AC 4 / AC 5: button runs ─────────────────────────────────────────────────
@@ -148,4 +213,29 @@ fn ac7_discard_reads_save_discard_cancel() {
     let lines = window_lines(&ctx, &mut app, "Discard unsaved changes?");
     let want: Vec<String> = ["Save", "Discard", "Cancel"].map(String::from).into();
     assert_eq!(lines.last(), Some(&want));
+}
+
+// ── AC 4: the title-bar × ────────────────────────────────────────────────────
+
+/// AC 4 — a click on each dialog's × leaves exactly the state its Cancel or
+/// Close button leaves, and that state has the dialog closed.
+#[test]
+fn ac4_the_title_bar_x_does_what_cancel_or_close_does() {
+    for d in &DIALOGS {
+        let (ctx, mut by_x) = open(d.title);
+        let pos = close_x(&ctx, &mut by_x, d.title);
+        click(&ctx, &mut by_x, pos);
+
+        let (ctx2, mut by_button) = open(d.title);
+        let pos = locate(&ctx2, &mut by_button, d.title, cancel_label(d.title));
+        click(&ctx2, &mut by_button, pos);
+
+        assert_eq!(snapshot(&by_x), snapshot(&by_button), "{}", d.title);
+        assert_eq!(
+            snapshot(&by_x),
+            snapshot(&App::default()),
+            "{} closes",
+            d.title
+        );
+    }
 }
