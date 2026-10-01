@@ -226,7 +226,7 @@ fn ac7_a_change_since_the_last_turn_prefixes_the_next_user_message() {
     let svg = dir.join("one.svg");
     std::fs::write(
         &svg,
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><line x1="1" y1="1" x2="9" y2="1" stroke="#ff0000" stroke-width="0.1"/></svg>"##,
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="200mm" height="200mm" viewBox="0 0 200 200"><line x1="1" y1="1" x2="9" y2="1" stroke="#ff0000" stroke-width="0.1"/></svg>"##,
     )
     .unwrap();
     type Change = fn(&mut App, &std::path::Path);
