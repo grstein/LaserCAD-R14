@@ -749,3 +749,43 @@ fn save_warns_about_entities_outside_the_bed() {
     );
     assert_eq!(app.command_feedback_severity, Severity::Warning);
 }
+
+/// LCV-168 AC 5 — a Save that fails to write shows no `Saved` line and no
+/// out-of-bed warning: the dock keeps its previous message and the error
+/// dialog gets `error_message`, as before.
+#[test]
+fn failed_save_announces_nothing() {
+    let mut app = App {
+        current_file: Some(PathBuf::from("/nonexistent_dir_lcv168/canary.svg")),
+        ..App::default()
+    };
+    let cut = app.document.current_layer();
+    app.document.push_entity(off_bed_line(), cut);
+    app.say(Severity::Error, "sentinel");
+
+    app.action_save();
+
+    assert!(app.error_message.is_some(), "the save must fail");
+    assert_eq!(app.command_feedback, "sentinel");
+    assert_eq!(app.command_feedback_severity, Severity::Error);
+}
+
+/// LCV-168 AC 5 — a cancelled Save As announces nothing. The dialog is
+/// disarmed outside `crate::run` and panics rather than returning `None`
+/// (ADR 0005), so, like the title scan above, this pins that the cancel
+/// guard returns before the write and the announcement.
+#[test]
+fn cancelled_save_as_returns_before_announcing_source_scan() {
+    let src = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/io/file_actions.rs"
+    ));
+    let start = src
+        .find("pub fn action_save_as(app: &mut App) {")
+        .expect("action_save_as must exist");
+    let body = &src[start..];
+    let guard_at = body.find("None => return,").expect("cancel guard");
+    let write_at = body.find("write_mother(app, &path)").expect("write");
+    let announce_at = body.find("announce_saved(app, &path)").expect("announce");
+    assert!(guard_at < write_at && write_at < announce_at);
+}

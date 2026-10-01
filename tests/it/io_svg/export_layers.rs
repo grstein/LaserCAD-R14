@@ -250,3 +250,21 @@ fn out_of_bed_geometry_is_written_unchanged() {
         assert_eq!(std::fs::read(&path).unwrap(), svg.into_bytes(), "{path:?}");
     }
 }
+
+/// LCV-168 AC 5 — an Export Layers whose files cannot be written shows no
+/// file list and no out-of-bed warning; the error dialog gets
+/// `error_message`, as before.
+#[test]
+fn failed_export_announces_nothing() {
+    let (mut document, cut, _) = layered_doc();
+    document.push_entity(off_bed_line(), cut);
+    let missing = Path::new("/nonexistent_dir_lcv168");
+    let mut app = exporting_app(missing, "sign.svg", document);
+    app.say(Severity::Error, "sentinel");
+
+    action_export_layers(&mut app);
+
+    assert!(app.error_message.is_some(), "the export must fail");
+    assert_eq!(app.command_feedback, "sentinel");
+    assert_eq!(app.command_feedback_severity, Severity::Error);
+}

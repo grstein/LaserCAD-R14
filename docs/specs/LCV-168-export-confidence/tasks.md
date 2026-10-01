@@ -26,7 +26,7 @@
 - [x] T10 [AC4] Test: with out-of-bed geometry, the saved mother equals `export_svg(&doc)` byte
   for byte and every layer file equals its `layer_exports` text (files:
   tests/it/io_svg/export_layers.rs)
-- [ ] T11 [AC5] Test: Save to a path in a missing folder, Export Layers with the mother in a
+- [x] T11 [AC5] Test: Save to a path in a missing folder, Export Layers with the mother in a
   missing folder, and Save As cancelled (disarmed dialog) each leave a sentinel
   `command_feedback` unchanged and write no `Saved`/warning text; the failures set
   `error_message` (files: tests/it/app/document_title_and_file_feedback.rs,
