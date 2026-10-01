@@ -215,7 +215,7 @@ fn instances_are_independent_entities() {
     ));
     let mut doc = svg.into_document().unwrap();
     assert_eq!(doc.entity_count(), 2);
-    let other = doc.entities[1].clone();
+    let other = doc.entities[1];
     let mut history = History::default();
     history.commit(
         Box::new(MoveEntities::new(vec![0], Vec2::new(3.0, 4.0))),
