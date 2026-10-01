@@ -32,7 +32,7 @@
   src/tools/scale.rs, src/tools/mirror.rs)
 - [x] T13 [AC3] TRIM, EXTEND, ERASE prompts (ERASE overrides `status_text`); T8 green (files:
   src/tools/trim.rs, src/tools/extend.rs, src/tools/delete.rs)
-- [ ] T14 [AC4] [AC5] Test first: `last_tool` over `[l, 0,0, 10]` → Line, `[c, :draw box, /ai hi]`
+- [x] T14 [AC4] [AC5] Test first: `last_tool` over `[l, 0,0, 10]` → Line, `[c, :draw box, /ai hi]`
   → Circle, `[:draw]` → None, `[grid, hello]` → None; integration: `l`, Esc, empty ⏎ → LINE
   prompt; LINE mid-command empty ⏎ finishes, no repeat; ring unchanged after a repeat (files:
   src/cmdline/history.rs, tests/it/cmdline/repeat.rs, tests/it/cmdline/mod.rs)
