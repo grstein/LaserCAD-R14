@@ -41,7 +41,7 @@ commit, then T8–T13 one each, then T14. Each commit passes `scripts/gate.sh` a
       `d`/`stroke` imports the plain values; the same holds for `data-layer` on `<g>`. Bump
       roxmltree to 0.21, and filter to no-namespace attributes only if the test fails
       (files: tests/it/io_svg/import.rs, Cargo.toml, src/io/svg/layers.rs)
-- [ ] T10 [AC1] base64 0.23. The existing `wire.rs` data-URL tests pin the output
+- [x] T10 [AC1] base64 0.23. The existing `wire.rs` data-URL tests pin the output
       (files: Cargo.toml, Cargo.lock)
 - [ ] T11 [AC4] rfd 0.17 with default features. ADR 0005 tests (`src/io/dialogs.rs`,
       `src/lib.rs`) stay unchanged; `ldd` shows no new hard dependency (files: Cargo.toml,
