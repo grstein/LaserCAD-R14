@@ -215,7 +215,7 @@ fn tempdir(name: &str) -> PathBuf {
 }
 
 /// A minimal, valid, test-owned SVG fixture: one line, on a 200×200 mm bed.
-const VALID_SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+const VALID_SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="200mm" height="200mm" viewBox="0 0 200 200">
 <line x1="10" y1="10" x2="150" y2="10" stroke="#ff0000" stroke-width="0.1"/>
 </svg>"##;
 

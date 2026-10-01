@@ -15,7 +15,7 @@
 - [x] T6 [AC11] Test: reopen `export_svg` output for a mixed document and compare entities by
   `f64::to_bits`; fix the four unitless fixtures outside `io_svg` to `200mm` (files:
   tests/it/io_svg/units_viewbox.rs, tests/it/io_svg/mod.rs, tests/it/agent/memory.rs)
-- [ ] T7 [AC11] Same fixture edit in the remaining three files (files: tests/it/agent/turn_group.rs,
+- [x] T7 [AC11] Same fixture edit in the remaining three files (files: tests/it/agent/turn_group.rs,
   tests/it/app/document_title_and_file_feedback.rs, tests/it/ui/discard_dialog_pointer_click.rs)
 - [ ] T8 [AC10] Test: `x1 y1 x2 y2 cx cy r` with units and `%` (x by width, y by height, r by
   normalized diagonal), `em` (files: tests/it/io_svg/units_viewbox.rs)
