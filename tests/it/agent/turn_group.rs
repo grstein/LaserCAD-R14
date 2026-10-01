@@ -225,6 +225,62 @@ fn lcv186_a_turn_with_set_actions_undoes_as_one() {
     assert_eq!(undone_singles.document.entities, before);
 }
 
+/// LCV-191 AC 5 — a turn of create + `set_layer` + move undoes in one
+/// step with every entity back on its original layer; redo restores it.
+#[test]
+fn lcv191_a_turn_with_set_layer_undoes_as_one() {
+    use lasercad::document::{AddLayer, LayerId};
+    let (ctx, mut app) = ctx_and_app();
+    human_line(&mut app, 100.0);
+    human_line(&mut app, 200.0);
+    app.commit(Box::new(AddLayer::new("Mark", [0, 0, 255], true)));
+    let mark = app.document.layer_by_name("Mark").unwrap().id;
+    let cut = LayerId(0);
+    let layers = |app: &App| -> Vec<Option<LayerId>> {
+        (0..app.document.entity_count())
+            .map(|i| app.document.entity_layer(i))
+            .collect()
+    };
+    let (before, len) = (app.document.entities.clone(), app.history.len());
+
+    let tx = arm_turn(&mut app, "sort the layers");
+    let answers: Vec<_> = [
+        agent_line(10.0),
+        AgentAction::Set {
+            indices: vec![2, 0],
+            op: SetOp::Layer {
+                layer: "Mark".into(),
+            },
+        },
+        AgentAction::Move {
+            index: 1,
+            dx: 5.0,
+            dy: 0.0,
+        },
+    ]
+    .into_iter()
+    .map(|a| push_act(&tx, a))
+    .collect();
+    idle(&ctx, &mut app);
+    for answer in answers {
+        let outcome = answer.try_recv().unwrap();
+        assert!(!outcome.is_refused(), "{outcome:?}");
+    }
+    tx.send(AgentEvent::done("done")).unwrap();
+    idle(&ctx, &mut app);
+    assert!(!app.agent.busy);
+    let after = app.document.entities.clone();
+    assert_eq!(layers(&app), vec![Some(mark), Some(cut), Some(mark)]);
+    assert_eq!(app.history.len(), len + 1, "the turn is one entry");
+
+    tap(&ctx, &mut app, egui::Key::Z, ctrl());
+    assert_eq!(app.document.entities, before);
+    assert_eq!(layers(&app), vec![Some(cut), Some(cut)]);
+    tap(&ctx, &mut app, egui::Key::Y, ctrl());
+    assert_eq!(app.document.entities, after);
+    assert_eq!(layers(&app), vec![Some(mark), Some(cut), Some(mark)]);
+}
+
 /// The two human lines `turn_of` starts from.
 fn human_line_entities() -> Vec<lasercad::document::Entity> {
     let mut app = App::default();
