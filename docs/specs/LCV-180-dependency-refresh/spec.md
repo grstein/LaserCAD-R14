@@ -52,6 +52,8 @@ upgrade must be proven, not assumed. Windows/macOS packaging (LCV-201) builds on
 - None. Decided (self-approved per user goal, 2026-09-30):
   - `reqwest` moves to 0.13: its `blocking` feature still exists. Its default TLS becomes
     `rustls`, which is accepted and drops the OpenSSL system dependency.
+    *Amended at /design (2026-10-01, self-approved per user goal):* rustls costs 1.2–3.4 MB and
+    breaks AC 8, so `reqwest` 0.13 keeps `native-tls` (OpenSSL), as 0.12 does (`plan.md`).
   - The renderer stays `glow`: `eframe` 0.36 defaults to `wgpu`, so default features are turned
     off and the 0.29 feature set is listed explicitly. This avoids a GPU-driver risk and keeps
     the binary small.
