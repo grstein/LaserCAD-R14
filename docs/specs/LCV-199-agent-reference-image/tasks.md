@@ -3,7 +3,7 @@
 - [x] T1 [AC4] `agent/attachment.rs`: `ImageKind`, `sniff`, `check`, with unit tests (PNG, JPEG,
   GIF refused, 2 MB exactly accepted, 2 MB + 1 refused); AGENTS.md purity list
   (files: src/agent/attachment.rs, src/agent/mod.rs, AGENTS.md)
-- [ ] T2 [P] [AC1] `pick_image_dialog` + disarmed-panic test; extend the repo scan if it lists the
+- [x] T2 [P] [AC1] `pick_image_dialog` + disarmed-panic test; extend the repo scan if it lists the
   wrappers (files: src/io/dialogs.rs, tests/it/repo/dialogs_disarmed.rs)
 - [ ] T3 [AC2] `ContentPart::image(mime, bytes)`, `png` delegating, JPEG data-URL unit test
   (files: src/agent/wire.rs)
