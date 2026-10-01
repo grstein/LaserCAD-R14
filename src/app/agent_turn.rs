@@ -224,6 +224,7 @@ fn turn_config(settings: &Settings) -> TurnConfig {
         system_prompt: prompt::resolve(settings.agent_system_prompt.as_deref()).to_owned(),
         vision: settings.agent_allow_canvas_capture && settings.agent_model_supports_vision,
         memory: Vec::new(),
+        image: None,
     }
 }
 

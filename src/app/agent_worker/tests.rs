@@ -155,6 +155,7 @@ fn config(endpoint: &str, model: &str, step_limit: u32) -> TurnConfig {
         system_prompt: "test system prompt".to_owned(),
         vision: false,
         memory: Vec::new(),
+        image: None,
     }
 }
 
@@ -1784,4 +1785,71 @@ fn a_scripted_turn_tallies_steps_refusals_repeats_captures_and_replies() {
         app.agent.chat.last(),
         Some(&("note".to_owned(), want.note()))
     );
+}
+
+// ── LCV-199: the attached reference image ───────────────────────────────
+
+fn with_image(kind: crate::agent::ImageKind, bytes: &[u8]) -> TurnConfig {
+    TurnConfig {
+        image: Some(UserImage {
+            name: "sketch".into(),
+            kind,
+            bytes: bytes.to_vec(),
+        }),
+        ..cfg("sys", AGENT_STEP_BUDGET_DEFAULT)
+    }
+}
+
+/// AC 2 — the attached image rides in the turn's user message, after the
+/// prompt, as an `image/png` or `image/jpeg` part.
+#[test]
+fn an_attached_image_rides_in_the_user_message() {
+    use crate::agent::ImageKind;
+    for (kind, bytes, url) in [
+        (
+            ImageKind::Png,
+            &b"\x89PNG"[..],
+            "data:image/png;base64,iVBORw==",
+        ),
+        (
+            ImageKind::Jpeg,
+            &[0xFF, 0xD8, 0xFF][..],
+            "data:image/jpeg;base64,/9j/",
+        ),
+    ] {
+        let (_, _, requests) =
+            scripted("draw this", &with_image(kind, bytes), vec![Some(text("t"))]);
+        let user = serde_json::to_string(&requests[0][1]).unwrap();
+        assert_eq!(
+            user,
+            format!(
+                r#"{{"role":"user","content":[{{"type":"text","text":"draw this"}},{{"type":"image_url","image_url":{{"url":"{url}"}}}}]}}"#
+            )
+        );
+    }
+}
+
+/// AC 7 — without an attachment the request is byte-identical to the one
+/// sent before LCV-199, pinned as JSON.
+#[test]
+fn a_turn_without_an_image_sends_the_pinned_bytes() {
+    let memory = vec![ChatMessage::user("before"), ChatMessage::assistant("reply")];
+    let (_, _, requests) = scripted("now", &with_memory(memory), vec![Some(text("t"))]);
+    assert_eq!(
+        serde_json::to_string(&requests[0]).unwrap(),
+        concat!(
+            r#"[{"role":"system","content":"sys"},"#,
+            r#"{"role":"user","content":"before"},"#,
+            r#"{"role":"assistant","content":"reply"},"#,
+            r#"{"role":"user","content":"now"}]"#
+        )
+    );
+}
+
+/// The config's `Debug` names the image and its size, never its bytes.
+#[test]
+fn turn_config_debug_prints_the_image_size_only() {
+    let shown = format!("{:?}", with_image(crate::agent::ImageKind::Png, &[0xAB; 5]));
+    assert!(shown.contains("bytes_len: 5"), "{shown}");
+    assert!(!shown.contains("171"), "{shown}");
 }

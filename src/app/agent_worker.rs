@@ -11,10 +11,10 @@
 
 use crate::agent::loop_::{Dispatch, IMAGE_ELIDED};
 use crate::agent::memory::whole_batches;
-use crate::agent::wire::replace_images;
+use crate::agent::wire::{ContentPart, replace_images};
 use crate::agent::{
     AgentAction, AgentError, AgentEvent, AgentOutcome, AssistantMessage, ChatMessage, RefusedCalls,
-    ToolCallError, agent_loop,
+    ToolCallError, UserImage, agent_loop,
 };
 use std::sync::mpsc::{Sender, channel};
 
@@ -24,7 +24,7 @@ use std::sync::mpsc::{Sender, channel};
 ///
 /// Carries the API key and the prompt, so its `Debug` is written by hand: it
 /// prints `api_key: "<redacted>"` (ADR 0007 §D10) and the prompt's length
-/// only (LCV-143 AC 7).
+/// only (LCV-143 AC 7), and the attached image's name and size only (LCV-199).
 #[derive(Clone, PartialEq)]
 pub struct TurnConfig {
     /// OpenAI-compatible base URL.
@@ -44,6 +44,8 @@ pub struct TurnConfig {
     /// The conversation so far (LCV-153, ADR 0007 §D16), flattened: sent
     /// between the system prompt and the new user message. Never printed.
     pub memory: Vec<ChatMessage>,
+    /// The operator's attached image (LCV-199), sent in the user message.
+    pub image: Option<UserImage>,
 }
 
 impl std::fmt::Debug for TurnConfig {
@@ -56,6 +58,7 @@ impl std::fmt::Debug for TurnConfig {
             .field("system_prompt_len", &self.system_prompt.len())
             .field("vision", &self.vision)
             .field("memory_len", &self.memory.len())
+            .field("image", &self.image)
             .finish()
     }
 }
@@ -73,7 +76,8 @@ impl std::fmt::Debug for TurnConfig {
 /// already been through [`crate::agent::clamp_step_budget`]. At most
 /// `step_limit` actions are dispatched per turn.
 ///
-/// `config.memory` goes between the system prompt and `prompt`. Returns the
+/// `config.memory` goes between the system prompt and `prompt`; with
+/// `config.image` the user message is `[prompt, image]` parts (LCV-199). Returns the
 /// result together with the whole tool-call batches that followed `prompt`,
 /// images elided, whether the turn succeeded or not (LCV-153).
 ///
@@ -130,7 +134,13 @@ where
     // so each request is a prefix of the next, and of the next turn's.
     let mut messages = vec![ChatMessage::system(config.system_prompt.as_str())];
     messages.extend(config.memory.iter().cloned());
-    messages.push(ChatMessage::user(prompt));
+    messages.push(match &config.image {
+        Some(image) => ChatMessage::user_parts(vec![
+            ContentPart::text(prompt),
+            ContentPart::image(image.kind.mime(), &image.bytes),
+        ]),
+        None => ChatMessage::user(prompt),
+    });
     let first_batch = messages.len();
     // A refusal is a tool result, not a failure (ADR 0007 §D2a), and so is a
     // malformed call (§D15); a `Fenced` answer is read by `agent_loop` (§D14).

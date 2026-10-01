@@ -7,7 +7,7 @@
   wrappers (files: src/io/dialogs.rs, tests/it/repo/dialogs_disarmed.rs)
 - [x] T3 [AC2] `ContentPart::image(mime, bytes)`, `png` delegating, JPEG data-URL unit test
   (files: src/agent/wire.rs)
-- [ ] T4 [AC2] [AC7] `TurnConfig.image` + redacted `Debug`; `drive_turn` builds the parts user
+- [x] T4 [AC2] [AC7] `TurnConfig.image` + redacted `Debug`; `drive_turn` builds the parts user
   message. Unit tests: image request shape, and no-image requests byte-identical
   (files: src/app/agent_worker.rs, src/app/agent_worker/tests.rs)
 - [ ] T5 [AC2] [AC6] `send_images` consent and capture split; `turn_record` keeps `image elided`.
