@@ -19,7 +19,7 @@
   `f64::INFINITY`, trim/extend nothing, export nothing, narration `cubic|quadratic`. Mechanical;
   later tasks replace each arm. Breaks the 1–3 files rule; the compiler forces it (files: those
   the compiler lists)
-- [ ] T7 [AC5] Test on painted shapes: a cubic and a quadratic at two zooms, every vertex on the
+- [x] T7 [AC5] Test on painted shapes: a cubic and a quadratic at two zooms, every vertex on the
   curve, chord deviation ≤ 0.5 px, layer colour stroke, selection halo and hover paint it (files:
   tests/it/app/bezier_paint.rs, tests/it/app/mod.rs)
 - [ ] T8 [AC5] `polyline(0.5·mm_per_px)` in the entity, selection and dashed painters (files:

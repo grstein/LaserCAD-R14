@@ -2,6 +2,7 @@
 
 mod autosave_dirty;
 mod autosave_repaint;
+mod bezier_paint;
 mod confirm_discard;
 mod document_title_and_file_feedback;
 mod ellipse_edit;
