@@ -68,7 +68,7 @@
   tests/it/io_svg/transforms.rs)
 - [x] T25 [AC3] `parse_circle` and `path_entities` send a non-similar CTM to `conic_entity` (files:
   src/io/svg/import.rs, src/io/svg/import/path.rs)
-- [ ] T26 [AC12] Test: a proptest round trip of ellipses and arcs on random layers within
+- [x] T26 [AC12] Test: a proptest round trip of ellipses and arcs on random layers within
   `FORMAT_TOL`, plus a corpus `ellipse` record and one fixture pair (files:
   tests/it/io_svg/roundtrip_props.rs, tests/it/io_svg/corpus/expected.rs,
   tests/fixtures/svg/ellipses.{svg,expected})

@@ -1,0 +1,17 @@
+# LCV-176 AC 1, AC 2, AC 12 — ellipses and an elliptical arc. One user unit =
+# 1 mm, world y = 100 - svg y. Span angles are parametric (ADR 0015).
+bed 100 100
+# Every stroke is red and no layer is declared, so one `#ff0000` layer.
+layer "#ff0000" #ff0000 output=1 current=1
+# An axis-aligned ellipse: centre svg (20, 20) = world (20, 80).
+ellipse 0 20 80 15 5 0
+# rotate(-30) turns it counter-clockwise on screen, so +30 deg in the world.
+ellipse 0 50 50 20 10 30
+# A 20 x 10 quarter from the left vertex svg (30, 90) to the top vertex
+# (50, 80), sweep 1 = clockwise on screen: centre svg (50, 90) = world
+# (50, 10), from parameter 180 deg down to 90 deg, clockwise.
+ellipse 0 50 10 20 10 0 180 90 cw
+# rx="auto" takes ry: equal radii, so a circle.
+circle 0 20 50 8
+# rx = 0: skipped and reported.
+ignored 1 ellipse (invalid radius)
