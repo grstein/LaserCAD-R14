@@ -52,7 +52,7 @@
 - [x] T15 ADR 0012 §4 amendment note (stray colored geometry → color layer, LCV-175); LCV-171
       AC 7 note (`display`/`visibility` now applied) (files: docs/adr/0012-document-layers-and-per-layer-export.md,
       docs/specs/LCV-171-svg-import-report-and-never-rendered/spec.md)
-- [ ] T16 Run the stray-`#ff0000` fixtures outside `io_svg` (`scripts/check.sh memory turn_group
+- [x] T16 Run the stray-`#ff0000` fixtures outside `io_svg` (`scripts/check.sh memory turn_group
       document_title discard_dialog`); fix any layer assertion (files: as needed, ≤3)
 - [ ] T17 `svg-spec-coverage.md` §5 rows → ✅; CHANGELOG line (files:
       docs/research/svg-spec-coverage.md, CHANGELOG.md)
