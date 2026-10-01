@@ -217,3 +217,67 @@ fn a_rect_matches_its_equivalent_path() {
         assert_eq!(page(rect), page(&path), "{rect}");
     }
 }
+
+/// AC 7, AC 10 — a polyline is one line per pair of distinct consecutive
+/// points; a duplicate point adds nothing; one point or none imports
+/// nothing; neither is reported.
+#[test]
+fn a_polyline_imports_one_line_per_distinct_pair() {
+    let (es, report) = page(
+        r#"<polyline points="0,0 10,0 10,0 10,10,20 10"/><polyline points="5 5"/>
+           <polyline points=""/><polyline/>"#,
+    );
+    assert!(report.is_empty(), "{report:?}");
+    assert_eq!(
+        es,
+        [
+            line((0.0, 0.0), (10.0, 0.0)),
+            line((10.0, 0.0), (10.0, 10.0)),
+            line((10.0, 10.0), (20.0, 10.0)),
+        ]
+    );
+}
+
+/// AC 7 — a polygon gets a closing line, unless its last point is its
+/// first; glued signs and exponents parse as in path data.
+#[test]
+fn a_polygon_closes_unless_already_closed() {
+    let (es, report) =
+        page(r#"<polygon points="0,0 10,0 10,10"/><polygon points="20-0 3e1,0 30 10 20 0"/>"#);
+    assert!(report.is_empty(), "{report:?}");
+    assert_eq!(
+        es,
+        [
+            line((0.0, 0.0), (10.0, 0.0)),
+            line((10.0, 0.0), (10.0, 10.0)),
+            line((10.0, 10.0), (0.0, 0.0)),
+            line((20.0, 0.0), (30.0, 0.0)),
+            line((30.0, 0.0), (30.0, 10.0)),
+            line((30.0, 10.0), (20.0, 0.0)),
+        ]
+    );
+}
+
+/// AC 8 — an odd count or a bad token keeps the pairs before it and
+/// reports a data error; the file still opens.
+#[test]
+fn bad_points_keep_the_pairs_before_the_error() {
+    let (es, report) =
+        page(r#"<polyline points="0 0 10 0 10"/><polygon points="0 20 10 20 10 30 x 5 5"/>"#);
+    assert_eq!(
+        es,
+        [
+            line((0.0, 0.0), (10.0, 0.0)),
+            line((0.0, 20.0), (10.0, 20.0)),
+            line((10.0, 20.0), (10.0, 30.0)),
+            line((10.0, 30.0), (0.0, 20.0)),
+        ]
+    );
+    assert_eq!(
+        report,
+        [
+            entry("polyline (data error)", 1),
+            entry("polygon (data error)", 1)
+        ]
+    );
+}
