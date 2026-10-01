@@ -16,7 +16,7 @@
   and restores it; update the other `remove_entity` callers (files: src/document/state.rs, src/document/commands/edit.rs, src/document/commands/create.rs)
 - [x] T6 [AC3] `IdLedger` + `push_entity_as` (debug-assert: below `next_id`, not live); ledger in
   `CreateLine/Circle/Arc` and `CreateEntities` (files: src/document/state/ids.rs, src/document/commands/create.rs)
-- [ ] T7 [AC3] Ledger in `CopyEntities` and keep-source `TransformEntities`; add redo-id cases for
+- [x] T7 [AC3] Ledger in `CopyEntities` and keep-source `TransformEntities`; add redo-id cases for
   any creating command brought in by the rebase (files: src/document/commands/edit.rs, src/document/commands/transform.rs)
 - [ ] T8 [AC2] Test: File > New and `action_open_path` after deletes continue the counter (no id of
   the old document is reused) (files: tests/it/app/entity_ids.rs, tests/it/app/mod.rs)

@@ -24,7 +24,7 @@
 //! MUST NOT import `egui`, `eframe`, or `rfd`. Introduced by demand LCV-024.
 
 use super::Command;
-use crate::document::{Document, Entity, EntityId, LayerId};
+use crate::document::{Document, Entity, EntityId, IdLedger, LayerId};
 use crate::geometry::Vec2;
 
 /// Remove a set of entities from a [`Document`] and remember them for undo.
@@ -126,6 +126,8 @@ pub struct CopyEntities {
     pub delta: Vec2,
     /// Entity count before the last `do_`; `undo` truncates back to it.
     len_before: usize,
+    /// The ids the first `do_` handed out, reused on redo (ADR 0014).
+    ids: IdLedger,
 }
 
 impl CopyEntities {
@@ -135,6 +137,7 @@ impl CopyEntities {
             indices,
             delta,
             len_before: 0,
+            ids: IdLedger::default(),
         }
     }
 }
@@ -142,12 +145,12 @@ impl CopyEntities {
 impl Command for CopyEntities {
     fn do_(&mut self, doc: &mut Document) {
         self.len_before = doc.entities.len();
-        for &i in &self.indices {
+        for (k, &i) in self.indices.iter().enumerate() {
             debug_assert!(i < self.len_before, "CopyEntities: index OOR");
             let mut copy = doc.entities[i];
             copy.translate(self.delta);
             let layer = doc.entity_layer(i).unwrap_or_else(|| doc.current_layer());
-            doc.push_entity(copy, layer);
+            self.ids.push(doc, k, copy, layer);
         }
     }
 
