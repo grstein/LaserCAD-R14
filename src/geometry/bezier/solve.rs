@@ -149,6 +149,19 @@ mod tests {
         assert!(!q.crosses_axis_segment(&seg((11.0, -5.0), (11.0, 5.0))));
     }
 
+    /// A leading coefficient just above `EPSILON` puts one root near 0.5 and
+    /// one far beyond 1: the near root comes from `k / q`, without the
+    /// cancellation of `−b − √disc`, so it solves the quadratic to rounding.
+    #[test]
+    fn quadratic_roots_are_cancellation_free() {
+        let (a, b, k) = (2e-9, -1.0, 0.5);
+        let roots = quadratic_roots(a, b, k);
+        let near: Vec<f64> = roots.into_iter().filter(|t| *t < 1.0).collect();
+        assert_eq!(near.len(), 1, "{near:?}");
+        let t = near[0];
+        assert!((a * t * t + b * t + k).abs() <= 1e-15, "t = {t}");
+    }
+
     /// Roots of the derivative: none for a straight coordinate, the linear
     /// root for a quadratic, both of a cubic in ascending order.
     #[test]

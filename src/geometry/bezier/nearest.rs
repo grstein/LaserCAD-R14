@@ -97,6 +97,26 @@ mod tests {
         assert_eq!(q.nearest(Vec2::new(11.0, -1.0)), (1.0, q.end()));
     }
 
+    /// Where the distance has several local minima (a self-crossing cubic,
+    /// probed on a grid), the sampled start still finds the global foot.
+    #[test]
+    fn nearest_is_global_on_a_loop() {
+        let b = Bezier::Cubic([
+            Vec2::new(0.0, 0.0),
+            Vec2::new(40.0, 30.0),
+            Vec2::new(-10.0, 30.0),
+            Vec2::new(30.0, 0.0),
+        ]);
+        for i in 0..9 {
+            for j in 0..8 {
+                let p = Vec2::new(f64::from(i) * 5.0 - 5.0, f64::from(j) * 5.0 - 5.0);
+                let (d, want) = (b.distance_to_point(p), brute(&b, p));
+                // Brute force samples the curve: the global foot is never farther.
+                assert!(d <= want + 1e-9, "{p:?}: {d} vs {want}");
+            }
+        }
+    }
+
     /// An off-curve control point is far from the curve: its distance is
     /// the true (brute-force) distance, not zero.
     #[test]

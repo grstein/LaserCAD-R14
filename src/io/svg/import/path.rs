@@ -232,5 +232,11 @@ mod tests {
                 vec![DEGENERATE_CURVE]
             )
         );
+        // Points exactly `EPSILON` apart are not coincident, as a line of
+        // that length is kept.
+        assert!(matches!(
+            entities("M 0 0 Q 0.000000001 0 0.000000001 0"),
+            (es, labels) if labels.is_empty() && matches!(es.as_slice(), [Entity::Bezier(_)])
+        ));
     }
 }
