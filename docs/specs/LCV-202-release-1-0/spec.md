@@ -57,3 +57,14 @@ and there is no user guide or release smoke checklist.
     the v1 scope list recorded in `docs/product/README.md`.
   - The freeze takes the next free ADR number, and the contract fixture covers only entity
     kinds that exist at 1.0. A Depends-on spec that ends Rejected drops its entity kind from AC 3.
+
+## Release record
+
+- **AC 7** (2026-10-01): `scripts/backlog.sh --check` passes, and every spec in Depends on is
+  Done: LCV-180, LCV-201, LCV-170..179 and LCV-194..200. None is open or Rejected.
+- **AC 9**: the Linux AppImage and `.deb` are built locally from the 1.0 tree
+  (`scripts/build-appimage.sh`, `scripts/build-deb.sh`; T13). The Windows `.zip` and macOS
+  `.dmg` pipeline is proven green by LCV-201's dispatch, CI run
+  https://github.com/grstein/LaserCAD-R14-V2/actions/runs/36833345767. Building those two
+  from the 1.0 commit itself needs one more `workflow_dispatch` (or the tag push), which is the
+  user's step before publishing.
