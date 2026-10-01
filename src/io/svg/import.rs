@@ -6,7 +6,7 @@
 //!
 //! | Outcome | Elements (SVG namespace unless noted) | Report |
 //! |---|---|---|
-//! | import | `line`, `circle`, `ellipse`, `path` | `ellipse (invalid radius)`; properties; per `path`: curves not imported yet, `path (data error)`, or `path (unsupported data)` with no `d` |
+//! | import | `line`, `circle`, `ellipse`, `path` | `<element> (invalid attribute)` (LCV-174); properties; per `path`: curves not imported yet, `path (data error)`, or `path (unsupported data)` with no `d` |
 //! | descend | `svg`, `g`, `a` | properties, then the children |
 //! | never rendered | `defs symbol clipPath mask marker pattern linearGradient radialGradient filter` | name, iff it has an element child other than `style` |
 //! | hidden | `display:none` (subtree included), or an imported element with `visibility` `hidden`/`collapse` (LCV-175) | `hidden (display:none)`, `hidden (visibility)` |
@@ -198,14 +198,6 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
 fn to_world(ctx: &Ctx, p: Vec2, bed_h: f64) -> Vec2 {
     let q = ctx.ctm.apply(p);
     Vec2::new(q.x, flip_y(q.y, bed_h))
-}
-
-fn malformed(element: &'static str, attr: &'static str, value: String) -> SvgImportError {
-    SvgImportError::MalformedAttribute {
-        element,
-        attr,
-        value,
-    }
 }
 
 #[cfg(test)]

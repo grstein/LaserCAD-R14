@@ -9,8 +9,9 @@
 //! Import (AC 1): an `A` with rx ≠ ry after radius correction is one
 //! elliptical arc through the segment's endpoints, on the flagged side and
 //! in the flagged direction. (AC 2): `<ellipse>` is a full ellipse, a circle
-//! when rx = ry; a missing or `auto` radius takes the other; rx or ry ≤ 0,
-//! or neither given, is skipped and reported `ellipse (invalid radius)`.
+//! when rx = ry; a missing or `auto` radius takes the other. Since LCV-174
+//! AC 2/3, rx or ry = 0, or neither given, is skipped silently, and a
+//! negative or unparseable radius is reported `ellipse (invalid attribute)`.
 
 use core::f64::consts::{FRAC_PI_2, FRAC_PI_6, PI, TAU};
 use lasercad::document::{Document, Entity};
@@ -285,13 +286,14 @@ fn ellipse_element_radii_auto_missing_and_percent() {
     );
 }
 
-/// AC 2 — rx or ry ≤ 0, or no radius at all, skips the element and reports
-/// it once per element; the rest of the file still imports.
+/// AC 2, amended by LCV-174 AC 2/3 — rx or ry = 0, or no radius at all,
+/// skips the element silently; a negative radius skips it and is reported
+/// once per element; the rest of the file still imports.
 #[test]
 fn ellipse_element_with_invalid_radius_is_skipped_and_reported() {
     let (es, report) = import(
-        r#"<ellipse cx="1" cy="1" rx="0" ry="5"/><ellipse cx="1" cy="1" rx="5" ry="-2"/><ellipse cx="1" cy="1"/><ellipse cx="1" cy="1" rx="auto" ry="auto"/><line x1="0" y1="0" x2="5" y2="0"/>"#,
+        r#"<ellipse cx="1" cy="1" rx="0" ry="5"/><ellipse cx="1" cy="1" rx="5" ry="-2"/><ellipse cx="1" cy="1"/><ellipse cx="1" cy="1" rx="auto" ry="auto"/><ellipse rx="-1" ry="x"/><line x1="0" y1="0" x2="5" y2="0"/>"#,
     );
     assert!(matches!(es.as_slice(), [Entity::Line(_)]), "{es:?}");
-    assert_eq!(report, [("ellipse (invalid radius)".to_owned(), 4)]);
+    assert_eq!(report, [("ellipse (invalid attribute)".to_owned(), 2)]);
 }

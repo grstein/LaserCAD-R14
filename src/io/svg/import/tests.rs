@@ -227,20 +227,22 @@ fn arc_semicircle_sweep_flag_selects_handedness() {
     assert!(lower.center.x.abs() < EPSILON && lower.center.y.abs() < EPSILON);
 }
 
+/// Rewritten by LCV-174 AC 3: a negative radius or an unparseable position
+/// skips the element and is reported; the file still opens.
 #[test]
-fn circle_negative_radius_returns_malformed_attribute() {
-    // Display: "<circle> attribute r="-1.0000" is not a valid number"
-    let e = import_svg(&svg(r#"<circle cx="5" cy="5" r="-1.0000"/>"#)).unwrap_err();
-    let s = e.to_string();
-    assert!(s.contains("<circle>") && s.contains("r="));
-}
-
-#[test]
-fn line_bad_attribute_returns_malformed_attribute() {
-    // Display: "<line> attribute x1="abc" is not a valid number"
-    let e = import_svg(&svg(r#"<line x1="abc" y1="0" x2="0" y2="0"/>"#)).unwrap_err();
-    let s = e.to_string();
-    assert!(s.contains("<line>") && s.contains("x1") && s.contains("abc"));
+fn invalid_shape_attributes_are_skipped_and_reported() {
+    let imported = import_svg(&svg(r#"<circle cx="5" cy="5" r="-1.0000"/>"#)).unwrap();
+    assert!(imported.entities.is_empty());
+    assert_eq!(
+        imported.report,
+        [("circle (invalid attribute)".to_owned(), 1)]
+    );
+    let imported = import_svg(&svg(r#"<line x1="abc" y1="0" x2="0" y2="0"/>"#)).unwrap();
+    assert!(imported.entities.is_empty());
+    assert_eq!(
+        imported.report,
+        [("line (invalid attribute)".to_owned(), 1)]
+    );
 }
 
 /// LCV-172 AC 8 — a non-numeric `A` argument is a data error: the file

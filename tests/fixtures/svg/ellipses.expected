@@ -13,5 +13,4 @@ ellipse 0 50 50 20 10 30
 ellipse 0 50 10 20 10 0 180 90 cw
 # rx="auto" takes ry: equal radii, so a circle.
 circle 0 20 50 8
-# rx = 0: skipped and reported.
-ignored 1 ellipse (invalid radius)
+# rx = 0: skipped silently (LCV-174 AC 2).

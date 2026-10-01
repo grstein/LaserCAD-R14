@@ -137,7 +137,7 @@ impl Walk {
                         None
                     }
                     (Some(c), _) => {
-                        let shape = import_shape(name, child, &c, bed_h)?;
+                        let shape = import_shape(name, child, &c, bed_h);
                         self.push(shape.entities, &shape.notes, slot);
                         None
                     }

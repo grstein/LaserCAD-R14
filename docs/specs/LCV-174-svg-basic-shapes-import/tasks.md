@@ -10,7 +10,7 @@
   - `r="-1"` and `x1="abc"` (rewritten from the retired LCV-057 AC 12/13) and `<ellipse rx="-2">`
     skip and report `<el> (invalid attribute)`, and the file still opens.
   (files: tests/it/io_svg/shapes.rs, tests/it/io_svg/mod.rs, tests/it/io_svg/import.rs)
-- [ ] T3 [AC1, AC2, AC3] Impl: the tri-state rules in `import_shape` for line, circle and ellipse.
+- [x] T3 [AC1, AC2, AC3] Impl: the tri-state rules in `import_shape` for line, circle and ellipse.
   Ellipse radius errors use `(invalid attribute)` instead of LCV-176's `(invalid radius)`.
   (files: src/io/svg/import/shapes.rs, src/io/svg/import/conic.rs)
 - [ ] T4 [AC3] Refactor: remove `SvgImportError::MalformedAttribute`, `malformed` and `attr_f64`,

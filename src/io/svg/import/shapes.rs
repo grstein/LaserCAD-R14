@@ -4,7 +4,7 @@
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use super::conic::{Conic, conic_entity};
-use super::{SvgImportError, malformed, to_world};
+use super::to_world;
 use crate::document::entity::Entity;
 use crate::geometry::{Circle, Line, Vec2};
 use crate::io::svg::length::{parse_length, to_user};
@@ -50,6 +50,40 @@ pub(super) fn attr(n: roxmltree::Node<'_, '_>, name: &str, axis: Axis, ctx: &Ctx
     Attr::Value(to_user(len, reference))
 }
 
+impl Attr {
+    /// A position: 0 when missing (AC 1).
+    fn pos(self) -> Result<f64, Invalid> {
+        match self {
+            Attr::Missing => Ok(0.0),
+            Attr::Value(v) => Ok(v),
+            Attr::Invalid => Err(Invalid),
+        }
+    }
+
+    /// A size or radius: `None` when missing; negative is invalid (AC 3).
+    fn size(self) -> Result<Option<f64>, Invalid> {
+        match self {
+            Attr::Missing => Ok(None),
+            Attr::Value(v) if v >= 0.0 => Ok(Some(v)),
+            Attr::Value(_) | Attr::Invalid => Err(Invalid),
+        }
+    }
+}
+
+/// A radius attribute: [`attr`], with `auto` (ASCII case-insensitive) read
+/// as [`Attr::Missing`] (SVG 2 §10.4, §10.6).
+fn radius(n: roxmltree::Node<'_, '_>, name: &str, axis: Axis, ctx: &Ctx) -> Attr {
+    match n.attribute(name) {
+        Some(raw) if raw.trim().eq_ignore_ascii_case("auto") => Attr::Missing,
+        _ => attr(n, name, axis, ctx),
+    }
+}
+
+/// A geometry attribute that is negative where SVG 2 forbids it, or does
+/// not parse: the element draws nothing and is reported (AC 3).
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Invalid;
+
 /// What one shape element adds: its entities and its report labels.
 #[derive(Debug, Default, PartialEq)]
 pub(super) struct Shape {
@@ -59,58 +93,38 @@ pub(super) struct Shape {
     pub(super) notes: Vec<&'static str>,
 }
 
-impl Shape {
-    fn of(entity: Option<Entity>) -> Self {
-        Self {
+/// The shape element `name` (`n`) in context `ctx`, un-mirrored around
+/// `bed_h`. A missing position is 0 (AC 1); a missing or zero size draws
+/// nothing (AC 2); an invalid attribute draws nothing and adds one
+/// `<name> (invalid attribute)` note (AC 3).
+pub(super) fn import_shape(name: &str, n: roxmltree::Node<'_, '_>, ctx: &Ctx, bed_h: f64) -> Shape {
+    let (drawn, invalid) = match name {
+        "line" => (line(n, ctx, bed_h).map(Some), "line (invalid attribute)"),
+        "circle" => (circle(n, ctx, bed_h), "circle (invalid attribute)"),
+        "ellipse" => (ellipse(n, ctx, bed_h), "ellipse (invalid attribute)"),
+        _ => return Shape::default(),
+    };
+    match drawn {
+        Ok(entity) => Shape {
             entities: entity.into_iter().collect(),
             notes: Vec::new(),
-        }
-    }
-}
-
-/// The report label of an `<ellipse>` without a positive radius (LCV-176).
-const INVALID_ELLIPSE: &str = "ellipse (invalid radius)";
-
-/// The shape element `name` (`n`) in context `ctx`, un-mirrored around
-/// `bed_h`.
-pub(super) fn import_shape(
-    name: &str,
-    n: roxmltree::Node<'_, '_>,
-    ctx: &Ctx,
-    bed_h: f64,
-) -> Result<Shape, SvgImportError> {
-    Ok(match name {
-        "line" => Shape::of(Some(line(n, ctx, bed_h)?)),
-        "circle" => Shape::of(circle(n, ctx, bed_h)?),
-        "ellipse" => match ellipse(n, ctx, bed_h)? {
-            None => Shape {
-                entities: Vec::new(),
-                notes: vec![INVALID_ELLIPSE],
-            },
-            some => Shape::of(some),
         },
-        _ => Shape::default(),
-    })
-}
-
-/// Attribute `a` of `n` (element `el`), which must be a length.
-fn required(
-    n: roxmltree::Node<'_, '_>,
-    el: &'static str,
-    a: &'static str,
-    axis: Axis,
-    ctx: &Ctx,
-) -> Result<f64, SvgImportError> {
-    match attr(n, a, axis, ctx) {
-        Attr::Value(v) => Ok(v),
-        _ => Err(malformed(el, a, n.attribute(a).unwrap_or("").to_string())),
+        Err(Invalid) => Shape {
+            entities: Vec::new(),
+            notes: vec![invalid],
+        },
     }
 }
 
-fn line(n: roxmltree::Node<'_, '_>, ctx: &Ctx, bed_h: f64) -> Result<Entity, SvgImportError> {
-    let len = |a, axis| required(n, "line", a, axis, ctx);
-    let p1 = Vec2::new(len("x1", Axis::X)?, len("y1", Axis::Y)?);
-    let p2 = Vec2::new(len("x2", Axis::X)?, len("y2", Axis::Y)?);
+/// The point `(x, y)` of `n`, each 0 when missing.
+fn point(n: roxmltree::Node<'_, '_>, x: &str, y: &str, ctx: &Ctx) -> Result<Vec2, Invalid> {
+    let x = attr(n, x, Axis::X, ctx).pos()?;
+    Ok(Vec2::new(x, attr(n, y, Axis::Y, ctx).pos()?))
+}
+
+fn line(n: roxmltree::Node<'_, '_>, ctx: &Ctx, bed_h: f64) -> Result<Entity, Invalid> {
+    let p1 = point(n, "x1", "y1", ctx)?;
+    let p2 = point(n, "x2", "y2", ctx)?;
     Ok(Entity::Line(Line::new(
         to_world(ctx, p1, bed_h),
         to_world(ctx, p2, bed_h),
@@ -118,59 +132,47 @@ fn line(n: roxmltree::Node<'_, '_>, ctx: &Ctx, bed_h: f64) -> Result<Entity, Svg
 }
 
 /// A `<circle>`: a [`Circle`] under a similarity, else the exact image
-/// ellipse (LCV-176 AC 3); `Ok(None)` only when that image is degenerate.
-fn circle(
-    n: roxmltree::Node<'_, '_>,
-    ctx: &Ctx,
-    bed_h: f64,
-) -> Result<Option<Entity>, SvgImportError> {
-    let len = |a, axis| required(n, "circle", a, axis, ctx);
-    let c = Vec2::new(len("cx", Axis::X)?, len("cy", Axis::Y)?);
-    let r = len("r", Axis::Diag)?;
-    if r <= 0.0 {
-        let v = n.attribute("r").unwrap_or("").to_string();
-        return Err(malformed("circle", "r", v));
+/// ellipse (LCV-176 AC 3); `Ok(None)` when `r` is missing or 0, or the
+/// image is degenerate.
+fn circle(n: roxmltree::Node<'_, '_>, ctx: &Ctx, bed_h: f64) -> Result<Option<Entity>, Invalid> {
+    let c = point(n, "cx", "cy", ctx)?;
+    let r = attr(n, "r", Axis::Diag, ctx).size()?.unwrap_or(0.0);
+    if r == 0.0 {
+        return Ok(None);
     }
     if let Some(s) = ctx.ctm.similarity_scale() {
         let circle = Circle::new(to_world(ctx, c, bed_h), r * s);
         return Ok(Some(Entity::Circle(circle)));
     }
-    let k = Conic {
-        center: c,
-        u: Vec2::new(r, 0.0),
-        v: Vec2::new(0.0, r),
-        span: None,
-    };
-    Ok(conic_entity(ctx, k, bed_h))
+    Ok(conic(ctx, c, (r, r), bed_h))
 }
 
 /// An `<ellipse>` as a world entity (LCV-176 AC 2): a missing or `auto`
-/// radius takes the other's value. `Ok(None)` when neither is given, either
-/// is ≤ 0, or the mapped ellipse is degenerate.
-fn ellipse(
-    n: roxmltree::Node<'_, '_>,
-    ctx: &Ctx,
-    bed_h: f64,
-) -> Result<Option<Entity>, SvgImportError> {
-    let len = |a, axis| required(n, "ellipse", a, axis, ctx);
-    let center = Vec2::new(len("cx", Axis::X)?, len("cy", Axis::Y)?);
-    let radius = |a, axis| match n.attribute(a).map(str::trim) {
-        None | Some("auto") => Ok(None),
-        Some(_) => len(a, axis).map(Some),
-    };
-    let (rx, ry) = match (radius("rx", Axis::X)?, radius("ry", Axis::Y)?) {
+/// radius takes the other's value. `Ok(None)` when neither is given,
+/// either is 0, or the mapped ellipse is degenerate.
+fn ellipse(n: roxmltree::Node<'_, '_>, ctx: &Ctx, bed_h: f64) -> Result<Option<Entity>, Invalid> {
+    let center = point(n, "cx", "cy", ctx)?;
+    let rx = radius(n, "rx", Axis::X, ctx).size()?;
+    let ry = radius(n, "ry", Axis::Y, ctx).size()?;
+    let (rx, ry) = match (rx, ry) {
         (Some(rx), Some(ry)) => (rx, ry),
         (Some(r), None) | (None, Some(r)) => (r, r),
         (None, None) => return Ok(None),
     };
-    if !(rx > 0.0 && ry > 0.0) {
+    if rx == 0.0 || ry == 0.0 {
         return Ok(None);
     }
+    Ok(conic(ctx, center, (rx, ry), bed_h))
+}
+
+/// The axis-aligned ellipse `center`, `(rx, ry)` (user space) as a world
+/// entity through [`conic_entity`].
+fn conic(ctx: &Ctx, center: Vec2, (rx, ry): (f64, f64), bed_h: f64) -> Option<Entity> {
     let k = Conic {
         center,
         u: Vec2::new(rx, 0.0),
         v: Vec2::new(0.0, ry),
         span: None,
     };
-    Ok(conic_entity(ctx, k, bed_h))
+    conic_entity(ctx, k, bed_h)
 }
