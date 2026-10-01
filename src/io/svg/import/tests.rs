@@ -582,7 +582,8 @@ fn never_rendered_elements_without_element_children_are_not_reported() {
 }
 
 /// AC 5 — every other SVG element is skipped with its subtree and reported
-/// by name, repeats counted under one entry in first-occurrence order.
+/// by name, repeats counted under one entry in first-occurrence order; a
+/// `<style>` is read by the cascade and silent (LCV-175).
 #[test]
 fn other_svg_elements_are_skipped_and_reported_with_counts() {
     let inner = format!(
@@ -596,14 +597,13 @@ fn other_svg_elements_are_skipped_and_reported_with_counts() {
         entry("use", 1),
         entry("switch", 1),
         entry("rect", 1),
-        entry("style", 1),
         entry("script", 1),
         entry("foreignObject", 1),
     ];
     assert_eq!(imported.report, want);
 }
 
-const REPORTED: [&str; 11] = [
+const REPORTED: [&str; 9] = [
     "fill",
     "clip-path",
     "mask",
@@ -613,8 +613,6 @@ const REPORTED: [&str; 11] = [
     "marker-end",
     "stroke-dasharray",
     "opacity",
-    "display",
-    "visibility",
 ];
 
 /// `{p}` is where the property goes on each imported or descended host;

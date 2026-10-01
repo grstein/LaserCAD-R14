@@ -9,8 +9,8 @@ use crate::io::svg::css;
 /// Properties LaserCAD does not apply yet, reported by name whenever an
 /// imported or descended element carries one, as an attribute or a `style`
 /// declaration (AC 7); `fill:none` is exempt. `transform` is applied since
-/// LCV-173 and no longer listed.
-pub(super) const REPORTED_PROPERTIES: [&str; 11] = [
+/// LCV-173, `display` and `visibility` since LCV-175, and no longer listed.
+pub(super) const REPORTED_PROPERTIES: [&str; 9] = [
     "fill",
     "clip-path",
     "mask",
@@ -20,8 +20,6 @@ pub(super) const REPORTED_PROPERTIES: [&str; 11] = [
     "marker-end",
     "stroke-dasharray",
     "opacity",
-    "display",
-    "visibility",
 ];
 
 /// `node`'s `style` declarations as trimmed `(property, value)` pairs in

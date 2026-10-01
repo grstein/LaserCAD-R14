@@ -20,7 +20,7 @@
       `visibility:hidden` on a `<g>` hides its lines but a `visibility:visible` child imports;
       `collapse` = `hidden`; a `display:none` `<g data-layer>` still declares its layer
       (files: tests/it/io_svg/styling.rs, tests/it/io_svg/mod.rs)
-- [ ] T7 [AC7] Walk carries `Style`; display/visibility gates; `<style>` silent, `<defs>` holding
+- [x] T7 [AC7] Walk carries `Style`; display/visibility gates; `<style>` silent, `<defs>` holding
       only `<style>` unreported; `display`/`visibility` leave `REPORTED_PROPERTIES` (files:
       src/io/svg/import/walk.rs, src/io/svg/import/report.rs)
 - [ ] T8 [AC1]–[AC6] [AC11] Test: end-to-end through `import_svg` — an Illustrator-style

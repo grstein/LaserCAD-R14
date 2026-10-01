@@ -6,9 +6,11 @@
 
 use super::path::path_entities;
 use super::report::{Report, style_decls};
+use super::style::Style;
 use super::{SVG_NS, SvgImportError, parse_circle, parse_line};
 use crate::document::LayerId;
 use crate::document::entity::Entity;
+use crate::io::svg::css::Sheet;
 use crate::io::svg::layers::{LayerReader, STRAY_LAYER};
 use crate::io::svg::matrix::parse_transform;
 use crate::io::svg::path_data::parse_path_data;
@@ -33,6 +35,14 @@ const NON_UNIFORM_CIRCLE: &str = "circle (non-uniform transform)";
 /// (LCV-173 AC 9).
 const UNCLIPPED_SVG: &str = "svg (not clipped)";
 
+/// The report label of an element `display:none` hides, subtree included
+/// (LCV-175 AC 7).
+const HIDDEN_DISPLAY: &str = "hidden (display:none)";
+
+/// The report label of an imported element whose `visibility` is `hidden`
+/// or `collapse` (LCV-175 AC 7).
+const HIDDEN_VISIBILITY: &str = "hidden (visibility)";
+
 /// What the walk does with one element (the table in [`super`]'s docs).
 enum Kind {
     /// `line`, `circle`, `path`: turned into an entity.
@@ -41,7 +51,8 @@ enum Kind {
     Descend,
     /// Never rendered: nothing inside is imported (AC 3).
     NeverRendered,
-    /// `title`, `desc`, `metadata`, or outside the SVG namespace (AC 4).
+    /// `title`, `desc`, `metadata`, `style` (read by the cascade), or
+    /// outside the SVG namespace (AC 4).
     Silent,
     /// Any other SVG element: skipped with its subtree (AC 5).
     Other,
@@ -57,9 +68,15 @@ fn classify(node: roxmltree::Node<'_, '_>) -> Kind {
         "svg" | "g" | "a" => Kind::Descend,
         "defs" | "symbol" | "clipPath" | "mask" | "marker" | "pattern" | "linearGradient"
         | "radialGradient" | "filter" => Kind::NeverRendered,
-        "title" | "desc" | "metadata" => Kind::Silent,
+        "title" | "desc" | "metadata" | "style" => Kind::Silent,
         _ => Kind::Other,
     }
+}
+
+/// Whether `node` is an SVG `<style>`: a never-rendered element holding
+/// only those is not reported (LCV-175).
+fn is_style(node: roxmltree::Node<'_, '_>) -> bool {
+    node.tag_name().name() == "style" && node.tag_name().namespace() == Some(SVG_NS)
 }
 
 /// Traversal state: geometry and membership so far, layers so far.
@@ -68,6 +85,8 @@ pub(super) struct Walk {
     pub(super) entity_layers: Vec<LayerId>,
     pub(super) layers: LayerReader,
     pub(super) report: Report,
+    /// The document's `<style>` rules (LCV-175).
+    pub(super) sheet: Sheet,
     bed_h: f64,
 }
 
@@ -79,25 +98,32 @@ impl Walk {
             entity_layers: Vec::new(),
             layers: LayerReader::default(),
             report: Report::default(),
+            sheet: Sheet::default(),
             bed_h,
         }
     }
 
     /// Append `node`'s recognised geometry on `layer` (the innermost enclosing
     /// layer group; `None` = outside any, which means the first layer), with
-    /// `ctx` the context of `node`'s children.
+    /// `ctx` the context and `style` the computed style of `node`.
     pub(super) fn collect(
         &mut self,
         node: roxmltree::Node<'_, '_>,
         layer: Option<LayerId>,
         ctx: &Ctx,
+        style: &Style,
     ) -> Result<(), SvgImportError> {
         let bed_h = self.bed_h;
         for child in node.children().filter(|n| n.is_element()) {
             let name = child.tag_name().name();
             let kind = classify(child);
             let mut inner_ctx = None;
+            let mut inner_style = *style;
             if matches!(kind, Kind::Import | Kind::Descend) {
+                inner_style = style.child(child, &self.sheet, &mut self.report);
+                if self.hidden(child, &kind, &inner_style)? {
+                    continue;
+                }
                 self.report.note_properties(child);
                 inner_ctx = self.local(child, ctx);
             }
@@ -128,12 +154,12 @@ impl Walk {
                 Kind::Descend => {
                     let inner = self.layers.enter(child)?.or(layer);
                     if let Some(c) = inner_ctx {
-                        self.collect(child, inner, &c)?;
+                        self.collect(child, inner, &c, &inner_style)?;
                     }
                     None
                 }
                 Kind::NeverRendered => {
-                    if child.children().any(|n| n.is_element()) {
+                    if child.children().any(|n| n.is_element() && !is_style(n)) {
                         self.report.note(name);
                     }
                     None
@@ -149,6 +175,27 @@ impl Walk {
             }
         }
         Ok(())
+    }
+
+    /// Whether `node`, styled `style`, is hidden and noted (LCV-175 AC 7):
+    /// `display:none` hides it with its subtree, though a layer group still
+    /// declares its layer; `visibility` hides an imported element only.
+    fn hidden(
+        &mut self,
+        node: roxmltree::Node<'_, '_>,
+        kind: &Kind,
+        style: &Style,
+    ) -> Result<bool, SvgImportError> {
+        let label = if style.display_none {
+            self.layers.enter(node)?;
+            HIDDEN_DISPLAY
+        } else if style.invisible && matches!(kind, Kind::Import) {
+            HIDDEN_VISIBILITY
+        } else {
+            return Ok(false);
+        };
+        self.report.note(label);
+        Ok(true)
     }
 
     /// The context of `node`'s content: its `transform` composed inside

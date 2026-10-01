@@ -8,11 +8,15 @@
 //! |---|---|---|
 //! | import | `line`, `circle`, `path` | properties; per `path`: curves not imported yet, `path (data error)`, or `path (unsupported data)` with no `d` |
 //! | descend | `svg`, `g`, `a` | properties, then the children |
-//! | never rendered | `defs symbol clipPath mask marker pattern linearGradient radialGradient filter` | name, iff it has an element child |
-//! | silent | `title desc metadata`; any element outside the SVG namespace | nothing |
+//! | never rendered | `defs symbol clipPath mask marker pattern linearGradient radialGradient filter` | name, iff it has an element child other than `style` |
+//! | hidden | `display:none` (subtree included), or an imported element with `visibility` `hidden`/`collapse` (LCV-175) | `hidden (display:none)`, `hidden (visibility)` |
+//! | silent | `title desc metadata style`; any element outside the SVG namespace | nothing |
 //! | other | every other SVG element, subtree included | name |
 //!
 //! "Properties" are the unapplied ones in [`report::REPORTED_PROPERTIES`].
+//! `stroke`, `fill`, `color`, `display` and `visibility` are cascaded from
+//! presentation attributes, `<style>` sheets and `style` ([`style`],
+//! LCV-175); what a sheet drops and every invalid color is reported too.
 //!
 //! A `path`'s `d` is read with the full SVG 2 path-data grammar (LCV-172,
 //! `super::path_data`): `M L H V Z A`, absolute or relative, every subpath.
@@ -47,6 +51,7 @@ use crate::document::entity::Entity;
 use crate::document::{Document, Layer, LayerId};
 use crate::geometry::{Circle, Line, Vec2};
 use crate::util::flip_y;
+use style::{Style, collect_sheet};
 use walk::Walk;
 
 mod path;
@@ -166,8 +171,10 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
     let bed_mm = header.bed_mm;
     let mut walk = Walk::new(bed_mm[1]);
     walk.report.note_properties(root);
+    walk.sheet = collect_sheet(root, &mut walk.report);
+    let style = Style::root().child(root, &walk.sheet, &mut walk.report);
     if let Some(ctx) = walk.local(root, &header.ctx) {
-        walk.collect(root, None, &ctx)?;
+        walk.collect(root, None, &ctx, &style)?;
     }
     let (layers, current_layer) = walk.layers.finish();
     Ok(ImportedSvg {
