@@ -81,6 +81,12 @@ impl Tool for SelectTool {
         "Command:".into()
     }
 
+    /// At rest while no button is held (LCV-165 AC 4); a press or drag in
+    /// progress never repeats a command.
+    fn at_rest(&self) -> bool {
+        matches!(self.state, SelectState::Idle)
+    }
+
     fn on_pointer_down(
         &mut self,
         pos: Vec2,
@@ -238,6 +244,19 @@ mod tests {
     #[test]
     fn status_text_is_the_r14_idle_prompt() {
         assert_eq!(SelectTool::default().status_text(), "Command:");
+    }
+
+    /// LCV-165 AC 4 — SELECT is at rest only while no button is held.
+    #[test]
+    fn at_rest_only_while_idle() {
+        let mut t = SelectTool::default();
+        assert!(t.at_rest());
+        let mut doc = Document::default();
+        let mut history = History::default();
+        t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut history);
+        assert!(!t.at_rest(), "a press in progress is not rest");
+        t.on_pointer_up(Vec2::new(0.0, 0.0), false, &mut doc, &mut history);
+        assert!(t.at_rest());
     }
 
     /// AC#15 — `preview()` is empty in Idle.

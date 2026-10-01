@@ -218,6 +218,13 @@ pub trait Tool {
     fn take_message(&mut self) -> Option<String> {
         None
     }
+
+    /// True when the tool is at rest, waiting for a command: an empty Enter
+    /// then repeats the last command word (LCV-165 AC 4). Only SELECT at
+    /// rest overrides this; the default is `false`.
+    fn at_rest(&self) -> bool {
+        false
+    }
 }
 
 #[cfg(test)]

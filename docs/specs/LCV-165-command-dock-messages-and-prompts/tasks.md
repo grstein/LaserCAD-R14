@@ -37,7 +37,7 @@
   prompt; LINE mid-command empty ⏎ finishes, no repeat; ring unchanged after a repeat (files:
   src/cmdline/history.rs, tests/it/cmdline/repeat.rs, tests/it/cmdline/mod.rs)
 - [x] T15 [AC4] [AC5] `CommandHistory::last_tool` (files: src/cmdline/history.rs)
-- [ ] T16 [AC4] `Tool::at_rest` (default false), Select overrides, `ToolManager::at_rest`
+- [x] T16 [AC4] `Tool::at_rest` (default false), Select overrides, `ToolManager::at_rest`
   (files: src/tools/tool.rs, src/tools/select/mod.rs, src/tools/manager.rs)
 - [ ] T17 [AC4] The `Empty` arm repeats `last_tool` when at rest, else routes Enter; T14 green
   (files: src/app/cmdline.rs)

@@ -190,6 +190,12 @@ impl ToolManager {
         self.active.wants_raw_input()
     }
 
+    /// True when the active tool is at rest (LCV-165 AC 4). Delegates to
+    /// [`Tool::at_rest`].
+    pub fn at_rest(&self) -> bool {
+        self.active.at_rest()
+    }
+
     /// Forward one submitted, unparsed command-line string to the active
     /// tool (ADR 0003 §D, LCV-112). Called only while
     /// [`Self::wants_raw_input`] is `true`. Delegates to
@@ -445,6 +451,15 @@ mod tests {
             &mut hist,
         );
         assert_eq!(*ups.borrow(), 1, "middle release must be no-op");
+    }
+
+    /// LCV-165 AC 4 — the manager is at rest under SELECT, not under LINE.
+    #[test]
+    fn tool_manager_at_rest_follows_the_active_tool() {
+        let mut manager = ToolManager::default();
+        assert!(manager.at_rest());
+        manager.set_tool(Box::new(crate::tools::LineTool::default()));
+        assert!(!manager.at_rest());
     }
 
     /// LCV-068 AC#5 / LCV-111 AC 17, AC 18 — `active_status_text` returns
