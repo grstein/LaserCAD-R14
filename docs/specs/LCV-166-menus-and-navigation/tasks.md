@@ -45,7 +45,7 @@
   and `do_zoom_all`. View menu reordered with the Zoom Extents (`F`) and Zoom All rows. `F`,
   `Ctrl+0` and the typed `zoom e` call `do_zoom_extents`. T8 is green (files: src/ui/menubar.rs,
   src/app/input.rs, src/app/cmdline.rs)
-- [ ] T11 [AC8] [AC9] Test first: Ctrl+A with no field focused selects every entity, and one
+- [x] T11 [AC8] [AC9] Test first: Ctrl+A with no field focused selects every entity, and one
   Ctrl+Z restores the previous selection. With the command line focused, Ctrl+A leaves the
   selection and the tool unchanged. On an empty document Ctrl+A commits nothing (files:
   tests/it/ui/tool_hotkeys.rs)
