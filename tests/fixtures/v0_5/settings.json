@@ -1,0 +1,28 @@
+{
+  "recent_files": [
+    "/home/op/jobs/plate.svg",
+    "/home/op/jobs/box & lid.svg"
+  ],
+  "agent_endpoint": "http://192.0.2.10:8080/v1",
+  "agent_api_key": "fixture-not-a-key",
+  "agent_model": "fixture/model-v05",
+  "agent_step_budget": 64,
+  "default_bed_mm": [
+    320.0,
+    210.0
+  ],
+  "agent_system_prompt": "Draw only what is asked.",
+  "agent_allow_canvas_capture": true,
+  "agent_model_supports_vision": true,
+  "agent_context_tokens": 32000,
+  "object_snaps": {
+    "endpoint": true,
+    "midpoint": false,
+    "center": true,
+    "intersection": true,
+    "quadrant": true,
+    "perpendicular": true,
+    "tangent": false,
+    "nearest": true
+  }
+}

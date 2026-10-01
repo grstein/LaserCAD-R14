@@ -9,7 +9,7 @@ Start T1 only after LCV-180 and then the `svg` branch (LCV-170..179) have merged
       (files: tests/it/io_svg/contract_1_0.rs, tests/it/io_svg/mod.rs)
 - [x] T3 [AC3] Write `contract-1.0.svg` from the T2 export; review each line against AGENTS.md
       §SVG export before committing (files: tests/fixtures/svg/contract-1.0.svg)
-- [ ] T4 [P] [AC4] Generate the v0.5.0 settings, autosave and mother SVG in a scratch worktree of
+- [x] T4 [P] [AC4] Generate the v0.5.0 settings, autosave and mother SVG in a scratch worktree of
       8c6701d under ~/.cache with its own `CARGO_TARGET_DIR` (throwaway ignored test, no GUI);
       remove the worktree (files: tests/fixtures/v0_5/settings.json,
       tests/fixtures/v0_5/autosave.json, tests/fixtures/v0_5/mother.svg)

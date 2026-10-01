@@ -1,0 +1,106 @@
+{
+  "schema_version": 2,
+  "bed_mm": [
+    320.0,
+    210.0
+  ],
+  "layers": [
+    {
+      "id": 0,
+      "name": "Cut",
+      "color": [
+        255,
+        0,
+        0
+      ],
+      "output": true
+    },
+    {
+      "id": 1,
+      "name": "Mark & <score>",
+      "color": [
+        0,
+        0,
+        255
+      ],
+      "output": false
+    },
+    {
+      "id": 2,
+      "name": "Engrave",
+      "color": [
+        0,
+        170,
+        0
+      ],
+      "output": true
+    }
+  ],
+  "current_layer": 1,
+  "entities": [
+    {
+      "Line": {
+        "p1": {
+          "x": 10.0,
+          "y": 15.0
+        },
+        "p2": {
+          "x": 120.5,
+          "y": 15.0
+        }
+      }
+    },
+    {
+      "Circle": {
+        "center": {
+          "x": 60.0,
+          "y": 80.0
+        },
+        "r": 12.25
+      }
+    },
+    {
+      "Arc": {
+        "center": {
+          "x": 200.0,
+          "y": 100.0
+        },
+        "r": 30.0,
+        "start_angle": 0.5,
+        "end_angle": 2.5,
+        "ccw": true
+      }
+    },
+    {
+      "Line": {
+        "p1": {
+          "x": 120.5,
+          "y": 15.0
+        },
+        "p2": {
+          "x": 120.5,
+          "y": 90.0
+        }
+      }
+    },
+    {
+      "Arc": {
+        "center": {
+          "x": 250.0,
+          "y": 50.0
+        },
+        "r": 15.0,
+        "start_angle": 3.0,
+        "end_angle": 1.0,
+        "ccw": false
+      }
+    }
+  ],
+  "entity_layers": [
+    0,
+    1,
+    0,
+    1,
+    0
+  ]
+}

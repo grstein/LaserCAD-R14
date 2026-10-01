@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320mm" height="210mm" viewBox="0 0 320 210" fill="none">
+<g data-layer="Cut" stroke="#ff0000" stroke-width="0.1" data-output="1">
+<line x1="10.0000" y1="195.0000" x2="120.5000" y2="195.0000"/>
+<path d="M 226.3275 95.6172 A 30.0000 30.0000 0 0 0 175.9657 92.0458"/>
+<path d="M 235.1501 157.8832 A 15.0000 15.0000 0 0 1 258.1045 147.3779"/>
+</g>
+<g data-layer="Mark &amp; &lt;score&gt;" stroke="#0000ff" stroke-width="0.1" data-output="0" data-current="1">
+<circle cx="60.0000" cy="130.0000" r="12.2500"/>
+<line x1="120.5000" y1="195.0000" x2="120.5000" y2="120.0000"/>
+</g>
+<g data-layer="Engrave" stroke="#00aa00" stroke-width="0.1" data-output="1">
+</g>
+</svg>
