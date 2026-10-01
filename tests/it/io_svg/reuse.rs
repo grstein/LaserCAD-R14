@@ -217,7 +217,11 @@ fn a_fan_out_that_draws_nothing_is_refused_quickly() {
         let start = std::time::Instant::now();
         let err = refused(&format!(r##"<defs>{defs}</defs><use href="#g10"/>"##));
         assert!(err.starts_with("LimitExceeded"), "{leaf}: {err}");
-        assert!(start.elapsed().as_secs() < 30, "{leaf}: {:?}", start.elapsed());
+        assert!(
+            start.elapsed().as_secs() < 30,
+            "{leaf}: {:?}",
+            start.elapsed()
+        );
     }
 }
 
