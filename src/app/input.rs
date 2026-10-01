@@ -16,6 +16,7 @@
 //! |---|---|---|
 //! | global commands | `Ctrl+Z/Y/N/O/S`, `Ctrl+Shift+S` | yes (`shortcuts.rs`) |
 //! | view toggles | `F3`, `F7`, `F8` | yes (`shortcuts.rs`) |
+//! | dialog | `Enter`, `Escape` while a dialog is open: consumed first, for the topmost dialog only | yes ([`take_dialog_key`], here) |
 //! | help | `F1` | yes (`shortcuts.rs`) |
 //! | cancel | `Escape` | yes (here) |
 //! | view actions | `F`, `Ctrl+0` | no (here) |
@@ -26,7 +27,8 @@
 //!
 //! MUST NOT import `eframe` or `rfd`.
 
-use crate::app::App;
+use crate::app::{App, sync_dialog_order, topmost};
+use crate::ui::DialogKey;
 
 /// Keys forwarded to the active tool once the gate lets them through.
 ///
@@ -35,6 +37,34 @@ use crate::app::App;
 /// commit the active tool on a single press.
 const TOOL_ROUTED_KEYS: [egui::Key; 3] =
     [egui::Key::Enter, egui::Key::Delete, egui::Key::Backspace];
+
+/// Take this frame's Enter or Escape for the topmost dialog (LCV-169 AC 1,
+/// AC 2), before any other reader runs.
+///
+/// Called first in [`App::update_ui`]. Syncs [`App::dialog_order`]; with no
+/// dialog open it returns `None` and takes nothing. Otherwise both keys are
+/// consumed, so no shortcut, tool, command line or recall sees them, and the
+/// first one pressed is returned for the topmost dialog. egui drops widget
+/// focus on Escape before the frame starts (`Memory::begin_pass`), so a
+/// command line that had focus asks for it back: the operator's typing
+/// survives a dialog's Escape (AC 2).
+pub fn take_dialog_key(ctx: &egui::Context, app: &mut App) -> Option<DialogKey> {
+    sync_dialog_order(app);
+    topmost(app)?;
+    let none = egui::Modifiers::NONE;
+    let (enter, escape) = ctx.input_mut(|i| {
+        let enter = i.consume_key(none, egui::Key::Enter);
+        (enter, i.consume_key(none, egui::Key::Escape))
+    });
+    if escape && app.command_line_focused {
+        app.focus_command_line = true;
+    }
+    match (enter, escape) {
+        (true, _) => Some(DialogKey::Enter),
+        (false, true) => Some(DialogKey::Escape),
+        (false, false) => None,
+    }
+}
 
 /// Route the frame's keyboard and text input behind one focus check.
 ///

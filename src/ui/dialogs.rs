@@ -28,6 +28,17 @@ pub enum DialogResult {
     Cancelled,
 }
 
+/// A key taken for the topmost dialog this frame (LCV-169 AC 1), by
+/// `src/app/input.rs::take_dialog_key`, the one reader. A dialog treats it
+/// as a click on its primary (`Enter`) or Cancel/Close (`Escape`) button.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum DialogKey {
+    /// Enter: the primary button.
+    Enter,
+    /// Escape: the Cancel or Close button.
+    Escape,
+}
+
 // ---------------------------------------------------------------------------
 // Dialog functions
 // ---------------------------------------------------------------------------

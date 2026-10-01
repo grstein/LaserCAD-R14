@@ -32,7 +32,7 @@
   pushes nothing to the recall ring (files: tests/it/ui/dialog_keyboard.rs)
 - [x] T12 [AC1] [AC2] `Dialog`, `sync_dialog_order`, `topmost`; `App::dialog_order` (files:
   src/app/dialog_order.rs, src/app/mod.rs, src/app/init.rs)
-- [ ] T13 [AC1] [AC2] `input.rs::take_dialog_key` (consume, restore command-line focus), called
+- [x] T13 [AC1] [AC2] `input.rs::take_dialog_key` (consume, restore command-line focus), called
   first in `update_ui` (files: src/app/input.rs, src/app/mod.rs)
 - [ ] T14 [AC1] [AC2] `draw_dialogs` hands the key to the topmost dialog. About, Shortcuts,
   Error and AI Settings treat it as a click (files: src/app/panels.rs, src/ui/dialogs.rs,

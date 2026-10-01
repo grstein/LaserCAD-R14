@@ -223,9 +223,11 @@ impl App {
     /// and must stay one: every phase below lives in its own file, and new
     /// frame work joins one of them rather than this list.
     pub fn update_ui(&mut self, ctx: &egui::Context) {
-        // The two — and only two — keyboard readers (ADR 0002 §A6): the
-        // shortcut table, then the focus gate. Both run before any panel so
-        // Escape cancels the tool in the same frame the command line clears.
+        // The keyboard readers (ADR 0002 §A6), all before any panel: the
+        // dialog key for the topmost dialog (LCV-169), the shortcut table,
+        // then the focus gate, so Escape cancels the tool in the same frame
+        // the command line clears.
+        let _dialog_key = input::take_dialog_key(ctx, self);
         let shortcut_fired = crate::ui::process_shortcuts(ctx, self);
         process_input(ctx, self, shortcut_fired);
         // Clear snap each frame when snap is disabled (LCV-070 AC#16).
