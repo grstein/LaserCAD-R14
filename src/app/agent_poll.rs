@@ -41,7 +41,7 @@
 //! moment the channel dies (ADR 0007 §D2), so no thread is killed and none is
 //! asked to check a flag.
 
-use crate::agent::{AgentAction, AgentEvent, AgentOutcome, ChatMessage, TurnEnd};
+use crate::agent::{AgentAction, AgentEvent, AgentOutcome, ChatMessage, TurnEnd, repeat};
 use crate::app::{App, agent_apply, agent_capture, agent_memory};
 use std::sync::mpsc::TryRecvError;
 
@@ -71,20 +71,7 @@ pub fn poll_agent_rx(app: &mut App) {
     loop {
         match rx.try_recv() {
             Ok(AgentEvent::Act { action, reply }) => {
-                // LCV-145: the pre-upload check is a rendezvous, not a step —
-                // no count, no fence, no `tool` row (ADR 0011 item 10); nor
-                // is an image's post-send note, a `note` row (LCV-187).
-                let outcome = match &action {
-                    AgentAction::AuthorizeUpload { endpoint, model } => {
-                        agent_capture::authorize(app, endpoint, model)
-                    }
-                    AgentAction::Note(text) => {
-                        app.agent.chat.push(("note".to_owned(), text.clone()));
-                        AgentOutcome::Ok(text.clone())
-                    }
-                    AgentAction::Replied { .. } => AgentOutcome::Ok(String::new()),
-                    _ => apply_fenced(app, &action),
-                };
+                let outcome = answer_act(app, &action);
                 if reply.send(outcome).is_err() {
                     // The fourth turn exit: the worker panicked or returned
                     // between sending this `Act` and reading its answer. It
@@ -121,13 +108,46 @@ pub fn poll_agent_rx(app: &mut App) {
     }
 }
 
-/// Apply one action behind the turn's fence (ADR 0007 §D4), and count it.
+/// Answer one `Act` of the in-flight turn and count it in the turn's tally
+/// (LCV-193). The seam a scripted test drives without a channel.
 ///
-/// Four things happen here that `agent_apply` deliberately does not know
+/// LCV-145: the pre-upload check is a rendezvous, not a step — no count, no
+/// fence, no `tool` row (ADR 0011 item 10); nor is an image's post-send note,
+/// a `note` row (LCV-187), nor a model reply, no row at all (LCV-193). Every
+/// other action is a step, applied behind the fence and counted, refusals and
+/// LCV-192 repeats included.
+pub(crate) fn answer_act(app: &mut App, action: &AgentAction) -> AgentOutcome {
+    match action {
+        AgentAction::AuthorizeUpload { endpoint, model } => {
+            agent_capture::authorize(app, endpoint, model)
+        }
+        AgentAction::Note(text) => {
+            app.agent.chat.push(("note".to_owned(), text.clone()));
+            AgentOutcome::Ok(text.clone())
+        }
+        AgentAction::Replied { captures } => {
+            let tally = &mut app.agent.turn.tally;
+            tally.replies = tally.replies.saturating_add(1);
+            tally.captures = tally.captures.saturating_add(*captures);
+            AgentOutcome::Ok(String::new())
+        }
+        _ => {
+            let outcome = apply_fenced(app, action);
+            let repeated = match action {
+                AgentAction::Malformed { reason, .. } => repeat::is_repeat(reason),
+                _ => false,
+            };
+            app.agent.turn.tally.step(&outcome, repeated);
+            outcome
+        }
+    }
+}
+
+/// Apply one action behind the turn's fence (ADR 0007 §D4).
+///
+/// Three things happen here that `agent_apply` deliberately does not know
 /// about, because they are properties of the *turn* rather than of the action:
 ///
-/// - the step count the panel's progress row reads — every `Act`, ungated
-///   (LCV-142 AC 3/4);
 /// - the fence check, which answers `Fenced` to anything at all once the
 ///   revision moved outside this turn or its group was sealed — including a
 ///   query, whose answer would be read against a drawing the model has not
@@ -141,9 +161,6 @@ pub fn poll_agent_rx(app: &mut App) {
 /// action, it gets a transcript row like any other, and it is not an *applied*
 /// action.
 fn apply_fenced(app: &mut App, action: &AgentAction) -> AgentOutcome {
-    // Every `Act` is a step — fenced, malformed and queries included (§D13).
-    let tally = &mut app.agent.turn.tally;
-    tally.steps = tally.steps.saturating_add(1);
     let (revision, group_open) = (app.history.revision(), app.history.group_open());
     if let Err(refusal) = app.agent.turn.fence.check(revision, group_open) {
         // §D14: the worker reads `Fenced` as "stop dispatching".

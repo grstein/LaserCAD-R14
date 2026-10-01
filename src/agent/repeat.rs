@@ -13,6 +13,16 @@ use std::collections::HashMap;
 
 use super::AgentOutcome;
 
+/// The words every repeat answer starts with: one literal for writing the
+/// answer and for recognising it (LCV-193).
+const REPEAT_PREFIX: &str = "repeated call, refused before: ";
+
+/// Is `reason` the answer to a call repeating one already refused this turn?
+/// The turn's metrics count these (LCV-193).
+pub fn is_repeat(reason: &str) -> bool {
+    reason.starts_with(REPEAT_PREFIX)
+}
+
 /// The refused calls of one turn, keyed by `(tool name, argument bytes)`,
 /// each mapped to the text of its first refusal.
 #[derive(Debug, Default)]
@@ -26,9 +36,7 @@ impl RefusedCalls {
     /// `None` when `(name, args)` was never refused.
     pub fn check(&self, name: &str, args: &str) -> Option<String> {
         let first = self.first.get(&(name.to_owned(), args.to_owned()))?;
-        Some(format!(
-            "repeated call, refused before: {first}; change the arguments"
-        ))
+        Some(format!("{REPEAT_PREFIX}{first}; change the arguments"))
     }
 
     /// Remember `(name, args)` if `outcome` refused it; the first refusal of
@@ -44,7 +52,7 @@ impl RefusedCalls {
 
 #[cfg(test)]
 mod tests {
-    use super::RefusedCalls;
+    use super::{RefusedCalls, is_repeat};
     use crate::agent::AgentOutcome;
 
     const ARGS: &str = r#"{"index":7}"#;
@@ -65,6 +73,20 @@ mod tests {
         assert_eq!(
             calls.check("delete_entity", ARGS).as_deref(),
             Some(format!("repeated call, refused before: {FIRST}; change the arguments").as_str())
+        );
+    }
+
+    /// LCV-193 — a repeat answer is recognised as one; a first refusal is not.
+    #[test]
+    fn is_repeat_recognises_the_repeat_answer_only() {
+        let mut calls = RefusedCalls::default();
+        calls.record("delete_entity", ARGS, &refused(FIRST));
+        let repeat = calls.check("delete_entity", ARGS).unwrap_or_default();
+        assert!(is_repeat(&repeat), "{repeat}");
+        assert!(!is_repeat(FIRST));
+        assert!(
+            !is_repeat(&format!("x{repeat}")),
+            "a prefix, not a substring"
         );
     }
 
