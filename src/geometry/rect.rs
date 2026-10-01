@@ -16,6 +16,7 @@
 
 use crate::geometry::arc::Arc;
 use crate::geometry::circle::Circle;
+use crate::geometry::ellipse::Ellipse;
 use crate::geometry::epsilon::EPSILON;
 use crate::geometry::intersect;
 use crate::geometry::line::Line;
@@ -149,6 +150,30 @@ impl Rect {
             }
         }
         false
+    }
+
+    /// True iff the ellipse's exact bounding box ([`Ellipse::bbox`]) fits
+    /// entirely inside the rectangle (window selection, LCV-176 AC 5).
+    pub fn contains_ellipse(&self, e: &Ellipse) -> bool {
+        let (lo, hi) = e.bbox();
+        self.min.x <= lo.x && hi.x <= self.max.x && self.min.y <= lo.y && hi.y <= self.max.y
+    }
+
+    /// True iff the curve of `e` overlaps the rectangle: the window test, a
+    /// span end inside, or an edge meeting the curve within the span
+    /// ([`Ellipse::hits_segment`]). A box inside the ellipse that touches no
+    /// part of the curve does not cross it, as for an arc.
+    pub fn crosses_ellipse(&self, e: &Ellipse) -> bool {
+        if self.contains_ellipse(e) {
+            return true;
+        }
+        let (lo, hi) = e.bbox();
+        if !self.bboxes_overlap(lo, hi) {
+            return false;
+        }
+        let ends = [e.start_point(), e.end_point()];
+        ends.into_iter().flatten().any(|p| self.contains_point(p))
+            || self.edges().iter().any(|edge| e.hits_segment(edge))
     }
 
     /// Four edges of the rectangle, each as a `Line`, listed in CCW order

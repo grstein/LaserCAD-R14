@@ -29,7 +29,7 @@
 - [x] T10 [AC5] Test: a click within the aperture of the curve selects, a click at the centre does
   not, and a window/crossing box selects like an arc (files: tests/it/app/ellipse_edit.rs,
   tests/it/app/mod.rs)
-- [ ] T11 [AC5] `Rect::{contains,crosses}_ellipse` and the ellipse arms of `hit.rs` (files:
+- [x] T11 [AC5] `Rect::{contains,crosses}_ellipse` and the ellipse arms of `hit.rs` (files:
   src/geometry/rect.rs, src/tools/select/hit.rs)
 - [ ] T12 [AC7] Test: near an ellipse arc, Endpoint, Center, Quadrant (only vertices inside the
   span) and Nearest are offered. Intersection, Midpoint, Perpendicular and Tangent are never
