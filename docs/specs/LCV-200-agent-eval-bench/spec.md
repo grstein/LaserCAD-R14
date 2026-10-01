@@ -1,8 +1,8 @@
 # LCV-200 — Agent evaluation bench
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: LCV-193, LCV-190, LCV-196
-- **Implementation**: -
+- **Implementation**: 513befd..ff5700a
 
 ## Problem
 

@@ -68,3 +68,8 @@ which gives AC7.
 - The dialog must not run in tests: the AC1 test sets `attach_requested` only through the
   painted button. It asserts the flag and never calls `poll_attach_request`. `dialogs_disarmed`
   scans cover the new wrapper.
+
+## Seam note (post-review)
+
+`src/app/agent_turn.rs` ends at 286 implementation lines; the next growth moves the turn-start
+attachment and config assembly into `src/app/agent_turn/start.rs`.

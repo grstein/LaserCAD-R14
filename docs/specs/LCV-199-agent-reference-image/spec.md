@@ -1,8 +1,8 @@
 # LCV-199 — Agent reference image
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: 545b6ba..a9a7961
 
 ## Problem
 
