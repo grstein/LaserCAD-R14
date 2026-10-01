@@ -51,3 +51,8 @@ ADR 0002 §A6 gate table. User decision 2026-09-30: menu rows get icons from the
 
 - None. Decided (self-approved per user goal): Ctrl+A does not fire while the command line has
   focus; Zoom All and Fit to Bed both stay; the `ui/menubar.rs` split (287 LOC) is a plan.md seam.
+
+## Notes
+
+- AC 10: the §A6 row for `Ctrl+A` is its own class, `select all | Ctrl+A | no`, not "global
+  commands": that class fires while a text widget has focus, which AC 9 forbids (T15).

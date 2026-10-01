@@ -199,7 +199,14 @@ clear of the point and the crosshair (`render/snaps/label.rs`, LCV-164).
 
 - **Menubar**: R14 order — File Edit View Format Tools Help (`Format > Layers…`, LCV-156).
   Title Case labels (§9); `…` only when a dialog
-  follows. Shortcuts in an aligned column: gap → LCV-166 (today `"\t"` in `ui/menubar.rs`).
+  follows. Every row is `icon slot | label | shortcut` (`ui/menubar/row.rs`, LCV-166): a 16 pt
+  slot holding the row's rail or menu icon (`ui/icons.rs`, `ui/icons/menu.rs`) in the row's
+  text colour, or left empty, so all labels start at one x; the shortcut is egui's
+  `shortcut_text`, right-aligned in `text.muted`, one column per menu; never a `"\t"` in a
+  label. Toggles (Grid, Snap, Ortho, the Object Snap kinds) paint a check mark in the slot while
+  on. Submenus use egui's own arrow, never a hand-drawn `▶`. A disabled row fades its icon with
+  its text. View order: Zoom In, Zoom Out, Zoom Extents, Zoom All, Fit to Bed, then Grid, Snap,
+  Object Snap, Ortho.
 - **Tool rail** (`ui/toolbar.rs::TOOLS`, LCV-183): 32 pt square buttons with no text, each
   holding a flat line icon painted with egui shapes (`ui/icons.rs`: 1.5 pt stroke in the text
   colour, `accent` on the active tool, centred 20 pt square, R14 metaphors). Buttons take the
@@ -277,6 +284,10 @@ Canonical bindings live in ADR 0002 §A6 (gate table), ADR 0003 (command line) a
   a point and ignores text in the field. Middle-drag pan is unchanged (LCV-165 reverses
   LCV-041 AC 4).
 - Ortho overrides snap (LCV-053).
+- `Ctrl+A` selects all, as `Edit > Select All`, in one undo step; a focused text field keeps it
+  (ADR 0002 §A6 class `select all`, LCV-166).
+- `View > Zoom Extents` is `F`/`Ctrl+0`/`zoom e`; `View > Zoom All` frames the bed and the
+  drawing together; `Fit to Bed` frames the bed alone (LCV-166).
 - The agent is addressed only by prefix, `:` or `/ai` (LCV-148).
 
 ## 9. Copy

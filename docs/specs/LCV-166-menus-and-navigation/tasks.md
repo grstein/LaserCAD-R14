@@ -57,7 +57,7 @@
 - [x] T14 [AC10] ADR 0002: add an **Amended (4)** header note, "§A6: `Ctrl+A` joins the table as
   `select all | Ctrl+A | no` (LCV-166)", and add that row to the table (files:
   docs/adr/0002-headless-input-tests-and-dirty-tracking.md)
-- [ ] T15 [AC10] DESIGN.md §7 (the menu row: 16 pt icon slot, label, right-aligned shortcut
+- [x] T15 [AC10] DESIGN.md §7 (the menu row: 16 pt icon slot, label, right-aligned shortcut
   column; check marks in the slot; no hand-drawn arrows; View order) and §8 (Ctrl+A, Zoom
   Extents and Zoom All in the menu). Spec note: AC 10's gate class reads "no" per AC 9 (files:
   DESIGN.md, docs/specs/LCV-166-menus-and-navigation/spec.md)
