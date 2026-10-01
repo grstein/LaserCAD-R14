@@ -194,9 +194,8 @@ fn click_button(ctx: &egui::Context, app: &mut App, pos: egui::Pos2) -> egui::Fu
 /// menubar — the same trap 7 shape as a `Window`: the dropdown is a popup
 /// `Area` of its own and paints no items on the frame it first opens, so one
 /// more idle frame is spent settling it before its items are handed back.
-/// The label a menu item paints is its whole button text verbatim, tab and
-/// all (`ui.button("New\tCtrl+N")` paints one `Shape::Text` reading exactly
-/// that), so a caller locates e.g. `"New\tCtrl+N"`, never a substring.
+/// A menu row paints its label and its shortcut as two runs (LCV-166), so a
+/// caller locates the bare label run, e.g. `"New"`, never a substring.
 fn open_file_menu(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
     let runs = paint::painted_runs(ctx, app);
     let file = locate(&runs, "File");
@@ -463,7 +462,7 @@ fn file_menu_new_reaches_request_new_through_a_real_pointer_click() {
     with_lines(&mut app, 2);
 
     let menu_runs = open_file_menu(&ctx, &mut app);
-    let new_item = locate(&menu_runs, "New\tCtrl+N");
+    let new_item = locate(&menu_runs, "New");
     click_button(&ctx, &mut app, new_item);
 
     assert_eq!(
@@ -491,7 +490,7 @@ fn file_menu_open_reaches_request_open_through_a_real_pointer_click() {
     with_lines(&mut app, 1);
 
     let menu_runs = open_file_menu(&ctx, &mut app);
-    let open_item = locate(&menu_runs, "Open…\tCtrl+O");
+    let open_item = locate(&menu_runs, "Open…");
     click_button(&ctx, &mut app, open_item);
 
     assert_eq!(

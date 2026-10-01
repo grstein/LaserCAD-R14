@@ -25,7 +25,7 @@
   `Open Recent ▶` becomes `Open Recent`. The `"Grid\tF7"` source scans in `menubar/tests.rs`
   become label checks (files: src/ui/menubar.rs, src/ui/menubar/object_snap.rs,
   src/ui/menubar/tests.rs)
-- [ ] T5b [AC1] Integration tests that locate rows by tab labels (`"New\tCtrl+N"`,
+- [x] T5b [AC1] Integration tests that locate rows by tab labels (`"New\tCtrl+N"`,
   `Open Recent ▶`) locate the bare label run instead; T2 green (files:
   tests/it/ui/discard_dialog_pointer_click.rs, tests/it/app/document_title_and_file_feedback.rs)
 - [ ] T6 [AC2] Test first: with a selection, Edit > Delete erases it and one Ctrl+Z restores it;

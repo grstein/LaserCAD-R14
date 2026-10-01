@@ -131,10 +131,11 @@ fn open_file_menu(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
 /// Open File > Open Recent — a **nested** submenu, which egui-0.29.1 opens on
 /// hover, never on click (`menu.rs::submenu_button_interaction`,
 /// `!open && button.hovered()`). Only a `PointerMoved` is sent, landing on
-/// the already-open File menu's "Open Recent ▶" row.
+/// the already-open File menu's "Open Recent" row (no hand-drawn arrow since
+/// LCV-166).
 fn open_recent_submenu(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
     let menu_runs = open_file_menu(ctx, app);
-    let recent = locate(&menu_runs, "Open Recent \u{25b6}");
+    let recent = locate(&menu_runs, "Open Recent");
     let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(recent)]), |c| {
         app.update_ui(c)
     });
@@ -559,7 +560,7 @@ fn open_recent_entry_hover_text_paints_the_full_path() {
     });
     // Unlike the recovered-badge hover test above, the pointer here has
     // already moved twice before landing on this entry (onto "File", then
-    // onto "Open Recent ▶"), so egui's pointer-velocity window
+    // onto "Open Recent"), so egui's pointer-velocity window
     // (`emath::History`, up to 0.1 s / 3 samples) is still warm and
     // `last_move_time` keeps advancing for a few more frames even though the
     // pointer itself has stopped. A handful of idle frames lets that window
