@@ -200,9 +200,24 @@ const PAIR_SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" width="100mm" 
 const PAIR_EXPECTED: &str =
     "bed 100 50\nlayer \"Cut\" #ff0000 output=1 current=1\nline 0 1 48 3 46\n";
 
-/// AC 2 — every corpus file imports to its hand-written expectation.
+/// The LCV-170 AC 4 seeds; a corpus run without them proves nothing.
+const LCV170_SEEDS: [&str; 4] = [
+    "v02-presets",
+    "v03-mother-three-layers",
+    "export-layers-engrave",
+    "inkscape-mm",
+];
+
+/// AC 2 — every corpus file imports to its hand-written expectation, and
+/// the LCV-170 seeds are present.
 #[test]
 fn corpus_matches_expected() {
+    for stem in LCV170_SEEDS {
+        for ext in ["svg", "expected"] {
+            let path = fixtures_dir().join(format!("{stem}.{ext}"));
+            assert!(path.is_file(), "corpus seed missing: {}", path.display());
+        }
+    }
     let failures = check_corpus(&fixtures_dir());
     assert!(
         failures.is_empty(),

@@ -61,4 +61,4 @@
       CHANGELOG `Changed`: Open refuses non-SVG-namespace files and reports what it ignored on the
       command line (files: docs/research/svg-spec-coverage.md, CHANGELOG.md)
 
-- Review note (LCV-170): add an assertion in the corpus test that the four LCV-170 seed stems exist in `tests/fixtures/svg/`.
+- [x] Review note (LCV-170): add an assertion in the corpus test that the four LCV-170 seed stems exist in `tests/fixtures/svg/`.
