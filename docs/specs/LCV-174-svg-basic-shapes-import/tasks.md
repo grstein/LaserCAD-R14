@@ -30,7 +30,7 @@
   (files: src/io/svg/import/shapes.rs)
 - [x] T8 [AC5] Impl: `resolve_radii`, with `auto` matched before `attr_len`.
   (files: src/io/svg/import/shapes.rs)
-- [ ] T9 [AC6] Test:
+- [x] T9 [AC6] Test:
   - Equal radii give four quarter `Arc`s plus sides.
   - `rx = w/2` gives no zero-length top or bottom line.
   - Unequal radii give four quarter elliptical arcs (LCV-176 entity).

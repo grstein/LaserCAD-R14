@@ -125,3 +125,95 @@ fn a_degenerate_rect_is_skipped_and_only_an_invalid_one_reported() {
     assert!(es.is_empty(), "{es:?}");
     assert_eq!(report, [entry("rect (invalid attribute)", 2)]);
 }
+
+/// The entity kinds of `es`, in order.
+fn kinds(es: &[Entity]) -> Vec<&'static str> {
+    es.iter()
+        .map(|e| match e {
+            Entity::Line(_) => "line",
+            Entity::Arc(_) => "arc",
+            Entity::Ellipse(_) => "ellipse",
+            other => panic!("unexpected {other:?}"),
+        })
+        .collect()
+}
+
+/// AC 6 — equal radii give four quarter circular arcs between the sides,
+/// starting with the top side and going clockwise in SVG space.
+#[test]
+fn a_rounded_rect_imports_quarter_arcs_and_sides() {
+    let (es, report) = page(r#"<rect x="10" y="20" width="30" height="40" rx="5"/>"#);
+    assert!(report.is_empty(), "{report:?}");
+    let k = ["line", "arc"];
+    assert_eq!(kinds(&es), [k, k, k, k].concat());
+    let centers = [w(35.0, 25.0), w(35.0, 55.0), w(15.0, 55.0), w(15.0, 25.0)];
+    for (i, c) in centers.into_iter().enumerate() {
+        let Entity::Arc(a) = es[2 * i + 1] else {
+            panic!("{:?}", es[2 * i + 1]);
+        };
+        assert!(
+            a.center.approx_eq(c, TOL) && (a.r - 5.0).abs() < TOL,
+            "{a:?}"
+        );
+        assert!((a.sweep_angle() - core::f64::consts::FRAC_PI_2).abs() < TOL);
+        assert!(!a.ccw, "clockwise on screen is clockwise in the world");
+    }
+    assert_eq!(es[0], line((15.0, 20.0), (35.0, 20.0)));
+    assert_eq!(es[6], line((10.0, 55.0), (10.0, 25.0)));
+}
+
+/// AC 6 — a radius of half the side leaves no zero-length side; a fully
+/// round rect is four arcs.
+#[test]
+fn a_half_side_radius_leaves_no_zero_length_side() {
+    let (es, _) = page(r#"<rect width="10" height="20" rx="5"/>"#);
+    assert_eq!(kinds(&es), ["arc", "line", "arc", "arc", "line", "arc"]);
+    let (es, _) = page(r#"<rect width="10" height="10" rx="5" ry="auto"/>"#);
+    assert_eq!(kinds(&es), ["arc"; 4]);
+}
+
+/// AC 6 — unequal radii give four quarter elliptical arcs (LCV-176).
+#[test]
+fn unequal_radii_give_elliptical_corners() {
+    let (es, report) = page(r#"<rect x="10" y="20" width="30" height="40" rx="3" ry="2"/>"#);
+    assert!(report.is_empty(), "{report:?}");
+    let k = ["line", "ellipse"];
+    assert_eq!(kinds(&es), [k, k, k, k].concat());
+    for e in es.iter().skip(1).step_by(2) {
+        let Entity::Ellipse(e) = e else {
+            panic!("{e:?}")
+        };
+        let (big, small) = (e.rx.max(e.ry), e.rx.min(e.ry));
+        assert!(
+            (big - 3.0).abs() < TOL && (small - 2.0).abs() < TOL,
+            "{e:?}"
+        );
+        let span = e.span.expect("an arc");
+        assert!(
+            (e.sweep().abs() - core::f64::consts::FRAC_PI_2).abs() < TOL,
+            "{span:?}"
+        );
+    }
+}
+
+/// AC 6 — a `<rect>` imports exactly like its SVG 2 §10.2 equivalent path.
+#[test]
+fn a_rect_matches_its_equivalent_path() {
+    for (rect, d) in [
+        (
+            r#"<rect x="10" y="20" width="30" height="40" rx="5"/>"#,
+            "M 15 20 H 35 A 5 5 0 0 1 40 25 V 55 A 5 5 0 0 1 35 60 H 15 A 5 5 0 0 1 10 55 V 25 A 5 5 0 0 1 15 20 Z",
+        ),
+        (
+            r#"<rect x="10" y="20" width="30" height="40" rx="4" ry="2"/>"#,
+            "M 14 20 H 36 A 4 2 0 0 1 40 22 V 58 A 4 2 0 0 1 36 60 H 14 A 4 2 0 0 1 10 58 V 22 A 4 2 0 0 1 14 20 Z",
+        ),
+        (
+            r#"<rect x="10" y="20" width="30" height="40"/>"#,
+            "M 10 20 H 40 V 60 H 10 Z",
+        ),
+    ] {
+        let path = format!(r#"<path d="{d}"/>"#);
+        assert_eq!(page(rect), page(&path), "{rect}");
+    }
+}
