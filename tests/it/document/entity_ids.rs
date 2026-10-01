@@ -48,15 +48,18 @@ fn index_of_and_entity_id_round_trip() {
     assert_eq!(EntityId(12).to_string(), "e12");
 }
 
-/// AC 2 — `from_parts` numbers its entities `e1..=en`.
+/// AC 2 — `from_parts` numbers its entities `e1..=en`, and the next push
+/// continues at `e(n+1)`.
 #[test]
 fn from_parts_numbers_e1_to_en() {
     let layers = vec![Layer::default_cut()];
     let cut = LayerId(0);
     let entities = vec![line(0.0), line(1.0), line(2.0)];
-    let doc =
+    let mut doc =
         Document::from_parts([400.0; 2], layers, cut, entities, vec![cut; 3]).expect("valid parts");
     assert_eq!(ids(&doc), ["e1", "e2", "e3"]);
+    doc.push_current(line(3.0));
+    assert_eq!(ids(&doc), ["e1", "e2", "e3", "e4"]);
 }
 
 /// AC 2 — a push after deletes and truncates never reuses an id.
@@ -197,4 +200,28 @@ fn a_mixed_history_replays_the_same_ids() {
         doc.entity_id(doc.entity_count() - 1).map(|id| id.0),
         Some(11)
     );
+}
+
+/// ADR 0014 — putting back an id that is live would duplicate it: debug
+/// builds catch it.
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic(expected = "restored id e1 is live")]
+fn restoring_a_live_id_is_caught_in_debug() {
+    let mut doc = Document::default();
+    doc.push_current(line(0.0));
+    let cut = doc.current_layer();
+    doc.insert_entity(0, line(1.0), cut, EntityId(1));
+}
+
+/// ADR 0014 — putting back an id never handed out would collide with a
+/// later push: debug builds catch it.
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic(expected = "restored id e2 never handed out")]
+fn restoring_an_unissued_id_is_caught_in_debug() {
+    let mut doc = Document::default();
+    doc.push_current(line(0.0));
+    let cut = doc.current_layer();
+    doc.insert_entity(0, line(1.0), cut, EntityId(2));
 }

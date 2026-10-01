@@ -245,6 +245,16 @@ mod tests {
         a.0.approx_eq(b.0, EPSILON) && a.1.approx_eq(b.1, EPSILON)
     }
 
+    /// LCV-188 — the lockstep guard catches an id vector out of step.
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "id lockstep")]
+    fn the_lockstep_guard_catches_a_stray_id() {
+        let mut doc = Document::default();
+        doc.entity_ids.push(EntityId(1));
+        doc.debug_lockstep();
+    }
+
     /// `with_bed` builds a blank document on the given bed.
     #[test]
     fn with_bed_construction() {

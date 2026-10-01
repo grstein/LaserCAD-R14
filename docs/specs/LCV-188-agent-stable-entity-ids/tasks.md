@@ -45,7 +45,7 @@
 - [x] T19 Docs: header pointer amendments in ADR 0007 (§D5, §Deferred) and ADR 0010 (§7), with the
   next free numbers (files: docs/adr/0007-agent-turn-mutates-the-live-document.md, docs/adr/0010-declarative-drawing-batch-tool.md)
 - [x] T20 AGENTS.md ADR list `0014` (+ purity list if a seam fired); CHANGELOG line (files: AGENTS.md, CHANGELOG.md)
-- [ ] T21 `scripts/mutants.sh` on the diff (src/agent/, document ids/ledger, file_actions); kill or
+- [x] T21 `scripts/mutants.sh` on the diff (src/agent/, document ids/ledger, file_actions); kill or
   justify every survivor; `scripts/gate.sh` green
 
 - Review note (LCV-186): in the T19 ADR 0007 pointer, add one line that set outcomes (`agent_apply/set.rs::plan`) report ids/counts instead of the §D5 per-entity description.
