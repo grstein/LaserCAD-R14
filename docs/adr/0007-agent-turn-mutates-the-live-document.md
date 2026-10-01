@@ -108,6 +108,17 @@
   appended to the batch's last tool result. `Observed` also attaches its image under the last
   call's id, through ADR 0011's upload check. It is not a step, is not fenced and is not
   counted. The worker still holds no document state (§D1).
+- **Amended (16)**: 2026-10-01 — LCV-197: one more non-step rendezvous, `Dispatch::VerifyDue`.
+  - **When it is asked.** At most once per turn, on a text-only reply. It is asked only while a
+    step is left and never after a fence stop (§D14).
+  - **How the UI answers.** It says yes when an action applied in this turn is not followed by an
+    answered verification call (`measure`, `check_drawing`, `capture_canvas`,
+    `query_entities`).
+  - **What a yes does.** The worker appends the model's text and one fixed, code-side user
+    message asking it to verify. The turn then continues instead of ending.
+  - **What stays the same.** The reminder grants nothing and is not a step. The flat group (§D12)
+    and the fence (§D14) are unchanged. Memory (§D16) keeps neither the interim reply nor the
+    reminder.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 

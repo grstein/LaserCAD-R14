@@ -56,5 +56,5 @@ do LCV-195 T1 (the `loop_/batch.rs` seam) as T0 here.
   (files: AGENTS.md, CHANGELOG.md)
 - [x] T11 `scripts/mutants.sh` on the diff (`src/agent/loop_*`, `agent_verify.rs`). Kill the
   survivors or justify them in the commit body.
-- [ ] T12 Docs: append plan.md's "ADR amendment" to ADR 0007 as the next free `Amended (n)`
+- [x] T12 Docs: append plan.md's "ADR amendment" to ADR 0007 as the next free `Amended (n)`
   (files: docs/adr/0007-agent-turn-mutates-the-live-document.md)
