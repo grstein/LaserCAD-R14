@@ -186,6 +186,10 @@ pub enum AgentAction {
     /// answers it from the live document, outside the fence and the tally;
     /// `Ok("")` adds nothing.
     Feedback,
+    /// May the loop remind the model to verify its drawing before the turn
+    /// ends (LCV-197)? **Not a step**, like `AuthorizeUpload`: `Ok` is yes,
+    /// anything else is no.
+    VerifyDue,
     /// Append a whole validated batch as one command (LCV-144, ADR 0010).
     CreateDrawing {
         /// The entities, in order; 1..=1000, already shape-checked.
@@ -239,7 +243,7 @@ impl AgentAction {
             | Self::Note(_)
             | Self::Replied { .. } => "capture_canvas",
             // Not a tool: the loop asks it, the model never calls it.
-            Self::Feedback => "",
+            Self::Feedback | Self::VerifyDue => "",
             Self::CreateDrawing { .. } => "create_drawing",
             Self::Malformed { tool, .. } => tool,
         }

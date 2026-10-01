@@ -42,7 +42,7 @@
 //! asked to check a flag.
 
 use crate::agent::{AgentAction, AgentEvent, AgentOutcome, TurnEnd, repeat};
-use crate::app::{App, agent_apply, agent_capture, agent_feedback};
+use crate::app::{App, agent_apply, agent_capture, agent_feedback, agent_verify};
 use std::sync::mpsc::TryRecvError;
 
 mod turn_end;
@@ -117,9 +117,9 @@ pub fn poll_agent_rx(app: &mut App) {
 /// LCV-145: the pre-upload check is a rendezvous, not a step — no count, no
 /// fence, no `tool` row (ADR 0011 item 10); nor is an image's post-send note,
 /// a `note` row (LCV-187), nor a model reply, no row at all (LCV-193), nor
-/// the after-batch feedback ask (LCV-195). Every
+/// the after-batch feedback ask (LCV-195), nor the verify ask (LCV-197). Every
 /// other action is a step, applied behind the fence and counted, refusals and
-/// LCV-192 repeats included.
+/// LCV-192 repeats included, and recorded for the verify ask.
 pub(crate) fn answer_act(app: &mut App, action: &AgentAction) -> AgentOutcome {
     match action {
         AgentAction::AuthorizeUpload { endpoint, model } => {
@@ -136,8 +136,12 @@ pub(crate) fn answer_act(app: &mut App, action: &AgentAction) -> AgentOutcome {
             AgentOutcome::Ok(String::new())
         }
         AgentAction::Feedback => agent_feedback::feedback(app),
+        AgentAction::VerifyDue => agent_verify::answer(app),
         _ => {
+            let before = app.history.revision();
             let outcome = apply_fenced(app, action);
+            let moved = app.history.revision() != before;
+            app.agent.turn.verify.after(action, &outcome, moved);
             let repeated = match action {
                 AgentAction::Malformed { reason, .. } => repeat::is_repeat(reason),
                 _ => false,

@@ -6,6 +6,22 @@
 //! verification call. Pure bookkeeping, no document access.
 
 use crate::agent::{AgentAction, AgentOutcome};
+use crate::app::App;
+
+/// The transcript `note` row a granted reminder leaves (LCV-197 AC 4).
+pub(crate) const VERIFY_NOTE: &str = "Asked the agent to verify its work.";
+
+/// `AgentAction::VerifyDue`: `Ok("")` with a [`VERIFY_NOTE`] row when the
+/// reminder is due, else `Refused("")`. Not a step, not fenced, not counted.
+pub(crate) fn answer(app: &mut App) -> AgentOutcome {
+    if !app.agent.turn.verify.due() {
+        return AgentOutcome::Refused(String::new());
+    }
+    app.agent
+        .chat
+        .push(("note".to_owned(), VERIFY_NOTE.to_owned()));
+    AgentOutcome::Ok(String::new())
+}
 
 /// The turn's verification bookkeeping, reached as `app.agent.turn.verify`.
 #[derive(Debug, Default)]
