@@ -54,7 +54,7 @@ Prerequisites: LCV-185, LCV-192 Done; LCV-188 Done (the outcome's `New ids` suff
   items `{x, y}`, `of` integer array). A recursive scan finds no
   `oneOf`/`anyOf`/`allOf`/`const`/`additionalProperties`. The description names each type's keys
   (files: src/agent/tools/tests.rs)
-- [ ] T11 [AC10] `drawing/schema.rs` from the key table (files: src/agent/drawing/schema.rs)
+- [x] T11 [AC10] `drawing/schema.rs` from the key table (files: src/agent/drawing/schema.rs)
 - [ ] T12 [AC10] Test, then the `DEFAULT_PROMPT` `create_drawing` paragraph covering the new types,
   `of` and the expanded cap (files: src/agent/prompt.rs, tests/it/agent/default_prompt.rs)
 - [ ] T13 Docs: AGENTS.md purity list (`drawing/*.rs`); CHANGELOG line (files: AGENTS.md,

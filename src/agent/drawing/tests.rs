@@ -796,9 +796,10 @@ fn lcv196_ac6_a_polar_arc_copy_keeps_ccw_and_rotates_its_endpoints() {
             {"type": "arc", "cx": 7, "cy": -2, "r": 3, "start_deg": 10, "end_deg": 130, "ccw": ccw},
             {"type": "polar_array", "of": [0], "count": 3, "cx": 1, "cy": 2, "step_deg": 37}
         ]));
+        assert_eq!(got.len(), 3);
         let source = as_arc(&got[0]);
-        for k in 1..3 {
-            let copy = as_arc(&got[k]);
+        for (k, copy) in got.iter().enumerate().skip(1) {
+            let copy = as_arc(copy);
             let turn = Transform::Rotate {
                 base: Vec2::new(1.0, 2.0),
                 angle: (37.0 * k as f64).to_radians(),
