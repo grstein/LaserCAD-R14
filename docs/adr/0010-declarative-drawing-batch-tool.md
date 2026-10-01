@@ -14,6 +14,9 @@
   `; expected <form>` (ADR 0007 Amended (12)), and the whole argument string is the path
   `(root)` (was `arguments`). The path, the 64-character key cut and the no-echo rule are
   unchanged.
+- **Amended (4)**: 2026-09-30 — LCV-188, [ADR 0014](0014-stable-entity-ids.md) §8: §7's outcome
+  sentence gains the suffix ` New id: e<N>.` or ` New ids: e<A>..=e<B>.`; its words are
+  unchanged.
 - **Date**: 2026-09-27
 - **Deciders**: architect (LCV-144; in the 1.0 scope by the 2026-09-27 scope
   decision recorded in `PLAN.md`)

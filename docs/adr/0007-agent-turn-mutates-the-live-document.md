@@ -96,6 +96,12 @@
   completion is a non-step `Replied` rendezvous. §D8 gains `metrics.rs`, and
   `end_turn` moves to `agent_poll/turn_end.rs`. No exit is added and nothing
   is reversed.
+- **Amended (14)**: 2026-09-30 — LCV-188: [ADR 0014](0014-stable-entity-ids.md) gives every
+  entity a stable id `e<N>`. §D5: indices still exist and still shift, so its prompt statement
+  stands; the six edit tools and `set_layer` also take `id`/`ids`, which do not shift, and
+  `query_entities` lists each id. §Deferred: the stable-id item is that ADR. Set outcomes
+  (`agent_apply/set.rs::plan`, LCV-186) report indices and counts instead of §D5's per-entity
+  description; an appending outcome ends with its new ids. Nothing else changes.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 

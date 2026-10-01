@@ -42,7 +42,7 @@
   (files: tests/it/agent/entity_ids.rs, src/app/agent_apply.rs, src/app/agent_narrate.rs)
 - [x] T18 [AC4] `DEFAULT_PROMPT`: ids paragraph (prefer ids, `"e<N>"` strings, unknown is refused);
   the default-prompt test covers `id`/`ids` (files: src/agent/prompt.rs, tests/it/agent/default_prompt.rs)
-- [ ] T19 Docs: header pointer amendments in ADR 0007 (§D5, §Deferred) and ADR 0010 (§7), with the
+- [x] T19 Docs: header pointer amendments in ADR 0007 (§D5, §Deferred) and ADR 0010 (§7), with the
   next free numbers (files: docs/adr/0007-agent-turn-mutates-the-live-document.md, docs/adr/0010-declarative-drawing-batch-tool.md)
 - [ ] T20 AGENTS.md ADR list `0014` (+ purity list if a seam fired); CHANGELOG line (files: AGENTS.md, CHANGELOG.md)
 - [ ] T21 `scripts/mutants.sh` on the diff (src/agent/, document ids/ledger, file_actions); kill or
