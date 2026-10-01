@@ -7,6 +7,7 @@
 //!
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
+mod nearest;
 mod solve;
 
 use serde::{Deserialize, Serialize};
