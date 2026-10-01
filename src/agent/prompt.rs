@@ -87,6 +87,10 @@ and layer, plus the bed size and the layers. Changes nothing.
 query_selection {}: list the indices of the entities the operator has
 selected. Changes nothing.
 
+check_drawing {}: check the Output-on layers for open ends, gaps under
+0.5 mm, duplicates, degenerate entities and entities off the bed; one line
+per finding, with entity indices and positions in mm. Changes nothing.
+
 capture_canvas {frame, x0, y0, x1, y1}: look at the drawing. Returns a
 grayscale picture of the bed outline (grey) and every entity (black), with
 its mm mapping; no grid, selection or UI. frame is view (the default: the
