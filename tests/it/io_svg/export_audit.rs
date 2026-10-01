@@ -3,7 +3,7 @@
 //! same document, and is byte-identical to the pre-LCV-170 output.
 
 use lasercad::document::{Document, Entity, Layer, LayerId};
-use lasercad::geometry::{Arc, Circle, Line, Vec2};
+use lasercad::geometry::{Arc, Circle, Ellipse, EllipseSpan, Line, Vec2};
 use lasercad::io::svg::{export_layer_svg, export_svg};
 use std::f64::consts::PI;
 
@@ -73,8 +73,24 @@ fn arc(x: f64, y: f64, r: f64, start: f64, end: f64, ccw: bool) -> Entity {
     Entity::Arc(Arc::new(Vec2::new(x, y), r, start, end, ccw))
 }
 
+/// An ellipse centred at `(x, y)`, full when `span` is `None`.
+fn ellipse(x: f64, y: f64, radii: (f64, f64), rotation: f64, span: Option<EllipseSpan>) -> Entity {
+    Entity::Ellipse(Ellipse::new(
+        Vec2::new(x, y),
+        radii.0,
+        radii.1,
+        rotation,
+        span,
+    ))
+}
+
+fn span(start: f64, end: f64, ccw: bool) -> Option<EllipseSpan> {
+    Some(EllipseSpan { start, end, ccw })
+}
+
 /// The audit set (AC 5): an empty document; each entity kind, including
-/// small, large, clockwise, half-turn and off-bed arcs; layers with Output on
+/// small, large, clockwise, half-turn and off-bed arcs, and plain, turned
+/// and partial ellipses (LCV-176); layers with Output on
 /// and off, an empty layer and a current layer that is not the first; names
 /// with `& < > " '` and non-ASCII characters.
 fn audit_set() -> Vec<(&'static str, Document)> {
@@ -93,8 +109,12 @@ fn audit_set() -> Vec<(&'static str, Document)> {
             arc(80.0, 40.0, 12.5, 3.0, 0.1, false),
             arc(100.0, 100.0, 20.0, 0.0, PI, true),
             arc(-10.0, 300.0, 3.0, -1.0, 1.0, true),
+            ellipse(120.0, 60.0, (40.0, 20.0), 0.0, None),
+            ellipse(120.0, 60.0, (15.5, 30.25), 0.7, None),
+            ellipse(60.0, 150.0, (25.0, 10.0), -0.4, span(0.3, 4.0, true)),
+            ellipse(60.0, 150.0, (25.0, 10.0), 2.0, span(1.0, -1.5, false)),
         ],
-        vec![LayerId(0); 10],
+        vec![LayerId(0); 14],
     )
     .expect("one default layer");
     let layered = Document::from_parts(
@@ -271,31 +291,37 @@ fn number_scanner_follows_svg_2() {
     }
 }
 
-/// `d` is exactly `M x y A r r 0 f f x y`: numbers, `r > 0` twice the same,
-/// rotation `0`, flags `0|1`.
+/// `d` is exactly one of `M x y A rx ry φ f f x y` (an arc, LCV-170; `φ`
+/// and `rx ≠ ry` for an elliptical arc, LCV-176), `M x y C x y x y x y` or
+/// `M x y Q x y x y` (a Bézier, LCV-177): numbers, radii `> 0`, flags `0|1`.
 fn check_path(label: &str, d: &str) {
     let tok: Vec<&str> = d.split(' ').collect();
-    assert_eq!(tok.len(), 11, "{label}: d={d:?}");
-    assert_eq!(
-        (tok[0], tok[3], tok[6]),
-        ("M", "A", "0"),
-        "{label}: d={d:?}"
-    );
-    for i in [1, 2, 4, 5, 9, 10] {
+    assert_eq!(tok[0], "M", "{label}: d={d:?}");
+    let numbers: &[usize] = match (tok.get(3).copied(), tok.len()) {
+        (Some("A"), 11) => {
+            for i in [7, 8] {
+                assert!(matches!(tok[i], "0" | "1"), "{label}: flag {:?}", tok[i]);
+            }
+            for i in [4, 5] {
+                assert!(
+                    tok[i].parse::<f64>().is_ok_and(|r| r > 0.0),
+                    "{label}: radius {d:?}"
+                );
+            }
+            &[1, 2, 4, 5, 6, 9, 10]
+        }
+        (Some("C"), 10) => &[1, 2, 4, 5, 6, 7, 8, 9],
+        (Some("Q"), 8) => &[1, 2, 4, 5, 6, 7],
+        _ => panic!("{label}: d={d:?}"),
+    };
+    for &i in numbers {
         assert!(is_svg_number(tok[i]), "{label}: d token {:?}", tok[i]);
     }
-    for i in [7, 8] {
-        assert!(matches!(tok[i], "0" | "1"), "{label}: flag {:?}", tok[i]);
-    }
-    assert_eq!(tok[4], tok[5], "{label}: rx = ry");
-    assert!(
-        tok[4].parse::<f64>().is_ok_and(|r| r > 0.0),
-        "{label}: r {d:?}"
-    );
 }
 
 /// AC 7 — every numeric value is a finite SVG 2 `number` and every `d` is a
-/// single circular arc `M x y A r r 0 f f x y` with `r > 0`.
+/// single arc `M x y A rx ry φ f f x y` with radii `> 0`, or a single
+/// Bézier `M … C …` / `M … Q …`.
 #[test]
 fn audit_exports_write_svg_numbers_and_arc_paths() {
     for (label, text) in audit_exports() {
@@ -321,6 +347,11 @@ fn audit_exports_write_svg_numbers_and_arc_paths() {
                     ["cx", "cy", "r"].iter().for_each(|a| num(attr(a), a));
                     assert!(attr("r").parse::<f64>().is_ok_and(|r| r > 0.0), "{label}");
                 }
+                "ellipse" => {
+                    ["cx", "cy", "rx", "ry"]
+                        .iter()
+                        .for_each(|a| num(attr(a), a));
+                }
                 "path" => check_path(&label, attr("d")),
                 _ => {}
             }
@@ -336,6 +367,14 @@ fn near(label: &str, what: &str, a: Vec2, b: Vec2) {
         (a.x - b.x).abs() <= TRIP_MM && (a.y - b.y).abs() <= TRIP_MM,
         "{label}: {what} {a:?} vs {b:?}"
     );
+}
+
+/// Every polyline vertex of `a` lies within `TRIP_MM` of the curve `b`.
+fn on_ellipse(label: &str, a: &Ellipse, b: &Ellipse) {
+    for p in a.polyline(0.05) {
+        let d = b.distance_to_point(p);
+        assert!(d <= TRIP_MM, "{label}: ellipse vertex {p:?} off by {d}");
+    }
 }
 
 /// The entities on each layer, in layer order, each list in document order.
@@ -394,6 +433,18 @@ fn audit_documents_survive_export_and_reopen() {
                     near(label, "start", g.start_point(), w.start_point());
                     near(label, "end", g.end_point(), w.end_point());
                     assert_eq!(g.ccw, w.ccw, "{label}: ccw");
+                }
+                (Entity::Ellipse(g), Entity::Ellipse(w)) => {
+                    on_ellipse(label, g, w);
+                    on_ellipse(label, w, g);
+                    let ends = |e: &Ellipse| (e.start_point(), e.end_point());
+                    match (ends(g), ends(w)) {
+                        ((Some(gs), Some(ge)), (Some(ws), Some(we))) => {
+                            near(label, "start", gs, ws);
+                            near(label, "end", ge, we);
+                        }
+                        (got, want) => assert_eq!(got, want, "{label}: full vs arc"),
+                    }
                 }
                 _ => panic!("{label}: kind {got:?} vs {want:?}"),
             }

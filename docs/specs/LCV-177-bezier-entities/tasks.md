@@ -46,7 +46,7 @@
   tests/it/app/bezier_edit.rs)
 - [x] T16 [AC10] Pick distance and `take_message` in TRIM/EXTEND; `cut_points`/`extend_reach`
   arms (files: src/tools/trim.rs, src/tools/extend.rs, src/document/commands/trim/mod.rs)
-- [ ] T17 [AC11, AC12] Test: exact strings for a cubic and a quadratic on a non-default bed
+- [x] T17 [AC11, AC12] Test: exact strings for a cubic and a quadratic on a non-default bed
   height; `GOLDEN` unchanged; the audit's `check_path` accepts `M … C …` and `M … Q …` (files:
   tests/it/io_svg/bezier.rs, tests/it/io_svg/mod.rs, tests/it/io_svg/export_audit.rs)
 - [ ] T18 [AC11] `encode_entity` Bézier arm; then `scripts/mutants.sh` on `export.rs` and
