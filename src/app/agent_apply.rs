@@ -33,7 +33,7 @@
 use crate::agent::tools::refusal;
 use crate::agent::{AgentAction, AgentOutcome, DrawingItem};
 use crate::app::agent_narrate::{batch_created, list_entities, list_selection, new_ids, pt, sweep};
-use crate::app::{App, agent_capture};
+use crate::app::{App, agent_capture, agent_checkpoint};
 use crate::document::commands::CreateEntities;
 use crate::document::{
     Command, CreateArc, CreateCircle, CreateLine, Document, Entity, LayerId, check_drawing,
@@ -65,9 +65,14 @@ enum Planned {
 /// and leave `revision()` untouched. Either way the outcome is transcribed
 /// before it is returned (AC 23).
 pub fn apply(app: &mut App, action: &AgentAction) -> AgentOutcome {
-    // LCV-145: a capture reads the camera, which `plan` cannot see.
+    // LCV-145: a capture reads the camera, LCV-198 the turn's group and
+    // checkpoints, which `plan` cannot see.
     let planned = match action {
         AgentAction::CaptureCanvas(frame) => Planned::Answer(agent_capture::capture(app, frame)),
+        AgentAction::Checkpoint { name } => {
+            Planned::Answer(agent_checkpoint::checkpoint(app, name))
+        }
+        AgentAction::Rollback { name } => Planned::Answer(agent_checkpoint::rollback(app, name)),
         _ => plan(action, &app.document),
     };
     let outcome = match planned {
@@ -188,12 +193,12 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
             Box::new(CreateEntities::new(items.iter().map(entity_of).collect()).on_layer(layer)),
             items.len(),
         ),
-        // Never planned against the document: `apply` answers a capture from
-        // the live app, and `agent_poll` answers an upload check, a note,
+        // Never planned against the document: `apply` answers a capture, a
+        // checkpoint and a rollback from the live app, and `agent_poll` answers an upload check, a note,
         // a reply, a feedback ask and a verify ask before the fence. Reaching
         // here is a routing slip, so the answer is the safe one — nothing is
         // rendered and nothing is authorised (LCV-145, LCV-187, LCV-193,
-        // LCV-195, LCV-197).
+        // LCV-195, LCV-197, LCV-198).
         AgentAction::CaptureCanvas(_)
         | AgentAction::AuthorizeUpload { .. }
         | AgentAction::Note(_)

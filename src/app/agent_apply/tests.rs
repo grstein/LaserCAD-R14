@@ -877,3 +877,35 @@ fn new_ids_names_the_appended_ids() {
     assert_eq!(new_ids(&doc, 1), " New ids: e2, e4.");
     assert_eq!(new_ids(&doc, 0), " New ids: e1, e2, e4.");
 }
+
+// ── LCV-198: checkpoint and rollback reach the live app ──────────────────
+
+/// LCV-198 AC 1, AC 2 — `apply` answers both tools from the turn's group
+/// and transcribes the answer like any other action.
+#[test]
+fn checkpoint_and_rollback_are_applied_and_transcribed() {
+    let mut app = app_with(vec![line(0.0)]);
+    drop(crate::app::arm_turn(&mut app, "try"));
+    let set = apply(&mut app, &AgentAction::Checkpoint { name: "a".into() });
+    assert_eq!(
+        set,
+        AgentOutcome::Ok("Checkpoint a set at 0 changes.".into())
+    );
+    apply(
+        &mut app,
+        &AgentAction::CreateLine {
+            x1: 0.0,
+            y1: 5.0,
+            x2: 1.0,
+            y2: 5.0,
+            layer: None,
+        },
+    );
+    let back = apply(&mut app, &AgentAction::Rollback { name: "a".into() });
+    let text = "Rolled back to a: 1 changes undone, 1 entities.";
+    assert_eq!(back, AgentOutcome::Ok(text.into()));
+    assert_eq!(
+        app.agent.chat.last(),
+        Some(&("tool".to_owned(), text.to_owned()))
+    );
+}

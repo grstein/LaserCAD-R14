@@ -3,10 +3,6 @@
 //! name; `rollback` rewinds the group to a recorded mark. `start` (mark 0)
 //! is built in. The list lives in `TurnState`, which `arm_turn` rebuilds, so
 //! no checkpoint outlives its turn (AC 9).
-#![cfg_attr(
-    not(test),
-    expect(dead_code, reason = "wired into apply by LCV-198 T5")
-)]
 
 use crate::agent::AgentOutcome;
 use crate::agent::tools::{expected_form, refusal};

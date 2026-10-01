@@ -277,6 +277,29 @@ mod tests {
         assert!(!app.history.group_open(), "the group was still sealed");
     }
 
+    /// LCV-198 AC 6 — after a rollback the note counts the surviving changes
+    /// the seal took, and a turn rolled back to `start` writes no note.
+    #[test]
+    fn the_undo_note_counts_what_survived_a_rollback() {
+        use crate::document::CreateLine;
+        use crate::geometry::{Line, Vec2};
+        for (mark, note) in [(1, Some("Applied 1 action — Ctrl+Z undoes it.")), (0, None)] {
+            let mut app = App::default();
+            let _tx = arm_turn(&mut app, "try");
+            for y in [0.0, 1.0, 2.0] {
+                let line = Line::new(Vec2::new(0.0, y), Vec2::new(1.0, y));
+                let cmd = Box::new(CreateLine::new(line));
+                app.history.commit_grouped(cmd, &mut app.document);
+            }
+            app.history.rewind_group(mark, &mut app.document);
+            app.agent.turn.tally.applied = 4;
+            let rows = app.agent.chat.len();
+            finish_turn(&mut app);
+            let last = app.agent.chat.get(rows).map(|(_, text)| text.as_str());
+            assert_eq!(last, note, "mark {mark}");
+        }
+    }
+
     /// ADR 0007 §D11 — [`end_turn`] is the one place that clears `agent.rx`,
     /// and it clears it whichever exit got here.
     ///

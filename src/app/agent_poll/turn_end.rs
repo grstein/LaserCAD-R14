@@ -39,9 +39,11 @@ pub(super) fn end_turn(
 /// turn that applied nothing gets no undo note: it would be noise.
 ///
 /// The note is derived from **`end_group`'s report**, never from the fence:
-/// only when this seal took all `applied` commands is the whole turn one
-/// `Ctrl+Z` away. A group sealed earlier by a foreign event, or dropped with
-/// a replaced document, reports `None` here and gets the neutral sentence.
+/// only when this seal found the turn's group still open is the whole turn
+/// one `Ctrl+Z` away, and the count is what it sealed — fewer than `applied`
+/// after a rollback, and no note when nothing survived (LCV-198). A group
+/// sealed earlier by a foreign event, or dropped with a replaced document,
+/// reports `None` here and gets the neutral sentence.
 ///
 /// The tally is read, not taken: the metrics note reads it next, and it stays
 /// readable until `arm_turn` replaces it whole (LCV-193).
@@ -51,11 +53,12 @@ pub(super) fn finish_turn(app: &mut App) {
     if applied == 0 {
         return;
     }
-    let applied = usize::try_from(applied).unwrap_or(usize::MAX);
-    let whole = sealed == Some(applied);
-    app.agent
-        .chat
-        .push(("note".to_owned(), undo_note(applied, whole)));
+    let note = match sealed {
+        Some(0) => return,
+        Some(survivors) => undo_note(survivors, true),
+        None => undo_note(usize::try_from(applied).unwrap_or(usize::MAX), false),
+    };
+    app.agent.chat.push(("note".to_owned(), note));
 }
 
 /// What the operator is told about the turn they just watched (LCV-142 AC 12).
