@@ -26,7 +26,7 @@
   action and leave `pending_action` `None` (files: src/app/discard.rs)
 - [x] T10 [AC8] `apply_discard_choice(Save)`: `action_save`, then run the action iff
   `!has_unsaved_changes()` (files: src/app/discard.rs, src/app/file_ops.rs)
-- [ ] T11 [AC1] [AC2] Test first: About then Shortcuts open, Escape closes only Shortcuts; Enter
+- [x] T11 [AC1] [AC2] Test first: About then Shortcuts open, Escape closes only Shortcuts; Enter
   on Bed Size commits and closes; with LINE past its first point and the focused command line
   holding `12,3`, Escape on a dialog leaves the text, focus and tool prompt unchanged, and Enter
   pushes nothing to the recall ring (files: tests/it/ui/dialog_keyboard.rs)

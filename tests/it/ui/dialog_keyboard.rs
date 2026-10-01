@@ -292,3 +292,70 @@ fn ac6_discard_text_is_danger_and_nothing_is_filled_danger() {
     assert_eq!(discard[0].1, DANGER, "Discard's text is the danger colour");
     assert!(!fills.contains(&DANGER), "no shape is filled with DANGER");
 }
+
+// ── AC 1 / AC 2: Enter and Escape ────────────────────────────────────────────
+
+/// One real tap of `key` with no modifiers.
+fn press(ctx: &egui::Context, app: &mut App, key: egui::Key) {
+    harness::tap(ctx, app, key, egui::Modifiers::NONE);
+}
+
+/// AC 1 — with About then Shortcuts open, Escape closes only Shortcuts, the
+/// topmost; a second Escape closes About.
+#[test]
+fn ac1_escape_closes_only_the_topmost_dialog() {
+    let (ctx, mut app) = open("About LaserCAD");
+    harness::frame(&ctx, &mut app, vec![]);
+    app.shortcuts_open = true;
+    harness::frame(&ctx, &mut app, vec![]);
+    press(&ctx, &mut app, egui::Key::Escape);
+    assert!(!app.shortcuts_open, "Shortcuts, the topmost, closed");
+    assert!(app.about_open, "About stays open");
+    press(&ctx, &mut app, egui::Key::Escape);
+    assert!(!app.about_open);
+}
+
+/// AC 1 — Enter on Bed Size commits the draft and closes the dialog.
+#[test]
+fn ac1_enter_on_bed_size_commits_and_closes() {
+    let (ctx, mut app) = open("Bed Size");
+    app.bed_dialog = Some([123.0, 77.0]);
+    harness::frame(&ctx, &mut app, vec![]);
+    press(&ctx, &mut app, egui::Key::Enter);
+    assert_eq!(app.bed_dialog, None, "closed");
+    assert_eq!(app.document.bed_mm, [123.0, 77.0], "committed");
+}
+
+/// AC 2 — LINE past its first point, `12,3` typed into the focused command
+/// line, About open: Escape leaves the text, the focus and the tool prompt
+/// as they were, and Enter pushes nothing to the recall ring.
+#[test]
+fn ac2_dialog_keys_never_reach_the_command_line_or_the_tool() {
+    let ctx = egui::Context::default();
+    let mut app = App::default();
+    harness::frame(&ctx, &mut app, vec![]);
+    harness::submit_command(&ctx, &mut app, "l");
+    harness::submit_command(&ctx, &mut app, "0,0");
+    harness::type_command(&ctx, &mut app, "12,3");
+    app.about_open = true;
+    harness::frame(&ctx, &mut app, vec![]);
+    let prompt = app.tool_manager.active_status_text().into_owned();
+    let ring = app.command_history.len();
+    assert!(app.command_line_focused, "control: the field has focus");
+    assert_eq!(prompt, "LINE  Specify next point <Enter to finish>:");
+
+    press(&ctx, &mut app, egui::Key::Escape);
+    assert!(!app.about_open, "Escape closed About");
+    assert_eq!(app.command_line_input, "12,3");
+    assert!(app.command_line_focused, "focus stays in the field");
+    assert_eq!(app.tool_manager.active_status_text(), prompt);
+
+    app.about_open = true;
+    harness::frame(&ctx, &mut app, vec![]);
+    press(&ctx, &mut app, egui::Key::Enter);
+    assert!(!app.about_open, "Enter closed About");
+    assert_eq!(app.command_history.len(), ring, "nothing pushed to recall");
+    assert_eq!(app.command_line_input, "12,3");
+    assert_eq!(app.tool_manager.active_status_text(), prompt);
+    assert_eq!(app.document.entity_count(), 0);
+}
