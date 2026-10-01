@@ -11,15 +11,6 @@ version = 2
 # ttf-parser via egui/eframe, 2026-09) are not ours to swap and pass.
 unmaintained = "workspace"
 yanked = "warn"
-# quick-xml 0.30 (zbus_xml, via eframe's accesskit AT-SPI bridge) and 0.39
-# (wayland-scanner, a build-time proc-macro) are pinned upstream by eframe 0.29;
-# the fix needs quick-xml >= 0.41. Neither parses user files: 0.39 reads the
-# vendored Wayland protocol XML at compile time, 0.30 reads D-Bus introspection
-# data from the local session bus. SVG import uses roxmltree. Revisit in LCV-180.
-ignore = [
-    { id = "RUSTSEC-2026-0194", reason = "quick-xml pinned by eframe 0.29 (zbus_xml, wayland-scanner); no user XML reaches it" },
-    { id = "RUSTSEC-2026-0195", reason = "quick-xml pinned by eframe 0.29 (zbus_xml, wayland-scanner); no user XML reaches it" },
-]
 
 [licenses]
 version = 2
