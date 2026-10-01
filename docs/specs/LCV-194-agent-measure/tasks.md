@@ -30,7 +30,7 @@ Prerequisites: LCV-188, LCV-190, LCV-192 Done on `agent-harness`.
     `points[1].y`; an empty `indices`.
 
   (files: src/agent/tools/tests.rs)
-- [ ] T6 [AC8] `MeasureQuery`, `MeasureRequest`, the `Measure` variant and `tool_name`
+- [x] T6 [AC8] `MeasureQuery`, `MeasureRequest`, the `Measure` variant and `tool_name`
   (files: src/agent/bridge/action/measure.rs, src/agent/bridge/action.rs, src/agent/bridge.rs)
 - [ ] T7 [AC8] `tools/measure.rs::parse` and the `parse_tool_call` arm
   (files: src/agent/tools/measure.rs, src/agent/tools.rs)

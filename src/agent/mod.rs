@@ -24,7 +24,10 @@ pub mod transport;
 pub use transport::{TransportError, chat_completion};
 
 pub mod bridge;
-pub use bridge::{AgentAction, AgentEvent, AgentOutcome, CaptureFrame, SetOp};
+pub use bridge::{
+    AgentAction, AgentEvent, AgentOutcome, CaptureFrame, MeasureQuery, MeasureRequest,
+    MeasureTargets, SetOp,
+};
 
 pub mod classifier;
 pub use classifier::{Route, classify};

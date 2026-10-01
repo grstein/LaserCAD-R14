@@ -4,7 +4,9 @@
 
 use crate::agent::drawing::DrawingItem;
 
+mod measure;
 mod ops;
+pub use measure::{MeasureQuery, MeasureRequest, MeasureTargets};
 pub use ops::{CaptureFrame, SetOp};
 
 /// One thing the model wants done to the drawing.
@@ -153,6 +155,9 @@ pub enum AgentAction {
     QuerySelection,
     /// Run the drawing check (LCV-190). Commits nothing.
     CheckDrawing,
+    /// Measure distances, lengths, extents, crossings or angles (LCV-194).
+    /// Commits nothing.
+    Measure(MeasureRequest),
     /// Render the drawing, framed as asked, into a grayscale PNG (LCV-145,
     /// LCV-187, ADR 0011). Commits nothing; one step like any action.
     CaptureCanvas(CaptureFrame),
@@ -223,6 +228,7 @@ impl AgentAction {
             Self::QueryEntities => "query_entities",
             Self::QuerySelection => "query_selection",
             Self::CheckDrawing => "check_drawing",
+            Self::Measure(_) => "measure",
             Self::CaptureCanvas(_)
             | Self::AuthorizeUpload { .. }
             | Self::Note(_)
@@ -235,7 +241,9 @@ impl AgentAction {
 
 #[cfg(test)]
 mod tests {
-    use super::{AgentAction as A, CaptureFrame, SetOp};
+    use super::{
+        AgentAction as A, CaptureFrame, MeasureQuery, MeasureRequest, MeasureTargets, SetOp,
+    };
 
     /// LCV-192 AC 2 — every action names the tool the model called; a set
     /// names its edit tool.
@@ -350,6 +358,14 @@ mod tests {
             (A::QueryEntities, "query_entities"),
             (A::QuerySelection, "query_selection"),
             (A::CheckDrawing, "check_drawing"),
+            (
+                A::Measure(MeasureRequest {
+                    query: MeasureQuery::Bbox,
+                    points: vec![],
+                    targets: MeasureTargets::Indices(vec![]),
+                }),
+                "measure",
+            ),
             (A::CaptureCanvas(CaptureFrame::View), "capture_canvas"),
             (
                 A::AuthorizeUpload {

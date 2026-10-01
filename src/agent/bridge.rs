@@ -28,7 +28,7 @@ use crate::agent::wire::ChatMessage;
 use std::sync::mpsc::Sender;
 
 mod action;
-pub use action::{AgentAction, CaptureFrame, SetOp};
+pub use action::{AgentAction, CaptureFrame, MeasureQuery, MeasureRequest, MeasureTargets, SetOp};
 
 /// What the UI thread answers for one [`AgentAction`].
 ///
