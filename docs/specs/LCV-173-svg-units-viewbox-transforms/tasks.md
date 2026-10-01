@@ -31,7 +31,7 @@
 - [x] T12 [AC6, AC7] Test: circle and arc under rotate/uniform scale/reflection (radius scaled,
   `ccw` inverted on reflection) and under non-uniform scale/skew (nothing imported, report
   `circle|arc (non-uniform transform)`) (files: tests/it/io_svg/transforms.rs)
-- [ ] T13 [AC6, AC7] Circle similarity check in `parse_circle`; `path_entities` maps segments
+- [x] T13 [AC6, AC7] Circle similarity check in `parse_circle`; `path_entities` maps segments
   through `ctm` (`rx·s`, `sweep ^= det < 0`, non-similar arc → report, point advances) (files:
   src/io/svg/import.rs, src/io/svg/import/path.rs, src/io/svg/import/walk.rs)
 - [ ] T14 [AC9] Test: nested `<svg>` with `x y width height viewBox preserveAspectRatio` and a

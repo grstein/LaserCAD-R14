@@ -26,6 +26,9 @@ const INVALID_TRANSFORM: &str = "transform (invalid)";
 /// The report label of a `transform` that collapses the plane (LCV-173).
 const SINGULAR_TRANSFORM: &str = "transform (singular)";
 
+/// The report label of a circle under a non-similarity map (LCV-173 AC 7).
+const NON_UNIFORM_CIRCLE: &str = "circle (non-uniform transform)";
+
 /// What the walk does with one element (the table in [`super`]'s docs).
 enum Kind {
     /// `line`, `circle`, `path`: turned into an entity.
@@ -98,9 +101,15 @@ impl Walk {
                 Kind::Import => match (inner_ctx, name) {
                     (None, _) => None,
                     (Some(c), "line") => Some(parse_line(child, &c, bed_h)?),
-                    (Some(c), "circle") => Some(parse_circle(child, &c, bed_h)?),
-                    (Some(_), _) => {
-                        self.path(child, layer);
+                    (Some(c), "circle") => {
+                        let circle = parse_circle(child, &c, bed_h)?;
+                        if circle.is_none() {
+                            self.report.note(NON_UNIFORM_CIRCLE);
+                        }
+                        circle
+                    }
+                    (Some(c), _) => {
+                        self.path(child, layer, &c);
                         None
                     }
                 },
@@ -152,13 +161,13 @@ impl Walk {
 
     /// Import a `<path>`: every entity its `d` draws, every report label
     /// (LCV-172 AC 2, AC 7, AC 8).
-    fn path(&mut self, node: roxmltree::Node<'_, '_>, layer: Option<LayerId>) {
+    fn path(&mut self, node: roxmltree::Node<'_, '_>, layer: Option<LayerId>, ctx: &Ctx) {
         let Some(d) = node.attribute("d") else {
             self.report.note(UNSUPPORTED_PATH);
             return;
         };
         let data = parse_path_data(d);
-        let (entities, labels) = path_entities(&data, self.bed_h);
+        let (entities, labels) = path_entities(&data, ctx, self.bed_h);
         for entity in entities {
             self.push(entity, layer);
         }

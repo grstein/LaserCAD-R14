@@ -207,11 +207,13 @@ fn parse_line(n: roxmltree::Node<'_, '_>, ctx: &Ctx, bed_h: f64) -> Result<Entit
     )))
 }
 
+/// A `<circle>`; `Ok(None)` when `ctx` is not a similarity, so the circle
+/// would be an ellipse (LCV-173 AC 7, until LCV-176).
 fn parse_circle(
     n: roxmltree::Node<'_, '_>,
     ctx: &Ctx,
     bed_h: f64,
-) -> Result<Entity, SvgImportError> {
+) -> Result<Option<Entity>, SvgImportError> {
     let len = |a, axis| attr_len(n, "circle", a, axis, ctx);
     let c = Vec2::new(len("cx", Axis::X)?, len("cy", Axis::Y)?);
     let r = len("r", Axis::Diag)?;
@@ -219,8 +221,10 @@ fn parse_circle(
         let v = n.attribute("r").unwrap_or("").to_string();
         return Err(malformed("circle", "r", v));
     }
-    let s = ctx.ctm.det().abs().sqrt();
-    Ok(Entity::Circle(Circle::new(to_world(ctx, c, bed_h), r * s)))
+    Ok(ctx
+        .ctm
+        .similarity_scale()
+        .map(|s| Entity::Circle(Circle::new(to_world(ctx, c, bed_h), r * s))))
 }
 
 fn malformed(element: &'static str, attr: &'static str, value: String) -> SvgImportError {

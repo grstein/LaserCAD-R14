@@ -3,24 +3,36 @@
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
+use super::to_world;
 use crate::document::entity::Entity;
 use crate::geometry::{Arc, EPSILON, Line, Vec2};
 use crate::io::svg::path_data::{PathData, Segment};
-use crate::util::flip_y;
+use crate::io::svg::viewport::Ctx;
 
 /// The report label of an `A` with `|rx| ≠ |ry|` (AC 7, until LCV-176).
 const ELLIPTICAL_ARC: &str = "path elliptical arc";
 
-/// The entities `data` draws, un-mirrored around `bed_h`, and one report
-/// label per segment not imported, in order.
+/// The report label of a circular arc under a non-similarity map (LCV-173
+/// AC 7, until LCV-176).
+const NON_UNIFORM_ARC: &str = "arc (non-uniform transform)";
+
+/// The entities `data` draws, mapped through `ctx.ctm` and un-mirrored
+/// around `bed_h`, and one report label per segment not imported, in order.
 ///
 /// Zero-length lines are dropped (AC 3, AC 4). Arcs follow SVG 2 §F.6.6
 /// (AC 6): equal endpoints draw nothing, a zero radius draws a line,
 /// negative radii count as positive; `|rx| = |ry|` imports a circular arc
 /// whatever its rotation (AC 5), any other arc is labelled (AC 7). Lengths
-/// and radii are compared with [`EPSILON`] after the mirror.
-pub(super) fn path_entities(data: &PathData, bed_h: f64) -> (Vec<Entity>, Vec<&'static str>) {
-    let world = |p: Vec2| Vec2::new(p.x, flip_y(p.y, bed_h));
+/// and radii are compared with [`EPSILON`] after the mirror. Under a
+/// similarity of scale `s` an arc's radius is `rx · s` and a reflection
+/// flips its sweep (LCV-173 AC 6); under any other map it is labelled (AC 7).
+pub(super) fn path_entities(
+    data: &PathData,
+    ctx: &Ctx,
+    bed_h: f64,
+) -> (Vec<Entity>, Vec<&'static str>) {
+    let world = |p: Vec2| to_world(ctx, p, bed_h);
+    let flip = ctx.ctm.det() < 0.0;
     let line = |a: Vec2, b: Vec2| (a.distance(b) >= EPSILON).then(|| Entity::Line(Line::new(a, b)));
     let (mut entities, mut labels) = (Vec::new(), Vec::new());
     for seg in &data.segments {
@@ -40,8 +52,10 @@ pub(super) fn path_entities(data: &PathData, bed_h: f64) -> (Vec<Entity>, Vec<&'
                     entities.extend(line(a, b));
                 } else if (rx - ry).abs() > EPSILON {
                     labels.push(ELLIPTICAL_ARC);
+                } else if let Some(s) = ctx.ctm.similarity_scale() {
+                    entities.extend(circular_arc(a, b, rx * s, large, sweep != flip));
                 } else {
-                    entities.extend(circular_arc(a, b, rx, large, sweep));
+                    labels.push(NON_UNIFORM_ARC);
                 }
             }
             Segment::Skipped { label, .. } => labels.push(label),
@@ -86,12 +100,17 @@ pub(super) fn circular_arc(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::io::svg::matrix::Matrix;
     use crate::io::svg::path_data::parse_path_data;
 
     const BED_H: f64 = 100.0;
 
     fn entities(d: &str) -> (Vec<Entity>, Vec<&'static str>) {
-        path_entities(&parse_path_data(d), BED_H)
+        let ctx = Ctx {
+            ctm: Matrix::IDENTITY,
+            viewport: [100.0, BED_H],
+        };
+        path_entities(&parse_path_data(d), &ctx, BED_H)
     }
 
     /// A world line from SVG points (y flipped around [`BED_H`]).
