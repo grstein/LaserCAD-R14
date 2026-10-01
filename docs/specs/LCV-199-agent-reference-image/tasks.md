@@ -23,4 +23,4 @@
   JPEG and GIF; AC5 deletes the file before `start_turn`; AC6 checks the next turn's
   `config_for` memory) (files: tests/it/agent/reference_image.rs, tests/it/agent/mod.rs)
 - [x] T10 `scripts/mutants.sh` on the diff; kill or justify survivors (files: src/agent/attachment.rs)
-- [ ] T11 CHANGELOG line (files: CHANGELOG.md)
+- [x] T11 CHANGELOG line (files: CHANGELOG.md)
