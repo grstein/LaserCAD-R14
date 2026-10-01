@@ -57,7 +57,7 @@ pub(super) fn path_entities(
                     entities.extend(conic.and_then(|k| conic_entity(ctx, k, bed_h)));
                 }
             }
-            Segment::Skipped { label, .. } => labels.push(label),
+            Segment::Cubic(_) | Segment::Quad(_) => labels.push("path curve"),
         }
     }
     (entities, labels)

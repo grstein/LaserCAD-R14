@@ -30,13 +30,11 @@ pub(super) enum Segment {
         /// The sweep flag.
         sweep: bool,
     },
-    /// `C S Q T`: not imported; `label` is the report label (`path C`, …).
-    Skipped {
-        /// The report label, under the uppercase command.
-        label: &'static str,
-        /// The endpoint the current point advances to.
-        to: Vec2,
-    },
+    /// `C` or `S` (LCV-177): start, both controls (an `S`'s first one
+    /// reflected), end.
+    Cubic([Vec2; 4]),
+    /// `Q` or `T` (LCV-177): start, control (a `T`'s reflected), end.
+    Quad([Vec2; 3]),
 }
 
 /// The segments of one `d`, in order.
@@ -90,11 +88,16 @@ pub(super) fn parse_path_data(d: &str) -> PathData {
     out
 }
 
-/// The current point and the start of the current subpath.
+/// The current point, the start of the current subpath, and the control
+/// point an `S` or `T` reflects: the second control of the segment just
+/// drawn when it was `C`/`S`, its control when it was `Q`/`T`; any other
+/// command clears both.
 #[derive(Debug, Default)]
 struct Pen {
     cur: Vec2,
     start: Vec2,
+    cubic_c2: Option<Vec2>,
+    quad_c: Option<Vec2>,
 }
 
 impl Pen {
@@ -111,18 +114,17 @@ impl Pen {
             let y = lx.number()?;
             Some(Vec2::new(base.x + x, base.y + y))
         };
-        let skip = |lx: &mut Lexer<'_>, controls: usize| -> Option<Vec2> {
-            for _ in 0..controls {
-                point(lx)?;
-            }
-            point(lx)
-        };
         let from = self.cur;
+        // The reflection of `c` about the current point, else the current point.
+        let reflect = |c: Option<Vec2>| c.map_or(from, |c| from * 2.0 - c);
         let seg = match cmd.to_ascii_uppercase() {
             b'M' => {
                 let to = point(lx)?;
-                self.start = to;
-                self.cur = to;
+                *self = Self {
+                    cur: to,
+                    start: to,
+                    ..Self::default()
+                };
                 return Some(None);
             }
             b'L' => Segment::Line(from, point(lx)?),
@@ -143,21 +145,25 @@ impl Pen {
                     sweep,
                 }
             }
-            b'C' => skipped("path C", skip(lx, 2)?),
-            b'S' => skipped("path S", skip(lx, 1)?),
-            b'Q' => skipped("path Q", skip(lx, 1)?),
-            b'T' => skipped("path T", skip(lx, 0)?),
+            b'C' => Segment::Cubic([from, point(lx)?, point(lx)?, point(lx)?]),
+            b'S' => Segment::Cubic([from, reflect(self.cubic_c2), point(lx)?, point(lx)?]),
+            b'Q' => Segment::Quad([from, point(lx)?, point(lx)?]),
+            b'T' => Segment::Quad([from, reflect(self.quad_c), point(lx)?]),
             _ => return None,
         };
+        (self.cubic_c2, self.quad_c) = match seg {
+            Segment::Cubic([_, _, c2, _]) => (Some(c2), None),
+            Segment::Quad([_, c, _]) => (None, Some(c)),
+            Segment::Line(..) | Segment::Arc { .. } => (None, None),
+        };
         self.cur = match seg {
-            Segment::Line(_, to) | Segment::Arc { to, .. } | Segment::Skipped { to, .. } => to,
+            Segment::Line(_, to)
+            | Segment::Arc { to, .. }
+            | Segment::Cubic([.., to])
+            | Segment::Quad([.., to]) => to,
         };
         Some(Some(seg))
     }
-}
-
-fn skipped(label: &'static str, to: Vec2) -> Segment {
-    Segment::Skipped { label, to }
 }
 
 #[cfg(test)]
@@ -270,22 +276,36 @@ mod tests {
         );
     }
 
+    /// LCV-177 — curves resolve to absolute points and advance the pen;
+    /// `S`/`T` reflect only a control of their own family, and a moveto
+    /// clears it.
     #[test]
-    fn curves_advance_to_their_endpoint_under_the_uppercase_label() {
-        let skip = |label, x, y| Segment::Skipped { label, to: p(x, y) };
+    fn curves_resolve_with_reflection() {
+        let cubic = |a: [[f64; 2]; 4]| Segment::Cubic(a.map(|q| p(q[0], q[1])));
+        let quad = |a: [[f64; 2]; 3]| Segment::Quad(a.map(|q| p(q[0], q[1])));
         assert_eq!(
             ok("M 0 0 C 1 1 2 2 3 3 S 4 4 5 5 Q 6 6 7 7 T 8 8 \
                 c 1 1 2 2 3 3 s 1 1 1 1 q 1 1 1 1 t 1 1 L 0 0"),
             [
-                skip("path C", 3.0, 3.0),
-                skip("path S", 5.0, 5.0),
-                skip("path Q", 7.0, 7.0),
-                skip("path T", 8.0, 8.0),
-                skip("path C", 11.0, 11.0),
-                skip("path S", 12.0, 12.0),
-                skip("path Q", 13.0, 13.0),
-                skip("path T", 14.0, 14.0),
+                cubic([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
+                cubic([[3.0, 3.0], [4.0, 4.0], [4.0, 4.0], [5.0, 5.0]]),
+                quad([[5.0, 5.0], [6.0, 6.0], [7.0, 7.0]]),
+                quad([[7.0, 7.0], [8.0, 8.0], [8.0, 8.0]]),
+                cubic([[8.0, 8.0], [9.0, 9.0], [10.0, 10.0], [11.0, 11.0]]),
+                cubic([[11.0, 11.0], [12.0, 12.0], [12.0, 12.0], [12.0, 12.0]]),
+                quad([[12.0, 12.0], [13.0, 13.0], [13.0, 13.0]]),
+                quad([[13.0, 13.0], [13.0, 13.0], [14.0, 14.0]]),
                 line([14.0, 14.0], [0.0, 0.0]),
+            ]
+        );
+        assert_eq!(
+            ok("M 0 0 C 1 1 2 2 3 3 M 5 5 S 6 6 7 7 Q 1 0 2 2 Z T 3 3"),
+            [
+                cubic([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]),
+                cubic([[5.0, 5.0], [5.0, 5.0], [6.0, 6.0], [7.0, 7.0]]),
+                quad([[7.0, 7.0], [1.0, 0.0], [2.0, 2.0]]),
+                line([2.0, 2.0], [5.0, 5.0]),
+                quad([[5.0, 5.0], [5.0, 5.0], [3.0, 3.0]]),
             ]
         );
     }

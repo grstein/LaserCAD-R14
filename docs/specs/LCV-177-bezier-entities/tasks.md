@@ -55,7 +55,7 @@
   after `L` (current point); `Q`/`q`; `T` after `Q`, after `T`, after `C` (current point);
   implicit repetition; one `C` under `skewX(30)` gives the CTM images; a degenerate `C` and `Q`
   create nothing and report `path curve (degenerate)` (files: tests/it/io_svg/bezier.rs)
-- [ ] T20 [AC1, AC2, AC3] `PathData` `Cubic`/`Quad` segments and the reflection state;
+- [x] T20 [AC1, AC2, AC3] `PathData` `Cubic`/`Quad` segments and the reflection state;
   `Skipped` removed (files: src/io/svg/path_data.rs)
 - [ ] T21 [AC1, AC4] `path_entities` maps curve points through the CTM and `flip_y`, notes the
   degenerate label; LCV-172 unit tests expecting `path C|S|Q|T` rewritten (files:
