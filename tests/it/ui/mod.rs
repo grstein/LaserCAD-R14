@@ -4,6 +4,7 @@ mod bed_dialog;
 mod canvas_legibility;
 mod compact_chrome_and_action_hints;
 mod cursor_and_picking;
+mod dialog_keyboard;
 mod discard_dialog_pointer_click;
 mod icon_tool_rail;
 mod layer_combo;

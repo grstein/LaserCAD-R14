@@ -3,7 +3,7 @@
 - [x] T1 Seam: if `src/app/mod.rs` is ≥ 290 implementation lines, move the autosave fields into
   `AutosaveState` in `app/autosave.rs` with no behaviour change; else tick with "not needed"
   (files: src/app/mod.rs, src/app/autosave.rs, src/app/init.rs)
-- [ ] T2 [AC4] [AC5] Test first: open each of the seven dialogs; its painted button runs are
+- [x] T2 [AC4] [AC5] Test first: open each of the seven dialogs; its painted button runs are
   `Close` (About, Keyboard Shortcuts, Error, AI Settings), `OK`·`Cancel` (Bed Size),
   `Apply`…`Close` (Layers) and `Save`·`Discard`·`Cancel` (Discard), in reading order, with the
   Cancel/Close run last (files: tests/it/ui/dialog_keyboard.rs, tests/it/ui/mod.rs)
