@@ -79,7 +79,7 @@ one named constant per token in `ui/theme.rs` (chrome, done by LCV-184) or a new
 | `border` | #404040 | the one 1 pt border: windows, menus, separators, off pills | — | `ui/theme.rs::BORDER` |
 | `status.warning` | #ff8f00 | warnings, command feedback | 6.7:1 | `ui/theme.rs::STATUS_WARNING` |
 | `agent.tool` | #78beff | agent tool rows | 7.7:1 | `agent/panel.rs::TOOL_COLOR` |
-| `status.error` | #ff6b6b | errors: AI panel error rows, `! ` dock lines, failed autosave badge (egui `error_fg_color`) | 5.5:1 | `ui/theme.rs::STATUS_ERROR` |
+| `status.error` | #ff6b6b | errors: AI panel error rows, error-severity dock lines, failed autosave badge (egui `error_fg_color`) | 5.5:1 | `ui/theme.rs::STATUS_ERROR` |
 | `accent` | #4fa3e0 | foreground-only highlight, never a fill: focus rings, active pill text, active rail icon, prompt verb (amends LCV-071 AC 4; selection fill stays egui's #005c80, `fill.selected`) | 5.5:1 | `ui/theme.rs::ACCENT` |
 
 **Canvas** (surface: bed, gray 40)
@@ -219,12 +219,28 @@ clear of the point and the crosshair (`render/snaps/label.rs`, LCV-164).
     (`Command:`) is all `text.primary`.
   - The editor row sits in a 1 pt frame, `border` idle and `accent` while the editor holds
     keyboard focus; the field itself is frameless.
-  - New prompts follow `VERB  Specify <thing> [Opt/Opt]:`. A `<default>` needs a runtime
-    value, which ADR 0003 §C rules out (`&'static str`). Defaults and existing prompts:
-    gap → LCV-165.
-  - Messages state a fact and the next step. Severity is error / warning / info (gap → LCV-165).
-    Today a line starting `! ` is an error in `status.error` (LCV-167); everything else is
-    `status.warning`. Query results such as DIST are info.
+  - Every waiting tool prompts `VERB  Specify <thing> [Opt/Opt] <default>:` — the verb, two
+    spaces, the request; options and default only where the tool acts on them (LCV-165).
+    Picking tools use `Select`: `TRIM  Select object to trim:`. `Tool::status_text` returns
+    `Cow<str>`, so a default may be a runtime value (ADR 0003 amendment 6). The prompts:
+    `LINE`/`PLINE  Specify first point:` / `Specify next point <Enter to finish>:` ·
+    `RECT  Specify first corner:` / `Specify opposite corner:` ·
+    `CIRCLE  Specify center point:` / `Specify radius:` ·
+    `ARC  Specify start point:` / `Specify end point:` / `Specify point on arc:` ·
+    `TEXT  Specify start point:` / `Specify text:` / `Specify height <5>:` ·
+    `MOVE`/`COPY`/`ROTATE`/`SCALE  Specify base point:` · `MOVE  Specify destination point:` ·
+    `COPY  Specify second point:` · `ROTATE  Specify rotation angle:` ·
+    `SCALE  Specify scale factor:` · `DIST  Specify first point:` / `Specify second point:` ·
+    `MIRROR  Specify first point of mirror line:` / `Specify second point of mirror line:` /
+    `Erase source objects? [Yes/No] <N>:` · `TRIM  Select object to trim:` ·
+    `EXTEND  Select object to extend:` · `ERASE  Select objects:` · Select: `Command:`.
+  - Messages state a fact and the next step. Each carries a severity (`app/feedback.rs::Severity`,
+    set through `App::say`, LCV-165): **error** in `status.error` — an operation or
+    configuration failed (AI unavailable); **warning** in `status.warning` — input refused
+    (unknown word, no base point, no direction, a tool's own refusal, AI empty or busy, export
+    not possible); **info** in `text.primary` — results and acknowledgements (DIST, `SNAP on`,
+    `→ AI: "…"`, `Exported layers: …`). A refused value names the tool's reason
+    (`Scale factor must be greater than 0.`) before any generic line.
 - **Status bar** (`ui/statusbar.rs::draw_statusbar`): coords · tool · `Entities: n` · current
   layer dropdown (`ui/layer_combo.rs`, LCV-156) · SNAP GRID ORTHO · autosave. The autosave
   badge has four states, first match wins: `× autosave failed` in `status.error` until the next
@@ -253,9 +269,13 @@ Canonical bindings live in ADR 0002 §A6 (gate table), ADR 0003 (command line) a
   edit action is Ctrl+letter. A new key needs its gate class in ADR 0002 §A6.
 - Escape follows ADR 0003: one press clears the command line, releases focus and cancels the
   tool.
-- Enter on an empty line goes to the active tool (ADR 0003 §B5). Repeating the last command:
-  gap → LCV-165.
-- The right button is reserved (LCV-041 AC 4). Right-click = Enter: gap → LCV-165.
+- Enter on an empty line goes to the active tool (ADR 0003 §B5). While Select is idle it
+  repeats the newest command word in the recall ring instead, as if typed; agent prompts,
+  points and unknown words are skipped, and with no command word nothing happens (LCV-165).
+  Repeat pushes nothing to the ring.
+- Right-click on the canvas = Enter on an empty line: finish, accept or repeat; it never picks
+  a point and ignores text in the field. Middle-drag pan is unchanged (LCV-165 reverses
+  LCV-041 AC 4).
 - Ortho overrides snap (LCV-053).
 - The agent is addressed only by prefix, `:` or `/ai` (LCV-148).
 
