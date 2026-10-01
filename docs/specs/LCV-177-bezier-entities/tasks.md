@@ -69,7 +69,7 @@
   `quadratic` and their points in mm, in order (files: tests/it/agent/turn.rs)
 - [x] T24 [AC14] The narration arm, a prompt line saying Béziers are read-only, and the raster
   arm (files: src/app/agent_narrate.rs, src/agent/prompt.rs, src/render/raster.rs)
-- [ ] T25 Docs: `AGENTS.md` export bullet plus ADR 0016 in the list, coverage rows (files:
+- [x] T25 Docs: `AGENTS.md` export bullet plus ADR 0016 in the list, coverage rows (files:
   AGENTS.md, docs/research/svg-spec-coverage.md)
 - [ ] T26 CHANGELOG: curved SVG artwork (`C S Q T`) opens, edits, snaps and exports natively
   (files: CHANGELOG.md)

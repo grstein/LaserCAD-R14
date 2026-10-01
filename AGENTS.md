@@ -120,6 +120,8 @@ Contract of `src/io/svg/export.rs`; changing it needs explicit user confirmation
   not print as `0.000000`; elliptical arcs as `<path d="M sx sy A rx ry φ large sweep ex ey"/>`,
   never béziers. `a = φ = −rotation` in degrees, normalized into (−180, 180], written `{:.6}`;
   `sweep = 0` for a CCW world span, `large = 1` iff the parametric sweep > π (ADR 0015).
+- Bézier entities, and only they, as `C`/`Q` paths: `<path d="M x0 y0 C x1 y1 x2 y2 x3 y3"/>`
+  (cubic), `<path d="M x0 y0 Q x1 y1 x2 y2"/>` (quadratic), every `y` mirrored (ADR 0016).
 
 ## Product philosophy
 
@@ -136,6 +138,7 @@ UI directives: `DESIGN.md`.
 - 0012 document layers, mother SVG with one `<g>` per layer, one export file per layer
 - 0013 tools describe canvas feedback as styled marks (`Tool::feedback`)
 - 0015 ellipse entity: parametric span, `<ellipse>` / `A rx ry φ` export, exact import under any CTM
+- 0016 Bézier entities (cubic, quadratic): `C`/`Q` export for them only, tight bbox, Wang polyline
 
 A reversed ADR gets a `**Superseded**` header; ADR text keeps its original line citations.
 Product principles: `docs/product/README.md`. Roadmap: `PLAN.md`. User-visible changes: `CHANGELOG.md`.

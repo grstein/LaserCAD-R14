@@ -106,7 +106,7 @@ The owning spec is the Draft that brings the feature to the target (§6).
 | `A`/`a`, circular (rx = ry; φ ignored) | ✅ | ✅ done by LCV-172, absolute and relative | OK | 172 |
 | `A`, elliptical (rx ≠ ry) | ✅ `A rx ry φ` (LCV-176) | ✅ done by LCV-176: native elliptical arc, radii corrected per §F.6.6 | Native elliptical arc | 176 |
 | Arc out-of-range correction (rx = 0 → line, negative r → absolute value, λ > 1 → scale radii by √λ) | — | ✅ done by LCV-172; equal endpoints omit the arc | Implementation Notes, "Correction of out-of-range radii" | 172 |
-| `C`/`c`, `S`/`s`, `Q`/`q`, `T`/`t` Béziers | ⛔ by contract today | ◐ LCV-172: import nothing, advance the current point, reported as `path C`/`S`/`Q`/`T` | Native Bézier entities; the smooth-command reflection rules apply. | 177 |
+| `C`/`c`, `S`/`s`, `Q`/`q`, `T`/`t` Béziers | ✅ `C`/`Q` for Bézier entities only (LCV-177) | ✅ done by LCV-177: native cubic and quadratic entities, `S`/`T` reflection, exact under any CTM; a curve whose points all coincide is reported `path curve (degenerate)` | Native Bézier entities; the smooth-command reflection rules apply. | 172, 177 |
 | Error handling | — | ✅ done by LCV-172: segments before the error are imported, `path (data error)` is reported, the file opens | Spec: "render up to (but not including) the command containing the first error". LaserCAD imports up to the error and **reports** it. | 172 |
 | `pathLength` | — | — | ⛔ affects dashing and text-on-path only | — |
 
