@@ -18,7 +18,7 @@
       step runs `build-zip.ps1` with no `cargo-wix`, uploads and the release list use the new
       names; the `test` matrix lists `windows-2022` and `macos-15` on dispatch (files: tests/it/repo/packaging.rs)
 - [x] T8 [AC4] Edit `ci.yml` accordingly (files: .github/workflows/ci.yml)
-- [ ] T9 [AC7] Test (Unix): `release.sh --list-assets` in a temp copy with a fake `dist/` lists
+- [x] T9 [AC7] Test (Unix): `release.sh --list-assets` in a temp copy with a fake `dist/` lists
       AppImage, `.deb`, `.zip`, `.dmg`; with the `.dmg` removed it prints `missing: …dmg`, exits 0
       (files: tests/it/repo/packaging.rs)
 - [ ] T10 [AC7] `release.sh`: shared asset list, `--list-assets` mode, optional `.zip`/`.dmg`

@@ -159,3 +159,61 @@ fn ci_packages_on_dispatch_with_zip_and_dmg() {
         assert!(matrix.contains(needle), "test matrix must include {needle:?}");
     }
 }
+
+/// LCV-201 AC 7 — `release.sh --list-assets` lists what a release would
+/// attach: the AppImage and `.deb` plus the Windows `.zip` and macOS `.dmg`
+/// when present, and one `missing: <file>` line for an absent optional one,
+/// exiting 0 before any git, gate or `gh` step. Runs in a scratch copy with a
+/// fake `dist/` and a fake version, so nothing in the repository is touched.
+#[cfg(unix)]
+#[test]
+fn release_sh_lists_zip_and_dmg_and_names_the_missing_one() {
+    let scratch = std::env::temp_dir().join(format!("lcv201-release-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&scratch);
+    fs::create_dir_all(scratch.join("scripts")).expect("scratch dir");
+    fs::create_dir_all(scratch.join("dist")).expect("scratch dist");
+    fs::copy(repo("scripts/release.sh"), scratch.join("scripts/release.sh")).expect("copy");
+    fs::write(scratch.join("Cargo.toml"), "[package]\nversion = \"9.9.9\"\n").expect("toml");
+    let assets = [
+        "dist/lasercad-x86_64.AppImage",
+        "dist/lasercad_9.9.9_amd64.deb",
+        "dist/lasercad-9.9.9-windows-x86_64.zip",
+        "dist/lasercad-9.9.9-macos-aarch64.dmg",
+    ];
+    for a in assets {
+        fs::write(scratch.join(a), "fake").expect("fake asset");
+    }
+    let list = || {
+        let out = std::process::Command::new("bash")
+            .args(["scripts/release.sh", "--list-assets"])
+            .current_dir(&scratch)
+            .output()
+            .expect("bash must run");
+        let text = format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
+        (out.status.success(), text)
+    };
+
+    let (ok_all, all) = list();
+    fs::remove_file(scratch.join(assets[3])).expect("remove dmg");
+    let (ok_partial, partial) = list();
+    let _ = fs::remove_dir_all(&scratch);
+
+    assert!(ok_all, "--list-assets must exit 0: {all}");
+    for a in assets {
+        assert!(all.lines().any(|l| l == a), "{a} must be listed:\n{all}");
+    }
+    assert!(!all.contains("missing:"), "nothing is missing:\n{all}");
+
+    assert!(ok_partial, "a missing .dmg must not fail --list-assets: {partial}");
+    assert!(
+        partial.lines().any(|l| l == "missing: dist/lasercad-9.9.9-macos-aarch64.dmg"),
+        "the absent .dmg must be named:\n{partial}"
+    );
+    for a in &assets[..3] {
+        assert!(partial.lines().any(|l| l == *a), "{a} must still be listed:\n{partial}");
+    }
+}
