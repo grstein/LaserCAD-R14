@@ -1,8 +1,8 @@
 # LCV-178 — SVG structure reuse: use, defs, symbol, switch
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: LCV-173, LCV-175
-- **Implementation**: -
+- **Implementation**: 0ab2608..3455629, c48683e..61187fb, 1e9f04b, 760b9d4, cc5c4ea
 
 ## Problem
 

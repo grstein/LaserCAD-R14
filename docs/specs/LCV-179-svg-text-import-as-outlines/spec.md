@@ -1,8 +1,8 @@
 # LCV-179 — SVG text import as outlines
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: LCV-173, LCV-175, LCV-177
-- **Implementation**: -
+- **Implementation**: 105d572..a415f23, feb8051, 68b0c45
 
 ## Problem
 
