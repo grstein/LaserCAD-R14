@@ -368,7 +368,12 @@ fn the_prompt_describes_measure_and_every_query() {
         assert!(found.contains(&query), "query {query} missing");
     }
     let folded = paragraph.split_whitespace().collect::<Vec<_>>().join(" ");
-    for needle in ["never extended", "Changes nothing", "overlap", "counter-clockwise"] {
+    for needle in [
+        "never extended",
+        "Changes nothing",
+        "overlap",
+        "counter-clockwise",
+    ] {
         assert!(folded.contains(needle), "`{needle}` missing from: {folded}");
     }
 }

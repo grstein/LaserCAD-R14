@@ -212,6 +212,11 @@ mod tests {
         assert!(dist(seg(-10.0, 5.0, 10.0, 5.0), c) < 1e-9);
         // Outside, the foot beyond the segment: the endpoint.
         pins(seg(8.0, 0.0, 9.0, 0.0), c, (v(8.0, 0.0), v(5.0, 0.0)));
+        // Through, no endpoint or radial candidate on the other: a crossing.
+        let (p, q) = closest(seg(-10.0, 1.0, 10.0, 1.0), c);
+        assert!(p.distance(q) < 1e-9 && (p.y - 1.0).abs() < 1e-9, "{p:?}");
+        // A slanted line: the mutual normal runs along its perpendicular.
+        pins(c, seg(10.0, 5.0, 2.0, 11.0), (v(3.0, 4.0), v(6.0, 8.0)));
     }
 
     #[test]
@@ -266,6 +271,23 @@ mod tests {
         assert!((dist(quarter, arc(0.0, 0.0, 3.0, 0.5, 1.0)) - 2.0).abs() < 1e-9);
         // An arc on a circle: crossing.
         assert!(dist(right, circle(2.0, 0.0, 1.0)) < 1e-9);
+        // Crossing arcs, no candidate on the crossing: the crossing point.
+        let crossing = arc(6.0, 0.0, 5.0, FRAC_PI_2, PI);
+        pins(
+            arc(0.0, 0.0, 5.0, 0.0, PI),
+            crossing,
+            (v(3.0, 4.0), v(3.0, 4.0)),
+        );
+        // Neither centre at the origin: the line through both centres.
+        let near = (v(1.8, 1.6), v(4.2, 3.4));
+        pins(
+            arc(1.0, 1.0, 1.0, -FRAC_PI_2, FRAC_PI_2),
+            circle(5.0, 4.0, 1.0),
+            near,
+        );
+        pins(circle(1.0, 1.0, 1.0), circle(5.0, 4.0, 1.0), near);
+        let facing = arc(5.0, 4.0, 1.0, FRAC_PI_2, 1.5 * PI);
+        pins(arc(1.0, 1.0, 1.0, -FRAC_PI_2, FRAC_PI_2), facing, near);
     }
 
     #[test]
@@ -288,6 +310,10 @@ mod tests {
         );
         // The centre: any point of the circle is closest; the answer is fixed.
         let c = Prim::Point(v(0.0, 0.0));
+        pins(circle(0.0, 0.0, 2.0), c, (v(2.0, 0.0), v(0.0, 0.0)));
+        // An arc's centre off the origin: the start wins the tie of its ends.
+        let off = arc(1.0, 1.0, 2.0, -FRAC_PI_2, FRAC_PI_2);
+        pins(Prim::Point(v(1.0, 1.0)), off, (v(1.0, 1.0), v(1.0, -1.0)));
         assert!((dist(c, circle(0.0, 0.0, 2.0)) - 2.0).abs() < 1e-12);
         assert!((dist(c, arc(0.0, 0.0, 2.0, 1.0, 2.0)) - 2.0).abs() < 1e-12);
         assert_eq!(

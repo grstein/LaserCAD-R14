@@ -58,5 +58,5 @@ Prerequisites: LCV-188, LCV-190, LCV-192 Done on `agent-harness`.
   (files: src/agent/prompt.rs, tests/it/agent/default_prompt.rs)
 - [x] T13 Docs: the AGENTS.md purity list gains `bridge/action/measure.rs` and `tools/measure.rs`;
   CHANGELOG line (files: AGENTS.md, CHANGELOG.md)
-- [ ] T14 `scripts/mutants.sh` on the diff (`src/agent/`, `src/geometry/distance.rs`,
+- [x] T14 `scripts/mutants.sh` on the diff (`src/agent/`, `src/geometry/distance.rs`,
   `overlap.rs`). Kill the survivors or justify them in the commit body.

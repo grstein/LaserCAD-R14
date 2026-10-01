@@ -103,6 +103,12 @@ mod tests {
         let slanted = seg(0.0, 0.0, 4.0, 3.0);
         assert!(both(slanted, seg(8.0, 6.0, 2.0, 1.5)));
         assert!(!both(seg(0.0, 0.0, 0.0, 0.0), a), "a degenerate segment");
+        assert!(!both(a, seg(5.0, 0.0, 8.0, 3.0)), "one end on the line");
+        assert!(!both(a, seg(8.0, 3.0, 5.0, 0.0)), "the other end on it");
+        assert!(
+            both(seg(1.0, 1.0, 11.0, 1.0), seg(5.0, 1.0, 15.0, 1.0)),
+            "off the origin"
+        );
     }
 
     #[test]
