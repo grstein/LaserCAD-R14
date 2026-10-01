@@ -1,6 +1,6 @@
 # LCV-179 — Tasks
 
-- [ ] T1 [AC12] Bundle the test font: subset Liberation Sans Regular and Bold to ASCII 0x20–0x7E
+- [x] T1 [AC12] Bundle the test font: subset Liberation Sans Regular and Bold to ASCII 0x20–0x7E
   with `pyftsubset`, add `OFL.txt`; add `fontdb`/`ttf-parser` to `Cargo.toml`
   (files: `tests/fixtures/fonts/*`, `Cargo.toml`)
 - [ ] T2 [AC2, AC3] Test first: `FontBook::from_files` resolves `"Nope, Liberation Sans"`,

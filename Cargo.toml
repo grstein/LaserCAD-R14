@@ -12,6 +12,7 @@ repository = "https://github.com/grstein/LaserCAD-R14-V2"
 base64 = "0.22"
 directories = "5"
 eframe = "0.29"
+fontdb = { version = "0.23", default-features = false, features = ["std", "fs"] }
 egui = "0.29"
 png = "0.18"
 reqwest = { version = "0.12", features = ["json", "blocking"] }
@@ -20,6 +21,7 @@ roxmltree = "0.20"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+ttf-parser = "0.25"
 
 [dev-dependencies]
 mockito = "1"
