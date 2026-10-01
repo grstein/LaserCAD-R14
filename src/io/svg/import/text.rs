@@ -23,6 +23,8 @@ use layout::{Span, layout, positions};
 
 mod layout;
 
+use roxmltree::NS_XML_URI;
+
 type Node<'a, 'input> = roxmltree::Node<'a, 'input>;
 
 /// The report label of a `<text>` skipped because no font is installed.
@@ -51,6 +53,36 @@ struct Char {
 struct Flat {
     chars: Vec<Char>,
     spans: Vec<Span>,
+    /// The next collapsible whitespace is dropped: the last character
+    /// kept is a collapsed space, or none is kept yet.
+    collapse: bool,
+}
+
+impl Flat {
+    /// Append `ch`, a whitespace becoming a space; a run of collapsible
+    /// whitespace keeps one space, none at the start (AC 7).
+    fn push(&mut self, mut ch: Char, preserve: bool) {
+        let white = matches!(ch.c, ' ' | '\t' | '\n' | '\r');
+        if white {
+            ch.c = ' ';
+        }
+        if white && !preserve {
+            if self.collapse {
+                return;
+            }
+            self.collapse = true;
+        } else {
+            self.collapse = false;
+        }
+        self.chars.push(ch);
+    }
+
+    /// Drop a trailing collapsed space (AC 7).
+    fn trim_end(&mut self) {
+        if self.collapse {
+            self.chars.pop();
+        }
+    }
 }
 
 impl<'a, 'input> Walk<'a, 'input> {
@@ -67,8 +99,12 @@ impl<'a, 'input> Walk<'a, 'input> {
             self.report.note(NO_FONT);
             return;
         }
-        let mut flat = Flat::default();
+        let mut flat = Flat {
+            collapse: true,
+            ..Flat::default()
+        };
         self.flatten(node, layer, ctx, style, &mut flat);
+        flat.trim_end();
         let Some(glyphs) = self.glyphs(&flat.chars) else {
             self.report.note(NO_FONT);
             return;
@@ -131,8 +167,11 @@ impl<'a, 'input> Walk<'a, 'input> {
         flat.spans.push((flat.chars.len(), 0, lists));
         for child in node.children() {
             if let Some(text) = child.is_text().then(|| child.text()).flatten() {
+                let space = child
+                    .ancestors()
+                    .find_map(|n| n.attribute((NS_XML_URI, "space")));
                 for c in text.chars() {
-                    flat.chars.push(Char { c, ..template });
+                    flat.push(Char { c, ..template }, space == Some("preserve"));
                 }
                 continue;
             }
@@ -402,5 +441,39 @@ mod tests {
         assert_box(got[0], placed_box('l', 0.0, 50.0, s));
         assert_box(got[1], placed_box('l', 30.0, 55.0, s));
         assert_box(got[2], placed_box('l', 20.0, 60.0, s));
+    }
+
+    /// AC 7 — whitespace runs collapse to one space across a `tspan`
+    /// boundary, and the ends are trimmed.
+    #[test]
+    fn whitespace_runs_collapse_and_ends_trim() {
+        let es = page(
+            "<text x=\"10\" y=\"50\" font-size=\"20.48\">  l \n  <tspan>  l  </tspan>\t</text>",
+        )
+        .entities;
+        let s = 20.48 / UPEM;
+        let got = per_l(&es, 2);
+        assert_box(got[0], placed_box('l', 10.0, 50.0, s));
+        assert_box(got[1], placed_box('l', 10.0 + (455.0 + 569.0) * s, 50.0, s));
+        let end = page(
+            "<text x=\"50\" y=\"50\" font-size=\"20.48\" text-anchor=\"end\">l <tspan> </tspan></text>",
+        )
+        .entities;
+        assert_box(entity_box(&end), placed_box('l', 50.0 - 455.0 * s, 50.0, s));
+    }
+
+    /// AC 7 — `xml:space="preserve"` keeps every space, newlines and tabs
+    /// becoming spaces.
+    #[test]
+    fn preserved_whitespace_keeps_every_space() {
+        let es = page(
+            r#"<g xml:space="preserve"><text x="10" y="50" font-size="20.48"> l&#10;&#9;l</text></g>"#,
+        )
+        .entities;
+        let s = 20.48 / UPEM;
+        let got = per_l(&es, 2);
+        assert_box(got[0], placed_box('l', 10.0 + 569.0 * s, 50.0, s));
+        let second = 10.0 + (569.0 + 455.0 + 2.0 * 569.0) * s;
+        assert_box(got[1], placed_box('l', second, 50.0, s));
     }
 }

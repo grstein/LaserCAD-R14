@@ -23,7 +23,7 @@
 - [x] T8 [AC6] Test first: `x="0 10 20"` places three chars at 0/10/20, the 4th continues by
   advance; `dy` list on a tspan; inner list overrides outer; then positions
   (files: `src/io/svg/import/text.rs`)
-- [ ] T9 [AC7] Test first: `"  a \n  b  "` lays out as `"a b"`, spanning a tspan boundary;
+- [x] T9 [AC7] Test first: `"  a \n  b  "` lays out as `"a b"`, spanning a tspan boundary;
   `xml:space="preserve"` keeps every space and turns newline/tab into spaces; then whitespace
   (files: `src/io/svg/import/text.rs`)
 - [ ] T10 [AC3, AC8] Test first: unknown family → `text (font substituted)` once; `é` →
