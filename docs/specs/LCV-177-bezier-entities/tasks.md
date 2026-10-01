@@ -51,7 +51,7 @@
   tests/it/io_svg/bezier.rs, tests/it/io_svg/mod.rs, tests/it/io_svg/export_audit.rs)
 - [x] T18 [AC11] `encode_entity` Bézier arm; then `scripts/mutants.sh` on `export.rs` and
   `geometry/bezier*` (files: src/io/svg/export.rs)
-- [ ] T19 [AC1, AC2, AC3, AC4] Test through `import_svg`: `C`/`c`; `S` after `C`, after `S`,
+- [x] T19 [AC1, AC2, AC3, AC4] Test through `import_svg`: `C`/`c`; `S` after `C`, after `S`,
   after `L` (current point); `Q`/`q`; `T` after `Q`, after `T`, after `C` (current point);
   implicit repetition; one `C` under `skewX(30)` gives the CTM images; a degenerate `C` and `Q`
   create nothing and report `path curve (degenerate)` (files: tests/it/io_svg/bezier.rs)
