@@ -3,7 +3,7 @@
 - [ ] T1 [AC2] Test: `outside_bed` unit tests — inside, on the edge (within EPSILON), past each
   side by 2·EPSILON, an arc whose bulge crosses the top edge; `outside_bed_count` with a layer
   filter (files: src/document/bed.rs)
-- [ ] T2 [AC2] `outside_bed` + `Document::outside_bed_count`, kernel-pure; `mod bed;` and the
+- [x] T2 [AC2] `outside_bed` + `Document::outside_bed_count`, kernel-pure; `mod bed;` and the
   re-export (files: src/document/bed.rs, src/document/mod.rs)
 - [ ] T3 [AC1] Test: Save into a tempdir with in-bed geometry → Info
   `Saved <name> (400 × 400 mm)`; a 297.5 mm bed prints `297.5` (files:
