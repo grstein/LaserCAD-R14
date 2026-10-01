@@ -26,7 +26,7 @@
 - [x] T9 [AC7] Test first: `"  a \n  b  "` lays out as `"a b"`, spanning a tspan boundary;
   `xml:space="preserve"` keeps every space and turns newline/tab into spaces; then whitespace
   (files: `src/io/svg/import/text.rs`)
-- [ ] T10 [AC3, AC8] Test first: unknown family → `text (font substituted)` once; `é` →
+- [x] T10 [AC3, AC8] Test first: unknown family → `text (font substituted)` once; `é` →
   `text (missing glyph)` 1 and the next glyph still advances; `empty()` book → no entities and
   `text (no font)`; drop `text` from the unsupported list and rewrite the LCV-171 report test
   (files: `src/io/svg/import/report.rs`, `src/io/svg/import/text.rs`, `src/io/svg/import/tests.rs`)

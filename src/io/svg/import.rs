@@ -8,7 +8,7 @@
 //! |---|---|---|
 //! | import | `line`, `circle`, `ellipse`, `rect`, `polyline`, `polygon`, `path` | `<element> (invalid attribute)`, `polyline (data error)`, `polygon (data error)` (LCV-174); properties; per `path`: curves not imported yet, `path (data error)`, or `path (unsupported data)` with no `d` |
 //! | descend | `svg`, `g`, `a` | properties, then the children |
-//! | outlines | `text`, its `tspan` and `a`: glyph outlines in the named font ([`text`], LCV-179) | properties; `text (no font)` |
+//! | outlines | `text`, its `tspan` and `a`: glyph outlines in the named font ([`text`], LCV-179) | properties; `text (no font)`, `text (font substituted)`, `text (missing glyph)` |
 //! | switch | `switch`: its first SVG element child whose conditions pass (LCV-178) | `switch (branch skipped)` per other SVG element child |
 //! | instance | `use`: a copy of its same-document `#id` target at `x`/`y`, a `symbol` in its viewport ([`reuse`], LCV-178) | `use (unresolved)`, `use (cycle)` |
 //! | conditions fail | any SVG element with a non-empty `requiredExtensions`, or a `systemLanguage` without `en`/`en-*` ([`conditions`]), subtree included | `<element> (conditions)` |

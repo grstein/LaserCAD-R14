@@ -30,6 +30,13 @@ type Node<'a, 'input> = roxmltree::Node<'a, 'input>;
 /// The report label of a `<text>` skipped because no font is installed.
 const NO_FONT: &str = "text (no font)";
 
+/// The report label of a `<text>` drawn in the default face because no
+/// listed family is installed, once per text (AC 3).
+const SUBSTITUTED: &str = "text (font substituted)";
+
+/// The report label of a character without a glyph, per character (AC 8).
+const MISSING: &str = "text (missing glyph)";
+
 /// The initial `font-size` in user units (CSS `medium`).
 const DEFAULT_SIZE: f64 = 16.0;
 
@@ -38,6 +45,8 @@ const DEFAULT_SIZE: f64 = 16.0;
 struct Char {
     c: char,
     face: FaceId,
+    /// `face` stands in for an uninstalled family.
+    substituted: bool,
     /// `font-size` in user units.
     size: f64,
     slot: Slot,
@@ -113,9 +122,15 @@ impl<'a, 'input> Walk<'a, 'input> {
         let anchors: Vec<_> = flat.chars.iter().map(|ch| ch.anchor).collect();
         let pos = positions(flat.chars.len(), &flat.spans);
         let origins = layout(&advances, &anchors, &pos);
+        if flat.chars.iter().any(|ch| ch.substituted) {
+            self.report.note(SUBSTITUTED);
+        }
         for ((ch, (g, s)), o) in flat.chars.iter().zip(&glyphs).zip(origins) {
             if !ch.drawn {
                 continue;
+            }
+            if g.missing {
+                self.report.note(MISSING);
             }
             let at = |p: Vec2| Vec2::new(o.x + p.x * s, o.y - p.y * s);
             let segments = g.contours.iter().flatten().map(|seg| match *seg {
@@ -147,12 +162,13 @@ impl<'a, 'input> Walk<'a, 'input> {
         let italic = inherited(node, &self.sheet, "font-style")
             .is_some_and(|v| v.starts_with("italic") || v.starts_with("oblique"));
         let families = families.as_deref().unwrap_or("sans-serif");
-        let Some((face, _)) = self.fonts.face(families, weight, italic) else {
+        let Some((face, substituted)) = self.fonts.face(families, weight, italic) else {
             return;
         };
         let template = Char {
             c: ' ',
             face,
+            substituted,
             size: size(node, &self.sheet),
             slot: style.slot(layer),
             anchor: match inherited(node, &self.sheet, "text-anchor").as_deref() {
@@ -475,5 +491,39 @@ mod tests {
         assert_box(got[0], placed_box('l', 10.0 + 569.0 * s, 50.0, s));
         let second = 10.0 + (569.0 + 455.0 + 2.0 * 569.0) * s;
         assert_box(got[1], placed_box('l', second, 50.0, s));
+    }
+
+    fn label(n: usize, label: &str) -> Vec<(String, usize)> {
+        vec![(label.to_owned(), n)]
+    }
+
+    /// AC 3 — an uninstalled family draws with the default face and is
+    /// reported once per text.
+    #[test]
+    fn a_substituted_family_is_reported_once_per_text() {
+        let svg = page(
+            r#"<text font-family="Nope" x="10" y="50">ll</text><text font-family="Nope, serif">l</text>"#,
+        );
+        assert!(!svg.entities.is_empty());
+        assert_eq!(svg.report, label(1, "text (font substituted)"));
+    }
+
+    /// AC 8 — each unmapped character is counted; it advances by
+    /// `.notdef`'s advance (1536) and draws nothing.
+    #[test]
+    fn missing_glyphs_advance_by_notdef_and_are_counted() {
+        let svg = page(r#"<text x="10" y="50" font-size="20.48">éél</text>"#);
+        let s = 20.48 / UPEM;
+        let want = placed_box('l', 10.0 + 2.0 * 1536.0 * s, 50.0, s);
+        assert_box(entity_box(&svg.entities), want);
+        assert_eq!(svg.report, label(2, "text (missing glyph)"));
+    }
+
+    /// AC 3 — with no font at all the text is skipped and reported.
+    #[test]
+    fn without_fonts_text_is_skipped() {
+        let svg = page_with(r#"<text x="10" y="50">l</text>"#, &FontBook::empty());
+        assert!(svg.entities.is_empty());
+        assert_eq!(svg.report, label(1, "text (no font)"));
     }
 }
