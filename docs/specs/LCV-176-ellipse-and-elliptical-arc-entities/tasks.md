@@ -24,7 +24,7 @@
 - [x] T8 [AC4] Test on painted shapes: an ellipse and an elliptical arc at two zooms. Every vertex
   is on the curve, chord deviation ≤ 0.5 px, the stroke is the layer colour, and the selection halo
   and hover paint it (files: tests/it/app/ellipse_paint.rs, tests/it/app/mod.rs)
-- [ ] T9 [AC4] `ellipse_polyline(e, 0.5·mm_per_px)` in the entity, selection and dashed painters
+- [x] T9 [AC4] `ellipse_polyline(e, 0.5·mm_per_px)` in the entity, selection and dashed painters
   (files: src/render/entities.rs, src/render/selection.rs, src/render/preview.rs)
 - [ ] T10 [AC5] Test: a click within the aperture of the curve selects, a click at the centre does
   not, and a window/crossing box selects like an arc (files: tests/it/app/ellipse_edit.rs,

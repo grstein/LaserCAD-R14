@@ -119,7 +119,14 @@ pub(crate) fn draw_entity_with_stroke(
                 painter.line_segment([p1, p2], stroke);
             }
         }
-        Entity::Ellipse(_) => {}
+        Entity::Ellipse(e) => {
+            let points = crate::render::ellipse_polyline(e, camera.mm_per_px);
+            for pair in points.windows(2) {
+                let p1 = world_to_screen_offset(rect, camera, pair[0]);
+                let p2 = world_to_screen_offset(rect, camera, pair[1]);
+                painter.line_segment([p1, p2], stroke);
+            }
+        }
     }
 }
 

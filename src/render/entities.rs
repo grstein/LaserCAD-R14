@@ -10,7 +10,7 @@
 //! Introduced by demand LCV-035.
 
 use crate::document::{Document, Entity};
-use crate::geometry::{Arc, Vec2};
+use crate::geometry::{Arc, Ellipse, Vec2};
 use crate::render::Camera;
 
 /// Rendering options for the entity painter.
@@ -78,9 +78,22 @@ pub fn draw_entities(
                     painter.line_segment([p1, p2], stroke);
                 }
             }
-            Entity::Ellipse(_) => {}
+            Entity::Ellipse(e) => {
+                let points = ellipse_polyline(e, camera.mm_per_px);
+                for pair in points.windows(2) {
+                    let p1 = world_to_screen_offset(rect, camera, pair[0]);
+                    let p2 = world_to_screen_offset(rect, camera, pair[1]);
+                    painter.line_segment([p1, p2], stroke);
+                }
+            }
         }
     }
+}
+
+/// An ellipse as a world-space polyline whose chord deviation is at most half
+/// a screen pixel at `mm_per_px` (LCV-176 AC 4, ADR 0015 §8).
+pub fn ellipse_polyline(e: &Ellipse, mm_per_px: f64) -> Vec<Vec2> {
+    e.polyline(0.5 * mm_per_px)
 }
 
 /// Sample an arc as a polyline in world space.
