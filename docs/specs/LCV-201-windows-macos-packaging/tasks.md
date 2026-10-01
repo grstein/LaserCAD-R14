@@ -26,7 +26,7 @@
 - [x] T11 [AC5] [AC6] Test: `docs/install.md` exists with SmartScreen and Gatekeeper/`xattr`
       steps and settings/autosave paths for Linux, Windows and macOS; `README.md` links it;
       `FIRST-RUN.txt` names it (files: tests/it/repo/packaging.rs)
-- [ ] T12 [AC5] [AC6] Write `docs/install.md`; link from `README.md` (files: docs/install.md, README.md)
+- [x] T12 [AC5] [AC6] Write `docs/install.md`; link from `README.md` (files: docs/install.md, README.md)
 - [ ] T13 [AC8] `docs/build-local.md` "Windows cross-check" section; run
       `cargo check --release --target x86_64-pc-windows-gnu` if the target installs and fix any
       `cfg(windows)` warnings (files: docs/build-local.md)
