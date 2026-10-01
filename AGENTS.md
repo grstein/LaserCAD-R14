@@ -83,7 +83,7 @@ The tree is orientation; `ls` is the inventory.
   `src/render/raster.rs` is kernel-pure too, although the rest of `render/` imports `egui` (ADR 0011).
 - `src/agent/`: only `panel.rs` and `settings_ui.rs` may import `egui`; none may import `eframe`/`rfd`.
   `classifier.rs`, `wire.rs`, `transport.rs`, `tools.rs`, `tools/args.rs`, `tools/schema.rs`, `tools/transform.rs`, `tools/capture.rs`, `tools/measure.rs`, `drawing/*.rs` (`keys.rs`, `items.rs`, `items/array.rs`, `expand.rs`, `schema.rs`), `bridge.rs`, `bridge/action.rs`, `bridge/action/ops.rs`, `bridge/action/measure.rs`, `loop_.rs`, `loop_/images.rs`, `loop_/batch.rs`, `loop_/verify.rs`, `settings_ui/copy.rs`, `prompt.rs`,
-  `memory.rs`, `repeat.rs`, `metrics.rs`, `drawing.rs` and `mod.rs` are kernel-pure. Only `transport.rs` imports `reqwest`; only `wire.rs` uses `base64` (ADR 0011). `panel.rs` never spawns a thread
+  `memory.rs`, `repeat.rs`, `metrics.rs`, `attachment.rs`, `drawing.rs` and `mod.rs` are kernel-pure. Only `transport.rs` imports `reqwest`; only `wire.rs` uses `base64` (ADR 0011). `panel.rs` never spawns a thread
   and never builds a `Document`/`History` (ADR 0007 §D8).
 
 ### Invariants (review blockers)

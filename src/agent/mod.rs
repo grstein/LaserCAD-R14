@@ -59,5 +59,8 @@ pub use metrics::TurnMetrics;
 pub mod memory;
 pub use memory::{Memory, TurnEnd};
 
+pub mod attachment;
+pub use attachment::{ImageKind, UserImage};
+
 pub mod panel;
 pub use panel::draw_agent_panel;

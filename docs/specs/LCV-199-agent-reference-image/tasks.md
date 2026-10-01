@@ -1,6 +1,6 @@
 # LCV-199 — Tasks
 
-- [ ] T1 [AC4] `agent/attachment.rs`: `ImageKind`, `sniff`, `check`, with unit tests (PNG, JPEG,
+- [x] T1 [AC4] `agent/attachment.rs`: `ImageKind`, `sniff`, `check`, with unit tests (PNG, JPEG,
   GIF refused, 2 MB exactly accepted, 2 MB + 1 refused); AGENTS.md purity list
   (files: src/agent/attachment.rs, src/agent/mod.rs, AGENTS.md)
 - [ ] T2 [P] [AC1] `pick_image_dialog` + disarmed-panic test; extend the repo scan if it lists the
