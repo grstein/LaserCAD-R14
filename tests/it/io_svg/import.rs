@@ -127,21 +127,24 @@ fn line_bad_attribute_returns_malformed_attribute() {
     ));
 }
 
-/// AC 14 — arc path with non-numeric A token returns MalformedPath.
+/// AC 14, rewritten by LCV-172 AC 8 — an arc path with a non-numeric `A`
+/// token opens, imports nothing and reports `path (data error)`.
 #[test]
-fn path_with_non_numeric_a_command_returns_malformed_path() {
+fn path_with_non_numeric_a_command_reports_a_data_error() {
     let src = svg_wrap(r#"<path d="M 0 0 A notanumber 10 0 0 1 5 5"/>"#);
-    assert!(matches!(
-        import_svg(&src),
-        Err(SvgImportError::MalformedPath(_))
-    ));
+    let imported = import_svg(&src).unwrap();
+    assert!(imported.entities.is_empty());
+    assert_eq!(imported.report, [("path (data error)".to_owned(), 1)]);
 }
 
-/// AC 15 — non-arc `<path>` (L command) is silently skipped.
+/// AC 15, rewritten by LCV-172 AC 3 — a non-arc `<path>` (L command)
+/// imports its line.
 #[test]
-fn non_arc_path_silently_skipped() {
+fn non_arc_path_imports_its_line() {
     let src = svg_wrap(r#"<path d="M 0 0 L 10 10"/>"#);
-    assert!(import_svg(&src).unwrap().entities.is_empty());
+    let entities = import_svg(&src).unwrap().entities;
+    assert_eq!(entities.len(), 1);
+    assert!(matches!(entities[0], Entity::Line(_)));
 }
 
 /// AC 16 — `<rect>` and other unknown elements are silently skipped.

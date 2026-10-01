@@ -223,25 +223,28 @@ fn line_bad_attribute_returns_malformed_attribute() {
     assert!(s.contains("<line>") && s.contains("x1") && s.contains("abc"));
 }
 
+/// LCV-172 AC 8 — a non-numeric `A` argument is a data error: the file
+/// opens, the path imports nothing and the error is reported (was
+/// `path_with_non_numeric_a_command_returns_malformed_path`).
 #[test]
-fn path_with_non_numeric_a_command_returns_malformed_path() {
-    let r = import_svg(PATH_MALFORMED);
-    assert!(matches!(r, Err(SvgImportError::MalformedPath(_))));
+fn path_with_non_numeric_a_command_reports_a_data_error() {
+    let imported = import_svg(PATH_MALFORMED).unwrap();
+    assert!(imported.entities.is_empty());
+    assert_eq!(imported.report, [("path (data error)".to_owned(), 1)]);
 }
 
-/// LCV-171 AC 6 — a path that is not an arc, or has no `d`, is reported,
-/// not skipped silently (was `non_arc_path_silently_skipped`).
+/// LCV-172 AC 3 — a non-arc path imports its line (was
+/// `non_arc_path_silently_skipped`); LCV-171 AC 6 — a path with no `d` is
+/// still reported.
 #[test]
-fn non_arc_path_is_reported() {
-    for path in [r#"<path d="M 0 0 L 10 10"/>"#, "<path/>"] {
-        let imported = import_svg(&svg(path)).unwrap();
-        assert!(imported.entities.is_empty(), "{path}");
-        assert_eq!(
-            imported.report,
-            [("path (unsupported data)".to_owned(), 1)],
-            "{path}"
-        );
-    }
+fn line_path_imports_and_path_without_data_is_reported() {
+    let imported = import_svg(&svg(r#"<path d="M 0 0 L 10 10"/>"#)).unwrap();
+    assert_eq!(imported.entities.len(), 1);
+    assert!(matches!(imported.entities[0], Entity::Line(_)));
+    assert!(imported.report.is_empty());
+    let imported = import_svg(&svg("<path/>")).unwrap();
+    assert!(imported.entities.is_empty());
+    assert_eq!(imported.report, [("path (unsupported data)".to_owned(), 1)]);
 }
 
 /// LCV-171 AC 5 — an unsupported element is skipped and reported (was
@@ -440,11 +443,17 @@ fn arc_chord_past_diameter_scales_radius_up() {
     assert!(a.center.x.abs() < EPSILON && a.center.y.abs() < EPSILON);
 }
 
-/// A non-positive radius stays malformed; it is not scaled up.
+/// LCV-172 AC 6 — a zero radius draws a straight line (SVG 2 §F.6.6), it is
+/// not scaled up (was `arc_zero_radius_returns_malformed_path`).
 #[test]
-fn arc_zero_radius_returns_malformed_path() {
-    let r = import_svg(&svg(r#"<path d="M 0 0 A 0 0 0 0 1 5 5"/>"#));
-    assert!(matches!(r, Err(SvgImportError::MalformedPath(_))));
+fn arc_zero_radius_imports_a_line() {
+    let imported = import_svg(&svg(r#"<path d="M 0 0 A 0 0 0 0 1 5 5"/>"#)).unwrap();
+    assert!(imported.report.is_empty());
+    let [Entity::Line(l)] = imported.entities.as_slice() else {
+        panic!("{:?}", imported.entities);
+    };
+    assert!((l.p2.x - l.p1.x - 5.0).abs() < EPSILON);
+    assert!((l.p1.y - l.p2.y - 5.0).abs() < EPSILON, "Y is mirrored");
 }
 
 // ── LCV-171 — import report and never-rendered elements ──────────────

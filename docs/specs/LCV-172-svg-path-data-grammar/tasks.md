@@ -30,7 +30,7 @@
       every entity goes on the current layer and every label is noted, with `path (data error)` on
       error. Remove `parse_path`, `tok_f64` and `MalformedPath`, and update the module doc (files:
       src/io/svg/import/walk.rs, src/io/svg/import.rs)
-- [ ] T10 [AC2] [AC7] [AC8] Rewrite the old tests: the non-numeric `A` imports nothing and reports
+- [x] T10 [AC2] [AC7] [AC8] Rewrite the old tests: the non-numeric `A` imports nothing and reports
       `path (data error)`; `A 0 0 …` imports a line; `M 0 0 L 10 10` imports a line. Also drop
       `MalformedPath` from the corpus kind list (files: src/io/svg/import/tests.rs,
       tests/it/io_svg/import.rs, tests/it/io_svg/corpus/expected.rs)

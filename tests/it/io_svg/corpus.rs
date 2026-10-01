@@ -64,7 +64,6 @@ fn variant(e: &SvgImportError) -> &'static str {
         SvgImportError::XmlParse(_) => "XmlParse",
         SvgImportError::NoSvgRoot => "NoSvgRoot",
         SvgImportError::MalformedAttribute { .. } => "MalformedAttribute",
-        SvgImportError::MalformedPath(_) => "MalformedPath",
         SvgImportError::MalformedBedDimension { .. } => "MalformedBedDimension",
         SvgImportError::MalformedLayer { .. } => "MalformedLayer",
     }

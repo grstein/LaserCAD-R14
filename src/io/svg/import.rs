@@ -74,9 +74,6 @@ pub enum SvgImportError {
         /// The raw attribute text that failed to parse.
         value: String,
     },
-    /// A `<path>` whose `d` begins with `M … A …` but contains a non-numeric token.
-    #[error("malformed path data: {0:?}")]
-    MalformedPath(String),
     /// A root `<svg>` bed attribute (`width`, `height` or `viewBox`) that is
     /// present but unusable: unparseable, non-finite, ≤ 0, or outside
     /// `1.0..=2000.0` mm (LCV-114 AC 9).
