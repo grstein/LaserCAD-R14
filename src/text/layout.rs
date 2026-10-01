@@ -27,6 +27,10 @@ use crate::document::entity::Entity;
 use crate::geometry::{Line, Vec2};
 use crate::text::hershey::{CAP_HEIGHT_HERSHEY, advance_width, glyph_strokes};
 
+/// The Hershey spacing factor the `TEXT` command and the agent's batch
+/// `text` item both use; neither varies it (LCV-196 AC4).
+pub const DEFAULT_SPACING_FACTOR: f64 = 1.0;
+
 /// Lay out `text` as a sequence of [`Entity::Line`] strokes in mm-space.
 ///
 /// # Parameters
@@ -42,16 +46,31 @@ use crate::text::hershey::{CAP_HEIGHT_HERSHEY, advance_width, glyph_strokes};
 ///   tighten, above `1.0` loosen.
 ///
 /// # Returns
-/// A `Vec<Entity>` where every element is an `Entity::Line`.  The vector is
-/// empty when `text` is empty, `height_mm ≤ 0`, or after all degenerate
-/// segments are filtered.
+/// A `Vec<Entity>` where every element is an `Entity::Line`: the segments of
+/// [`text_strokes`], in order.  The vector is empty when `text` is empty,
+/// `height_mm ≤ 0`, or after all degenerate segments are filtered.
 pub fn layout_text(text: &str, origin: Vec2, height_mm: f64, spacing_factor: f64) -> Vec<Entity> {
+    text_strokes(text, origin, height_mm, spacing_factor)
+        .into_iter()
+        .map(|(p1, p2)| Entity::Line(Line::new(p1, p2)))
+        .collect()
+}
+
+/// The stroke segments of `text` as `(start, end)` point pairs in mm, with
+/// the parameters and rules of [`layout_text`]; no document type, so the
+/// agent's batch can call it (LCV-196).
+pub fn text_strokes(
+    text: &str,
+    origin: Vec2,
+    height_mm: f64,
+    spacing_factor: f64,
+) -> Vec<(Vec2, Vec2)> {
     if height_mm <= 0.0 {
         return Vec::new();
     }
 
     let scale = height_mm / CAP_HEIGHT_HERSHEY;
-    let mut entities = Vec::new();
+    let mut segments = Vec::new();
     let mut cursor_x = 0.0_f64;
 
     for ch in text.chars() {
@@ -74,7 +93,7 @@ pub fn layout_text(text: &str, origin: Vec2, height_mm: f64, spacing_factor: f64
                     continue;
                 }
 
-                entities.push(Entity::Line(Line::new(p1, p2)));
+                segments.push((p1, p2));
             }
         }
 
@@ -82,13 +101,33 @@ pub fn layout_text(text: &str, origin: Vec2, height_mm: f64, spacing_factor: f64
         cursor_x += advance_width(ch) as f64 * scale * spacing_factor;
     }
 
-    entities
+    segments
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::geometry::EPSILON;
+
+    /// LCV-196 AC4 — `layout_text` is a map over `text_strokes`: the same
+    /// segments, in the same order, for a string with a degenerate-free
+    /// glyph, a space, an unsupported codepoint and a second glyph.
+    #[test]
+    fn layout_text_is_text_strokes_as_lines() {
+        let origin = Vec2::new(12.5, -3.0);
+        let strokes = text_strokes("AB é0", origin, 7.0, DEFAULT_SPACING_FACTOR);
+        assert!(strokes.len() > 10, "control: {}", strokes.len());
+        let lines: Vec<Entity> = strokes
+            .iter()
+            .map(|&(p1, p2)| Entity::Line(Line::new(p1, p2)))
+            .collect();
+        assert_eq!(
+            layout_text("AB é0", origin, 7.0, DEFAULT_SPACING_FACTOR),
+            lines
+        );
+        assert_eq!(DEFAULT_SPACING_FACTOR, 1.0);
+        assert!(text_strokes("A", origin, 0.0, 1.0).is_empty());
+    }
 
     /// Non-positive height produces an empty result.
     #[test]

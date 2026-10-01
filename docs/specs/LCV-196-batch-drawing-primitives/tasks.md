@@ -5,7 +5,7 @@ Prerequisites: LCV-185, LCV-192 Done; LCV-188 Done (the outcome's `New ids` suff
 - [x] T1 Refactor (no behaviour change): move `ENTITY_KEYS` into `drawing/keys.rs` as a typed key
   table that `parse` and `schema` both read; the tests are unchanged (files: src/agent/drawing.rs,
   src/agent/drawing/keys.rs, src/agent/drawing/schema.rs)
-- [ ] T2 [AC4] Test, then `text_strokes` plus `layout_text` as a map over it and the shared
+- [x] T2 [AC4] Test, then `text_strokes` plus `layout_text` as a map over it and the shared
   `DEFAULT_SPACING_FACTOR` (files: src/text/layout.rs, src/tools/text.rs)
 - [ ] T3 [AC1][AC2][AC3][AC4][AC8] Test (parser), shapes, one case per rule:
   - `polyline` open and closed;
