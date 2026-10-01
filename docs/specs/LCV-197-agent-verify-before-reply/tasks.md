@@ -36,7 +36,7 @@ do LCV-195 T1 (the `loop_/batch.rs` seam) as T0 here.
 - [x] T6 [AC3][AC5][AC6] `Dispatch::VerifyDue`, `loop_/verify.rs::{VERIFY_REMINDER,
   verify_or_end}`, and the worker arm (files: src/agent/loop_.rs, src/agent/loop_/verify.rs,
   src/app/agent_worker.rs)
-- [ ] T7 [AC3][AC4] Test (scripted turn on the headless app):
+- [x] T7 [AC3][AC4] Test (scripted turn on the headless app):
   - `create_line` then a text reply → the reminder is sent once, the `note` row appears, and the
     step tally equals the tool calls.
   - `tally.replies` counts the extra reply.
