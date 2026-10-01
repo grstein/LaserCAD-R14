@@ -1,8 +1,8 @@
 # LCV-190 — Drawing check
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: 3a2e73c..6d4876e
 
 ## Problem
 
