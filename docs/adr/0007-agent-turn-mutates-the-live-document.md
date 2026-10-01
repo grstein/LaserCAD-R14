@@ -119,6 +119,9 @@
   - **What stays the same.** The reminder grants nothing and is not a step. The flat group (§D12)
     and the fence (§D14) are unchanged. Memory (§D16) keeps neither the interim reply nor the
     reminder.
+- **Amended (17)**: 2026-10-01 — LCV-198 (turn checkpoints). §D12: `History` gains
+  `group_len()` and `rewind_group(mark, doc)`; the turn's `checkpoint` and `rollback` tools use
+  them, and the end-of-turn note counts the commands its seal took. Text under §D12.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
@@ -823,6 +826,23 @@ otherwise its wording is neutral. The words are `product-owner`'s.
 
 Memory: up to 4096 small captured-geometry commands per turn, freed at the
 first eviction or document replacement. Accepted.
+
+> **Amended (17), 2026-10-01 (LCV-198).** §D12: `History` gains two group operations.
+> `group_len()` is the number of commands in the open group, 0 when none is open.
+> `rewind_group(mark, doc)` undoes, in reverse order, every command of the open group past
+> `mark`, drops them, leaves redo empty and bumps `revision` once when it undid at least one.
+> It returns how many it undid, and is a no-op when no group is open or `mark ≥ group_len()`.
+> The turn uses it for `rollback` to a checkpoint (a group mark it keeps in `TurnState`). A
+> rewind is the turn's own change, like `commit_grouped`. It does not seal the group, and §D14's
+> fence advances to the new revision as after any applied call, so it re-arms nothing. A
+> rolled-back command is gone: there is no redo of a rollback. `end_group` then seals only the
+> survivors, so one turn is still at most one undo entry, and no entry when nothing survived.
+> Rollback never reaches past the group's start, so it never touches the undo stack below.
+> The end-of-turn note above therefore no longer compares the seal with `applied`, which
+> counts rolled-back commands and the rollback itself: when `finish_turn`'s own `end_group`
+> finds the group still open, the note says the turn is one `Ctrl+Z` away and counts the
+> commands it sealed, and a seal of zero writes no undo note. A group sealed or dropped
+> earlier still gets the neutral wording.
 
 ### D13 — The step budget is a `u32`, default 256, range 1..=4096
 

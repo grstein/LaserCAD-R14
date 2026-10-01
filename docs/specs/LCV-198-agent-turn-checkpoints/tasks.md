@@ -18,7 +18,7 @@
   `e2` at its old geometry (files: tests/it/agent/checkpoints.rs, tests/it/agent/mod.rs)
 - [x] T7 `DEFAULT_PROMPT` checkpoint sentence; update the prompt and tool-list scans if they
   enumerate tools (files: src/agent/prompt.rs, tests/it/repo/prompt_scans.rs)
-- [ ] T8 Append the plan's "ADR amendment" to ADR 0007 as the next free "Amended (n)": a header
+- [x] T8 Append the plan's "ADR amendment" to ADR 0007 as the next free "Amended (n)": a header
   line plus the §D12 block (files: docs/adr/0007-agent-turn-mutates-the-live-document.md)
 - [ ] T9 `scripts/mutants.sh` on the diff; kill or justify survivors (files: src/document/history/tests.rs)
 - [ ] T10 CHANGELOG line (files: CHANGELOG.md)
