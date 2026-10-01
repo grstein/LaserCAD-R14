@@ -1,8 +1,8 @@
 # LCV-165 — Command dock messages, prompts and repeat
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-167
-- **Implementation**: -
+- **Implementation**: 13bcb0c..7308b7b
 
 ## Problem
 
