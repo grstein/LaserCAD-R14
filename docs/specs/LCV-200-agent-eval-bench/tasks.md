@@ -3,7 +3,7 @@
 - [x] T1 [AC1] Allow a data-only `tests/fixtures/` (no `.rs` at any depth) in `single_test_binary`,
   unless already present; note in the commit that the svg-branch merge keeps one copy
   (files: tests/it/repo/single_test_binary.rs)
-- [ ] T2 [AC2] `run_turn_inline` + `InlineTurn`; `drive_turn`/`answer_act`/`end_turn` visibility;
+- [x] T2 [AC2] `run_turn_inline` + `InlineTurn`; `drive_turn`/`answer_act`/`end_turn` visibility;
   unit test with a two-reply scripted `send_fn` that draws a line
   (files: src/app/agent_inline.rs, src/app/agent_worker.rs, src/app/mod.rs)
 - [ ] T3 [AC3] Scorer: rasterize + 1 px dilation + IoU, and the four assertion kinds, with

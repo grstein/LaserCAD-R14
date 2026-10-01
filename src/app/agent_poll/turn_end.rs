@@ -15,7 +15,7 @@ use crate::app::{App, agent_memory};
 /// metrics note (LCV-193), always last and always written, what it cost.
 /// Memory is recorded after the seal, so a `Done` mark sees the sealed history
 /// (LCV-153, ADR 0007 §D16); it keeps batches, never these rows.
-pub(super) fn end_turn(
+pub(in crate::app) fn end_turn(
     app: &mut App,
     row: Option<(&str, String)>,
     end: TurnEnd,

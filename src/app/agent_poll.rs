@@ -46,7 +46,7 @@ use crate::app::{App, agent_apply, agent_capture, agent_feedback, agent_verify};
 use std::sync::mpsc::TryRecvError;
 
 mod turn_end;
-use turn_end::end_turn;
+pub(super) use turn_end::end_turn;
 
 /// Text shown in the chat when the worker thread ended without a verdict.
 pub const AGENT_LOST_MESSAGE: &str = "Agent turn ended without a reply.";

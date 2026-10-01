@@ -120,7 +120,7 @@ where
 /// `ask`, with `send_fn` injected so the worker's own rules — the fence stop
 /// (§D14) and malformed calls (§D15) — are testable without an endpoint.
 /// `config.system_prompt` is the turn's system message, verbatim.
-fn drive_turn<F, A>(
+pub(super) fn drive_turn<F, A>(
     prompt: &str,
     config: &TurnConfig,
     send_fn: &mut F,
