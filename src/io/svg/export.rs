@@ -160,6 +160,7 @@ fn encode_entity(entity: &Entity, bed_height_mm: f64) -> String {
                 flip_y(ep.y, bed_height_mm)
             )
         }
+        Entity::Ellipse(_) => String::new(),
     }
 }
 

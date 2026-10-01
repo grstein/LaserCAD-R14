@@ -171,7 +171,7 @@ fn lost(before: &Entity, after: &Entity) -> Vec<Entity> {
         .filter(|p| match p {
             Entity::Line(l) => l.length() > TOL,
             Entity::Arc(a) => a.arc_length() > TOL,
-            Entity::Circle(_) => true,
+            Entity::Circle(_) | Entity::Ellipse(_) => true,
         })
         .collect()
 }

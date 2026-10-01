@@ -15,9 +15,9 @@
   src/geometry/ellipse/conjugate.rs, src/geometry/ellipse.rs)
 - [x] T5 [AC6] Test: `Transform::ellipse` for rotate, mirror (rotation `2θ − r`, span negated,
   `ccw` flipped, endpoints map to endpoints) and scale (files: tests/it/geometry/transform_props.rs)
-- [ ] T6 [AC6] `Transform::ellipse` plus `Entity::Ellipse` with `bbox`, `kind_name`, `translate`
+- [x] T6 [AC6] `Transform::ellipse` plus `Entity::Ellipse` with `bbox`, `kind_name`, `translate`
   and `transformed` (files: src/geometry/transform.rs, src/document/entity.rs)
-- [ ] T7 Compile-only arms for the new variant in every other exhaustive `match`: render draws
+- [x] T7 Compile-only arms for the new variant in every other exhaustive `match`: render draws
   nothing, pick distance is `f64::INFINITY`, trim/extend return nothing, export writes nothing,
   narration writes `ellipse`. Mechanical; later tasks replace each arm. This breaks the 1–3 files
   rule; accepted, because the compiler forces it (files: those the compiler lists)

@@ -54,6 +54,7 @@ pub fn rasterize(
                 };
                 canvas.arc((a.center.x, a.center.y), a.r, start, sweep);
             }
+            Entity::Ellipse(_) => {}
         }
     }
     canvas.pixels

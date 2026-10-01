@@ -57,6 +57,7 @@ fn pick_entity(pos: Vec2, entities: &[Entity], radius_mm: f64) -> Option<usize> 
                 Entity::Line(l) => l.distance_to_point(pos),
                 Entity::Circle(c) => c.distance_to_point(pos).abs(),
                 Entity::Arc(a) => arc_dist(a, pos),
+                Entity::Ellipse(_) => f64::INFINITY,
             };
             (i, d)
         })

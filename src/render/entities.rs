@@ -78,6 +78,7 @@ pub fn draw_entities(
                     painter.line_segment([p1, p2], stroke);
                 }
             }
+            Entity::Ellipse(_) => {}
         }
     }
 }

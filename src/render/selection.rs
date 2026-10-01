@@ -119,6 +119,7 @@ pub(crate) fn draw_entity_with_stroke(
                 painter.line_segment([p1, p2], stroke);
             }
         }
+        Entity::Ellipse(_) => {}
     }
 }
 

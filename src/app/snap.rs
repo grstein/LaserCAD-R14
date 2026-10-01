@@ -62,6 +62,11 @@ fn to_snap_entity(e: &Entity) -> SnapEntity {
         Entity::Line(l) => SnapEntity::Line(*l),
         Entity::Circle(c) => SnapEntity::Circle(*c),
         Entity::Arc(a) => SnapEntity::Arc(*a),
+        // LCV-176 T7: offers nothing until the snap engine knows ellipses.
+        Entity::Ellipse(_) => {
+            let nowhere = Vec2::new(f64::NAN, f64::NAN);
+            SnapEntity::Line(crate::geometry::Line::new(nowhere, nowhere))
+        }
     }
 }
 

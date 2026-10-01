@@ -19,6 +19,7 @@ fn bits(e: &Entity) -> Vec<u64> {
             a.end_angle,
             f64::from(u8::from(a.ccw)),
         ],
+        Entity::Ellipse(e) => vec![e.center.x, e.center.y, e.rx, e.ry, e.rotation],
     };
     v.into_iter().map(f64::to_bits).collect()
 }

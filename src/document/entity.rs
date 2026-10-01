@@ -3,7 +3,7 @@
 //! [`Entity`] is the single sum type used throughout the document model and
 //! every downstream consumer (`Command` trait, history stack, selection,
 //! render, tools, SVG export). It wraps the kernel's geometry value types
-//! (`Line`, `Circle`, `Arc`) declared in [`crate::geometry`] and never adds
+//! (`Line`, `Circle`, `Arc`, `Ellipse`) declared in [`crate::geometry`] and never adds
 //! its own coordinates — the variants are pure carriers of the existing
 //! primitives.
 //!
@@ -18,7 +18,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::geometry::{Arc, Circle, Line, Transform, Vec2};
+use crate::geometry::{Arc, Circle, Ellipse, Line, Transform, Vec2};
 
 /// A document-level entity: a tagged union over the kernel's geometry
 /// primitives.
@@ -40,6 +40,8 @@ pub enum Entity {
     Circle(Circle),
     /// A proper arc (sweep `< 2π`).
     Arc(Arc),
+    /// A full ellipse or an elliptical arc (LCV-176, ADR 0015).
+    Ellipse(Ellipse),
 }
 
 impl Entity {
@@ -54,12 +56,13 @@ impl Entity {
             Entity::Line(line) => line.bbox(),
             Entity::Circle(circle) => circle.bbox(),
             Entity::Arc(arc) => arc.bbox(),
+            Entity::Ellipse(e) => e.bbox(),
         }
     }
 
     /// Short lowercase ASCII tag identifying the variant.
     ///
-    /// Returns exactly `"line"`, `"circle"`, or `"arc"`. The strings are safe
+    /// Returns exactly `"line"`, `"circle"`, `"arc"` or `"ellipse"`. The strings are safe
     /// for logs, telemetry, and any future `serde` tag without further
     /// mapping.
     pub fn kind_name(&self) -> &'static str {
@@ -67,6 +70,7 @@ impl Entity {
             Entity::Line(_) => "line",
             Entity::Circle(_) => "circle",
             Entity::Arc(_) => "arc",
+            Entity::Ellipse(_) => "ellipse",
         }
     }
 
@@ -92,18 +96,22 @@ impl Entity {
             Entity::Arc(arc) => {
                 arc.center = arc.center + delta;
             }
+            Entity::Ellipse(e) => {
+                e.center = e.center + delta;
+            }
         }
     }
 
     /// The entity mapped through `transform`, same variant.
     ///
-    /// Dispatches to [`Transform::line`], [`Transform::circle`] and
-    /// [`Transform::arc`]; adds no geometry of its own (LCV-158).
+    /// Dispatches to [`Transform::line`], [`Transform::circle`],
+    /// [`Transform::arc`] and [`Transform::ellipse`]; adds no geometry of its own (LCV-158).
     pub fn transformed(&self, transform: &Transform) -> Entity {
         match *self {
             Entity::Line(line) => Entity::Line(transform.line(line)),
             Entity::Circle(circle) => Entity::Circle(transform.circle(circle)),
             Entity::Arc(arc) => Entity::Arc(transform.arc(arc)),
+            Entity::Ellipse(e) => Entity::Ellipse(transform.ellipse(e)),
         }
     }
 }
@@ -275,5 +283,29 @@ mod tests {
             Entity::Line(l) => assert!(l.p1.approx_eq(Vec2::new(1.0, 1.0), EPSILON)),
             other => panic!("variant changed: {other:?}"),
         }
+    }
+
+    /// LCV-176 — an ellipse delegates bbox and transforms, translates its
+    /// center only, and is named `ellipse`.
+    #[test]
+    fn entity_ellipse_dispatches() {
+        let e = Ellipse::new(Vec2::new(1.0, 1.0), 3.0, 1.0, 0.5, None);
+        let ent = Entity::Ellipse(e);
+        assert_eq!(ent.kind_name(), "ellipse");
+        assert!(bbox_approx_eq(ent.bbox(), e.bbox()));
+        let t = Transform::Rotate {
+            base: Vec2::default(),
+            angle: FRAC_PI_2,
+        };
+        assert_eq!(ent.transformed(&t), Entity::Ellipse(t.ellipse(e)));
+        let mut moved = ent;
+        moved.translate(Vec2::new(2.0, -1.0));
+        assert_eq!(
+            moved,
+            Entity::Ellipse(Ellipse {
+                center: Vec2::new(3.0, 0.0),
+                ..e
+            })
+        );
     }
 }

@@ -23,6 +23,7 @@ pub(super) fn kind(entity: &Entity) -> &'static str {
         Entity::Line(_) => "line",
         Entity::Circle(_) => "circle",
         Entity::Arc(_) => "arc",
+        Entity::Ellipse(_) => "ellipse",
     }
 }
 
@@ -43,6 +44,7 @@ pub(super) fn geometry(entity: &Entity) -> String {
             a.r,
             sweep(a.start_angle, a.end_angle, a.ccw)
         ),
+        Entity::Ellipse(e) => format!("center {} mm", pt(e.center.x, e.center.y)),
     }
 }
 
