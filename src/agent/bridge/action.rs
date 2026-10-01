@@ -248,6 +248,19 @@ pub enum SetOp {
     },
 }
 
+impl SetOp {
+    fn tool_name(&self) -> &'static str {
+        match self {
+            Self::Delete => "delete_entity",
+            Self::Move { .. } => "move_entity",
+            Self::Copy { .. } => "copy_entity",
+            Self::Rotate { .. } => "rotate_entity",
+            Self::Mirror { .. } => "mirror_entity",
+            Self::Scale { .. } => "scale_entity",
+        }
+    }
+}
+
 impl AgentAction {
     /// The layer name a creation action asks for, if any (LCV-156).
     pub fn layer(&self) -> Option<&str> {
@@ -259,10 +272,175 @@ impl AgentAction {
             _ => None,
         }
     }
+
+    /// The tool every apply-site refusal names; a set names its edit tool.
+    pub fn tool_name(&self) -> &str {
+        match self {
+            Self::CreateLine { .. } => "create_line",
+            Self::CreateCircle { .. } => "create_circle",
+            Self::CreateArc { .. } => "create_arc",
+            Self::Delete { .. } => "delete_entity",
+            Self::Move { .. } => "move_entity",
+            Self::Copy { .. } => "copy_entity",
+            Self::Rotate { .. } => "rotate_entity",
+            Self::Mirror { .. } => "mirror_entity",
+            Self::Scale { .. } => "scale_entity",
+            Self::Set { op, .. } => op.tool_name(),
+            Self::QueryEntities => "query_entities",
+            Self::QuerySelection => "query_selection",
+            Self::CaptureCanvas(_) | Self::AuthorizeUpload { .. } | Self::Note(_) => {
+                "capture_canvas"
+            }
+            Self::CreateDrawing { .. } => "create_drawing",
+            Self::Malformed { tool, .. } => tool,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::{AgentAction as A, CaptureFrame, SetOp};
+
+    /// LCV-192 AC 2 — every action names the tool the model called; a set
+    /// names its edit tool.
+    #[test]
+    fn every_action_names_its_tool() {
+        let (x, i) = (0.0, 0);
+        let set = |op| A::Set {
+            indices: vec![i],
+            op,
+        };
+        let cases = [
+            (
+                A::CreateLine {
+                    x1: x,
+                    y1: x,
+                    x2: x,
+                    y2: x,
+                    layer: None,
+                },
+                "create_line",
+            ),
+            (
+                A::CreateCircle {
+                    cx: x,
+                    cy: x,
+                    r: 1.0,
+                    layer: None,
+                },
+                "create_circle",
+            ),
+            (
+                A::CreateArc {
+                    cx: x,
+                    cy: x,
+                    r: 1.0,
+                    start: x,
+                    end: x,
+                    ccw: true,
+                    layer: None,
+                },
+                "create_arc",
+            ),
+            (A::Delete { index: i }, "delete_entity"),
+            (
+                A::Move {
+                    index: i,
+                    dx: x,
+                    dy: x,
+                },
+                "move_entity",
+            ),
+            (
+                A::Copy {
+                    index: i,
+                    dx: x,
+                    dy: x,
+                },
+                "copy_entity",
+            ),
+            (
+                A::Rotate {
+                    index: i,
+                    x,
+                    y: x,
+                    angle: x,
+                },
+                "rotate_entity",
+            ),
+            (
+                A::Mirror {
+                    index: i,
+                    x1: x,
+                    y1: x,
+                    x2: x,
+                    y2: x,
+                    erase_source: true,
+                },
+                "mirror_entity",
+            ),
+            (
+                A::Scale {
+                    index: i,
+                    x,
+                    y: x,
+                    factor: 2.0,
+                },
+                "scale_entity",
+            ),
+            (set(SetOp::Delete), "delete_entity"),
+            (set(SetOp::Move { dx: x, dy: x }), "move_entity"),
+            (set(SetOp::Copy { dx: x, dy: x }), "copy_entity"),
+            (set(SetOp::Rotate { x, y: x, angle: x }), "rotate_entity"),
+            (
+                set(SetOp::Mirror {
+                    x1: x,
+                    y1: x,
+                    x2: x,
+                    y2: x,
+                    erase_source: false,
+                }),
+                "mirror_entity",
+            ),
+            (
+                set(SetOp::Scale {
+                    x,
+                    y: x,
+                    factor: 2.0,
+                }),
+                "scale_entity",
+            ),
+            (A::QueryEntities, "query_entities"),
+            (A::QuerySelection, "query_selection"),
+            (A::CaptureCanvas(CaptureFrame::View), "capture_canvas"),
+            (
+                A::AuthorizeUpload {
+                    endpoint: "e".into(),
+                    model: "m".into(),
+                },
+                "capture_canvas",
+            ),
+            (A::Note("n".into()), "capture_canvas"),
+            (
+                A::CreateDrawing {
+                    items: vec![],
+                    layer: None,
+                },
+                "create_drawing",
+            ),
+            (
+                A::Malformed {
+                    tool: "draw_unicorn".into(),
+                    reason: "r".into(),
+                },
+                "draw_unicorn",
+            ),
+        ];
+        for (action, name) in cases {
+            assert_eq!(action.tool_name(), name, "{action:?}");
+        }
+    }
+
     /// AC 7 — the action enum is hand-built, never deserialized. A
     /// `Deserialize` derive here would let a future demand delete `tools.rs`'s
     /// per-field checks without noticing.

@@ -14,7 +14,7 @@ Starts after LCV-186 is Done (shared files: `tools.rs`, `tools/transform.rs`, `b
 - [x] T9 [AC3] Test: invalid JSON → `create_line (root): not valid JSON (<serde message>); expected a JSON object`; oversize → `(root): arguments exceed 1048576 bytes; expected at most 1048576 bytes` (files: src/app/agent_worker/tests.rs)
 - [x] T10 [AC3] `to_action` builds `ToolCallError::Arg` with path `(root)` for both (files: src/app/agent_worker.rs)
 - [x] T11 [AC2] Test: out-of-range index (scalar, set, empty drawing), unknown layer (scalar and `create_drawing`), mirror line with two equal points, each in the shape (files: src/app/agent_apply/tests.rs, tests/it/agent/layers.rs)
-- [ ] T12 [AC2] `AgentAction::tool_name`; `target_layer` names the tool and lists the layers as `expected one of …` (files: src/agent/bridge/action.rs, src/app/agent_apply.rs)
+- [x] T12 [AC2] `AgentAction::tool_name`; `target_layer` names the tool and lists the layers as `expected one of …` (files: src/agent/bridge/action.rs, src/app/agent_apply.rs)
 - [ ] T13 [AC2] `in_range(tool, index, doc)` and the mirror refusal through `refusal(..)`; `set.rs` range refusal `indices[k]` (files: src/app/agent_apply/edit.rs, src/app/agent_apply/set.rs)
 - [ ] T14 [AC4] Test: `RefusedCalls` — a byte-identical refused call returns the repeat text quoting the first refusal; other args bytes, other tool, an `Ok` outcome and a `Fenced` outcome are never matched (files: src/agent/repeat.rs)
 - [ ] T15 [AC4] Implement `RefusedCalls { record, check }`; `mod repeat` in mod.rs; AGENTS.md purity list (files: src/agent/repeat.rs, src/agent/mod.rs, AGENTS.md)

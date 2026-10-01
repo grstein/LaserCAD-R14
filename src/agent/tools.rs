@@ -36,7 +36,7 @@ use crate::agent::drawing;
 
 mod args;
 pub use args::ToolCallError;
-pub(crate) use args::{expected_form, validate_r};
+pub(crate) use args::{expected_form, refusal, validate_r};
 use args::{get_bool, get_f64, get_index, get_layer, validate_positive};
 mod capture;
 mod schema;

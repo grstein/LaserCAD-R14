@@ -30,6 +30,7 @@
 //! Imports `egui` nowhere, `eframe` nowhere, `rfd` nowhere, and spawns no
 //! thread.
 
+use crate::agent::tools::refusal;
 use crate::agent::{AgentAction, AgentOutcome, DrawingItem};
 use crate::app::agent_narrate::{batch_created, list_entities, list_selection, pt, sweep};
 use crate::app::{App, agent_capture};
@@ -111,7 +112,7 @@ pub(crate) fn transcribe(app: &mut App, outcome: &AgentOutcome) {
 /// because afterwards it is gone.
 fn plan(action: &AgentAction, doc: &Document) -> Planned {
     // LCV-156: a named layer must exist; no name means the current layer.
-    let layer = match target_layer(action.layer(), doc) {
+    let layer = match target_layer(action.tool_name(), action.layer(), doc) {
         Ok(id) => id,
         Err(refusal) => return Planned::Answer(refusal),
     };
@@ -194,17 +195,21 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
 }
 
 /// The layer a creation lands on: the named one, resolved by key, else the
-/// current one. An unknown name is refused naming the layers (ADR 0012 §6).
-fn target_layer(name: Option<&str>, doc: &Document) -> Result<LayerId, AgentOutcome> {
+/// current one. An unknown name is refused naming the layers (ADR 0012 §6),
+/// in the LCV-192 shape; the name is at most 64 characters (`layer_arg`).
+fn target_layer(tool: &str, name: Option<&str>, doc: &Document) -> Result<LayerId, AgentOutcome> {
     let Some(name) = name else {
         return Ok(doc.current_layer());
     };
     doc.layer_by_name(name).map(|l| l.id).ok_or_else(|| {
-        let names: Vec<&str> = doc.layers().iter().map(|l| l.name.as_str()).collect();
-        AgentOutcome::Refused(format!(
-            "unknown layer \"{name}\" (the layers are: {}); nothing was drawn",
-            names.join(", ")
-        ))
+        let names: Vec<String> = doc
+            .layers()
+            .iter()
+            .map(|l| format!("\"{}\"", l.name))
+            .collect();
+        let reason = format!("unknown layer \"{name}\"");
+        let expected = format!("one of {}", names.join(", "));
+        AgentOutcome::Refused(refusal(tool, "layer", &reason, &expected))
     })
 }
 
