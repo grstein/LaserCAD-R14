@@ -6,6 +6,8 @@
   with corners); `drawing` and `region` render the long edge at exactly
   1024 px. Item 10: every image's fate is a post-send `note`. Nothing else
   changes.
+- **Amended (2)**: 2026-09-30 — LCV-193 (turn metrics). Item 10: the turn's
+  `captures` count is defined. Nothing else changes.
 - **Date**: 2026-09-27
 - **Deciders**: architect (LCV-145; in the 1.0 scope by the 2026-09-27 scope
   decision recorded in `PLAN.md`)
@@ -129,6 +131,12 @@ in it — by construction, not by a crop.
     > worker sends as `AgentAction::Note` — **not a step**, fence bypassed,
     > like `AuthorizeUpload` — and `agent_poll` pushes as the row. A failed
     > send notes before its error returns.
+
+    > **Amended (2), 2026-09-30 (LCV-193).** The turn's metrics note counts
+    > `captures`: the authorised images of a request that got a reply. It is
+    > the number of image parts in that request, carried by the non-step
+    > `Replied { captures }` rendezvous (ADR 0007 §D13). A withheld upload
+    > counts 0 and a failed request counts nothing.
 11. **Settings**: `agent_allow_canvas_capture: bool` and
     `agent_model_supports_vision: bool`, both `serde` default `false`; two
     checkboxes in `settings_ui.rs` with a disclosure sentence that canvas

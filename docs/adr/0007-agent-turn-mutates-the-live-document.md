@@ -91,6 +91,11 @@
   `<tool> <path>: <reason>; expected <form>`; a call repeating, byte for byte,
   the tool and arguments of a call already refused in the turn is answered
   `Malformed` from the first refusal and is still a step. Nothing else changes.
+- **Amended (13)**: 2026-09-30 — LCV-193 (turn metrics). §D11: every exit
+  ends with one metrics `note` row, after the undo note. §D13: a returned
+  completion is a non-step `Replied` rendezvous. §D8 gains `metrics.rs`, and
+  `end_turn` moves to `agent_poll/turn_end.rs`. No exit is added and nothing
+  is reversed.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
@@ -527,6 +532,22 @@ tool calls, a `tool` role and status mapping are added to them.
 >
 > `AgentState` gains `memory` and `memory_mark` as direct fields beside
 > `turn`: memory outlives a turn, and `TurnState` is reset per turn.
+>
+> **Amended (13) — rows added, 2026-09-30 (LCV-193).**
+>
+> ```
+> src/agent/
+>   metrics.rs       TurnMetrics {steps, applied, refused, repeated, captures,
+>                    replies}, step(outcome, repeated), note(). Kernel-pure.
+> src/app/
+>   agent_poll/turn_end.rs  end_turn, finish_turn, undo_note — split out of
+>                    agent_poll.rs (ADR 0004 seam); `agent_poll::answer_act`
+>                    answers each `Act` and keeps the tally.
+> ```
+>
+> `TurnState.tally: TurnMetrics` replaces the separate applied and step
+> counts; it is reset by `arm_turn` and stays readable after the turn ends
+> until the next one is armed.
 
 ### D9 — Command-line routing precedence
 
@@ -710,6 +731,15 @@ them into leaving `agent_busy` set must fail.
 > `finish_turn`, on every exit — `cancel_turn` and exits 3/4 included, with the
 > batches empty because no terminal event arrived. Recording is infallible and
 > cannot return early, so the closure property is unchanged; no exit is added.
+>
+> **Amended (13):** every exit ends with exactly one metrics row, role `note`,
+> `TurnState.tally.note()`, pushed by `end_turn` after `finish_turn` (so after
+> the undo note, when there is one) and before recording memory: `Turn: <s>
+> steps, <a> actions applied, <r> refused (<p> repeated), <c> captures sent,
+> <m> model replies.` Zero counts included, `cancel_turn` included. The counts
+> come from the `Act`s the UI answered, never from the model's text. Pushing
+> a row cannot fail or return early, so the closure property is unchanged; no
+> exit is added.
 
 ### D12 — One turn is one flat history group, opened at turn start and sealed by anything that is not the turn
 
@@ -815,6 +845,14 @@ first eviction or document replacement. Accepted.
   receives them and holds the snapshotted limit. Because every step is an
   `Act` (§D15), the count is exact with no progress event. Non-step
   rendezvous (ADR 0011's `AuthorizeUpload`) are not counted.
+- **Amended (13):** after each completion that returns, the loop dispatches
+  `Dispatch::Replied { captures }`, which the worker sends as
+  `AgentAction::Replied { captures }` — a **non-step** rendezvous like
+  `AuthorizeUpload` and `Note`: it bypasses the fence and the step count, is
+  answered `Ok` with no row, and `agent_poll::answer_act` adds it to the
+  tally (`replies + 1`, `captures + n`). A failed request dispatches nothing.
+  A step tallies `refused` on `Refused` or `Fenced`, and `repeated` when it is
+  §D15's LCV-192 repeat (`agent/repeat.rs::is_repeat`).
 
 ### D14 — The fence has two witnesses, and a tripped fence stops dispatch
 
