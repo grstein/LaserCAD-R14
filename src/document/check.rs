@@ -7,7 +7,7 @@
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use super::{Document, Entity};
-use crate::geometry::{EPSILON, Vec2};
+use crate::geometry::{Arc, EPSILON, Vec2};
 
 /// One problem the check found. Indices are zero-based document indices.
 #[derive(Clone, Debug, PartialEq)]
@@ -60,10 +60,64 @@ pub fn check_drawing(doc: &Document) -> CheckReport {
                 .is_some_and(|l| l.output)
         })
         .collect();
-    let (open, gaps) = end_findings(doc, &scope);
+    let mut chained = Vec::new();
+    let mut duplicates = Vec::new();
+    for (n, &j) in scope.iter().enumerate() {
+        let later = &doc.entities[j];
+        match scope[..n]
+            .iter()
+            .find(|&&i| same_geometry(&doc.entities[i], later))
+        {
+            Some(&of) => duplicates.push(Finding::Duplicate {
+                index: j,
+                of,
+                at: first_point(later),
+            }),
+            None => chained.push(j),
+        }
+    }
+    let (open, gaps) = end_findings(doc, &chained);
     let mut findings = open;
     findings.extend(gaps);
+    findings.extend(duplicates);
     CheckReport { findings }
+}
+
+/// A line's start, an arc's start point, a circle's centre.
+fn first_point(entity: &Entity) -> Vec2 {
+    match entity {
+        Entity::Line(l) => l.p1,
+        Entity::Circle(c) => c.center,
+        Entity::Arc(a) => a.start_point(),
+    }
+}
+
+/// Same geometry within [`EPSILON`]: lines as unordered endpoint pairs,
+/// circles by centre and radius, arcs by centre, radius and their endpoints
+/// once both are read counter-clockwise (so wrap-around needs no case).
+fn same_geometry(a: &Entity, b: &Entity) -> bool {
+    let near = |p: Vec2, q: Vec2| p.distance(q) <= EPSILON;
+    let same_r = |r: f64, s: f64| (r - s).abs() <= EPSILON;
+    match (a, b) {
+        (Entity::Line(a), Entity::Line(b)) => {
+            (near(a.p1, b.p1) && near(a.p2, b.p2)) || (near(a.p1, b.p2) && near(a.p2, b.p1))
+        }
+        (Entity::Circle(a), Entity::Circle(b)) => near(a.center, b.center) && same_r(a.r, b.r),
+        (Entity::Arc(a), Entity::Arc(b)) => {
+            let ([a0, a1], [b0, b1]) = (ccw_ends(a), ccw_ends(b));
+            near(a.center, b.center) && same_r(a.r, b.r) && near(a0, b0) && near(a1, b1)
+        }
+        _ => false,
+    }
+}
+
+/// An arc's endpoints in counter-clockwise order: a CW arc swaps them.
+fn ccw_ends(arc: &Arc) -> [Vec2; 2] {
+    if arc.ccw {
+        [arc.start_point(), arc.end_point()]
+    } else {
+        [arc.end_point(), arc.start_point()]
+    }
 }
 
 /// The two endpoints of a line or arc; a circle has none.

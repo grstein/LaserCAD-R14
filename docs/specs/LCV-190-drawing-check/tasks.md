@@ -11,7 +11,7 @@ Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/
 - [x] T3 [AC4] Test: duplicates — reversed line, same circle, CW arc vs its CCW twin, three copies
   → two findings against the lowest index, different span → none, a doubled open line still shows
   its open ends (files: src/document/check/tests.rs)
-- [ ] T4 [AC4] Duplicate detection with CCW-normalised arcs; later duplicates leave the endpoint
+- [x] T4 [AC4] Duplicate detection with CCW-normalised arcs; later duplicates leave the endpoint
   analysis (files: src/document/check.rs)
 - [ ] T5 [AC5][AC6] Test: degenerate zero-length line, zero-span arc, zero-radius circle; off-bed
   line past the right edge, arc whose endpoints are inside but bulge crosses y=0, entity touching
