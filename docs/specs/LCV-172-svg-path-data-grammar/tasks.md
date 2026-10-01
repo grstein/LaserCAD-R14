@@ -18,7 +18,7 @@
 - [x] T6 [AC9] Test: two exported arc `d` strings joined into one `d` import as the same two
       arcs as when imported separately (the existing golden-path and half-turn tests already pin
       single arcs and stay unchanged) (files: src/io/svg/import/tests.rs)
-- [ ] T7 [AC3] [AC4] [AC5] [AC6] [AC7] Test (unit, `import/path.rs`): zero-length `L`/`H`/`V`
+- [x] T7 [AC3] [AC4] [AC5] [AC6] [AC7] Test (unit, `import/path.rs`): zero-length `L`/`H`/`V`
       yield nothing; `Z` adds the closing line only when the current point differs from the start;
       `rx = ry` with φ = 30° gives the same arc as φ = 0; equal endpoints omit the arc; `rx = 0`
       gives a line; `A -10 -10 …` equals `A 10 10 …`; `λ > 1` gives `r = chord/2`; `rx ≠ ry`

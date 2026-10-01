@@ -40,6 +40,7 @@ use crate::geometry::{Arc, Circle, EPSILON, Line, Vec2};
 use crate::util::flip_y;
 use walk::Walk;
 
+mod path;
 pub(super) mod report;
 mod walk;
 
