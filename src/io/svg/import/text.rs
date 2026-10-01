@@ -56,7 +56,8 @@ struct Char {
     slot: Slot,
     /// `text-anchor` as a fraction of the chunk width: 0, ½ or 1.
     anchor: f64,
-    /// Visible and painted: its outline is imported.
+    /// Visible and painted (a stroke, or a fill not `none`): its outline
+    /// is imported (AC 10).
     drawn: bool,
 }
 
@@ -181,7 +182,9 @@ impl<'a, 'input> Walk<'a, 'input> {
                 Some("end") => 1.0,
                 _ => 0.0,
             },
-            drawn: !style.invisible,
+            drawn: !style.invisible
+                && (style.stroke().is_some()
+                    || inherited(node, &self.sheet, "fill").is_none_or(|f| f != "none")),
         };
         let span = flat.spans.len();
         let lists = ["x", "y", "dx", "dy"].map(|name| list(node, name, ctx));
@@ -588,5 +591,48 @@ mod tests {
             r#"<text x="10" y="50" font-size="20.48" letter-spacing="normal" word-spacing="0" inline-size="auto" rotate="0px">l l</text>"#,
         );
         assert!(neutral.report.is_empty(), "{:?}", neutral.report);
+    }
+
+    /// The color of each entity's layer.
+    fn layer_colors(svg: &ImportedSvg) -> Vec<[u8; 3]> {
+        let color = |id| svg.layers.iter().find(|l| l.id == id).unwrap().color;
+        svg.entity_layers.iter().map(|&id| color(id)).collect()
+    }
+
+    /// AC 10 — the fill color stands in for a missing stroke; a `tspan`'s
+    /// own stroke picks its layer.
+    #[test]
+    fn text_lands_on_its_stroke_or_fill_layer() {
+        let svg = page(
+            r##"<text x="10" y="50" fill="#ff0000">l<tspan stroke="#0000ff">l</tspan></text>"##,
+        );
+        let n = svg.entities.len() / 2;
+        let colors = layer_colors(&svg);
+        assert!(colors[..n].iter().all(|&c| c == [255, 0, 0]), "{colors:?}");
+        assert!(colors[n..].iter().all(|&c| c == [0, 0, 255]), "{colors:?}");
+    }
+
+    /// AC 10 — an enclosing `data-layer` group wins over the colors.
+    #[test]
+    fn a_layer_group_owns_its_text() {
+        let svg = page(
+            r##"<g data-layer="Engrave" stroke="#00ff00"><text x="10" y="50" fill="#ff0000" stroke="#0000ff">l</text></g>"##,
+        );
+        assert!(!svg.entities.is_empty());
+        let engrave = svg.layers.iter().find(|l| l.name == "Engrave").unwrap().id;
+        assert!(svg.entity_layers.iter().all(|&id| id == engrave));
+    }
+
+    /// AC 10 — `fill="none"` without a stroke paints nothing and imports
+    /// nothing; an undeclared fill is black and imports.
+    #[test]
+    fn unpainted_text_imports_nothing() {
+        let svg = page(
+            r#"<text x="10" y="50" fill="none">l</text><g fill="none"><text x="10" y="50">l<tspan stroke="none">l</tspan></text></g>"#,
+        );
+        assert!(svg.entities.is_empty());
+        assert!(!page(r#"<text x="10" y="50">l</text>"#).entities.is_empty());
+        let stroked = page(r#"<text x="10" y="50" fill="none" stroke="red">l</text>"#);
+        assert!(!stroked.entities.is_empty());
     }
 }
