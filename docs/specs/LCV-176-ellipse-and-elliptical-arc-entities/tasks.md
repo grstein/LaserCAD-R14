@@ -50,7 +50,7 @@
   for arcs with each combination of `large` and `sweep` under the mirror. `GOLDEN` stays unchanged.
   The audit allowlist gains `ellipse` and `transform="rotate(a cx cy)"` (files:
   tests/it/io_svg/ellipse.rs, tests/it/io_svg/mod.rs, tests/it/io_svg/export_audit.rs)
-- [ ] T19 [AC9, AC10] `encode_entity` ellipse arm and `deg()`; then `scripts/mutants.sh` on the
+- [x] T19 [AC9, AC10] `encode_entity` ellipse arm and `deg()`; then `scripts/mutants.sh` on the
   change (files: src/io/svg/export.rs)
 - [ ] T20 [AC1] Test: `A` with rx ≠ ry, for each combination of large/sweep, with φ ≠ 0, relative,
   and needing radius correction. Endpoints match within `EPSILON`. rx = ry still gives an `Arc`,
