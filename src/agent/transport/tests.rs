@@ -78,7 +78,7 @@ fn tools_array_is_sent_in_the_request_body() {
         .create();
 
     let tools = crate::agent::tools::tool_definitions(false);
-    assert_eq!(tools.as_array().map(|a| a.len()), Some(13), "fixture check");
+    assert_eq!(tools.as_array().map(|a| a.len()), Some(14), "fixture check");
 
     let result = chat_completion(
         &server.url(),
@@ -92,8 +92,8 @@ fn tools_array_is_sent_in_the_request_body() {
     let body = bodies.json(0);
     assert_eq!(
         body["tools"].as_array().map(|a| a.len()),
-        Some(13),
-        "AC 4: all thirteen tool schemas must reach the wire, body was {body}"
+        Some(14),
+        "AC 4: all fourteen tool schemas must reach the wire, body was {body}"
     );
     assert_eq!(body["tools"][0]["function"]["name"], "create_line");
 }

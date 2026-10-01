@@ -83,6 +83,9 @@ pub(super) fn base_definitions() -> Value {
       {"type":"function","function":{"name":"query_selection",
         "description":"List the zero-based indices of the entities the operator currently has selected.",
         "parameters":{"type":"object","properties":{},"required":[]}}},
+      {"type":"function","function":{"name":"check_drawing",
+        "description":"Check the Output-on layers for open ends, gaps under 0.5 mm, duplicates, degenerate entities and entities off the bed; returns one line per finding with entity indices and mm positions. Commits nothing.",
+        "parameters":{"type":"object","properties":{},"required":[]}}},
       {"type":"function","function":{"name":"create_drawing",
         "description":"Append many lines, circles and arcs (mm, degrees) in one atomic call. The whole batch is validated first; any error draws nothing.",
         "parameters":drawing::schema()}}

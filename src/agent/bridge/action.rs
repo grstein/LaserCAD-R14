@@ -339,6 +339,7 @@ mod tests {
             (set(SetOp::Layer { layer: "L".into() }), "set_layer"),
             (A::QueryEntities, "query_entities"),
             (A::QuerySelection, "query_selection"),
+            (A::CheckDrawing, "check_drawing"),
             (A::CaptureCanvas(CaptureFrame::View), "capture_canvas"),
             (
                 A::AuthorizeUpload {

@@ -46,7 +46,7 @@ Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/
   `check_drawing(&doc).lines().join("\n")`, counts one step, leaves the revision, and a following
   mutation in the same turn is not fenced (files: tests/it/agent/check_drawing.rs,
   tests/it/agent/mod.rs, src/agent/tools/tests.rs)
-- [ ] T18 [AC9] `AgentAction::CheckDrawing` (+ `tool_name` arm), `"check_drawing"` arm, schema entry
+- [x] T18 [AC9] `AgentAction::CheckDrawing` (+ `tool_name` arm), `"check_drawing"` arm, schema entry
   (files: src/agent/bridge/action.rs, src/agent/tools.rs, src/agent/tools/schema.rs)
 - [ ] T19 [AC9] Answer arm in `agent_apply.rs::plan`; prompt tool line and its pinned text (files:
   src/app/agent_apply.rs, src/agent/prompt.rs, tests/it/agent/system_prompt.rs)

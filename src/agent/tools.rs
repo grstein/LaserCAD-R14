@@ -46,9 +46,9 @@ mod transform;
 /// OpenAI function-calling schemas. Order: create_line(0) create_circle(1)
 /// create_arc(2) delete_entity(3) move_entity(4) copy_entity(5)
 /// rotate_entity(6) mirror_entity(7) scale_entity(8) set_layer(9)
-/// query_entities(10) query_selection(11) create_drawing(12).
+/// query_entities(10) query_selection(11) check_drawing(12) create_drawing(13).
 ///
-/// The two queries take no arguments at all — an explicitly empty
+/// The two queries and `check_drawing` take no arguments at all — an explicitly empty
 /// `properties` / `required` pair rather than an absent `parameters`, because
 /// some providers reject a function schema without one (LCV-123 AC 13).
 ///
@@ -153,6 +153,7 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
         // there is no shape to check and nothing to refuse (AC 14, AC 15).
         "query_entities" => Ok(AgentAction::QueryEntities),
         "query_selection" => Ok(AgentAction::QuerySelection),
+        "check_drawing" => Ok(AgentAction::CheckDrawing),
         // Shape only (LCV-187); permission and the frame's area are checked
         // live at the apply site, never here (LCV-145 AC 2).
         "capture_canvas" => Ok(AgentAction::CaptureCanvas(capture::parse(args)?)),
