@@ -1,6 +1,6 @@
 # LCV-180 — Dependency refresh
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: none
 - **Implementation**: -
 
