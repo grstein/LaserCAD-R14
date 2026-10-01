@@ -65,7 +65,7 @@
   LCV-172 fixtures that expected `ignored … path C|S|Q|T` updated (files:
   tests/it/io_svg/roundtrip_props.rs, tests/it/io_svg/corpus/expected.rs,
   tests/fixtures/svg/beziers.{svg,expected})
-- [ ] T23 [AC14] Test: `query_entities` lists a cubic and a quadratic with kinds `cubic` and
+- [x] T23 [AC14] Test: `query_entities` lists a cubic and a quadratic with kinds `cubic` and
   `quadratic` and their points in mm, in order (files: tests/it/agent/turn.rs)
 - [ ] T24 [AC14] The narration arm, a prompt line saying Béziers are read-only, and the raster
   arm (files: src/app/agent_narrate.rs, src/agent/prompt.rs, src/render/raster.rs)

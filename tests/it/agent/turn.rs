@@ -945,3 +945,35 @@ fn query_entities_lists_ellipses_and_elliptical_arcs() {
         "{text}"
     );
 }
+
+/// LCV-177 AC 14 — `query_entities` lists a cubic and a quadratic with kinds
+/// `cubic` and `quadratic` and their points in mm, in path order.
+#[test]
+fn query_entities_lists_cubics_and_quadratics() {
+    use lasercad::app::apply;
+    use lasercad::document::Entity;
+    use lasercad::geometry::Bezier;
+
+    let mut app = App::default();
+    let v = Vec2::new;
+    let cubic = Bezier::Cubic([v(0.0, 0.0), v(10.5, 20.0), v(-3.25, 7.0), v(40.0, 0.125)]);
+    let quad = Bezier::Quadratic([v(5.0, 5.0), v(15.0, 25.0), v(25.0, 5.0)]);
+    app.document.push_current(Entity::Bezier(cubic));
+    app.document.push_current(Entity::Bezier(quad));
+    let text = apply(&mut app, &AgentAction::QueryEntities)
+        .text()
+        .to_owned();
+    let rows: Vec<&str> = text
+        .lines()
+        .filter(|l| l.starts_with(char::is_numeric))
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            "0: cubic (0.000, 0.000) → (10.500, 20.000) → (-3.250, 7.000) → \
+             (40.000, 0.125) mm layer Cut",
+            "1: quadratic (5.000, 5.000) → (15.000, 25.000) → (25.000, 5.000) mm layer Cut",
+        ],
+        "{text}"
+    );
+}
