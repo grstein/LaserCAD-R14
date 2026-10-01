@@ -12,9 +12,12 @@
 //!
 //! Names no drawing-state type; MUST NOT import `egui`, `eframe`, or `rfd`.
 
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use crate::agent::tools::{ToolCallError, validate_r};
+
+mod schema;
+pub use schema::{layer_schema, schema};
 
 /// One entity of a `create_drawing` batch, in mm; arc angles in radians.
 #[derive(Debug, Clone, PartialEq)]
@@ -72,39 +75,6 @@ pub const ENTITY_KEYS: [(&str, &[&str]); 3] = [
     ("circle", &["cx", "cy", "r"]),
     ("arc", &["cx", "cy", "r", "start_deg", "end_deg", "ccw"]),
 ];
-
-/// The `parameters` schema of `create_drawing` (ADR 0010 §2).
-///
-/// A provider-compatible hint, not the contract: only `type`, `properties`,
-/// `required`, `description`, `enum`, `minItems`, `maxItems` and `items`, so
-/// no provider drops the tool. Which keys each `type` needs is said in words;
-/// [`parse`] is what enforces it.
-pub fn schema() -> Value {
-    let types: Vec<&str> = ENTITY_KEYS.iter().map(|(t, _)| *t).collect();
-    let mut props = serde_json::Map::new();
-    props.insert("type".into(), json!({"type": "string", "enum": types}));
-    for key in ENTITY_KEYS.iter().flat_map(|(_, keys)| keys.iter()) {
-        let kind = if *key == "ccw" { "boolean" } else { "number" };
-        props.insert((*key).into(), json!({"type": kind}));
-    }
-    json!({"type": "object",
-      "properties": {
-        "version": {"type": "integer", "enum": [1],
-          "description": "Format version; always 1."},
-        "entities": {"type": "array", "minItems": 1, "maxItems": MAX_DRAWING_ENTITIES,
-          "items": {"type": "object",
-            "description": "One entity: its type and that type's keys; keys of other types may be omitted or null. line: x1, y1, x2, y2. circle: cx, cy, r. arc: cx, cy, r, start_deg, end_deg, ccw (degrees, 0 = +X; ccw=true is counter-clockwise).",
-            "properties": props,
-            "required": ["type"]}},
-        "layer": layer_schema()},
-      "required": ["version", "entities"]})
-}
-
-/// The optional `layer` property every creation tool takes (LCV-156).
-pub fn layer_schema() -> Value {
-    json!({"type": "string",
-      "description": "Optional: the name of an existing layer to draw on (see query_entities). Omit to use the current layer."})
-}
 
 /// Shape check of the optional `layer` argument (ADR 0012 §6): absent is
 /// `None`; present must be a string of 1..=[`MAX_LAYER_NAME_CHARS`]

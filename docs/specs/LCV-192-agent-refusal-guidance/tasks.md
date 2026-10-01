@@ -4,7 +4,7 @@ Starts after LCV-186 is Done (shared files: `tools.rs`, `tools/transform.rs`, `b
 `agent_apply/set.rs`). Mutation testing: yes.
 
 - [x] T1 Refactor, no behaviour change: move `ToolCallError`, `get_f64`, `get_bool`, `get_index`, `validate_r`, `validate_positive` and `get_layer` into the new kernel-pure `tools/args.rs`, re-exported by `tools.rs`; add it to the AGENTS.md purity list (files: src/agent/tools.rs, src/agent/tools/args.rs, AGENTS.md)
-- [ ] T2 Refactor, no behaviour change: move `drawing::schema` and `layer_schema` into the new kernel-pure `drawing/schema.rs`, re-exported by `drawing.rs`; AGENTS.md purity list (files: src/agent/drawing.rs, src/agent/drawing/schema.rs, AGENTS.md)
+- [x] T2 Refactor, no behaviour change: move `drawing::schema` and `layer_schema` into the new kernel-pure `drawing/schema.rs`, re-exported by `drawing.rs`; AGENTS.md purity list (files: src/agent/drawing.rs, src/agent/drawing/schema.rs, AGENTS.md)
 - [ ] T3 [AC1] Test: scalar refusals pinned exactly — missing `r`, `r` of the wrong type, `r = -3`, `factor = 0`, `index = -1` / `1.5`, `layer` too long and `layer` not a string, each `<tool> <field>: <reason>; expected <form>` (files: src/agent/tools/tests.rs)
 - [ ] T4 [AC1] `ToolCallError::Arg { tool, path, reason, expected }` replaces MissingField/InvalidArg/DrawingRoot/DrawingItem; `expected_form(field)` table; `refusal(tool, path, reason, expected)` formatter; old assertions updated (files: src/agent/tools/args.rs, src/agent/tools.rs, src/agent/tools/tests.rs)
 - [ ] T5 [AC1] Test: `create_drawing` refusals pinned — unknown root key, `version`, `entities` empty and 1001 items, `entities[i]` not an object, `type`, foreign key, unknown item key, `entities[17].r` (files: tests/it/agent/drawing_batch.rs)
