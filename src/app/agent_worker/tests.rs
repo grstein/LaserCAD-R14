@@ -1687,3 +1687,65 @@ fn every_reply_reaches_ask_as_replied_with_its_captures() {
     assert!(matches!(result, Err(AgentError::Transport(_))));
     assert!(asked.is_empty(), "a failed send is no reply: {asked:?}");
 }
+
+/// LCV-193 AC 3 — a scripted turn over `drive_turn`, answered by the frame
+/// loop's own `answer_act` on an armed `App` with both canvas opt-ins on:
+/// a line, a refused delete, its repeat and a capture are four steps; the
+/// three completions are three replies; the one image that rode a replied
+/// request is one capture. After `Done` and one poll the last row is the note.
+#[test]
+fn a_scripted_turn_tallies_steps_refusals_repeats_captures_and_replies() {
+    use crate::agent::{AgentEvent, TurnMetrics};
+    use crate::app::agent_poll::answer_act;
+    use crate::app::{arm_turn, poll_agent_rx};
+
+    let mut app = App::default();
+    app.settings.agent_allow_canvas_capture = true;
+    app.settings.agent_model_supports_vision = true;
+    app.camera.viewport_size_px = [800.0, 600.0];
+    let tx = arm_turn(&mut app, "draw, delete, look");
+    let config = TurnConfig {
+        vision: true,
+        ..config(
+            &app.settings.agent_endpoint,
+            &app.settings.agent_model,
+            AGENT_STEP_BUDGET_DEFAULT,
+        )
+    };
+    const DELETE: &str = r#"{"index":7}"#;
+    let mut sends = 0usize;
+    let mut send_fn = |_: &[ChatMessage]| {
+        sends += 1;
+        Ok(match sends {
+            1 => batch(&[
+                ("create_line", r#"{"x1":0,"y1":0,"x2":10,"y2":0}"#),
+                ("delete_entity", DELETE),
+            ]),
+            2 => batch(&[("delete_entity", DELETE), ("capture_canvas", "{}")]),
+            _ => text("done"),
+        })
+    };
+    let (result, _) = drive_turn("draw, delete, look", &config, &mut send_fn, &mut |a| {
+        Ok(answer_act(&mut app, &a))
+    });
+    assert_eq!(result.as_deref().ok(), Some("done"));
+
+    let want = TurnMetrics {
+        steps: 4,
+        applied: 1,
+        refused: 2,
+        repeated: 1,
+        captures: 1,
+        replies: 3,
+    };
+    assert_eq!(app.agent.turn.tally, want);
+
+    tx.send(AgentEvent::done("done"))
+        .expect("the turn is armed");
+    poll_agent_rx(&mut app);
+    assert!(!app.agent.busy);
+    assert_eq!(
+        app.agent.chat.last(),
+        Some(&("note".to_owned(), want.note()))
+    );
+}
