@@ -969,6 +969,73 @@ fn a_malformed_call_counts_as_a_step() {
     assert_eq!(asks, 2);
 }
 
+/// LCV-192 AC 4 — the second byte-identical call to one refused in this turn
+/// reaches `ask` as `Malformed` quoting the first refusal, its tool result
+/// says the same, and it is still a step; other argument bytes run again.
+#[test]
+fn a_repeated_refused_call_is_answered_with_the_first_refusal() {
+    const ARGS: &str = r#"{"index":7}"#;
+    let mut sends = 0usize;
+    let mut last = Vec::new();
+    let mut send_fn = |msgs: &[ChatMessage]| {
+        sends += 1;
+        last = msgs.to_vec();
+        Ok(match sends {
+            1 => batch(&[("delete_entity", ARGS)]),
+            2 => batch(&[
+                ("delete_entity", ARGS),
+                ("delete_entity", r#"{"index": 7}"#),
+            ]),
+            _ => text("done"),
+        })
+    };
+    let mut applier = Applier::new();
+    let (result, _) = drive_turn(
+        "go",
+        &cfg("sys", AGENT_STEP_BUDGET_DEFAULT),
+        &mut send_fn,
+        &mut |action| applier.ask(action),
+    );
+    assert_eq!(result.ok().as_deref(), Some("done"));
+
+    let first = "delete_entity index: 7 is out of range; \
+                 expected an index once the drawing has entities (it has 0)";
+    let repeat = format!("repeated call, refused before: {first}; change the arguments");
+    assert_eq!(applier.seen.len(), 3, "the repeat still reaches ask");
+    assert_eq!(applier.seen[0], AgentAction::Delete { index: 7 });
+    assert_eq!(
+        applier.seen[1],
+        AgentAction::Malformed {
+            tool: "delete_entity".to_owned(),
+            reason: repeat.clone(),
+        }
+    );
+    assert_eq!(
+        applier.seen[2],
+        AgentAction::Delete { index: 7 },
+        "other bytes"
+    );
+
+    let results: Vec<String> = last
+        .iter()
+        .filter(|m| m.role == "tool")
+        .map(|m| {
+            serde_json::to_value(m)
+                .map(|v| v["content"].to_string())
+                .unwrap_or_default()
+        })
+        .collect();
+    assert_eq!(
+        results,
+        [
+            json!(format!("{first}\nSteps left this turn: 255 of 256.")).to_string(),
+            json!(format!("{repeat}\nSteps left this turn: 254 of 256.")).to_string(),
+            json!(format!("{first}\nSteps left this turn: 253 of 256.")).to_string(),
+        ],
+        "the repeat is answered in its tool result and counted as a step"
+    );
+}
+
 // ── LCV-143 AC 6: the prompt grants nothing ──────────────────────────────
 
 /// The two overrides AC 6 names: one that asks for everything, one blank.
