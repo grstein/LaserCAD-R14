@@ -1,8 +1,8 @@
 # LCV-180 — Dependency refresh
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: 1ce6fb3..219f10b, 58de37a
 
 ## Problem
 
