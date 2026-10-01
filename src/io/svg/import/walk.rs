@@ -4,15 +4,19 @@
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
+use super::path::path_entities;
 use super::report::Report;
-use super::{SVG_NS, SvgImportError, parse_circle, parse_line, parse_path};
+use super::{SVG_NS, SvgImportError, parse_circle, parse_line};
 use crate::document::LayerId;
 use crate::document::entity::Entity;
 use crate::io::svg::layers::{LayerReader, STRAY_LAYER};
+use crate::io::svg::path_data::parse_path_data;
 
-/// The report label of a `<path>` whose data is not turned into an entity
-/// (AC 6).
+/// The report label of a `<path>` with no `d` (LCV-171 AC 6).
 const UNSUPPORTED_PATH: &str = "path (unsupported data)";
+
+/// The report label of a `<path>` whose `d` has a syntax error (LCV-172 AC 8).
+const PATH_DATA_ERROR: &str = "path (data error)";
 
 /// What the walk does with one element (the table in [`super`]'s docs).
 enum Kind {
@@ -83,11 +87,8 @@ impl Walk {
                     "line" => Some(parse_line(child, bed_h)?),
                     "circle" => Some(parse_circle(child, bed_h)?),
                     _ => {
-                        let path = parse_path(child, bed_h)?;
-                        if path.is_none() {
-                            self.report.note(UNSUPPORTED_PATH);
-                        }
-                        path
+                        self.path(child, layer);
+                        None
                     }
                 },
                 Kind::Descend => {
@@ -108,10 +109,34 @@ impl Walk {
                 }
             };
             if let Some(entity) = entity {
-                self.entities.push(entity);
-                self.entity_layers.push(layer.unwrap_or(STRAY_LAYER));
+                self.push(entity, layer);
             }
         }
         Ok(())
+    }
+
+    /// Import a `<path>`: every entity its `d` draws, every report label
+    /// (LCV-172 AC 2, AC 7, AC 8).
+    fn path(&mut self, node: roxmltree::Node<'_, '_>, layer: Option<LayerId>) {
+        let Some(d) = node.attribute("d") else {
+            self.report.note(UNSUPPORTED_PATH);
+            return;
+        };
+        let data = parse_path_data(d);
+        let (entities, labels) = path_entities(&data, self.bed_h);
+        for entity in entities {
+            self.push(entity, layer);
+        }
+        for label in labels {
+            self.report.note(label);
+        }
+        if data.error {
+            self.report.note(PATH_DATA_ERROR);
+        }
+    }
+
+    fn push(&mut self, entity: Entity, layer: Option<LayerId>) {
+        self.entities.push(entity);
+        self.entity_layers.push(layer.unwrap_or(STRAY_LAYER));
     }
 }

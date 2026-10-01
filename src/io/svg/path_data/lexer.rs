@@ -20,7 +20,9 @@ impl<'a> Lexer<'a> {
     /// next token is not a path command.
     pub(super) fn command(&mut self) -> Option<u8> {
         self.skip_separators();
-        let c = self.peek().filter(|c| b"MmLlHhVvZzAaCcSsQqTt".contains(c))?;
+        let c = self
+            .peek()
+            .filter(|c| b"MmLlHhVvZzAaCcSsQqTt".contains(c))?;
         self.pos += 1;
         Some(c)
     }

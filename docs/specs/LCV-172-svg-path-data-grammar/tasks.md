@@ -26,7 +26,7 @@
 - [x] T8 [AC3]–[AC7] [AC9] `path_entities`: move the arc rebuild from `import.rs::parse_path`
       unchanged, add the §F.6.6 cases and line/Z handling (files: src/io/svg/import/path.rs,
       src/io/svg/import.rs)
-- [ ] T9 [AC2] [AC7] [AC8] Wire `walk.rs`'s `path` arm to `parse_path_data` + `path_entities`:
+- [x] T9 [AC2] [AC7] [AC8] Wire `walk.rs`'s `path` arm to `parse_path_data` + `path_entities`:
       every entity goes on the current layer and every label is noted, with `path (data error)` on
       error. Remove `parse_path`, `tok_f64` and `MalformedPath`, and update the module doc (files:
       src/io/svg/import/walk.rs, src/io/svg/import.rs)

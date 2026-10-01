@@ -6,13 +6,20 @@
 //!
 //! | Outcome | Elements (SVG namespace unless noted) | Report |
 //! |---|---|---|
-//! | import | `line`, `circle`, `path d="M…A…"` | properties; a `path` not imported → `path (unsupported data)` |
+//! | import | `line`, `circle`, `path` | properties; per `path`: curves not imported yet, `path (data error)`, or `path (unsupported data)` with no `d` |
 //! | descend | `svg`, `g`, `a` | properties, then the children |
 //! | never rendered | `defs symbol clipPath mask marker pattern linearGradient radialGradient filter` | name, iff it has an element child |
 //! | silent | `title desc metadata`; any element outside the SVG namespace | nothing |
 //! | other | every other SVG element, subtree included | name |
 //!
 //! "Properties" are the unapplied ones in [`report::REPORTED_PROPERTIES`].
+//!
+//! A `path`'s `d` is read with the full SVG 2 path-data grammar (LCV-172,
+//! `super::path_data`): `M L H V Z A`, absolute or relative, every subpath.
+//! [`path::path_entities`] turns it into lines and circular arcs; `C S Q T`
+//! and elliptical arcs import nothing and are reported (`path C`, …,
+//! `path elliptical arc`) until LCV-176/177. A syntax error keeps the
+//! segments before it and reports `path (data error)`.
 //!
 //! SVG is Y-down and the world is Y-up, so every parsed Y is un-mirrored
 //! through [`crate::util::flip_y`] (`y_world = bed_height - y_svg`, the exact
@@ -36,7 +43,7 @@
 use super::header::parse_bed;
 use crate::document::entity::Entity;
 use crate::document::{Document, Layer, LayerId};
-use crate::geometry::{Circle, EPSILON, Line, Vec2};
+use crate::geometry::{Circle, Line, Vec2};
 use crate::util::flip_y;
 use walk::Walk;
 
@@ -118,7 +125,8 @@ pub struct ImportedSvg {
     pub entity_layers: Vec<LayerId>,
     /// What the file held that was not imported, as `(label, count)` in
     /// order of first occurrence, one entry per label (LCV-171 AC 8):
-    /// skipped element names, `path (unsupported data)`, and unapplied
+    /// skipped element names, path labels (`path (unsupported data)`,
+    /// `path (data error)`, `path C`, …), and unapplied
     /// property names. Empty for a file LaserCAD wrote.
     pub report: Vec<(String, usize)>,
 }
@@ -143,7 +151,7 @@ impl ImportedSvg {
 
 /// Parse an SVG string and return its geometry, layers and bed size.
 ///
-/// Depth-first traversal; `<line>`, `<circle>`, `<path d="M…A…"/>` → entities.
+/// Depth-first traversal; `<line>`, `<circle>`, `<path>` → entities.
 /// What is skipped lands in the report (module docs). The bed comes from the root header
 /// (see [`parse_bed`]) and is the axis every Y is un-mirrored around.
 /// Returns the first error encountered, having mutated nothing: the caller's
@@ -208,40 +216,6 @@ fn attr_f64(
     let raw = n.attribute(a).unwrap_or("");
     raw.parse::<f64>()
         .map_err(|_| malformed(el, a, raw.to_string()))
-}
-
-fn parse_path(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Option<Entity>, SvgImportError> {
-    let Some(d) = n.attribute("d") else {
-        return Ok(None);
-    };
-    let tok: Vec<&str> = d.split_ascii_whitespace().collect();
-    if tok.len() < 11 || !tok[0].eq_ignore_ascii_case("m") || !tok[3].eq_ignore_ascii_case("a") {
-        return Ok(None);
-    }
-    let sx = tok_f64(tok[1], d)?;
-    let sy = tok_f64(tok[2], d)?;
-    let rx = tok_f64(tok[4], d)?;
-    let ry = tok_f64(tok[5], d)?;
-    let xar = tok_f64(tok[6], d)?;
-    let large_arc = tok_f64(tok[7], d)? != 0.0;
-    let sweep_flag = tok_f64(tok[8], d)? != 0.0;
-    let ex = tok_f64(tok[9], d)?;
-    let ey = tok_f64(tok[10], d)?;
-    if (rx - ry).abs() > EPSILON || xar.abs() > EPSILON {
-        return Err(SvgImportError::MalformedPath(d.to_string()));
-    }
-    let (s, e) = (
-        Vec2::new(sx, flip_y(sy, bed_h)),
-        Vec2::new(ex, flip_y(ey, bed_h)),
-    );
-    path::circular_arc(s, e, rx, large_arc, sweep_flag)
-        .map(Some)
-        .ok_or_else(|| SvgImportError::MalformedPath(d.to_string()))
-}
-
-fn tok_f64(t: &str, d: &str) -> Result<f64, SvgImportError> {
-    t.parse::<f64>()
-        .map_err(|_| SvgImportError::MalformedPath(d.to_string()))
 }
 
 #[cfg(test)]
