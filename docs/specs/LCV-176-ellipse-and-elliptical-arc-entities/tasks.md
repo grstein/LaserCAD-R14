@@ -52,7 +52,7 @@
   tests/it/io_svg/ellipse.rs, tests/it/io_svg/mod.rs, tests/it/io_svg/export_audit.rs)
 - [x] T19 [AC9, AC10] `encode_entity` ellipse arm and `deg()`; then `scripts/mutants.sh` on the
   change (files: src/io/svg/export.rs)
-- [ ] T20 [AC1] Test: `A` with rx ≠ ry, for each combination of large/sweep, with φ ≠ 0, relative,
+- [x] T20 [AC1] Test: `A` with rx ≠ ry, for each combination of large/sweep, with φ ≠ 0, relative,
   and needing radius correction. Endpoints match within `EPSILON`. rx = ry still gives an `Arc`,
   and the `path elliptical arc` note is gone (files: tests/it/io_svg/ellipse.rs)
 - [ ] T21 [AC1] `PathData::Arc` keeps `phi`; `conic.rs::{center_arc, conic_entity}`;

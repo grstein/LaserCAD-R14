@@ -5,11 +5,15 @@
 //! normalized into (−180, 180]) is not zero; an arc is one
 //! `M sx sy A rx ry φ large sweep ex ey` path with `sweep` inverted by the
 //! Y mirror and `large` iff the parametric sweep exceeds π.
+//!
+//! Import (AC 1): an `A` with rx ≠ ry after radius correction is one
+//! elliptical arc through the segment's endpoints, on the flagged side and
+//! in the flagged direction.
 
 use core::f64::consts::{FRAC_PI_2, FRAC_PI_6, PI, TAU};
 use lasercad::document::{Document, Entity};
-use lasercad::geometry::{Ellipse, EllipseSpan, Vec2};
-use lasercad::io::svg::export_svg;
+use lasercad::geometry::{EPSILON, Ellipse, EllipseSpan, Vec2};
+use lasercad::io::svg::{export_svg, import_svg};
 
 /// Bed height of every export scene, mm.
 const BED_H: f64 = 200.0;
@@ -92,4 +96,101 @@ fn elliptical_arc_exports_one_path_with_mirrored_sweep() {
         exported(a),
         r#"<path d="M 4.0000 200.0000 A 4.0000 2.0000 0.000000 0 0 0.0000 198.0000"/>"#
     );
+}
+
+/// `body` inside a 300 × 200 mm root whose user unit is one millimetre.
+fn import(body: &str) -> (Vec<Entity>, Vec<(String, usize)>) {
+    let svg = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="300mm" height="{BED_H}mm" viewBox="0 0 300 {BED_H}">{body}</svg>"#
+    );
+    let imported = import_svg(&svg).unwrap_or_else(|e| panic!("{body}: {e:?}"));
+    (imported.entities, imported.report)
+}
+
+/// The single ellipse `body` imports, with an empty report.
+fn only_ellipse(body: &str) -> Ellipse {
+    match import(body) {
+        (es, report) if report.is_empty() => match es.as_slice() {
+            [Entity::Ellipse(e)] => *e,
+            other => panic!("{body}: {other:?}"),
+        },
+        (_, report) => panic!("{body}: {report:?}"),
+    }
+}
+
+/// World point of an SVG point on the 1 mm-per-unit root.
+fn world(x: f64, y: f64) -> Vec2 {
+    Vec2::new(x, BED_H - y)
+}
+
+/// Twice the signed area of the polygon through `e`'s span: positive when
+/// the span turns counter-clockwise in the world.
+fn turning(e: &Ellipse) -> f64 {
+    let pts = e.polyline(1e-3);
+    pts.windows(2)
+        .map(|w| w[0].x * w[1].y - w[1].x * w[0].y)
+        .sum::<f64>()
+        + pts[pts.len() - 1].x * pts[0].y
+        - pts[0].x * pts[pts.len() - 1].y
+}
+
+/// AC 1 — each `large`/`sweep` pair, with φ = 30°, absolute and relative:
+/// one elliptical arc between the segment's endpoints, of radii 40 and 20,
+/// large iff flagged, turning clockwise in the world iff `sweep = 1` (SVG
+/// is Y-down), which re-exports as the same segment.
+#[test]
+fn elliptical_a_segments_import_as_elliptical_arcs() {
+    for (large, sweep) in [(0, 0), (0, 1), (1, 0), (1, 1)] {
+        let abs = format!(r#"<path d="M 50 100 A 40 20 30 {large} {sweep} 90 120"/>"#);
+        let rel = format!(r#"<path d="M 50 100 a 40 20 30 {large} {sweep} 40 20"/>"#);
+        for body in [abs, rel] {
+            let e = only_ellipse(&body);
+            let (s, t) = (e.start_point().expect("arc"), e.end_point().expect("arc"));
+            assert!(s.approx_eq(world(50.0, 100.0), EPSILON), "{body}: {s:?}");
+            assert!(t.approx_eq(world(90.0, 120.0), EPSILON), "{body}: {t:?}");
+            assert!((e.rx - 40.0).abs() <= EPSILON && (e.ry - 20.0).abs() <= EPSILON);
+            assert_eq!(e.sweep() > PI, large == 1, "{body}: side");
+            assert_eq!(turning(&e) < 0.0, sweep == 1, "{body}: direction");
+            let back = format!(
+                r#"<path d="M 50.0000 100.0000 A 40.0000 20.0000 30.000000 {large} {sweep} 90.0000 120.0000"/>"#
+            );
+            assert_eq!(exported(e), back, "{body}");
+        }
+    }
+}
+
+/// AC 1 — radii too small for the chord scale up together (SVG 2 §F.6.6):
+/// a half ellipse of radii 50 and 25 centred on the chord.
+#[test]
+fn elliptical_a_with_short_radii_is_corrected() {
+    let e = only_ellipse(r#"<path d="M 0 100 A 4 2 0 0 1 100 100"/>"#);
+    assert!(
+        e.start_point()
+            .expect("arc")
+            .approx_eq(world(0.0, 100.0), EPSILON)
+    );
+    assert!(
+        e.end_point()
+            .expect("arc")
+            .approx_eq(world(100.0, 100.0), EPSILON)
+    );
+    assert!(
+        (e.rx - 50.0).abs() <= 1e-6 && (e.ry - 25.0).abs() <= 1e-6,
+        "{e:?}"
+    );
+    assert!(e.center.approx_eq(world(50.0, 100.0), 1e-6), "{e:?}");
+    assert!((e.sweep() - PI).abs() <= 1e-6, "{e:?}");
+}
+
+/// AC 1 — equal radii still import a circular `Arc`, whatever φ, and no
+/// `path elliptical arc` note is left.
+#[test]
+fn circular_a_stays_an_arc_and_no_elliptical_note() {
+    let (es, report) = import(r#"<path d="M 10 50 A 10 10 30 0 1 30 50"/>"#);
+    assert!(matches!(es.as_slice(), [Entity::Arc(_)]), "{es:?}");
+    assert_eq!(report, []);
+    let (es, report) = import(r#"<path d="M 0 0 A 10 5 0 0 1 10 0 M 0 9 A 3 1 45 1 0 4 9"/>"#);
+    assert_eq!(es.len(), 2, "{es:?}");
+    assert!(es.iter().all(|e| matches!(e, Entity::Ellipse(_))));
+    assert!(report.is_empty(), "{report:?}");
 }
