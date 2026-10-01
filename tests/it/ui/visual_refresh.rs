@@ -510,7 +510,7 @@ fn ac6_mirror_confirm_paints_options_muted() {
     for step in ["mirror", "0,0", "0,10"] {
         harness::submit_command(&ctx, &mut app, step);
     }
-    let prompt = "MIRROR Erase source objects? [Yes/No] <N>:";
+    let prompt = "MIRROR  Erase source objects? [Yes/No] <N>:";
     let sections = prompt_sections(&ctx, &mut app, prompt);
     let colour_of = |part: &str| {
         sections
@@ -522,7 +522,7 @@ fn ac6_mirror_confirm_paints_options_muted() {
     assert_eq!(colour_of("MIRROR"), ACCENT);
     assert_eq!(colour_of("[Yes/No]"), TEXT_MUTED);
     assert_eq!(colour_of("<N>"), TEXT_MUTED);
-    assert_eq!(colour_of(" Erase source objects? "), TEXT_PRIMARY);
+    assert_eq!(colour_of("  Erase source objects? "), TEXT_PRIMARY);
 }
 
 /// AC 6 — the idle `Command:` prompt has no verb: all `text.primary`.

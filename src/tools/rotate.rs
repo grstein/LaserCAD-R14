@@ -112,8 +112,8 @@ impl Tool for RotateTool {
     /// The R14 prompts (AC1, AC3).
     fn status_text(&self) -> Cow<'_, str> {
         match &self.state {
-            RotateState::Idle => "ROTATE Specify base point:".into(),
-            RotateState::WaitingAngle { .. } => "ROTATE Specify rotation angle:".into(),
+            RotateState::Idle => "ROTATE  Specify base point:".into(),
+            RotateState::WaitingAngle { .. } => "ROTATE  Specify rotation angle:".into(),
         }
     }
 
@@ -293,10 +293,10 @@ mod tests {
         let mut tool = RotateTool::default();
         let (mut doc, mut h) = doc_selected();
         assert_eq!(tool.name(), "ROTATE");
-        assert_eq!(tool.status_text(), "ROTATE Specify base point:");
+        assert_eq!(tool.status_text(), "ROTATE  Specify base point:");
         assert_eq!(tool.anchor(), None);
         tool.on_pointer_down(Vec2::new(1.0, 2.0), false, &mut doc, &mut h);
-        assert_eq!(tool.status_text(), "ROTATE Specify rotation angle:");
+        assert_eq!(tool.status_text(), "ROTATE  Specify rotation angle:");
         assert_eq!(tool.anchor(), Some(Vec2::new(1.0, 2.0)));
     }
 
@@ -311,7 +311,7 @@ mod tests {
         tool.on_pointer_down(Vec2::new(0.0, 5.0), false, &mut doc, &mut h);
         assert_eq!(doc.entities, before);
         assert!(!h.can_undo());
-        assert_eq!(tool.status_text(), "ROTATE Specify base point:");
+        assert_eq!(tool.status_text(), "ROTATE  Specify base point:");
     }
 
     /// AC3 — the preview is the selection rotated by base → cursor.
@@ -350,7 +350,7 @@ mod tests {
         assert!(l.p2.approx_eq(Vec2::new(0.0, 20.0), EPSILON), "{l:?}");
         assert_eq!(h.len(), 1);
         assert_eq!(doc.selection, selection);
-        assert_eq!(tool.status_text(), "ROTATE Specify base point:");
+        assert_eq!(tool.status_text(), "ROTATE  Specify base point:");
         assert_eq!(tool.take_successor().map(|t| t.name()), Some("Select"));
         assert!(tool.take_successor().is_none());
     }
@@ -381,7 +381,7 @@ mod tests {
         tool.on_pointer_down(Vec2::new(4.0, 0.0), false, &mut doc, &mut h);
         tool.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
         assert!(!h.can_undo());
-        assert_eq!(tool.status_text(), "ROTATE Specify rotation angle:");
+        assert_eq!(tool.status_text(), "ROTATE  Specify rotation angle:");
         assert!(tool.take_successor().is_none());
     }
 

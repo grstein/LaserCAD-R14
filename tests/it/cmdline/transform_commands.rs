@@ -42,12 +42,12 @@ fn ro_typed_ninety_degrees_rotates_ccw() {
     assert_eq!(app.tool_manager.active_tool_name(), "ROTATE");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ROTATE Specify base point:"
+        "ROTATE  Specify base point:"
     );
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ROTATE Specify rotation angle:"
+        "ROTATE  Specify rotation angle:"
     );
     submit_command(&ctx, &mut app, "90");
 
@@ -125,17 +125,17 @@ fn mirror_to_confirm(ctx: &egui::Context, word: &str) -> (App, Line, Transform) 
     assert_eq!(app.tool_manager.active_tool_name(), "MIRROR");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "MIRROR Specify first point of mirror line:"
+        "MIRROR  Specify first point of mirror line:"
     );
     submit_command(ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "MIRROR Specify second point of mirror line:"
+        "MIRROR  Specify second point of mirror line:"
     );
     submit_command(ctx, &mut app, "0,10");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "MIRROR Erase source objects? [Yes/No] <N>:"
+        "MIRROR  Erase source objects? [Yes/No] <N>:"
     );
     let t = Transform::Mirror {
         a: Vec2::new(0.0, 0.0),
@@ -207,7 +207,7 @@ fn escape_at_the_yes_no_prompt_cancels() {
     assert_eq!(app.tool_manager.active_tool_name(), "MIRROR");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "MIRROR Specify first point of mirror line:"
+        "MIRROR  Specify first point of mirror line:"
     );
 }
 
@@ -229,12 +229,12 @@ fn sc_typed_factor_two_doubles() {
     assert_eq!(app.tool_manager.active_tool_name(), "SCALE");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "SCALE Specify base point:"
+        "SCALE  Specify base point:"
     );
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "SCALE Specify scale factor:"
+        "SCALE  Specify scale factor:"
     );
     submit_command(&ctx, &mut app, "2");
 
@@ -282,7 +282,7 @@ fn scale_refuses_a_non_positive_factor() {
         );
         assert_eq!(
             app.tool_manager.active_status_text(),
-            "SCALE Specify scale factor:"
+            "SCALE  Specify scale factor:"
         );
     }
     assert_eq!(line_at(&app, 0), source);

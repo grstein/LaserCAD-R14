@@ -128,8 +128,8 @@ impl Tool for ScaleTool {
     /// The R14 prompts (AC1, AC3).
     fn status_text(&self) -> Cow<'_, str> {
         match &self.state {
-            ScaleState::Idle => "SCALE Specify base point:".into(),
-            ScaleState::WaitingFactor { .. } => "SCALE Specify scale factor:".into(),
+            ScaleState::Idle => "SCALE  Specify base point:".into(),
+            ScaleState::WaitingFactor { .. } => "SCALE  Specify scale factor:".into(),
         }
     }
 
@@ -315,10 +315,10 @@ mod tests {
         let mut tool = ScaleTool::default();
         let (mut doc, mut h) = doc_selected();
         assert_eq!(tool.name(), "SCALE");
-        assert_eq!(tool.status_text(), "SCALE Specify base point:");
+        assert_eq!(tool.status_text(), "SCALE  Specify base point:");
         assert_eq!(tool.anchor(), None);
         tool.on_pointer_down(Vec2::new(1.0, 2.0), false, &mut doc, &mut h);
-        assert_eq!(tool.status_text(), "SCALE Specify scale factor:");
+        assert_eq!(tool.status_text(), "SCALE  Specify scale factor:");
         assert_eq!(tool.anchor(), Some(Vec2::new(1.0, 2.0)));
     }
 
@@ -333,7 +333,7 @@ mod tests {
         tool.on_pointer_down(Vec2::new(0.0, 5.0), false, &mut doc, &mut h);
         assert_eq!(doc.entities, before);
         assert!(!h.can_undo());
-        assert_eq!(tool.status_text(), "SCALE Specify base point:");
+        assert_eq!(tool.status_text(), "SCALE  Specify base point:");
     }
 
     /// AC3 — the preview is the selection scaled by the distance base →
@@ -381,7 +381,7 @@ mod tests {
         }
         assert_eq!(h.len(), 1);
         assert_eq!(doc.selection, selection);
-        assert_eq!(tool.status_text(), "SCALE Specify base point:");
+        assert_eq!(tool.status_text(), "SCALE  Specify base point:");
         assert_eq!(tool.take_successor().map(|t| t.name()), Some("Select"));
         assert!(tool.take_successor().is_none());
     }
@@ -414,7 +414,7 @@ mod tests {
         assert!(!tool.on_command_input(on_base, &mut doc, &mut h));
         tool.on_pointer_down(Vec2::new(1.0, 1.0), false, &mut doc, &mut h);
         assert!(!h.can_undo());
-        assert_eq!(tool.status_text(), "SCALE Specify scale factor:");
+        assert_eq!(tool.status_text(), "SCALE  Specify scale factor:");
     }
 
     /// AC6 — a factor of 1, typed or picked, commits nothing; the tool keeps
@@ -428,7 +428,7 @@ mod tests {
         typed(&mut tool, number(1.0 + EPSILON / 2.0), &mut doc, &mut h);
         tool.on_pointer_down(Vec2::new(0.0, 1.0), false, &mut doc, &mut h);
         assert!(!h.can_undo());
-        assert_eq!(tool.status_text(), "SCALE Specify scale factor:");
+        assert_eq!(tool.status_text(), "SCALE  Specify scale factor:");
         assert!(tool.take_successor().is_none());
     }
 

@@ -28,7 +28,7 @@
   src/tools/arc.rs, src/tools/text.rs)
 - [x] T11 [AC3] DIST, MOVE, COPY prompts; tests follow (files: src/tools/dist.rs,
   src/tools/move_.rs, src/tools/copy.rs)
-- [ ] T12 [AC3] ROTATE, SCALE, MIRROR prompts; tests follow (files: src/tools/rotate.rs,
+- [x] T12 [AC3] ROTATE, SCALE, MIRROR prompts; tests follow (files: src/tools/rotate.rs,
   src/tools/scale.rs, src/tools/mirror.rs)
 - [ ] T13 [AC3] TRIM, EXTEND, ERASE prompts (ERASE overrides `status_text`); T8 green (files:
   src/tools/trim.rs, src/tools/extend.rs, src/tools/delete.rs)
