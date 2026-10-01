@@ -162,6 +162,8 @@ fn contract(element: &str) -> Option<(&'static [&'static str], &'static [&'stati
         ),
         "line" => (&["x1", "y1", "x2", "y2"], &[]),
         "circle" => (&["cx", "cy", "r"], &[]),
+        // LCV-176 (ADR 0015): `transform="rotate(a cx cy)"` only when turned.
+        "ellipse" => (&["cx", "cy", "rx", "ry"], &["transform"]),
         "path" => (&["d"], &[]),
         _ => return None,
     })

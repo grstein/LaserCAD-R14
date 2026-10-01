@@ -46,7 +46,7 @@
   (files: tests/it/app/ellipse_edit.rs)
 - [x] T17 [AC8] Pick distance and `take_message` in TRIM/EXTEND; `cut_points`/`extend_reach` arms
   (files: src/tools/trim.rs, src/tools/extend.rs, src/document/commands/trim/mod.rs)
-- [ ] T18 [AC9, AC10, AC11] Test: exact strings for a full ellipse with rotation 0 and 30°, and
+- [x] T18 [AC9, AC10, AC11] Test: exact strings for a full ellipse with rotation 0 and 30°, and
   for arcs with each combination of `large` and `sweep` under the mirror. `GOLDEN` stays unchanged.
   The audit allowlist gains `ellipse` and `transform="rotate(a cx cy)"` (files:
   tests/it/io_svg/ellipse.rs, tests/it/io_svg/mod.rs, tests/it/io_svg/export_audit.rs)
