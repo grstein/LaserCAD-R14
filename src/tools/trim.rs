@@ -42,6 +42,19 @@ impl Default for TrimTool {
 /// neither tool edits (ADR 0015 §6).
 pub(crate) const ELLIPSE_REFUSAL: &str = "Cannot trim/extend an ellipse";
 
+/// The result line of a TRIM or EXTEND click aimed at a Bézier, which
+/// neither tool edits (ADR 0016).
+pub(crate) const CURVE_REFUSAL: &str = "Cannot trim/extend a curve";
+
+/// The refusal for a TRIM or EXTEND click on `e`, if neither tool edits it.
+pub(crate) fn refusal(e: &Entity) -> Option<&'static str> {
+    match e {
+        Entity::Ellipse(_) => Some(ELLIPSE_REFUSAL),
+        Entity::Bezier(_) => Some(CURVE_REFUSAL),
+        _ => None,
+    }
+}
+
 /// Distance from `p` to the nearest point on the arc's stroke.
 fn arc_dist(arc: &Arc, p: Vec2) -> f64 {
     let v = p - arc.center;
@@ -67,7 +80,7 @@ fn pick_entity(pos: Vec2, entities: &[Entity], radius_mm: f64) -> Option<usize> 
                 Entity::Circle(c) => c.distance_to_point(pos).abs(),
                 Entity::Arc(a) => arc_dist(a, pos),
                 Entity::Ellipse(el) => el.distance_to_point(pos),
-                Entity::Bezier(_) => f64::INFINITY,
+                Entity::Bezier(b) => b.distance_to_point(pos),
             };
             (i, d)
         })
@@ -117,7 +130,7 @@ impl Tool for TrimTool {
 
     /// Pick the nearest entity and trim it at every cutter, as one undo step.
     /// Silent no-op (no undo entry) when the click misses or nothing changes;
-    /// an ellipse is refused with [`ELLIPSE_REFUSAL`].
+    /// an ellipse or a Bézier is refused with its [`refusal`].
     fn on_pointer_down(
         &mut self,
         pos: Vec2,
@@ -129,8 +142,8 @@ impl Tool for TrimTool {
         let Some(target_idx) = pick_entity(pos, &doc.entities, radius) else {
             return;
         };
-        if matches!(doc.entities[target_idx], Entity::Ellipse(_)) {
-            self.message = Some(ELLIPSE_REFUSAL.to_owned());
+        if let Some(why) = refusal(&doc.entities[target_idx]) {
+            self.message = Some(why.to_owned());
             return;
         }
         let (cutters, _) = trim_fold(doc, target_idx, pos);

@@ -44,7 +44,7 @@
 - [x] T15 [AC10] Test: TRIM and EXTEND aimed at a Bézier leave document and history unchanged
   and set "Cannot trim/extend a curve"; a Bézier is never a cutter or boundary for a line (files:
   tests/it/app/bezier_edit.rs)
-- [ ] T16 [AC10] Pick distance and `take_message` in TRIM/EXTEND; `cut_points`/`extend_reach`
+- [x] T16 [AC10] Pick distance and `take_message` in TRIM/EXTEND; `cut_points`/`extend_reach`
   arms (files: src/tools/trim.rs, src/tools/extend.rs, src/document/commands/trim/mod.rs)
 - [ ] T17 [AC11, AC12] Test: exact strings for a cubic and a quadratic on a non-default bed
   height; `GOLDEN` unchanged; the audit's `check_path` accepts `M … C …` and `M … Q …` (files:

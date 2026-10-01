@@ -11,7 +11,7 @@ use crate::app::App;
 use crate::document::commands::trim::extend_reach;
 use crate::document::{Document, Entity, ExtendEntity, History};
 use crate::geometry::Vec2;
-use crate::tools::trim::ELLIPSE_REFUSAL;
+use crate::tools::trim::refusal;
 use crate::tools::{Mark, PICK_APERTURE_PT, Tool};
 
 /// Compact hover state: (target_idx, extend_endpoint, boundary_idx, preview).
@@ -97,7 +97,7 @@ impl Tool for ExtendTool {
     }
 
     /// Commit the hovered extension; with none in reach, a click on an
-    /// ellipse is refused with [`ELLIPSE_REFUSAL`] (ADR 0015 §6).
+    /// ellipse or a Bézier is refused with its [`refusal`] (ADR 0015 §6, ADR 0016).
     fn on_pointer_down(&mut self, pos: Vec2, _: bool, doc: &mut Document, history: &mut History) {
         if let State::Hover(H(ti, ep, bi, _)) = self.state {
             history.commit(Box::new(ExtendEntity::new(ti, bi, ep)), doc);
@@ -105,12 +105,13 @@ impl Tool for ExtendTool {
             return;
         }
         let radius = PICK_APERTURE_PT * self.mm_per_pt;
-        let on_ellipse = doc.entities.iter().any(|e| match e {
+        let hit = |e: &Entity| match e {
             Entity::Ellipse(el) => el.distance_to_point(pos) <= radius,
+            Entity::Bezier(b) => b.distance_to_point(pos) <= radius,
             _ => false,
-        });
-        if on_ellipse {
-            self.message = Some(ELLIPSE_REFUSAL.to_owned());
+        };
+        if let Some(why) = doc.entities.iter().filter(|e| hit(e)).find_map(refusal) {
+            self.message = Some(why.to_owned());
         }
     }
 
