@@ -33,7 +33,7 @@
   tests/it/io_svg/export_layers.rs)
 - [x] T12 [AC6] Test: an autosave flush with an out-of-bed entity leaves a sentinel
   `command_feedback` unchanged (files: tests/it/app/autosave_dirty.rs)
-- [ ] T13 [AC7] DESIGN.md §7 (dock messages: `Saved …` Info, out-of-bed Warning) and §9 (the
+- [x] T13 [AC7] DESIGN.md §7 (dock messages: `Saved …` Info, out-of-bed Warning) and §9 (the
   ` — n entities outside the bed` suffix pattern) (files: DESIGN.md)
 - [ ] T14 CHANGELOG line: Save confirms the file and warns about geometry outside the bed
   (files: CHANGELOG.md)

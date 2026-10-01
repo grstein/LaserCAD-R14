@@ -248,6 +248,11 @@ clear of the point and the crosshair (`render/snaps/label.rs`, LCV-164).
     not possible); **info** in `text.primary` — results and acknowledgements (DIST, `SNAP on`,
     `→ AI: "…"`, `Exported layers: …`). A refused value names the tool's reason
     (`Scale factor must be greater than 0.`) before any generic line.
+  - Save and Save As confirm in **info**: `Saved <file name> (<w> × <h> mm)`, the bed in the
+    shortest number form (`400`, `297.5`). Geometry outside the bed turns the Save line, or
+    Export Layers' `Exported layers: …` line, into a **warning** with the out-of-bed suffix (§9);
+    Save counts every layer, Export Layers only the layers it wrote. Failures, cancels and
+    autosave say nothing new (LCV-168).
 - **Status bar** (`ui/statusbar.rs::draw_statusbar`): coords · tool · `Entities: n` · current
   layer dropdown (`ui/layer_combo.rs`, LCV-156) · SNAP GRID ORTHO · autosave. The autosave
   badge has four states, first match wins: `× autosave failed` in `status.error` until the next
@@ -301,6 +306,8 @@ Canonical bindings live in ADR 0002 §A6 (gate table), ADR 0003 (command line) a
 - Units are always shown (`mm`, `°`). Keys are written `Ctrl+Shift+S`, `F3`.
 - A message states the fact, then the next step: `Could not write 'x.svg': … — choose another
   folder.`
+- A caveat on a result is appended after ` — `, never a second line: `Saved part.svg
+  (400 × 400 mm) — 2 entities outside the bed` (`1 entity` when one; LCV-168).
 
 | Concept | Say | Not |
 |---|---|---|
