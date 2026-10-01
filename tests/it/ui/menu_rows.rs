@@ -348,6 +348,7 @@ fn tools_menu_rows() {
         ("Extend", Some("X")),
         ("Delete", Some("E")),
         ("Dist", None),
+        ("Check", None),
     ];
     assert_menu(&tools, spec);
     let labels: Vec<&str> = spec.iter().map(|(l, _)| *l).collect();

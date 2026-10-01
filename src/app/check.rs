@@ -11,8 +11,8 @@ use crate::document::check_drawing;
 impl App {
     /// Check the drawing (LCV-190 AC 1, AC 7).
     ///
-    /// With findings, the dock shows the summary lines joined by `; ` as a
-    /// warning and [`App::check_report`] takes every report line, which opens
+    /// With findings, the dock shows the summary lines joined by `; ` (one
+    /// `CHECK: ` prefix) as a warning and [`App::check_report`] takes every report line, which opens
     /// (or refreshes) the Check window. A clean drawing shows
     /// `CHECK: no problems found.` and closes the window.
     pub fn run_check(&mut self) {
@@ -24,7 +24,15 @@ impl App {
             return;
         }
         let summary = lines.len() - report.findings.len();
-        self.say(Severity::Warning, lines[..summary].join("; "));
+        let dock: Vec<&str> = lines[..summary]
+            .iter()
+            .enumerate()
+            .map(|(i, l)| match i {
+                0 => l.as_str(),
+                _ => l.strip_prefix("CHECK: ").unwrap_or(l),
+            })
+            .collect();
+        self.say(Severity::Warning, dock.join("; "));
         self.check_report = Some(lines);
     }
 }

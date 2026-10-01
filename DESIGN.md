@@ -305,7 +305,8 @@ Canonical bindings live in ADR 0002 §A6 (gate table), ADR 0003 (command line) a
   its primary button, Escape its Cancel or Close, and a one-button dialog closes on either. The
   command line, the tool and the recall ring never see them; a focused command line keeps its
   text and focus. Enter in the AI Settings system prompt stays a newline (ADR 0002 §A6 class
-  `dialog`, LCV-169).
+  `dialog`, LCV-169). The Check window is the exception: it takes no key, so the operator can
+  type fixes while reading it (§7, LCV-190).
 - Ortho overrides snap (LCV-053).
 - `Ctrl+A` selects all, as `Edit > Select All`, in one undo step; a focused text field keeps it
   (ADR 0002 §A6 class `select all`, LCV-166).

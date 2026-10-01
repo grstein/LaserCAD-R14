@@ -61,10 +61,7 @@ fn check_fills_the_dock_and_the_report() {
 
     submit_command(&ctx, &mut app, "check");
 
-    assert_eq!(
-        app.command_feedback,
-        "CHECK: 2 open ends; CHECK: 1 duplicate"
-    );
+    assert_eq!(app.command_feedback, "CHECK: 2 open ends; 1 duplicate");
     assert_eq!(app.command_feedback_severity, Severity::Warning);
     let expected = check_drawing(&app.document).lines();
     assert_eq!(app.check_report.as_ref(), Some(&expected));
