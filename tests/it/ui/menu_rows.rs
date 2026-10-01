@@ -103,7 +103,7 @@ pub(crate) fn find<'a>(painted: &'a Painted, label: &str, column_x: Option<f32>)
     }
 }
 
-fn centre(t: &Text) -> egui::Pos2 {
+pub(crate) fn centre(t: &Text) -> egui::Pos2 {
     egui::pos2(t.rect.min.x + 4.0, t.rect.center().y)
 }
 
@@ -189,7 +189,7 @@ pub(crate) fn slot_painted(painted: &Painted, row: &Text) -> bool {
 /// AC 1 — `rows` of one menu: no tab or hand-drawn arrow in a label, one
 /// label x, the expected shortcut beside each, and every shortcut's right
 /// edge shared and right of every label.
-fn assert_menu(painted: &Painted, spec: &[(&str, Option<&str>)]) {
+pub(crate) fn assert_menu(painted: &Painted, spec: &[(&str, Option<&str>)]) {
     let labels: Vec<&str> = spec.iter().map(|(l, _)| *l).collect();
     let found = rows(painted, &labels);
     let x0 = found[0].label_x;
@@ -216,7 +216,7 @@ fn assert_menu(painted: &Painted, spec: &[(&str, Option<&str>)]) {
     }
 }
 
-fn assert_slots(painted: &Painted, labels: &[&str], expect: bool) {
+pub(crate) fn assert_slots(painted: &Painted, labels: &[&str], expect: bool) {
     for row in rows(painted, labels) {
         assert_eq!(
             slot_painted(painted, row),

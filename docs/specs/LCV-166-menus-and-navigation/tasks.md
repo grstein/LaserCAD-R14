@@ -33,7 +33,7 @@
 - [x] T7 [AC2] Edit > Delete row (icon `modify::delete`, shortcut `Del`) calls
   `tools::delete::commit_delete`, raised to `pub(crate)` (files: src/ui/menubar.rs,
   src/tools/delete.rs)
-- [ ] T8 [AC5] [AC6] [AC7] Test first: View runs in the order Zoom In, Zoom Out, Zoom Extents,
+- [x] T8 [AC5] [AC6] [AC7] Test first: View runs in the order Zoom In, Zoom Out, Zoom Extents,
   Zoom All, Fit to Bed, Grid, Snap, Object Snap, Ortho. Zoom Extents leaves the camera that `F`
   leaves on a twin `App`. Zoom All frames the bed ∪ extents; an entity outside the bed ends up
   inside the viewport, and with no entities the camera equals `frame_bed` (files:
