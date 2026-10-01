@@ -60,7 +60,7 @@
 - [x] T16 [AC11] Corpus `shapes-degenerate`: zero sizes, a negative radius and odd `points`, with
   their report lines.
   (files: tests/fixtures/svg/shapes-degenerate.svg, tests/fixtures/svg/shapes-degenerate.expected)
-- [ ] T17 [AC10] Docs: `svg-spec-coverage.md` §4 shapes rows, and the LCV-171 AC 5 amendment noted
+- [x] T17 [AC10] Docs: `svg-spec-coverage.md` §4 shapes rows, and the LCV-171 AC 5 amendment noted
   there.
   (files: docs/research/svg-spec-coverage.md)
 - [ ] T18 [all] CHANGELOG: under Unreleased, "SVG import: `<rect>` (rounded corners as arcs),

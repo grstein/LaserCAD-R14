@@ -114,12 +114,12 @@ The owning spec is the Draft that brings the feature to the target (§6).
 
 | Feature | Export | Import | Target / note | Spec |
 |---|---|---|---|---|
-| `<line>` | ✅ | ◐ a missing attribute is an error | Missing attributes default to 0 (spec) | 174 |
-| `<circle>` | ✅ | ◐ `r = 0` is an error | `r = 0` disables rendering (not an error); `r < 0` is an error. | 174 |
-| `<rect>` incl. `rx`/`ry` (and `auto`) | — (RECTANGLE writes 4 lines) | ❌ | 4 lines; rounded corners become arcs (circular or elliptical). | 174 |
-| `<polyline>`, `<polygon>` | — | ❌ | Lines; a polygon is closed. | 174 |
-| `<ellipse>` | ✅ plus `rotate(a cx cy)` when turned (LCV-176) | ✅ done by LCV-176: `auto`/missing radius takes the other, `%` resolved; rx or ry ≤ 0 reported `ellipse (invalid radius)` | Native ellipse | 174, 176 |
-| Percentages in geometry | — | ◐ LCV-173: `line`/`circle` attributes resolve against the viewport | Resolved against the viewport | 173/174 |
+| `<line>` | ✅ | ✅ done by LCV-174: a missing attribute is 0; an unparseable one skips the element, reported `line (invalid attribute)` | Missing attributes default to 0 (spec) | 174 |
+| `<circle>` | ✅ | ✅ done by LCV-174: `r` missing or 0 imports nothing, unreported; `r < 0` or unparseable reported `circle (invalid attribute)`; the file still opens | `r = 0` disables rendering (not an error); `r < 0` is an error. | 174 |
+| `<rect>` incl. `rx`/`ry` (and `auto`) | — (RECTANGLE writes 4 lines) | ✅ done by LCV-174: its SVG 2 §10.2 equivalent path, so 4 lines plus quarter arcs (circular, or elliptical when rx ≠ ry or under a non-similarity); `auto`, copy and clamp per spec; zero size unreported, negative reported `rect (invalid attribute)` | 4 lines; rounded corners become arcs (circular or elliptical). | 174 |
+| `<polyline>`, `<polygon>` | — | ✅ done by LCV-174: one line per distinct pair, a polygon closed unless already closed; `points` read with the path-data number grammar; an odd count or bad token keeps the pairs before it, reported `<el> (data error)` | Lines; a polygon is closed. | 174 |
+| `<ellipse>` | ✅ plus `rotate(a cx cy)` when turned (LCV-176) | ✅ done by LCV-176: `auto`/missing radius takes the other, `%` resolved; since LCV-174 a zero or missing radius is skipped silently and a negative or unparseable one is reported `ellipse (invalid attribute)` | Native ellipse | 174, 176 |
+| Percentages in geometry | — | ✅ LCV-173/174: `line`, `circle`, `ellipse` and `rect` attributes resolve against the viewport (`rx` on X, `ry` on Y) | Resolved against the viewport | 173/174 |
 
 ### 3.6 Text (ch. 11)
 
@@ -158,8 +158,12 @@ one becomes an acceptance criterion of the owning spec:
    LCV-173**: the full CTM is applied to every imported element.
 5. ~~Unknown elements and non-arc paths are skipped silently. The target demands an import
    report.~~ **Done by LCV-171**: `ImportedSvg::report`, shown on the command line after Open.
-6. `parse_circle` rejects `r = 0`, and a missing `x1`/`cx`… is an error. The spec says "not
-   rendered" and "default 0". (LCV-174)
+6. ~~`parse_circle` rejects `r = 0`, and a missing `x1`/`cx`… is an error. The spec says "not
+   rendered" and "default 0".~~ **Done by LCV-174**: missing positions are 0, a zero size draws
+   nothing, and an invalid shape is skipped and reported instead of failing the file
+   (`SvgImportError::MalformedAttribute` is gone).
+9. **LCV-171 AC 5 amended by LCV-174 AC 10**: `rect`, `polyline` and `polygon` are imported, so
+   they are no longer reported as ignored elements.
 7. ~~`parse_path` rejects a chord longer than `2r + EPSILON` (1e-9), where the spec scales the radii
    up. *Suspected*, to be confirmed by a test: a semicircular arc may fail to reopen after the
    `{:.4}` rounding in `encode_entity`.~~ **Done by LCV-172**: SVG 2 §F.6.6 applies to every arc.
