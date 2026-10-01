@@ -9,7 +9,7 @@
 - [x] T3 [AC1] [AC2] `AgentAction::{Checkpoint, Rollback}`, `tool_name`, parse arms, schemas,
   `expected_form` rows, with parser unit tests (files: src/agent/bridge/action.rs,
   src/agent/tools.rs, src/agent/tools/schema.rs)
-- [ ] T4 [AC4] [AC5] [AC7] [AC9] `Checkpoints` + `valid_name` + `checkpoint`/`rollback` in
+- [x] T4 [AC4] [AC5] [AC7] [AC9] `Checkpoints` + `valid_name` + `checkpoint`/`rollback` in
   `agent_checkpoint.rs` with unit tests. The `TurnState` field is reset by `arm_turn`
   (files: src/app/agent_checkpoint.rs, src/app/agent_turn.rs, src/app/mod.rs)
 - [ ] T5 [AC1] [AC2] Wire both actions into `agent_apply::apply` (files: src/app/agent_apply.rs)

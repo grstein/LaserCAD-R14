@@ -40,6 +40,7 @@
 
 use super::agent_worker::{TurnConfig, ask_ui, run_agent_turn};
 use crate::agent::{AgentError, AgentEvent, TurnMetrics, prompt};
+use crate::app::agent_checkpoint::Checkpoints;
 use crate::app::agent_verify::VerifyState;
 use crate::app::{App, agent_memory};
 use crate::io::settings::Settings;
@@ -133,6 +134,8 @@ pub struct TurnState {
     pub fed_at: u32,
     /// Whether the turn verified what it applied (LCV-197).
     pub(crate) verify: VerifyState,
+    /// The turn's named group marks; only `start` when armed (LCV-198).
+    pub(crate) checkpoints: Checkpoints,
 }
 
 /// The longest prompt prefix an undo label carries (AC 10).
@@ -173,6 +176,7 @@ fn arm_with_limit(app: &mut App, prompt: &str, limit: u32) -> Sender<AgentEvent>
         user,
         fed_at: 0,
         verify: VerifyState::default(),
+        checkpoints: Checkpoints::default(),
     };
     tx
 }
