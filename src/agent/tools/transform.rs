@@ -11,7 +11,7 @@
 
 use serde_json::{Value, json};
 
-use super::{ToolCallError, parse_tool_call};
+use super::{ToolCallError, expected_form, parse_tool_call};
 use crate::agent::bridge::{AgentAction, SetOp};
 
 /// The tools that accept `indices`.
@@ -44,9 +44,11 @@ fn present<'a>(args: &'a Value, key: &str) -> Option<&'a Value> {
 /// single-index call would, with a placeholder `index`.
 fn build(tool: &'static str, raw: &Value, args: &Value) -> Result<AgentAction, ToolCallError> {
     if present(args, "index").is_some() {
-        return Err(invalid(
+        return Err(refuse(
             tool,
-            "give either `index` or `indices`, not both".to_owned(),
+            "index",
+            "given together with indices",
+            "either index or indices, not both",
         ));
     }
     let indices = indices(tool, raw)?;
@@ -59,45 +61,31 @@ fn build(tool: &'static str, raw: &Value, args: &Value) -> Result<AgentAction, T
     Ok(AgentAction::Set { indices, op })
 }
 
-/// The shape check of `indices`, naming the first offending entry (AC5).
+/// The shape check of `indices`, naming the first offending entry (AC5) in
+/// the LCV-192 shape.
 fn indices(tool: &'static str, raw: &Value) -> Result<Vec<usize>, ToolCallError> {
+    let list_form = expected_form("indices");
     let Some(list) = raw.as_array() else {
-        return Err(invalid(
-            tool,
-            "expected a list of entity indices".to_owned(),
-        ));
+        return Err(refuse(tool, "indices", "not a list", list_form));
     };
     if list.is_empty() {
-        return Err(invalid(
-            tool,
-            format!("the list is empty; give 1 to {MAX_SET} indices"),
-        ));
+        return Err(refuse(tool, "indices", "empty list", list_form));
     }
     if list.len() > MAX_SET {
-        let n = list.len();
-        return Err(invalid(
-            tool,
-            format!("the list has {n} entries; at most {MAX_SET}"),
-        ));
+        let reason = format!("has {} entries", list.len());
+        return Err(refuse(tool, "indices", &reason, list_form));
     }
     let mut out: Vec<usize> = Vec::with_capacity(list.len());
     for (at, value) in list.iter().enumerate() {
-        let Some(index) = entry(value) else {
-            let shown = if value.is_number() {
-                value.to_string()
-            } else {
-                "this entry".to_owned()
-            };
-            return Err(invalid(
-                tool,
-                format!("indices[{at}]: {shown} is not a non-negative integer"),
-            ));
-        };
+        let path = format!("indices[{at}]");
+        let index = match value.as_f64() {
+            None => Err("not a number".to_owned()),
+            Some(raw) => entry(raw).ok_or(format!("{raw} is not an index")),
+        }
+        .map_err(|reason| refuse(tool, &path, &reason, expected_form("index")))?;
         if let Some(first) = out.iter().position(|&seen| seen == index) {
-            return Err(invalid(
-                tool,
-                format!("indices[{at}] is a duplicate of indices[{first}]"),
-            ));
+            let reason = format!("duplicate of indices[{first}]");
+            return Err(refuse(tool, &path, &reason, "distinct indices"));
         }
         out.push(index);
     }
@@ -105,14 +93,18 @@ fn indices(tool: &'static str, raw: &Value) -> Result<Vec<usize>, ToolCallError>
 }
 
 /// One entry as an index: non-negative, integral, finite — `get_index`'s rule.
-fn entry(value: &Value) -> Option<usize> {
-    let raw = value.as_f64()?;
+fn entry(raw: f64) -> Option<usize> {
     (raw >= 0.0 && raw.fract() == 0.0 && raw.is_finite()).then_some(raw as usize)
 }
 
-/// A refusal of the `indices` argument.
-fn invalid(tool: &'static str, reason: String) -> ToolCallError {
-    ToolCallError::arg(tool, "indices", reason)
+/// A refusal of the `indices` argument or one of its entries.
+fn refuse(tool: &str, path: &str, reason: &str, expected: &str) -> ToolCallError {
+    ToolCallError::Arg {
+        tool: tool.to_owned(),
+        path: path.to_owned(),
+        reason: reason.to_owned(),
+        expected: expected.to_owned(),
+    }
 }
 
 /// The single-index action's operation, without its placeholder index.
@@ -281,9 +273,15 @@ mod tests {
                 op: SetOp::Delete
             }
         );
-        let (_, text) = reason("delete_entity", json!({"indices":[5, 0, 5, 0]}));
-        assert_eq!(text, "indices[2] is a duplicate of indices[0]");
-        let (_, text) = reason("delete_entity", json!({"indices":[true]}));
-        assert_eq!(text, "indices[0]: this entry is not a non-negative integer");
+        let (path, text) = reason("delete_entity", json!({"indices":[5, 0, 5, 0]}));
+        assert_eq!(
+            (path.as_str(), text.as_str()),
+            ("indices[2]", "duplicate of indices[0]")
+        );
+        let (path, text) = reason("delete_entity", json!({"indices":[true]}));
+        assert_eq!(
+            (path.as_str(), text.as_str()),
+            ("indices[0]", "not a number")
+        );
     }
 }

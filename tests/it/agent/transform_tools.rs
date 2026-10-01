@@ -269,52 +269,56 @@ fn with(base: &serde_json::Value, extra: serde_json::Value) -> serde_json::Value
 /// LCV-186 AC5 — an empty, oversized, duplicated, negative, fractional or
 /// non-numeric `indices` list, a list that is not a list, and `index` given
 /// together with `indices` are each refused by every set tool, and the
-/// refusal names the offending entry.
+/// refusal names the offending entry. LCV-192 AC 1 — pinned exactly in the
+/// `<tool> <path>: <reason>; expected <form>` shape.
 #[test]
 fn a_bad_indices_list_is_refused_naming_the_entry() {
     let too_many: Vec<usize> = (0..1001).collect();
+    let list = "expected a list of 1 to 1000 distinct entity indices";
+    let index = "expected a non-negative integer (an index from query_entities)";
     let cases = [
-        (json!({"indices": []}), vec!["indices:", "empty"]),
+        (
+            json!({"indices": []}),
+            format!("indices: empty list; {list}"),
+        ),
         (
             json!({"indices": too_many}),
-            vec!["indices:", "1001", "1000"],
+            format!("indices: has 1001 entries; {list}"),
         ),
         (
             json!({"indices": [0, 4, 2, 4]}),
-            vec!["indices[3]", "duplicate of indices[1]"],
+            "indices[3]: duplicate of indices[1]; expected distinct indices".to_owned(),
         ),
         (
             json!({"indices": [0, -1]}),
-            vec!["indices[1]", "-1", "non-negative integer"],
+            format!("indices[1]: -1 is not an index; {index}"),
         ),
         (
             json!({"indices": [0, 2, 1.5]}),
-            vec!["indices[2]", "1.5", "non-negative integer"],
+            format!("indices[2]: 1.5 is not an index; {index}"),
         ),
         (
             json!({"indices": [0, "2"]}),
-            vec!["indices[1]", "non-negative integer"],
+            format!("indices[1]: not a number; {index}"),
         ),
-        (json!({"indices": 3}), vec!["indices:", "list"]),
+        (
+            json!({"indices": 3}),
+            format!("indices: not a list; {list}"),
+        ),
         (
             json!({"index": 0, "indices": [1]}),
-            vec!["`index`", "`indices`", "not both"],
+            "index: given together with indices; expected either index or indices, not both"
+                .to_owned(),
         ),
     ];
     for (tool, args) in set_tools() {
-        for (extra, needles) in &cases {
+        for (extra, want) in &cases {
             let call = with(&args, extra.clone());
             let text = match parse_tool_call(tool, &call) {
                 Err(e) => e.to_string(),
                 Ok(a) => panic!("{tool} {extra}: accepted as {a:?}"),
             };
-            assert!(text.contains(tool), "{text}");
-            for needle in needles {
-                assert!(
-                    text.contains(needle),
-                    "{tool} {extra}: `{needle}` missing: {text}"
-                );
-            }
+            assert_eq!(text, format!("{tool} {want}"), "{tool} {extra}");
         }
     }
 }
