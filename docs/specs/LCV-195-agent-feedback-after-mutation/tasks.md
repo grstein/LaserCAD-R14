@@ -9,7 +9,7 @@ Prerequisites: LCV-187, LCV-189, LCV-190 Done on `agent-harness`.
   `settings_ui/copy.rs` (files: src/agent/settings_ui.rs, src/agent/settings_ui/copy.rs)
 - [x] T3 [AC6] Test: a settings file without the field loads it `false`, and the field round-trips
   (files: src/io/settings/tests.rs)
-- [ ] T4 [AC6] `Settings::agent_feedback_after_changes` (files: src/io/settings.rs)
+- [x] T4 [AC6] `Settings::agent_feedback_after_changes` (files: src/io/settings.rs)
 - [ ] T5 [AC1][AC4][AC5] Test (loop, stub dispatch):
   - A batch that ran asks `Dispatch::Feedback` exactly once, after its last call.
   - `Ok("")` leaves the result as today.
