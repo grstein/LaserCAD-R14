@@ -3,7 +3,7 @@
 - [x] T1 Refactor (no behaviour change): move the layer-edit `impl Document` block
   (`check_*_layer`, `insert/remove/replace_layer`, `set_current_layer`, `set_entity_layer`) to
   `state/layers.rs` (files: src/document/state.rs, src/document/state/layers.rs)
-- [ ] T2 [AC2] Test: pushes get distinct ids `e1, e2, …`; after a delete, every other entity keeps
+- [x] T2 [AC2] Test: pushes get distinct ids `e1, e2, …`; after a delete, every other entity keeps
   its id; `from_parts` numbers `e1..=en`; `index_of`/`entity_id` round-trip; a new push after
   deletes and truncates never reuses an id (files: tests/it/document/entity_ids.rs, tests/it/document/mod.rs)
 - [ ] T3 [AC2] `EntityId` + `Display`, `entity_ids`/`next_id` in lockstep in the four mutators and

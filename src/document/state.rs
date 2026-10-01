@@ -9,6 +9,7 @@ use crate::document::{Entity, Layer, LayerError, LayerId, Selection};
 use crate::geometry::Vec2;
 use crate::util::{DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
 
+pub mod ids;
 mod layers;
 
 /// The drawing the operator is editing.
