@@ -36,7 +36,7 @@
   offered, even with an anchor and a crossing line (files: tests/it/app/object_snaps.rs)
 - [x] T13 [AC7] `SnapEntity::Ellipse`, endpoint/centre candidates, pair intersections skipped
   (files: src/geometry/snap/mod.rs, src/geometry/snap/candidates.rs, src/app/snap.rs)
-- [ ] T14 [AC7] Quadrant and Nearest for ellipses, skipped by perpendicular/tangent (files:
+- [x] T14 [AC7] Quadrant and Nearest for ellipses, skipped by perpendicular/tangent (files:
   src/geometry/snap/anchored.rs)
 - [ ] T15 [AC6] Test: MOVE, COPY, ROTATE, MIRROR and SCALE on an ellipse arc through the tools.
   Each is exact, mirror negates rotation and reverses direction, and each undoes as one step

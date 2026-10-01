@@ -266,7 +266,9 @@ fn ellipse_offers_endpoint_center_quadrant_and_nearest() {
     s.app.settings.object_snaps.nearest = true;
     let q = e.point(1.2) + off;
     s.hover(q);
-    assert_snap(&s, SnapKind::Nearest, e.nearest(q));
+    // The hover lands on a whole screen point; the foot is of that cursor.
+    let cursor = s.app.last_cursor_world.expect("hovering sets the cursor");
+    assert_snap(&s, SnapKind::Nearest, e.nearest(cursor));
 }
 
 /// LCV-176 AC 7 — along the whole parent ellipse, with an anchor and a
