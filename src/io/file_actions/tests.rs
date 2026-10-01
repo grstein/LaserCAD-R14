@@ -279,13 +279,7 @@ fn both_save_paths_export_the_mother_svg() {
         env!("CARGO_MANIFEST_DIR"),
         "/src/io/file_actions.rs"
     ));
-    for (start_marker, end_marker) in [
-        (
-            "pub fn action_save(app: &mut App)",
-            "\n/// Load a document from a known file path",
-        ),
-        ("pub fn action_save_as(app: &mut App)", "\n#[cfg(test)]"),
-    ] {
+    let body = |start_marker: &str, end_marker: &str| -> &str {
         let start = src
             .find(start_marker)
             .unwrap_or_else(|| panic!("{start_marker} must exist"));
@@ -293,14 +287,27 @@ fn both_save_paths_export_the_mother_svg() {
             .find(end_marker)
             .unwrap_or_else(|| panic!("{start_marker} must be followed by {end_marker}"))
             + start;
-        let body = &src[start..end];
+        &src[start..end]
+    };
+    let writer = body("fn write_mother(", "\n/// Tell the operator");
+    assert!(
+        writer.contains("fs::write(path, svg.as_bytes())"),
+        "positive control: write_mother must write the file"
+    );
+    assert!(
+        writer.contains("export_svg(&app.document)"),
+        "write_mother must export the mother SVG (LCV-156 AC 9)"
+    );
+    for (start_marker, end_marker) in [
+        (
+            "pub fn action_save(app: &mut App)",
+            "\n/// Load a document from a known file path",
+        ),
+        ("pub fn action_save_as(app: &mut App)", "\n// Save helpers"),
+    ] {
         assert!(
-            body.contains("fs::write(&path, svg.as_bytes())"),
-            "positive control: {start_marker} must write the file"
-        );
-        assert!(
-            body.contains("export_svg(&app.document)"),
-            "{start_marker} must export the mother SVG (LCV-156 AC 9)"
+            body(start_marker, end_marker).contains("write_mother(app, &path)"),
+            "{start_marker} must write through write_mother"
         );
     }
 }

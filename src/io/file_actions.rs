@@ -19,9 +19,9 @@
 //! Introduced by demand LCV-062.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use crate::app::App;
+use crate::app::{App, Severity};
 use crate::document::{Document, History};
 use crate::io::svg::{ImportedSvg, export_svg, import_svg};
 use crate::io::{open_file_dialog, save_file_dialog};
@@ -111,14 +111,13 @@ pub fn action_save(app: &mut App) {
         }
     };
 
-    let svg = export_svg(&app.document);
-    if let Err(e) = fs::write(&path, svg.as_bytes()) {
-        app.error_message = Some(format!("Could not write '{}': {e}", path.display()));
+    if !write_mother(app, &path) {
         return;
     }
 
     app.mark_saved();
     app.clear_autosave();
+    announce_saved(app, &path);
 }
 
 /// Load a document from a known file path (no dialog).
@@ -186,9 +185,7 @@ pub fn action_save_as(app: &mut App) {
         path.set_extension("svg");
     }
 
-    let svg = export_svg(&app.document);
-    if let Err(e) = fs::write(&path, svg.as_bytes()) {
-        app.error_message = Some(format!("Could not write '{}': {e}", path.display()));
+    if !write_mother(app, &path) {
         return;
     }
 
@@ -198,6 +195,33 @@ pub fn action_save_as(app: &mut App) {
         .push_recent_file(path.to_string_lossy().into_owned());
     app.persist_settings();
     app.clear_autosave();
+    announce_saved(app, &path);
+}
+
+// ---------------------------------------------------------------------------
+// Save helpers (LCV-168)
+// ---------------------------------------------------------------------------
+
+/// Write the mother SVG of `app.document` to `path`. On failure set
+/// `app.error_message` and return `false`; nothing else is touched.
+fn write_mother(app: &mut App, path: &Path) -> bool {
+    let svg = export_svg(&app.document);
+    if let Err(e) = fs::write(path, svg.as_bytes()) {
+        app.error_message = Some(format!("Could not write '{}': {e}", path.display()));
+        return false;
+    }
+    true
+}
+
+/// Tell the operator which file a successful save wrote and on which bed
+/// (LCV-168 AC 1): `Saved <name> (<w> × <h> mm)`.
+fn announce_saved(app: &mut App, path: &Path) {
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let [w, h] = app.document.bed_mm;
+    app.say(Severity::Info, format!("Saved {name} ({w} × {h} mm)"));
 }
 
 // ---------------------------------------------------------------------------

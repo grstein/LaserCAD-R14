@@ -8,7 +8,7 @@
 - [x] T3 [AC1] Test: Save into a tempdir with in-bed geometry → Info
   `Saved <name> (400 × 400 mm)`; a 297.5 mm bed prints `297.5` (files:
   tests/it/app/document_title_and_file_feedback.rs)
-- [ ] T4 [AC1] Extract `write_mother`; add `announce_saved` + `outside_bed_phrase`; call it on
+- [x] T4 [AC1] Extract `write_mother`; add `announce_saved` + `outside_bed_phrase`; call it on
   Save and Save As success; update any Save test that expected empty feedback (files:
   src/io/file_actions.rs, src/io/file_actions/tests.rs)
 - [ ] T5 [AC1] Test: Save As success path — `write_mother` then `announce_saved` on a tempdir
