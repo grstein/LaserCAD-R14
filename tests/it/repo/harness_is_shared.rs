@@ -67,7 +67,7 @@ fn slashed(path: &Path) -> String {
 
 /// A galley laid out at the default proportional font, for a hand-built shape.
 fn galley(ctx: &egui::Context, text: &str) -> std::sync::Arc<egui::Galley> {
-    ctx.fonts(|f| {
+    ctx.fonts_mut(|f| {
         f.layout_no_wrap(
             text.to_owned(),
             egui::FontId::proportional(14.0),
@@ -98,7 +98,7 @@ fn text_shape(ctx: &egui::Context, pos: egui::Pos2, text: &str) -> egui::Shape {
 fn ctx() -> egui::Context {
     let ctx = egui::Context::default();
     ctx.set_pixels_per_point(1.0);
-    let _ = ctx.run(egui::RawInput::default(), |_| {});
+    let _ = ctx.run_ui(egui::RawInput::default(), |_| {});
     ctx
 }
 

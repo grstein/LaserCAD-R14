@@ -270,3 +270,16 @@ fn instances_are_independent_entities() {
     assert_line(&doc.entities[0], (3.0, -4.0), (8.0, -4.0));
     assert_eq!(doc.entities[1], other);
 }
+
+/// LCV-180 AC 2 on the reuse reader — `href` wins over `xlink:href` in
+/// either attribute order, and a foreign-namespace `x:href` or `x:id` is no
+/// reference (roxmltree 0.21 matches `attribute("href")` in any namespace).
+#[test]
+fn only_plain_and_xlink_href_resolve_whatever_the_order() {
+    let src = r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:x="urn:lasercad:test" width="100mm" height="100mm" viewBox="0 0 100 100">
+        <defs><line id="a" x1="1" y1="1" x2="2" y2="1"/><line id="b" x1="3" y1="3" x2="4" y2="3"/><line x:id="c" x1="5" y1="5" x2="6" y2="5"/></defs>
+        <use xlink:href="#b" href="#a"/><use x:href="#a"/><use href="#c"/></svg>"##;
+    let svg = import_svg(src).unwrap();
+    assert_eq!(svg.entities.len(), 1, "{:?}", svg.entities);
+    assert_line(&svg.entities[0], (1.0, 1.0), (2.0, 1.0));
+}

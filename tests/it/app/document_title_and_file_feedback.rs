@@ -92,7 +92,7 @@ fn click_events(pos: egui::Pos2) -> Vec<egui::Event> {
 /// One idle boot frame: registers every widget rect and syncs the camera away
 /// from its zero-area sentinel (mirrors `tests/lcv136_*`'s own `boot`).
 fn boot(ctx: &egui::Context, app: &mut App) {
-    let _ = ctx.run(raw_input(vec![]), |c| app.update_ui(c));
+    let _ = ctx.run_ui(raw_input(vec![]), |ui| app.update_ui(ui));
 }
 
 /// Locate the one run reading `label` on a settled frame and return a point
@@ -113,10 +113,10 @@ fn locate(runs: &[Run], label: &str) -> egui::Pos2 {
 /// `PointerMoved` alone, then the frame carrying the press/release pair
 /// (ADR 0002 §A4 rule 3).
 fn click_button(ctx: &egui::Context, app: &mut App, pos: egui::Pos2) -> egui::FullOutput {
-    let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(pos)]), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(vec![egui::Event::PointerMoved(pos)]), |ui| {
+        app.update_ui(ui)
     });
-    ctx.run(raw_input(click_events(pos)), |c| app.update_ui(c))
+    ctx.run_ui(raw_input(click_events(pos)), |ui| app.update_ui(ui))
 }
 
 /// Open the File menu through a real click on its "File" label (mirrors
@@ -136,8 +136,8 @@ fn open_file_menu(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
 fn open_recent_submenu(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
     let menu_runs = open_file_menu(ctx, app);
     let recent = locate(&menu_runs, "Open Recent");
-    let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(recent)]), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(vec![egui::Event::PointerMoved(recent)]), |ui| {
+        app.update_ui(ui)
     });
     paint::painted_runs(ctx, app)
 }
@@ -164,7 +164,7 @@ fn title_command_fires_only_on_a_real_change() {
     // Frame 1 — nothing has happened since construction: `App::default`
     // pre-seeds the title cache to match (see its own doc comment), so this
     // must send nothing at all.
-    let out = ctx.run(raw_input(vec![]), |c| app.update_ui(c));
+    let out = ctx.run_ui(raw_input(vec![]), |ui| app.update_ui(ui));
     assert!(
         !out.viewport_output[&egui::ViewportId::ROOT]
             .commands
@@ -176,7 +176,7 @@ fn title_command_fires_only_on_a_real_change() {
     // Frame 2 — a real change.
     app.history
         .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
-    let out = ctx.run(raw_input(vec![]), |c| app.update_ui(c));
+    let out = ctx.run_ui(raw_input(vec![]), |ui| app.update_ui(ui));
     assert!(
         out.viewport_output[&egui::ViewportId::ROOT]
             .commands
@@ -186,7 +186,7 @@ fn title_command_fires_only_on_a_real_change() {
         "a real change must be visible on the very next frame"
     );
 
-    let out = ctx.run(raw_input(vec![]), |c| app.update_ui(c));
+    let out = ctx.run_ui(raw_input(vec![]), |ui| app.update_ui(ui));
     assert!(
         !out.viewport_output[&egui::ViewportId::ROOT]
             .commands
@@ -304,7 +304,8 @@ fn cancelling_the_discard_dialog_leaves_the_title_unchanged() {
     );
 
     let ctx = egui::Context::default();
-    let _ = ctx.run(egui::RawInput::default(), |c| {
+    let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+        let c = &ui.ctx().clone();
         lasercad::app::apply_discard_choice(c, &mut app, DiscardChoice::Cancel);
     });
 
@@ -384,10 +385,12 @@ fn recovered_badge_paints_with_its_hover_text_and_touches_nothing_else() {
     );
     let pos = locate(&runs, "Recovered (not saved)");
 
-    let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(pos)]), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(vec![egui::Event::PointerMoved(pos)]), |ui| {
+        app.update_ui(ui)
     });
-    let out = ctx.run(raw_input(vec![]), |c| app.update_ui(c));
+    // egui 0.36 sizes a new tooltip invisibly on its first frame: rest twice.
+    let _ = ctx.run_ui(raw_input(vec![]), |ui| app.update_ui(ui));
+    let out = ctx.run_ui(raw_input(vec![]), |ui| app.update_ui(ui));
     let hover_runs = paint::runs_in(&out.shapes);
     assert!(
         hover_runs.iter().any(|r| r.text.contains("crash-safety")),
@@ -555,8 +558,8 @@ fn open_recent_entry_hover_text_paints_the_full_path() {
     let runs = open_recent_submenu(&ctx, &mut app);
     let pos = locate(&runs, "plate.svg");
 
-    let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(pos)]), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(vec![egui::Event::PointerMoved(pos)]), |ui| {
+        app.update_ui(ui)
     });
     // Unlike the recovered-badge hover test above, the pointer here has
     // already moved twice before landing on this entry (onto "File", then
@@ -566,9 +569,9 @@ fn open_recent_entry_hover_text_paints_the_full_path() {
     // pointer itself has stopped. A handful of idle frames lets that window
     // flush and `tooltip_delay` (0.5 s, in ~1/60 s `predicted_dt` steps)
     // elapse for real, exactly as an operator's own stationary cursor would.
-    let mut out = ctx.run(raw_input(vec![]), |c| app.update_ui(c));
+    let mut out = ctx.run_ui(raw_input(vec![]), |ui| app.update_ui(ui));
     for _ in 0..45 {
-        out = ctx.run(raw_input(vec![]), |c| app.update_ui(c));
+        out = ctx.run_ui(raw_input(vec![]), |ui| app.update_ui(ui));
     }
     let hover_runs = paint::runs_in(&out.shapes);
     assert!(

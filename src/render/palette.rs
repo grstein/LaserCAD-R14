@@ -9,10 +9,11 @@
 /// The `preview` token: translucent amber, rgba(255,220,100,160), for
 /// rubber-band geometry and selection boxes (LCV-037).
 ///
-/// A function, not a `const`: egui 0.29's `Color32::from_rgba_unmultiplied`
-/// is not `const fn`.
+/// Stored premultiplied, as egui 0.29's `from_rgba_unmultiplied` computed it
+/// (in linear space): egui 0.36 premultiplies in gamma space, which would
+/// darken the painted colour (LCV-180).
 pub fn preview() -> egui::Color32 {
-    egui::Color32::from_rgba_unmultiplied(255, 220, 100, 160)
+    egui::Color32::from_rgba_premultiplied(208, 179, 80, 160)
 }
 
 /// The `danger` token: opaque red-pink #ff4d6a for what TRIM or ERASE will

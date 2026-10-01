@@ -31,7 +31,9 @@ use crate::render::Camera;
 pub(crate) fn halo_stroke() -> egui::Stroke {
     egui::Stroke::new(
         3.0_f32,
-        egui::Color32::from_rgba_unmultiplied(64, 160, 255, 180),
+        // rgba(64,160,255,180) premultiplied as egui 0.29 did, in linear
+        // space; 0.36 premultiplies in gamma space and paints darker (LCV-180).
+        egui::Color32::from_rgba_premultiplied(53, 136, 219, 180),
     )
 }
 
@@ -116,7 +118,8 @@ mod tests {
     #[test]
     fn draw_selection_highlight_function_exists() {
         let ctx = egui::Context::default();
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             let painter = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Background,
                 egui::Id::new("test_selection"),
@@ -159,7 +162,8 @@ mod tests {
 
         // Also verify draw_selection_highlight doesn't panic.
         let ctx = egui::Context::default();
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             let painter = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Background,
                 egui::Id::new("test_out_of_range"),
@@ -217,7 +221,8 @@ mod tests {
             Vec2::new(10.0, 0.0),
         )));
         let ctx = egui::Context::default();
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             let painter = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Background,
                 egui::Id::new("test_hover"),
@@ -229,10 +234,7 @@ mod tests {
             .shapes
             .iter()
             .filter_map(|c| match &c.shape {
-                egui::Shape::LineSegment { stroke, .. } => match stroke.color {
-                    egui::epaint::ColorMode::Solid(k) => Some((stroke.width, k)),
-                    egui::epaint::ColorMode::UV(_) => None,
-                },
+                egui::Shape::LineSegment { stroke, .. } => Some((stroke.width, stroke.color)),
                 _ => None,
             })
             .collect();

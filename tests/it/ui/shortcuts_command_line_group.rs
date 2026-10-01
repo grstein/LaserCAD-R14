@@ -30,8 +30,8 @@
 //!    the dialog itself). This file scopes by the `"Command line"` heading —
 //!    a marker *inside* the dialog body — instead.
 //! 2. **A binding's monospace column is padded.** `shortcut_row` paints
-//!    `format!("{binding:<20}")`, so the run egui actually laid out for
-//!    `"ArrowUp"` is `"ArrowUp             "` (20 characters). [`texts`] trims
+//!    `format!("{binding:<19}")`, so the run egui actually laid out for
+//!    `"ArrowUp"` is `"ArrowUp            "` (19 characters). [`texts`] trims
 //!    each run before comparing, or every expected string in this file would
 //!    have to carry hand-counted trailing spaces.
 //! 3. **Two columns share one clip rect (LCV-133).** `shortcuts_dialog` no

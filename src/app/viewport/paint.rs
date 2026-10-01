@@ -30,6 +30,7 @@ pub(super) fn paint(ui: &egui::Ui, rect: egui::Rect, app: &mut App, cursor: Opti
         rect,
         0.0,
         egui::Stroke::new(1.0_f32, egui::Color32::from_gray(64)),
+        egui::StrokeKind::Middle,
     );
 
     // The bed is the document's, rebuilt every frame (LCV-114 AC 4/AC 15):

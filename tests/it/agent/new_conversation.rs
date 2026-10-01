@@ -45,7 +45,7 @@ fn locate(runs: &[Run], label: &str) -> egui::Pos2 {
 }
 
 fn frame(ctx: &egui::Context, app: &mut App, screen: [f32; 2], events: Vec<egui::Event>) {
-    let _ = ctx.run(raw_input_at(screen, events), |c| app.update_ui(c));
+    let _ = ctx.run_ui(raw_input_at(screen, events), |ui| app.update_ui(ui));
 }
 
 /// Hover `pos` for a frame, then click it.
@@ -58,7 +58,7 @@ fn click(ctx: &egui::Context, app: &mut App, screen: [f32; 2], pos: egui::Pos2) 
 fn panel_rect(ctx: &egui::Context) -> egui::Rect {
     egui::containers::panel::PanelState::load(ctx, egui::Id::new("agent_panel"))
         .expect("the agent panel must have stored its state by now")
-        .rect
+        .outer_rect
 }
 
 /// The full painted rect (position and galley size) of every text run reading
@@ -110,7 +110,7 @@ fn fill_short_transcript(app: &mut App, n: usize) {
 fn ac1_the_button_is_painted_inside_the_agent_panel() {
     let (ctx, mut app) = ctx_and_app();
     frame(&ctx, &mut app, SCREEN, Vec::new());
-    let out = ctx.run(raw_input_at(SCREEN, Vec::new()), |c| app.update_ui(c));
+    let out = ctx.run_ui(raw_input_at(SCREEN, Vec::new()), |ui| app.update_ui(ui));
     let rects = label_rects(&out.shapes, LABEL);
     assert_eq!(rects.len(), 1, "`{LABEL}` must be painted once");
     let panel = panel_rect(&ctx);
@@ -183,11 +183,11 @@ fn ac3_ac6_a_busy_click_is_inert_and_the_ending_frame_reenables() {
     talked(&mut app);
     let runs = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
     let pos = locate(&runs, LABEL);
-    let idle = ctx.run(raw_input_at(SCREEN, Vec::new()), |c| app.update_ui(c));
+    let idle = ctx.run_ui(raw_input_at(SCREEN, Vec::new()), |ui| app.update_ui(ui));
     let idle = label_look(&idle.shapes, LABEL);
 
     let tx = arm_turn(&mut app, "draw");
-    let busy = ctx.run(raw_input_at(SCREEN, Vec::new()), |c| app.update_ui(c));
+    let busy = ctx.run_ui(raw_input_at(SCREEN, Vec::new()), |ui| app.update_ui(ui));
     assert_ne!(
         label_look(&busy.shapes, LABEL),
         idle,
@@ -202,7 +202,7 @@ fn ac3_ac6_a_busy_click_is_inert_and_the_ending_frame_reenables() {
     // hovered one.
     frame(&ctx, &mut app, SCREEN, vec![egui::Event::PointerGone]);
     tx.send(AgentEvent::done("drawn")).expect("receiver armed");
-    let ended = ctx.run(raw_input_at(SCREEN, Vec::new()), |c| app.update_ui(c));
+    let ended = ctx.run_ui(raw_input_at(SCREEN, Vec::new()), |ui| app.update_ui(ui));
     assert!(!app.agent.busy, "the turn ended this frame");
     assert_eq!(
         label_look(&ended.shapes, LABEL),
@@ -226,7 +226,7 @@ fn ac7_the_button_is_reachable_at_800x600() {
         fill_short_transcript(&mut app, 200);
         app.agent.busy = busy;
         frame(&ctx, &mut app, SMALL, Vec::new());
-        let out = ctx.run(raw_input_at(SMALL, Vec::new()), |c| app.update_ui(c));
+        let out = ctx.run_ui(raw_input_at(SMALL, Vec::new()), |ui| app.update_ui(ui));
         let button = label_rects(&out.shapes, LABEL);
         assert_eq!(button.len(), 1, "busy={busy}: painted once");
         let button = button[0];

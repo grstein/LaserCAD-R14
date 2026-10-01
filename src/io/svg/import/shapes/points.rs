@@ -6,6 +6,7 @@
 use super::Shape;
 use crate::geometry::Vec2;
 use crate::io::svg::import::path::path_entities;
+use crate::io::svg::layers::attr as plain_attr;
 use crate::io::svg::path_data::lexer::Lexer;
 use crate::io::svg::path_data::{PathData, Segment};
 use crate::io::svg::viewport::Ctx;
@@ -20,7 +21,7 @@ pub(super) fn poly(
     ctx: &Ctx,
     bed_h: f64,
 ) -> Shape {
-    let data = points_path(n.attribute("points").unwrap_or(""), close);
+    let data = points_path(plain_attr(n, "points").unwrap_or(""), close);
     let (entities, mut notes) = path_entities(&data, ctx, bed_h);
     if data.error {
         notes.push(data_error);

@@ -35,9 +35,10 @@ fn boot(app: App) -> (egui::Context, App, egui::Rect) {
     let ctx = egui::Context::default();
     let mut app = app;
     let mut canvas = egui::Rect::NOTHING;
-    let _ = ctx.run(harness::raw_input(vec![]), |c| {
-        app.update_ui(c);
-        canvas = c.available_rect();
+    let _ = ctx.run_ui(harness::raw_input(vec![]), |ui| {
+        let c = &ui.ctx().clone();
+        app.update_ui(ui);
+        canvas = crate::harness::canvas_rect(c);
     });
     (ctx, app, canvas)
 }
@@ -92,6 +93,7 @@ fn wheel_zoom_at(ctx: &egui::Context, app: &mut App, pos: egui::Pos2, delta_y: f
             egui::Event::MouseWheel {
                 unit: egui::MouseWheelUnit::Point,
                 delta: egui::Vec2::new(0.0, delta_y),
+                phase: egui::TouchPhase::Move,
                 modifiers: egui::Modifiers::NONE,
             },
         ],

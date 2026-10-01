@@ -182,7 +182,8 @@ mod tests {
         let mut app = App::default();
         commit_a_line(&mut app);
         app.guard.pending_action = Some(PendingAction::New);
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             apply_discard_choice(ctx, &mut app, DiscardChoice::Discard);
         });
         assert!(app.guard.pending_action.is_none());
@@ -204,7 +205,8 @@ mod tests {
             },
             ..App::default()
         };
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             apply_discard_choice(ctx, &mut exit_app, DiscardChoice::Discard);
         });
         assert!(exit_app.guard.pending_action.is_none());
@@ -234,7 +236,8 @@ mod tests {
         let saved_revision = app.guard.saved_revision;
         let dirty_since = app.autosave.dirty_since;
 
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             apply_discard_choice(ctx, &mut app, DiscardChoice::Cancel);
         });
 
@@ -276,7 +279,8 @@ mod tests {
         let mut app = parked_new();
         app.current_file = Some(path.clone());
         let ctx = egui::Context::default();
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             apply_discard_choice(ctx, &mut app, DiscardChoice::Save);
         });
         assert!(path.exists(), "the drawing was written");
@@ -293,7 +297,8 @@ mod tests {
         let mut app = parked_new();
         app.current_file = Some(path.clone());
         let ctx = egui::Context::default();
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             apply_discard_choice(ctx, &mut app, DiscardChoice::Save);
         });
         assert!(!path.exists());
@@ -310,7 +315,8 @@ mod tests {
         let mut app = parked_new();
         let ctx = egui::Context::default();
         let reached = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _ = ctx.run(egui::RawInput::default(), |ctx| {
+            let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+                let ctx = &ui.ctx().clone();
                 apply_discard_choice(ctx, &mut app, DiscardChoice::Save);
             });
         }));

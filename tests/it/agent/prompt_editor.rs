@@ -196,6 +196,7 @@ fn ac8_every_control_is_reachable_at_800x600_with_a_long_prompt() {
     events.extend((0..200).map(|_| egui::Event::MouseWheel {
         unit: egui::MouseWheelUnit::Point,
         delta: egui::vec2(0.0, -7.0),
+        phase: egui::TouchPhase::Move,
         modifiers: egui::Modifiers::NONE,
     }));
     let _ = painted_runs_at(&ctx, &mut app, small, events);

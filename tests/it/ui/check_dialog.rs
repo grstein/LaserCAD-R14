@@ -85,8 +85,8 @@ fn close_clears_the_report() {
     let runs = settle_at(&ctx, &mut app, harness::SCREEN);
     let close = painted(&runs, "Close")[0];
     let pos = egui::pos2(close.pos.x + 2.0, close.pos.y + close.height / 2.0);
-    let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(pos)]), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(vec![egui::Event::PointerMoved(pos)]), |ui| {
+        app.update_ui(ui)
     });
     let click = vec![
         egui::Event::PointerMoved(pos),
@@ -103,7 +103,7 @@ fn close_clears_the_report() {
             modifiers: egui::Modifiers::NONE,
         },
     ];
-    let _ = ctx.run(raw_input(click), |c| app.update_ui(c));
+    let _ = ctx.run_ui(raw_input(click), |ui| app.update_ui(ui));
     assert_eq!(app.check_report, None);
     let runs = settle_at(&ctx, &mut app, harness::SCREEN);
     assert!(painted(&runs, &lines[1]).is_empty(), "the window is gone");

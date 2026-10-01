@@ -3,6 +3,7 @@
 mod agent_file_split_scans;
 mod bridge_scans;
 mod changelog_unreleased_clause;
+mod dependencies;
 mod dialogs_disarmed;
 mod harness_is_shared;
 mod no_loopback_url_literals;

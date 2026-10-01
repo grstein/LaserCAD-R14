@@ -5,6 +5,7 @@
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use crate::geometry::Vec2;
+use crate::io::svg::layers::attr as plain_attr;
 use crate::io::svg::length::{parse_length, to_user};
 use crate::io::svg::viewport::Ctx;
 
@@ -71,7 +72,7 @@ fn shift(chunk: &mut [Vec2], anchor: f64, end: f64) {
 /// invalid value.
 pub(super) fn list(node: roxmltree::Node<'_, '_>, name: &str, ctx: &Ctx) -> Vec<f64> {
     let reference = ctx.viewport[usize::from(name.ends_with('y'))];
-    node.attribute(name)
+    plain_attr(node, name)
         .unwrap_or("")
         .split(|c: char| c == ',' || c.is_ascii_whitespace())
         .filter(|t| !t.is_empty())

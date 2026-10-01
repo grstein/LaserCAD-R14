@@ -5,6 +5,7 @@
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use crate::io::svg::css;
+use crate::io::svg::layers::attr as plain_attr;
 
 /// Properties LaserCAD does not apply yet, reported by name whenever an
 /// imported or descended element carries one, as an attribute or a `style`
@@ -27,7 +28,7 @@ pub(super) const REPORTED_PROPERTIES: [&str; 9] = [
 pub(in crate::io::svg) fn style_decls<'a>(
     node: roxmltree::Node<'a, '_>,
 ) -> impl DoubleEndedIterator<Item = (&'a str, &'a str)> {
-    node.attribute("style")
+    plain_attr(node, "style")
         .into_iter()
         .flat_map(css::declarations)
         .map(|decl| (decl.name, decl.value))

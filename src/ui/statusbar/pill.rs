@@ -31,7 +31,13 @@ pub(crate) fn mode_pill(ui: &mut egui::Ui, on: bool, label: &str) -> egui::Respo
             (egui::Color32::TRANSPARENT, border_stroke())
         };
         let painter = ui.painter();
-        painter.rect(rect, WIDGET_ROUNDING, fill, stroke);
+        painter.rect(
+            rect,
+            WIDGET_ROUNDING,
+            fill,
+            stroke,
+            egui::StrokeKind::Middle,
+        );
         painter.galley(rect.min + PILL_PADDING, galley, colour);
     }
     response
@@ -44,8 +50,8 @@ mod tests {
     /// Paint one pill alone and return its rect shape and text shape.
     fn paint(on: bool) -> (egui::epaint::RectShape, egui::epaint::TextShape) {
         let ctx = egui::Context::default();
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| mode_pill(ui, on, "SNAP"));
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            egui::CentralPanel::default().show(ui, |ui| mode_pill(ui, on, "SNAP"));
         });
         let mut rect = None;
         let mut text = None;
@@ -65,7 +71,10 @@ mod tests {
     fn an_on_pill_is_filled_selected_with_accent_text() {
         let (rect, text) = paint(true);
         assert_eq!(rect.fill, FILL_SELECTED);
-        assert_eq!(rect.rounding, egui::Rounding::same(WIDGET_ROUNDING));
+        assert_eq!(
+            rect.corner_radius,
+            egui::CornerRadius::same(WIDGET_ROUNDING)
+        );
         assert_eq!(text.galley.job.sections[0].format.color, ACCENT);
     }
 

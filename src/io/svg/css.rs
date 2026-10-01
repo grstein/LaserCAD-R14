@@ -8,6 +8,8 @@
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
+use crate::io::svg::layers::attr as plain_attr;
+
 /// One `name: value [!important]` declaration, trimmed; the name keeps its
 /// case (callers compare ASCII case-insensitively).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,9 +74,8 @@ impl Selector {
             .tag
             .as_deref()
             .is_none_or(|t| t == node.tag_name().name());
-        let id = node.attribute("id");
-        let classes = node
-            .attribute("class")
+        let id = plain_attr(node, "id");
+        let classes = plain_attr(node, "class")
             .unwrap_or("")
             .split_ascii_whitespace();
         tag_ok

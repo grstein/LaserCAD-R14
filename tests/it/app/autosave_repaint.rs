@@ -60,7 +60,13 @@ const DEBOUNCE: Duration = Duration::from_millis(800);
 /// Run one frame whose entire body is `schedule_flush_repaint` and report what
 /// egui was asked to wake up after.
 fn scheduled_delay(ctx: &egui::Context, app: &App) -> Duration {
-    let out = ctx.run(raw_input(vec![]), |ctx| schedule_flush_repaint(ctx, app));
+    // As `ui::apply_theme` does in the app: egui 0.36's window-theme sync
+    // would otherwise send a `SetTheme` command, and with it a repaint.
+    ctx.options_mut(|o| o.sync_window_theme = false);
+    let out = ctx.run_ui(raw_input(vec![]), |ui| {
+        let ctx = &ui.ctx().clone();
+        schedule_flush_repaint(ctx, app);
+    });
     out.viewport_output
         .get(&egui::ViewportId::ROOT)
         .expect("the root viewport is always present")

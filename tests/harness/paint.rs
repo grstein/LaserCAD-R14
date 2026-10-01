@@ -174,13 +174,11 @@ pub fn painted_runs_at(
     screen: [f32; 2],
     events: Vec<egui::Event>,
 ) -> Vec<Run> {
-    let out = ctx.run(super::raw_input_at(screen, events), |ctx| {
-        app.update_ui(ctx)
-    });
+    let out = ctx.run_ui(super::raw_input_at(screen, events), |ui| app.update_ui(ui));
     // Positions are only meaningful at pixels_per_point == 1.0 (ADR 0002 §A3
     // rule 4): epaint rebuilds the font atlas when the value changes, so a
     // galley's `pos` at any other scale is not the position a test's own
-    // arithmetic assumes. Checked here, once, **after** `ctx.run` returns —
+    // arithmetic assumes. Checked here, once, **after** `ctx.run_ui` returns —
     // never before, since a pre-run read on a fresh context reports the
     // default and would pass on exactly the frame that broke the assumption
     // (`set_pixels_per_point` "becomes active at the start of the next

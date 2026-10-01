@@ -8,6 +8,7 @@ use super::style::Style;
 use super::walk::Walk;
 use super::{SVG_NS, SvgImportError};
 use crate::document::LayerId;
+use crate::io::svg::layers::attr as plain_attr;
 use crate::io::svg::length::{parse_length, to_user};
 use crate::io::svg::matrix::Matrix;
 use crate::io::svg::viewport::{Ctx, par, parse_view_box, view_box_map};
@@ -44,7 +45,7 @@ impl<'a, 'input> Index<'a, 'input> {
             .descendants()
             .filter(|n| n.is_element() && n.tag_name().namespace() == Some(SVG_NS));
         for node in svg {
-            if let Some(id) = node.attribute("id") {
+            if let Some(id) = plain_attr(node, "id") {
                 ids.entry(id).or_insert(node);
             }
         }
@@ -120,9 +121,7 @@ pub(super) fn target<'a, 'input>(
     use_: Node<'a, 'input>,
     index: &Index<'a, 'input>,
 ) -> Option<Node<'a, 'input>> {
-    let href = use_
-        .attribute("href")
-        .or_else(|| use_.attribute((XLINK_NS, "href")))?;
+    let href = plain_attr(use_, "href").or_else(|| use_.attribute((XLINK_NS, "href")))?;
     let id = href.trim().strip_prefix('#').filter(|id| !id.is_empty())?;
     index.ids.get(id).copied()
 }
@@ -145,7 +144,7 @@ pub(super) fn is_cycle(target: Node<'_, '_>, use_: Node<'_, '_>, stack: &[Node<'
 pub(super) fn instance_ctx(use_: Node<'_, '_>, target: Node<'_, '_>, ctx: &Ctx) -> Option<Ctx> {
     let [pw, ph] = ctx.viewport;
     let len = |node: Node<'_, '_>, attr: &str, reference: f64| {
-        node.attribute(attr)
+        plain_attr(node, attr)
             .and_then(parse_length)
             .map(|l| to_user(l, reference))
     };
@@ -169,9 +168,9 @@ pub(super) fn instance_ctx(use_: Node<'_, '_>, target: Node<'_, '_>, ctx: &Ctx) 
     if !(rect[2] > 0.0 && rect[3] > 0.0) {
         return None;
     }
-    let (map, viewport) = match target.attribute("viewBox").and_then(parse_view_box) {
+    let (map, viewport) = match plain_attr(target, "viewBox").and_then(parse_view_box) {
         Some(vb) => {
-            let par = par(target.attribute("preserveAspectRatio"));
+            let par = par(plain_attr(target, "preserveAspectRatio"));
             (view_box_map(vb, rect, par), [vb[2], vb[3]])
         }
         None => (Matrix::translate(rect[0], rect[1]), [rect[2], rect[3]]),
@@ -211,7 +210,7 @@ mod tests {
     /// The element with `id` (first occurrence) in `doc`.
     fn by_id<'a, 'i>(doc: &'a roxmltree::Document<'i>, id: &str) -> Node<'a, 'i> {
         doc.descendants()
-            .find(|n| n.attribute("id") == Some(id))
+            .find(|n| plain_attr(*n, "id") == Some(id))
             .expect("test id")
     }
 

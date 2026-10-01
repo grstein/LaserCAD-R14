@@ -3,18 +3,19 @@
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
+use crate::io::svg::layers::attr as plain_attr;
+
 /// Whether `node`'s conditions pass: a present, non-empty (after trim)
 /// `requiredExtensions` fails, since LaserCAD supports no extension;
 /// `systemLanguage` passes iff one of its comma-separated tags is `en` or
 /// starts with `en-` (ASCII case-insensitive, trimmed), so an empty one
 /// fails; `requiredFeatures` is ignored (SVG 2 dropped it).
 pub(super) fn passes(node: roxmltree::Node<'_, '_>) -> bool {
-    let extensions = node.attribute("requiredExtensions");
+    let extensions = plain_attr(node, "requiredExtensions");
     if extensions.is_some_and(|e| !e.trim().is_empty()) {
         return false;
     }
-    node.attribute("systemLanguage")
-        .is_none_or(|langs| langs.split(',').any(english))
+    plain_attr(node, "systemLanguage").is_none_or(|langs| langs.split(',').any(english))
 }
 
 /// Whether one language tag is `en` or `en-*`.

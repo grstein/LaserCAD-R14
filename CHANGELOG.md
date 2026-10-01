@@ -27,6 +27,10 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 - A layer name with a control character (a tab, a bell, …) is refused with the reason: in the Layers dialog, by the agent, and when a drawing or SVG is opened (the SVG import reports a malformed layer). Such a name used to be written raw into the SVG, giving a file no program could reopen. See LCV-170.
 - `CHECK` and the agent's `check_drawing` cover ellipses and Béziers: an elliptical arc or Bézier has two ends that must meet, a full ellipse has none, and duplicates and degenerate curves (a zero semi-axis, all points coincident) are found. The agent's `measure` gives their `length` and `bbox`; `distance`, `intersections` and `angle` refuse them naming the operand.
 
+### Changed
+
+- The GUI stack moves to egui/eframe 0.36, still on the OpenGL (glow) renderer, with rfd 0.17 for the Open/Save dialogs and reqwest 0.13 (still OpenSSL) for the agent; directories 6, roxmltree 0.21 and base64 0.23 follow. Settings, autosave and recent files stay where they were, exported SVG bytes are unchanged, and the layout keeps its sizes. SVG import now ignores attributes in a foreign XML namespace (`x:d`, `x:data-layer`) instead of reading them in place of the plain ones. See LCV-180.
+
 ## [0.7.0] - 2026-10-01
 
 ### Added

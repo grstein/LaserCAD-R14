@@ -22,7 +22,7 @@ pub use command_destination::{
     LABEL_TOOL_INPUT, destination_label,
 };
 pub use command_line::draw_command_line;
-pub use dialogs::{DialogKey, DialogResult, about_dialog, error_dialog};
+pub use dialogs::{DIALOG_HEIGHT, DialogKey, DialogResult, about_dialog, error_dialog};
 pub use layers_dialog::draw_layers_dialog;
 pub use menubar::draw_menubar;
 pub use shortcuts::process_shortcuts;

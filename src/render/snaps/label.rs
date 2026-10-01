@@ -37,7 +37,7 @@ pub(crate) fn draw_label(
     kind: SnapKind,
     color: egui::Color32,
 ) {
-    let font = egui::TextStyle::Body.resolve(&painter.ctx().style());
+    let font = egui::TextStyle::Body.resolve(&painter.ctx().global_style());
     let at = pos + LABEL_OFFSET_PT;
     painter.text(at, egui::Align2::LEFT_TOP, snap_label(kind), font, color);
 }

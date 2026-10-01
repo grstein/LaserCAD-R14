@@ -45,7 +45,7 @@ impl Canvas {
     fn run(&mut self, events: Vec<egui::Event>) -> egui::FullOutput {
         let app = &mut self.app;
         self.ctx
-            .run(harness::raw_input(events), |c| app.update_ui(c))
+            .run_ui(harness::raw_input(events), |ui| app.update_ui(ui))
     }
 
     /// One frame carrying only `PointerMoved(pos)`.
@@ -65,16 +65,12 @@ impl Canvas {
     }
 }
 
-/// Boot `tool`, settle one frame, and learn the canvas rect from a hover.
+/// Boot `tool`, settle the layout, and learn the canvas rect from a hover.
 fn boot(tool: Box<dyn Tool>) -> Canvas {
     let ctx = egui::Context::default();
     let mut app = App::default();
     app.tool_manager.set_tool(tool);
-    let mut free = egui::Rect::NOTHING;
-    let _ = ctx.run(harness::raw_input(vec![]), |c| {
-        app.update_ui(c);
-        free = c.available_rect();
-    });
+    let free = harness::settle(&ctx, &mut app);
     let pos = free.center();
     harness::frame(&ctx, &mut app, vec![egui::Event::PointerMoved(pos)]);
     let w0 = app
@@ -172,10 +168,7 @@ fn the_snap_glyph_follows_this_frames_pointer() {
 /// A painted straight segment: its two ends, stroke width and solid colour.
 fn segment(shape: &egui::Shape) -> Option<([egui::Pos2; 2], f32, egui::Color32)> {
     match shape {
-        egui::Shape::LineSegment { points, stroke } => match stroke.color {
-            egui::epaint::ColorMode::Solid(c) => Some((*points, stroke.width, c)),
-            egui::epaint::ColorMode::UV(_) => None,
-        },
+        egui::Shape::LineSegment { points, stroke } => Some((*points, stroke.width, stroke.color)),
         _ => None,
     }
 }

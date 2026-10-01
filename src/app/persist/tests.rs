@@ -332,3 +332,32 @@ fn no_platform_path_error_variants_remain() {
         );
     }
 }
+
+/// The XDG base directory `var` names, or `$HOME/<fallback>` when it is unset,
+/// empty or relative, the rule the XDG spec and `directories` follow.
+#[cfg(target_os = "linux")]
+fn xdg_base(var: &str, fallback: &str) -> PathBuf {
+    std::env::var_os(var)
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .unwrap_or_else(|| {
+            let home = std::env::var_os("HOME").expect("HOME is set where tests run");
+            PathBuf::from(home).join(fallback)
+        })
+}
+
+/// LCV-180 AC 10 — after the `directories` bump, settings and autosave still
+/// resolve to the v0.5.0 files, so existing user files are found. Reads the
+/// environment and never sets it.
+#[cfg(target_os = "linux")]
+#[test]
+fn platform_paths_keep_the_xdg_files() {
+    assert_eq!(
+        crate::io::settings::platform_path(),
+        Some(xdg_base("XDG_CONFIG_HOME", ".config").join("lasercad/settings.json"))
+    );
+    assert_eq!(
+        crate::io::autosave::platform_path(),
+        Some(xdg_base("XDG_DATA_HOME", ".local/share").join("lasercad/autosave.json"))
+    );
+}

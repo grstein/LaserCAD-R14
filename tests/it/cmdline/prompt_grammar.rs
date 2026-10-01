@@ -20,9 +20,10 @@ fn boot() -> (egui::Context, App, egui::Rect) {
     let ctx = egui::Context::default();
     let mut app = App::default();
     let mut canvas = egui::Rect::NOTHING;
-    let _ = ctx.run(raw_input(vec![]), |c| {
-        app.update_ui(c);
-        canvas = c.available_rect();
+    let _ = ctx.run_ui(raw_input(vec![]), |ui| {
+        let c = &ui.ctx().clone();
+        app.update_ui(ui);
+        canvas = crate::harness::canvas_rect(c);
     });
     let line = Line::new(Vec2::new(10.0, 0.0), Vec2::new(20.0, 5.0));
     let layer = app.document.current_layer();

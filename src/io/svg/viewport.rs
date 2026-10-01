@@ -5,6 +5,7 @@
 
 use super::length::{parse_length, to_user};
 use super::matrix::Matrix;
+use crate::io::svg::layers::attr as plain_attr;
 
 /// What the import walk knows at one element.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -112,7 +113,7 @@ pub(super) fn view_box_map(vb: [f64; 4], rect: [f64; 4], par: Par) -> Matrix {
 pub(super) fn nested(node: roxmltree::Node<'_, '_>, ctx: &Ctx) -> Option<Ctx> {
     let [pw, ph] = ctx.viewport;
     let len = |attr: &str, reference: f64, default: f64| {
-        node.attribute(attr)
+        plain_attr(node, attr)
             .and_then(parse_length)
             .map_or(default, |l| to_user(l, reference))
     };
@@ -125,9 +126,9 @@ pub(super) fn nested(node: roxmltree::Node<'_, '_>, ctx: &Ctx) -> Option<Ctx> {
     if !(rect[2] > 0.0 && rect[3] > 0.0) {
         return None;
     }
-    let (map, viewport) = match node.attribute("viewBox").and_then(parse_view_box) {
+    let (map, viewport) = match plain_attr(node, "viewBox").and_then(parse_view_box) {
         Some(vb) => {
-            let par = par(node.attribute("preserveAspectRatio"));
+            let par = par(plain_attr(node, "preserveAspectRatio"));
             (view_box_map(vb, rect, par), [vb[2], vb[3]])
         }
         None => (Matrix::translate(rect[0], rect[1]), [rect[2], rect[3]]),

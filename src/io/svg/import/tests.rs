@@ -1,6 +1,7 @@
 use super::*;
 use crate::document::{Layer, LayerId};
 use crate::geometry::{Arc, Circle, EPSILON, Line};
+use crate::io::svg::layers::attr as plain_attr;
 use core::f64::consts::{FRAC_PI_2, PI};
 
 /// Millimetres per px (96 px = 1 in): a unitless length is px (LCV-173).
@@ -202,7 +203,7 @@ fn joined_exported_arc_paths_import_as_the_same_arcs() {
     let d_of = |src: &str| {
         let doc = roxmltree::Document::parse(src).unwrap();
         let path = doc.descendants().find(|n| n.has_tag_name("path"));
-        path.and_then(|n| n.attribute("d")).unwrap().to_owned()
+        path.and_then(|n| plain_attr(n, "d")).unwrap().to_owned()
     };
     let (a, b) = (d_of(ARC_CCW_Q), d_of(ARC_LARGE));
     let joined = import_svg(&svg(&format!(r#"<path d="{a} {b}"/>"#))).unwrap();

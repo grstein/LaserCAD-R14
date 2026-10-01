@@ -46,10 +46,10 @@ pub const CANVAS_BG: Color32 = BG_CANVAS;
 const BORDER_WIDTH: f32 = 1.0;
 
 /// Corner radius of every widget, in points (DESIGN.md §5).
-pub(crate) const WIDGET_ROUNDING: f32 = 3.0;
+pub(crate) const WIDGET_ROUNDING: u8 = 3;
 
 /// Corner radius of windows and menus, in points (DESIGN.md §5).
-const WINDOW_ROUNDING: f32 = 4.0;
+const WINDOW_ROUNDING: u8 = 4;
 
 /// The 1 pt `border` stroke: windows, menus, separators, off pills.
 pub(crate) fn border_stroke() -> egui::Stroke {
@@ -77,8 +77,8 @@ pub fn apply_theme(ctx: &egui::Context) {
     v.window_shadow = egui::epaint::Shadow::NONE;
     v.popup_shadow = egui::epaint::Shadow::NONE;
     v.window_stroke = border_stroke();
-    v.window_rounding = egui::Rounding::same(WINDOW_ROUNDING);
-    v.menu_rounding = egui::Rounding::same(WINDOW_ROUNDING);
+    v.window_corner_radius = egui::CornerRadius::same(WINDOW_ROUNDING);
+    v.menu_corner_radius = egui::CornerRadius::same(WINDOW_ROUNDING);
     v.selection.bg_fill = FILL_SELECTED;
     v.selection.stroke = egui::Stroke::new(BORDER_WIDTH, ACCENT);
 
@@ -106,10 +106,27 @@ pub fn apply_theme(ctx: &egui::Context) {
         &mut w.active,
         &mut w.open,
     ] {
-        state.rounding = egui::Rounding::same(WIDGET_ROUNDING);
+        state.corner_radius = egui::CornerRadius::same(WIDGET_ROUNDING);
         state.fg_stroke.color = TEXT_PRIMARY;
     }
     ctx.set_visuals(v);
+    // egui 0.36 raised Body and Button to 13 pt and Monospace to 13 pt; keep
+    // the 12.5 / 12.5 / 12 pt every layout here was measured at (LCV-180).
+    ctx.all_styles_mut(|style| {
+        for (text_style, size) in [
+            (egui::TextStyle::Body, 12.5),
+            (egui::TextStyle::Button, 12.5),
+            (egui::TextStyle::Monospace, 12.0),
+        ] {
+            if let Some(font) = style.text_styles.get_mut(&text_style) {
+                font.size = size;
+            }
+        }
+    });
+    // egui 0.36 would otherwise send `ViewportCommand::SetTheme` from
+    // `end_pass`, a viewport command that costs idle frames; the native
+    // window keeps following the system theme, as under egui 0.29 (LCV-180).
+    ctx.options_mut(|o| o.sync_window_theme = false);
 }
 
 #[cfg(test)]
@@ -212,7 +229,7 @@ mod tests {
     fn themed() -> egui::Visuals {
         let ctx = egui::Context::default();
         apply_theme(&ctx);
-        ctx.style().visuals.clone()
+        ctx.global_style().visuals.clone()
     }
 
     /// LCV-184 AC 2 — no shadows, one 1 pt border, 3 pt widgets, 4 pt
@@ -223,8 +240,8 @@ mod tests {
         assert_eq!(v.window_shadow, egui::epaint::Shadow::NONE);
         assert_eq!(v.popup_shadow, egui::epaint::Shadow::NONE);
         assert_eq!(v.window_stroke, egui::Stroke::new(1.0_f32, BORDER));
-        assert_eq!(v.window_rounding, egui::Rounding::same(4.0));
-        assert_eq!(v.menu_rounding, egui::Rounding::same(4.0));
+        assert_eq!(v.window_corner_radius, egui::CornerRadius::same(4));
+        assert_eq!(v.menu_corner_radius, egui::CornerRadius::same(4));
         let w = &v.widgets;
         for state in [
             &w.noninteractive,
@@ -233,7 +250,7 @@ mod tests {
             &w.active,
             &w.open,
         ] {
-            assert_eq!(state.rounding, egui::Rounding::same(3.0));
+            assert_eq!(state.corner_radius, egui::CornerRadius::same(3));
             assert_eq!(state.fg_stroke.color, TEXT_PRIMARY);
         }
         assert_eq!(

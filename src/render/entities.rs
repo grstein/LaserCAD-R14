@@ -198,7 +198,8 @@ mod tests {
     #[test]
     fn draw_entities_does_not_panic_on_degenerate_inputs() {
         let ctx = egui::Context::default();
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             let painter = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Background,
                 egui::Id::new("test_entities"),

@@ -60,7 +60,7 @@ fn collect(order: usize, shape: &egui::Shape, out: &mut Painted) {
 
 /// Drive one frame with `events` and return what it painted.
 pub(crate) fn paint_frame(ctx: &egui::Context, app: &mut App, events: Vec<egui::Event>) -> Painted {
-    let out = ctx.run(raw_input(events), |c| app.update_ui(c));
+    let out = ctx.run_ui(raw_input(events), |ui| app.update_ui(ui));
     let mut painted = Painted {
         texts: Vec::new(),
         marks: Vec::new(),

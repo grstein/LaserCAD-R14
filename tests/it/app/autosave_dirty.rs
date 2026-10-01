@@ -49,9 +49,10 @@ fn boot_with_line_tool() -> (egui::Context, App, egui::Rect) {
     let mut app = App::default();
     app.tool_manager.set_tool(Box::new(LineTool::default()));
     let mut viewport = egui::Rect::NOTHING;
-    let _ = ctx.run(harness::raw_input(vec![]), |c| {
-        app.update_ui(c);
-        viewport = c.available_rect();
+    let _ = ctx.run_ui(harness::raw_input(vec![]), |ui| {
+        let c = &ui.ctx().clone();
+        app.update_ui(ui);
+        viewport = crate::harness::canvas_rect(c);
     });
     (ctx, app, viewport)
 }

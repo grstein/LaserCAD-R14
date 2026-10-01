@@ -11,6 +11,7 @@ use super::path::path_entities;
 use super::to_world;
 use crate::document::entity::Entity;
 use crate::geometry::{Circle, Line, Vec2};
+use crate::io::svg::layers::attr as plain_attr;
 use crate::io::svg::length::{parse_length, to_user};
 use crate::io::svg::path_data::{PathData, Segment};
 use crate::io::svg::viewport::Ctx;
@@ -43,7 +44,7 @@ enum Attr {
 /// Attribute `name` of `n` as a length in user units, `%` resolved against
 /// `ctx.viewport` along `axis` (LCV-173 AC 10).
 fn attr(n: roxmltree::Node<'_, '_>, name: &str, axis: Axis, ctx: &Ctx) -> Attr {
-    let Some(raw) = n.attribute(name) else {
+    let Some(raw) = plain_attr(n, name) else {
         return Attr::Missing;
     };
     let Some(len) = parse_length(raw) else {
@@ -81,7 +82,7 @@ impl Attr {
 /// A radius attribute: [`attr`], with `auto` (ASCII case-insensitive) read
 /// as [`Attr::Missing`] (SVG 2 §10.4, §10.6).
 fn radius(n: roxmltree::Node<'_, '_>, name: &str, axis: Axis, ctx: &Ctx) -> Attr {
-    match n.attribute(name) {
+    match plain_attr(n, name) {
         Some(raw) if raw.trim().eq_ignore_ascii_case("auto") => Attr::Missing,
         _ => attr(n, name, axis, ctx),
     }

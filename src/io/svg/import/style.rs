@@ -20,6 +20,7 @@ use crate::document::LayerId;
 use crate::io::svg::css::{Decl, Rule, Sheet, declarations, parse_sheet};
 use crate::io::svg::css_color::parse_css_color;
 use crate::io::svg::layers::Slot;
+use crate::io::svg::layers::attr as plain_attr;
 
 /// The report label of an element `display:none` hides, subtree included
 /// (AC 7).
@@ -168,7 +169,7 @@ pub(super) fn declared(node: roxmltree::Node<'_, '_>, sheet: &Sheet, prop: &str)
 /// docs); `rules` are the matching rules, lowest precedence first.
 fn candidates<'a>(node: roxmltree::Node<'a, '_>, rules: &[&'a Rule], prop: &str) -> Vec<&'a str> {
     let named = |d: &Decl<'_>| d.name.eq_ignore_ascii_case(prop);
-    let styled: Vec<_> = (node.attribute("style").into_iter())
+    let styled: Vec<_> = (plain_attr(node, "style").into_iter())
         .flat_map(declarations)
         .filter(named)
         .collect();
@@ -182,7 +183,7 @@ fn candidates<'a>(node: roxmltree::Node<'a, '_>, rules: &[&'a Rule], prop: &str)
         out.extend(styled.iter().rev().filter(tier).map(|d| d.value));
         out.extend(ruled.iter().rev().filter(tier).map(|d| d.value));
     }
-    out.extend(node.attribute(prop));
+    out.extend(plain_attr(node, prop));
     out
 }
 
@@ -253,7 +254,7 @@ mod tests {
         let sheet = collect_sheet(doc.root_element(), &mut report);
         let target = doc
             .descendants()
-            .find(|n| n.attribute("id") == Some("t"))
+            .find(|n| plain_attr(*n, "id") == Some("t"))
             .unwrap();
         let chain: Vec<_> = target.ancestors().filter(|n| n.is_element()).collect();
         let mut style = Style::root();

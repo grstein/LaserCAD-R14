@@ -27,7 +27,7 @@ fn boot() -> (egui::Context, App) {
 /// Every text shape of one frame, `Shape::Vec` flattened.
 fn text_shapes(ctx: &egui::Context, app: &mut App) -> Vec<egui::epaint::TextShape> {
     frame(ctx, app, vec![]);
-    let out = ctx.run(raw_input(Vec::new()), |c| app.update_ui(c));
+    let out = ctx.run_ui(raw_input(Vec::new()), |ui| app.update_ui(ui));
     let mut stack: Vec<egui::Shape> = out.shapes.into_iter().map(|c| c.shape).collect();
     let mut found = Vec::new();
     while let Some(shape) = stack.pop() {

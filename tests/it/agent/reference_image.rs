@@ -39,8 +39,8 @@ fn ctx_and_app() -> (egui::Context, App) {
 /// One frame drawing only the agent panel — never `update_ui`, whose
 /// frame wiring would answer a press by opening the native picker.
 fn panel_frame(ctx: &egui::Context, app: &mut App, events: Vec<egui::Event>) -> Vec<Run> {
-    let out = ctx.run(raw_input_at(SCREEN, events), |c| {
-        egui::SidePanel::right("agent_panel").show(c, |ui| draw_agent_panel(ui, app));
+    let out = ctx.run_ui(raw_input_at(SCREEN, events), |ui| {
+        egui::Panel::right("agent_panel").show(ui, |ui| draw_agent_panel(ui, app));
     });
     runs_in(&out.shapes)
 }
@@ -71,7 +71,7 @@ fn click(ctx: &egui::Context, app: &mut App, pos: egui::Pos2) {
 /// Run `update_ui` frames until the turn ends.
 fn run_until_idle(ctx: &egui::Context, app: &mut App) {
     for _ in 0..400 {
-        let _ = ctx.run(raw_input_at(SCREEN, Vec::new()), |c| app.update_ui(c));
+        let _ = ctx.run_ui(raw_input_at(SCREEN, Vec::new()), |ui| app.update_ui(ui));
         if !app.agent.busy {
             return;
         }
@@ -171,6 +171,8 @@ fn ac3_the_button_is_disabled_with_its_tooltip_while_vision_is_off() {
     let runs = panel_frame(&ctx, &mut app, Vec::new());
     let pos = centre(find(&runs, "Attach image…"));
     panel_frame(&ctx, &mut app, vec![egui::Event::PointerMoved(pos)]);
+    // egui 0.36 sizes a new tooltip invisibly on its first frame: rest twice.
+    panel_frame(&ctx, &mut app, Vec::new());
     let hover = panel_frame(&ctx, &mut app, Vec::new());
     assert!(
         hover

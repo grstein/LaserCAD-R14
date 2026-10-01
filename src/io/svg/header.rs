@@ -12,6 +12,7 @@ use super::import::SvgImportError;
 use super::length::{PX_PER_MM, parse_length};
 use super::matrix::Matrix;
 use super::viewport::{Ctx, par, parse_view_box, view_box_map};
+use crate::io::svg::layers::attr as plain_attr;
 use crate::util::{BED_MAX_MM, BED_MIN_MM, DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
 
 /// What the root `<svg>` declares.
@@ -39,14 +40,14 @@ pub(super) struct Root {
 pub(super) fn parse_root(root: roxmltree::Node<'_, '_>) -> Result<Root, SvgImportError> {
     let width = side(root, "width")?;
     let height = side(root, "height")?;
-    let view_box = match root.attribute("viewBox") {
+    let view_box = match plain_attr(root, "viewBox") {
         Some(raw) => Some(parse_view_box(raw).ok_or_else(|| bad("viewBox", raw))?),
         None => None,
     };
     let bed_mm = match (width, height, view_box) {
         (Some((w, wa)), Some((h, ha)), _) => [checked(w, "width", wa)?, checked(h, "height", ha)?],
         (_, _, Some(vb)) => {
-            let raw = root.attribute("viewBox").unwrap_or_default();
+            let raw = plain_attr(root, "viewBox").unwrap_or_default();
             [
                 checked(vb[2] / PX_PER_MM, "viewBox", raw)?,
                 checked(vb[3] / PX_PER_MM, "viewBox", raw)?,
@@ -59,7 +60,7 @@ pub(super) fn parse_root(root: roxmltree::Node<'_, '_>) -> Result<Root, SvgImpor
             ctm: view_box_map(
                 vb,
                 [0.0, 0.0, bed_mm[0], bed_mm[1]],
-                par(root.attribute("preserveAspectRatio")),
+                par(plain_attr(root, "preserveAspectRatio")),
             ),
             viewport: [vb[2], vb[3]],
         },
@@ -77,7 +78,7 @@ fn side<'a>(
     root: roxmltree::Node<'a, '_>,
     attr: &'static str,
 ) -> Result<Option<(f64, &'a str)>, SvgImportError> {
-    let Some(raw) = root.attribute(attr) else {
+    let Some(raw) = plain_attr(root, attr) else {
         return Ok(None);
     };
     let len = parse_length(raw).ok_or_else(|| bad(attr, raw))?;

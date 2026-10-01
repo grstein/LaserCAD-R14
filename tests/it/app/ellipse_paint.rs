@@ -20,7 +20,7 @@ const FULL_RGB: [u8; 3] = [10, 200, 30];
 const ARC_RGB: [u8; 3] = [200, 30, 10];
 /// `src/render/selection.rs::halo_stroke`.
 fn halo() -> Color32 {
-    Color32::from_rgba_unmultiplied(64, 160, 255, 180)
+    Color32::from_rgba_premultiplied(53, 136, 219, 180)
 }
 /// `src/render/palette.rs::HOVER_WIDTH_PT`.
 const HOVER_WIDTH: f32 = 2.5;
@@ -42,11 +42,7 @@ impl Scene {
         let ctx = egui::Context::default();
         let mut app = App::default();
         app.tool_manager.set_tool(Box::new(SelectTool::default()));
-        let mut free = egui::Rect::NOTHING;
-        let _ = ctx.run(harness::raw_input(vec![]), |c| {
-            app.update_ui(c);
-            free = c.available_rect();
-        });
+        let free = harness::settle(&ctx, &mut app);
         app.camera.mm_per_px = mm_per_px;
         let p = free.center();
         frame(&ctx, &mut app, vec![egui::Event::PointerMoved(p)]);
@@ -94,7 +90,7 @@ impl Scene {
     fn segments(&mut self, events: Vec<egui::Event>) -> Vec<Seg> {
         let out = self
             .ctx
-            .run(harness::raw_input(events), |c| self.app.update_ui(c));
+            .run_ui(harness::raw_input(events), |ui| self.app.update_ui(ui));
         let mut found = Vec::new();
         for clipped in &out.shapes {
             walk(&clipped.shape, &mut found);
@@ -141,9 +137,7 @@ fn walk(shape: &Shape, out: &mut Vec<Seg>) {
     match shape {
         Shape::Vec(shapes) => shapes.iter().for_each(|s| walk(s, out)),
         Shape::LineSegment { points, stroke } => {
-            if let ColorMode::Solid(c) = stroke.color {
-                out.push((points[0], points[1], c, stroke.width));
-            }
+            out.push((points[0], points[1], stroke.color, stroke.width));
         }
         // LCV-164: a curve is stroked as one path; split it into its chords.
         Shape::Path(path) => {

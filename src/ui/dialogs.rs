@@ -19,6 +19,16 @@ use egui::{Align2, Context, Window};
 // Public types
 // ---------------------------------------------------------------------------
 
+/// A window's title bar and frame, in points. egui 0.36 counts a window's
+/// default size as its outer size, this chrome included; egui 0.29 counted
+/// the body only. Adding it back keeps every 0.29 body height (LCV-180).
+pub(crate) const WINDOW_CHROME: f32 = 54.0;
+
+/// Default outer height of a dialog whose body scrolls under the ADR 0009 cap:
+/// egui's 420 pt plus [`WINDOW_CHROME`], the 426 pt body clip egui 0.29 gave
+/// from its 420 pt inner default (LCV-180).
+pub const DIALOG_HEIGHT: f32 = 420.0 + WINDOW_CHROME;
+
 /// The definitive answer of a two-way dialog (Bed Size: `OK` / `Cancel`).
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum DialogResult {
@@ -115,7 +125,8 @@ mod tests {
     fn error_dialog_returns_false_without_click() {
         let ctx = egui::Context::default();
         let mut captured = false;
-        let _out = ctx.run(egui::RawInput::default(), |ctx| {
+        let _out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             captured = error_dialog(ctx, "E", "Msg", None);
         });
         assert!(!captured);
@@ -126,7 +137,8 @@ mod tests {
     fn about_dialog_leaves_open_true_without_close() {
         let ctx = egui::Context::default();
         let mut open = true;
-        let _out = ctx.run(egui::RawInput::default(), |ctx| {
+        let _out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             about_dialog(ctx, &mut open, None);
         });
         assert!(open);

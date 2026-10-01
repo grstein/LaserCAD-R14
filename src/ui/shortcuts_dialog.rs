@@ -190,18 +190,17 @@ pub fn shortcuts_dialog(ctx: &Context, open: &mut bool, key: Option<DialogKey>) 
     Window::new("Keyboard Shortcuts")
         .open(open)
         .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
-        .default_height(ctx.screen_rect().height() - 80.0)
+        .default_height(ctx.content_rect().height() - 80.0 + super::dialogs::WINDOW_CHROME)
         .resizable(false)
         .collapsible(false)
         .show(ctx, |ui| {
-            // The scroll viewport, plus the margin its clip extends past it,
-            // ends one Close row above the screen bottom: the `ScrollArea`
+            // The scroll viewport ends one Close row above the screen bottom
+            // (egui 0.36 no longer extends a clip past it): the `ScrollArea`
             // absorbs the row, and Close stays on screen at the ADR 0009
             // sizes (LCV-169 AC 4). The table keeps its own clip, apart from
             // the Close row's.
             let close_row = ui.spacing().interact_size.y + ui.spacing().item_spacing.y;
-            let reserve = close_row + ui.visuals().clip_rect_margin;
-            let room = ctx.screen_rect().bottom() - ui.cursor().top() - reserve;
+            let room = ctx.content_rect().bottom() - ui.cursor().top() - close_row;
             egui::ScrollArea::vertical()
                 .max_height(room)
                 .show(ui, |ui| {
@@ -221,7 +220,10 @@ pub fn shortcuts_dialog(ctx: &Context, open: &mut bool, key: Option<DialogKey>) 
 /// One `binding`/`description` row, drawn as a plain two-column line.
 fn shortcut_row(ui: &mut egui::Ui, binding: &str, description: &str) {
     ui.horizontal(|ui| {
-        ui.monospace(format!("{binding:<20}"));
+        // 19 = the longest binding, "Any other character": egui 0.36's
+        // monospace glyph is 0.225 pt wider than 0.29's, and one more pad
+        // column would push the dialog past an 800 pt screen (LCV-180).
+        ui.monospace(format!("{binding:<19}"));
         ui.label(description);
     });
 }
@@ -241,13 +243,15 @@ mod tests {
     fn shortcuts_dialog_leaves_open_true_without_close() {
         let ctx = egui::Context::default();
         let mut open = true;
-        let _out = ctx.run(egui::RawInput::default(), |ctx| {
+        let _out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             shortcuts_dialog(ctx, &mut open, None);
         });
         assert!(open);
 
         let mut closed = false;
-        let _out = ctx.run(egui::RawInput::default(), |ctx| {
+        let _out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             shortcuts_dialog(ctx, &mut closed, None);
         });
         assert!(!closed);

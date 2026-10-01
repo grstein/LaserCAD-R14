@@ -243,7 +243,7 @@ fn ac5_rows_wrap_and_the_scroll_sticks_to_bottom_source_scan() {
 fn the_row_colours_are_distinct_under_the_real_theme() {
     let ctx = egui::Context::default();
     crate::ui::apply_theme(&ctx);
-    let visuals = ctx.style().visuals.clone();
+    let visuals = ctx.global_style().visuals.clone();
     let prose = visuals.text_color();
     let warn = visuals.warn_fg_color;
     let error = visuals.error_fg_color;
@@ -339,8 +339,8 @@ fn row_size(role: &str, content: &str, width: f32) -> egui::Vec2 {
         )),
         ..Default::default()
     };
-    let _ = ctx.run(input, |ctx| {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    let _ = ctx.run_ui(input, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             // A scope, because a panel's own `min_rect` is the whole panel:
             // the child's is the space the row actually asked for.
             size = ui

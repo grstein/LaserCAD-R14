@@ -28,11 +28,7 @@ impl Scene {
         let ctx = egui::Context::default();
         let mut app = App::default();
         app.tool_manager.set_tool(tool);
-        let mut free = egui::Rect::NOTHING;
-        let _ = ctx.run(harness::raw_input(vec![]), |c| {
-            app.update_ui(c);
-            free = c.available_rect();
-        });
+        let free = harness::settle(&ctx, &mut app);
         let p = free.center();
         frame(&ctx, &mut app, vec![egui::Event::PointerMoved(p)]);
         let w0 = app

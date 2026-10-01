@@ -139,7 +139,7 @@ fn close_request_on_a_dirty_document_is_cancelled() {
     let mut app = App::default();
     with_lines(&mut app, 1);
 
-    let out = ctx.run(close_request_input(), |ctx| app.update_ui(ctx));
+    let out = ctx.run_ui(close_request_input(), |ui| app.update_ui(ui));
 
     assert!(
         out.viewport_output[&egui::ViewportId::ROOT]
@@ -158,7 +158,7 @@ fn close_request_on_a_clean_document_is_not_cancelled() {
     let ctx = egui::Context::default();
     let mut app = App::default();
 
-    let out = ctx.run(close_request_input(), |ctx| app.update_ui(ctx));
+    let out = ctx.run_ui(close_request_input(), |ui| app.update_ui(ui));
 
     assert!(
         !out.viewport_output[&egui::ViewportId::ROOT]

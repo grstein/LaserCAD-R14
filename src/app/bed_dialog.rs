@@ -205,7 +205,8 @@ mod tests {
     fn draw_is_a_no_op_while_closed() {
         let ctx = egui::Context::default();
         let mut app = App::default();
-        let _ = ctx.run(Default::default(), |ctx| {
+        let _ = ctx.run_ui(Default::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             draw_bed_dialog(ctx, &mut app, None)
         });
         assert_eq!(app.bed_dialog, None);
@@ -219,7 +220,8 @@ mod tests {
         let ctx = egui::Context::default();
         let mut app = app_with_draft([128.0, 128.0]);
         for _ in 0..2 {
-            let _ = ctx.run(Default::default(), |ctx| {
+            let _ = ctx.run_ui(Default::default(), |ui| {
+                let ctx = &ui.ctx().clone();
                 draw_bed_dialog(ctx, &mut app, None)
             });
         }

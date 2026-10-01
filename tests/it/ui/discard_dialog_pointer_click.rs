@@ -143,9 +143,10 @@ fn close_request_input() -> egui::RawInput {
 /// share.
 fn boot(ctx: &egui::Context, app: &mut App) -> egui::Rect {
     let mut viewport = egui::Rect::NOTHING;
-    let _ = ctx.run(raw_input(vec![]), |c| {
-        app.update_ui(c);
-        viewport = c.available_rect();
+    let _ = ctx.run_ui(raw_input(vec![]), |ui| {
+        let c = &ui.ctx().clone();
+        app.update_ui(ui);
+        viewport = crate::harness::canvas_rect(c);
     });
     viewport
 }
@@ -184,10 +185,10 @@ fn locate(runs: &[Run], label: &str) -> egui::Pos2 {
 /// (ADR 0002 §A4 rule 3 / AC 1). Hands back the click frame's `FullOutput` so
 /// a caller can inspect e.g. `ViewportCommand::Close`.
 fn click_button(ctx: &egui::Context, app: &mut App, pos: egui::Pos2) -> egui::FullOutput {
-    let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(pos)]), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(vec![egui::Event::PointerMoved(pos)]), |ui| {
+        app.update_ui(ui)
     });
-    ctx.run(raw_input(click_events(pos)), |c| app.update_ui(c))
+    ctx.run_ui(raw_input(click_events(pos)), |ui| app.update_ui(ui))
 }
 
 /// Open the File menu through a real click on its "File" label in the
@@ -279,8 +280,8 @@ fn the_prompt_offers_save_discard_cancel_left_to_right() {
     ctx.set_pixels_per_point(1.0);
     boot(&ctx, &mut app);
     with_lines(&mut app, 1);
-    let _ = ctx.run(raw_input(key_events(egui::Key::N, ctrl())), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(key_events(egui::Key::N, ctrl())), |ui| {
+        app.update_ui(ui)
     });
     let runs = settle(&ctx, &mut app);
     let [save, discard, cancel] = ["Save", "Discard", "Cancel"].map(|l| locate(&runs, l));
@@ -306,8 +307,8 @@ fn discard_confirms_new_exactly_once_and_is_not_replayed() {
     with_lines(&mut app, 2);
     app.current_file = Some(PathBuf::from("before.svg"));
 
-    let _ = ctx.run(raw_input(key_events(egui::Key::N, ctrl())), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(key_events(egui::Key::N, ctrl())), |ui| {
+        app.update_ui(ui)
     });
     assert_eq!(app.guard.pending_action, Some(PendingAction::New));
 
@@ -392,7 +393,7 @@ fn discard_confirms_exit_exactly_once_and_does_not_reopen() {
     boot(&ctx, &mut app);
     with_lines(&mut app, 1);
 
-    let out = ctx.run(close_request_input(), |c| app.update_ui(c));
+    let out = ctx.run_ui(close_request_input(), |ui| app.update_ui(ui));
     assert!(
         out.viewport_output[&egui::ViewportId::ROOT]
             .commands
@@ -423,7 +424,7 @@ fn discard_confirms_exit_exactly_once_and_does_not_reopen() {
     // save) document unsaved, re-park `PendingAction::Exit` and emit
     // `CancelClose`, cancelling the close the operator just confirmed and
     // reopening the dialog.
-    let out = ctx.run(close_request_input(), |c| app.update_ui(c));
+    let out = ctx.run_ui(close_request_input(), |ui| app.update_ui(ui));
     assert!(
         !out.viewport_output[&egui::ViewportId::ROOT]
             .commands
@@ -448,7 +449,7 @@ fn discard_confirms_exit_exactly_once_and_does_not_reopen() {
     // has cleared it: `poll_close_request` would fall through to
     // `request_exit` again, find the document still dirty, re-park
     // `PendingAction::Exit` and cancel this close too.
-    let out = ctx.run(close_request_input(), |c| app.update_ui(c));
+    let out = ctx.run_ui(close_request_input(), |ui| app.update_ui(ui));
     assert!(
         !out.viewport_output[&egui::ViewportId::ROOT]
             .commands
@@ -543,11 +544,11 @@ fn cancel_preserves_state_for_new() {
     with_lines(&mut app, 2);
     app.document.selection.add(0);
     app.current_file = Some(PathBuf::from("keep.svg"));
-    let _ = ctx.run(raw_input(vec![]), |c| app.update_ui(c)); // let sync_dirty settle
+    let _ = ctx.run_ui(raw_input(vec![]), |ui| app.update_ui(ui)); // let sync_dirty settle
     let before = snapshot(&app);
 
-    let _ = ctx.run(raw_input(key_events(egui::Key::N, ctrl())), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(key_events(egui::Key::N, ctrl())), |ui| {
+        app.update_ui(ui)
     });
     assert_eq!(app.guard.pending_action, Some(PendingAction::New));
 
@@ -570,7 +571,7 @@ fn cancel_preserves_state_for_open_path() {
     with_lines(&mut app, 2);
     app.document.selection.add(1);
     app.current_file = Some(PathBuf::from("keep.svg"));
-    let _ = ctx.run(raw_input(vec![]), |c| app.update_ui(c));
+    let _ = ctx.run_ui(raw_input(vec![]), |ui| app.update_ui(ui));
     let before = snapshot(&app);
 
     let dir = tempdir("open_path_cancel");
@@ -602,10 +603,10 @@ fn cancel_preserves_state_for_exit() {
     with_lines(&mut app, 2);
     app.document.selection.add(0);
     app.current_file = Some(PathBuf::from("keep.svg"));
-    let _ = ctx.run(raw_input(vec![]), |c| app.update_ui(c));
+    let _ = ctx.run_ui(raw_input(vec![]), |ui| app.update_ui(ui));
     let before = snapshot(&app);
 
-    let out = ctx.run(close_request_input(), |c| app.update_ui(c));
+    let out = ctx.run_ui(close_request_input(), |ui| app.update_ui(ui));
     assert!(
         out.viewport_output[&egui::ViewportId::ROOT]
             .commands
@@ -673,7 +674,7 @@ fn open_path_missing_file_confirmed_preserves_drawing_and_surfaces_error() {
     // The error modal's own Window is freshly created the frame
     // error_message first became Some, and is itself unsettled that frame
     // (trap 7): one more idle frame is what proves it, not a retry.
-    let _ = ctx.run(raw_input(vec![]), |c| app.update_ui(c));
+    let _ = ctx.run_ui(raw_input(vec![]), |ui| app.update_ui(ui));
     let runs = paint::painted_runs(&ctx, &mut app);
     assert!(
         runs.iter().any(|r| r.text.contains("Could not read")),
@@ -722,7 +723,7 @@ fn open_path_malformed_svg_confirmed_preserves_drawing_and_surfaces_error() {
     assert_eq!(app.current_file, Some(PathBuf::from("original.svg")));
     assert!(app.error_message.is_some());
 
-    let _ = ctx.run(raw_input(vec![]), |c| app.update_ui(c));
+    let _ = ctx.run_ui(raw_input(vec![]), |ui| app.update_ui(ui));
     let runs = paint::painted_runs(&ctx, &mut app);
     assert!(
         runs.iter().any(|r| r.text.contains("SVG import failed")),
@@ -753,13 +754,13 @@ fn pointer_input_behind_the_dialog_is_inert() {
         "control: Select is the default tool"
     );
 
-    let _ = ctx.run(raw_input(key_events(egui::Key::N, ctrl())), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(key_events(egui::Key::N, ctrl())), |ui| {
+        app.update_ui(ui)
     });
     assert_eq!(app.guard.pending_action, Some(PendingAction::New));
 
     settle(&ctx, &mut app);
-    let dialog_id = egui::Id::new("Discard unsaved changes?");
+    let dialog_id = crate::harness::window_id("Discard unsaved changes?");
     let dialog_rect = ctx
         .memory(|m| m.area_rect(dialog_id))
         .expect("the confirm dialog's Area must be placed by now");
@@ -829,8 +830,8 @@ fn a_second_click_after_discard_is_handled_does_not_double_dispatch() {
     boot(&ctx, &mut app);
 
     with_lines(&mut app, 2);
-    let _ = ctx.run(raw_input(key_events(egui::Key::N, ctrl())), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(key_events(egui::Key::N, ctrl())), |ui| {
+        app.update_ui(ui)
     });
     let runs = settle(&ctx, &mut app);
     let discard = locate(&runs, "Discard");
@@ -870,7 +871,7 @@ fn repeated_close_requests_do_not_replace_the_parked_action_or_consume_the_next_
     boot(&ctx, &mut app);
     with_lines(&mut app, 1);
 
-    let out1 = ctx.run(close_request_input(), |c| app.update_ui(c));
+    let out1 = ctx.run_ui(close_request_input(), |ui| app.update_ui(ui));
     assert!(
         out1.viewport_output[&egui::ViewportId::ROOT]
             .commands
@@ -878,7 +879,7 @@ fn repeated_close_requests_do_not_replace_the_parked_action_or_consume_the_next_
     );
     assert_eq!(app.guard.pending_action, Some(PendingAction::Exit));
 
-    let out2 = ctx.run(close_request_input(), |c| app.update_ui(c));
+    let out2 = ctx.run_ui(close_request_input(), |ui| app.update_ui(ui));
     assert!(
         out2.viewport_output[&egui::ViewportId::ROOT]
             .commands

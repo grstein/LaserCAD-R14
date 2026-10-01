@@ -14,6 +14,7 @@ use super::{SVG_NS, SvgImportError};
 use crate::document::LayerId;
 use crate::document::entity::Entity;
 use crate::io::svg::css::Sheet;
+use crate::io::svg::layers::attr as plain_attr;
 use crate::io::svg::layers::{LayerReader, Slot};
 use crate::io::svg::matrix::parse_transform;
 use crate::io::svg::path_data::parse_path_data;
@@ -235,7 +236,7 @@ impl<'a, 'input> Walk<'a, 'input> {
         let raw = match styled {
             Some(css) if css.eq_ignore_ascii_case("none") => return Some(*ctx),
             Some(css) => css,
-            None => match node.attribute("transform") {
+            None => match plain_attr(node, "transform") {
                 Some(attr) => attr,
                 None => return Some(*ctx),
             },
@@ -255,7 +256,7 @@ impl<'a, 'input> Walk<'a, 'input> {
     /// Import a `<path>`: every entity its `d` draws, every report label
     /// (LCV-172 AC 2, AC 7, AC 8).
     fn path(&mut self, node: roxmltree::Node<'_, '_>, slot: Slot, ctx: &Ctx) {
-        let Some(d) = node.attribute("d") else {
+        let Some(d) = plain_attr(node, "d") else {
             self.report.note(UNSUPPORTED_PATH);
             return;
         };

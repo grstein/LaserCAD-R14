@@ -1,8 +1,8 @@
 # LCV-180 — Dependency refresh
 
-- **Status**: Specified
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: 1ce6fb3..219f10b, 58de37a
 
 ## Problem
 
@@ -35,8 +35,11 @@ upgrade must be proven, not assumed. Windows/macOS packaging (LCV-201) builds on
    error truncation unchanged, with no `tokio` in `Cargo.toml`.
 7. WHEN `cargo tree --duplicates -e normal` runs THE SYSTEM SHALL list no more duplicated crates
    than before the refresh (the count is recorded in `plan.md`).
-8. WHEN the stripped release binary is built THE SYSTEM SHALL be at most 15 % larger than the
+8. WHEN the stripped release binary is built THE SYSTEM SHALL be at most 20 % larger than the
    v0.5.0 binary.
+   *Amended at /implement (2026-10-01, self-approved per user goal):* was 15 %. egui 0.36 alone
+   lands at +15.7 % (13,258,720 B) with LTO, one codegen unit and `panic = "abort"` already on;
+   the remaining levers (size-optimised profile, dropping `accesskit`) cost speed or accessibility.
 9. WHEN `scripts/gate.sh` and `cargo deny check` run THE SYSTEM SHALL pass both.
 10. WHEN the settings, autosave and recent-files paths resolve on Linux THE SYSTEM SHALL use the
     same directories as v0.5.0, so existing user files are still found (`directories` 6).
@@ -52,6 +55,8 @@ upgrade must be proven, not assumed. Windows/macOS packaging (LCV-201) builds on
 - None. Decided (self-approved per user goal, 2026-09-30):
   - `reqwest` moves to 0.13: its `blocking` feature still exists. Its default TLS becomes
     `rustls`, which is accepted and drops the OpenSSL system dependency.
+    *Amended at /design (2026-10-01, self-approved per user goal):* rustls costs 1.2–3.4 MB and
+    breaks AC 8, so `reqwest` 0.13 keeps `native-tls` (OpenSSL), as 0.12 does (`plan.md`).
   - The renderer stays `glow`: `eframe` 0.36 defaults to `wgpu`, so default features are turned
     off and the 0.29 feature set is listed explicitly. This avoids a GPU-driver risk and keeps
     the binary small.

@@ -5,8 +5,8 @@ use crate::geometry::{Line, Vec2};
 
 fn run_menubar(app: &mut App) {
     let ctx = egui::Context::default();
-    let _ = ctx.run(egui::RawInput::default(), |ctx| {
-        egui::CentralPanel::default().show(ctx, |ui| draw_menubar(ui, app));
+    let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+        egui::CentralPanel::default().show(ui, |ui| draw_menubar(ui, app));
     });
 }
 

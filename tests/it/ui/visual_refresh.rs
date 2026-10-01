@@ -45,7 +45,7 @@ fn paint_at(
     screen: [f32; 2],
     events: Vec<egui::Event>,
 ) -> Painted {
-    let out = ctx.run(raw_input_at(screen, events), |c| app.update_ui(c));
+    let out = ctx.run_ui(raw_input_at(screen, events), |ui| app.update_ui(ui));
     let runs = runs_in(&out.shapes);
     let mut shapes = Vec::new();
     let mut stack: Vec<egui::Shape> = out.shapes.into_iter().map(|c| c.shape).collect();
@@ -230,7 +230,7 @@ fn ac2_file_menu_frame_is_flat_with_one_border() {
         .expect("the menu frame must paint");
     assert!(frame.rect.width() < 400.0, "a menu, not a panel: {frame:?}");
     assert_eq!(frame.stroke, egui::Stroke::new(1.0_f32, BORDER));
-    assert_eq!(frame.rounding, egui::Rounding::same(4.0));
+    assert_eq!(frame.corner_radius, egui::CornerRadius::same(4));
     let blurred = rects(&open.shapes)
         .into_iter()
         .filter(|r| r.blur_width > 0.0)
@@ -368,7 +368,7 @@ fn ac4_a_click_on_each_pill_flips_only_its_flag() {
 fn panel_rect(ctx: &egui::Context, id: &str) -> egui::Rect {
     egui::containers::panel::PanelState::load(ctx, egui::Id::new(id))
         .unwrap_or_else(|| panic!("panel `{id}` must have stored its state"))
-        .rect
+        .outer_rect
 }
 
 /// The text shapes inside `area`, left to right.
@@ -394,7 +394,7 @@ fn vertical_rules(shapes: &[egui::Shape], area: egui::Rect) -> Vec<f32> {
                 if points[0].x == points[1].x
                     && area.contains(points[0])
                     && stroke.width == 1.0
-                    && matches!(stroke.color, egui::epaint::ColorMode::Solid(c) if c == BORDER) =>
+                    && stroke.color == BORDER =>
             {
                 Some(points[0].x)
             }
@@ -477,7 +477,10 @@ fn prompt_sections(
         .sections
         .iter()
         .zip(colours)
-        .map(|(s, c)| (text[s.byte_range.clone()].to_owned(), c))
+        .map(|(s, c)| {
+            use egui::epaint::text::ByteRangeExt as _;
+            (text[s.byte_range.as_usize()].to_owned(), c)
+        })
         .collect()
 }
 
@@ -608,7 +611,7 @@ fn stroked_in(shapes: &[egui::Shape], area: egui::Rect, colour: egui::Color32) -
     let solid = |c: &egui::epaint::ColorMode| matches!(c, egui::epaint::ColorMode::Solid(x) if *x == colour);
     shapes.iter().any(|s| match s {
         egui::Shape::LineSegment { points, stroke } => {
-            area.contains(points[0]) && solid(&stroke.color)
+            area.contains(points[0]) && stroke.color == colour
         }
         egui::Shape::Path(p) => {
             p.points.first().is_some_and(|q| area.contains(*q)) && solid(&p.stroke.color)
@@ -633,7 +636,7 @@ fn ac8_rail_buttons_use_the_theme_state_fills() {
 
     let active = filled_under(&painted.shapes, FILL_SELECTED, line);
     assert_eq!(active.len(), 1, "one selected fill under LINE: {active:?}");
-    assert_eq!(active[0].rounding, egui::Rounding::same(3.0));
+    assert_eq!(active[0].corner_radius, egui::CornerRadius::same(3));
     assert!(
         stroked_in(&painted.shapes, active[0].rect, ACCENT),
         "the active icon is drawn in accent"
@@ -641,7 +644,7 @@ fn ac8_rail_buttons_use_the_theme_state_fills() {
 
     let hovered = filled_under(&painted_hover.shapes, FILL_HOVER, circle);
     assert_eq!(hovered.len(), 1, "one hover fill under CIRCLE: {hovered:?}");
-    assert_eq!(hovered[0].rounding, egui::Rounding::same(3.0));
+    assert_eq!(hovered[0].corner_radius, egui::CornerRadius::same(3));
     assert_eq!(
         app.tool_manager.active_tool_name(),
         "LINE",
