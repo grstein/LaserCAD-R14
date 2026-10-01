@@ -56,6 +56,16 @@ impl Document {
         self.entity_ids.iter().position(|&e| e == id)
     }
 
+    /// This document with its ids renumbered after every id `prev` handed
+    /// out, so an id of the replaced document never names one of these
+    /// entities (File > New and Open, ADR 0014 §5).
+    pub fn ids_after(mut self, prev: &Document) -> Document {
+        let first = prev.next_id;
+        self.entity_ids = (first..).take(self.entities.len()).map(EntityId).collect();
+        self.next_id = first + self.entities.len() as u64;
+        self
+    }
+
     /// Debug-check that `id` was handed out before and is not live, so
     /// putting it back cannot duplicate an id.
     pub(super) fn debug_restorable(&self, id: EntityId) {

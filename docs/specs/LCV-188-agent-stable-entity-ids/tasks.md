@@ -20,7 +20,7 @@
   any creating command brought in by the rebase (files: src/document/commands/edit.rs, src/document/commands/transform.rs)
 - [x] T8 [AC2] Test: File > New and `action_open_path` after deletes continue the counter (no id of
   the old document is reused) (files: tests/it/app/entity_ids.rs, tests/it/app/mod.rs)
-- [ ] T9 [AC2] `Document::ids_after`; call it at the three `app.document = …` sites (files: src/document/state/ids.rs, src/io/file_actions.rs)
+- [x] T9 [AC2] `Document::ids_after`; call it at the three `app.document = …` sites (files: src/document/state/ids.rs, src/io/file_actions.rs)
 - [ ] T10 [AC7] Test: two documents with the same geometry and different ids (one built by
   create/delete/undo) export byte-identical mother SVG, per-layer SVG and autosave envelope; no
   `id`/`e<N>` in the output (files: tests/it/io_svg/entity_ids.rs, tests/it/io_svg/mod.rs)
