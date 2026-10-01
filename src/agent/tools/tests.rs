@@ -60,7 +60,7 @@
         assert_eq!(props["layer"]["type"], "string");
         let about = props["layer"]["description"].as_str().unwrap();
         assert!(about.contains("existing layer") && !about.contains("Optional"), "{about}");
-        assert_eq!(props.as_object().unwrap().len(), 2);
+        assert_eq!(props.as_object().unwrap().len(), 4);
         let text = d[9]["function"]["description"].as_str().unwrap();
         assert!(text.contains("existing layer"), "{text}");
     }
@@ -77,8 +77,8 @@
         assert_eq!(req(&d,6), json!(["x","y","degrees"]));
         assert_eq!(req(&d,7), json!(["x1","y1","x2","y2","erase_source"]));
         assert_eq!(req(&d,8), json!(["x","y","factor"]));
-        // LCV-191: `set_layer` has no `index` form; both fields are required.
-        assert_eq!(req(&d,9), json!(["indices","layer"]));
+        // LCV-191: `set_layer` has no `index` form; LCV-188: `indices` or `ids`.
+        assert_eq!(req(&d,9), json!(["layer"]));
     }
     /// AC 13 — both queries, and `check_drawing` (LCV-190 AC 9), declare an
     /// **empty** object, not a missing one: `properties` is `{}` and
@@ -378,6 +378,8 @@
         for (f, form) in [("r", "a positive number in mm"), ("factor", "a positive number"),
             ("index", "a non-negative integer (an index from query_entities)"),
             ("indices", "a list of 1 to 1000 distinct entity indices"),
+            ("id", r#"an entity id such as "e7" (from query_entities)"#),
+            ("ids", r#"a list of 1 to 1000 distinct entity ids such as "e7""#),
             ("layer", "the name of an existing layer, 1 to 64 characters"),
             ("frame", r#""view", "drawing" or "region""#), ("version", "the integer 1"),
             ("entities", "a list of 1 to 1000 entity objects"),
@@ -556,4 +558,24 @@
         }
         let text = err("set_layer", json!({"layer":"Mark"})).to_string();
         assert_eq!(text, format!("set_layer indices: missing; expected {}", expected_form("indices")));
+    }
+
+    /// AC 4 — the seven index tools advertise `id` (a string) and `ids` (a
+    /// list of 1..=1000 strings), neither required.
+    #[test]
+    fn the_index_tools_advertise_id_and_ids() {
+        let d = tool_definitions(false);
+        for i in 3..=9 {
+            let params = &d[i]["function"]["parameters"];
+            let props = &params["properties"];
+            assert_eq!(props["id"]["type"], "string", "schema {i}");
+            assert!(props["id"]["description"].as_str().unwrap().contains("\"e7\""), "schema {i}");
+            assert_eq!(props["ids"],
+                json!({"type":"array","items":{"type":"string"},"minItems":1,"maxItems":1000}));
+            let required = params["required"].as_array().unwrap();
+            assert!(!required.contains(&json!("id")) && !required.contains(&json!("ids")));
+        }
+        for i in [0, 1, 2, 10, 11, 12, 13] {
+            assert!(d[i]["function"]["parameters"]["properties"]["ids"].is_null(), "schema {i}");
+        }
     }

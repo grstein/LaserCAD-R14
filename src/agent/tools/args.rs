@@ -69,6 +69,8 @@ pub(crate) fn expected_form(field: &str) -> &'static str {
         "factor" => "a positive number",
         "index" => "a non-negative integer (an index from query_entities)",
         "indices" => "a list of 1 to 1000 distinct entity indices",
+        "id" => r#"an entity id such as "e7" (from query_entities)"#,
+        "ids" => r#"a list of 1 to 1000 distinct entity ids such as "e7""#,
         "layer" => "the name of an existing layer, 1 to 64 characters",
         "frame" => r#""view", "drawing" or "region""#,
         "version" => "the integer 1",

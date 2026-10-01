@@ -31,7 +31,7 @@
   `index|indices|id|ids` (files: src/agent/tools/tests.rs)
 - [x] T13 [AC4] `AgentAction::ById` + `tool_name` arm; `id`/`ids` parse; routing in
   `parse_tool_call` (files: src/agent/bridge/action.rs, src/agent/tools/transform.rs, src/agent/tools.rs)
-- [ ] T14 [AC4] Schema `id`/`ids` on the 7 tools; `expected_form` rows (files: src/agent/tools/schema.rs, src/agent/tools/args.rs)
+- [x] T14 [AC4] Schema `id`/`ids` on the 7 tools; `expected_form` rows (files: src/agent/tools/schema.rs, src/agent/tools/args.rs)
 - [ ] T15 [AC4, AC5] Test (apply): for each op (delete, move, copy, rotate, mirror ±erase, scale,
   set_layer), `ids` gives the same document and outcome as the matching `indices`; the ids stay
   valid after an earlier delete in the same turn; an unknown id is refused and the revision does not
