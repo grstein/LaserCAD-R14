@@ -71,5 +71,5 @@
   arm (files: src/app/agent_narrate.rs, src/agent/prompt.rs, src/render/raster.rs)
 - [x] T25 Docs: `AGENTS.md` export bullet plus ADR 0016 in the list, coverage rows (files:
   AGENTS.md, docs/research/svg-spec-coverage.md)
-- [ ] T26 CHANGELOG: curved SVG artwork (`C S Q T`) opens, edits, snaps and exports natively
+- [x] T26 CHANGELOG: curved SVG artwork (`C S Q T`) opens, edits, snaps and exports natively
   (files: CHANGELOG.md)
