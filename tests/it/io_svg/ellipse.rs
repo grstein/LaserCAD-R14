@@ -60,6 +60,48 @@ fn full_ellipse_exports_with_rotate_only_when_turned() {
     assert_eq!(exported(full(-3.0 * FRAC_PI_2)), turned("-90.000000"));
 }
 
+/// AC 9 — the boundary: 5e-7° prints as `0.000000`, so it writes no
+/// transform; an arc writes that φ as `0.000000`.
+#[test]
+fn a_rotation_printing_as_zero_at_the_boundary_is_no_turn() {
+    let edge = -(5e-7f64).to_radians();
+    assert_eq!(format!("{:.6}", (-edge).to_degrees()), "0.000000");
+    assert_eq!(
+        exported(full(edge)),
+        r#"<ellipse cx="100.0000" cy="150.0000" rx="40.0000" ry="20.0000"/>"#
+    );
+    let span = Some(EllipseSpan::new(0.0, FRAC_PI_2, true));
+    let arc = Ellipse {
+        span,
+        ..full(-edge)
+    };
+    assert!(
+        exported(arc).contains(" 0.000000 0 0 "),
+        "{}",
+        exported(arc)
+    );
+}
+
+/// AC 10 — an exact parametric half turn is not large: `large = 1` only
+/// past π.
+#[test]
+fn an_elliptical_half_turn_is_not_large() {
+    let half = |ccw: bool| Ellipse {
+        span: Some(EllipseSpan::new(0.0, if ccw { PI } else { -PI }, ccw)),
+        ..full(0.0)
+    };
+    assert!(
+        exported(half(true)).contains(" 0.000000 0 0 "),
+        "{}",
+        exported(half(true))
+    );
+    assert!(
+        exported(half(false)).contains(" 0.000000 0 1 "),
+        "{}",
+        exported(half(false))
+    );
+}
+
 /// AC 10 — every `large`/`sweep` pair: `sweep = 0` for a CCW world span,
 /// `large = 1` iff the parametric sweep exceeds π; φ = −rotation.
 #[test]
