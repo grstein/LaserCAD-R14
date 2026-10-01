@@ -13,7 +13,8 @@ use crate::agent::loop_::{Dispatch, IMAGE_ELIDED};
 use crate::agent::memory::whole_batches;
 use crate::agent::wire::replace_images;
 use crate::agent::{
-    AgentAction, AgentError, AgentEvent, AgentOutcome, AssistantMessage, ChatMessage, agent_loop,
+    AgentAction, AgentError, AgentEvent, AgentOutcome, AssistantMessage, ChatMessage,
+    ToolCallError, agent_loop,
 };
 use std::sync::mpsc::{Sender, channel};
 
@@ -162,10 +163,23 @@ fn to_action(name: &str, args: &str) -> AgentAction {
         tool: name.to_owned(),
         reason,
     };
+    // LCV-192 AC 3: the whole argument string is the path `(root)`.
+    let root = |reason: String, expected: String| {
+        malformed(
+            ToolCallError::Arg {
+                tool: name.to_owned(),
+                path: "(root)".to_owned(),
+                reason,
+                expected,
+            }
+            .to_string(),
+        )
+    };
     if args.len() > MAX_TOOL_ARGUMENT_BYTES {
-        return malformed(format!(
-            "tool `{name}` arguments exceed {MAX_TOOL_ARGUMENT_BYTES} bytes"
-        ));
+        return root(
+            format!("arguments exceed {MAX_TOOL_ARGUMENT_BYTES} bytes"),
+            format!("at most {MAX_TOOL_ARGUMENT_BYTES} bytes"),
+        );
     }
     // The argument-free queries are routinely called with `""` rather than
     // `"{}"`, which is not JSON; both mean the same empty object here.
@@ -174,7 +188,9 @@ fn to_action(name: &str, args: &str) -> AgentAction {
     } else {
         match serde_json::from_str::<serde_json::Value>(args) {
             Ok(value) => value,
-            Err(e) => return malformed(format!("tool `{name}` arguments are not valid JSON: {e}")),
+            Err(e) => {
+                return root(format!("not valid JSON ({e})"), "a JSON object".to_owned());
+            }
         }
     };
     crate::agent::parse_tool_call(name, &value).unwrap_or_else(|e| malformed(e.to_string()))
