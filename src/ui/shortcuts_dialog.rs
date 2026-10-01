@@ -181,7 +181,10 @@ fn render_column(ui: &mut egui::Ui, sections: &[Section]) {
 ///
 /// Read-only: no widget changes application state, and it reads no key. `F1`
 /// is dispatched in `src/ui/shortcuts.rs` like `F3` / `F7` / `F8`, not here.
+/// The `Close` row below the `ScrollArea` (LCV-169 AC 4) clears `open`, the
+/// same flag egui's × clears, and nothing else.
 pub fn shortcuts_dialog(ctx: &Context, open: &mut bool) {
+    let mut close = false;
     Window::new("Keyboard Shortcuts")
         .open(open)
         .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
@@ -189,14 +192,28 @@ pub fn shortcuts_dialog(ctx: &Context, open: &mut bool) {
         .resizable(false)
         .collapsible(false)
         .show(ctx, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                let (left, right) = split_into_columns(sections());
-                ui.columns(2, |columns| {
-                    render_column(&mut columns[0], &left);
-                    render_column(&mut columns[1], &right);
+            // The scroll viewport, plus the margin its clip extends past it,
+            // ends one Close row above the screen bottom: the `ScrollArea`
+            // absorbs the row, and Close stays on screen at the ADR 0009
+            // sizes (LCV-169 AC 4). The table keeps its own clip, apart from
+            // the Close row's.
+            let close_row = ui.spacing().interact_size.y + ui.spacing().item_spacing.y;
+            let reserve = close_row + ui.visuals().clip_rect_margin;
+            let room = ctx.screen_rect().bottom() - ui.cursor().top() - reserve;
+            egui::ScrollArea::vertical()
+                .max_height(room)
+                .show(ui, |ui| {
+                    let (left, right) = split_into_columns(sections());
+                    ui.columns(2, |columns| {
+                        render_column(&mut columns[0], &left);
+                        render_column(&mut columns[1], &right);
+                    });
                 });
-            });
+            close = ui.button("Close").clicked();
         });
+    if close {
+        *open = false;
+    }
 }
 
 /// One `binding`/`description` row, drawn as a plain two-column line.
@@ -451,7 +468,8 @@ mod tests {
 
     /// LCV-116 AC 16 — no widget in the dialog changes application state: the
     /// function never sees an `App`, so there is nothing for it to mutate but
-    /// the `open` flag egui's × owns.
+    /// the `open` flag egui's × owns. Since LCV-169 AC 4 its one button,
+    /// `Close`, writes that same flag and nothing else.
     #[test]
     fn the_shortcuts_dialog_changes_no_app_state() {
         let implementation = implementation_source();
@@ -471,7 +489,16 @@ mod tests {
             body.contains(".open(open)"),
             "positive control: egui's × owns the open flag"
         );
-        for forbidden in ["App", "app.", ".clicked()", "ui.button("] {
+        assert_eq!(
+            body.matches("ui.button(").count(),
+            1,
+            "the one button is Close (LCV-169 AC 4)"
+        );
+        assert!(
+            body.contains("if close {\n        *open = false;\n    }"),
+            "Close only clears the open flag"
+        );
+        for forbidden in ["App", "app."] {
             assert!(
                 !body.contains(forbidden),
                 "the shortcuts dialog is read-only; it must not contain {forbidden}"
