@@ -9,7 +9,7 @@
 use lasercad::agent::prompt::{DEFAULT_PROMPT, resolve};
 use lasercad::io::settings::Settings;
 
-/// The built-in system prompt, line by line (LCV-143 AC 6, text of LCV-151, layers of LCV-156, copy of LCV-157, rotate of LCV-158, null keys of LCV-185, step budget of LCV-189, sets of LCV-186).
+/// The built-in system prompt, line by line (LCV-143 AC 6, text of LCV-151, layers of LCV-156, copy of LCV-157, rotate of LCV-158, null keys of LCV-185, step budget of LCV-189, sets of LCV-186, set_layer of LCV-191).
 const SPEC_TEXT: &[&str] = &[
     "You are the CAD assistant embedded in LaserCAD v2, a 2D CAD program for",
     "laser cutting. Drawings are saved as plain SVG for LaserGRBL. You change and",
@@ -69,6 +69,10 @@ const SPEC_TEXT: &[&str] = &[
     "every listed entity, about the point x, y in mm by factor, which must be",
     "greater than 0. Positions and radii scale; arc angles stay the same.",
     "",
+    "set_layer {indices, layer}: move every listed entity onto the existing layer",
+    "named by layer (case does not matter) in one step; indices only, there is no",
+    "index form. Entities already on that layer stay as they are.",
+    "",
     "query_entities {}: list every entity with its index, kind, geometry in mm",
     "and layer, plus the bed size and the layers. Changes nothing.",
     "",
@@ -113,8 +117,8 @@ const SPEC_TEXT: &[&str] = &[
     "layer argument names an existing layer (case does not matter).",
     "query_entities lists the layer names, marks the current one and gives each",
     "entity's layer. A layer name that does not exist is refused and nothing is",
-    "drawn. No tool creates, renames or deletes layers, or moves entities",
-    "between them; ask the operator to do that from Format > Layers.",
+    "drawn. set_layer moves entities onto an existing layer. No tool creates,",
+    "renames or deletes layers; ask the operator to do that from Format > Layers.",
     "",
     "COMMAND LINE",
     "Only operator input that starts with \":\" or \"/ai\" reaches you. Everything",

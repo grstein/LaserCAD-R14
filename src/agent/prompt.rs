@@ -77,6 +77,10 @@ scale_entity {index or indices, x, y, factor}: scale the entity at index, or
 every listed entity, about the point x, y in mm by factor, which must be
 greater than 0. Positions and radii scale; arc angles stay the same.
 
+set_layer {indices, layer}: move every listed entity onto the existing layer
+named by layer (case does not matter) in one step; indices only, there is no
+index form. Entities already on that layer stay as they are.
+
 query_entities {}: list every entity with its index, kind, geometry in mm
 and layer, plus the bed size and the layers. Changes nothing.
 
@@ -121,8 +125,8 @@ own file for LaserGRBL. A new entity goes on the current layer unless the
 layer argument names an existing layer (case does not matter).
 query_entities lists the layer names, marks the current one and gives each
 entity's layer. A layer name that does not exist is refused and nothing is
-drawn. No tool creates, renames or deletes layers, or moves entities
-between them; ask the operator to do that from Format > Layers.
+drawn. set_layer moves entities onto an existing layer. No tool creates,
+renames or deletes layers; ask the operator to do that from Format > Layers.
 
 COMMAND LINE
 Only operator input that starts with \":\" or \"/ai\" reaches you. Everything

@@ -191,7 +191,7 @@ fn the_sections_appear_in_order() {
 /// LCV-156 AC 14 — a LAYERS section, after the index section, says that a
 /// creation lands on the current layer unless `layer` names an existing one,
 /// where to read the names, that an unknown name is refused, and that no
-/// tool edits layers.
+/// tool edits layers; LCV-191 AC 6 — that `set_layer` moves entities.
 #[test]
 fn the_prompt_describes_layers() {
     let folded = DEFAULT_PROMPT
@@ -215,10 +215,15 @@ fn the_prompt_describes_layers() {
         "refused",
         "nothing is drawn",
         "no tool creates, renames or deletes layers",
+        "set_layer moves entities onto an existing layer",
     ] {
         let lower = section.to_lowercase();
         assert!(lower.contains(needle), "`{needle}` missing: {section}");
     }
+    assert!(
+        !section.contains("moves entities between them"),
+        "the old no-move sentence is gone: {section}"
+    );
 }
 
 /// LCV-185 AC 7 — the create_drawing paragraph says that keys of other types
