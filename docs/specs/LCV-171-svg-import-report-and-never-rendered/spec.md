@@ -37,6 +37,8 @@ target (`docs/research/svg-spec-coverage.md` §1) forbids silent loss and silent
    `none`), `clip-path`, `mask`, `filter`, `marker-start|mid|end`, `stroke-dasharray`, `opacity`,
    `display` or `visibility`, as an attribute or a `style` declaration, THE SYSTEM SHALL add that
    property name to the report.
+   *Amended by LCV-173 AC 5:* `transform` is applied, no longer reported; only an invalid or
+   singular one is (`transform (invalid)`, `transform (singular)`).
 8. THE SYSTEM SHALL expose the report on `ImportedSvg` as entries `(label, count)` in order of
    first occurrence, one entry per label.
 9. WHEN Open or Open Recent succeeds with a non-empty report THE SYSTEM SHALL set the command-line

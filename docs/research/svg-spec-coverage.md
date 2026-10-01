@@ -47,7 +47,7 @@ Legend used below: ✅ supported · ◐ partial · ❌ missing · ⛔ out of sco
   - Entities: `<line>`, `<circle>`, and circular arcs as `<path d="M … A r r 0 large sweep …"/>`.
   - Numbers use `{:.4}` mm, and Y is mirrored via `util::flip_y`.
 - **Import**: `io/svg/import.rs::import_svg`, `Walk::collect`, `parse_line`, `parse_circle`,
-  `path_data.rs::parse_path_data` and `import/path.rs::path_entities` (LCV-172), plus `io/svg/header.rs::parse_bed` and `io/svg/layers.rs::LayerReader`.
+  `path_data.rs::parse_path_data` and `import/path.rs::path_entities` (LCV-172), plus `io/svg/header.rs::parse_root` (LCV-173: units, viewBox, `preserveAspectRatio`; `viewport.rs`, `matrix.rs`, `length.rs`) and `io/svg/layers.rs::LayerReader`.
   - Parsing uses `roxmltree`.
   - It reads back what the exporter writes and little else.
 
@@ -68,7 +68,7 @@ The owning spec is the Draft that brings the feature to the target (§6).
 | `<switch>`, conditional attributes | — | ❌ every branch is imported | Evaluate conditions; import the first passing child only. | 178 |
 | `<a>` | — | ◐ treated as a group | Treat as a group (same result). | 178 |
 | `<title>`, `<desc>`, `<metadata>` | ❌ | ignored | Optional; could carry a generator note. | 170 |
-| Nested `<svg>` viewport | — | ❌ viewport ignored | Establish a new viewport and clip region. | 173 |
+| Nested `<svg>` viewport | — | ✅ done by LCV-173: `x y width height viewBox preserveAspectRatio` establish a viewport; not clipped, reported as `svg (not clipped)` | Establish a new viewport and clip region. | 173 |
 
 ### 3.2 Styling (ch. 6) and painting (ch. 13)
 
@@ -89,11 +89,11 @@ The owning spec is the Draft that brings the feature to the target (§6).
 
 | Feature | Export | Import | Target / note | Spec |
 |---|---|---|---|---|
-| `width`/`height` with units | ✅ `mm` | ◐ `mm` or unitless; `px`/`pt`/`pc`/`in`/`cm`/`Q`/`%` rejected | All CSS absolute units (96 px = 1 in). `%` and `em`/`ex` resolved per spec. | 173 |
-| `viewBox` | ✅ `0 0 W H` | ◐ must be `0 0 W H`; used as a size, never as a scale | Min-x/min-y offset and user-unit → mm scale | 173 |
-| `preserveAspectRatio` | — (square mapping) | ❌ | Align plus meet/slice | 173 |
-| `transform` (`matrix`, `translate`, `scale`, `rotate`, `skewX`, `skewY`) on any element | — | ❌ **silently ignored**, so geometry is misplaced | Full current transformation matrix (CTM) in double precision. Under non-uniform scale or skew a circle or arc becomes an ellipse, and a line stays a line. | 173 (ellipse result needs 176) |
-| Transform on nested `<g>` | — | ❌ | Accumulated CTM | 173 |
+| `width`/`height` with units | ✅ `mm` | ✅ done by LCV-173: every absolute unit at 96 px = 1 in, unitless = px; `%`/`em`/`ex` on the root fall back to the viewBox size | All CSS absolute units (96 px = 1 in). `%` and `em`/`ex` resolved per spec. | 173 |
+| `viewBox` | ✅ `0 0 W H` | ✅ done by LCV-173: offset and user-unit → mm scale; alone, its size is read as px | Min-x/min-y offset and user-unit → mm scale | 173 |
+| `preserveAspectRatio` | — (square mapping) | ✅ done by LCV-173: nine aligns, meet/slice, `none` | Align plus meet/slice | 173 |
+| `transform` (`matrix`, `translate`, `scale`, `rotate`, `skewX`, `skewY`) on any element | — | ✅ done by LCV-173: CTM composed in f64; invalid or singular reported. ◐ a circle or arc under non-uniform scale or skew imports nothing, reported as `circle`/`arc (non-uniform transform)` | Full current transformation matrix (CTM) in double precision. Under non-uniform scale or skew a circle or arc becomes an ellipse, and a line stays a line. | 173 (ellipse result needs 176) |
+| Transform on nested `<g>` | — | ✅ done by LCV-173 | Accumulated CTM | 173 |
 
 ### 3.4 Paths (ch. 9)
 
@@ -119,7 +119,7 @@ The owning spec is the Draft that brings the feature to the target (§6).
 | `<rect>` incl. `rx`/`ry` (and `auto`) | — (RECTANGLE writes 4 lines) | ❌ | 4 lines; rounded corners become arcs (circular or elliptical). | 174 |
 | `<polyline>`, `<polygon>` | — | ❌ | Lines; a polygon is closed. | 174 |
 | `<ellipse>` | — | ❌ | Native ellipse | 174, 176 |
-| Percentages in geometry | — | ❌ | Resolved against the viewport | 173/174 |
+| Percentages in geometry | — | ◐ LCV-173: `line`/`circle` attributes resolve against the viewport | Resolved against the viewport | 173/174 |
 
 ### 3.6 Text (ch. 11)
 
@@ -154,7 +154,8 @@ one becomes an acceptance criterion of the owning spec:
    `clipPath`, `mask`, `marker` and `pattern` is imported as cut geometry.~~ **Done by LCV-171**:
    only `svg`, `g` and `a` are descended into; never-rendered elements import nothing and are
    reported.
-4. `transform` is ignored everywhere (reported since LCV-171, applied by LCV-173). (LCV-173)
+4. ~~`transform` is ignored everywhere (reported since LCV-171, applied by LCV-173).~~ **Done by
+   LCV-173**: the full CTM is applied to every imported element.
 5. ~~Unknown elements and non-arc paths are skipped silently. The target demands an import
    report.~~ **Done by LCV-171**: `ImportedSvg::report`, shown on the command line after Open.
 6. `parse_circle` rejects `r = 0`, and a missing `x1`/`cx`… is an error. The spec says "not
@@ -162,7 +163,8 @@ one becomes an acceptance criterion of the owning spec:
 7. ~~`parse_path` rejects a chord longer than `2r + EPSILON` (1e-9), where the spec scales the radii
    up. *Suspected*, to be confirmed by a test: a semicircular arc may fail to reopen after the
    `{:.4}` rounding in `encode_entity`.~~ **Done by LCV-172**: SVG 2 §F.6.6 applies to every arc.
-8. `header.rs::parse_bed` rejects every unit except `mm` and any viewBox not at `0 0`. (LCV-173)
+8. ~~`header.rs::parse_bed` rejects every unit except `mm` and any viewBox not at `0 0`.~~ **Done
+   by LCV-173**: `header.rs::parse_root` reads every absolute unit, offset and scaled viewBoxes.
 
 Existing tests that pin these behaviors (for example "silently skips non-arc paths" and "rejects
 `px`") are rewritten by the spec that changes the behavior, not deleted in isolation.
