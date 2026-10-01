@@ -16,7 +16,7 @@ Start T1 only after LCV-180 and then the `svg` branch (LCV-170..179) have merged
 - [x] T5 [AC4] Test: load the three v0.5 fixtures from tempdir copies and assert every field,
       layer, membership and entity survives; quote the generator in the `//!` header
       (files: src/io/v0_5_compat.rs, src/io/mod.rs)
-- [ ] T6 [P] [AC5] Test: every `TOOLS` label appears in `docs/user-guide.md` (fails: no guide)
+- [x] T6 [P] [AC5] Test: every `TOOLS` label appears in `docs/user-guide.md` (fails: no guide)
       (files: src/ui/toolbar.rs)
 - [ ] T7 [AC5] Write the user guide: every TOOLS entry, every command-line alias, layers,
       Export layers, the AI panel; link `docs/install.md` (files: docs/user-guide.md)

@@ -275,4 +275,23 @@ mod tests {
             ]
         );
     }
+
+    /// LCV-202 AC 5 — every `TOOLS` entry has its own row in the user
+    /// guide's tool table: a line starting `| <label> |`.
+    #[test]
+    fn user_guide_has_a_row_for_every_tool() {
+        let guide = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/docs/user-guide.md"));
+        let missing: Vec<&str> = TOOLS
+            .iter()
+            .map(|e| e.label)
+            .filter(|label| {
+                let row = format!("| {label} |");
+                !guide.lines().any(|l| l.trim_start().starts_with(&row))
+            })
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "docs/user-guide.md lacks rows for {missing:?}"
+        );
+    }
 }

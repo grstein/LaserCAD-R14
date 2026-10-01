@@ -197,7 +197,11 @@ fn v0_5_mother_svg_opens_without_loss() {
     for (i, &k) in order.iter().enumerate() {
         assert_eq!(got.entity_layer(i), want.entity_layer(k), "entity {i}");
         let kind = std::mem::discriminant::<Entity>;
-        assert_eq!(kind(&got.entities[i]), kind(&want.entities[k]), "entity {i}");
+        assert_eq!(
+            kind(&got.entities[i]),
+            kind(&want.entities[k]),
+            "entity {i}"
+        );
         let g = points(&got.entities[i]).expect("a v0.5 kind");
         let w = points(&want.entities[k]).expect("a v0.5 kind");
         for (n, (a, b)) in g.iter().zip(&w).enumerate() {
