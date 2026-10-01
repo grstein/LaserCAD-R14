@@ -1,5 +1,5 @@
 //! LCV-176 — editing ellipses through the real `App::update_ui`: picking and
-//! box selection (AC 5).
+//! box selection (AC 5), and the modify tools typed on the command line (AC 6).
 //!
 //! Each scene hovers the canvas middle on an empty document to learn the
 //! world point `w0` under a known screen position `p`, then places geometry
@@ -7,7 +7,7 @@
 
 use crate::harness;
 
-use harness::frame;
+use harness::{frame, submit_command, tap};
 use lasercad::app::App;
 use lasercad::document::Entity;
 use lasercad::document::commands::CreateEntities;
@@ -184,5 +184,94 @@ fn window_and_crossing_boxes_select_like_an_arc() {
         s.add(e);
         s.drag(s.w(4.0, 3.0), s.w(-4.0, -3.0));
         assert!(s.selected().is_empty(), "arc={arc}: a crossing inside only");
+    }
+}
+
+/// The fixed arc of the AC 6 scenes: centre (10, 20), 30 × 5 mm, rotated by
+/// 0.3 rad, span `0.2 → 2.0` CCW.
+fn fixed() -> Ellipse {
+    Ellipse::new(
+        Vec2::new(10.0, 20.0),
+        30.0,
+        5.0,
+        0.3,
+        Some(EllipseSpan::new(0.2, 2.0, true)),
+    )
+}
+
+fn assert_ellipse(actual: &Entity, want: Ellipse, what: &str) {
+    let Entity::Ellipse(got) = actual else {
+        panic!("{what}: expected an ellipse, got {actual:?}");
+    };
+    let close = |a: f64, b: f64| (a - b).abs() <= 1e-9;
+    let spans = match (got.span, want.span) {
+        (Some(g), Some(w)) => close(g.start, w.start) && close(g.end, w.end) && g.ccw == w.ccw,
+        (g, w) => g == w,
+    };
+    assert!(
+        got.center.approx_eq(want.center, 1e-9)
+            && close(got.rx, want.rx)
+            && close(got.ry, want.ry)
+            && close(got.rotation, want.rotation)
+            && spans,
+        "{what}: got {got:?}, want {want:?}"
+    );
+}
+
+/// AC 6 — each modify tool, typed on the command line with the arc
+/// selected, transforms it exactly in one undo step, and Ctrl+Z restores it.
+#[test]
+fn modify_tools_transform_an_ellipse_exactly_in_one_step() {
+    let e = fixed();
+    let span = |start, end, ccw| Some(EllipseSpan::new(start, end, ccw));
+    let moved = Ellipse {
+        center: Vec2::new(15.0, 27.0),
+        ..e
+    };
+    let rotated = Ellipse {
+        center: Vec2::new(-20.0, 10.0),
+        rotation: 0.3 + core::f64::consts::FRAC_PI_2,
+        ..e
+    };
+    // Mirrored about the X axis: rotation negated, span negated and reversed.
+    let mirrored = Ellipse {
+        center: Vec2::new(10.0, -20.0),
+        rotation: -0.3,
+        span: span(-0.2, -2.0, false),
+        ..e
+    };
+    let scaled = Ellipse::new(Vec2::new(20.0, 40.0), 60.0, 10.0, 0.3, e.span);
+    let cases: [(&str, &[&str], Vec<Ellipse>); 5] = [
+        ("MOVE", &["m", "0,0", "5,7"], vec![moved]),
+        ("COPY", &["co", "0,0", "5,7"], vec![e, moved]),
+        ("ROTATE", &["ro", "0,0", "90"], vec![rotated]),
+        ("MIRROR", &["mi", "0,0", "1,0", "y"], vec![mirrored]),
+        ("SCALE", &["sc", "0,0", "2"], vec![scaled]),
+    ];
+    for (name, typed, want) in cases {
+        let mut s = Scene::new(Box::new(SelectTool::default()));
+        s.add(e);
+        let depth = s.app.history.len();
+        s.app.document.selection.set([0]);
+        for t in typed {
+            submit_command(&s.ctx, &mut s.app, t);
+        }
+        let got = &s.app.document.entities;
+        assert_eq!(got.len(), want.len(), "{name}: entity count");
+        for (g, w) in got.iter().zip(&want) {
+            assert_ellipse(g, *w, name);
+        }
+        assert_eq!(s.app.history.len(), depth + 1, "{name}: one undo step");
+        tap(&s.ctx, &mut s.app, egui::Key::Z, ctrl());
+        assert_eq!(s.app.document.entities.len(), 1, "{name}: undone");
+        assert_ellipse(&s.app.document.entities[0], e, &format!("{name} undone"));
+    }
+}
+
+fn ctrl() -> egui::Modifiers {
+    egui::Modifiers {
+        ctrl: true,
+        command: true,
+        ..egui::Modifiers::NONE
     }
 }

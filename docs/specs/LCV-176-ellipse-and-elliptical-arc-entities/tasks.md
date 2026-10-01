@@ -38,7 +38,7 @@
   (files: src/geometry/snap/mod.rs, src/geometry/snap/candidates.rs, src/app/snap.rs)
 - [x] T14 [AC7] Quadrant and Nearest for ellipses, skipped by perpendicular/tangent (files:
   src/geometry/snap/anchored.rs)
-- [ ] T15 [AC6] Test: MOVE, COPY, ROTATE, MIRROR and SCALE on an ellipse arc through the tools.
+- [x] T15 [AC6] Test: MOVE, COPY, ROTATE, MIRROR and SCALE on an ellipse arc through the tools.
   Each is exact, mirror negates rotation and reverses direction, and each undoes as one step
   (files: tests/it/app/ellipse_edit.rs)
 - [ ] T16 [AC8] Test: TRIM and EXTEND aimed at an ellipse leave the document and history unchanged
