@@ -57,7 +57,7 @@
   (files: tests/fixtures/svg/shapes-rect.svg, tests/fixtures/svg/shapes-rect.expected)
 - [x] T15 [AC11] Corpus `shapes-poly`: a polyline and a polygon, open and closed.
   (files: tests/fixtures/svg/shapes-poly.svg, tests/fixtures/svg/shapes-poly.expected)
-- [ ] T16 [AC11] Corpus `shapes-degenerate`: zero sizes, a negative radius and odd `points`, with
+- [x] T16 [AC11] Corpus `shapes-degenerate`: zero sizes, a negative radius and odd `points`, with
   their report lines.
   (files: tests/fixtures/svg/shapes-degenerate.svg, tests/fixtures/svg/shapes-degenerate.expected)
 - [ ] T17 [AC10] Docs: `svg-spec-coverage.md` §4 shapes rows, and the LCV-171 AC 5 amendment noted
