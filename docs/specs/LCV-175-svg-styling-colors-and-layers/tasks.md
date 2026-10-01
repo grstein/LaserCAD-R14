@@ -7,7 +7,7 @@
       block notes `style rule (malformed)` (files: src/io/svg/css.rs, src/io/svg/mod.rs)
 - [x] T2 [AC3] [AC4] `css::parse_sheet`, `Rule`, `Selector`, `Specificity`, `declarations`
       (`!important`, ASCII case-insensitive names) (files: src/io/svg/css.rs)
-- [ ] T3 `report::style_decls` delegates to `css::declarations`; no behaviour change, LCV-171
+- [x] T3 `report::style_decls` delegates to `css::declarations`; no behaviour change, LCV-171
       tests stay green (files: src/io/svg/import/report.rs)
 - [ ] T4 [AC1] [AC2] [AC5] [AC6] [AC11] Test: `import/style.rs` unit tests — attribute < rule <
       `style`; `!important` rule beats `style`; id > class > type > `*`, later rule on a tie;

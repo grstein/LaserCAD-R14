@@ -4,6 +4,8 @@
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
+use crate::io::svg::css;
+
 /// Properties LaserCAD does not apply yet, reported by name whenever an
 /// imported or descended element carries one, as an attribute or a `style`
 /// declaration (AC 7); `fill:none` is exempt. `transform` is applied since
@@ -23,18 +25,14 @@ pub(super) const REPORTED_PROPERTIES: [&str; 11] = [
 ];
 
 /// `node`'s `style` declarations as trimmed `(property, value)` pairs in
-/// written order, a trailing `!important` dropped. Not a CSS parser (LCV-175).
+/// written order, a trailing `!important` dropped ([`css::declarations`]).
 pub(in crate::io::svg) fn style_decls<'a>(
     node: roxmltree::Node<'a, '_>,
 ) -> impl DoubleEndedIterator<Item = (&'a str, &'a str)> {
     node.attribute("style")
         .into_iter()
-        .flat_map(|style| style.split(';'))
-        .filter_map(|decl| decl.split_once(':'))
-        .map(|(prop, value)| {
-            let value = value.trim().trim_end_matches("!important").trim();
-            (prop.trim(), value)
-        })
+        .flat_map(css::declarations)
+        .map(|decl| (decl.name, decl.value))
 }
 
 /// Report builder: [`Report::note`] bumps a label's count or appends it.
