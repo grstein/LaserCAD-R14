@@ -217,3 +217,25 @@ fn round_trip_line_circle_arc() {
     assert!((a.end_angle - FRAC_PI_2).abs() < 1e-3);
     assert!(a.ccw);
 }
+
+/// LCV-180 AC 2 — a foreign-namespace attribute never stands in for the plain
+/// one: `x:d`/`x:stroke` on a `<path>` and `x:data-layer` on a `<g>` lose to
+/// their plain twins, whichever comes first.
+#[test]
+fn foreign_namespace_attributes_never_shadow_plain_ones() {
+    let src = r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:x="urn:lasercad:test">
+        <g x:data-layer="Wrong" data-layer="Cut" x:stroke="#00ff00" stroke="#ff0000">
+            <path x:d="M 0 0 A 1 1 0 0 0 2 0" d="M 10 380 A 10 10 0 0 0 20 370"
+                  x:stroke="#00ff00" stroke="#ff0000"/>
+        </g>
+    </svg>"##;
+    let imported = import_svg(src).unwrap();
+    assert_eq!(imported.layers.len(), 1);
+    assert_eq!(imported.layers[0].name, "Cut");
+    assert_eq!(imported.layers[0].color, [0xff, 0, 0]);
+    assert_eq!(imported.entities.len(), 1);
+    let Entity::Arc(a) = &imported.entities[0] else {
+        panic!("expected the plain `d` arc")
+    };
+    assert!((a.r - 10.0).abs() < EPSILON, "radius {}", a.r);
+}

@@ -23,7 +23,7 @@
 //! Y mirror by LCV-100, bed by LCV-114, layers by LCV-156.
 
 use super::header::parse_bed;
-use super::layers::{LayerReader, STRAY_LAYER};
+use super::layers::{LayerReader, STRAY_LAYER, attr};
 use crate::document::entity::Entity;
 use crate::document::{Document, Layer, LayerId};
 use crate::geometry::{Arc, Circle, EPSILON, Line, Vec2};
@@ -199,7 +199,7 @@ fn parse_circle(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Entity, SvgImp
     let (cx, cy) = (attr_f64(n, "circle", "cx")?, attr_f64(n, "circle", "cy")?);
     let r = attr_f64(n, "circle", "r")?;
     if r <= 0.0 {
-        let v = n.attribute("r").unwrap_or("").to_string();
+        let v = attr(n, "r").unwrap_or("").to_string();
         return Err(malformed("circle", "r", v));
     }
     Ok(Entity::Circle(Circle::new(
@@ -221,13 +221,13 @@ fn attr_f64(
     el: &'static str,
     a: &'static str,
 ) -> Result<f64, SvgImportError> {
-    let raw = n.attribute(a).unwrap_or("");
+    let raw = attr(n, a).unwrap_or("");
     raw.parse::<f64>()
         .map_err(|_| malformed(el, a, raw.to_string()))
 }
 
 fn parse_path(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Option<Entity>, SvgImportError> {
-    let Some(d) = n.attribute("d") else {
+    let Some(d) = attr(n, "d") else {
         return Ok(None);
     };
     let tok: Vec<&str> = d.split_ascii_whitespace().collect();

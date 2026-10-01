@@ -13,6 +13,7 @@
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use super::import::SvgImportError;
+use super::layers::attr as plain_attr;
 use crate::geometry::EPSILON;
 use crate::util::{BED_MAX_MM, BED_MIN_MM, DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
 
@@ -47,7 +48,7 @@ fn dimension(
     root: roxmltree::Node<'_, '_>,
     attr: &'static str,
 ) -> Result<Option<f64>, SvgImportError> {
-    let Some(raw) = root.attribute(attr) else {
+    let Some(raw) = plain_attr(root, attr) else {
         return Ok(None);
     };
     parse_mm(raw).map(Some).ok_or_else(|| bad(attr, raw))
@@ -58,7 +59,7 @@ fn dimension(
 /// A non-zero origin would need a transform stack (explicitly out of scope),
 /// so it is an error rather than a silent offset.
 fn view_box(root: roxmltree::Node<'_, '_>) -> Result<Option<[f64; 2]>, SvgImportError> {
-    let Some(raw) = root.attribute("viewBox") else {
+    let Some(raw) = plain_attr(root, "viewBox") else {
         return Ok(None);
     };
     let tok: Vec<&str> = raw

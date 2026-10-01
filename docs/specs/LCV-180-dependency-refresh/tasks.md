@@ -37,7 +37,7 @@ commit, then T8–T13 one each, then T14. Each commit passes `scripts/gate.sh` a
       `$XDG_DATA_HOME|$HOME/.local/share` + `lasercad/autosave.json`. The test reads the
       environment and never sets it. Then bump directories to 6 (files: src/app/persist/tests.rs,
       Cargo.toml, Cargo.lock)
-- [ ] T9 [AC2] Test: a `<path>` that carries both a foreign-namespace `x:d`/`x:stroke` and plain
+- [x] T9 [AC2] Test: a `<path>` that carries both a foreign-namespace `x:d`/`x:stroke` and plain
       `d`/`stroke` imports the plain values; the same holds for `data-layer` on `<g>`. Bump
       roxmltree to 0.21, and filter to no-namespace attributes only if the test fails
       (files: tests/it/io_svg/import.rs, Cargo.toml, src/io/svg/layers.rs)

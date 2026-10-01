@@ -38,6 +38,15 @@ pub(super) fn open_group(out: &mut String, layer: &Layer, current: bool) {
     out.push_str(">\n");
 }
 
+/// `node`'s attribute `name` in no namespace. roxmltree 0.21's
+/// `attribute(&str)` matches the local name in any namespace, so a foreign
+/// `x:d` could otherwise stand in for the SVG `d` (LCV-180 AC 2).
+pub(super) fn attr<'a>(node: roxmltree::Node<'a, '_>, name: &str) -> Option<&'a str> {
+    node.attributes()
+        .find(|a| a.namespace().is_none() && a.name() == name)
+        .map(|a| a.value())
+}
+
 /// A layer group's stroke value: its own, else the nearest `<g>`/`<svg>`
 /// ancestor's (ADR 0012 §4).
 fn layer_stroke<'a>(node: roxmltree::Node<'a, '_>) -> Option<&'a str> {
@@ -49,7 +58,7 @@ fn layer_stroke<'a>(node: roxmltree::Node<'a, '_>) -> Option<&'a str> {
 /// The stroke `node` declares itself: the last `stroke` in `style` wins over
 /// the `stroke` attribute; `inherit` or no declaration is `None`.
 fn own_stroke<'a>(node: roxmltree::Node<'a, '_>) -> Option<&'a str> {
-    let styled = node.attribute("style").and_then(|style| {
+    let styled = attr(node, "style").and_then(|style| {
         style
             .split(';')
             .filter_map(|decl| decl.split_once(':'))
@@ -57,7 +66,7 @@ fn own_stroke<'a>(node: roxmltree::Node<'a, '_>) -> Option<&'a str> {
             .map(|(_, value)| value.trim().trim_end_matches("!important").trim())
     });
     styled
-        .or_else(|| node.attribute("stroke"))
+        .or_else(|| attr(node, "stroke"))
         .filter(|value| !value.trim().eq_ignore_ascii_case("inherit"))
 }
 
@@ -93,7 +102,7 @@ impl LayerReader {
         if node.tag_name().name() != "g" {
             return Ok(None);
         }
-        let Some(name) = node.attribute("data-layer") else {
+        let Some(name) = attr(node, "data-layer") else {
             return Ok(None);
         };
         let bad = |reason: String| SvgImportError::MalformedLayer {
@@ -103,7 +112,7 @@ impl LayerReader {
         let stroke = layer_stroke(node).ok_or_else(|| bad("no stroke color".to_owned()))?;
         let color = parse_css_color(stroke)
             .ok_or_else(|| bad(format!("stroke {stroke:?} is not a supported CSS color")))?;
-        let output = match node.attribute("data-output") {
+        let output = match attr(node, "data-output") {
             None | Some("1") => true,
             Some("0") => false,
             Some(other) => return Err(bad(format!("data-output {other:?} is not 0 or 1"))),
@@ -117,7 +126,7 @@ impl LayerReader {
             color,
             output,
         });
-        if self.current.is_none() && node.attribute("data-current") == Some("1") {
+        if self.current.is_none() && attr(node, "data-current") == Some("1") {
             self.current = Some(id);
         }
         Ok(Some(id))

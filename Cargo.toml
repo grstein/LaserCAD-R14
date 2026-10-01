@@ -16,7 +16,7 @@ egui = "0.36"
 png = "0.18"
 reqwest = { version = "0.12", features = ["json", "blocking"] }
 rfd = { version = "0.14", default-features = true }
-roxmltree = "0.20"
+roxmltree = "0.21"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
