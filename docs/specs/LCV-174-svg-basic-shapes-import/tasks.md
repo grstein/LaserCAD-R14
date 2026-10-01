@@ -53,7 +53,7 @@
   rounded rect gives elliptical corners, `rotate(30)` keeps circular arcs. Expected to pass with
   no code change, otherwise fix in `shapes.rs`.
   (files: tests/it/io_svg/shapes.rs, src/io/svg/import/shapes.rs)
-- [ ] T14 [AC11] Corpus `shapes-rect`: sharp, rounded, `auto` and clamped rects.
+- [x] T14 [AC11] Corpus `shapes-rect`: sharp, rounded, `auto` and clamped rects.
   (files: tests/fixtures/svg/shapes-rect.svg, tests/fixtures/svg/shapes-rect.expected)
 - [ ] T15 [AC11] Corpus `shapes-poly`: a polyline and a polygon, open and closed.
   (files: tests/fixtures/svg/shapes-poly.svg, tests/fixtures/svg/shapes-poly.expected)
