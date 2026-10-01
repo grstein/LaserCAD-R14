@@ -25,7 +25,7 @@ Rust (toolchain pinned) · `egui`/`eframe` · `rfd` dialogs · blocking `reqwest
   LCV-146 is deferred past 1.0.
 - **Release**: v0.2.0 (LCV-089) published 2026-09-28; v0.3.0 published 2026-09-30 after the user smoke test, with the user's authorization;
   v0.4.0 (LCV-160..163) and v0.5.0 (LCV-164..169, 183, 184) bumped 2026-09-30, v0.6.0 (LCV-154, 185..193),
-  v0.7.0 (LCV-194..200), v0.8.0 (LCV-180, 201) and v0.9.0 (LCV-170..179) bumped 2026-10-01, untagged until the user smoke-tests them.
+  v0.7.0 (LCV-194..200), v0.8.0 (LCV-180, 201), v0.9.0 (LCV-170..179) and v1.0.0 (LCV-202) bumped 2026-10-01, untagged until the user smoke-tests them.
 - **v0.3 "workshop-ready"** (approved 2026-09-29): LCV-156 layers, 157 COPY, 159 polar `@d<a` +
   DIST, 158 ROTATE, 181 MIRROR, 182 SCALE — all Done 2026-09-30 (158 was split into 158/181/182).
   Released as v0.3.0.

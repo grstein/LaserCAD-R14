@@ -8,6 +8,19 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-01
+
+LaserCAD 1.0 is stable: it does everything LaserCAD R14 v1 did, and files saved with it keep opening and exporting the same way in every 1.x release.
+
+### Added
+
+- A user guide, [`docs/user-guide.md`](docs/user-guide.md): every tool with its key and command words, the other commands, typed points, snaps, layers, Export Layers and the AI panel. See LCV-202.
+- [`docs/product/parity-1-0.md`](docs/product/parity-1-0.md) maps each LaserCAD R14 v1 capability to its v2 command or menu and the tests that prove it, and [`docs/release/smoke-1-0.md`](docs/release/smoke-1-0.md) is the checklist run on Linux, Windows and macOS before a release. See LCV-202.
+
+### Changed
+
+- The SVG export is frozen for 1.x: the same drawing exports the same bytes and file names in every 1.x release, pinned by a reference file holding every entity kind; changing it needs 2.0 ([ADR 0018](docs/adr/0018-svg-export-contract-frozen-at-1-0.md)). Settings, autosave and mother SVG files written by v0.5.0 are checked to open without loss. See LCV-202.
+
 ## [0.9.0] - 2026-10-01
 
 ### Added

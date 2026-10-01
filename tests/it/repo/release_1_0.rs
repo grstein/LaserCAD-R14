@@ -164,3 +164,33 @@ fn readme_says_stable_links_the_guides_and_lists_the_non_goals() {
         );
     }
 }
+
+/// LCV-202 AC 8 — the release commit carries version `1.0.0` and a dated
+/// `[1.0.0]` CHANGELOG section right after `[Unreleased]`, with entries.
+#[test]
+fn version_is_1_0_0_with_a_changelog_section() {
+    assert_eq!(env!("CARGO_PKG_VERSION"), "1.0.0");
+    let cargo = read("Cargo.toml");
+    assert!(
+        cargo.lines().any(|l| l.trim() == r#"version = "1.0.0""#),
+        "Cargo.toml [package] version"
+    );
+    let changelog = read("CHANGELOG.md");
+    let headings: Vec<&str> = changelog
+        .lines()
+        .filter(|l| l.starts_with("## ["))
+        .take(2)
+        .collect();
+    assert_eq!(headings.first(), Some(&"## [Unreleased]"));
+    assert!(
+        headings
+            .get(1)
+            .is_some_and(|h| h.starts_with("## [1.0.0] - ")),
+        "[1.0.0] follows [Unreleased]: {headings:?}"
+    );
+    let entries = section(&changelog, "[1.0.0]")
+        .iter()
+        .filter(|l| l.starts_with("- "))
+        .count();
+    assert!(entries > 0, "[1.0.0] lists its changes");
+}

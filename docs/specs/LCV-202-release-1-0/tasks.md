@@ -32,7 +32,7 @@ Start T1 only after LCV-180 and then the `svg` branch (LCV-170..179) have merged
 - [x] T12 [AC7] [AC9] Run `scripts/backlog.sh --check` and confirm every Depends-on spec is Done;
       record in `spec.md` any still open (LCV-201 T16) and the Windows/macOS artifacts as pending
       the user's CI dispatch (files: docs/specs/LCV-202-release-1-0/spec.md)
-- [ ] T13 [AC8] [AC9] Test version `1.0.0` and a `[1.0.0]` CHANGELOG section; bump `Cargo.toml`
+- [x] T13 [AC8] [AC9] Test version `1.0.0` and a `[1.0.0]` CHANGELOG section; bump `Cargo.toml`
       (`Cargo.lock` follows), move Unreleased into `[1.0.0]`; build the AppImage and `.deb` from
       this tree; `scripts/gate.sh` green. No tag (files: tests/it/repo/release_1_0.rs, Cargo.toml,
       CHANGELOG.md)
