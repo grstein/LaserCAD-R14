@@ -85,6 +85,14 @@ pub(crate) fn dist(p: &Painter, r: Rect, s: Stroke) {
     arrow_head(p, r, [18.0, 10.0], [2.0, 10.0], s);
 }
 
+/// Check (LCV-190): a contour under a magnifying glass.
+pub(crate) fn check_drawing(p: &Painter, r: Rect, s: Stroke) {
+    square(p, r, [2.0, 2.0], 10.0, s);
+    let scale = r.width() / super::ICON_SIZE;
+    p.circle_stroke(super::at(r, [12.0, 12.0]), 4.5 * scale, s);
+    path(p, r, &[[15.5, 15.5], [18.5, 18.5]], false, s);
+}
+
 /// An axis-aligned square with top-left corner `min` and side `side`.
 fn square(p: &Painter, r: Rect, min: super::P, side: f32, s: Stroke) {
     let [x, y] = min;

@@ -157,7 +157,7 @@ mod tests {
     use super::*;
 
     /// The sixteen icons in `TOOLS` order, named for failure messages.
-    const ICONS: [(&str, IconFn); 16] = [
+    const ICONS: [(&str, IconFn); 17] = [
         ("select", draw::select),
         ("line", draw::line),
         ("polyline", draw::polyline),
@@ -174,6 +174,7 @@ mod tests {
         ("extend", modify::extend),
         ("delete", modify::delete),
         ("dist", modify::dist),
+        ("check_drawing", modify::check_drawing),
     ];
 
     /// The menu-row glyphs (LCV-166), checked by the same rules.

@@ -40,7 +40,7 @@ Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/
   src/ui/check_dialog.rs, src/ui/mod.rs, src/app/panels.rs)
 - [x] T15 [AC1] Test (paint harness): the rail paints a CHECK icon button beside `AI`, tooltip
   `Check — CHECK`; clicking it runs the check (files: tests/it/ui/icon_tool_rail.rs)
-- [ ] T16 [AC1] `check` glyph and the rail button (files: src/ui/icons/modify.rs, src/ui/toolbar.rs)
+- [x] T16 [AC1] `check` glyph and the rail button (files: src/ui/icons/modify.rs, src/ui/toolbar.rs)
 - [ ] T17 [AC9] Test: `check_drawing` parses to `CheckDrawing` whatever its arguments; the tool list
   order includes it after `query_selection`; in a turn its result equals
   `check_drawing(&doc).lines().join("\n")`, counts one step, leaves the revision, and a following
