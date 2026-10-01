@@ -12,6 +12,7 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 - The agent can measure instead of guessing from coordinates: its read-only `measure` tool answers `distance` (between points and entities as drawn, with dx, dy and the two closest points), `length` (line, arc length or circumference), `bbox` (of the listed entities or the whole drawing), `intersections` (every crossing point, `none` or `overlap`) and `angle` (between two lines, counter-clockwise and between), in mm and degrees to 3 decimals. Entities are named by indices or ids; a measure call is one step and changes nothing. See LCV-194.
 - `Feedback after changes` (Agent Settings, off by default): after each reply that changed the drawing, the agent is told `Drawing now: <n> entities, X …, Y … mm.` and the CHECK summary on its last tool result, before the steps-left line; with both canvas opt-ins on it also gets one `drawing`-frame picture. It costs no step. See LCV-195.
+- The agent can draw more in one `create_drawing` call: besides lines, circles and arcs, an item may be a `polyline` (open or closed), a `rect` (optional corner radius), a regular `polygon` (3 to 64 sides), a `text` (the `TEXT` command's lettering), or a `linear_array`/`polar_array` that repeats earlier items of the same batch by position. The batch is expanded into lines, circles and arcs before anything is drawn, the 1000-entity limit counts the expanded entities, and the whole call is still one step and one undo. See LCV-196.
 
 ## [0.6.0] - 2026-10-01
 

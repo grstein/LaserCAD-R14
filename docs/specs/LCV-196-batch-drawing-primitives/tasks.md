@@ -57,7 +57,7 @@ Prerequisites: LCV-185, LCV-192 Done; LCV-188 Done (the outcome's `New ids` suff
 - [x] T11 [AC10] `drawing/schema.rs` from the key table (files: src/agent/drawing/schema.rs)
 - [x] T12 [AC10] Test, then the `DEFAULT_PROMPT` `create_drawing` paragraph covering the new types,
   `of` and the expanded cap (files: src/agent/prompt.rs, tests/it/agent/default_prompt.rs)
-- [ ] T13 Docs: AGENTS.md purity list (`drawing/*.rs`); CHANGELOG line (files: AGENTS.md,
+- [x] T13 Docs: AGENTS.md purity list (`drawing/*.rs`); CHANGELOG line (files: AGENTS.md,
   CHANGELOG.md)
 - [ ] T14 `scripts/mutants.sh` on the diff (`src/agent/drawing*`, `src/text/layout.rs`). Kill the
   survivors or justify them in the commit body.
