@@ -58,7 +58,7 @@
 - [x] T21 [AC1] `PathData::Arc` keeps `phi`; `conic.rs::{center_arc, conic_entity}`;
   `path_entities` routes the elliptical case (files: src/io/svg/path_data.rs,
   src/io/svg/import/conic.rs, src/io/svg/import/path.rs)
-- [ ] T22 [AC2] Test: `<ellipse>` with rx ≠ ry, rx = ry → Circle, `auto`/absent radius, `%`
+- [x] T22 [AC2] Test: `<ellipse>` with rx ≠ ry, rx = ry → Circle, `auto`/absent radius, `%`
   radius, rx or ry ≤ 0 → skipped and reported `ellipse (invalid radius)` (files:
   tests/it/io_svg/ellipse.rs)
 - [ ] T23 [AC2] The walk's `ellipse` arm through `conic_entity` (files: src/io/svg/import/walk.rs,

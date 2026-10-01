@@ -8,10 +8,13 @@
 //!
 //! Import (AC 1): an `A` with rx ≠ ry after radius correction is one
 //! elliptical arc through the segment's endpoints, on the flagged side and
-//! in the flagged direction.
+//! in the flagged direction. (AC 2): `<ellipse>` is a full ellipse, a circle
+//! when rx = ry; a missing or `auto` radius takes the other; rx or ry ≤ 0,
+//! or neither given, is skipped and reported `ellipse (invalid radius)`.
 
 use core::f64::consts::{FRAC_PI_2, FRAC_PI_6, PI, TAU};
 use lasercad::document::{Document, Entity};
+use lasercad::geometry::Circle;
 use lasercad::geometry::{EPSILON, Ellipse, EllipseSpan, Vec2};
 use lasercad::io::svg::{export_svg, import_svg};
 
@@ -193,4 +196,60 @@ fn circular_a_stays_an_arc_and_no_elliptical_note() {
     assert_eq!(es.len(), 2, "{es:?}");
     assert!(es.iter().all(|e| matches!(e, Entity::Ellipse(_))));
     assert!(report.is_empty(), "{report:?}");
+}
+
+/// AC 2 — `<ellipse>` with rx ≠ ry is a full ellipse, its `transform`
+/// rotation mirrored into the world; it re-exports as written.
+#[test]
+fn ellipse_element_imports_a_full_ellipse() {
+    let e = only_ellipse(r#"<ellipse cx="100" cy="50" rx="40" ry="20"/>"#);
+    assert!(e.center.approx_eq(world(100.0, 50.0), EPSILON), "{e:?}");
+    assert!((e.rx - 40.0).abs() <= EPSILON && (e.ry - 20.0).abs() <= EPSILON);
+    assert!(e.rotation.abs() <= EPSILON && e.span.is_none(), "{e:?}");
+    let body = r#"<ellipse cx="100" cy="50" rx="40" ry="20" transform="rotate(-30 100 50)"/>"#;
+    let e = only_ellipse(body);
+    assert!(e.center.approx_eq(world(100.0, 50.0), 1e-9), "{e:?}");
+    assert!((e.rotation - FRAC_PI_6).abs() <= 1e-12, "{e:?}");
+    assert_eq!(
+        exported(e),
+        r#"<ellipse cx="100.0000" cy="50.0000" rx="40.0000" ry="20.0000" transform="rotate(-30.000000 100.0000 50.0000)"/>"#
+    );
+}
+
+/// AC 2 — equal radii, or one radius missing or `auto`, make a circle; a
+/// `%` radius resolves against the viewport like any LCV-173 length.
+#[test]
+fn ellipse_element_radii_auto_missing_and_percent() {
+    let circle = |body: &str| match import(body) {
+        (es, report) if report.is_empty() => match es.as_slice() {
+            [Entity::Circle(c)] => *c,
+            other => panic!("{body}: {other:?}"),
+        },
+        (_, report) => panic!("{body}: {report:?}"),
+    };
+    let want = Circle::new(world(10.0, 20.0), 7.0);
+    for body in [
+        r#"<ellipse cx="10" cy="20" rx="7" ry="7"/>"#,
+        r#"<ellipse cx="10" cy="20" rx="auto" ry="7"/>"#,
+        r#"<ellipse cx="10" cy="20" rx="7"/>"#,
+        r#"<ellipse cx="10" cy="20" ry="7" rx=" auto "/>"#,
+    ] {
+        assert_eq!(circle(body), want, "{body}");
+    }
+    let e = only_ellipse(r#"<ellipse cx="10" cy="20" rx="10%" ry="10%"/>"#);
+    assert!(
+        (e.rx - 30.0).abs() <= EPSILON && (e.ry - 20.0).abs() <= EPSILON,
+        "{e:?}"
+    );
+}
+
+/// AC 2 — rx or ry ≤ 0, or no radius at all, skips the element and reports
+/// it once per element; the rest of the file still imports.
+#[test]
+fn ellipse_element_with_invalid_radius_is_skipped_and_reported() {
+    let (es, report) = import(
+        r#"<ellipse cx="1" cy="1" rx="0" ry="5"/><ellipse cx="1" cy="1" rx="5" ry="-2"/><ellipse cx="1" cy="1"/><ellipse cx="1" cy="1" rx="auto" ry="auto"/><line x1="0" y1="0" x2="5" y2="0"/>"#,
+    );
+    assert!(matches!(es.as_slice(), [Entity::Line(_)]), "{es:?}");
+    assert_eq!(report, [("ellipse (invalid radius)".to_owned(), 4)]);
 }
