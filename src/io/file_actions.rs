@@ -214,14 +214,27 @@ fn write_mother(app: &mut App, path: &Path) -> bool {
 }
 
 /// Tell the operator which file a successful save wrote and on which bed
-/// (LCV-168 AC 1): `Saved <name> (<w> × <h> mm)`.
+/// (LCV-168 AC 1): `Saved <name> (<w> × <h> mm)`. When entities on any
+/// layer are outside the bed, the line becomes a Warning with
+/// [`outside_bed_phrase`] appended (AC 2).
 fn announce_saved(app: &mut App, path: &Path) {
     let name = path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
     let [w, h] = app.document.bed_mm;
-    app.say(Severity::Info, format!("Saved {name} ({w} × {h} mm)"));
+    let saved = format!("Saved {name} ({w} × {h} mm)");
+    match app.document.outside_bed_count(|_| true) {
+        0 => app.say(Severity::Info, saved),
+        n => app.say(Severity::Warning, saved + &outside_bed_phrase(n)),
+    }
+}
+
+/// The out-of-bed suffix shared by Save and Export Layers (LCV-168):
+/// ` — 1 entity outside the bed`, ` — n entities outside the bed`.
+pub(crate) fn outside_bed_phrase(n: usize) -> String {
+    let noun = if n == 1 { "entity" } else { "entities" };
+    format!(" — {n} {noun} outside the bed")
 }
 
 // ---------------------------------------------------------------------------
