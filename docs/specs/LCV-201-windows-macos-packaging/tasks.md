@@ -2,7 +2,7 @@
 
 - [x] T1 [AC2] Test: `src/main.rs` carries `windows_subsystem = "windows"` gated on
       `all(windows, not(debug_assertions))` (files: tests/it/repo/packaging.rs, tests/it/repo/mod.rs)
-- [ ] T2 [AC2] Add the `cfg_attr` attribute (files: src/main.rs)
+- [x] T2 [AC2] Add the `cfg_attr` attribute (files: src/main.rs)
 - [ ] T3 [AC1] Test: `scripts/build-zip.ps1` exists, reads the version from `Cargo.toml`, stages
       `lasercad.exe`, both `LICENSE-*` and `FIRST-RUN.txt`, and writes
       `dist/lasercad-<version>-windows-x86_64.zip`; `build-msi.ps1` and `wix/` are gone
