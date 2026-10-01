@@ -1,0 +1,19 @@
+# LCV-172 AC 5/AC 6 — out-of-range radii (SVG 2 §F.6.6) and a rotated
+# circular arc. World y = 100 - svg y.
+bed 100 100
+layer "Cut" #ff0000 output=1 current=1
+# A -10 -10 is A 10 10: (10, 30) to (20, 20), small, sweep 1 = clockwise on
+# screen, so the centre is svg (20, 30) = world (20, 70): from the left
+# (180 deg) up to the top (90 deg), clockwise.
+arc 0 20 70 10 180 90 cw
+# rx = 0: a straight line from (40, 10) to (60, 20).
+line 0 40 90 60 80
+# r = 5 but the chord is 20 > 2r, so the radius scales to 10: a half turn
+# with centre svg (50, 40) = world (50, 60); sweep 1 = clockwise on screen,
+# from the left (180 deg) over the top to the right (0 deg).
+arc 0 50 60 10 180 0 cw
+# Equal endpoints (70, 70): the arc is omitted.
+# rx = ry with a 45 deg rotation: the rotation is ignored. (10, 80) to
+# (20, 70), small, sweep 0 = counter-clockwise on screen, so the centre is
+# svg (10, 70) = world (10, 30): from the bottom (270 deg) to the right (0 deg).
+arc 0 10 30 10 270 0 ccw

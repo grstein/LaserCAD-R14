@@ -1,0 +1,11 @@
+# LCV-172 AC 7 — a cubic Bézier and an elliptical arc (rx 20 != ry 10) import
+# nothing, move the current point to their endpoints, and are reported.
+# World y = 100 - svg y.
+bed 100 100
+layer "Cut" #ff0000 output=1 current=1
+# After C, the current point is (40, 10); L 40 30.
+line 0 40 90 40 70
+# After A, the current point is (80, 30); L 80 50.
+line 0 80 70 80 50
+ignored 1 path C
+ignored 1 path elliptical arc

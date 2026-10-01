@@ -45,7 +45,7 @@
       `path-subpaths` (three `M` in one `d`, two closed with `Z`) (files:
       tests/fixtures/svg/path-relative.{svg,expected}, tests/fixtures/svg/path-compact.{svg,expected},
       tests/fixtures/svg/path-subpaths.{svg,expected})
-- [ ] T14 [AC10] Fixtures: `path-radii` (negative radii, `rx = 0`, `λ > 1`, equal endpoints,
+- [x] T14 [AC10] Fixtures: `path-radii` (negative radii, `rx = 0`, `λ > 1`, equal endpoints,
       rotated circular arc), `path-error` (mid-path error: segments before it plus
       `ignored 1 path (data error)`), `path-curves` (a Bézier and an elliptical arc reported)
       (files: tests/fixtures/svg/path-radii.{svg,expected}, tests/fixtures/svg/path-error.{svg,expected},
