@@ -24,7 +24,7 @@ Prerequisites: LCV-185, LCV-192 Done; LCV-188 Done (the outcome's `New ids` suff
   - a null other-type key tolerated.
 
   (files: src/agent/drawing/tests.rs)
-- [ ] T4 [AC1][AC2][AC3][AC4][AC8] `drawing/items.rs`: `Shape`, per-type parse; `expand.rs` for
+- [x] T4 [AC1][AC2][AC3][AC4][AC8] `drawing/items.rs`: `Shape`, per-type parse; `expand.rs` for
   the shapes (files: src/agent/drawing/items.rs, src/agent/drawing/expand.rs,
   src/agent/drawing.rs)
 - [ ] T5 [AC5][AC6][AC7][AC8] Test (parser), arrays:

@@ -1,5 +1,8 @@
 //! LCV-144 — `create_drawing`: one declarative JSON batch of lines, circles and
-//! arcs, validated completely before anything is sent (ADR 0010).
+//! arcs, validated completely before anything is sent (ADR 0010). LCV-196 adds
+//! polylines, rects, polygons, text and arrays: [`items`] parses each into a
+//! shape, [`expand`] turns the shapes into lines, circles and arcs, and the
+//! 1000-entity cap applies to the expanded count.
 //!
 //! Hand-rolled like the rest of `tools.rs` (ADR 0007 §D2a): every failure names
 //! its path, `create_drawing entities[17].r: …`, and stops the parse. The
@@ -14,8 +17,10 @@
 
 use serde_json::Value;
 
-use crate::agent::tools::{ToolCallError, expected_form, validate_r};
+use crate::agent::tools::ToolCallError;
 
+mod expand;
+mod items;
 mod keys;
 mod schema;
 pub use keys::{ENTITY_TYPES, EntityType, Key, KeyKind};
@@ -97,12 +102,12 @@ pub fn layer_arg(args: &Value) -> Result<Option<String>, String> {
 /// Pure. Checks, in order: the root is an object whose keys are `version`,
 /// `entities` and optionally `layer` (checked by [`layer_arg`]); `version` is
 /// the integer 1; `entities` holds 1..=[`MAX_DRAWING_ENTITIES`] items; then
-/// each item in turn.
+/// each item in turn; then the expanded count, 1..=[`MAX_DRAWING_ENTITIES`].
 ///
 /// # Errors
 ///
 /// The first shape failure, as a [`ToolCallError::Arg`] whose path is a root
-/// key, `(root)`, `entities[i]` or `entities[i].key` (LCV-192).
+/// key, `(root)`, `entities[i]`, `entities[i].key` or deeper (LCV-192).
 pub fn parse(args: &Value) -> Result<Vec<DrawingItem>, ToolCallError> {
     let root = |field: &str, reason: &str| ToolCallError::arg(TOOL, field, reason);
     let obj = args
@@ -128,80 +133,12 @@ pub fn parse(args: &Value) -> Result<Vec<DrawingItem>, ToolCallError> {
     if entities.is_empty() || entities.len() > MAX_DRAWING_ENTITIES {
         return Err(root("entities", &format!("has {} items", entities.len())));
     }
-    entities
+    let shapes = entities
         .iter()
         .enumerate()
-        .map(|(i, v)| item(i, v))
-        .collect()
-}
-
-/// One entity: an object, a known `type`, that type's keys (another type's
-/// key only as `null`), finite numbers, a boolean `ccw`, and the shared
-/// radius rule. Every refusal's path is `entities[index].key`.
-fn item(index: usize, value: &Value) -> Result<DrawingItem, ToolCallError> {
-    let at = |key: &str| format!("entities[{index}].{key}");
-    let fail = |key: &str, reason: &str| arg(at(key), reason, expected_form(key));
-    let obj = value.as_object().ok_or_else(|| {
-        let form = "an object with a type and that type's keys";
-        arg(format!("entities[{index}]"), "not an object", form)
-    })?;
-    let kind = obj.get("type").ok_or_else(|| fail("type", "missing"))?;
-    let Some(ty) = kind.as_str().and_then(keys::entity_type) else {
-        return Err(fail("type", "unknown type"));
-    };
-    let (a, kind_name, own_keys) = (ty.article(), ty.name, ty.own_keys());
-    // A key of another type is tolerated only as `null` (ADR 0010 §2).
-    let own = |k: &str| k == "type" || ty.takes(k);
-    for (key, value) in obj.iter().filter(|(k, _)| !own(k)) {
-        if !keys::published(key) {
-            return Err(arg(at(&cut(key)), "unknown key", &own_keys));
-        } else if !value.is_null() {
-            let reason = format!("not {a} {kind_name} key");
-            return Err(arg(at(key), &reason, &format!("null or {own_keys}")));
-        }
-    }
-    if let Some(key) = ty.keys.iter().find(|k| !obj.contains_key(k.name)) {
-        return Err(fail(key.name, "missing"));
-    }
-    let num = |key: &str| {
-        obj.get(key)
-            .and_then(Value::as_f64)
-            .filter(|n| n.is_finite())
-            .ok_or_else(|| fail(key, "not a number"))
-    };
-    let radius = || {
-        let r = num("r")?;
-        validate_r(TOOL, r).map_err(|e| match e {
-            ToolCallError::Arg { reason, .. } => fail("r", &reason),
-            other => other,
-        })?;
-        Ok(r)
-    };
-    Ok(match kind.as_str() {
-        Some("line") => DrawingItem::Line {
-            x1: num("x1")?,
-            y1: num("y1")?,
-            x2: num("x2")?,
-            y2: num("y2")?,
-        },
-        Some("circle") => DrawingItem::Circle {
-            cx: num("cx")?,
-            cy: num("cy")?,
-            r: radius()?,
-        },
-        _ => DrawingItem::Arc {
-            cx: num("cx")?,
-            cy: num("cy")?,
-            r: radius()?,
-            // The one unit boundary of this file: degrees in, radians out.
-            start: num("start_deg")?.to_radians(),
-            end: num("end_deg")?.to_radians(),
-            ccw: obj
-                .get("ccw")
-                .and_then(Value::as_bool)
-                .ok_or_else(|| fail("ccw", "not a boolean"))?,
-        },
-    })
+        .map(|(i, v)| items::item(i, v))
+        .collect::<Result<Vec<_>, _>>()?;
+    expand::expand(&shapes)
 }
 
 /// A `create_drawing` refusal at `path` with its own expected form.

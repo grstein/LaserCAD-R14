@@ -506,7 +506,7 @@ fn lcv185_the_published_property_types_match_the_validator() {
     for (key, prop) in props {
         let want = match key.as_str() {
             "type" => "string",
-            "ccw" => "boolean",
+            "ccw" | "closed" => "boolean",
             _ => "number",
         };
         assert_eq!(prop["type"], json!(want), "{key}");
@@ -553,7 +553,7 @@ fn refused_args(args: Value) -> String {
 fn lcv192_ac1_create_drawing_refusals_name_path_reason_and_form() {
     let circle = json!({"type": "circle", "cx": 0, "cy": 0, "r": 1});
     let list = "expected a list of 1 to 1000 entity objects";
-    let types = r#"expected "line", "circle" or "arc""#;
+    let types = r#"expected "line", "circle", "arc", "polyline", "rect", "polygon", "text", "linear_array" or "polar_array""#;
     let mut seventeen: Vec<Value> = (0..20).map(|_| circle.clone()).collect();
     seventeen[17]["r"] = json!(-3);
     let cases = [
@@ -596,7 +596,7 @@ fn lcv192_ac1_create_drawing_refusals_name_path_reason_and_form() {
             format!("create_drawing entities[0].type: missing; {types}"),
         ),
         (
-            json!({"version": 1, "entities": [{"type": "polyline"}]}),
+            json!({"version": 1, "entities": [{"type": "spline"}]}),
             format!("create_drawing entities[0].type: unknown type; {types}"),
         ),
         (

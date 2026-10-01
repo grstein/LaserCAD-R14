@@ -5,6 +5,8 @@
 //!
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
+use crate::agent::tools::expected_form;
+
 /// The JSON kind of one item key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeyKind {
@@ -77,11 +79,19 @@ const fn req(name: &'static str, kind: KeyKind) -> Key {
     }
 }
 
-use KeyKind::{Bool, Num};
+const fn opt(name: &'static str, kind: KeyKind) -> Key {
+    Key {
+        name,
+        kind,
+        optional: true,
+    }
+}
+
+use KeyKind::{Bool, IndexList, Int, Num, Points, Str};
 
 /// Every entity type of a `create_drawing` item; the one source of the item
 /// schema and of the item key check.
-pub static ENTITY_TYPES: [EntityType; 3] = [
+pub static ENTITY_TYPES: [EntityType; 9] = [
     EntityType {
         name: "line",
         keys: &[
@@ -106,6 +116,58 @@ pub static ENTITY_TYPES: [EntityType; 3] = [
             req("ccw", Bool),
         ],
     },
+    EntityType {
+        name: "polyline",
+        keys: &[req("points", Points), req("closed", Bool)],
+    },
+    EntityType {
+        name: "rect",
+        keys: &[
+            req("x", Num),
+            req("y", Num),
+            req("width", Num),
+            req("height", Num),
+            opt("corner_radius", Num),
+        ],
+    },
+    EntityType {
+        name: "polygon",
+        keys: &[
+            req("cx", Num),
+            req("cy", Num),
+            req("r", Num),
+            req("sides", Int),
+            opt("start_deg", Num),
+        ],
+    },
+    EntityType {
+        name: "text",
+        keys: &[
+            req("x", Num),
+            req("y", Num),
+            req("height", Num),
+            req("text", Str),
+        ],
+    },
+    EntityType {
+        name: "linear_array",
+        keys: &[
+            req("of", IndexList),
+            req("count", Int),
+            req("dx", Num),
+            req("dy", Num),
+        ],
+    },
+    EntityType {
+        name: "polar_array",
+        keys: &[
+            req("of", IndexList),
+            req("count", Int),
+            req("cx", Num),
+            req("cy", Num),
+            req("step_deg", Num),
+        ],
+    },
 ];
 
 /// The type named `name`, if any.
@@ -116,4 +178,26 @@ pub(super) fn entity_type(name: &str) -> Option<&'static EntityType> {
 /// `true` when some type publishes `key`.
 pub(super) fn published(key: &str) -> bool {
     ENTITY_TYPES.iter().any(|t| t.takes(key))
+}
+
+/// The accepted form of an item key, for its refusal; `type` lists every
+/// type of [`ENTITY_TYPES`], other keys fall back to the scalar tools' form.
+pub(super) fn form(key: &str) -> String {
+    match key {
+        "type" => {
+            let mut quoted = ENTITY_TYPES.iter().map(|t| format!("\"{}\"", t.name));
+            let last = quoted.next_back().unwrap_or_default();
+            format!("{} or {last}", quoted.collect::<Vec<_>>().join(", "))
+        }
+        "width" | "height" => "a positive number in mm".to_owned(),
+        "corner_radius" => "a number in mm from 0 to half the shorter side".to_owned(),
+        "sides" => "an integer from 3 to 64".to_owned(),
+        "count" => "an integer from 2 to 1000".to_owned(),
+        "step_deg" => "a number in degrees".to_owned(),
+        "closed" => "true or false".to_owned(),
+        "text" => "a string of 1 to 256 characters without control characters".to_owned(),
+        "points" => "a list of 2 to 1000 points {x, y} in mm".to_owned(),
+        "of" => "a list of distinct indices of earlier items".to_owned(),
+        _ => expected_form(key).to_owned(),
+    }
 }
