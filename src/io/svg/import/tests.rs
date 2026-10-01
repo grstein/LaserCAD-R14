@@ -1,6 +1,6 @@
 use super::*;
 use crate::document::{Layer, LayerId};
-use crate::geometry::{Arc, EPSILON};
+use crate::geometry::{Arc, Circle, EPSILON, Line};
 use core::f64::consts::{FRAC_PI_2, PI};
 
 /// Millimetres per px (96 px = 1 in): a unitless length is px (LCV-173).

@@ -1,6 +1,6 @@
 # LCV-174 — Tasks
 
-- [ ] T1 [AC1] Refactor: create `import/shapes.rs` with `Attr`/`attr`. Move `parse_line`,
+- [x] T1 [AC1] Refactor: create `import/shapes.rs` with `Attr`/`attr`. Move `parse_line`,
   `parse_circle` and the ellipse centre read into it, and route walk's `line|circle|ellipse` arms
   through `shapes::import_shape`. No behavior change; gate green.
   (files: src/io/svg/import/shapes.rs, src/io/svg/import/walk.rs, src/io/svg/import.rs)

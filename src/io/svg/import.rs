@@ -49,19 +49,18 @@
 //! Y mirror by LCV-100, bed by LCV-114, layers by LCV-156.
 
 use super::header::parse_root;
-use super::length::{parse_length, to_user};
 use super::viewport::Ctx;
 use crate::document::entity::Entity;
 use crate::document::{Document, Layer, LayerId};
-use crate::geometry::{Circle, Line, Vec2};
+use crate::geometry::Vec2;
 use crate::util::flip_y;
-use conic::{Conic, conic_entity};
 use style::{Style, collect_sheet};
 use walk::Walk;
 
 mod conic;
 mod path;
 pub(super) mod report;
+mod shapes;
 mod style;
 mod walk;
 
@@ -194,59 +193,11 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
     })
 }
 
-/// Which viewport side a `%` length refers to (LCV-173 AC 10).
-#[derive(Debug, Clone, Copy)]
-enum Axis {
-    /// The viewport width (`x1`, `x2`, `cx`).
-    X,
-    /// The viewport height (`y1`, `y2`, `cy`).
-    Y,
-    /// The normalized diagonal `√(w² + h²) / √2` (`r`).
-    Diag,
-}
-
 /// `p` in current user units to a world point: through `ctx.ctm` onto the
 /// bed, then un-mirrored around `bed_h`.
 fn to_world(ctx: &Ctx, p: Vec2, bed_h: f64) -> Vec2 {
     let q = ctx.ctm.apply(p);
     Vec2::new(q.x, flip_y(q.y, bed_h))
-}
-
-fn parse_line(n: roxmltree::Node<'_, '_>, ctx: &Ctx, bed_h: f64) -> Result<Entity, SvgImportError> {
-    let len = |a, axis| attr_len(n, "line", a, axis, ctx);
-    let p1 = Vec2::new(len("x1", Axis::X)?, len("y1", Axis::Y)?);
-    let p2 = Vec2::new(len("x2", Axis::X)?, len("y2", Axis::Y)?);
-    Ok(Entity::Line(Line::new(
-        to_world(ctx, p1, bed_h),
-        to_world(ctx, p2, bed_h),
-    )))
-}
-
-/// A `<circle>`: a [`Circle`] under a similarity, else the exact image
-/// ellipse (LCV-176 AC 3); `Ok(None)` only when that image is degenerate.
-fn parse_circle(
-    n: roxmltree::Node<'_, '_>,
-    ctx: &Ctx,
-    bed_h: f64,
-) -> Result<Option<Entity>, SvgImportError> {
-    let len = |a, axis| attr_len(n, "circle", a, axis, ctx);
-    let c = Vec2::new(len("cx", Axis::X)?, len("cy", Axis::Y)?);
-    let r = len("r", Axis::Diag)?;
-    if r <= 0.0 {
-        let v = n.attribute("r").unwrap_or("").to_string();
-        return Err(malformed("circle", "r", v));
-    }
-    if let Some(s) = ctx.ctm.similarity_scale() {
-        let circle = Circle::new(to_world(ctx, c, bed_h), r * s);
-        return Ok(Some(Entity::Circle(circle)));
-    }
-    let conic = Conic {
-        center: c,
-        u: Vec2::new(r, 0.0),
-        v: Vec2::new(0.0, r),
-        span: None,
-    };
-    Ok(conic_entity(ctx, conic, bed_h))
 }
 
 fn malformed(element: &'static str, attr: &'static str, value: String) -> SvgImportError {
@@ -255,26 +206,6 @@ fn malformed(element: &'static str, attr: &'static str, value: String) -> SvgImp
         attr,
         value,
     }
-}
-
-/// Attribute `a` of `n` as a length in user units, `%` resolved against
-/// `ctx.viewport` along `axis` (LCV-173 AC 10).
-fn attr_len(
-    n: roxmltree::Node<'_, '_>,
-    el: &'static str,
-    a: &'static str,
-    axis: Axis,
-    ctx: &Ctx,
-) -> Result<f64, SvgImportError> {
-    let raw = n.attribute(a).unwrap_or("");
-    let len = parse_length(raw).ok_or_else(|| malformed(el, a, raw.to_string()))?;
-    let [w, h] = ctx.viewport;
-    let reference = match axis {
-        Axis::X => w,
-        Axis::Y => h,
-        Axis::Diag => w.hypot(h) / core::f64::consts::SQRT_2,
-    };
-    Ok(to_user(len, reference))
 }
 
 #[cfg(test)]

@@ -4,11 +4,11 @@
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
-use super::conic::parse_ellipse;
 use super::path::path_entities;
 use super::report::{Report, style_decls};
+use super::shapes::import_shape;
 use super::style::Style;
-use super::{SVG_NS, SvgImportError, parse_circle, parse_line};
+use super::{SVG_NS, SvgImportError};
 use crate::document::LayerId;
 use crate::document::entity::Entity;
 use crate::io::svg::css::Sheet;
@@ -28,9 +28,6 @@ const INVALID_TRANSFORM: &str = "transform (invalid)";
 
 /// The report label of a `transform` that collapses the plane (LCV-173).
 const SINGULAR_TRANSFORM: &str = "transform (singular)";
-
-/// The report label of an `<ellipse>` without a positive radius (LCV-176).
-const INVALID_ELLIPSE: &str = "ellipse (invalid radius)";
 
 /// The report label of a nested `<svg>`, imported without clipping
 /// (LCV-173 AC 9).
@@ -135,17 +132,13 @@ impl Walk {
             let entity = match kind {
                 Kind::Import => match (inner_ctx, name) {
                     (None, _) => None,
-                    (Some(c), "line") => Some(parse_line(child, &c, bed_h)?),
-                    (Some(c), "circle") => parse_circle(child, &c, bed_h)?,
-                    (Some(c), "ellipse") => {
-                        let ellipse = parse_ellipse(child, &c, bed_h)?;
-                        if ellipse.is_none() {
-                            self.report.note(INVALID_ELLIPSE);
-                        }
-                        ellipse
+                    (Some(c), "path") => {
+                        self.path(child, slot, &c);
+                        None
                     }
                     (Some(c), _) => {
-                        self.path(child, slot, &c);
+                        let shape = import_shape(name, child, &c, bed_h)?;
+                        self.push(shape.entities, &shape.notes, slot);
                         None
                     }
                 },
@@ -216,13 +209,18 @@ impl Walk {
         };
         let data = parse_path_data(d);
         let (entities, labels) = path_entities(&data, ctx, self.bed_h);
+        self.push(entities, &labels, slot);
+        if data.error {
+            self.report.note(PATH_DATA_ERROR);
+        }
+    }
+
+    /// Append `entities` on `slot` and note each of `labels`.
+    fn push(&mut self, entities: Vec<Entity>, labels: &[&str], slot: Slot) {
         self.slots.extend(entities.iter().map(|_| slot));
         self.entities.extend(entities);
         for label in labels {
             self.report.note(label);
-        }
-        if data.error {
-            self.report.note(PATH_DATA_ERROR);
         }
     }
 }
