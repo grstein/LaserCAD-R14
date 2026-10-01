@@ -5,7 +5,7 @@
   (files: src/agent/attachment.rs, src/agent/mod.rs, AGENTS.md)
 - [x] T2 [P] [AC1] `pick_image_dialog` + disarmed-panic test; extend the repo scan if it lists the
   wrappers (files: src/io/dialogs.rs, tests/it/repo/dialogs_disarmed.rs)
-- [ ] T3 [AC2] `ContentPart::image(mime, bytes)`, `png` delegating, JPEG data-URL unit test
+- [x] T3 [AC2] `ContentPart::image(mime, bytes)`, `png` delegating, JPEG data-URL unit test
   (files: src/agent/wire.rs)
 - [ ] T4 [AC2] [AC7] `TurnConfig.image` + redacted `Debug`; `drive_turn` builds the parts user
   message. Unit tests: image request shape, and no-image requests byte-identical

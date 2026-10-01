@@ -228,10 +228,15 @@ impl ContentPart {
         Self::Text { text: text.into() }
     }
 
-    /// An image part carrying `png` as a base64 `data:` URL. This file is the
-    /// only place `base64` is used (LCV-145 AC 7).
+    /// An image part carrying `png` as a base64 `data:` URL.
     pub fn png(png: &[u8]) -> Self {
-        let url = format!("data:image/png;base64,{}", STANDARD.encode(png));
+        Self::image("image/png", png)
+    }
+
+    /// An image part carrying `bytes` of type `mime` as a base64 `data:` URL
+    /// (LCV-199). This file is the only place `base64` is used (LCV-145 AC 7).
+    pub fn image(mime: &str, bytes: &[u8]) -> Self {
+        let url = format!("data:{mime};base64,{}", STANDARD.encode(bytes));
         Self::ImageUrl {
             image_url: ImageUrl { url },
         }
@@ -460,6 +465,19 @@ mod tests {
         let back: ChatMessage =
             serde_json::from_str(&serde_json::to_string(&message).unwrap()).unwrap();
         assert_eq!(back, message);
+    }
+
+    /// LCV-199 AC 2 — a JPEG rides as an `image/jpeg` data URL; `png` is
+    /// `image` with the PNG type.
+    #[test]
+    fn a_jpeg_part_is_an_image_jpeg_data_url() {
+        let jpeg = ContentPart::image("image/jpeg", &[0xFF, 0xD8, 0xFF]);
+        assert_eq!(
+            serde_json::to_string(&jpeg).unwrap(),
+            r#"{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,/9j/"}}"#
+        );
+        let bytes = [0x89, b'P', b'N', b'G'];
+        assert_eq!(ContentPart::png(&bytes), ContentPart::image("image/png", &bytes));
     }
 
     /// LCV-145 AC 10/11 — `replace_images` swaps every image part, in every
