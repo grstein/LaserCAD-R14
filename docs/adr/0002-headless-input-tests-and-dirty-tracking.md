@@ -27,6 +27,15 @@
 - **Amended (4)**: 2026-09-30 — §A6: `Ctrl+A` joins the table as
   `select all | Ctrl+A | no` (LCV-166). A focused text field keeps `Ctrl+A`
   for its own text; every other row is unchanged.
+- **Amended (5)**: 2026-09-30 — §A6: a `dialog` row joins the table (LCV-169).
+  While any dialog is open, `src/app/input.rs::take_dialog_key` runs first in
+  the frame and consumes `Enter` and `Escape` for the topmost dialog only, which
+  treats the key as a click on its primary or Cancel/Close button. No shortcut,
+  tool, command line or recall sees them; the focused command line keeps its
+  text and focus. That `consume_key` is the routing itself, not a cover for a
+  double dispatch, so the rule below does not apply to it. The one exception is
+  `Enter` in the AI Settings system prompt (`agent::SYSTEM_PROMPT_ID`), which
+  stays a newline. Every other row is unchanged.
 - **Date**: 2026-09-12
 - **Deciders**: architect (Marco 0 / LCV-103)
 
@@ -416,6 +425,7 @@ The gate table is the contract:
 
 | class | keys | fires while a text widget has focus |
 |---|---|---|
+| dialog (any open; topmost only) | `Enter`, `Escape` | yes, consumed first |
 | global commands | `Ctrl+Z/Y/N/O/S`, `Ctrl+Shift+S` | yes |
 | view toggles | `F3`, `F7`, `F8` | yes |
 | cancel | `Escape` | yes |

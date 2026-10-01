@@ -43,7 +43,7 @@
 - [x] T16 [AC1] Test and code: with the AI Settings system prompt focused, Enter inserts a
   newline and the window stays open; `SYSTEM_PROMPT_ID` is skipped by `take_dialog_key` (files:
   src/agent/settings_ui.rs, src/app/input.rs, tests/it/ui/dialog_keyboard.rs)
-- [ ] T17 [AC9] ADR 0002 §A6 amendment note (dialog row) (files: docs/adr/0002-*.md)
+- [x] T17 [AC9] ADR 0002 §A6 amendment note (dialog row) (files: docs/adr/0002-*.md)
 - [ ] T18 [AC9] DESIGN.md §7 (dialog buttons, destructive text, AI Settings Done → Close for pre-SDD LCV-141) and §8 (Enter/Escape rule)
   (files: DESIGN.md)
 - [ ] T19 CHANGELOG line (files: CHANGELOG.md)
