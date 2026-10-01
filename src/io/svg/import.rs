@@ -51,6 +51,7 @@ use walk::Walk;
 
 mod path;
 pub(super) mod report;
+mod style;
 mod walk;
 
 /// The SVG namespace URI; only elements in it are SVG (LCV-171 AC 1).

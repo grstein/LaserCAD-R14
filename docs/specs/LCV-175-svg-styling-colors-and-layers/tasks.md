@@ -9,7 +9,7 @@
       (`!important`, ASCII case-insensitive names) (files: src/io/svg/css.rs)
 - [x] T3 `report::style_decls` delegates to `css::declarations`; no behaviour change, LCV-171
       tests stay green (files: src/io/svg/import/report.rs)
-- [ ] T4 [AC1] [AC2] [AC5] [AC6] [AC11] Test: `import/style.rs` unit tests — attribute < rule <
+- [x] T4 [AC1] [AC2] [AC5] [AC6] [AC11] Test: `import/style.rs` unit tests — attribute < rule <
       `style`; `!important` rule beats `style`; id > class > type > `*`, later rule on a tie;
       `stroke`/`fill`/`color` inherit, `inherit` keyword; `currentColor` takes `color`; an invalid
       `stroke` falls back to the next candidate and notes `stroke (invalid color)`
