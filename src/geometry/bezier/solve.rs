@@ -10,14 +10,17 @@ use crate::geometry::{Bezier, EPSILON, Line, Vec2};
 /// Bisection steps; `f64` bisection on `[0, 1]` stops earlier at a fixed point.
 const BISECT_STEPS: usize = 64;
 
+/// One coordinate of a point.
+type Coord = fn(Vec2) -> f64;
+
 impl Bezier {
     /// True iff the curve meets the axis-aligned segment `edge` (vertical when
-    /// its ends share `x`, else horizontal), ends inclusive within `EPSILON`.
+    /// its ends share `x` within `EPSILON`, else horizontal), ends inclusive within `EPSILON`.
     /// Each monotone piece of the curve along the edge's normal axis is
     /// bisected for its one crossing of the edge line.
     pub fn crosses_axis_segment(&self, edge: &Line) -> bool {
-        let vertical = edge.p1.x == edge.p2.x;
-        let (along, across): (fn(Vec2) -> f64, fn(Vec2) -> f64) = if vertical {
+        let vertical = (edge.p1.x - edge.p2.x).abs() <= EPSILON;
+        let (along, across): (Coord, Coord) = if vertical {
             (|p| p.x, |p| p.y)
         } else {
             (|p| p.y, |p| p.x)
