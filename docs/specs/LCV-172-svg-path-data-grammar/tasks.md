@@ -23,7 +23,7 @@
       `rx = ry` with φ = 30° gives the same arc as φ = 0; equal endpoints omit the arc; `rx = 0`
       gives a line; `A -10 -10 …` equals `A 10 10 …`; `λ > 1` gives `r = chord/2`; `rx ≠ ry`
       imports nothing and returns `path elliptical arc` (files: src/io/svg/import/path.rs)
-- [ ] T8 [AC3]–[AC7] [AC9] `path_entities`: move the arc rebuild from `import.rs::parse_path`
+- [x] T8 [AC3]–[AC7] [AC9] `path_entities`: move the arc rebuild from `import.rs::parse_path`
       unchanged, add the §F.6.6 cases and line/Z handling (files: src/io/svg/import/path.rs,
       src/io/svg/import.rs)
 - [ ] T9 [AC2] [AC7] [AC8] Wire `walk.rs`'s `path` arm to `parse_path_data` + `path_entities`:

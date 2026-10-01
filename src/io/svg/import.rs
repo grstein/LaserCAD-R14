@@ -36,7 +36,7 @@
 use super::header::parse_bed;
 use crate::document::entity::Entity;
 use crate::document::{Document, Layer, LayerId};
-use crate::geometry::{Arc, Circle, EPSILON, Line, Vec2};
+use crate::geometry::{Circle, EPSILON, Line, Vec2};
 use crate::util::flip_y;
 use walk::Walk;
 
@@ -230,27 +230,13 @@ fn parse_path(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Option<Entity>, 
     if (rx - ry).abs() > EPSILON || xar.abs() > EPSILON {
         return Err(SvgImportError::MalformedPath(d.to_string()));
     }
-    // Un-mirror both endpoints into world space first, then reconstruct the
-    // centre there (LCV-057 §Arc reconstruction, mirrored by LCV-100).
-    let (sy, ey) = (flip_y(sy, bed_h), flip_y(ey, bed_h));
-    let (dx, dy) = (ex - sx, ey - sy);
-    let chord = dx.hypot(dy);
-    if chord < EPSILON || rx <= 0.0 {
-        return Err(SvgImportError::MalformedPath(d.to_string()));
-    }
-    // Out-of-range radius (SVG 2 §F.6.6): rounding can push a half turn's
-    // chord past the diameter, so the radius scales up to reach it.
-    let r = if chord > 2.0 * rx { chord / 2.0 } else { rx };
-    let (mx, my) = ((sx + ex) / 2.0, (sy + ey) / 2.0);
-    let h = (r * r - (chord / 2.0).powi(2)).max(0.0).sqrt();
-    let (ux, uy) = (-dy / chord, dx / chord);
-    // Sign branches swapped relative to the un-mirrored reading: in world
-    // space the SVG sweep flag denotes the opposite handedness.
-    let sign: f64 = if large_arc == sweep_flag { 1.0 } else { -1.0 };
-    let (cx, cy) = (mx + sign * h * ux, my + sign * h * uy);
-    let (sa, ea) = ((sy - cy).atan2(sx - cx), (ey - cy).atan2(ex - cx));
-    let ctr = Vec2::new(cx, cy);
-    Ok(Some(Entity::Arc(Arc::new(ctr, r, sa, ea, !sweep_flag))))
+    let (s, e) = (
+        Vec2::new(sx, flip_y(sy, bed_h)),
+        Vec2::new(ex, flip_y(ey, bed_h)),
+    );
+    path::circular_arc(s, e, rx, large_arc, sweep_flag)
+        .map(Some)
+        .ok_or_else(|| SvgImportError::MalformedPath(d.to_string()))
 }
 
 fn tok_f64(t: &str, d: &str) -> Result<f64, SvgImportError> {

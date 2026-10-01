@@ -131,7 +131,14 @@ impl Pen {
                 let (rx, ry, _rotation) = (lx.number()?, lx.number()?, lx.number()?);
                 let (large, sweep) = (lx.flag()?, lx.flag()?);
                 let to = point(lx)?;
-                Segment::Arc { from, to, rx, ry, large, sweep }
+                Segment::Arc {
+                    from,
+                    to,
+                    rx,
+                    ry,
+                    large,
+                    sweep,
+                }
             }
             b'C' => skipped("path C", skip(lx, 2)?),
             b'S' => skipped("path S", skip(lx, 1)?),

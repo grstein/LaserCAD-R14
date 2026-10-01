@@ -1,5 +1,6 @@
 use super::*;
 use crate::document::{Layer, LayerId};
+use crate::geometry::Arc;
 use core::f64::consts::{FRAC_PI_2, PI};
 
 // Golden fixtures below are in the LCV-100 convention: SVG Y-down with the

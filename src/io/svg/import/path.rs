@@ -4,19 +4,88 @@
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use crate::document::entity::Entity;
-use crate::io::svg::path_data::PathData;
+use crate::geometry::{Arc, EPSILON, Line, Vec2};
+use crate::io::svg::path_data::{PathData, Segment};
+use crate::util::flip_y;
+
+/// The report label of an `A` with `|rx| ≠ |ry|` (AC 7, until LCV-176).
+const ELLIPTICAL_ARC: &str = "path elliptical arc";
 
 /// The entities `data` draws, un-mirrored around `bed_h`, and one report
 /// label per segment not imported, in order.
+///
+/// Zero-length lines are dropped (AC 3, AC 4). Arcs follow SVG 2 §F.6.6
+/// (AC 6): equal endpoints draw nothing, a zero radius draws a line,
+/// negative radii count as positive; `|rx| = |ry|` imports a circular arc
+/// whatever its rotation (AC 5), any other arc is labelled (AC 7). Lengths
+/// and radii are compared with [`EPSILON`] after the mirror.
 pub(super) fn path_entities(data: &PathData, bed_h: f64) -> (Vec<Entity>, Vec<&'static str>) {
-    let _ = (data, bed_h);
-    (Vec::new(), Vec::new())
+    let world = |p: Vec2| Vec2::new(p.x, flip_y(p.y, bed_h));
+    let line = |a: Vec2, b: Vec2| (a.distance(b) >= EPSILON).then(|| Entity::Line(Line::new(a, b)));
+    let (mut entities, mut labels) = (Vec::new(), Vec::new());
+    for seg in &data.segments {
+        match *seg {
+            Segment::Line(a, b) => entities.extend(line(world(a), world(b))),
+            Segment::Arc {
+                from,
+                to,
+                rx,
+                ry,
+                large,
+                sweep,
+            } => {
+                let (a, b) = (world(from), world(to));
+                let (rx, ry) = (rx.abs(), ry.abs());
+                if rx < EPSILON || ry < EPSILON {
+                    entities.extend(line(a, b));
+                } else if (rx - ry).abs() > EPSILON {
+                    labels.push(ELLIPTICAL_ARC);
+                } else {
+                    entities.extend(circular_arc(a, b, rx, large, sweep));
+                }
+            }
+            Segment::Skipped { label, .. } => labels.push(label),
+        }
+    }
+    (entities, labels)
+}
+
+/// The circular arc of radius `rx` from `s` to `e` (world points, already
+/// un-mirrored) with the SVG flags; `None` when the endpoints coincide or
+/// `rx ≤ 0`.
+pub(super) fn circular_arc(
+    s: Vec2,
+    e: Vec2,
+    rx: f64,
+    large_arc: bool,
+    sweep_flag: bool,
+) -> Option<Entity> {
+    let (sx, sy, ex, ey) = (s.x, s.y, e.x, e.y);
+    // Both endpoints are un-mirrored into world space first, then the centre
+    // is reconstructed there (LCV-057 §Arc reconstruction, mirrored by LCV-100).
+    let (dx, dy) = (ex - sx, ey - sy);
+    let chord = dx.hypot(dy);
+    if chord < EPSILON || rx <= 0.0 {
+        return None;
+    }
+    // Out-of-range radius (SVG 2 §F.6.6): rounding can push a half turn's
+    // chord past the diameter, so the radius scales up to reach it.
+    let r = if chord > 2.0 * rx { chord / 2.0 } else { rx };
+    let (mx, my) = ((sx + ex) / 2.0, (sy + ey) / 2.0);
+    let h = (r * r - (chord / 2.0).powi(2)).max(0.0).sqrt();
+    let (ux, uy) = (-dy / chord, dx / chord);
+    // Sign branches swapped relative to the un-mirrored reading: in world
+    // space the SVG sweep flag denotes the opposite handedness.
+    let sign: f64 = if large_arc == sweep_flag { 1.0 } else { -1.0 };
+    let (cx, cy) = (mx + sign * h * ux, my + sign * h * uy);
+    let (sa, ea) = ((sy - cy).atan2(sx - cx), (ey - cy).atan2(ex - cx));
+    let ctr = Vec2::new(cx, cy);
+    Some(Entity::Arc(Arc::new(ctr, r, sa, ea, !sweep_flag)))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::{Arc, EPSILON, Line, Vec2};
     use crate::io::svg::path_data::parse_path_data;
 
     const BED_H: f64 = 100.0;
