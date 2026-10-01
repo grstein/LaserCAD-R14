@@ -1,7 +1,7 @@
 # LCV-193 — Tasks
 
 - [x] T1 [AC1] [AC2] [AC4] Test: `TurnMetrics::note` renders `Turn: <s> steps, <a> actions applied, <r> refused (<p> repeated), <c> captures sent, <m> model replies.` exactly, zero counts included; `step` classifies `Ok`/`Observed` → steps only, `Refused`/`Fenced` → steps + refused, repeated → steps + refused + repeated (files: src/agent/metrics.rs)
-- [ ] T2 [AC2] Implement `TurnMetrics { steps, applied, refused, repeated, captures, replies }`, `step`, `note`; `pub use` in mod.rs; AGENTS.md purity list (files: src/agent/metrics.rs, src/agent/mod.rs, AGENTS.md)
+- [x] T2 [AC2] Implement `TurnMetrics { steps, applied, refused, repeated, captures, replies }`, `step`, `note`; `pub use` in mod.rs; AGENTS.md purity list (files: src/agent/metrics.rs, src/agent/mod.rs, AGENTS.md)
 - [ ] T3 Refactor, no behaviour change, only if `loop_.rs` would pass 270 and LCV-187 did not already split it: move `send_images` and `last_word` to `loop_/images.rs`; `has_image` → `image_count` (files: src/agent/loop_.rs, src/agent/loop_/images.rs, src/agent/wire.rs)
 - [ ] T4 [AC3] Test: one `Dispatch::Replied { captures }` per successful send, after it returns; `captures` = image parts the request carried, 0 when the upload was withheld; none when `send_fn` errs; `Replied` does not change the steps-left line; update exhaustive `Dispatch` matches (files: src/agent/loop_/tests.rs)
 - [ ] T5 [AC3] `Dispatch::Replied` sent from `send_images`; the worker ignores its outcome and propagates only `Err` (files: src/agent/loop_.rs or src/agent/loop_/images.rs)

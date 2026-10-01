@@ -31,12 +31,29 @@ impl TurnMetrics {
     /// Count one step answered `outcome`; `repeated` when the call repeated
     /// one already refused this turn.
     pub fn step(&mut self, outcome: &AgentOutcome, repeated: bool) {
-        let _ = (outcome, repeated);
+        self.steps = self.steps.saturating_add(1);
+        if matches!(outcome, AgentOutcome::Refused(_) | AgentOutcome::Fenced(_)) {
+            self.refused = self.refused.saturating_add(1);
+            self.repeated = self.repeated.saturating_add(u32::from(repeated));
+        }
     }
 
     /// The transcript line every turn ends with, zero counts included.
+    /// One format for every count, plurals included, so the line greps the
+    /// same whatever the numbers.
     pub fn note(&self) -> String {
-        String::new()
+        let Self {
+            steps,
+            applied,
+            refused,
+            repeated,
+            captures,
+            replies,
+        } = self;
+        format!(
+            "Turn: {steps} steps, {applied} actions applied, {refused} refused \
+             ({repeated} repeated), {captures} captures sent, {replies} model replies."
+        )
     }
 }
 
