@@ -32,7 +32,7 @@ commit, then T8–T13 one each, then T14. Each commit passes `scripts/gate.sh` a
       `src/ui/theme.rs` first. Change an expectation that cannot be restored only together with
       a CHANGELOG line and a DESIGN.md note. List each such change in the commit body
       (files: src/ui/theme.rs, CHANGELOG.md, DESIGN.md)
-- [ ] T8 [AC10] Test: on Linux, `settings::platform_path()` and `autosave::platform_path()` equal
+- [x] T8 [AC10] Test: on Linux, `settings::platform_path()` and `autosave::platform_path()` equal
       `$XDG_CONFIG_HOME|$HOME/.config` + `lasercad/settings.json` and
       `$XDG_DATA_HOME|$HOME/.local/share` + `lasercad/autosave.json`. The test reads the
       environment and never sets it. Then bump directories to 6 (files: src/app/persist/tests.rs,

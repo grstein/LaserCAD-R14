@@ -10,7 +10,7 @@ repository = "https://github.com/grstein/LaserCAD-R14-V2"
 
 [dependencies]
 base64 = "0.22"
-directories = "5"
+directories = "6"
 eframe = { version = "0.36", default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "web_screen_reader", "x11"] }
 egui = "0.36"
 png = "0.18"
