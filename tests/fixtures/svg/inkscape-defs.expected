@@ -2,12 +2,12 @@
 # <defs> path and gradient are never rendered, so they import nothing and
 # <defs> is reported once (it has element children). <sodipodi:namedview> and
 # <metadata> are silent; inkscape:* attributes are outside the SVG namespace.
-# The layer <g> has no `data-layer`: geometry lands on the default `Cut` layer,
+# The layer <g> has no `data-layer`: the black geometry lands on a `#000000` layer,
 # and its identity `transform` is applied, not reported (LCV-173). The <image>
 # is skipped and reported. `style="fill:none;…"` is exempt.
 # World y = 100 - svg y.
 bed 100 100
-layer "Cut" #ff0000 output=1 current=1
+layer "#000000" #000000 output=1 current=1
 line 0 10 10 90 10
 # M (30, 50) to (70, 50): a half turn (chord 40 = 2r), centre svg (50, 50)
 # = world (50, 50). sweep 1 = clockwise on screen: from the left (180 deg)

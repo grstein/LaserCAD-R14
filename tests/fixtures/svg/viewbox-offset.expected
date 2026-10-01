@@ -2,7 +2,8 @@
 # bed's top-left corner, one user unit = 1 mm. Page x = svg x + 50, page
 # y = svg y + 25, world y = 50 - page y.
 bed 100 50
-layer "Cut" #ff0000 output=1 current=1
+# LCV-175: every stroke is black and no layer is declared, so one `#000000` layer.
+layer "#000000" #000000 output=1 current=1
 line 0 0 50 100 0
 circle 0 50 25 10
 # Page (40, 5) to (60, 5), r 10: a half turn, centre page (50, 5) = world

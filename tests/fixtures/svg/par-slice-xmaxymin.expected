@@ -3,7 +3,8 @@
 # and its right edge meets the bed's, so page x = 2 x - 100, page y = 2 y.
 # World y = 50 - page y.
 bed 100 50
-layer "Cut" #ff0000 output=1 current=1
+# LCV-175: every stroke is black and no layer is declared, so one `#000000` layer.
+layer "#000000" #000000 output=1 current=1
 line 0 0 50 100 0
 # Centre page (50, 25), r 10.
 circle 0 50 25 10

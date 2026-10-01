@@ -3,7 +3,8 @@
 # (`1e1`, `4E1`), glued flags (`0110-10` is flags 0 1, then 10 -10).
 # World y = 100 - svg y.
 bed 100 100
-layer "Cut" #ff0000 output=1 current=1
+# LCV-175: every stroke is red and no layer is declared, so one `#ff0000` layer.
+layer "#ff0000" #ff0000 output=1 current=1
 # m10 20, l10-2.5 -> (20, 17.5), repeated l.5.5 -> (20.5, 18).
 line 0 10 80 20 82.5
 line 0 20 82.5 20.5 82

@@ -2,7 +2,8 @@
 # nothing, move the current point to their endpoints, and are reported.
 # World y = 100 - svg y.
 bed 100 100
-layer "Cut" #ff0000 output=1 current=1
+# LCV-175: every stroke is red and no layer is declared, so one `#ff0000` layer.
+layer "#ff0000" #ff0000 output=1 current=1
 # After C, the current point is (40, 10); L 40 30.
 line 0 40 90 40 70
 # After A, the current point is (80, 30); L 80 50.

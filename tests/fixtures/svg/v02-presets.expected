@@ -1,10 +1,14 @@
 # A v0.2 preset file: `<g id="cut|mark|engrave">`, no `data-layer`.
-# No layer group, so every entity lands on the default `Cut` layer.
+# No layer group: each entity inherits its group's stroke and lands on a new
+# `#rrggbb` layer per color, in order of first appearance, Output on; no `Cut`
+# (LCV-175 AC 8, AC 10).
 # World y = 180 - svg y.
 bed 300 180
-layer "Cut" #ff0000 output=1 current=1
+layer "#ff0000" #ff0000 output=1 current=1
+layer "#0000ff" #0000ff output=1
+layer "#00aa00" #00aa00 output=1
 line 0 10 50 250 120
-circle 0 80 140 12.5
+circle 1 80 140 12.5
 # M (170, 90) to (150, 70), sweep 0 = counter-clockwise on screen, small arc:
 # the centre is (150, 90), start at 0 deg, end at 90 deg (world y 110).
-arc 0 150 90 20 0 90 ccw
+arc 2 150 90 20 0 90 ccw

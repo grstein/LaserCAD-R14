@@ -42,7 +42,7 @@
       stray_geometry_goes_to_the_first_layer` (v0.2 part now `#0000ff`) and
       `preset_roundtrip.rs` (one layer per preset color) (files: tests/it/io_svg/layers_roundtrip.rs,
       tests/it/io_svg/preset_roundtrip.rs)
-- [ ] T13 [AC8] Corpus: hand-written expectations — `inkscape-mm.expected` (layer `#000000`),
+- [x] T13 [AC8] Corpus: hand-written expectations — `inkscape-mm.expected` (layer `#000000`),
       `v02-presets.expected` (three hex layers) (files: tests/fixtures/svg/inkscape-mm.expected,
       tests/fixtures/svg/v02-presets.expected)
 - [ ] T14 [AC3] [AC7] [AC8] Corpus: new pairs `illustrator-classes` (`<style>` classes, one rule
