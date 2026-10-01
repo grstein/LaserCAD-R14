@@ -345,12 +345,14 @@
     fn tools_parses_by_hand_and_holds_no_document() {
         let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/agent/tools.rs"));
         let at = src.find("\n#[cfg(test)]").expect("tools.rs must have a bare #[cfg(test)] marker");
-        let implementation = &src[..at];
+        // LCV-192: the getters and validators moved to `tools/args.rs`.
+        let args = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/agent/tools/args.rs"));
+        let implementation = &format!("{}{args}", &src[..at]);
 
         assert!(implementation.contains(concat!("pub fn parse_", "tool_call")),
             "positive control: the parser must be declared in this file");
         assert!(implementation.contains(concat!("fn validate", "_r")),
-            "positive control: the radius check must still be here");
+            "positive control: the radius check must still be in tools.rs or tools/args.rs");
 
         for forbidden in [
             concat!("from_value::<", "AgentAction>"),
