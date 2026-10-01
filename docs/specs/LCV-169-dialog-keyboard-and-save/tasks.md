@@ -46,4 +46,4 @@
 - [x] T17 [AC9] ADR 0002 §A6 amendment note (dialog row) (files: docs/adr/0002-*.md)
 - [x] T18 [AC9] DESIGN.md §7 (dialog buttons, destructive text, AI Settings Done → Close for pre-SDD LCV-141) and §8 (Enter/Escape rule)
   (files: DESIGN.md)
-- [ ] T19 CHANGELOG line (files: CHANGELOG.md)
+- [x] T19 CHANGELOG line (files: CHANGELOG.md)
