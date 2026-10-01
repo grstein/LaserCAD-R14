@@ -75,7 +75,12 @@ pub fn process_input(ctx: &egui::Context, app: &mut App, shortcut_fired: bool) {
 
     for key in TOOL_ROUTED_KEYS {
         if ctx.input(|i| i.key_pressed(key)) {
-            route_to_tool(app, key);
+            // An unfocused Enter is Enter on an empty line: the same body as
+            // the field's empty submit, so it repeats at rest (LCV-165 AC 4).
+            match key {
+                egui::Key::Enter => super::cmdline::empty_enter(app),
+                _ => route_to_tool(app, key),
+            }
         }
     }
 

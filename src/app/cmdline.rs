@@ -134,11 +134,28 @@ pub fn submit(app: &mut App, raw: &str) {
             send(app, ToolInput::Distance { value_mm, along });
         }
         // AC 14 — "Enter finishes the polyline" stays alive now that the
-        // command line usually holds keyboard focus.
-        CommandInput::Empty => super::input::route_to_tool(app, egui::Key::Enter),
+        // command line usually holds keyboard focus; at rest it repeats.
+        CommandInput::Empty => empty_enter(app),
         CommandInput::Unknown(text) => {
             app.say(Severity::Warning, format!("Unknown command: \"{text}\""))
         }
+    }
+}
+
+/// Enter on an empty line (LCV-165 AC 4, AC 5; ADR 0003 §B5 amendment).
+///
+/// While the active tool is at rest (SELECT idle) it starts the newest tool
+/// word in the recall ring, as if it had been typed, and pushes nothing;
+/// with none left it does nothing. Otherwise Enter goes to the tool, which
+/// finishes or accepts. The keyboard gate calls this for an Enter that
+/// reaches it with the field unfocused, so both paths repeat alike.
+pub(super) fn empty_enter(app: &mut App) {
+    if !app.tool_manager.at_rest() {
+        return super::input::route_to_tool(app, egui::Key::Enter);
+    }
+    if let Some(kind) = app.command_history.last_tool() {
+        app.command_feedback.clear();
+        app.tool_manager.set_tool(tools::make(kind));
     }
 }
 
