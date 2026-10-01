@@ -23,7 +23,7 @@ use std::path::PathBuf;
 
 use crate::app::App;
 use crate::document::{Document, History};
-use crate::io::svg::{export_svg, import_svg};
+use crate::io::svg::{export_svg, import_svg_with};
 use crate::io::{open_file_dialog, save_file_dialog};
 
 // ---------------------------------------------------------------------------
@@ -123,7 +123,7 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
 /// and say what the import ignored (LCV-171 AC 9). On failure
 /// `app.error_message` is set and nothing else changes.
 fn open_content(app: &mut App, path: PathBuf, content: &str) {
-    let opened = import_svg(content).and_then(|imported| {
+    let opened = import_svg_with(content, &app.fonts).and_then(|imported| {
         let feedback = ignored_feedback(&imported.report);
         imported
             .into_document()

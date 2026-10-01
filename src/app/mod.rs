@@ -199,6 +199,9 @@ pub struct App {
     /// LCV-138). [`App::has_unsaved_changes`] and [`App::mark_saved`]
     /// (`src/app/file_ops.rs`) are its only reader and writer.
     pub guard: UnsavedGuard,
+    /// The faces Open SVG draws `<text>` with (LCV-179, ADR 0017): the
+    /// system fonts in [`App::new`], none in [`App::default`].
+    pub fonts: crate::text::FontBook,
 }
 
 impl App {

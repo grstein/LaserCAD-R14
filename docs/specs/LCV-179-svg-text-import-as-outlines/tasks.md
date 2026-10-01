@@ -13,7 +13,7 @@
   `scale` imports closed contours whose bbox matches the glyph scaled by size/upem with origin at
   (10,20) through the CTM; then `import_text`, the walk arm and `import_svg_with`
   (files: `src/io/svg/import/text.rs`, `src/io/svg/import/walk.rs`, `src/io/svg/import.rs`)
-- [ ] T5 [AC1, AC3] Test first: `App::default().fonts` is empty (opening a text file reports
+- [x] T5 [AC1, AC3] Test first: `App::default().fonts` is empty (opening a text file reports
   `text (no font)`); then `App::fonts` (`system()` in `new`) and `open_content` calling
   `import_svg_with` (files: `src/app/mod.rs`, `src/io/file_actions.rs`, `tests/it/app/…`)
 - [ ] T6 [AC4] Test first: `"ll"` places the second glyph exactly one advance right of the first;

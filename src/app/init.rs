@@ -24,6 +24,7 @@ use crate::cmdline::CommandHistory;
 use crate::document::{Document, History};
 use crate::io::settings::Settings;
 use crate::render::Camera;
+use crate::text::FontBook;
 use crate::tools::ToolManager;
 
 /// The test constructor (ADR 0002 §A2). Touches no filesystem, and — since
@@ -68,6 +69,7 @@ impl Default for App {
             title: DocumentTitleState::default(),
             error_message: None,
             guard: UnsavedGuard::default(),
+            fonts: FontBook::empty(),
         };
         // Pre-seed the title cache to what this fresh state already computes
         // (LCV-138): a test `App` never backs a real OS window, so there is
@@ -105,7 +107,9 @@ impl App {
     ///   envelope's own `bed_mm` wins, and `title.recovered_from_autosave` is
     ///   set (LCV-138 AC 4) — the only place in the tree that sets it;
     /// - otherwise seeds the blank document's bed from
-    ///   `settings.default_bed_mm` (LCV-114 AC 11).
+    ///   `settings.default_bed_mm` (LCV-114 AC 11);
+    /// - stores the system [`FontBook`], scanned on the first `<text>`
+    ///   opened, never here (LCV-179, ADR 0017).
     ///
     /// A platform that supplies no config or data directory degrades to
     /// defaults, never to a panic: an unresolved path is the same `None` the
@@ -124,6 +128,7 @@ impl App {
                 .unwrap_or_default(),
             settings_path,
             autosave_path,
+            fonts: FontBook::system(),
             ..Self::default()
         };
         let recovered = app
@@ -211,6 +216,13 @@ mod tests {
             .find("pub fn new() -> Self {")
             .expect("App::new must exist");
         &implementation[start..]
+    }
+
+    /// LCV-179 — boot draws `<text>` with the system fonts; the test
+    /// constructor's empty book is the only other value (ADR 0017 §4).
+    #[test]
+    fn boot_stores_the_system_font_book() {
+        assert!(app_new_body().contains(concat!("FontBook::", "system()")));
     }
 
     /// LCV-138 review finding — `App::new()` must never assign
