@@ -1037,6 +1037,56 @@ fn a_repeated_refused_call_is_answered_with_the_first_refusal() {
     );
 }
 
+/// LCV-191 AC 1 — one `set_layer` call over 5 entities is one ask and one
+/// step: its result reads 255 of 256 steps left.
+#[test]
+fn one_set_layer_call_over_five_entities_is_one_step() {
+    use crate::document::{AddLayer, Command};
+    let mut applier = Applier::new();
+    AddLayer::new("Mark", [0, 0, 255], true).do_(&mut applier.app.document);
+    for i in 0..5 {
+        let cx = f64::from(i) * 10.0;
+        let circle = AgentAction::CreateCircle {
+            cx,
+            cy: 0.0,
+            r: 1.0,
+            layer: None,
+        };
+        agent_apply::apply(&mut applier.app, &circle);
+    }
+    let mut sends = 0usize;
+    let mut last = Vec::new();
+    let mut send_fn = |msgs: &[ChatMessage]| {
+        sends += 1;
+        last = msgs.to_vec();
+        Ok(match sends {
+            1 => batch(&[("set_layer", r#"{"indices":[4,3,2,1,0],"layer":"Mark"}"#)]),
+            _ => text("done"),
+        })
+    };
+    let (result, _) = drive_turn(
+        "go",
+        &cfg("sys", AGENT_STEP_BUDGET_DEFAULT),
+        &mut send_fn,
+        &mut |action| applier.ask(action),
+    );
+    assert_eq!(result.ok().as_deref(), Some("done"));
+    assert_eq!(applier.seen.len(), 1, "one ask for the whole set");
+    let tool = last
+        .iter()
+        .rfind(|m| m.role == "tool")
+        .expect("a tool result");
+    assert_eq!(
+        serde_json::to_value(tool)
+            .map(|v| v["content"].clone())
+            .ok(),
+        Some(json!(
+            "Moved 5 entities to layer \"Mark\". The drawing now has 5 entities.\n\
+                    Steps left this turn: 255 of 256."
+        ))
+    );
+}
+
 // ── LCV-143 AC 6: the prompt grants nothing ──────────────────────────────
 
 /// The two overrides AC 6 names: one that asks for everything, one blank.
