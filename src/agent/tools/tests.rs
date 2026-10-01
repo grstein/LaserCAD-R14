@@ -19,8 +19,8 @@
     /// `..._is_five` asserting `7` is a lie a reader has to read the body to
     /// catch.
     #[test]
-    fn tool_definitions_array_length_is_fifteen() {
-        assert_eq!(tool_definitions(false).as_array().unwrap().len(), 15);
+    fn tool_definitions_array_length_is_seventeen() {
+        assert_eq!(tool_definitions(false).as_array().unwrap().len(), 17);
     }
     /// AC 13 — the order is part of the contract: every other schema test and
     /// `transport.rs`'s wire assertions index into this array.
@@ -29,21 +29,22 @@
         let d = tool_definitions(false);
         let n = ["create_line","create_circle","create_arc","delete_entity","move_entity",
                  "copy_entity","rotate_entity","mirror_entity","scale_entity","set_layer",
-                 "query_entities","query_selection","check_drawing","measure","create_drawing"];
+                 "query_entities","query_selection","check_drawing","measure","checkpoint","rollback",
+                 "create_drawing"];
         for (i, nm) in n.iter().enumerate() { assert_eq!(d[i]["function"]["name"], *nm); }
         assert_eq!(d[n.len()], Value::Null, "and nothing after them");
     }
     #[test]
     fn tool_definitions_types_are_function() {
         let d = tool_definitions(false);
-        for i in 0..14 { assert_eq!(d[i]["type"], "function"); }
+        for i in 0..17 { assert_eq!(d[i]["type"], "function"); }
     }
     /// LCV-156 — every creation tool, the batch included, advertises an
     /// optional string `layer` (kills the `layer_schema` mutant, LCV-192).
     #[test]
     fn every_creation_tool_takes_an_optional_string_layer() {
         let d = tool_definitions(false);
-        for i in [0, 1, 2, 14] {
+        for i in [0, 1, 2, 16] {
             let layer = &d[i]["function"]["parameters"]["properties"]["layer"];
             assert_eq!(layer["type"], "string", "{}", d[i]["function"]["name"]);
             assert!(layer["description"].as_str().is_some_and(|t| t.contains("existing layer")));
@@ -152,16 +153,16 @@
         assert!(!names(&off).contains(&"capture_canvas".to_owned()));
         let on = tool_definitions(true);
         let mut expected = names(&off);
-        expected.insert(14, "capture_canvas".to_owned());
+        expected.insert(16, "capture_canvas".to_owned());
         assert_eq!(names(&on), expected);
-        let params = &on[14]["function"]["parameters"];
+        let params = &on[16]["function"]["parameters"];
         let mm = json!({"type":"number"});
         assert_eq!(*params, json!({"type":"object","properties":{
             "frame":{"type":"string","enum":["view","drawing","region"]},
             "x0":mm,"y0":mm,"x1":mm,"y1":mm},"required":[]}));
-        assert_eq!(on[15]["function"]["name"], "create_drawing");
+        assert_eq!(on[17]["function"]["name"], "create_drawing");
         for (i, tool) in off.as_array().unwrap().iter().enumerate() {
-            let j = if i < 14 { i } else { i + 1 };
+            let j = if i < 16 { i } else { i + 1 };
             assert_eq!(on[j], *tool, "tool {i} unchanged");
         }
     }
@@ -384,6 +385,7 @@
             ("frame", r#""view", "drawing" or "region""#), ("version", "the integer 1"),
             ("entities", "a list of 1 to 1000 entity objects"),
             ("type", r#""line", "circle" or "arc""#), ("(root)", "a JSON object"),
+            ("name", "a checkpoint name: 1 to 32 characters of A-Z a-z 0-9 _ -"),
             ("bogus", "a value the tool's schema allows")] {
             assert_eq!(expected_form(f), form, "{f}");
         }
@@ -678,7 +680,7 @@
         let d = tool_definitions(false);
         assert_eq!(d[12]["function"]["name"], "check_drawing");
         assert_eq!(d[13]["function"]["name"], "measure");
-        assert_eq!(d[14]["function"]["name"], "create_drawing");
+        assert_eq!(d[16]["function"]["name"], "create_drawing");
         let params = &d[13]["function"]["parameters"];
         let props = &params["properties"];
         assert_eq!(props["query"],
@@ -708,7 +710,7 @@
     fn create_drawing_schema_lists_every_type_and_key() {
         use crate::agent::drawing::ENTITY_TYPES;
         let d = tool_definitions(false);
-        let params = &d[14]["function"]["parameters"];
+        let params = &d[16]["function"]["parameters"];
         let item = &params["properties"]["entities"]["items"];
         let props = &item["properties"];
         assert_eq!(props["type"]["enum"], json!(["line","circle","arc","polyline","rect",
@@ -744,3 +746,45 @@
             assert!(about.contains(&needle), "{needle} not in {about}");
         }
     }
+
+mod checkpoints {
+    use super::*;
+
+    /// LCV-198 AC 1, AC 2 — `checkpoint` and `rollback` sit after `measure`,
+    /// `create_drawing` stays last; each takes one required string `name`.
+    #[test]
+    fn checkpoint_and_rollback_schemas_take_one_name() {
+        let d = tool_definitions(false);
+        for (i, tool) in [(14, "checkpoint"), (15, "rollback")] {
+            assert_eq!(d[i]["function"]["name"], tool);
+            let params = &d[i]["function"]["parameters"];
+            assert_eq!(params["properties"]["name"]["type"], "string", "{tool}");
+            assert_eq!(params["properties"].as_object().unwrap().len(), 1, "{tool}");
+            assert_eq!(req(&d, i), json!(["name"]), "{tool}");
+        }
+        let about = d[15]["function"]["description"].as_str().unwrap();
+        assert!(about.contains("start"), "rollback names the built-in start: {about}");
+    }
+
+    /// LCV-198 AC 1, AC 2 — the name parses as given; its shape is checked
+    /// at apply time, where the refusal can list the known checkpoints (AC 7).
+    #[test]
+    fn checkpoint_and_rollback_parse_their_name() {
+        assert_eq!(ok("checkpoint", json!({"name":"a"})), AgentAction::Checkpoint { name: "a".into() });
+        assert_eq!(ok("rollback", json!({"name":"start"})), AgentAction::Rollback { name: "start".into() });
+        assert_eq!(ok("checkpoint", json!({"name":"bad name!"})),
+            AgentAction::Checkpoint { name: "bad name!".into() });
+    }
+
+    /// LCV-198 — a missing or non-string name is an argument refusal.
+    #[test]
+    fn checkpoint_and_rollback_refuse_a_missing_or_non_string_name() {
+        for tool in ["checkpoint", "rollback"] {
+            let e = err(tool, json!({}));
+            assert_eq!(at(&e), (tool, "name", "missing"));
+            let e = err(tool, json!({"name": 7}));
+            assert_eq!(at(&e), (tool, "name", "not a string"));
+            assert!(e.to_string().ends_with(expected_form("name")), "{e}");
+        }
+    }
+}

@@ -80,6 +80,7 @@ pub(crate) fn expected_form(field: &str) -> &'static str {
         "query" => r#""distance", "length", "bbox", "intersections" or "angle""#,
         "points" => "a list of points {x, y} in mm",
         "point" => "a point {x, y} in mm",
+        "name" => "a checkpoint name: 1 to 32 characters of A-Z a-z 0-9 _ -",
         _ => "a value the tool's schema allows",
     }
 }
@@ -103,6 +104,14 @@ pub(super) fn get_bool(args: &Value, tool: &str, field: &str) -> Result<bool, To
     present(args, tool, field)?
         .as_bool()
         .ok_or_else(|| ToolCallError::arg(tool, field, "not a boolean"))
+}
+
+/// A string argument: absent is `missing`, any other type `not a string`.
+pub(super) fn get_str(args: &Value, tool: &str, field: &str) -> Result<String, ToolCallError> {
+    present(args, tool, field)?
+        .as_str()
+        .map(str::to_owned)
+        .ok_or_else(|| ToolCallError::arg(tool, field, "not a string"))
 }
 
 /// Shape check only: non-negative, integral, finite. The range check

@@ -37,7 +37,7 @@ use crate::agent::drawing;
 mod args;
 pub use args::ToolCallError;
 pub(crate) use args::{expected_form, refusal, validate_r};
-use args::{get_bool, get_f64, get_index, get_layer, validate_positive};
+use args::{get_bool, get_f64, get_index, get_layer, get_str, validate_positive};
 mod capture;
 mod measure;
 mod schema;
@@ -48,7 +48,7 @@ mod transform;
 /// create_arc(2) delete_entity(3) move_entity(4) copy_entity(5)
 /// rotate_entity(6) mirror_entity(7) scale_entity(8) set_layer(9)
 /// query_entities(10) query_selection(11) check_drawing(12) measure(13)
-/// create_drawing(14).
+/// checkpoint(14) rollback(15) create_drawing(16).
 ///
 /// The two queries and `check_drawing` take no arguments at all — an explicitly empty
 /// `properties` / `required` pair rather than an absent `parameters`, because
@@ -157,6 +157,9 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
         "query_selection" => Ok(AgentAction::QuerySelection),
         "check_drawing" => Ok(AgentAction::CheckDrawing),
         "measure" => Ok(AgentAction::Measure(measure::parse(args)?)),
+        // LCV-198: shape checked at apply time, beside the known checkpoints.
+        "checkpoint" => Ok(AgentAction::Checkpoint { name: get_str(args, name, "name")? }),
+        "rollback" => Ok(AgentAction::Rollback { name: get_str(args, name, "name")? }),
         // Shape only (LCV-187); permission and the frame's area are checked
         // live at the apply site, never here (LCV-145 AC 2).
         "capture_canvas" => Ok(AgentAction::CaptureCanvas(capture::parse(args)?)),

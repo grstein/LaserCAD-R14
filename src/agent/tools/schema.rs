@@ -16,6 +16,7 @@ pub(super) fn base_definitions() -> Value {
     let indices = json!({"type":"array","items":{"type":"integer"},"minItems":1,"maxItems":1000});
     let id = json!({"type":"string","description":"A stable entity id from query_entities, e.g. \"e7\"."});
     let ids = json!({"type":"array","items":{"type":"string"},"minItems":1,"maxItems":1000});
+    let name = json!({"type":"string","description":"1 to 32 characters of A-Z a-z 0-9 _ -"});
     json!([
       {"type":"function","function":{"name":"create_line",
         "description":"Create a straight line segment between two endpoints in mm.",
@@ -97,6 +98,12 @@ pub(super) fn base_definitions() -> Value {
                           "required":["x","y"]},"maxItems":2},
                         "indices":indices,"ids":ids},
           "required":["query"]}}},
+      {"type":"function","function":{"name":"checkpoint",
+        "description":"Remember the drawing as it is now under a name, so rollback can return to it later in this turn. Setting an existing name moves it here. Changes nothing.",
+        "parameters":{"type":"object","properties":{"name":name},"required":["name"]}}},
+      {"type":"function","function":{"name":"rollback",
+        "description":"Undo every change this turn made after the named checkpoint, newest first; entities get their old ids back. \"start\" is the start of the turn and always exists. Checkpoints set after the target are forgotten.",
+        "parameters":{"type":"object","properties":{"name":name},"required":["name"]}}},
       {"type":"function","function":{"name":"create_drawing",
         "description":"Append many lines, circles and arcs (mm, degrees) in one atomic call. The whole batch is validated first; any error draws nothing.",
         "parameters":drawing::schema()}}

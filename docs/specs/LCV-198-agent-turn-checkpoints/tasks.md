@@ -6,7 +6,7 @@
   revision bump, no-op past `group_len` or with no group, `end_group` after a rewind seals only
   the survivors and nothing when none survive (files: src/document/history/group.rs,
   src/document/history/tests.rs)
-- [ ] T3 [AC1] [AC2] `AgentAction::{Checkpoint, Rollback}`, `tool_name`, parse arms, schemas,
+- [x] T3 [AC1] [AC2] `AgentAction::{Checkpoint, Rollback}`, `tool_name`, parse arms, schemas,
   `expected_form` rows, with parser unit tests (files: src/agent/bridge/action.rs,
   src/agent/tools.rs, src/agent/tools/schema.rs)
 - [ ] T4 [AC4] [AC5] [AC7] [AC9] `Checkpoints` + `valid_name` + `checkpoint`/`rollback` in

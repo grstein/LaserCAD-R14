@@ -158,6 +158,17 @@ pub enum AgentAction {
     /// Measure distances, lengths, extents, crossings or angles (LCV-194).
     /// Commits nothing.
     Measure(MeasureRequest),
+    /// Record the turn's position under `name` (LCV-198). Changes neither the
+    /// drawing nor the revision; one step.
+    Checkpoint {
+        /// As sent; its shape is checked at the apply site (LCV-198 AC 7).
+        name: String,
+    },
+    /// Revert every change the turn made after checkpoint `name` (LCV-198).
+    Rollback {
+        /// As sent; `start` is the turn's built-in checkpoint.
+        name: String,
+    },
     /// Render the drawing, framed as asked, into a grayscale PNG (LCV-145,
     /// LCV-187, ADR 0011). Commits nothing; one step like any action.
     CaptureCanvas(CaptureFrame),
@@ -238,6 +249,8 @@ impl AgentAction {
             Self::QuerySelection => "query_selection",
             Self::CheckDrawing => "check_drawing",
             Self::Measure(_) => "measure",
+            Self::Checkpoint { .. } => "checkpoint",
+            Self::Rollback { .. } => "rollback",
             Self::CaptureCanvas(_)
             | Self::AuthorizeUpload { .. }
             | Self::Note(_)
@@ -377,6 +390,8 @@ mod tests {
                 }),
                 "measure",
             ),
+            (A::Checkpoint { name: "a".into() }, "checkpoint"),
+            (A::Rollback { name: "a".into() }, "rollback"),
             (A::CaptureCanvas(CaptureFrame::View), "capture_canvas"),
             (
                 A::AuthorizeUpload {

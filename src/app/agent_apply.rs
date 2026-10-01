@@ -199,7 +199,9 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
         | AgentAction::Note(_)
         | AgentAction::Replied { .. }
         | AgentAction::Feedback
-        | AgentAction::VerifyDue => {
+        | AgentAction::VerifyDue
+        | AgentAction::Checkpoint { .. }
+        | AgentAction::Rollback { .. } => {
             Planned::Answer(AgentOutcome::Refused(CAPTURE_DISABLED.to_owned()))
         }
         // §D15: answered from the reason alone; the document is not read.
