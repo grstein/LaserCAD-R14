@@ -92,7 +92,7 @@ The owning spec is the Draft that brings the feature to the target (§6).
 | `width`/`height` with units | ✅ `mm` | ✅ done by LCV-173: every absolute unit at 96 px = 1 in, unitless = px; `%`/`em`/`ex` on the root fall back to the viewBox size | All CSS absolute units (96 px = 1 in). `%` and `em`/`ex` resolved per spec. | 173 |
 | `viewBox` | ✅ `0 0 W H` | ✅ done by LCV-173: offset and user-unit → mm scale; alone, its size is read as px | Min-x/min-y offset and user-unit → mm scale | 173 |
 | `preserveAspectRatio` | — (square mapping) | ✅ done by LCV-173: nine aligns, meet/slice, `none` | Align plus meet/slice | 173 |
-| `transform` (`matrix`, `translate`, `scale`, `rotate`, `skewX`, `skewY`) on any element | — | ✅ done by LCV-173: CTM composed in f64; invalid or singular reported. ◐ a circle or arc under non-uniform scale or skew imports nothing, reported as `circle`/`arc (non-uniform transform)` | Full current transformation matrix (CTM) in double precision. Under non-uniform scale or skew a circle or arc becomes an ellipse, and a line stays a line. | 173 (ellipse result needs 176) |
+| `transform` (`matrix`, `translate`, `scale`, `rotate`, `skewX`, `skewY`) on any element | — | ✅ done by LCV-173: CTM composed in f64; invalid or singular reported. ✅ a circle or arc under non-uniform scale or skew imports as the exact ellipse or elliptical arc (LCV-176) | Full current transformation matrix (CTM) in double precision. Under non-uniform scale or skew a circle or arc becomes an ellipse, and a line stays a line. | 173, 176 |
 | Transform on nested `<g>` | — | ✅ done by LCV-173 | Accumulated CTM | 173 |
 
 ### 3.4 Paths (ch. 9)
@@ -104,7 +104,7 @@ The owning spec is the Draft that brings the feature to the target (§6).
 | `L`/`l`, `H`/`h`, `V`/`v`, `Z`/`z` | — (lines are `<line>`) | ✅ done by LCV-172; zero-length segments draw nothing | Lines. `Z` closes to the subpath start; SVG 2's "segment-completing" close rule applies. | 172 |
 | Multiple subpaths in one `d` | — | ✅ done by LCV-172 | Every subpath | 172 |
 | `A`/`a`, circular (rx = ry; φ ignored) | ✅ | ✅ done by LCV-172, absolute and relative | OK | 172 |
-| `A`, elliptical (rx ≠ ry) | — | ◐ LCV-172: imports nothing, reported as `path elliptical arc` | Native elliptical arc | 176 |
+| `A`, elliptical (rx ≠ ry) | ✅ `A rx ry φ` (LCV-176) | ✅ done by LCV-176: native elliptical arc, radii corrected per §F.6.6 | Native elliptical arc | 176 |
 | Arc out-of-range correction (rx = 0 → line, negative r → absolute value, λ > 1 → scale radii by √λ) | — | ✅ done by LCV-172; equal endpoints omit the arc | Implementation Notes, "Correction of out-of-range radii" | 172 |
 | `C`/`c`, `S`/`s`, `Q`/`q`, `T`/`t` Béziers | ⛔ by contract today | ◐ LCV-172: import nothing, advance the current point, reported as `path C`/`S`/`Q`/`T` | Native Bézier entities; the smooth-command reflection rules apply. | 177 |
 | Error handling | — | ✅ done by LCV-172: segments before the error are imported, `path (data error)` is reported, the file opens | Spec: "render up to (but not including) the command containing the first error". LaserCAD imports up to the error and **reports** it. | 172 |
@@ -118,7 +118,7 @@ The owning spec is the Draft that brings the feature to the target (§6).
 | `<circle>` | ✅ | ◐ `r = 0` is an error | `r = 0` disables rendering (not an error); `r < 0` is an error. | 174 |
 | `<rect>` incl. `rx`/`ry` (and `auto`) | — (RECTANGLE writes 4 lines) | ❌ | 4 lines; rounded corners become arcs (circular or elliptical). | 174 |
 | `<polyline>`, `<polygon>` | — | ❌ | Lines; a polygon is closed. | 174 |
-| `<ellipse>` | — | ❌ | Native ellipse | 174, 176 |
+| `<ellipse>` | ✅ plus `rotate(a cx cy)` when turned (LCV-176) | ✅ done by LCV-176: `auto`/missing radius takes the other, `%` resolved; rx or ry ≤ 0 reported `ellipse (invalid radius)` | Native ellipse | 174, 176 |
 | Percentages in geometry | — | ◐ LCV-173: `line`/`circle` attributes resolve against the viewport | Resolved against the viewport | 173/174 |
 
 ### 3.6 Text (ch. 11)

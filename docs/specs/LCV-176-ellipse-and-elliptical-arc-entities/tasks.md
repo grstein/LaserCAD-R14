@@ -77,7 +77,7 @@
 - [x] T28 [AC13] The narration arm, a prompt line saying ellipses are read-only with parametric
   angles, and the raster arm (files: src/app/agent_narrate.rs, src/agent/prompt.rs,
   src/render/raster.rs)
-- [ ] T29 Docs: `AGENTS.md` export bullets plus ADR 0015 in the list, and coverage rows (files:
+- [x] T29 Docs: `AGENTS.md` export bullets plus ADR 0015 in the list, and coverage rows (files:
   AGENTS.md, docs/research/svg-spec-coverage.md)
 - [ ] T30 CHANGELOG: ellipses and elliptical arcs open, edit, snap and export natively (files:
   CHANGELOG.md)

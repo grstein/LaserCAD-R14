@@ -116,6 +116,10 @@ Contract of `src/io/svg/export.rs`; changing it needs explicit user confirmation
   Output on and entities: the same header and only that layer's `<g>` (no `data-current`).
 - Arcs as `<path d="M sx sy A r r 0 large sweep ex ey"/>`, never béziers; the mirror inverts
   `sweep` (`sweep = 0` for a CCW world arc), `large` unchanged.
+- Full ellipses as `<ellipse cx cy rx ry/>`, plus `transform="rotate(a cx cy)"` only when `a` does
+  not print as `0.000000`; elliptical arcs as `<path d="M sx sy A rx ry φ large sweep ex ey"/>`,
+  never béziers. `a = φ = −rotation` in degrees, normalized into (−180, 180], written `{:.6}`;
+  `sweep = 0` for a CCW world span, `large = 1` iff the parametric sweep > π (ADR 0015).
 
 ## Product philosophy
 
@@ -131,6 +135,7 @@ UI directives: `DESIGN.md`.
 - 0009 dialog body capped at 426pt · 0010 declarative drawing batch tool · 0011 canvas observation raster
 - 0012 document layers, mother SVG with one `<g>` per layer, one export file per layer
 - 0013 tools describe canvas feedback as styled marks (`Tool::feedback`)
+- 0015 ellipse entity: parametric span, `<ellipse>` / `A rx ry φ` export, exact import under any CTM
 
 A reversed ADR gets a `**Superseded**` header; ADR text keeps its original line citations.
 Product principles: `docs/product/README.md`. Roadmap: `PLAN.md`. User-visible changes: `CHANGELOG.md`.
