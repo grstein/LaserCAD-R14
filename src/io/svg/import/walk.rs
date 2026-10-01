@@ -4,6 +4,7 @@
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
+use super::conic::parse_ellipse;
 use super::path::path_entities;
 use super::report::{Report, style_decls};
 use super::style::Style;
@@ -31,13 +32,16 @@ const SINGULAR_TRANSFORM: &str = "transform (singular)";
 /// The report label of a circle under a non-similarity map (LCV-173 AC 7).
 const NON_UNIFORM_CIRCLE: &str = "circle (non-uniform transform)";
 
+/// The report label of an `<ellipse>` without a positive radius (LCV-176).
+const INVALID_ELLIPSE: &str = "ellipse (invalid radius)";
+
 /// The report label of a nested `<svg>`, imported without clipping
 /// (LCV-173 AC 9).
 const UNCLIPPED_SVG: &str = "svg (not clipped)";
 
 /// What the walk does with one element (the table in [`super`]'s docs).
 enum Kind {
-    /// `line`, `circle`, `path`: turned into an entity.
+    /// `line`, `circle`, `ellipse`, `path`: turned into an entity.
     Import,
     /// `svg`, `g`, `a`: its children are walked (AC 2).
     Descend,
@@ -56,7 +60,7 @@ fn classify(node: roxmltree::Node<'_, '_>) -> Kind {
         return Kind::Silent;
     }
     match node.tag_name().name() {
-        "line" | "circle" | "path" => Kind::Import,
+        "line" | "circle" | "ellipse" | "path" => Kind::Import,
         "svg" | "g" | "a" => Kind::Descend,
         "defs" | "symbol" | "clipPath" | "mask" | "marker" | "pattern" | "linearGradient"
         | "radialGradient" | "filter" => Kind::NeverRendered,
@@ -141,6 +145,13 @@ impl Walk {
                             self.report.note(NON_UNIFORM_CIRCLE);
                         }
                         circle
+                    }
+                    (Some(c), "ellipse") => {
+                        let ellipse = parse_ellipse(child, &c, bed_h)?;
+                        if ellipse.is_none() {
+                            self.report.note(INVALID_ELLIPSE);
+                        }
+                        ellipse
                     }
                     (Some(c), _) => {
                         self.path(child, slot, &c);

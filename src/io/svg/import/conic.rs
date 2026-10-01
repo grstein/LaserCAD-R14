@@ -1,6 +1,7 @@
 //! Ellipses and elliptical arcs on import (LCV-176, ADR 0015 §3).
 //!
-//! [`center_arc`] turns an SVG `A` segment into its centre form in user
+//! [`parse_ellipse`] reads an `<ellipse>` element; [`center_arc`] turns an
+//! SVG `A` segment into its centre form in user
 //! space (SVG 2 §F.6.5, radii corrected per §F.6.6) as a conjugate pair.
 //! [`conic_entity`] maps any such pair through the CTM and the Y mirror and
 //! builds the entity with [`Ellipse::from_conjugate`]; a result whose radii
@@ -8,7 +9,7 @@
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
-use super::to_world;
+use super::{Axis, SvgImportError, attr_len, to_world};
 use crate::document::entity::Entity;
 use crate::geometry::{Arc, Circle, EPSILON, Ellipse, EllipseSpan, Vec2};
 use crate::io::svg::viewport::Ctx;
@@ -25,6 +26,38 @@ pub(super) struct Conic {
     pub(super) v: Vec2,
     /// The span; `None` is the whole curve.
     pub(super) span: Option<EllipseSpan>,
+}
+
+/// An `<ellipse>` as a world entity (LCV-176 AC 2): a missing or `auto`
+/// radius takes the other's value. `Ok(None)` when neither is given, either
+/// is ≤ 0, or the mapped ellipse is degenerate; an unparseable length is a
+/// [`SvgImportError::MalformedAttribute`], as for `<circle>`.
+pub(super) fn parse_ellipse(
+    n: roxmltree::Node<'_, '_>,
+    ctx: &Ctx,
+    bed_h: f64,
+) -> Result<Option<Entity>, SvgImportError> {
+    let len = |a, axis| attr_len(n, "ellipse", a, axis, ctx);
+    let center = Vec2::new(len("cx", Axis::X)?, len("cy", Axis::Y)?);
+    let radius = |a, axis| match n.attribute(a).map(str::trim) {
+        None | Some("auto") => Ok(None),
+        Some(_) => len(a, axis).map(Some),
+    };
+    let (rx, ry) = match (radius("rx", Axis::X)?, radius("ry", Axis::Y)?) {
+        (Some(rx), Some(ry)) => (rx, ry),
+        (Some(r), None) | (None, Some(r)) => (r, r),
+        (None, None) => return Ok(None),
+    };
+    if !(rx > 0.0 && ry > 0.0) {
+        return Ok(None);
+    }
+    let conic = Conic {
+        center,
+        u: Vec2::new(rx, 0.0),
+        v: Vec2::new(0.0, ry),
+        span: None,
+    };
+    Ok(conic_entity(ctx, conic, bed_h))
 }
 
 /// The arc `A rx ry phi large sweep` from `from` to `to`, in user space.

@@ -61,7 +61,7 @@
 - [x] T22 [AC2] Test: `<ellipse>` with rx ≠ ry, rx = ry → Circle, `auto`/absent radius, `%`
   radius, rx or ry ≤ 0 → skipped and reported `ellipse (invalid radius)` (files:
   tests/it/io_svg/ellipse.rs)
-- [ ] T23 [AC2] The walk's `ellipse` arm through `conic_entity` (files: src/io/svg/import/walk.rs,
+- [x] T23 [AC2] The walk's `ellipse` arm through `conic_entity` (files: src/io/svg/import/walk.rs,
   src/io/svg/import/conic.rs)
 - [ ] T24 [AC3] Test: a circle and a circular arc under `scale(2 1)`, `skewX(30)` and
   `preserveAspectRatio="none"` import as the exact ellipse; the LCV-173 labels are gone (files:
