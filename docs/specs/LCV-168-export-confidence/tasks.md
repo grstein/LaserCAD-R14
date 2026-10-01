@@ -18,7 +18,7 @@
   ` — 1 entity outside the bed` / ` — 2 entities outside the bed`; an Output-off layer's
   entity still counts (files: tests/it/app/document_title_and_file_feedback.rs)
 - [x] T7 [AC2] Warning severity + suffix in `announce_saved` (files: src/io/file_actions.rs)
-- [ ] T8 [AC3] Test: Export Layers with an out-of-bed entity on an exported layer → Warning
+- [x] T8 [AC3] Test: Export Layers with an out-of-bed entity on an exported layer → Warning
   `Exported layers: … — 1 entity outside the bed`; one on an Output-off layer only → Info, no
   suffix (files: tests/it/io_svg/export_layers.rs)
 - [ ] T9 [AC3] Suffix and severity in `action_export_layers`, counting only the plan's layers

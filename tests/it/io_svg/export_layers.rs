@@ -6,7 +6,7 @@
 
 use std::path::{Path, PathBuf};
 
-use lasercad::app::App;
+use lasercad::app::{App, Severity};
 use lasercad::document::{AddLayer, Command, Document, Entity, LayerId};
 use lasercad::geometry::{Arc, Circle, Line, Vec2};
 use lasercad::io::svg::{export_layer_svg, import_svg};
@@ -173,4 +173,53 @@ fn nothing_to_export_writes_nothing_and_says_so() {
         "{}",
         app.command_feedback
     );
+}
+
+/// A line that leaves a 300 × 180 bed past its right edge.
+fn off_bed_line() -> Entity {
+    Entity::Line(Line::new(Vec2::new(250.0, 10.0), Vec2::new(320.0, 10.0)))
+}
+
+/// An `App` exporting `document` beside `dir/<mother>`.
+fn exporting_app(dir: &Path, mother: &str, document: Document) -> App {
+    App {
+        document,
+        current_file: Some(dir.join(mother)),
+        ..App::default()
+    }
+}
+
+/// LCV-168 AC 3 — an out-of-bed entity on an exported layer turns the file
+/// list into a Warning with the count appended; one on an Output-off layer
+/// only leaves it Info with no suffix.
+#[test]
+fn export_warns_only_about_exported_layers_outside_the_bed() {
+    let dir = tempdir("lcv168_export_warning");
+    let (mut document, cut, _) = layered_doc();
+    document.push_entity(off_bed_line(), cut);
+    let mut app = exporting_app(&dir, "sign.svg", document);
+
+    action_export_layers(&mut app);
+
+    assert_eq!(
+        app.command_feedback,
+        "Exported layers: sign-Cut.svg, sign-Fine_mark.svg — 1 entity outside the bed"
+    );
+    assert_eq!(app.command_feedback_severity, Severity::Warning);
+
+    let (mut document, ..) = layered_doc();
+    let off = document
+        .layer_by_name("Off")
+        .expect("layered_doc has Off")
+        .id;
+    document.push_entity(off_bed_line(), off);
+    let mut app = exporting_app(&dir, "plate.svg", document);
+
+    action_export_layers(&mut app);
+
+    assert_eq!(
+        app.command_feedback,
+        "Exported layers: plate-Cut.svg, plate-Fine_mark.svg"
+    );
+    assert_eq!(app.command_feedback_severity, Severity::Info);
 }
