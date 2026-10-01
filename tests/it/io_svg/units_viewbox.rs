@@ -91,3 +91,67 @@ fn own_export_reopens_bit_for_bit() {
     }
     assert!(imported.report.is_empty(), "{:?}", imported.report);
 }
+
+/// Millimetres per px, 96 px = 1 in.
+const MM_PER_PX: f64 = 25.4 / 96.0;
+
+fn near(a: f64, b: f64) -> bool {
+    (a - b).abs() < 1e-9
+}
+
+/// A 400 × 200 px page (one user unit = 1 px) holding `inner`.
+fn px_page(inner: &str) -> Vec<Entity> {
+    let src = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="400px" height="200px" viewBox="0 0 400 200">{inner}</svg>"#
+    );
+    let imported = import_svg(&src).unwrap();
+    assert!(imported.report.is_empty(), "{:?}", imported.report);
+    imported.entities
+}
+
+/// World point of an SVG point in px on the [`px_page`].
+fn world(x_px: f64, y_px: f64) -> Vec2 {
+    Vec2::new(x_px * MM_PER_PX, (200.0 - y_px) * MM_PER_PX)
+}
+
+fn assert_line(e: &Entity, a: Vec2, b: Vec2) {
+    let Entity::Line(l) = e else {
+        panic!("not a line: {e:?}")
+    };
+    assert!(
+        l.p1.approx_eq(a, 1e-9) && l.p2.approx_eq(b, 1e-9),
+        "{l:?} vs {a:?} {b:?}"
+    );
+}
+
+/// AC 10 — `x1 y1 x2 y2` with absolute units land at their true size.
+#[test]
+fn line_attributes_with_absolute_units() {
+    let es = px_page(r#"<line x1="10mm" y1="1cm" x2="1in" y2="72pt"/>"#);
+    let mm = |x: f64, y: f64| world(x / MM_PER_PX, y / MM_PER_PX);
+    assert_line(&es[0], mm(10.0, 10.0), mm(25.4, 25.4));
+}
+
+/// AC 10 — `%` resolves x against the viewport width, y against its height.
+#[test]
+fn line_percentages_resolve_against_the_viewport() {
+    let es = px_page(r#"<line x1="50%" y1="25%" x2="100%" y2="0"/>"#);
+    assert_line(&es[0], world(200.0, 50.0), world(400.0, 0.0));
+}
+
+/// AC 10 — `r` in `%` resolves against the normalized diagonal
+/// `√(w² + h²) / √2`; `em` is 16 px and `ex` 8 px.
+#[test]
+fn circle_percent_radius_and_font_units() {
+    let es = px_page(r#"<circle cx="1em" cy="2ex" r="10%"/><circle cx="0" cy="0" r="5mm"/>"#);
+    let Entity::Circle(c) = es[0] else {
+        panic!("not a circle: {:?}", es[0])
+    };
+    assert!(c.center.approx_eq(world(16.0, 16.0), 1e-9), "{c:?}");
+    let diag = (400.0_f64.hypot(200.0)) / 2.0_f64.sqrt();
+    assert!(near(c.r, 0.1 * diag * MM_PER_PX), "{c:?}");
+    let Entity::Circle(c) = es[1] else {
+        panic!("not a circle: {:?}", es[1])
+    };
+    assert!(near(c.r, 5.0), "{c:?}");
+}
