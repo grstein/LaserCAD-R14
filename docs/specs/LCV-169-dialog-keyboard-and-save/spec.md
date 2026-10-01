@@ -1,8 +1,8 @@
 # LCV-169 — Dialog keyboard, destructive styling and Save/Discard/Cancel
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: LCV-163, LCV-167
-- **Implementation**: -
+- **Implementation**: f9ce44c..aeed0da
 
 ## Problem
 
