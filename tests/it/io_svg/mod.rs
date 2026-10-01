@@ -19,5 +19,6 @@ mod preset_roundtrip;
 mod roundtrip_props;
 mod shapes;
 mod styling;
+mod switch;
 mod transforms;
 mod units_viewbox;
