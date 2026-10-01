@@ -54,5 +54,5 @@
       docs/specs/LCV-171-svg-import-report-and-never-rendered/spec.md)
 - [x] T16 Run the stray-`#ff0000` fixtures outside `io_svg` (`scripts/check.sh memory turn_group
       document_title discard_dialog`); fix any layer assertion (files: as needed, ≤3)
-- [ ] T17 `svg-spec-coverage.md` §5 rows → ✅; CHANGELOG line (files:
+- [x] T17 `svg-spec-coverage.md` §5 rows → ✅; CHANGELOG line (files:
       docs/research/svg-spec-coverage.md, CHANGELOG.md)

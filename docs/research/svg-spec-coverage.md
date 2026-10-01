@@ -74,13 +74,13 @@ The owning spec is the Draft that brings the feature to the target (§6).
 
 | Feature | Export | Import | Target / note | Spec |
 |---|---|---|---|---|
-| Presentation attributes (`stroke`, `fill`, `stroke-width`) | ✅ | ◐ only `stroke` on layer groups | Full cascade | 175 |
-| `style="…"` attribute | — | ❌ | Parse declarations (Inkscape puts the stroke color here). | 175 |
-| `<style>` sheet, `class`/`id`/type selectors | — | ❌ | A CSS subset: selectors, specificity, `!important` (Illustrator uses `.cls-1`). | 175 |
-| Inheritance, `inherit`, `currentColor` | — | ❌ | Required by the cascade | 175 |
-| Color syntax | ✅ lowercase `#rrggbb` | ◐ `#rrggbb` only | Any CSS `<color>`: keywords, `#rgb[a]`, `#rrggbb[aa]`, `rgb()`, `hsl()` | 175 (and the LCV-156 amendment request) |
-| `stroke` color → layer | ✅ layer color | ◐ LaserCAD's own `data-layer` groups only | A foreign file's stroke colors map to layers (LightBurn-style). | 175 |
-| `display:none`, `visibility:hidden` | — | ❌ hidden content imported | Not imported, but reported (hidden Inkscape layers use `display:none`). | 175 |
+| Presentation attributes (`stroke`, `fill`, `stroke-width`) | ✅ | ✅ done by LCV-175: `stroke`, `fill`, `color` cascade (layer groups keep their own `stroke`) | Full cascade | 175 |
+| `style="…"` attribute | — | ✅ done by LCV-175, `!important` included | Parse declarations (Inkscape puts the stroke color here). | 175 |
+| `<style>` sheet, `class`/`id`/type selectors | — | ✅ done by LCV-175: type, `*`, `.class`, `#id`, compounds, lists; combinators, pseudo-classes, attribute selectors and at-rules dropped and reported | A CSS subset: selectors, specificity, `!important` (Illustrator uses `.cls-1`). | 175 |
+| Inheritance, `inherit`, `currentColor` | — | ✅ done by LCV-175 (`unset`, `initial` too) | Required by the cascade | 175 |
+| Color syntax | ✅ lowercase `#rrggbb` | ✅ done by LCV-175 (LCV-156 parser); an invalid color is reported | Any CSS `<color>`: keywords, `#rgb[a]`, `#rrggbb[aa]`, `rgb()`, `hsl()` | 175 (and the LCV-156 amendment request) |
+| `stroke` color → layer | ✅ layer color | ✅ done by LCV-175: stray geometry goes to the first layer of its stroke (else fill) color, else a new `#rrggbb` layer | A foreign file's stroke colors map to layers (LightBurn-style). | 175 |
+| `display:none`, `visibility:hidden` | — | ✅ done by LCV-175: reported as `hidden (display:none)` / `hidden (visibility)` | Not imported, but reported (hidden Inkscape layers use `display:none`). | 175 |
 | `fill`, `fill-rule` | ✅ `fill="none"` | ignored | Recorded in the report only. Area fill (hatching) is a separate product decision. | 171 |
 | `stroke-width` | ✅ 0.1 mm hairline | ignored | OK; the laser kerf is physical. | — |
 | linecap, linejoin, miterlimit, dasharray, opacity, `paint-order`, `vector-effect`, markers | — | ignored | Reported as paint-only | 171 |
