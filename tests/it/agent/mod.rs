@@ -15,6 +15,7 @@ mod panel_and_settings;
 mod panel_width_and_settings;
 mod progress_row;
 mod prompt_editor;
+mod reference_image;
 mod system_prompt;
 mod timeout_and_cancel;
 mod transform_tools;

@@ -19,7 +19,7 @@
   draft (files: src/app/agent_turn.rs)
 - [x] T8 [AC1] [AC3] Panel chip + `Attach image…` button + tooltip; `panels.rs` polls the request
   (files: src/agent/panel.rs, src/app/panels.rs)
-- [ ] T9 [AC1]–[AC7] Integration tests, one per AC (attach through `attach_image` with a temp PNG,
+- [x] T9 [AC1]–[AC7] Integration tests, one per AC (attach through `attach_image` with a temp PNG,
   JPEG and GIF; AC5 deletes the file before `start_turn`; AC6 checks the next turn's
   `config_for` memory) (files: tests/it/agent/reference_image.rs, tests/it/agent/mod.rs)
 - [ ] T10 `scripts/mutants.sh` on the diff; kill or justify survivors (files: src/agent/attachment.rs)
