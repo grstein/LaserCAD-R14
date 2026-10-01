@@ -6,6 +6,8 @@ v0.2.0 is the first tagged release of LaserCAD; nothing was tagged before it (0.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-01
+
 ### Changed
 
 - The product is now just "LaserCAD": the window title reads `drawing.svg - LaserCAD` and the About dialog says `LaserCAD`. The repository moved to `grstein/LaserCAD-R14`.

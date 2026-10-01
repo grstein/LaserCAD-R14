@@ -165,14 +165,19 @@ fn readme_says_stable_links_the_guides_and_lists_the_non_goals() {
     }
 }
 
-/// LCV-202 AC 8 — the release commit carries version `1.0.0` and a dated
-/// `[1.0.0]` CHANGELOG section right after `[Unreleased]`, with entries.
+/// LCV-202 AC 8 — the release commit carried version `1.0.0` and a dated
+/// `[1.0.0]` CHANGELOG section with entries. Later 1.x releases keep the
+/// `[1.0.0]` section, and the current version's dated section follows
+/// `[Unreleased]`.
 #[test]
-fn version_is_1_0_0_with_a_changelog_section() {
-    assert_eq!(env!("CARGO_PKG_VERSION"), "1.0.0");
+fn version_is_1_x_with_a_changelog_section() {
+    let version = env!("CARGO_PKG_VERSION");
+    assert!(version.starts_with("1."), "1.x release: {version}");
     let cargo = read("Cargo.toml");
     assert!(
-        cargo.lines().any(|l| l.trim() == r#"version = "1.0.0""#),
+        cargo
+            .lines()
+            .any(|l| l.trim() == format!(r#"version = "{version}""#)),
         "Cargo.toml [package] version"
     );
     let changelog = read("CHANGELOG.md");
@@ -185,8 +190,8 @@ fn version_is_1_0_0_with_a_changelog_section() {
     assert!(
         headings
             .get(1)
-            .is_some_and(|h| h.starts_with("## [1.0.0] - ")),
-        "[1.0.0] follows [Unreleased]: {headings:?}"
+            .is_some_and(|h| h.starts_with(&format!("## [{version}] - "))),
+        "[{version}] follows [Unreleased]: {headings:?}"
     );
     let entries = section(&changelog, "[1.0.0]")
         .iter()
