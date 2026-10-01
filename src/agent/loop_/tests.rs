@@ -1515,3 +1515,171 @@ fn a_capture_and_an_observed_feedback_are_both_labelled_and_noted() {
         ]
     );
 }
+
+// ── LCV-197: verify before reply ─────────────────────────────────────────
+
+/// What one scripted verify turn did.
+struct Verified {
+    result: Result<String, AgentError>,
+    asks: usize,
+    tools: usize,
+    sends: usize,
+    messages: Vec<ChatMessage>,
+}
+
+/// Drive the loop through `replies` in order (a text once they run out);
+/// `Dispatch::VerifyDue` answers `verify`, a tool named `fenced` is
+/// answered `Fenced`, everything else `Ok`.
+fn run_verify(
+    replies: Vec<Result<AssistantMessage, AgentError>>,
+    mut verify: impl FnMut() -> Result<AgentOutcome, AgentError>,
+    budget: u32,
+) -> Verified {
+    let mut replies = replies.into_iter();
+    let (mut asks, mut tools, mut sends) = (0, 0, 0);
+    let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
+    let result = agent_loop(
+        &mut |_| {
+            sends += 1;
+            replies.next().unwrap_or_else(|| text_reply("spare"))
+        },
+        &mut |dispatch| match dispatch {
+            Dispatch::VerifyDue => {
+                asks += 1;
+                verify()
+            }
+            Dispatch::Tool { name, .. } => {
+                tools += 1;
+                Ok(match name {
+                    "fenced" => AgentOutcome::Fenced("fenced".into()),
+                    _ => AgentOutcome::Ok("ok".into()),
+                })
+            }
+            _ => Ok(AgentOutcome::Ok(String::new())),
+        },
+        &mut messages,
+        budget,
+    );
+    Verified {
+        result,
+        asks,
+        tools,
+        sends,
+        messages,
+    }
+}
+
+fn granted() -> Result<AgentOutcome, AgentError> {
+    Ok(AgentOutcome::Ok(String::new()))
+}
+
+/// LCV-197 AC 3 — a yes pushes the interim text and the reminder, sends
+/// again and ends with the second text; AC 5 — that second text is never
+/// asked about.
+#[test]
+fn a_granted_reminder_sends_once_more_and_returns_the_second_text() {
+    let r = run_verify(
+        vec![call_reply(1), text_reply("first"), text_reply("second")],
+        granted,
+        AGENT_STEP_BUDGET_DEFAULT,
+    );
+    assert_eq!(r.result.unwrap(), "second");
+    assert_eq!((r.asks, r.sends), (1, 3));
+    let tail: Vec<_> = r.messages[r.messages.len() - 2..]
+        .iter()
+        .map(|m| (m.role.as_str(), m.text_content()))
+        .collect();
+    assert_eq!(
+        tail,
+        [
+            ("assistant", Some("first")),
+            ("user", Some(verify::VERIFY_REMINDER)),
+        ]
+    );
+}
+
+/// LCV-197 AC 3 — the reminder is the spec's text, verbatim.
+#[test]
+fn the_reminder_is_the_spec_text() {
+    assert_eq!(
+        verify::VERIFY_REMINDER,
+        "Before you finish: verify the drawing against the request with measure, \
+         check_drawing or capture_canvas, fix what fails, then report each check as \
+         pass or fail."
+    );
+}
+
+/// LCV-197 AC 5 — a no ends the turn with the first text, unchanged.
+#[test]
+fn a_refused_reminder_ends_with_the_first_text() {
+    let r = run_verify(
+        vec![call_reply(1), text_reply("first")],
+        || Ok(AgentOutcome::Refused(String::new())),
+        AGENT_STEP_BUDGET_DEFAULT,
+    );
+    assert_eq!(r.result.unwrap(), "first");
+    assert_eq!((r.asks, r.sends), (1, 2));
+    assert_eq!(r.messages.len(), 4, "no interim text, no reminder");
+}
+
+/// LCV-197 AC 6 — with no step left the loop never asks.
+#[test]
+fn no_step_left_is_never_asked() {
+    let r = run_verify(vec![call_reply(1), text_reply("first")], granted, 1);
+    assert_eq!(r.result.unwrap(), "first");
+    assert_eq!((r.asks, r.tools), (0, 1));
+}
+
+/// LCV-197 AC 6 — one step left is enough to be asked.
+#[test]
+fn one_step_left_is_asked() {
+    let r = run_verify(
+        vec![call_reply(1), text_reply("first"), text_reply("second")],
+        granted,
+        2,
+    );
+    assert_eq!(r.result.unwrap(), "second");
+    assert_eq!(r.asks, 1);
+}
+
+/// LCV-197 AC 6 — after a fence stop the last word ends the turn unasked.
+#[test]
+fn a_fence_stop_is_never_asked() {
+    let r = run_verify(
+        vec![named_calls(&["fenced"]), text_reply("stopped")],
+        granted,
+        AGENT_STEP_BUDGET_DEFAULT,
+    );
+    assert_eq!(r.result.unwrap(), "stopped");
+    assert_eq!(r.asks, 0);
+}
+
+/// LCV-197 AC 6 — a cancelled ask ends the turn `Cancelled`.
+#[test]
+fn a_cancelled_ask_returns_cancelled() {
+    let r = run_verify(
+        vec![call_reply(1), text_reply("first")],
+        || Err(AgentError::Cancelled),
+        AGENT_STEP_BUDGET_DEFAULT,
+    );
+    assert!(matches!(r.result, Err(AgentError::Cancelled)), "{:?}", r.result);
+    assert_eq!(r.sends, 2);
+}
+
+/// LCV-197 AC 5 — tool calls after the reminder dispatch as usual, and the
+/// next text ends the turn without a second ask.
+#[test]
+fn tool_calls_after_the_reminder_dispatch_normally() {
+    let r = run_verify(
+        vec![
+            call_reply(1),
+            text_reply("first"),
+            named_calls(&["measure", "check_drawing"]),
+            text_reply("verified"),
+        ],
+        granted,
+        AGENT_STEP_BUDGET_DEFAULT,
+    );
+    assert_eq!(r.result.unwrap(), "verified");
+    assert_eq!((r.asks, r.tools, r.sends), (1, 3, 4));
+}

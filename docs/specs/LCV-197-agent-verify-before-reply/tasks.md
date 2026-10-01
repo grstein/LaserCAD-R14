@@ -22,7 +22,7 @@ do LCV-195 T1 (the `loop_/batch.rs` seam) as T0 here.
   row `Asked the agent to verify its work.`, `Ok`; no → `Refused`; never counted) and
   `verify.after` around `apply_fenced` (files: src/agent/bridge/action.rs,
   src/app/agent_poll.rs)
-- [ ] T5 [AC3][AC5][AC6] Test (loop, stub dispatch):
+- [x] T5 [AC3][AC5][AC6] Test (loop, stub dispatch):
   - On a text reply with a yes, the loop pushes the assistant text and the user message equal to
     `VERIFY_REMINDER`, sends again, and returns the second text.
   - A no ends the turn with the first text.
