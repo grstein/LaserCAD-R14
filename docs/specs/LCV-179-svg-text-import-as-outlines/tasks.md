@@ -36,7 +36,7 @@
 - [x] T12 [AC10] Test first: fill-only red text lands on the red layer; a tspan with
   `stroke="blue"` lands on the blue layer; a `data-layer` group wins; no stroke and no fill
   imports nothing (files: `src/io/svg/import/text.rs`)
-- [ ] T13 [AC11] Test first: import a text fixture with the bundled font, export, assert no
+- [x] T13 [AC11] Test first: import a text fixture with the bundled font, export, assert no
   `<text`, `Q`/`C`/`L` path data present and a reimport yields the same entity count
   (files: `tests/it/io_svg/text.rs`, `tests/fixtures/svg/text-outlines.svg`)
 - [ ] T14 [AC12] Test first: the same file through two fresh `FontBook::from_files` imports

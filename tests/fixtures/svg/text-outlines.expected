@@ -1,0 +1,9 @@
+# LCV-179 — `<text>` with no font installed (the corpus imports with an
+# empty font book): nothing is drawn, so the file's only layer is the
+# default `Cut`, and each text is reported.
+bed 100 100
+layer "Cut" #ff0000 output=1 current=1
+# The first text's fill="#ff0000" is an unapplied property (the second's
+# fill="none" is exempt); reported before the texts are laid out.
+ignored 1 fill
+ignored 2 text (no font)
