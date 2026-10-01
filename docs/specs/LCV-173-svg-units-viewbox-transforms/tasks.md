@@ -25,7 +25,7 @@
 - [x] T10 [AC5, AC8] Test: nested transformed groups on lines, circles and paths; an invalid
   `transform` is ignored and reported `transform (invalid)`; `transform` is no longer reported
   as a property (files: tests/it/io_svg/transforms.rs, tests/it/io_svg/mod.rs)
-- [ ] T11 [AC5, AC8] Walk: compose each element's `transform` into the child `Ctx`, the invalid
+- [x] T11 [AC5, AC8] Walk: compose each element's `transform` into the child `Ctx`, the invalid
   and singular labels, drop `transform` from `REPORTED_PROPERTIES` (files:
   src/io/svg/import/walk.rs, src/io/svg/import/report.rs)
 - [ ] T12 [AC6, AC7] Test: circle and arc under rotate/uniform scale/reflection (radius scaled,

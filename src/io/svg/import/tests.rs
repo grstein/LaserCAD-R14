@@ -597,8 +597,7 @@ fn other_svg_elements_are_skipped_and_reported_with_counts() {
     assert_eq!(imported.report, want);
 }
 
-const REPORTED: [&str; 12] = [
-    "transform",
+const REPORTED: [&str; 11] = [
     "fill",
     "clip-path",
     "mask",
@@ -656,10 +655,10 @@ fn fill_none_is_exempt_and_style_ignores_case_and_important() {
         assert!(report_of(&svg(quiet)).is_empty(), "{quiet}");
     }
     assert_eq!(report_of(&svg(r#"<g fill="red"/>"#)), [entry("fill", 1)]);
-    let styled = svg(r#"<g style="TRANSFORM: none !important; Opacity:1"/>"#);
+    let styled = svg(r#"<g style="FILTER: none !important; Opacity:1"/>"#);
     assert_eq!(
         report_of(&styled),
-        [entry("transform", 1), entry("opacity", 1)]
+        [entry("filter", 1), entry("opacity", 1)]
     );
 }
 
@@ -667,14 +666,10 @@ fn fill_none_is_exempt_and_style_ignores_case_and_important() {
 /// under one label.
 #[test]
 fn properties_on_skipped_elements_are_not_reported_and_repeats_count() {
-    let image = svg(r#"<image transform="scale(2)"/>"#);
+    let image = svg(r#"<image opacity="0.5"/>"#);
     assert_eq!(report_of(&image), [entry("image", 1)]);
-    let defs = svg(&format!(
-        r#"<defs><g transform="scale(2)">{A_LINE}</g></defs>"#
-    ));
+    let defs = svg(&format!(r#"<defs><g opacity="0.5">{A_LINE}</g></defs>"#));
     assert_eq!(report_of(&defs), [entry("defs", 1)]);
-    let twice = svg(
-        r#"<g transform="scale(2)"><line transform="scale(2)" x1="0" y1="0" x2="1" y2="1"/></g>"#,
-    );
-    assert_eq!(report_of(&twice), [entry("transform", 2)]);
+    let twice = svg(r#"<g opacity="0.5"><line opacity="0.5" x1="0" y1="0" x2="1" y2="1"/></g>"#);
+    assert_eq!(report_of(&twice), [entry("opacity", 2)]);
 }

@@ -6,9 +6,9 @@
 
 /// Properties LaserCAD does not apply yet, reported by name whenever an
 /// imported or descended element carries one, as an attribute or a `style`
-/// declaration (AC 7); `fill:none` is exempt.
-pub(super) const REPORTED_PROPERTIES: [&str; 12] = [
-    "transform",
+/// declaration (AC 7); `fill:none` is exempt. `transform` is applied since
+/// LCV-173 and no longer listed.
+pub(super) const REPORTED_PROPERTIES: [&str; 11] = [
     "fill",
     "clip-path",
     "mask",

@@ -3,7 +3,7 @@
 # <defs> is reported once (it has element children). <sodipodi:namedview> and
 # <metadata> are silent; inkscape:* attributes are outside the SVG namespace.
 # The layer <g> has no `data-layer`: geometry lands on the default `Cut` layer,
-# and its `transform` is reported (not applied before LCV-173). The <image>
+# and its identity `transform` is applied, not reported (LCV-173). The <image>
 # is skipped and reported. `style="fill:none;…"` is exempt.
 # World y = 100 - svg y.
 bed 100 100
@@ -14,5 +14,4 @@ line 0 10 10 90 10
 # over the top to the right (0 deg), clockwise.
 arc 0 50 50 20 180 0 cw
 ignored 1 defs
-ignored 1 transform
 ignored 1 image

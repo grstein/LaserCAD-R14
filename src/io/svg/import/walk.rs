@@ -10,6 +10,7 @@ use super::{SVG_NS, SvgImportError, parse_circle, parse_line};
 use crate::document::LayerId;
 use crate::document::entity::Entity;
 use crate::io::svg::layers::{LayerReader, STRAY_LAYER};
+use crate::io::svg::matrix::parse_transform;
 use crate::io::svg::path_data::parse_path_data;
 use crate::io::svg::viewport::Ctx;
 
@@ -18,6 +19,12 @@ const UNSUPPORTED_PATH: &str = "path (unsupported data)";
 
 /// The report label of a `<path>` whose `d` has a syntax error (LCV-172 AC 8).
 const PATH_DATA_ERROR: &str = "path (data error)";
+
+/// The report label of an unparseable `transform` (LCV-173 AC 8).
+const INVALID_TRANSFORM: &str = "transform (invalid)";
+
+/// The report label of a `transform` that collapses the plane (LCV-173).
+const SINGULAR_TRANSFORM: &str = "transform (singular)";
 
 /// What the walk does with one element (the table in [`super`]'s docs).
 enum Kind {
@@ -82,21 +89,26 @@ impl Walk {
         for child in node.children().filter(|n| n.is_element()) {
             let name = child.tag_name().name();
             let kind = classify(child);
+            let mut inner_ctx = None;
             if matches!(kind, Kind::Import | Kind::Descend) {
                 self.report.note_properties(child);
+                inner_ctx = self.local(child, ctx);
             }
             let entity = match kind {
-                Kind::Import => match name {
-                    "line" => Some(parse_line(child, ctx, bed_h)?),
-                    "circle" => Some(parse_circle(child, ctx, bed_h)?),
-                    _ => {
+                Kind::Import => match (inner_ctx, name) {
+                    (None, _) => None,
+                    (Some(c), "line") => Some(parse_line(child, &c, bed_h)?),
+                    (Some(c), "circle") => Some(parse_circle(child, &c, bed_h)?),
+                    (Some(_), _) => {
                         self.path(child, layer);
                         None
                     }
                 },
                 Kind::Descend => {
                     let inner = self.layers.enter(child)?.or(layer);
-                    self.collect(child, inner, ctx)?;
+                    if let Some(c) = inner_ctx {
+                        self.collect(child, inner, &c)?;
+                    }
                     None
                 }
                 Kind::NeverRendered => {
@@ -116,6 +128,26 @@ impl Walk {
             }
         }
         Ok(())
+    }
+
+    /// The context of `node`'s content: its `transform` composed inside
+    /// `ctx` (LCV-173 AC 5). An unparseable `transform` counts as absent and
+    /// is reported (AC 8); a singular result renders nothing, so it is
+    /// reported and `None`.
+    pub(super) fn local(&mut self, node: roxmltree::Node<'_, '_>, ctx: &Ctx) -> Option<Ctx> {
+        let Some(raw) = node.attribute("transform") else {
+            return Some(*ctx);
+        };
+        let Some(m) = parse_transform(raw) else {
+            self.report.note(INVALID_TRANSFORM);
+            return Some(*ctx);
+        };
+        let ctm = m.then(ctx.ctm);
+        if ctm.is_singular() {
+            self.report.note(SINGULAR_TRANSFORM);
+            return None;
+        }
+        Some(Ctx { ctm, ..*ctx })
     }
 
     /// Import a `<path>`: every entity its `d` draws, every report label

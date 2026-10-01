@@ -479,7 +479,7 @@ fn action_save_io_error_sets_error_message() {
 fn open_path_reports_what_the_import_ignored() {
     let dir = tempdir("open_path_report");
     let path = dir.join("ignored.svg");
-    let src = r#"<svg xmlns="http://www.w3.org/2000/svg"><image/><image/><g transform="translate(1,1)"><line x1="0" y1="0" x2="1" y2="1"/></g></svg>"#;
+    let src = r#"<svg xmlns="http://www.w3.org/2000/svg"><image/><image/><g opacity="0.5"><line x1="0" y1="0" x2="1" y2="1"/></g></svg>"#;
     fs::write(&path, src).unwrap();
 
     let mut app = app_with_tempdir(&dir);
@@ -487,7 +487,7 @@ fn open_path_reports_what_the_import_ignored() {
 
     assert_eq!(app.error_message, None, "the open must succeed");
     assert_eq!(app.document.entity_count(), 1);
-    assert_eq!(app.command_feedback, "Ignored: 2 image, 1 transform");
+    assert_eq!(app.command_feedback, "Ignored: 2 image, 1 opacity");
 }
 
 /// LCV-171 AC 9 — a clean open clears stale feedback; a failed open leaves

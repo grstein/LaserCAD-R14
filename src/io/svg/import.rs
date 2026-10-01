@@ -165,7 +165,9 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
     let bed_mm = header.bed_mm;
     let mut walk = Walk::new(bed_mm[1]);
     walk.report.note_properties(root);
-    walk.collect(root, None, &header.ctx)?;
+    if let Some(ctx) = walk.local(root, &header.ctx) {
+        walk.collect(root, None, &ctx)?;
+    }
     let (layers, current_layer) = walk.layers.finish();
     Ok(ImportedSvg {
         entities: walk.entities,
