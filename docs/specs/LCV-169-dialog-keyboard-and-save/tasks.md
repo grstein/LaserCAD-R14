@@ -21,7 +21,7 @@
   tests/it/ui/dialog_keyboard.rs, tests/it/ui/discard_dialog_pointer_click.rs)
 - [x] T8 [AC6] [AC7] `discard.rs` draws its own window with `DiscardChoice`; `confirm_dialog`
   is removed (files: src/app/discard.rs, src/ui/dialogs.rs, src/ui/mod.rs)
-- [ ] T9 [AC8] Test first: Save with a writable current path runs the parked `New` once; a path
+- [x] T9 [AC8] Test first: Save with a writable current path runs the parked `New` once; a path
   in a missing folder, and an untitled drawing (disarmed Save As), keep the drawing, drop the
   action and leave `pending_action` `None` (files: src/app/discard.rs)
 - [ ] T10 [AC8] `apply_discard_choice(Save)`: `action_save`, then run the action iff

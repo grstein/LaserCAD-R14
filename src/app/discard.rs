@@ -75,10 +75,16 @@ pub fn draw_discard_dialog(ctx: &egui::Context, app: &mut App) {
     if app.guard.pending_action.is_none() {
         return;
     }
-    let result = match discard_window(ctx) {
-        None => return,
-        Some(DiscardChoice::Discard) => DialogResult::Confirmed,
-        Some(DiscardChoice::Save | DiscardChoice::Cancel) => DialogResult::Cancelled,
+    if let Some(choice) = discard_window(ctx) {
+        apply_discard_choice(ctx, app, choice);
+    }
+}
+
+/// Apply the operator's answer to the parked action (LCV-169 AC 8).
+pub fn apply_discard_choice(ctx: &egui::Context, app: &mut App, choice: DiscardChoice) {
+    let result = match choice {
+        DiscardChoice::Discard => DialogResult::Confirmed,
+        DiscardChoice::Save | DiscardChoice::Cancel => DialogResult::Cancelled,
     };
     apply_dialog_result(ctx, app, result);
 }
@@ -238,5 +244,76 @@ mod tests {
                 .contains(&egui::ViewportCommand::Close),
             "Cancel must never send a viewport command"
         );
+    }
+
+    /// A fresh, empty scratch folder under the system temp dir.
+    fn scratch(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("lcv169_{name}_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("scratch dir");
+        dir
+    }
+
+    /// A dirty drawing with one line and a parked `New`.
+    fn parked_new() -> App {
+        let mut app = App::default();
+        commit_a_line(&mut app);
+        app.guard.pending_action = Some(PendingAction::New);
+        app
+    }
+
+    /// LCV-169 AC 8 — Save with a writable current path writes the file,
+    /// then runs the parked `New` exactly once.
+    #[test]
+    fn save_with_a_writable_path_runs_the_parked_action_once() {
+        let path = scratch("writable").join("drawing.svg");
+        let mut app = parked_new();
+        app.current_file = Some(path.clone());
+        let ctx = egui::Context::default();
+        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+            apply_discard_choice(ctx, &mut app, DiscardChoice::Save);
+        });
+        assert!(path.exists(), "the drawing was written");
+        assert!(app.guard.pending_action.is_none());
+        assert_eq!(app.document.entity_count(), 0, "New ran");
+        assert!(app.current_file.is_none(), "New ran exactly once");
+    }
+
+    /// LCV-169 AC 8 — Save to a path inside a missing folder fails: the
+    /// drawing stays, the parked action is dropped, nothing is parked.
+    #[test]
+    fn save_that_fails_keeps_the_drawing_and_drops_the_action() {
+        let path = scratch("missing").join("no_such_dir").join("drawing.svg");
+        let mut app = parked_new();
+        app.current_file = Some(path.clone());
+        let ctx = egui::Context::default();
+        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+            apply_discard_choice(ctx, &mut app, DiscardChoice::Save);
+        });
+        assert!(!path.exists());
+        assert!(app.guard.pending_action.is_none());
+        assert_eq!(app.document.entity_count(), 1, "the drawing stays");
+        assert_eq!(app.current_file, Some(path));
+    }
+
+    /// LCV-169 AC 8 — Save on an untitled drawing goes to Save As, whose
+    /// native dialog is disarmed in tests and panics (ADR 0005) before any
+    /// write: the drawing stays and the parked action is already dropped.
+    #[test]
+    fn save_on_an_untitled_drawing_keeps_it_and_drops_the_action() {
+        let mut app = parked_new();
+        let ctx = egui::Context::default();
+        let reached = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = ctx.run(egui::RawInput::default(), |ctx| {
+                apply_discard_choice(ctx, &mut app, DiscardChoice::Save);
+            });
+        }));
+        assert!(
+            reached.is_err(),
+            "control: Save went to the disarmed Save As"
+        );
+        assert!(app.guard.pending_action.is_none());
+        assert_eq!(app.document.entity_count(), 1, "the drawing stays");
+        assert!(app.current_file.is_none());
     }
 }
