@@ -7,6 +7,9 @@
 //! before the command is built, so copies and keep-source mirrors append in
 //! ascending source order whatever order the model listed them in.
 //!
+//! `by_ids` (LCV-188) resolves stable ids to indices first, then plans the
+//! same way, so an `ids` call is exactly the matching `indices` call.
+//!
 //! `set_layer` (LCV-191) is the seventh operation: `SetEntityLayers`, the
 //! command behind Format > Move to Layer, over the entities not already there.
 //!
@@ -14,13 +17,38 @@
 
 use super::edit::{out_of_range, same_point};
 use super::{Planned, target_layer};
+use crate::agent::tools::refusal;
 use crate::agent::{AgentOutcome, SetOp};
 use crate::app::agent_narrate::pt;
 use crate::document::{
-    Command, CopyEntities, DeleteEntities, Document, MoveEntities, SetEntityLayers,
+    Command, CopyEntities, DeleteEntities, Document, EntityId, MoveEntities, SetEntityLayers,
     TransformEntities,
 };
 use crate::geometry::{Transform, Vec2};
+
+/// LCV-188 — resolve `ids` (each `N` of `e<N>`) against the live drawing and
+/// plan `op` over them exactly as over the matching indices (ADR 0014 §7);
+/// the first id that is not live refuses the whole call as `<tool> ids[k]: …`.
+pub(super) fn by_ids(tool: &str, ids: &[u64], op: &SetOp, doc: &Document) -> Planned {
+    match resolve(tool, ids, doc) {
+        Ok(indices) => plan(tool, &indices, op, doc),
+        Err(refused) => Planned::Answer(refused),
+    }
+}
+
+/// The index of every id, in order, or the refusal naming the first unknown.
+fn resolve(tool: &str, ids: &[u64], doc: &Document) -> Result<Vec<usize>, AgentOutcome> {
+    ids.iter()
+        .enumerate()
+        .map(|(k, &n)| {
+            doc.index_of(EntityId(n)).ok_or_else(|| {
+                let reason = format!("{} is not in the drawing", EntityId(n));
+                let expected = "an id listed by query_entities";
+                AgentOutcome::Refused(refusal(tool, &format!("ids[{k}]"), &reason, expected))
+            })
+        })
+        .collect()
+}
 
 /// Refuse the first out-of-range entry as `<tool> indices[k]: …` (LCV-192
 /// AC 2), else plan `op` over the sorted set.
