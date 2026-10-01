@@ -141,3 +141,99 @@ fn step_acts_tally_applied_refused_and_repeated() {
     };
     assert_eq!(app.agent.turn.tally, want);
 }
+
+// ── AC 1 / AC 4: every turn ends with the metrics note ───────────────────
+
+/// How a scripted turn ends.
+#[derive(Debug, Clone, Copy)]
+enum Exit {
+    Done,
+    Failed,
+    Lost,
+    Cancel,
+    FenceStopped,
+}
+
+/// Arm a turn, answer one reply and one applied line (plus, for a
+/// fence-stopped turn, a foreign commit and a fenced step), end it by `exit`
+/// and return the transcript rows after the user row.
+fn ended(exit: Exit) -> Vec<(String, String)> {
+    let mut app = App::default();
+    let tx = arm_turn(&mut app, "draw a line");
+    let user = app.agent.chat.len();
+    answer(&mut app, &tx, AgentAction::Replied { captures: 0 });
+    answer(&mut app, &tx, line());
+    match exit {
+        Exit::Done => tx.send(AgentEvent::done("done")).unwrap(),
+        Exit::Failed => tx.send(AgentEvent::failed("transport error: 503")).unwrap(),
+        Exit::Lost => drop(tx),
+        Exit::Cancel => lasercad::app::cancel_turn(&mut app),
+        Exit::FenceStopped => {
+            human_line(&mut app);
+            answer(&mut app, &tx, line());
+            let stop = "the turn stopped after the drawing changed outside it";
+            tx.send(AgentEvent::failed(stop)).unwrap();
+        }
+    }
+    poll_agent_rx(&mut app);
+    assert!(!app.agent.busy, "{exit:?}: the turn ended");
+    app.agent.chat[user..].to_vec()
+}
+
+/// AC 1 — Done, Failed, lost, cancelled and fence-stopped turns each end
+/// with the metrics note as their last row, right after the undo note.
+#[test]
+fn every_exit_ends_with_the_metrics_note_after_the_undo_note() {
+    let clean = "Applied 1 action — Ctrl+Z undoes it.";
+    let foreign = "Applied 1 action before the drawing changed outside this turn.";
+    for exit in [
+        Exit::Done,
+        Exit::Failed,
+        Exit::Lost,
+        Exit::Cancel,
+        Exit::FenceStopped,
+    ] {
+        let rows = ended(exit);
+        let (undo, metrics) = match exit {
+            Exit::FenceStopped => (
+                foreign,
+                "Turn: 2 steps, 1 actions applied, 1 refused (0 repeated), \
+                 0 captures sent, 1 model replies.",
+            ),
+            _ => (
+                clean,
+                "Turn: 1 steps, 1 actions applied, 0 refused (0 repeated), \
+                 0 captures sent, 1 model replies.",
+            ),
+        };
+        let n = rows.len();
+        assert!(n >= 2, "{exit:?}: {rows:?}");
+        let tail = [rows[n - 2].clone(), rows[n - 1].clone()];
+        let want = [
+            ("note".to_owned(), undo.to_owned()),
+            ("note".to_owned(), metrics.to_owned()),
+        ];
+        assert_eq!(tail, want, "{exit:?}: {rows:?}");
+    }
+}
+
+/// AC 4 — a turn that applied nothing still gets the metrics note, with
+/// zero counts, and no undo note.
+#[test]
+fn a_turn_that_applied_nothing_gets_the_zero_count_note_only() {
+    let mut app = App::default();
+    let tx = arm_turn(&mut app, "hello");
+    let user = app.agent.chat.len();
+    tx.send(AgentEvent::done("hi")).unwrap();
+    poll_agent_rx(&mut app);
+    let rows = app.agent.chat[user..].to_vec();
+    let zero = "Turn: 0 steps, 0 actions applied, 0 refused (0 repeated), \
+                0 captures sent, 0 model replies.";
+    assert_eq!(
+        rows,
+        [
+            ("assistant".to_owned(), "hi".to_owned()),
+            ("note".to_owned(), zero.to_owned()),
+        ]
+    );
+}
