@@ -31,7 +31,7 @@ Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/
   src/cmdline/mod.rs, src/cmdline/parse.rs)
 - [x] T11 [AC1][AC8] `App::check_report` field and its default (files: src/app/mod.rs,
   src/app/init.rs)
-- [ ] T12 [AC1][AC8] `app/check.rs::run_check` and the `CommandInput::Check` arm (files:
+- [x] T12 [AC1][AC8] `app/check.rs::run_check` and the `CommandInput::Check` arm (files:
   src/app/check.rs, src/app/cmdline.rs)
 - [ ] T13 [AC1] Test (paint harness): the Check window paints every report line, its body stays
   ≤426 pt with a long report, Close clears `check_report` (files: tests/it/ui/check_dialog.rs,

@@ -35,6 +35,7 @@
 
 mod autosave;
 mod bed_dialog;
+mod check;
 mod cmdline;
 mod dialog_order;
 mod discard;

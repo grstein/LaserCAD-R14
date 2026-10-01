@@ -1,6 +1,7 @@
 //! The command line: grammar reaching the tools and the agent.
 
 mod agent_routing;
+mod check_command;
 mod command_words;
 mod context_row;
 mod copy_command;
