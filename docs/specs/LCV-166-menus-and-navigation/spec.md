@@ -1,8 +1,8 @@
 # LCV-166 — Menu icons and shortcut column, Zoom All/Extents and Ctrl+A
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-183
-- **Implementation**: -
+- **Implementation**: 6a270d3..8a98661
 
 ## Problem
 
