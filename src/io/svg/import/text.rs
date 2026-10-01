@@ -326,4 +326,39 @@ mod tests {
         assert_box(entity_box(&svg.entities), bounds([a, b].into_iter()));
         assert!(svg.report.is_empty(), "{:?}", svg.report);
     }
+
+    /// The world box of glyph `c` drawn at SVG point `(x, y)` with scale
+    /// `s` on the 100 mm page.
+    fn placed_box(c: char, x: f64, y: f64, s: f64) -> (Vec2, Vec2) {
+        let (lo, hi) = glyph_box(c);
+        let world = |gx: f64, gy: f64| Vec2::new(x + gx * s, 100.0 - (y - gy * s));
+        bounds([world(lo.x, lo.y), world(hi.x, hi.y)].into_iter())
+    }
+
+    /// AC 4 — the second `l` sits exactly one scaled advance (455) right
+    /// of the first.
+    #[test]
+    fn glyphs_advance_by_their_horizontal_advance() {
+        let one = page(r#"<text x="10" y="50" font-size="20.48">l</text>"#).entities;
+        let two = page(r#"<text x="10" y="50" font-size="20.48">ll</text>"#).entities;
+        assert_eq!(two.len(), 2 * one.len());
+        let s = 20.48 / UPEM;
+        assert_box(
+            entity_box(&two[..one.len()]),
+            placed_box('l', 10.0, 50.0, s),
+        );
+        let second = placed_box('l', 10.0 + 455.0 * s, 50.0, s);
+        assert_box(entity_box(&two[one.len()..]), second);
+    }
+
+    /// AC 4 — no kerning: `V` after `A` starts at `A`'s full advance
+    /// (1366), although the font kerns the pair by −152.
+    #[test]
+    fn pairs_are_not_kerned() {
+        let a = page(r#"<text x="10" y="50" font-size="20.48">A</text>"#).entities;
+        let av = page(r#"<text x="10" y="50" font-size="20.48">AV</text>"#).entities;
+        let s = 20.48 / UPEM;
+        let v = placed_box('V', 10.0 + 1366.0 * s, 50.0, s);
+        assert_box(entity_box(&av[a.len()..]), v);
+    }
 }

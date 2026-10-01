@@ -16,7 +16,7 @@
 - [x] T5 [AC1, AC3] Test first: `App::default().fonts` is empty (opening a text file reports
   `text (no font)`); then `App::fonts` (`system()` in `new`) and `open_content` calling
   `import_svg_with` (files: `src/app/mod.rs`, `src/io/file_actions.rs`, `tests/it/app/…`)
-- [ ] T6 [AC4] Test first: `"ll"` places the second glyph exactly one advance right of the first;
+- [x] T6 [AC4] Test first: `"ll"` places the second glyph exactly one advance right of the first;
   `"AV"` gets no kerning (files: `src/io/svg/import/text.rs`)
 - [ ] T7 [AC5] Test first: `text-anchor` `middle`/`end` shift each chunk by w/2 / w, a tspan with
   its own `x` anchoring separately; then chunk shift (files: `src/io/svg/import/text.rs`)
