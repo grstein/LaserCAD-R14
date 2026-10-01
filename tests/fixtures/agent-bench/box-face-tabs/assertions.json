@@ -1,0 +1,15 @@
+[
+  {
+    "kind": "bbox",
+    "w": 80,
+    "h": 56,
+    "tol": 0.1
+  },
+  {
+    "kind": "closed"
+  },
+  {
+    "kind": "min_entities",
+    "n": 28
+  }
+]
