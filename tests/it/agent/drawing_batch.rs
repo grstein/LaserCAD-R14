@@ -479,10 +479,10 @@ fn lcv185_ac4_an_item_with_every_published_property_draws_one_entity() {
 /// type, and every type key is published.
 #[test]
 fn lcv185_ac5_the_published_properties_are_the_union_of_the_type_keys() {
-    use lasercad::agent::drawing::ENTITY_KEYS;
+    use lasercad::agent::drawing::ENTITY_TYPES;
     let mut union: Vec<String> = vec!["type".to_owned()];
-    for (_, keys) in ENTITY_KEYS {
-        union.extend(keys.iter().map(|k| (*k).to_owned()));
+    for ty in &ENTITY_TYPES {
+        union.extend(ty.keys.iter().map(|k| k.name.to_owned()));
     }
     union.sort();
     union.dedup();
@@ -491,7 +491,7 @@ fn lcv185_ac5_the_published_properties_are_the_union_of_the_type_keys() {
     assert_eq!(published, union);
     let schema = lasercad::agent::drawing::schema();
     let types = &schema["properties"]["entities"]["items"]["properties"]["type"]["enum"];
-    let names: Vec<&str> = ENTITY_KEYS.iter().map(|(t, _)| *t).collect();
+    let names: Vec<&str> = ENTITY_TYPES.iter().map(|t| t.name).collect();
     assert_eq!(types, &json!(names));
 }
 

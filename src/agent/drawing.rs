@@ -16,7 +16,9 @@ use serde_json::Value;
 
 use crate::agent::tools::{ToolCallError, expected_form, validate_r};
 
+mod keys;
 mod schema;
+pub use keys::{ENTITY_TYPES, EntityType, Key, KeyKind};
 pub use schema::{layer_schema, schema};
 
 /// One entity of a `create_drawing` batch, in mm; arc angles in radians.
@@ -70,14 +72,6 @@ const TOOL: &str = "create_drawing";
 
 /// Longest unknown-key name echoed back in an error, in characters.
 const KEY_ECHO_CHARS: usize = 64;
-
-/// Each entity `type` with the keys it takes besides `type`, in reading
-/// order; the one source of the item schema and of the item key check.
-pub const ENTITY_KEYS: [(&str, &[&str]); 3] = [
-    ("line", &["x1", "y1", "x2", "y2"]),
-    ("circle", &["cx", "cy", "r"]),
-    ("arc", &["cx", "cy", "r", "start_deg", "end_deg", "ccw"]),
-];
 
 /// Shape check of the optional `layer` argument (ADR 0012 §6): absent is
 /// `None`; present must be a string of 1..=[`MAX_LAYER_NAME_CHARS`]
@@ -152,24 +146,22 @@ fn item(index: usize, value: &Value) -> Result<DrawingItem, ToolCallError> {
         arg(format!("entities[{index}]"), "not an object", form)
     })?;
     let kind = obj.get("type").ok_or_else(|| fail("type", "missing"))?;
-    let Some(&(kind_name, keys)) = ENTITY_KEYS.iter().find(|(t, _)| Some(*t) == kind.as_str())
-    else {
+    let Some(ty) = kind.as_str().and_then(keys::entity_type) else {
         return Err(fail("type", "unknown type"));
     };
-    let a = if kind_name == "arc" { "an" } else { "a" };
-    let own_keys = format!("{a} {kind_name} key ({})", keys.join(", "));
+    let (a, kind_name, own_keys) = (ty.article(), ty.name, ty.own_keys());
     // A key of another type is tolerated only as `null` (ADR 0010 §2).
-    let own = |k: &str| k == "type" || keys.contains(&k);
+    let own = |k: &str| k == "type" || ty.takes(k);
     for (key, value) in obj.iter().filter(|(k, _)| !own(k)) {
-        if !ENTITY_KEYS.iter().any(|(_, k)| k.contains(&key.as_str())) {
+        if !keys::published(key) {
             return Err(arg(at(&cut(key)), "unknown key", &own_keys));
         } else if !value.is_null() {
             let reason = format!("not {a} {kind_name} key");
             return Err(arg(at(key), &reason, &format!("null or {own_keys}")));
         }
     }
-    if let Some(key) = keys.iter().find(|k| !obj.contains_key(**k)) {
-        return Err(fail(key, "missing"));
+    if let Some(key) = ty.keys.iter().find(|k| !obj.contains_key(k.name)) {
+        return Err(fail(key.name, "missing"));
     }
     let num = |key: &str| {
         obj.get(key)

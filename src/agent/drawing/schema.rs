@@ -5,7 +5,7 @@
 
 use serde_json::{Value, json};
 
-use super::{ENTITY_KEYS, MAX_DRAWING_ENTITIES};
+use super::{ENTITY_TYPES, KeyKind, MAX_DRAWING_ENTITIES};
 
 /// The `parameters` schema of `create_drawing` (ADR 0010 §2).
 ///
@@ -14,12 +14,16 @@ use super::{ENTITY_KEYS, MAX_DRAWING_ENTITIES};
 /// no provider drops the tool. Which keys each `type` needs is said in words;
 /// [`parse`](super::parse) is what enforces it.
 pub fn schema() -> Value {
-    let types: Vec<&str> = ENTITY_KEYS.iter().map(|(t, _)| *t).collect();
+    let types: Vec<&str> = ENTITY_TYPES.iter().map(|t| t.name).collect();
     let mut props = serde_json::Map::new();
     props.insert("type".into(), json!({"type": "string", "enum": types}));
-    for key in ENTITY_KEYS.iter().flat_map(|(_, keys)| keys.iter()) {
-        let kind = if *key == "ccw" { "boolean" } else { "number" };
-        props.insert((*key).into(), json!({"type": kind}));
+    for key in ENTITY_TYPES.iter().flat_map(|t| t.keys.iter()) {
+        let kind = if key.kind == KeyKind::Bool {
+            "boolean"
+        } else {
+            "number"
+        };
+        props.insert(key.name.into(), json!({"type": kind}));
     }
     json!({"type": "object",
       "properties": {

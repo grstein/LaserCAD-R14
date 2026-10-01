@@ -2,7 +2,7 @@
 
 Prerequisites: LCV-185, LCV-192 Done; LCV-188 Done (the outcome's `New ids` suffix).
 
-- [ ] T1 Refactor (no behaviour change): move `ENTITY_KEYS` into `drawing/keys.rs` as a typed key
+- [x] T1 Refactor (no behaviour change): move `ENTITY_KEYS` into `drawing/keys.rs` as a typed key
   table that `parse` and `schema` both read; the tests are unchanged (files: src/agent/drawing.rs,
   src/agent/drawing/keys.rs, src/agent/drawing/schema.rs)
 - [ ] T2 [AC4] Test, then `text_strokes` plus `layout_text` as a map over it and the shared
