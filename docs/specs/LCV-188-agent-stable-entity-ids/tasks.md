@@ -29,7 +29,7 @@
 - [x] T12 [AC4, AC5] Test (parser): `id`/`ids` on the six edit tools and `set_layer` build `ById`;
   refused: bare integer, `e0`, `x7`, empty, 1001 entries, duplicate, and any two of
   `index|indices|id|ids` (files: src/agent/tools/tests.rs)
-- [ ] T13 [AC4] `AgentAction::ById` + `tool_name` arm; `id`/`ids` parse; routing in
+- [x] T13 [AC4] `AgentAction::ById` + `tool_name` arm; `id`/`ids` parse; routing in
   `parse_tool_call` (files: src/agent/bridge/action.rs, src/agent/tools/transform.rs, src/agent/tools.rs)
 - [ ] T14 [AC4] Schema `id`/`ids` on the 7 tools; `expected_form` rows (files: src/agent/tools/schema.rs, src/agent/tools/args.rs)
 - [ ] T15 [AC4, AC5] Test (apply): for each op (delete, move, copy, rotate, mirror ±erase, scale,

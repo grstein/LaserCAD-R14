@@ -101,7 +101,9 @@ pub(super) fn list_entities(doc: &Document) -> String {
     for (i, entity) in doc.entities.iter().enumerate() {
         let layer = layer_name(doc, i);
         // Invariant: one id per entity (lockstep), so the fallback never shows.
-        let id = doc.entity_id(i).map_or_else(String::new, |id| id.to_string());
+        let id = doc
+            .entity_id(i)
+            .map_or_else(String::new, |id| id.to_string());
         out.push_str(&format!(
             "\n{i} {id}: {} {} layer {layer}",
             kind(entity),

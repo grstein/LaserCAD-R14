@@ -75,7 +75,7 @@ pub fn tool_definitions(vision: bool) -> Value {
 /// of the wrong type, or outside its domain.
 #[rustfmt::skip]
 pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCallError> {
-    // LCV-186: `indices` on an edit tool is a set call; else as before.
+    // LCV-186/188: `indices`, `ids` or `id` on an edit tool is a set call.
     if let Some(set) = transform::parse_set(name, args) { return set; }
     match name {
         "create_line" => Ok(AgentAction::CreateLine {
