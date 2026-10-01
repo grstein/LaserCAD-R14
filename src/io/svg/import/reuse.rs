@@ -5,7 +5,9 @@
 //! reads a file or the network: only same-document `#id` references resolve.
 
 use super::SVG_NS;
-use crate::io::svg::viewport::Ctx;
+use crate::io::svg::length::{parse_length, to_user};
+use crate::io::svg::matrix::Matrix;
+use crate::io::svg::viewport::{Ctx, par, parse_view_box, view_box_map};
 use std::collections::HashMap;
 
 type Node<'a, 'input> = roxmltree::Node<'a, 'input>;
@@ -62,17 +64,51 @@ pub(super) fn is_cycle(target: Node<'_, '_>, use_: Node<'_, '_>, stack: &[Node<'
 /// `translate(x, y)` (AC 1); for a `symbol` or `svg` target, its `viewBox`
 /// mapped per its `preserveAspectRatio` onto `width`/`height` of the
 /// `<use>`, else the target's, else 100% (AC 3). `None` when the instance
-/// renders nothing.
+/// renders nothing. The target's own `x`/`y` place that viewport; nothing
+/// is clipped.
 pub(super) fn instance_ctx(use_: Node<'_, '_>, target: Node<'_, '_>, ctx: &Ctx) -> Option<Ctx> {
-    let _ = (use_, target);
-    Some(*ctx)
+    let [pw, ph] = ctx.viewport;
+    let len = |node: Node<'_, '_>, attr: &str, reference: f64| {
+        node.attribute(attr)
+            .and_then(parse_length)
+            .map(|l| to_user(l, reference))
+    };
+    let at = |attr, reference| len(use_, attr, reference).unwrap_or(0.0);
+    let ctm = Matrix::translate(at("x", pw), at("y", ph)).then(ctx.ctm);
+    let placed = Ctx { ctm, ..*ctx };
+    if !matches!(target.tag_name().name(), "symbol" | "svg") {
+        return Some(placed);
+    }
+    let size = |attr, reference| {
+        len(use_, attr, reference)
+            .or_else(|| len(target, attr, reference))
+            .unwrap_or(reference)
+    };
+    let rect = [
+        len(target, "x", pw).unwrap_or(0.0),
+        len(target, "y", ph).unwrap_or(0.0),
+        size("width", pw),
+        size("height", ph),
+    ];
+    if !(rect[2] > 0.0 && rect[3] > 0.0) {
+        return None;
+    }
+    let (map, viewport) = match target.attribute("viewBox").and_then(parse_view_box) {
+        Some(vb) => {
+            let par = par(target.attribute("preserveAspectRatio"));
+            (view_box_map(vb, rect, par), [vb[2], vb[3]])
+        }
+        None => (Matrix::translate(rect[0], rect[1]), [rect[2], rect[3]]),
+    };
+    let ctm = map.then(placed.ctm);
+    (!ctm.is_singular()).then_some(Ctx { ctm, viewport })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::geometry::Vec2;
-    use crate::io::svg::matrix::{Matrix, parse_transform};
+    use crate::io::svg::matrix::parse_transform;
 
     const DOC: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
       <defs>

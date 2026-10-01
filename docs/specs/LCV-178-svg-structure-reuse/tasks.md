@@ -20,7 +20,7 @@
       transform then translate; a `symbol viewBox="0 0 10 10"` into `width="20" height="40"`
       with default `xMidYMid meet`, with `none`, with no width (symbol's, then 100%)
       (files: src/io/svg/import/reuse.rs)
-- [ ] T8 [AC1] [AC3] `instance_ctx` (files: src/io/svg/import/reuse.rs)
+- [x] T8 [AC1] [AC3] `instance_ctx` (files: src/io/svg/import/reuse.rs)
 - [ ] T9 [AC1]–[AC8] Test: end-to-end through `import_svg` — `<use>` of a `<line>` in `<defs>`
       at `x/y`; of a `<g>`; of a `symbol`; `href` over `xlink:href`; stroke inherited from the
       `<use>` but a `.cls` rule and own `stroke` on the target win; the instance lands on the
