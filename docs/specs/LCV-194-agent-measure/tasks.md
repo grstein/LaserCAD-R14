@@ -51,7 +51,7 @@ Prerequisites: LCV-188, LCV-190, LCV-192 Done on `agent-harness`.
   (files: tests/it/agent/measure.rs, tests/it/agent/mod.rs)
 - [x] T10 [AC1–AC6] `agent_apply/measure.rs::answer` and the `plan` arm
   (files: src/app/agent_apply/measure.rs, src/app/agent_apply.rs)
-- [ ] T11 [AC7] Test (headless turn): `measure` answers and the step tally goes up by one. The
+- [x] T11 [AC7] Test (headless turn): `measure` answers and the step tally goes up by one. The
   revision, selection, undo depth and dirty flag are unchanged, and a later `create_line` in the
   same turn still applies (no fence trip). (files: tests/it/agent/measure.rs)
 - [ ] T12 [AC9] Test, then the `DEFAULT_PROMPT` lines for `measure` and its five queries

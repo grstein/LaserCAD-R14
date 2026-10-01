@@ -5,10 +5,12 @@
 //! ADR 0002 §A2: `App::default()` only. ADR 0005: no dialog is armed and no
 //! test sends `Ctrl+O` / `Ctrl+S`. ADR 0006: no per-user path is injected.
 
+use lasercad::agent::AgentEvent;
 use lasercad::agent::{AgentAction, AgentOutcome, MeasureQuery, MeasureRequest, MeasureTargets};
-use lasercad::app::{App, apply};
+use lasercad::app::{App, apply, arm_turn, poll_agent_rx};
 use lasercad::document::{AddLayer, CreateArc, CreateCircle, CreateLine};
 use lasercad::geometry::{Arc, Circle, Line, Vec2};
+use std::sync::mpsc::{Sender, channel};
 
 use MeasureQuery::{Angle, Bbox, Distance, Intersections, Length};
 
@@ -242,4 +244,51 @@ fn measure_refuses_wrong_kinds_and_unknown_entities() {
         refused(&mut app, Angle, at(&[0, 7])),
         "measure indices[1]: is a zero-length line; expected a line with two distinct endpoints"
     );
+}
+
+/// Push `action` into the armed turn, drain once, and return its answer.
+fn act(app: &mut App, tx: &Sender<AgentEvent>, action: AgentAction) -> AgentOutcome {
+    let (reply, answer) = channel::<AgentOutcome>();
+    tx.send(AgentEvent::Act { action, reply })
+        .expect("the armed Receiver must still be on App");
+    poll_agent_rx(app);
+    answer.try_recv().expect("the Act was answered")
+}
+
+/// AC 7 — `measure` in a live turn answers as one step and changes neither
+/// the document, the selection, the undo stack nor the dirty flag; a
+/// `create_line` after it in the same turn still applies (no fence trip).
+#[test]
+fn measure_is_one_read_only_step_and_trips_no_fence() {
+    let mut app = fixture();
+    app.document.selection.set([2]);
+    app.mark_saved();
+    let tx = arm_turn(&mut app, "measure then draw");
+    let (revision, undo) = (app.history.revision(), app.history.len());
+    let entities = app.document.entities.clone();
+
+    let got = act(&mut app, &tx, request(Length, &[], at(&[0])));
+
+    assert_eq!(got, AgentOutcome::Ok("length: 40.000 mm".to_owned()));
+    assert_eq!(app.agent.turn.tally.steps, 1, "one step");
+    assert_eq!(app.agent.turn.tally.applied, 0, "nothing applied");
+    assert_eq!(app.history.revision(), revision, "the revision stays");
+    assert_eq!(app.history.len(), undo, "nothing committed");
+    assert_eq!(app.document.entities, entities, "the document stays");
+    assert_eq!(app.document.selection.iter().collect::<Vec<_>>(), vec![2]);
+    assert!(!app.has_unsaved_changes(), "not dirty");
+    assert!(app.autosave.dirty_since.is_none(), "no autosave scheduled");
+
+    let line = AgentAction::CreateLine {
+        layer: None,
+        x1: 0.0,
+        y1: 0.0,
+        x2: 10.0,
+        y2: 0.0,
+    };
+    let after = act(&mut app, &tx, line);
+    assert!(matches!(after, AgentOutcome::Ok(_)), "{after:?}");
+    assert_eq!(app.document.entities.len(), entities.len() + 1);
+    assert_eq!(app.agent.turn.tally.steps, 2);
+    assert_eq!(app.agent.turn.tally.applied, 1);
 }
