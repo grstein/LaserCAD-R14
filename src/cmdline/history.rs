@@ -8,6 +8,8 @@
 
 use std::collections::VecDeque;
 
+use super::{CommandInput, ToolKind, parse};
+
 /// The command-line recall ring: a 50-entry, oldest-evicted transcript of
 /// submitted command-line text, with an independent Up/Down recall cursor.
 ///
@@ -102,6 +104,18 @@ impl CommandHistory {
     /// `true` if no entry has ever been pushed (or all pushes were blank).
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
+    }
+
+    /// The newest entry that parses to a tool word, for the empty-Enter
+    /// repeat (LCV-165 AC 4, AC 5). Agent lines (`:` / `/ai`), points,
+    /// numbers, toggles and unknown words never parse to a tool, so they are
+    /// skipped; `None` when no tool word is left. Reads the ring only: the
+    /// recall cursor is untouched.
+    pub fn last_tool(&self) -> Option<ToolKind> {
+        self.entries.iter().rev().find_map(|e| match parse(e) {
+            CommandInput::Tool(kind) => Some(kind),
+            _ => None,
+        })
     }
 }
 
