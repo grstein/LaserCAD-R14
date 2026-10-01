@@ -111,7 +111,7 @@ fn edit_menu(ui: &mut egui::Ui, app: &mut App) {
             tools::delete::commit_delete(&mut app.document, &mut app.history);
         }
         ui.separator();
-        if menu_row(ui, None, "Select All", "").clicked() {
+        if menu_row(ui, None, "Select All", "Ctrl+A").clicked() {
             ui.close_menu();
             do_select_all(app);
         }

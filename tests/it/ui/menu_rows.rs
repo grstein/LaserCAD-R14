@@ -264,7 +264,7 @@ fn edit_menu_rows() {
         &[
             ("Undo", Some("Ctrl+Z")),
             ("Redo", Some("Ctrl+Y")),
-            ("Select All", None),
+            ("Select All", Some("Ctrl+A")),
         ],
     );
     assert_slots(&edit, &["Undo", "Redo"], true);
@@ -409,7 +409,7 @@ fn edit_delete_erases_the_selection_in_one_undo_step() {
             ("Undo", Some("Ctrl+Z")),
             ("Redo", Some("Ctrl+Y")),
             ("Delete", Some("Del")),
-            ("Select All", None),
+            ("Select All", Some("Ctrl+A")),
         ],
     );
     assert_slots(&edit, &["Undo", "Redo", "Delete"], true);

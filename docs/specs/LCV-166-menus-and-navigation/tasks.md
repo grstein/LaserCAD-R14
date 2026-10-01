@@ -49,7 +49,7 @@
   Ctrl+Z restores the previous selection. With the command line focused, Ctrl+A leaves the
   selection and the tool unchanged. On an empty document Ctrl+A commits nothing (files:
   tests/it/ui/tool_hotkeys.rs)
-- [ ] T12 [AC8] [AC9] `dispatch_shortcuts`: a `ctrl_only` arm for `Key::A`, when `!wants_kbd`,
+- [x] T12 [AC8] [AC9] `dispatch_shortcuts`: a `ctrl_only` arm for `Key::A`, when `!wants_kbd`,
   calls `menubar::do_select_all` and returns `true`. Edit > Select All shows `Ctrl+A` in the
   shortcut column (files: src/ui/shortcuts.rs, src/ui/menubar.rs)
 - [ ] T13 [AC8] The F1 dialog lists `Ctrl+A  Select All` in its Edit group, and its
