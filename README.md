@@ -14,6 +14,8 @@ as is. One binary, no runtime, no account, no cloud.
 [Changelog](CHANGELOG.md) ·
 [Contributing](#contributing)
 
+![LaserCAD: tool rail on the left, a red Cut-layer part on the bed grid, command line and status bar at the bottom](docs/printscreen_v1.0.1.png)
+
 ## Features
 
 - **R14-style drafting**: Line, Polyline, Rect, Circle, Arc, Text, Move, Copy, Rotate, Mirror,
