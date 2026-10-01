@@ -17,7 +17,8 @@
 //!
 //! MUST NOT import `eframe` or `rfd`.
 
-use super::{App, draw_bed_dialog, draw_discard_dialog};
+use super::{App, Dialog, draw_bed_dialog, draw_discard_dialog, topmost};
+use crate::ui::DialogKey;
 
 /// Render the four fixed panels that frame the viewport.
 pub fn draw_chrome(ctx: &egui::Context, app: &mut App) {
@@ -99,11 +100,16 @@ pub fn draw_agent_side_panel(ctx: &egui::Context, app: &mut App) {
 /// LCV-116, LCV-156).
 ///
 /// Called after the `CentralPanel` so the windows float above the canvas.
-pub fn draw_dialogs(ctx: &egui::Context, app: &mut App) {
-    crate::ui::about_dialog(ctx, &mut app.about_open);
-    crate::ui::shortcuts_dialog(ctx, &mut app.shortcuts_open);
-    agent_settings_dialog(ctx, app);
-    error_modal(ctx, app);
+/// `key`, taken by `input.rs::take_dialog_key`, goes to the topmost dialog
+/// only (LCV-169 AC 1).
+pub fn draw_dialogs(ctx: &egui::Context, app: &mut App, key: Option<DialogKey>) {
+    let top = topmost(app);
+    let key_for = |d: Dialog| key.filter(|_| top == Some(d));
+    crate::ui::about_dialog(ctx, &mut app.about_open, key_for(Dialog::About));
+    let shortcuts_key = key_for(Dialog::Shortcuts);
+    crate::ui::shortcuts_dialog(ctx, &mut app.shortcuts_open, shortcuts_key);
+    agent_settings_dialog(ctx, app, key_for(Dialog::AiSettings));
+    error_modal(ctx, app, key_for(Dialog::Error));
     draw_discard_dialog(ctx, app);
     draw_bed_dialog(ctx, app);
     crate::ui::draw_layers_dialog(ctx, app);
@@ -112,7 +118,7 @@ pub fn draw_dialogs(ctx: &egui::Context, app: &mut App) {
 /// The AI Settings window (LCV-076). Persists the settings when the window
 /// closes, whether by the × button, the Close button (LCV-141 AC 6), or
 /// programmatically.
-fn agent_settings_dialog(ctx: &egui::Context, app: &mut App) {
+fn agent_settings_dialog(ctx: &egui::Context, app: &mut App, key: Option<DialogKey>) {
     let was_open = app.agent_settings_open;
     // Set from inside the content closure below when Close is clicked. Kept
     // separate from `agent_settings_open` itself: `Window::open` already
@@ -145,7 +151,7 @@ fn agent_settings_dialog(ctx: &egui::Context, app: &mut App) {
     // same flag the window's own `Window::open` would have set, and the one
     // guard below fires either way — never a second, parallel persistence
     // path (AC 6).
-    if close_clicked {
+    if close_clicked || key.is_some() {
         app.agent_settings_open = false;
     }
     // Save on dialog close (× button, Close, or programmatic close).
@@ -155,9 +161,9 @@ fn agent_settings_dialog(ctx: &egui::Context, app: &mut App) {
 }
 
 /// The error modal (LCV-062) — rendered last so it floats above everything.
-fn error_modal(ctx: &egui::Context, app: &mut App) {
+fn error_modal(ctx: &egui::Context, app: &mut App, key: Option<DialogKey>) {
     if let Some(msg) = app.error_message.clone()
-        && crate::ui::error_dialog(ctx, "Error", &msg)
+        && crate::ui::error_dialog(ctx, "Error", &msg, key)
     {
         app.error_message = None;
     }
@@ -238,7 +244,7 @@ mod tests {
     /// uses for LCV-129's Cancel button, so a line moved out of the guarded
     /// block is no longer in *this* string even though it is still in the file.
     fn close_clicked_block(implementation: &str) -> String {
-        let head = concat!("if close_", "clicked {");
+        let head = concat!("if close_", "clicked || key.is_some() {");
         let start = implementation
             .find(head)
             .unwrap_or_else(|| panic!("agent_settings_dialog must guard a `{head}` block"))
@@ -313,7 +319,7 @@ mod tests {
         let ctx = egui::Context::default();
         let mut app = App::default();
         let _ = ctx.run(egui::RawInput::default(), |ctx| {
-            draw_dialogs(ctx, &mut app);
+            draw_dialogs(ctx, &mut app, None);
         });
         assert!(!app.about_open);
         assert!(!app.agent_settings_open);

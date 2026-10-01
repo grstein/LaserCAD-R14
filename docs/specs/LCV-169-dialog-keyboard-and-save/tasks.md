@@ -34,7 +34,7 @@
   src/app/dialog_order.rs, src/app/mod.rs, src/app/init.rs)
 - [x] T13 [AC1] [AC2] `input.rs::take_dialog_key` (consume, restore command-line focus), called
   first in `update_ui` (files: src/app/input.rs, src/app/mod.rs)
-- [ ] T14 [AC1] [AC2] `draw_dialogs` hands the key to the topmost dialog. About, Shortcuts,
+- [x] T14 [AC1] [AC2] `draw_dialogs` hands the key to the topmost dialog. About, Shortcuts,
   Error and AI Settings treat it as a click (files: src/app/panels.rs, src/ui/dialogs.rs,
   src/ui/shortcuts_dialog.rs)
 - [ ] T15 [AC1] [AC2] [AC3] Bed Size, Layers and Discard take the key. Test: Enter and OK on

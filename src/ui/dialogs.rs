@@ -49,12 +49,13 @@ pub enum DialogKey {
 /// and a single **Close** button; the title-bar × does the same (LCV-169
 /// AC 4).
 ///
-/// Returns `true` on the frame **Close** or × is clicked, `false` every other
+/// Returns `true` on the frame **Close** or × is clicked, or a [`DialogKey`]
+/// is handed in (either key is Close, LCV-169 AC 1), `false` every other
 /// frame.
 ///
 /// The caller is responsible for holding a `bool` flag and stopping the
 /// call once `true` is returned.
-pub fn error_dialog(ctx: &Context, title: &str, message: &str) -> bool {
+pub fn error_dialog(ctx: &Context, title: &str, message: &str, key: Option<DialogKey>) -> bool {
     let mut open = true;
     let mut clicked = false;
 
@@ -69,19 +70,20 @@ pub fn error_dialog(ctx: &Context, title: &str, message: &str) -> bool {
             clicked = ui.button("Close").clicked();
         });
 
-    clicked || !open
+    clicked || !open || key.is_some()
 }
 
 /// Render the About dialog.
 ///
 /// The window is opened/closed via `open`; egui's built-in × button and the
-/// **Close** button (LCV-169 AC 4) both set `*open = false`. The body shows
+/// **Close** button (LCV-169 AC 4) both set `*open = false`, and so does a
+/// handed-in [`DialogKey`] (LCV-169 AC 1). The body shows
 /// the application name, the crate version from `Cargo.toml`, and the license
 /// identifier.
 ///
 /// Pass `open: &mut bool` from `App`; the Help → About menu item sets it to
 /// `true` (wired by LCV-065).
-pub fn about_dialog(ctx: &Context, open: &mut bool) {
+pub fn about_dialog(ctx: &Context, open: &mut bool, key: Option<DialogKey>) {
     let mut close = false;
     Window::new("About LaserCAD")
         .open(open)
@@ -95,7 +97,7 @@ pub fn about_dialog(ctx: &Context, open: &mut bool) {
             ui.add_space(8.0);
             close = ui.button("Close").clicked();
         });
-    if close {
+    if close || key.is_some() {
         *open = false;
     }
 }
@@ -114,7 +116,7 @@ mod tests {
         let ctx = egui::Context::default();
         let mut captured = false;
         let _out = ctx.run(egui::RawInput::default(), |ctx| {
-            captured = error_dialog(ctx, "E", "Msg");
+            captured = error_dialog(ctx, "E", "Msg", None);
         });
         assert!(!captured);
     }
@@ -125,7 +127,7 @@ mod tests {
         let ctx = egui::Context::default();
         let mut open = true;
         let _out = ctx.run(egui::RawInput::default(), |ctx| {
-            about_dialog(ctx, &mut open);
+            about_dialog(ctx, &mut open, None);
         });
         assert!(open);
     }

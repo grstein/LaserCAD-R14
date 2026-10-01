@@ -347,7 +347,12 @@ fn ac2_dialog_keys_never_reach_the_command_line_or_the_tool() {
     press(&ctx, &mut app, egui::Key::Escape);
     assert!(!app.about_open, "Escape closed About");
     assert_eq!(app.command_line_input, "12,3");
-    assert!(app.command_line_focused, "focus stays in the field");
+    // The id `src/ui/command_line.rs::editor_id` pins on the field.
+    let field = egui::Id::new("command_line_editor");
+    assert!(
+        ctx.memory(|m| m.has_focus(field)),
+        "focus stays in the field"
+    );
     assert_eq!(app.tool_manager.active_status_text(), prompt);
 
     app.about_open = true;

@@ -227,7 +227,7 @@ impl App {
         // dialog key for the topmost dialog (LCV-169), the shortcut table,
         // then the focus gate, so Escape cancels the tool in the same frame
         // the command line clears.
-        let _dialog_key = input::take_dialog_key(ctx, self);
+        let dialog_key = input::take_dialog_key(ctx, self);
         let shortcut_fired = crate::ui::process_shortcuts(ctx, self);
         process_input(ctx, self, shortcut_fired);
         // Clear snap each frame when snap is disabled (LCV-070 AC#16).
@@ -266,7 +266,7 @@ impl App {
         // Window close button (LCV-113): cancel the close and park
         // `PendingAction::Exit` when the document is dirty.
         poll_close_request(ctx, self);
-        panels::draw_dialogs(ctx, self);
+        panels::draw_dialogs(ctx, self, dialog_key);
         // Native window title (LCV-138), last, so it reflects this frame's own changes above; sends nothing unless the title actually changed (AC 2, no new repaint call site).
         document_title::update_title(ctx, self);
     }

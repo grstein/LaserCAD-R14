@@ -19,6 +19,7 @@
 
 use egui::{Align2, Context, Window};
 
+use crate::ui::DialogKey;
 use crate::ui::toolbar::TOOLS;
 
 /// One group of bindings in the keyboard-shortcuts dialog. `pub` (not
@@ -181,9 +182,10 @@ fn render_column(ui: &mut egui::Ui, sections: &[Section]) {
 ///
 /// Read-only: no widget changes application state, and it reads no key. `F1`
 /// is dispatched in `src/ui/shortcuts.rs` like `F3` / `F7` / `F8`, not here.
-/// The `Close` row below the `ScrollArea` (LCV-169 AC 4) clears `open`, the
-/// same flag egui's × clears, and nothing else.
-pub fn shortcuts_dialog(ctx: &Context, open: &mut bool) {
+/// The `Close` row below the `ScrollArea` (LCV-169 AC 4) and a handed-in
+/// [`DialogKey`] (AC 1) clear `open`, the same flag egui's × clears, and
+/// nothing else.
+pub fn shortcuts_dialog(ctx: &Context, open: &mut bool, key: Option<DialogKey>) {
     let mut close = false;
     Window::new("Keyboard Shortcuts")
         .open(open)
@@ -211,7 +213,7 @@ pub fn shortcuts_dialog(ctx: &Context, open: &mut bool) {
                 });
             close = ui.button("Close").clicked();
         });
-    if close {
+    if close || key.is_some() {
         *open = false;
     }
 }
@@ -240,13 +242,13 @@ mod tests {
         let ctx = egui::Context::default();
         let mut open = true;
         let _out = ctx.run(egui::RawInput::default(), |ctx| {
-            shortcuts_dialog(ctx, &mut open);
+            shortcuts_dialog(ctx, &mut open, None);
         });
         assert!(open);
 
         let mut closed = false;
         let _out = ctx.run(egui::RawInput::default(), |ctx| {
-            shortcuts_dialog(ctx, &mut closed);
+            shortcuts_dialog(ctx, &mut closed, None);
         });
         assert!(!closed);
     }
@@ -495,8 +497,8 @@ mod tests {
             "the one button is Close (LCV-169 AC 4)"
         );
         assert!(
-            body.contains("if close {\n        *open = false;\n    }"),
-            "Close only clears the open flag"
+            body.contains("if close || key.is_some() {\n        *open = false;\n    }"),
+            "Close and a dialog key only clear the open flag"
         );
         for forbidden in ["App", "app."] {
             assert!(
