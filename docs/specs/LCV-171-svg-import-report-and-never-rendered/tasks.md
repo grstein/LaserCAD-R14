@@ -57,7 +57,7 @@
       `style="fill:none;stroke:#000"`, and an `<image>`. Expectation by hand: two entities on the
       default layer, `ignored 1 defs`, `ignored 1 transform`, `ignored 1 image` (files:
       tests/fixtures/svg/inkscape-defs.svg, tests/fixtures/svg/inkscape-defs.expected)
-- [ ] T17 Coverage doc §4 rows for never-rendered geometry and silent loss marked done by LCV-171;
+- [x] T17 Coverage doc §4 rows for never-rendered geometry and silent loss marked done by LCV-171;
       CHANGELOG `Changed`: Open refuses non-SVG-namespace files and reports what it ignored on the
       command line (files: docs/research/svg-spec-coverage.md, CHANGELOG.md)
 

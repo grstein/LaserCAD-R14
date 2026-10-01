@@ -10,6 +10,7 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ### Changed
 
+- Open and Open Recent say what an SVG import ignored, on the command line: for example `Ignored: 2 image, 1 transform`. Elements LaserCAD does not import (images, text, rectangles, …), path data it cannot read, and properties it does not apply yet (`transform`, `fill`, `opacity`, …) are counted. Geometry inside elements that are never drawn (`<defs>`, `<clipPath>`, `<mask>`, `<marker>`, `<pattern>`, …) is no longer imported as cut geometry. A file whose root is not an SVG-namespace `<svg>` (a missing `xmlns` included) is refused. See LCV-171.
 - A layer name with a control character (a tab, a bell, …) is refused with the reason: in the Layers dialog, by the agent, and when a drawing or SVG is opened (the SVG import reports a malformed layer). Such a name used to be written raw into the SVG, giving a file no program could reopen. See LCV-170.
 
 ### Added

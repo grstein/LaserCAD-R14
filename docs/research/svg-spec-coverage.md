@@ -149,11 +149,13 @@ one becomes an acceptance criterion of the owning spec:
 1. `parse_path` reads relative `m`/`a` as absolute. A file from another tool opens with wrong
    geometry and no error. (LCV-172)
 2. `parse_path` ignores every token after the 11th, which drops subpaths silently. (LCV-172)
-3. `Walk::collect` descends into every unknown element, so geometry inside `defs`, `symbol`,
-   `clipPath`, `mask`, `marker` and `pattern` is imported as cut geometry. (LCV-171)
-4. `transform` is ignored everywhere with no warning. (LCV-173)
-5. Unknown elements and non-arc paths are skipped silently. The target demands an import report.
-   (LCV-171)
+3. ~~`Walk::collect` descends into every unknown element, so geometry inside `defs`, `symbol`,
+   `clipPath`, `mask`, `marker` and `pattern` is imported as cut geometry.~~ **Done by LCV-171**:
+   only `svg`, `g` and `a` are descended into; never-rendered elements import nothing and are
+   reported.
+4. `transform` is ignored everywhere (reported since LCV-171, applied by LCV-173). (LCV-173)
+5. ~~Unknown elements and non-arc paths are skipped silently. The target demands an import
+   report.~~ **Done by LCV-171**: `ImportedSvg::report`, shown on the command line after Open.
 6. `parse_circle` rejects `r = 0`, and a missing `x1`/`cx`… is an error. The spec says "not
    rendered" and "default 0". (LCV-174)
 7. `parse_path` rejects a chord longer than `2r + EPSILON` (1e-9), where the spec scales the radii
