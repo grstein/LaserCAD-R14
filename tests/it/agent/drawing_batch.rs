@@ -258,7 +258,7 @@ fn ac7_a_thousand_items_are_one_revision_one_step_and_one_undo() {
         answer.try_recv().unwrap(),
         AgentOutcome::Ok(format!(
             "Created 1000 entities (indices 1..=1000). The drawing now has 1001 entities. \
-             Revision {}.",
+             Revision {}. New ids: e2..=e1001.",
             revision_mid + 1
         ))
     );

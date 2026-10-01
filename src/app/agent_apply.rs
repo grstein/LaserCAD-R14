@@ -32,7 +32,7 @@
 
 use crate::agent::tools::refusal;
 use crate::agent::{AgentAction, AgentOutcome, DrawingItem};
-use crate::app::agent_narrate::{batch_created, list_entities, list_selection, pt, sweep};
+use crate::app::agent_narrate::{batch_created, list_entities, list_selection, new_ids, pt, sweep};
 use crate::app::{App, agent_capture};
 use crate::document::commands::CreateEntities;
 use crate::document::{
@@ -72,15 +72,18 @@ pub fn apply(app: &mut App, action: &AgentAction) -> AgentOutcome {
     let outcome = match planned {
         Planned::Answer(outcome) => outcome,
         Planned::Commit(command, sentence) => {
+            let first = app.document.entity_count();
             // Into the turn's flat group (ADR 0007 §D12); `App::commit` seals.
             app.history.commit_grouped(command, &mut app.document);
-            AgentOutcome::Ok(with_count(&sentence, app.document.entity_count()))
+            let text = with_count(&sentence, app.document.entity_count());
+            AgentOutcome::Ok(text + &new_ids(&app.document, first))
         }
         Planned::Batch(command, n) => {
             let first = app.document.entity_count();
             app.history.commit_grouped(command, &mut app.document);
             let (count, revision) = (app.document.entity_count(), app.history.revision());
-            AgentOutcome::Ok(batch_created(n, first, count, revision))
+            let text = batch_created(n, first, count, revision);
+            AgentOutcome::Ok(text + &new_ids(&app.document, first))
         }
     };
     transcribe(app, &outcome);

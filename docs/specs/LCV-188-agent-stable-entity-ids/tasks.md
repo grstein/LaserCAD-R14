@@ -37,7 +37,7 @@
   valid after an earlier delete in the same turn; an unknown id is refused and the revision does not
   move (files: tests/it/agent/entity_ids.rs)
 - [x] T16 [AC4, AC5] `set.rs::resolve`; the `ById` arm in `plan` (files: src/app/agent_apply.rs, src/app/agent_apply/set.rs)
-- [ ] T17 [AC6] Test, then the ` New id(s): …` suffix after any commit that grew the document
+- [x] T17 [AC6] Test, then the ` New id(s): …` suffix after any commit that grew the document
   (create_*, create_drawing, copy, mirror/rotate/scale with keep); update the exact outcomes
   (files: tests/it/agent/entity_ids.rs, src/app/agent_apply.rs, src/app/agent_narrate.rs)
 - [x] T18 [AC4] `DEFAULT_PROMPT`: ids paragraph (prefer ids, `"e<N>"` strings, unknown is refused);

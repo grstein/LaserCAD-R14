@@ -487,7 +487,7 @@ fn set_copies_append_in_ascending_source_order_on_source_layers() {
         let (outcome, steps) = run(&mut app, tool, args);
         assert_eq!(
             outcome.text(),
-            format!("{sentence} The drawing now has 7 entities."),
+            format!("{sentence} The drawing now has 7 entities. New ids: e5..=e7."),
             "{tool}"
         );
         assert_eq!(steps, 1, "{tool}");
@@ -513,7 +513,7 @@ fn set_copies_append_in_ascending_source_order_on_source_layers() {
     );
     assert_eq!(
         one.text(),
-        "Copied 1 entity by (0.000, 1.000) mm as entity 4. The drawing now has 5 entities."
+        "Copied 1 entity by (0.000, 1.000) mm as entity 4. The drawing now has 5 entities. New id: e5."
     );
 }
 
@@ -643,7 +643,7 @@ fn a_single_index_call_behaves_as_before() {
             "copy_entity",
             json!({"index":1,"dx":1,"dy":2}),
             expected(CopyEntities::new(vec![1], Vec2::new(1.0, 2.0))),
-            "Copied entity 1 (circle, center (20.000, 20.000) mm, r = 5.000 mm) by (1.000, 2.000) mm as entity 4. The drawing now has 5 entities.",
+            "Copied entity 1 (circle, center (20.000, 20.000) mm, r = 5.000 mm) by (1.000, 2.000) mm as entity 4. The drawing now has 5 entities. New id: e5.",
         ),
         (
             "rotate_entity",
@@ -667,7 +667,7 @@ fn a_single_index_call_behaves_as_before() {
             "mirror_entity",
             json!({"index":3,"x1":0,"y1":0,"x2":0,"y2":5,"erase_source":false}),
             expected(TransformEntities::new(vec![3], across_y()).with_keep_source(true)),
-            "Mirrored entity 3 (line, (0.000, 10.000) → (10.000, 10.000) mm) across the line (0.000, 0.000)–(0.000, 5.000) mm as entity 4. The drawing now has 5 entities.",
+            "Mirrored entity 3 (line, (0.000, 10.000) → (10.000, 10.000) mm) across the line (0.000, 0.000)–(0.000, 5.000) mm as entity 4. The drawing now has 5 entities. New id: e5.",
         ),
         (
             "scale_entity",

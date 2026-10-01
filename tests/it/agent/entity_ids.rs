@@ -161,3 +161,58 @@ fn an_unknown_id_refuses_the_whole_call() {
         assert_eq!(app.history.revision(), revision, "{args}");
     }
 }
+
+/// AC 6 — every call that appended entities ends with their new ids; a call
+/// that appended nothing has no suffix. The fixture's next id is `e6`.
+#[test]
+fn appending_calls_end_with_the_new_ids() {
+    let drawing = json!({"version":1,"entities":[
+        {"type":"circle","cx":0,"cy":0,"r":1},
+        {"type":"line","x1":0,"y1":0,"x2":1,"y2":1},
+        {"type":"circle","cx":5,"cy":5,"r":1}]});
+    let mirror =
+        |erase: bool| json!({"ids":["e2","e4"],"x1":0,"y1":0,"x2":0,"y2":10,"erase_source":erase});
+    let arc = json!({"cx":0,"cy":0,"r":1,"start_deg":0,"end_deg":90,"ccw":true});
+    for (tool, args, suffix) in [
+        (
+            "create_line",
+            json!({"x1":0,"y1":0,"x2":1,"y2":1}),
+            " New id: e6.",
+        ),
+        (
+            "create_circle",
+            json!({"cx":0,"cy":0,"r":1}),
+            " New id: e6.",
+        ),
+        ("create_arc", arc, " New id: e6."),
+        ("create_drawing", drawing, " New ids: e6..=e8."),
+        (
+            "copy_entity",
+            json!({"ids":["e3","e2"],"dx":1,"dy":0}),
+            " New ids: e6..=e7.",
+        ),
+        (
+            "copy_entity",
+            json!({"index":0,"dx":1,"dy":0}),
+            " New id: e6.",
+        ),
+        ("mirror_entity", mirror(false), " New ids: e6..=e7."),
+    ] {
+        let mut app = fixture();
+        let text = ok(call(&mut app, tool, args.clone()));
+        assert!(text.ends_with(suffix), "{tool} {args}: {text}");
+        assert_eq!(text.matches(" New id").count(), 1, "{text}");
+    }
+    for (tool, args) in [
+        ("delete_entity", json!({"ids":["e2"]})),
+        ("move_entity", json!({"id":"e2","dx":1,"dy":0})),
+        ("rotate_entity", json!({"id":"e2","x":0,"y":0,"degrees":30})),
+        ("scale_entity", json!({"id":"e2","x":0,"y":0,"factor":2})),
+        ("mirror_entity", mirror(true)),
+        ("set_layer", json!({"ids":["e2"],"layer":"Mark"})),
+    ] {
+        let mut app = fixture();
+        let text = ok(call(&mut app, tool, args.clone()));
+        assert!(!text.contains("New id"), "{tool} {args}: {text}");
+    }
+}

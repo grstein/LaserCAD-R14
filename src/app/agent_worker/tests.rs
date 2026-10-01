@@ -328,7 +328,7 @@ fn multi_step_turn_sends_the_whole_conversation_back() {
     assert_eq!(
         msgs[3]["content"],
         "Line created: (0.000, 0.000) → (20.000, 0.000) mm. \
-             The drawing now has 1 entities.\nSteps left this turn: 255 of 256.",
+             The drawing now has 1 entities. New id: e1.\nSteps left this turn: 255 of 256.",
         "the model reads the real outcome, count and all (AC 9)"
     );
     assert_eq!(

@@ -473,14 +473,14 @@ fn every_mutating_outcome_reports_the_resulting_count() {
     assert!(
         apply(&mut empty, &create)
             .text()
-            .ends_with(" The drawing now has 1 entities.")
+            .ends_with(" The drawing now has 1 entities. New id: e1.")
     );
 
     let mut two = app_with(vec![line(0.0), line(1.0)]);
     assert!(
         apply(&mut two, &create)
             .text()
-            .ends_with(" The drawing now has 3 entities.")
+            .ends_with(" The drawing now has 3 entities. New id: e3.")
     );
 
     let mut two = app_with(vec![line(0.0), line(1.0)]);
@@ -523,7 +523,7 @@ fn the_create_sentences_are_unchanged_apart_from_the_suffix() {
         )
         .into_text(),
         "Line created: (0.000, 0.000) → (20.000, 0.000) mm. \
-             The drawing now has 1 entities."
+             The drawing now has 1 entities. New id: e1."
     );
     let mut app = App::default();
     assert_eq!(
@@ -538,7 +538,7 @@ fn the_create_sentences_are_unchanged_apart_from_the_suffix() {
         )
         .into_text(),
         "Circle created: center (5.000, 5.000) mm, r = 3.000 mm. \
-             The drawing now has 1 entities."
+             The drawing now has 1 entities. New id: e1."
     );
     let mut app = App::default();
     assert_eq!(
@@ -556,7 +556,7 @@ fn the_create_sentences_are_unchanged_apart_from_the_suffix() {
         )
         .into_text(),
         "Arc created: center (0.000, 0.000) mm, r = 1.000 mm, 0.0°→90.0° ccw. \
-             The drawing now has 1 entities."
+             The drawing now has 1 entities. New id: e1."
     );
 }
 
@@ -694,7 +694,8 @@ fn a_batch_narrates_its_indices_count_and_revision() {
     assert_eq!(
         outcome,
         AgentOutcome::Ok(format!(
-            "Created 2 entities (indices 3..=4). The drawing now has 5 entities. Revision {}.",
+            "Created 2 entities (indices 3..=4). The drawing now has 5 entities. Revision {}. \
+             New ids: e4..=e5.",
             before + 1
         ))
     );
@@ -716,7 +717,7 @@ fn a_batch_narrates_its_indices_count_and_revision() {
     assert_eq!(
         outcome,
         AgentOutcome::Ok(format!(
-            "Created 1 entity (index 3). The drawing now has 4 entities. Revision {}.",
+            "Created 1 entity (index 3). The drawing now has 4 entities. Revision {}. New id: e4.",
             before + 1
         ))
     );
@@ -846,7 +847,7 @@ fn a_copy_lands_on_the_source_layer_as_one_undo_step() {
     assert_eq!(
         outcome.text(),
         "Copied entity 0 (circle, center (10.000, 10.000) mm, r = 5.000 mm) \
-         by (3.000, 4.000) mm as entity 1. The drawing now has 2 entities."
+         by (3.000, 4.000) mm as entity 1. The drawing now has 2 entities. New id: e2."
     );
     assert_eq!(app.document.entities[0], circle());
     assert_eq!(
@@ -857,4 +858,22 @@ fn a_copy_lands_on_the_source_layer_as_one_undo_step() {
     assert_eq!(app.history.revision(), before + 1);
     assert!(app.history.undo(&mut app.document));
     assert_eq!(app.document.entities, vec![circle()]);
+}
+
+/// LCV-188 AC 6 — the suffix names one id, a contiguous range, a
+/// non-contiguous list, or nothing when the document did not grow.
+#[test]
+fn new_ids_names_the_appended_ids() {
+    use crate::app::agent_narrate::new_ids;
+    let mut doc = Document::default();
+    for y in 0..4 {
+        doc.push_current(line(f64::from(y)));
+    }
+    assert_eq!(new_ids(&doc, 3), " New id: e4.");
+    assert_eq!(new_ids(&doc, 1), " New ids: e2..=e4.");
+    assert_eq!(new_ids(&doc, 4), "");
+    assert_eq!(new_ids(&doc, 9), "");
+    doc.remove_entity(2);
+    assert_eq!(new_ids(&doc, 1), " New ids: e2, e4.");
+    assert_eq!(new_ids(&doc, 0), " New ids: e1, e2, e4.");
 }
