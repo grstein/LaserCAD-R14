@@ -66,7 +66,6 @@ pub fn attach_image(app: &mut App, path: &Path) {
 /// Consume the panel's `Attach image…` request: one native picker, whose
 /// choice goes to [`attach_image`]. Called by the frame wiring after the
 /// panel is drawn; never by a test (ADR 0005).
-#[expect(dead_code, reason = "LCV-199 T8 wires it into panels.rs")]
 pub(crate) fn poll_attach_request(app: &mut App) {
     if std::mem::take(&mut app.agent.attach_requested)
         && let Some(path) = crate::io::dialogs::pick_image_dialog()

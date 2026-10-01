@@ -171,11 +171,12 @@ fn ac2_ac4_ac5_the_seven_rows_are_painted_one_line_each_in_order() {
     let lines = lines_on_surface_of(&runs, "AI Assistant");
     assert_eq!(
         lines.len(),
-        9,
-        "the panel paints its heading, seven rows and the prompt row, and \
-         nothing else: {:?}",
+        10,
+        "the panel paints its heading, seven rows, the attach row (LCV-199) \
+         and the prompt row, and nothing else: {:?}",
         texts(&lines)
     );
+    assert_eq!(texts(&lines[8..9]), [vec!["Attach image…".to_owned()]]);
     assert_eq!(
         lines[0].1.first().map(String::as_str),
         Some("AI Assistant"),

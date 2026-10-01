@@ -17,7 +17,7 @@
   the `AgentState` fields (files: src/app/agent_attach.rs, src/app/agent_state.rs, src/app/mod.rs)
 - [x] T7 [AC2] [AC5] `start_turn` takes the attachment: `Image:` row, clear, or refuse and restore the
   draft (files: src/app/agent_turn.rs)
-- [ ] T8 [AC1] [AC3] Panel chip + `Attach image…` button + tooltip; `panels.rs` polls the request
+- [x] T8 [AC1] [AC3] Panel chip + `Attach image…` button + tooltip; `panels.rs` polls the request
   (files: src/agent/panel.rs, src/app/panels.rs)
 - [ ] T9 [AC1]–[AC7] Integration tests, one per AC (attach through `attach_image` with a temp PNG,
   JPEG and GIF; AC5 deletes the file before `start_turn`; AC6 checks the next turn's

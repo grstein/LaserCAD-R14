@@ -30,7 +30,8 @@
 //! `ScrollArea` so it never scrolls away. Enabled from `agent.busy` in the
 //! frame it is drawn; its body is one call into
 //! [`crate::app::AgentState::clear_conversation`], which empties the
-//! transcript and the memory and starts nothing.
+//! transcript and the memory and starts nothing. LCV-199's `Attach image…`
+//! only raises `agent.attach_requested` (see [`attach_row`]).
 
 use crate::app::App;
 
@@ -42,10 +43,13 @@ use crate::app::App;
 /// `the_row_colours_are_distinct_under_the_real_theme` pins all three apart.
 const TOOL_COLOR: egui::Color32 = egui::Color32::from_rgb(120, 190, 255);
 
-/// Vertical space (points) the separator and the composer row below the
-/// transcript always need, whether or not a turn is running (LCV-080's
-/// original reservation). Generous, not exact — see [`BUSY_ROW_RESERVE`].
-const COMPOSER_RESERVE: f32 = 60.0;
+/// Vertical space (points) the separator, the attach row (LCV-199: +26) and
+/// the composer row always need, busy or not (LCV-080). Generous, not exact —
+/// see [`BUSY_ROW_RESERVE`].
+const COMPOSER_RESERVE: f32 = 86.0;
+
+/// The disabled `Attach image…` tooltip (LCV-199 AC 3).
+const ATTACH_DISABLED_TIP: &str = "Turn on \"Model supports images\" in agent settings.";
 
 /// Extra vertical space the busy "Thinking… / Cancel" row and its own
 /// surrounding gap need, on top of [`COMPOSER_RESERVE`], only while a turn is
@@ -131,6 +135,7 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
     }
 
     ui.separator();
+    attach_row(ui, app);
 
     // ── Input row ─────────────────────────────────────────────────────────────
     let can_send = !app.agent.busy && !app.agent.input_draft.trim().is_empty();
@@ -173,6 +178,33 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
             crate::app::start_turn(app, &prompt);
         }
     }
+}
+
+/// `Attach image…`, enabled only while `Model supports images` is on, then
+/// the attached file's chip: its name and a `×` that removes it (LCV-199
+/// AC 1, AC 3). The frame wiring opens the picker (ADR 0005), never this file.
+fn attach_row(ui: &mut egui::Ui, app: &mut App) {
+    ui.horizontal(|ui| {
+        let attach = egui::Button::new("Attach image…").small();
+        let vision = app.settings.agent_model_supports_vision;
+        let response = ui.add_enabled(vision, attach);
+        if response
+            .on_disabled_hover_text(ATTACH_DISABLED_TIP)
+            .clicked()
+        {
+            app.agent.attach_requested = true;
+        }
+        let name = app.agent.attachment.as_ref().map(|a| a.name.clone());
+        if let Some(name) = name {
+            egui::Frame::group(ui.style()).show(ui, |ui| {
+                ui.label(name);
+                let remove = ui.small_button("×").on_hover_text("Remove image");
+                if remove.clicked() {
+                    app.agent.attachment = None;
+                }
+            });
+        }
+    });
 }
 
 // ── One transcript row ────────────────────────────────────────────────────────
