@@ -23,5 +23,5 @@
   `target/agent-bench/<model>.jsonl` and the replies (files: tests/it/agent/bench.rs)
 - [x] T9 [AC7] [AC8] `scripts/agent-bench.sh` (usage on no arg, then the ignored test)
   (files: scripts/agent-bench.sh)
-- [ ] T10 CHANGELOG line (maintainer tooling; user-visible only through the script) and the
+- [x] T10 CHANGELOG line (maintainer tooling; user-visible only through the script) and the
   AGENTS.md Commands line (files: CHANGELOG.md, AGENTS.md)

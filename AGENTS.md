@@ -14,6 +14,7 @@ Linux first. All versioned artifacts are English; conversation may be any langua
 scripts/gate.sh                    # THE gate: fmt check, clippy -D warnings, tests --no-fail-fast, LOC cap, backlog check
 scripts/check.sh [filter...]       # inner loop: clippy + lib/integration tests matching filter, no doctests
 scripts/mutants.sh [base=main]     # cargo-mutants on src/ lines changed since base (review, high-risk specs)
+scripts/agent-bench.sh <settings>  # agent eval bench against a live model (opt-in; the gate replays it offline)
 cargo run                          # run the app (debug)
 cargo test <substring>             # one test while iterating
 scripts/backlog.sh                 # regenerate docs/product/backlog.md from spec headers
