@@ -14,7 +14,7 @@
       passes (files: tests/it/repo/packaging.rs)
 - [x] T6 [AC3] Update `scripts/build-dmg.sh` (arm64 only, bundle name, codesign, FIRST-RUN.txt,
       versioned output) (files: scripts/build-dmg.sh)
-- [ ] T7 [AC4] [AC9] Test: `ci.yml` `package` job runs on tags or `workflow_dispatch`, the Windows
+- [x] T7 [AC4] [AC9] Test: `ci.yml` `package` job runs on tags or `workflow_dispatch`, the Windows
       step runs `build-zip.ps1` with no `cargo-wix`, uploads and the release list use the new
       names; the `test` matrix lists `windows-2022` and `macos-15` on dispatch (files: tests/it/repo/packaging.rs)
 - [ ] T8 [AC4] Edit `ci.yml` accordingly (files: .github/workflows/ci.yml)

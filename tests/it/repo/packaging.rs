@@ -100,3 +100,62 @@ fn build_dmg_sh_bundles_signs_and_refuses_non_arm64() {
         assert!(!built, "build-dmg.sh must refuse before creating build/ or dist/");
     }
 }
+
+/// The text of one top-level job in `ci.yml`: from `  <name>:` at two-space
+/// indent to the next two-space job key (or end of file).
+fn ci_job(ci: &str, name: &str) -> String {
+    let head = format!("\n  {name}:\n");
+    let start = ci
+        .find(&head)
+        .unwrap_or_else(|| panic!("ci.yml must have a `{name}` job"));
+    let body = &ci[start + head.len()..];
+    let end = body
+        .lines()
+        .scan(0usize, |off, line| {
+            let at = *off;
+            *off += line.len() + 1;
+            Some((at, line))
+        })
+        .find(|(_, l)| l.starts_with("  ") && !l.starts_with("   ") && l.ends_with(':'))
+        .map_or(body.len(), |(at, _)| at);
+    body[..end].to_owned()
+}
+
+/// LCV-201 AC 4, AC 9 — the `package` job runs on a tag or a manual dispatch,
+/// Windows packages with `build-zip.ps1` (no `cargo-wix`), uploads and the
+/// release use the new artifact names, and the `test` matrix covers
+/// `windows-2022` and `macos-15` on dispatch.
+#[test]
+fn ci_packages_on_dispatch_with_zip_and_dmg() {
+    let ci = read(".github/workflows/ci.yml");
+    assert!(ci.contains("\n  workflow_dispatch:"), "ci.yml must accept workflow_dispatch");
+    assert!(!ci.contains("wix") && !ci.contains(".msi"), "ci.yml must not use WiX/MSI");
+
+    let package = ci_job(&ci, "package");
+    assert!(
+        package.contains(
+            "if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'"
+        ),
+        "package must run on tags and on workflow_dispatch"
+    );
+    assert!(package.contains("./scripts/build-zip.ps1"), "Windows step must run build-zip.ps1");
+    assert!(package.contains("./scripts/build-dmg.sh"), "macOS step must run build-dmg.sh");
+    for path in ["dist/lasercad-*-windows-x86_64.zip", "dist/lasercad-*-macos-aarch64.dmg"] {
+        assert!(package.contains(path), "package must upload {path}");
+    }
+
+    let release = ci_job(&ci, "release");
+    assert!(release.contains("if: startsWith(github.ref, 'refs/tags/')\n"));
+    for path in ["dist/lasercad-*-windows-x86_64.zip", "dist/lasercad-*-macos-aarch64.dmg"] {
+        assert!(release.contains(path), "release must attach {path}");
+    }
+
+    let test = ci_job(&ci, "test");
+    let matrix = test
+        .lines()
+        .find(|l| l.trim_start().starts_with("os:"))
+        .expect("test job must have an os matrix");
+    for needle in ["github.event_name == 'workflow_dispatch'", "windows-2022", "macos-15"] {
+        assert!(matrix.contains(needle), "test matrix must include {needle:?}");
+    }
+}
