@@ -22,7 +22,7 @@
 - [x] T9 [AC10] `attr_len` with `Axis`, `parse_line`/`parse_circle` take `&Ctx` and map through
   `ctm`; rewrite `import/tests.rs` unitless-root cases (files: src/io/svg/import.rs,
   src/io/svg/import/tests.rs)
-- [ ] T10 [AC5, AC8] Test: nested transformed groups on lines, circles and paths; an invalid
+- [x] T10 [AC5, AC8] Test: nested transformed groups on lines, circles and paths; an invalid
   `transform` is ignored and reported `transform (invalid)`; `transform` is no longer reported
   as a property (files: tests/it/io_svg/transforms.rs, tests/it/io_svg/mod.rs)
 - [ ] T11 [AC5, AC8] Walk: compose each element's `transform` into the child `Ctx`, the invalid
