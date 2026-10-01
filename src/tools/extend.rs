@@ -11,6 +11,7 @@ use crate::app::App;
 use crate::document::commands::trim::extend_reach;
 use crate::document::{Document, Entity, ExtendEntity, History};
 use crate::geometry::Vec2;
+use crate::tools::trim::ELLIPSE_REFUSAL;
 use crate::tools::{Mark, PICK_APERTURE_PT, Tool};
 
 /// Compact hover state: (target_idx, extend_endpoint, boundary_idx, preview).
@@ -30,6 +31,8 @@ pub struct ExtendTool {
     state: State,
     /// Live zoom in mm per screen point (LCV-162); `1.0` until forwarded.
     mm_per_pt: f64,
+    /// Single-shot result line for [`Tool::take_message`].
+    message: Option<String>,
 }
 
 impl Default for ExtendTool {
@@ -37,6 +40,7 @@ impl Default for ExtendTool {
         Self {
             state: State::Idle,
             mm_per_pt: 1.0,
+            message: None,
         }
     }
 }
@@ -92,10 +96,21 @@ impl Tool for ExtendTool {
         self.state = hover(pos, &doc.entities, radius).map_or(State::Idle, State::Hover);
     }
 
-    fn on_pointer_down(&mut self, _: Vec2, _: bool, doc: &mut Document, history: &mut History) {
+    /// Commit the hovered extension; with none in reach, a click on an
+    /// ellipse is refused with [`ELLIPSE_REFUSAL`] (ADR 0015 §6).
+    fn on_pointer_down(&mut self, pos: Vec2, _: bool, doc: &mut Document, history: &mut History) {
         if let State::Hover(H(ti, ep, bi, _)) = self.state {
             history.commit(Box::new(ExtendEntity::new(ti, bi, ep)), doc);
             self.state = State::Idle;
+            return;
+        }
+        let radius = PICK_APERTURE_PT * self.mm_per_pt;
+        let on_ellipse = doc.entities.iter().any(|e| match e {
+            Entity::Ellipse(el) => el.distance_to_point(pos) <= radius,
+            _ => false,
+        });
+        if on_ellipse {
+            self.message = Some(ELLIPSE_REFUSAL.to_owned());
         }
     }
 
@@ -137,6 +152,10 @@ impl Tool for ExtendTool {
 
     fn set_pick_scale(&mut self, mm_per_pt: f64) {
         self.mm_per_pt = mm_per_pt;
+    }
+
+    fn take_message(&mut self) -> Option<String> {
+        self.message.take()
     }
 }
 

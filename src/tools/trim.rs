@@ -25,13 +25,22 @@ use crate::tools::{Mark, PICK_APERTURE_PT, Tool};
 pub struct TrimTool {
     /// Live zoom in mm per screen point (LCV-162); `1.0` until forwarded.
     mm_per_pt: f64,
+    /// Single-shot result line for [`Tool::take_message`].
+    message: Option<String>,
 }
 
 impl Default for TrimTool {
     fn default() -> Self {
-        Self { mm_per_pt: 1.0 }
+        Self {
+            mm_per_pt: 1.0,
+            message: None,
+        }
     }
 }
+
+/// The result line of a TRIM or EXTEND click aimed at an ellipse, which
+/// neither tool edits (ADR 0015 §6).
+pub(crate) const ELLIPSE_REFUSAL: &str = "Cannot trim/extend an ellipse";
 
 /// Distance from `p` to the nearest point on the arc's stroke.
 fn arc_dist(arc: &Arc, p: Vec2) -> f64 {
@@ -57,7 +66,7 @@ fn pick_entity(pos: Vec2, entities: &[Entity], radius_mm: f64) -> Option<usize> 
                 Entity::Line(l) => l.distance_to_point(pos),
                 Entity::Circle(c) => c.distance_to_point(pos).abs(),
                 Entity::Arc(a) => arc_dist(a, pos),
-                Entity::Ellipse(_) => f64::INFINITY,
+                Entity::Ellipse(el) => el.distance_to_point(pos),
             };
             (i, d)
         })
@@ -106,7 +115,8 @@ impl Tool for TrimTool {
     }
 
     /// Pick the nearest entity and trim it at every cutter, as one undo step.
-    /// Silent no-op (no undo entry) when the click misses or nothing changes.
+    /// Silent no-op (no undo entry) when the click misses or nothing changes;
+    /// an ellipse is refused with [`ELLIPSE_REFUSAL`].
     fn on_pointer_down(
         &mut self,
         pos: Vec2,
@@ -118,6 +128,10 @@ impl Tool for TrimTool {
         let Some(target_idx) = pick_entity(pos, &doc.entities, radius) else {
             return;
         };
+        if matches!(doc.entities[target_idx], Entity::Ellipse(_)) {
+            self.message = Some(ELLIPSE_REFUSAL.to_owned());
+            return;
+        }
         let (cutters, _) = trim_fold(doc, target_idx, pos);
         let mut steps: Vec<Box<dyn Command>> = cutters
             .into_iter()
@@ -177,6 +191,10 @@ impl Tool for TrimTool {
 
     fn set_pick_scale(&mut self, mm_per_pt: f64) {
         self.mm_per_pt = mm_per_pt;
+    }
+
+    fn take_message(&mut self) -> Option<String> {
+        self.message.take()
     }
 }
 

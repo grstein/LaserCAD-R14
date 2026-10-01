@@ -44,7 +44,7 @@
 - [x] T16 [AC8] Test: TRIM and EXTEND aimed at an ellipse leave the document and history unchanged
   and set "Cannot trim/extend an ellipse". An ellipse is never a cutter or boundary for a line
   (files: tests/it/app/ellipse_edit.rs)
-- [ ] T17 [AC8] Pick distance and `take_message` in TRIM/EXTEND; `cut_points`/`extend_reach` arms
+- [x] T17 [AC8] Pick distance and `take_message` in TRIM/EXTEND; `cut_points`/`extend_reach` arms
   (files: src/tools/trim.rs, src/tools/extend.rs, src/document/commands/trim/mod.rs)
 - [ ] T18 [AC9, AC10, AC11] Test: exact strings for a full ellipse with rotation 0 and 30°, and
   for arcs with each combination of `large` and `sweep` under the mirror. `GOLDEN` stays unchanged.
