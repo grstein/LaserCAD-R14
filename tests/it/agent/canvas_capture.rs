@@ -627,12 +627,12 @@ fn dims_and_ink(png: &[u8]) -> ((u32, u32), bool) {
     ((info.width, info.height), buf.contains(&0))
 }
 
-/// Capture `frame` on a fresh app holding `entities` lines, the camera
+/// A line's two endpoints, `((x1, y1), (x2, y2))` mm.
+type Segment = ((f64, f64), (f64, f64));
+
+/// Capture `frame` on a fresh app holding `lines`, the camera
 /// pinned elsewhere; returns the outcome, the last row and the revision.
-fn capture_lines(
-    lines: &[((f64, f64), (f64, f64))],
-    frame: CaptureFrame,
-) -> (AgentOutcome, (String, String), u64) {
+fn capture_lines(lines: &[Segment], frame: CaptureFrame) -> (AgentOutcome, (String, String), u64) {
     let (ctx, mut app) = ctx_and_app();
     for &((ax, ay), (bx, by)) in lines {
         app.commit(Box::new(CreateLine::new(Line::new(
@@ -740,7 +740,7 @@ fn a_region_is_framed_exactly_at_1024() {
 fn a_frame_without_area_is_refused_naming_the_cause() {
     let region = |x0, y0, x1, y1| CaptureFrame::Region { x0, y0, x1, y1 };
     let one = [((1.0, 1.0), (9.0, 9.0))];
-    let cases: [(&[((f64, f64), (f64, f64))], CaptureFrame, &str); 8] = [
+    let cases: [(&[Segment], CaptureFrame, &str); 8] = [
         (
             &[],
             CaptureFrame::Drawing,
