@@ -275,7 +275,7 @@ fn the_step_budget_section_says_how_steps_are_counted() {
 
 /// LCV-186 — the TOOLS section says what a set call is: 1 to 1000 distinct
 /// indices instead of index, one step, one base point or mirror line, all or
-/// nothing; each of the six edit paragraphs offers `index or indices`, and
+/// nothing; each of the six edit paragraphs offers `index, indices, id or ids` (LCV-188), and
 /// copies are appended in ascending source order.
 #[test]
 fn the_edit_paragraphs_offer_indices() {
@@ -305,11 +305,37 @@ fn the_edit_paragraphs_offer_indices() {
             .iter()
             .find(|p| words(p).first() == Some(&tool))
             .unwrap_or_else(|| panic!("a {tool} paragraph"));
-        assert!(own.contains(&format!("{tool} {{index or indices")), "{own}");
+        assert!(
+            own.contains(&format!("{tool} {{index, indices, id or ids")),
+            "{own}"
+        );
     }
     for tool in ["copy_entity", "mirror_entity"] {
         let own = paragraphs.iter().find(|p| p.starts_with(tool)).unwrap();
         assert!(own.contains("ascending source index order"), "{own}");
+    }
+}
+
+/// LCV-188 AC 4/5 — an ENTITY IDS section says ids are `"e<N>"` strings
+/// from query_entities that survive other edits, prefers them to indices,
+/// names the `New ids` suffix and says an unknown id is refused.
+#[test]
+fn the_ids_section_prefers_stable_ids() {
+    let folded = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let section = DEFAULT_PROMPT
+        .split("\n\n")
+        .map(folded)
+        .find(|p| p.starts_with("ENTITY IDS "))
+        .expect("an ENTITY IDS section");
+    for needle in [
+        "a string such as \"e7\"",
+        "query_entities lists after the index",
+        "never changes and is never reused",
+        "Prefer ids to indices",
+        "\"New ids: e8..=e12.\"",
+        "An unknown id is refused and nothing changes",
+    ] {
+        assert!(section.contains(needle), "`{needle}` missing: {section}");
     }
 }
 

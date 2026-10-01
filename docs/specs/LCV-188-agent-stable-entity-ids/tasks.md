@@ -40,7 +40,7 @@
 - [ ] T17 [AC6] Test, then the ` New id(s): …` suffix after any commit that grew the document
   (create_*, create_drawing, copy, mirror/rotate/scale with keep); update the exact outcomes
   (files: tests/it/agent/entity_ids.rs, src/app/agent_apply.rs, src/app/agent_narrate.rs)
-- [ ] T18 [AC4] `DEFAULT_PROMPT`: ids paragraph (prefer ids, `"e<N>"` strings, unknown is refused);
+- [x] T18 [AC4] `DEFAULT_PROMPT`: ids paragraph (prefer ids, `"e<N>"` strings, unknown is refused);
   the default-prompt test covers `id`/`ids` (files: src/agent/prompt.rs, tests/it/agent/default_prompt.rs)
 - [ ] T19 Docs: header pointer amendments in ADR 0007 (§D5, §Deferred) and ADR 0010 (§7), with the
   next free numbers (files: docs/adr/0007-agent-turn-mutates-the-live-document.md, docs/adr/0010-declarative-drawing-batch-tool.md)
