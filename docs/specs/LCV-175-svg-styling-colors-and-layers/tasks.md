@@ -14,7 +14,7 @@
       `stroke`/`fill`/`color` inherit, `inherit` keyword; `currentColor` takes `color`; an invalid
       `stroke` falls back to the next candidate and notes `stroke (invalid color)`
       (files: src/io/svg/import/style.rs)
-- [ ] T5 [AC1] [AC2] [AC5] [AC6] [AC11] `Style`, `Style::root`, `Style::child`, `collect_sheet`
+- [x] T5 [AC1] [AC2] [AC5] [AC6] [AC11] `Style`, `Style::root`, `Style::child`, `collect_sheet`
       (files: src/io/svg/import/style.rs, src/io/svg/import.rs)
 - [ ] T6 [AC7] Test: `display:none` on a `<g>` hides its subtree (one `hidden (display:none)`);
       `visibility:hidden` on a `<g>` hides its lines but a `visibility:visible` child imports;

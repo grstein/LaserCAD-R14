@@ -14,8 +14,10 @@
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
+use super::SVG_NS;
 use super::report::Report;
-use crate::io::svg::css::Sheet;
+use crate::io::svg::css::{Decl, Rule, Sheet, declarations, parse_sheet};
+use crate::io::svg::css_color::parse_css_color;
 
 /// A `stroke` or `fill` value after the cascade.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,28 +57,134 @@ impl Style {
     /// The style of `node`, a child of an element styled `self`.
     pub(super) fn child(
         &self,
-        _node: roxmltree::Node<'_, '_>,
-        _sheet: &Sheet,
-        _report: &mut Report,
+        node: roxmltree::Node<'_, '_>,
+        sheet: &Sheet,
+        report: &mut Report,
     ) -> Self {
-        *self
+        let mut ranked: Vec<_> = (sheet.rules.iter().enumerate())
+            .filter_map(|(i, rule)| Some((rule.specificity_for(node)?, i, rule)))
+            .collect();
+        ranked.sort_by_key(|&(spec, i, _)| (spec, i));
+        let rules: Vec<&Rule> = ranked.into_iter().map(|(.., rule)| rule).collect();
+        let values = |prop| candidates(node, &rules, prop);
+        let mut invalid = |prop: &str| report.note(&format!("{prop} (invalid color)"));
+        let stroke = cascade(&values("stroke"), self.stroke, paint, || invalid("stroke"));
+        let fill = cascade(&values("fill"), self.fill, paint, || invalid("fill"));
+        let parent_color = self.color;
+        let color = cascade(
+            &values("color"),
+            parent_color,
+            |v| match v.to_ascii_lowercase().as_str() {
+                "currentcolor" => Some(parent_color),
+                "initial" => Some(None),
+                _ => parse_css_color(v).map(Some),
+            },
+            || invalid("color"),
+        );
+        let visibility = |v: &str| match v.to_ascii_lowercase().as_str() {
+            "visible" | "initial" => Some(false),
+            "hidden" | "collapse" => Some(true),
+            _ => None,
+        };
+        let none = |v: &str| Some(v.eq_ignore_ascii_case("none"));
+        Self {
+            stroke,
+            fill,
+            color,
+            invisible: cascade(&values("visibility"), self.invisible, visibility, || ()),
+            display_none: cascade(&values("display"), false, none, || ()),
+        }
     }
 
     /// The resolved stroke color, if it is a color.
     pub(super) fn stroke(&self) -> Option<[u8; 3]> {
-        None
+        self.resolve(self.stroke)
     }
 
     /// The resolved fill color, if it is a color.
     pub(super) fn fill(&self) -> Option<[u8; 3]> {
-        None
+        self.resolve(self.fill)
+    }
+
+    fn resolve(&self, paint: Paint) -> Option<[u8; 3]> {
+        match paint {
+            Paint::None => None,
+            Paint::Color(rgb) => Some(rgb),
+            Paint::Current => self.color,
+        }
+    }
+}
+
+/// `prop`'s declared values for `node`, highest precedence first (module
+/// docs); `rules` are the matching rules, lowest precedence first.
+fn candidates<'a>(node: roxmltree::Node<'a, '_>, rules: &[&'a Rule], prop: &str) -> Vec<&'a str> {
+    let named = |d: &Decl<'_>| d.name.eq_ignore_ascii_case(prop);
+    let styled: Vec<_> = (node.attribute("style").into_iter())
+        .flat_map(declarations)
+        .filter(named)
+        .collect();
+    let ruled: Vec<_> = (rules.iter())
+        .flat_map(|rule| declarations(&rule.body))
+        .filter(named)
+        .collect();
+    let mut out = Vec::new();
+    for important in [true, false] {
+        let tier = |d: &&Decl<'a>| d.important == important;
+        out.extend(styled.iter().rev().filter(tier).map(|d| d.value));
+        out.extend(ruled.iter().rev().filter(tier).map(|d| d.value));
+    }
+    out.extend(node.attribute(prop));
+    out
+}
+
+/// The first candidate `parse` accepts (`inherit`/`unset` = `parent`),
+/// calling `invalid` for each one it refuses; `parent` when none applies.
+fn cascade<T: Copy>(
+    values: &[&str],
+    parent: T,
+    parse: impl Fn(&str) -> Option<T>,
+    mut invalid: impl FnMut(),
+) -> T {
+    for value in values.iter().map(|v| v.trim()) {
+        if value.eq_ignore_ascii_case("inherit") || value.eq_ignore_ascii_case("unset") {
+            return parent;
+        }
+        match parse(value) {
+            Some(t) => return t,
+            None => invalid(),
+        }
+    }
+    parent
+}
+
+/// A `stroke`/`fill` value; `None` for an unsupported color.
+fn paint(value: &str) -> Option<Paint> {
+    match value.to_ascii_lowercase().as_str() {
+        "none" | "initial" => Some(Paint::None),
+        "currentcolor" => Some(Paint::Current),
+        _ => parse_css_color(value).map(Paint::Color),
     }
 }
 
 /// Every SVG `<style>` of the document, in document order, as one sheet;
 /// what each drops is noted in `report`.
-pub(super) fn collect_sheet(_root: roxmltree::Node<'_, '_>, _report: &mut Report) -> Sheet {
-    Sheet::default()
+pub(super) fn collect_sheet(root: roxmltree::Node<'_, '_>, report: &mut Report) -> Sheet {
+    let mut sheet = Sheet::default();
+    let styles = root.descendants().filter(|n| {
+        n.is_element() && n.tag_name().name() == "style" && n.tag_name().namespace() == Some(SVG_NS)
+    });
+    for node in styles {
+        let text: String = node
+            .children()
+            .filter_map(|c| c.is_text().then(|| c.text()).flatten())
+            .collect();
+        let part = parse_sheet(&text);
+        for note in &part.notes {
+            report.note(note);
+        }
+        sheet.rules.extend(part.rules);
+    }
+    sheet
 }
 
 #[cfg(test)]
