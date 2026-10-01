@@ -3,7 +3,7 @@
 - [x] T1 Refactor: move `recent_submenu`, `recent_labels`, `basename` and `disambiguated` into
   `menubar/recent.rs` with no behaviour change. `menubar/tests.rs` imports them from there; the
   gate stays green (files: src/ui/menubar.rs, src/ui/menubar/recent.rs, src/ui/menubar/tests.rs)
-- [ ] T2 [AC1] [AC2] [AC3] [AC4] Test first: open File, Edit, View, Tools and Help, plus the
+- [x] T2 [AC1] [AC2] [AC3] [AC4] Test first: open File, Edit, View, Tools and Help, plus the
   Open Recent and Object Snap submenus, with real clicks and hovers. Assert: no run contains
   `\t` or `▶`; label and shortcut are separate runs; each menu's shortcut runs share one right
   edge, right of every label. Line shapes are painted in the icon slot for File New/Open/Save,
