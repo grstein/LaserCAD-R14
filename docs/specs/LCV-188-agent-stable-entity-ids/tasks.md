@@ -18,7 +18,7 @@
   `CreateLine/Circle/Arc` and `CreateEntities` (files: src/document/state/ids.rs, src/document/commands/create.rs)
 - [x] T7 [AC3] Ledger in `CopyEntities` and keep-source `TransformEntities`; add redo-id cases for
   any creating command brought in by the rebase (files: src/document/commands/edit.rs, src/document/commands/transform.rs)
-- [ ] T8 [AC2] Test: File > New and `action_open_path` after deletes continue the counter (no id of
+- [x] T8 [AC2] Test: File > New and `action_open_path` after deletes continue the counter (no id of
   the old document is reused) (files: tests/it/app/entity_ids.rs, tests/it/app/mod.rs)
 - [ ] T9 [AC2] `Document::ids_after`; call it at the three `app.document = …` sites (files: src/document/state/ids.rs, src/io/file_actions.rs)
 - [ ] T10 [AC7] Test: two documents with the same geometry and different ids (one built by
