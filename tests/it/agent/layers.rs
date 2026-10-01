@@ -39,11 +39,17 @@ fn creation_tools_take_an_optional_layer_string() {
         let mut bare = args.clone();
         bare.as_object_mut().unwrap().remove("layer");
         assert_eq!(action(name, bare).layer(), None, "{name}");
-        for bad in [json!(""), json!("x".repeat(65)), json!(7)] {
+        // LCV-192 AC 1 — the refusal names tool, field, reason and form.
+        let form = "expected the name of an existing layer, 1 to 64 characters";
+        for (bad, reason) in [
+            (json!(""), "has 0 characters"),
+            (json!("x".repeat(65)), "has 65 characters"),
+            (json!(7), "not a string"),
+        ] {
             let mut wrong = args.clone();
             wrong["layer"] = bad.clone();
             let err = parse_tool_call(name, &wrong).expect_err("refused");
-            assert!(err.to_string().contains("layer"), "{name} {bad}: {err}");
+            assert_eq!(err.to_string(), format!("{name} layer: {reason}; {form}"));
         }
     }
     let long = json!({"cx":0,"cy":0,"r":1,"layer":"é".repeat(64)});
@@ -54,7 +60,7 @@ fn creation_tools_take_an_optional_layer_string() {
     let bad = json!({"version":1,"layer":3,"entities":[{"type":"circle","cx":0,"cy":0,"r":1}]});
     assert!(matches!(
         parse_tool_call("create_drawing", &bad),
-        Err(ToolCallError::Arg { .. })
+        Err(ToolCallError::Arg { ref path, .. }) if path == "layer"
     ));
 }
 
