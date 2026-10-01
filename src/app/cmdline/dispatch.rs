@@ -18,7 +18,8 @@ const NO_DIRECTION: &str = "No direction for distance input — move the cursor 
 
 /// Hand one resolved input to the active tool, then poll succession exactly
 /// as the pointer path does (AC 6), so `m` ⏎ `0,0` ⏎ `@10,0` ⏎ hands back to
-/// `SelectTool`. On refusal nothing is mutated and AC 15's message is set.
+/// `SelectTool`. On refusal nothing is mutated and the tool's own reason,
+/// else AC 15's message, is said as a Warning.
 pub(super) fn send(app: &mut App, input: ToolInput) {
     let consumed = app
         .tool_manager
@@ -27,9 +28,11 @@ pub(super) fn send(app: &mut App, input: ToolInput) {
         crate::app::viewport::poll_successor(app);
         return;
     }
-    let refusal = match input {
-        ToolInput::Distance { along: None, .. } => NO_DIRECTION.to_owned(),
-        _ => format!(
+    // A tool's own reason (LCV-165 AC7) wins over the generic lines.
+    let refusal = match (app.tool_manager.take_message(), input) {
+        (Some(reason), _) => reason,
+        (None, ToolInput::Distance { along: None, .. }) => NO_DIRECTION.to_owned(),
+        (None, _) => format!(
             "{} does not accept that input.",
             app.tool_manager.active_tool_name()
         ),

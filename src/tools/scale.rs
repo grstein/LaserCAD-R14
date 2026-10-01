@@ -58,6 +58,8 @@ pub struct ScaleTool {
     state: ScaleState,
     /// `true` after a commit; cleared by the first `take_successor()`.
     pending_successor: bool,
+    /// A typed value's refusal line (LCV-165 AC7); drained by `take_message()`.
+    message: Option<String>,
 }
 
 impl Default for ScaleTool {
@@ -65,9 +67,13 @@ impl Default for ScaleTool {
         Self {
             state: ScaleState::Idle,
             pending_successor: false,
+            message: None,
         }
     }
 }
+
+/// The line shown when a typed value is refused (LCV-165 AC7).
+const REFUSAL: &str = "Scale factor must be greater than 0.";
 
 /// `true` for a factor SCALE accepts: finite and positive (AC5).
 fn accepted(factor: f64) -> bool {
@@ -240,6 +246,9 @@ impl Tool for ScaleTool {
     ) -> bool {
         match (input, &self.state) {
             (ToolInput::Distance { value_mm, .. }, ScaleState::WaitingFactor { .. }) => {
+                if !accepted(value_mm) {
+                    self.message = Some(REFUSAL.to_owned());
+                }
                 self.scale_by(value_mm, doc, history)
             }
             _ => match input.as_point() {
@@ -253,6 +262,11 @@ impl Tool for ScaleTool {
                 None => false,
             },
         }
+    }
+
+    /// Single-shot: the refusal of the last typed value (LCV-165 AC7).
+    fn take_message(&mut self) -> Option<String> {
+        self.message.take()
     }
 
     /// Single-shot: `Some(SelectTool)` once after a commit.

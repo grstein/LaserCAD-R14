@@ -52,7 +52,7 @@
   canvas → `Scale factor must be greater than 0.`, Warning, never `NO_DIRECTION`; ROTATE unit
   test: a non-finite angle leaves its refusal message (files:
   tests/it/cmdline/transform_commands.rs, src/tools/rotate.rs)
-- [ ] T21 [AC7] SCALE/ROTATE set the refusal message; `send` drains `take_message` as a
+- [x] T21 [AC7] SCALE/ROTATE set the refusal message; `send` drains `take_message` as a
   Warning on refusal; T20 green (files: src/tools/scale.rs, src/tools/rotate.rs,
   src/app/cmdline/dispatch.rs)
 - [ ] T22 [AC8] DESIGN.md §7 (severities, prompt grammar and table), §8 (repeat, right-click =

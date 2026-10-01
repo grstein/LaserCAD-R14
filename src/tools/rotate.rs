@@ -58,6 +58,8 @@ pub struct RotateTool {
     state: RotateState,
     /// `true` after a commit; cleared by the first `take_successor()`.
     pending_successor: bool,
+    /// A typed value's refusal line (LCV-165 AC7); drained by `take_message()`.
+    message: Option<String>,
 }
 
 impl Default for RotateTool {
@@ -65,9 +67,13 @@ impl Default for RotateTool {
         Self {
             state: RotateState::Idle,
             pending_successor: false,
+            message: None,
         }
     }
 }
+
+/// The line shown when a typed value is refused (LCV-165 AC7).
+const REFUSAL: &str = "Rotation angle must be a finite number.";
 
 /// The angle of `p − base`, CCW from +X; `None` when the two coincide.
 fn angle_to(base: Vec2, p: Vec2) -> Option<f64> {
@@ -218,6 +224,7 @@ impl Tool for RotateTool {
         match (input, &self.state) {
             (ToolInput::Distance { value_mm, .. }, RotateState::WaitingAngle { .. }) => {
                 if !value_mm.is_finite() {
+                    self.message = Some(REFUSAL.to_owned());
                     return false;
                 }
                 self.rotate_by(value_mm.to_radians(), doc, history);
@@ -231,6 +238,11 @@ impl Tool for RotateTool {
                 None => false,
             },
         }
+    }
+
+    /// Single-shot: the refusal of the last typed value (LCV-165 AC7).
+    fn take_message(&mut self) -> Option<String> {
+        self.message.take()
     }
 
     /// Single-shot: `Some(SelectTool)` once after a commit.
