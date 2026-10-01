@@ -103,7 +103,7 @@ The tree is orientation; `ls` is the inventory.
 
 ### SVG export (LaserGRBL compatibility)
 
-Contract of `src/io/svg/export.rs`; changing it needs explicit user confirmation.
+Contract of `src/io/svg/export.rs`, frozen at 1.0 (ADR 0018); a change needs a major version.
 
 - `xmlns` on root `<svg>`; `width`/`height` are the document's bed size in mm (`Document::bed_mm`);
   `viewBox="0 0 <bed_width> <bed_height>"` without units. Import reads the header and layers back.
@@ -142,6 +142,7 @@ UI directives: `DESIGN.md`.
 - 0015 ellipse entity: parametric span, `<ellipse>` / `A rx ry φ` export, exact import under any CTM
 - 0016 Bézier entities (cubic, quadratic): `C`/`Q` export for them only, tight bbox, Wang polyline
 - 0017 SVG `<text>` imports as system-font outlines (`fontdb` + `ttf-parser`), deterministic
+- 0018 SVG export contract frozen at 1.0: byte fixture `contract-1.0.svg`; a change needs a major version
 
 A reversed ADR gets a `**Superseded**` header; ADR text keeps its original line citations.
 Product principles: `docs/product/README.md`. Roadmap: `PLAN.md`. User-visible changes: `CHANGELOG.md`.
