@@ -21,6 +21,7 @@ use crate::app::App;
 use crate::document::{DeleteEntities, Document, Entity, History, SelectionCommand};
 use crate::geometry::Vec2;
 use crate::tools::{Mark, Tool};
+use std::borrow::Cow;
 
 // ---------------------------------------------------------------------------
 // DeleteTool
@@ -55,6 +56,11 @@ fn commit_delete(doc: &mut Document, history: &mut History) {
 impl Tool for DeleteTool {
     fn name(&self) -> &'static str {
         "ERASE"
+    }
+
+    /// The picking prompt (LCV-165 AC 3).
+    fn status_text(&self) -> Cow<'_, str> {
+        "ERASE  Select objects:".into()
     }
 
     fn on_pointer_down(
@@ -125,6 +131,12 @@ mod tests {
     #[test]
     fn name_is_erase() {
         assert_eq!(DeleteTool.name(), "ERASE");
+    }
+
+    /// LCV-165 AC 3 — ERASE shows the picking prompt, not its bare name.
+    #[test]
+    fn status_text_is_the_picking_prompt() {
+        assert_eq!(DeleteTool.status_text(), "ERASE  Select objects:");
     }
 
     /// AC#2 — object safety: `DeleteTool` stores as `Box<dyn Tool>`.

@@ -1,34 +1,58 @@
 //! LCV-165 AC 3 — every waiting tool speaks one prompt grammar:
 //! `VERB  Specify <thing> [Opt/Opt] <default>:`, and the picking tools
 //! `VERB  Select object…:`. The table is driven by typed input through the
-//! real frame, one tool state per row.
+//! real frame, one tool state per step (TEXT's start point is clicked).
 
 use crate::harness;
 
-use harness::{frame, submit_command};
+use harness::{frame, raw_input, submit_command};
 use lasercad::app::App;
 use lasercad::document::Entity;
 use lasercad::geometry::{Line, Vec2};
 
-/// A fresh app with one selected line, so the modify tools have a subject.
-fn boot() -> (egui::Context, App) {
+/// The one non-typed input: a click at the canvas centre. TEXT takes its
+/// start point from the pointer only, so its first step is clicked.
+const CLICK: &str = "<click>";
+
+/// A fresh app with one selected line, so the modify tools have a subject,
+/// and the canvas rect.
+fn boot() -> (egui::Context, App, egui::Rect) {
     let ctx = egui::Context::default();
     let mut app = App::default();
-    frame(&ctx, &mut app, vec![]);
+    let mut canvas = egui::Rect::NOTHING;
+    let _ = ctx.run(raw_input(vec![]), |c| {
+        app.update_ui(c);
+        canvas = c.available_rect();
+    });
     let line = Line::new(Vec2::new(10.0, 0.0), Vec2::new(20.0, 5.0));
     let layer = app.document.current_layer();
     app.document.push_entity(Entity::Line(line), layer);
     app.document.selection.add(0);
-    (ctx, app)
+    (ctx, app, canvas)
+}
+
+/// A primary click at `pos`, after its own hover frame.
+fn click(ctx: &egui::Context, app: &mut App, pos: egui::Pos2) {
+    frame(ctx, app, vec![egui::Event::PointerMoved(pos)]);
+    let button = |pressed| egui::Event::PointerButton {
+        pos,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: egui::Modifiers::NONE,
+    };
+    frame(ctx, app, vec![button(true), button(false)]);
 }
 
 /// Type each line of `inputs` in turn on a fresh app; after each, the
 /// prompt must read the matching entry of `prompts`.
 fn drive(inputs: &[&str], prompts: &[&str]) -> Vec<String> {
-    let (ctx, mut app) = boot();
+    let (ctx, mut app, canvas) = boot();
     let mut seen = Vec::new();
     for (input, expected) in inputs.iter().zip(prompts) {
-        submit_command(&ctx, &mut app, input);
+        match *input {
+            CLICK => click(&ctx, &mut app, canvas.center()),
+            typed => submit_command(&ctx, &mut app, typed),
+        }
         let prompt = app.tool_manager.active_status_text().into_owned();
         assert_eq!(prompt, *expected, "after typing {input:?}");
         seen.push(prompt);
@@ -73,7 +97,7 @@ const TABLE: &[(&[&str], &[&str])] = &[
         ],
     ),
     (
-        &["text", "0,0", "HELLO"],
+        &["text", CLICK, "HELLO"],
         &[
             "TEXT  Specify start point:",
             "TEXT  Specify text:",
@@ -177,6 +201,6 @@ fn ac3_every_prompt_follows_the_grammar() {
 /// AC 3 — Select at rest keeps R14's idle prompt.
 #[test]
 fn ac3_select_keeps_command() {
-    let (_ctx, app) = boot();
+    let (_ctx, app, _) = boot();
     assert_eq!(app.tool_manager.active_status_text(), "Command:");
 }

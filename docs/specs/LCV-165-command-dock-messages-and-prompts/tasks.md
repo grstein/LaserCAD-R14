@@ -30,7 +30,7 @@
   src/tools/move_.rs, src/tools/copy.rs)
 - [x] T12 [AC3] ROTATE, SCALE, MIRROR prompts; tests follow (files: src/tools/rotate.rs,
   src/tools/scale.rs, src/tools/mirror.rs)
-- [ ] T13 [AC3] TRIM, EXTEND, ERASE prompts (ERASE overrides `status_text`); T8 green (files:
+- [x] T13 [AC3] TRIM, EXTEND, ERASE prompts (ERASE overrides `status_text`); T8 green (files:
   src/tools/trim.rs, src/tools/extend.rs, src/tools/delete.rs)
 - [ ] T14 [AC4] [AC5] Test first: `last_tool` over `[l, 0,0, 10]` → Line, `[c, :draw box, /ai hi]`
   → Circle, `[:draw]` → None, `[grid, hello]` → None; integration: `l`, Esc, empty ⏎ → LINE

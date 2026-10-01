@@ -102,7 +102,7 @@ impl Tool for TrimTool {
     }
 
     fn status_text(&self) -> Cow<'_, str> {
-        "TRIM: Click on a segment to trim".into()
+        "TRIM  Select object to trim:".into()
     }
 
     /// Pick the nearest entity and trim it at every cutter, as one undo step.
@@ -240,7 +240,7 @@ mod tests {
     fn status_text_is_constant() {
         assert_eq!(
             TrimTool::default().status_text(),
-            "TRIM: Click on a segment to trim"
+            "TRIM  Select object to trim:"
         );
     }
 
