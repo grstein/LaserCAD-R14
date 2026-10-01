@@ -42,7 +42,7 @@
 //! asked to check a flag.
 
 use crate::agent::{AgentAction, AgentEvent, AgentOutcome, TurnEnd, repeat};
-use crate::app::{App, agent_apply, agent_capture};
+use crate::app::{App, agent_apply, agent_capture, agent_feedback};
 use std::sync::mpsc::TryRecvError;
 
 mod turn_end;
@@ -135,7 +135,7 @@ pub(crate) fn answer_act(app: &mut App, action: &AgentAction) -> AgentOutcome {
             tally.captures = tally.captures.saturating_add(*captures);
             AgentOutcome::Ok(String::new())
         }
-        AgentAction::Feedback => AgentOutcome::Ok(String::new()),
+        AgentAction::Feedback => agent_feedback::feedback(app),
         _ => {
             let outcome = apply_fenced(app, action);
             let repeated = match action {

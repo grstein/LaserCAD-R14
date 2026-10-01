@@ -54,6 +54,7 @@ mod viewport;
 
 mod agent_apply;
 mod agent_capture;
+mod agent_feedback;
 mod agent_memory;
 mod agent_narrate;
 mod agent_poll;

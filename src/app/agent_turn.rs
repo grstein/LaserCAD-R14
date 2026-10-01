@@ -127,6 +127,9 @@ pub struct TurnState {
     /// The turn's user message as the model gets it: the prompt, prefixed
     /// when the drawing changed since the last turn (LCV-153 AC 7).
     pub user: String,
+    /// `tally.applied` when the turn last answered a feedback ask (LCV-195):
+    /// feedback is given only when it has moved since.
+    pub fed_at: u32,
 }
 
 /// The longest prompt prefix an undo label carries (AC 10).
@@ -165,6 +168,7 @@ fn arm_with_limit(app: &mut App, prompt: &str, limit: u32) -> Sender<AgentEvent>
         limit,
         label,
         user,
+        fed_at: 0,
     };
     tx
 }

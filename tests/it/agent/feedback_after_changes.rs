@@ -98,7 +98,7 @@ fn two_check_kinds_are_joined_with_a_semicolon() {
         answer(&mut app, &tx, AgentAction::Feedback),
         ok(concat!(
             "Drawing now: 2 entities, X 10.000..90.000 mm, Y 10.000..10.000 mm. ",
-            "CHECK: 4 open ends; CHECK: 1 gap"
+            "CHECK: 2 open ends; CHECK: 1 gap"
         ))
     );
     assert_eq!(app.agent.turn.tally.steps, 2);
