@@ -63,7 +63,7 @@
 - [x] T17 [AC10] Docs: `svg-spec-coverage.md` §4 shapes rows, and the LCV-171 AC 5 amendment noted
   there.
   (files: docs/research/svg-spec-coverage.md)
-- [ ] T18 [all] CHANGELOG: under Unreleased, "SVG import: `<rect>` (rounded corners as arcs),
+- [x] T18 [all] CHANGELOG: under Unreleased, "SVG import: `<rect>` (rounded corners as arcs),
   `<polyline>` and `<polygon>`; invalid shapes are skipped and reported instead of failing the
   file".
   (files: CHANGELOG.md)
