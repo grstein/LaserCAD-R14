@@ -78,15 +78,15 @@ const TOOL: &str = "create_drawing";
 /// Longest unknown-key name echoed back in an error, in characters.
 const KEY_ECHO_CHARS: usize = 64;
 
-/// Shape check of the optional `layer` argument (ADR 0012 §6): absent is
-/// `None`; present must be a string of 1..=[`MAX_LAYER_NAME_CHARS`]
+/// Shape check of the optional `layer` argument (ADR 0012 §6): absent or
+/// `null` is `None`; present must be a string of 1..=[`MAX_LAYER_NAME_CHARS`]
 /// characters. Whether the layer exists is the apply site's question.
 ///
 /// # Errors
 ///
 /// The reason, without the tool or field framing.
 pub fn layer_arg(args: &Value) -> Result<Option<String>, String> {
-    let Some(value) = args.get("layer") else {
+    let Some(value) = args.get("layer").filter(|v| !v.is_null()) else {
         return Ok(None);
     };
     let name = value.as_str().ok_or("not a string")?;

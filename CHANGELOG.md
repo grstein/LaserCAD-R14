@@ -8,6 +8,10 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ## [Unreleased]
 
+### Fixed
+
+- The AI assistant no longer has every edit, `measure` and `capture_canvas` call refused on OpenAI models. Their strict tool mode made the model fill every optional argument at once (`index`, `indices`, `id` and `ids` together, or capture corners with the view frame). The tools now opt out of strict mode, and a `null` layer counts as no layer.
+
 ## [1.0.0] - 2026-10-01
 
 LaserCAD 1.0 is stable: it does everything LaserCAD R14 v1 did, and files saved with it keep opening and exporting the same way in every 1.x release.

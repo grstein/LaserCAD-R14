@@ -789,3 +789,59 @@ mod checkpoints {
         }
     }
 }
+
+/// Fast lane (strict-mode refusals): OpenAI's strict normalisation made the
+/// model fill every advertised property, so `index`, `indices`, `id` and
+/// `ids` came together and every edit call was refused.
+mod strict_mode {
+    use super::*;
+    use serde_json::json;
+
+    /// Every function opts out of strict mode, the vision-only tool included.
+    #[test]
+    fn every_tool_opts_out_of_strict_mode() {
+        let d = tool_definitions(true);
+        for tool in d.as_array().unwrap() {
+            assert_eq!(tool["function"]["strict"], json!(false), "{}", tool["function"]["name"]);
+        }
+    }
+
+    /// One minimal valid call per advertised tool.
+    fn minimal(name: &str) -> Value {
+        match name {
+            "create_line" => json!({"x1":0,"y1":0,"x2":10,"y2":0}),
+            "create_circle" => json!({"cx":0,"cy":0,"r":5}),
+            "create_arc" => json!({"cx":0,"cy":0,"r":5,"start_deg":0,"end_deg":90,"ccw":true}),
+            "delete_entity" => json!({"id":"e3"}),
+            "move_entity" | "copy_entity" => json!({"id":"e3","dx":5,"dy":0}),
+            "rotate_entity" => json!({"id":"e3","x":0,"y":0,"degrees":90}),
+            "mirror_entity" => json!({"id":"e3","x1":0,"y1":0,"x2":0,"y2":1,"erase_source":false}),
+            "scale_entity" => json!({"id":"e3","x":0,"y":0,"factor":2}),
+            "set_layer" => json!({"ids":["e3"],"layer":"Cut"}),
+            "measure" => json!({"query":"bbox"}),
+            "checkpoint" | "rollback" => json!({"name":"a"}),
+            "capture_canvas" => json!({"frame":"view"}),
+            "create_drawing" => json!({"version":1,"entities":[{"type":"circle","cx":0,"cy":0,"r":5}]}),
+            _ => json!({}),
+        }
+    }
+
+    /// The contract both ways: each tool's minimal call parses, and still
+    /// parses to the same action when every other advertised property is
+    /// sent as `null`, the form a nullable strict schema would produce.
+    #[test]
+    fn every_tool_parses_its_minimal_call_with_the_rest_null() {
+        let d = tool_definitions(true);
+        for tool in d.as_array().unwrap() {
+            let name = tool["function"]["name"].as_str().unwrap();
+            let args = minimal(name);
+            let want = parse_tool_call(name, &args)
+                .unwrap_or_else(|e| panic!("{name} minimal call refused: {e}"));
+            let mut nulls = args.clone();
+            for key in tool["function"]["parameters"]["properties"].as_object().unwrap().keys() {
+                nulls.as_object_mut().unwrap().entry(key.clone()).or_insert(Value::Null);
+            }
+            assert_eq!(parse_tool_call(name, &nulls).ok(), Some(want), "{name} with {nulls}");
+        }
+    }
+}

@@ -57,11 +57,23 @@ mod transform;
 /// `vision` is the turn-start snapshot of both canvas opt-ins (LCV-145,
 /// ADR 0011 item 1): when on, `capture_canvas` is inserted just before
 /// `create_drawing`, which stays last.
+///
+/// Every function carries `"strict": false`. Without it, OpenAI's strict
+/// normalisation marks every property required with its non-null type, so
+/// the model fills all of `index`/`indices`/`id`/`ids` (or capture corners
+/// with frame "view") and every call is refused.
 pub fn tool_definitions(vision: bool) -> Value {
     let mut tools = base_definitions();
-    if let (true, Some(list)) = (vision, tools.as_array_mut()) {
-        let at = list.len().saturating_sub(1);
-        list.insert(at, capture::definition());
+    if let Some(list) = tools.as_array_mut() {
+        if vision {
+            let at = list.len().saturating_sub(1);
+            list.insert(at, capture::definition());
+        }
+        for function in list.iter_mut().filter_map(|t| t.get_mut("function")) {
+            if let Some(f) = function.as_object_mut() {
+                f.insert("strict".into(), Value::Bool(false));
+            }
+        }
     }
     tools
 }
