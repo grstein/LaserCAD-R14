@@ -31,31 +31,32 @@ fn circle() -> Entity {
 // ── AC 6: the range check lives here and refuses ─────────────────────────
 
 /// AC 6, app side — an index past the end of the drawing is refused, in
-/// the wording `get_index` used to produce, and **nothing** happens: no
-/// commit, no revision bump, no entity lost.
+/// the LCV-192 AC 2 shape naming the valid range, and **nothing** happens:
+/// no commit, no revision bump, no entity lost.
 #[test]
 fn an_out_of_range_index_is_refused_and_changes_nothing() {
     let mut app = app_with(vec![line(0.0), line(1.0), circle()]);
     let before = app.history.revision();
 
-    for action in [
-        AgentAction::Delete { index: 7 },
-        AgentAction::Move {
-            index: 7,
-            dx: 1.0,
-            dy: 1.0,
-        },
+    for (tool, action) in [
+        ("delete_entity", AgentAction::Delete { index: 7 }),
+        (
+            "move_entity",
+            AgentAction::Move {
+                index: 7,
+                dx: 1.0,
+                dy: 1.0,
+            },
+        ),
     ] {
         let outcome = apply(&mut app, &action);
         assert_eq!(
             outcome,
-            AgentOutcome::Refused(
-                "index 7 is out of range (the drawing has 3 entities)".to_string()
-            ),
+            AgentOutcome::Refused(format!(
+                "{tool} index: 7 is out of range; expected 0..=2 (the drawing has 3 entities)"
+            )),
             "{action:?}"
         );
-        assert!(outcome.text().contains("out of range"));
-        assert!(outcome.text().contains('3'));
         assert_eq!(app.history.revision(), before, "a refusal commits nothing");
         assert_eq!(app.document.entity_count(), 3);
     }
@@ -70,15 +71,68 @@ fn the_range_boundary_is_exactly_the_entity_count() {
     assert!(!apply(&mut app, &AgentAction::Delete { index: 1 }).is_refused());
 }
 
-/// AC 6 — an empty drawing refuses index 0 and says so in its own terms.
+/// AC 6 — an empty drawing refuses index 0 and says so in its own terms
+/// (LCV-192 AC 2: no range to name, so the form says when one exists).
 #[test]
 fn an_empty_drawing_refuses_index_zero() {
     let mut app = App::default();
     let outcome = apply(&mut app, &AgentAction::Delete { index: 0 });
     assert_eq!(
         outcome,
-        AgentOutcome::Refused("index 0 is out of range (the drawing has 0 entities)".to_string())
+        AgentOutcome::Refused(
+            "delete_entity index: 0 is out of range; \
+             expected an index once the drawing has entities (it has 0)"
+                .to_string()
+        )
     );
+}
+
+/// LCV-192 AC 2 — a set names the first out-of-range entry by its path,
+/// and a mirror line whose points coincide names the second point; both in
+/// the shape, both committing nothing.
+#[test]
+fn set_range_and_mirror_refusals_use_the_shape() {
+    let mut app = app_with(vec![line(0.0), line(1.0), circle(), line(2.0)]);
+    let before = app.history.revision();
+    let set = AgentAction::Set {
+        indices: vec![0, 4, 1],
+        op: crate::agent::SetOp::Move { dx: 1.0, dy: 1.0 },
+    };
+    assert_eq!(
+        apply(&mut app, &set),
+        AgentOutcome::Refused(
+            "move_entity indices[1]: 4 is out of range; \
+             expected 0..=3 (the drawing has 4 entities)"
+                .to_string()
+        )
+    );
+    let mirror = "mirror_entity x2, y2: same point as x1, y1 at (2.000, 2.000) mm; \
+                  expected a second point distinct from x1, y1";
+    let single = AgentAction::Mirror {
+        index: 0,
+        x1: 2.0,
+        y1: 2.0,
+        x2: 2.0,
+        y2: 2.0,
+        erase_source: false,
+    };
+    let many = AgentAction::Set {
+        indices: vec![0, 1],
+        op: crate::agent::SetOp::Mirror {
+            x1: 2.0,
+            y1: 2.0,
+            x2: 2.0,
+            y2: 2.0,
+            erase_source: true,
+        },
+    };
+    for action in [single, many] {
+        assert_eq!(
+            apply(&mut app, &action),
+            AgentOutcome::Refused(mirror.to_owned())
+        );
+    }
+    assert_eq!(app.history.revision(), before);
 }
 
 // ── AC 8: one action, one command, one revision ──────────────────────────
@@ -754,7 +808,10 @@ fn an_out_of_range_copy_is_refused_and_changes_nothing() {
     };
     assert_eq!(
         apply(&mut app, &action),
-        AgentOutcome::Refused("index 1 is out of range (the drawing has 1 entities)".to_string())
+        AgentOutcome::Refused(
+            "copy_entity index: 1 is out of range; expected 0..=0 (the drawing has 1 entities)"
+                .to_string()
+        )
     );
     assert_eq!(app.history.revision(), before);
     assert_eq!(app.document.entities, vec![line(0.0)]);

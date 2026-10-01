@@ -116,9 +116,11 @@ fn an_unknown_layer_is_refused_naming_the_layers() {
         let AgentOutcome::Refused(text) = out else {
             panic!("{name}: {out:?}")
         };
-        for want in ["Engrave", "Cut", "Mark"] {
-            assert!(text.contains(want), "{name}: {text}");
-        }
+        // LCV-192 AC 2 — the shape, with the existing names as the form.
+        assert_eq!(
+            text,
+            format!(r#"{name} layer: unknown layer "Engrave"; expected one of "Cut", "Mark""#)
+        );
     }
     assert_eq!(app.history.revision(), r0);
     assert_eq!(app.document.entity_count(), 0);
