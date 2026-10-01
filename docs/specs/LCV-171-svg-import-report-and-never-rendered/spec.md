@@ -1,8 +1,8 @@
 # LCV-171 — SVG import report and never-rendered elements
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-170
-- **Implementation**: -
+- **Implementation**: 28da119..7ed9bf9
 
 ## Problem
 
