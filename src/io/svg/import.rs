@@ -57,6 +57,7 @@ use crate::util::flip_y;
 use style::{Style, collect_sheet};
 use walk::Walk;
 
+mod conditions;
 mod conic;
 mod path;
 pub(super) mod report;

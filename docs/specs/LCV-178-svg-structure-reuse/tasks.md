@@ -1,6 +1,6 @@
 # LCV-178 — Tasks
 
-- [ ] T1 [AC11] Test: `conditions.rs` unit tests — `requiredExtensions=""` passes, `"x"` fails;
+- [x] T1 [AC11] Test: `conditions.rs` unit tests — `requiredExtensions=""` passes, `"x"` fails;
       `systemLanguage` `en`, `en-US`, `fr, en-GB`, ` EN ` pass; `fr`, `english`, `""` fail;
       `requiredFeatures="x"` ignored (files: src/io/svg/import/conditions.rs, src/io/svg/import.rs)
 - [ ] T2 [AC11] `conditions::passes` (files: src/io/svg/import/conditions.rs)
