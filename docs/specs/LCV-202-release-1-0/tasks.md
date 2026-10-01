@@ -20,7 +20,7 @@ Start T1 only after LCV-180 and then the `svg` branch (LCV-170..179) have merged
       (files: src/ui/toolbar.rs)
 - [x] T7 [AC5] Write the user guide: every TOOLS entry, every command-line alias, layers,
       Export layers, the AI panel; link `docs/install.md` (files: docs/user-guide.md)
-- [ ] T8 [AC1] Test: parity table has one row per §Scope target bullet, no empty cell, and every
+- [x] T8 [AC1] Test: parity table has one row per §Scope target bullet, no empty cell, and every
       cited test exists (files: tests/it/repo/release_1_0.rs, tests/it/repo/mod.rs)
 - [ ] T9 [AC1] Write the parity table (files: docs/product/parity-1-0.md)
 - [ ] T10 [AC6] Test, then write the numbered smoke checklist for Linux, Windows and macOS (draw,

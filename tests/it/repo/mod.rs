@@ -10,6 +10,7 @@ mod no_loopback_url_literals;
 mod normative_enumerations;
 mod packaging;
 mod prompt_scans;
+mod release_1_0;
 mod single_test_binary;
 mod skeleton;
 mod tree_scans;
