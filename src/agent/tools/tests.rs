@@ -1,6 +1,6 @@
     use super::*;
     use super::args::{expected_form, refusal};
-    use crate::agent::SetOp;
+    use crate::agent::{MeasureQuery, MeasureRequest, MeasureTargets, SetOp};
     use core::f64::consts::FRAC_PI_2;
     use serde_json::json;
 
@@ -577,5 +577,95 @@
         }
         for i in [0, 1, 2, 10, 11, 12, 13] {
             assert!(d[i]["function"]["parameters"]["properties"]["ids"].is_null(), "schema {i}");
+        }
+    }
+
+    // ── measure (LCV-194) ────────────────────────────────────────────────────
+
+    fn measure(query: MeasureQuery, points: &[(f64, f64)], targets: MeasureTargets) -> AgentAction {
+        let points = points.iter().map(|&(x, y)| crate::geometry::Vec2::new(x, y)).collect();
+        AgentAction::Measure(MeasureRequest { query, points, targets })
+    }
+
+    /// LCV-194 AC 8 — each query builds `Measure` with its operands in order.
+    #[test]
+    fn each_measure_query_builds_measure() {
+        use MeasureQuery::*;
+        use MeasureTargets::{Ids, Indices};
+        let cases = [
+            (json!({"query":"distance","points":[{"x":0,"y":0},{"x":3,"y":4}]}),
+                measure(Distance, &[(0.0, 0.0), (3.0, 4.0)], Indices(vec![]))),
+            (json!({"query":"distance","points":[{"x":1.5,"y":-2}],"indices":[3]}),
+                measure(Distance, &[(1.5, -2.0)], Indices(vec![3]))),
+            (json!({"query":"distance","ids":["e1","e2"],"points":null}),
+                measure(Distance, &[], Ids(vec![1, 2]))),
+            (json!({"query":"length","indices":[0]}), measure(Length, &[], Indices(vec![0]))),
+            (json!({"query":"bbox"}), measure(Bbox, &[], Indices(vec![]))),
+            (json!({"query":"bbox","indices":[2,0,1]}), measure(Bbox, &[], Indices(vec![2, 0, 1]))),
+            (json!({"query":"intersections","indices":[0,1]}),
+                measure(Intersections, &[], Indices(vec![0, 1]))),
+            (json!({"query":"angle","ids":["e3","e4"]}), measure(Angle, &[], Ids(vec![3, 4]))),
+        ];
+        for (args, want) in cases {
+            assert_eq!(ok("measure", args.clone()), want, "{args}");
+        }
+    }
+
+    /// LCV-194 AC 8 — every refusal in the LCV-192 shape, pinned exactly.
+    #[test]
+    fn measure_refusals_name_the_field_and_the_form() {
+        let query = r#"expected "distance", "length", "bbox", "intersections" or "angle""#;
+        let two = r#"expected 2 operands for query "distance": points, entities or one of each"#;
+        let entities = "expected entities in indices or ids";
+        let cases = [
+            (json!({}), format!("measure query: missing; {query}")),
+            (json!({"query":"area"}), format!("measure query: unknown query; {query}")),
+            (json!({"query":3}), format!("measure query: not a string; {query}")),
+            (json!({"query":"length","indices":[0],"ids":["e1"]}),
+                "measure indices: given together with ids; expected either indices or ids, not both".to_owned()),
+            (json!({"query":"length","index":0}),
+                "measure index: not accepted; expected indices instead".to_owned()),
+            (json!({"query":"length","id":"e1"}),
+                "measure id: not accepted; expected ids instead".to_owned()),
+            (json!({"query":"distance","points":[{"x":0,"y":0}]}),
+                format!("measure points: 1 operand given; {two}")),
+            (json!({"query":"distance","points":[{"x":0,"y":0},{"x":1,"y":1}],"indices":[0]}),
+                format!("measure points: 3 operands given; {two}")),
+            (json!({"query":"distance","indices":[0,1,2]}),
+                format!("measure indices: 3 operands given; {two}")),
+            (json!({"query":"distance"}), format!("measure indices: 0 operands given; {two}")),
+            (json!({"query":"length","indices":[0,1]}),
+                r#"measure indices: has 2 entries; expected exactly 1 entity for query "length""#.to_owned()),
+            (json!({"query":"length"}),
+                r#"measure indices: missing; expected exactly 1 entity for query "length""#.to_owned()),
+            (json!({"query":"intersections","ids":["e1"]}),
+                r#"measure ids: has 1 entry; expected 2 entities for query "intersections""#.to_owned()),
+            (json!({"query":"angle","indices":[0,1,2]}),
+                r#"measure indices: has 3 entries; expected 2 entities for query "angle""#.to_owned()),
+            (json!({"query":"length","points":[{"x":0,"y":0}],"indices":[0]}),
+                format!(r#"measure points: not accepted by query "length"; {entities}"#)),
+            (json!({"query":"bbox","points":[]}),
+                format!(r#"measure points: not accepted by query "bbox"; {entities}"#)),
+            (json!({"query":"intersections","points":[{"x":0,"y":0}],"indices":[0,1]}),
+                format!(r#"measure points: not accepted by query "intersections"; {entities}"#)),
+            (json!({"query":"angle","points":[{"x":0,"y":0}],"indices":[0,1]}),
+                format!(r#"measure points: not accepted by query "angle"; {entities}"#)),
+            (json!({"query":"distance","points":[{"x":0,"y":0},{"x":1,"y":f64::NAN}]}),
+                "measure points[1].y: missing; expected a number in mm".to_owned()),
+            (json!({"query":"distance","points":[{"x":0,"y":0},{"x":"1","y":2}]}),
+                "measure points[1].x: not a number; expected a number in mm".to_owned()),
+            (json!({"query":"distance","points":[[0,0],{"x":1,"y":2}]}),
+                "measure points[0]: not an object; expected a point {x, y} in mm".to_owned()),
+            (json!({"query":"distance","points":{"x":0,"y":0}}),
+                "measure points: not a list; expected a list of points {x, y} in mm".to_owned()),
+            (json!({"query":"bbox","indices":[]}),
+                format!("measure indices: empty list; expected {}", expected_form("indices"))),
+            (json!({"query":"distance","indices":[1,1]}),
+                "measure indices[1]: duplicate of indices[0]; expected distinct indices".to_owned()),
+            (json!({"query":"length","ids":["x7"]}),
+                format!("measure ids[0]: not an id; expected {}", expected_form("id"))),
+        ];
+        for (args, want) in cases {
+            assert_eq!(err("measure", args.clone()).to_string(), want, "{args}");
         }
     }

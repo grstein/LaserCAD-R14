@@ -23,7 +23,7 @@ Prerequisites: LCV-188, LCV-190, LCV-192 Done on `agent-harness`.
 
   (files: src/geometry/overlap.rs)
 - [x] T4 [AC5] `overlaps` (files: src/geometry/overlap.rs, src/geometry/mod.rs)
-- [ ] T5 [AC8] Test (parser):
+- [x] T5 [AC8] Test (parser):
   - each query builds `Measure`;
   - refusals in the LCV-192 shape: unknown `query`; both `indices` and `ids`; a wrong operand count
     per query; `points` on `length`/`bbox`/`intersections`/`angle`; a non-finite
