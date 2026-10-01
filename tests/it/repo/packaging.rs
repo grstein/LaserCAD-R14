@@ -52,3 +52,51 @@ fn build_zip_ps1_stages_the_portable_windows_zip() {
     assert!(!repo("scripts/build-msi.ps1").exists(), "build-msi.ps1 must be deleted");
     assert!(!repo("wix").exists(), "wix/ must be deleted");
 }
+
+/// LCV-201 AC 3 — `scripts/build-dmg.sh` builds `LaserCAD.app` on Apple
+/// Silicon only, ad-hoc signs it, ships `FIRST-RUN.txt` and writes the
+/// versioned `.dmg`. On a Linux host it must refuse before building anything:
+/// it runs from a scratch copy with no `Cargo.toml`, so a broken guard fails
+/// fast instead of starting a release build.
+#[test]
+fn build_dmg_sh_bundles_signs_and_refuses_non_arm64() {
+    let script = read("scripts/build-dmg.sh");
+    for needle in [
+        "LaserCAD.app",
+        "CFBundleShortVersionString",
+        "iconutil",
+        "codesign --force --deep -s -",
+        "FIRST-RUN.txt",
+        "lasercad-${VERSION}-macos-aarch64.dmg",
+    ] {
+        assert!(script.contains(needle), "build-dmg.sh must mention {needle:?}");
+    }
+    assert!(
+        !script.contains("x86_64) ARCH"),
+        "build-dmg.sh must not accept Intel hosts"
+    );
+    if cfg!(target_os = "linux") {
+        let syntax = std::process::Command::new("bash")
+            .args(["-n", "scripts/build-dmg.sh"])
+            .current_dir(env!("CARGO_MANIFEST_DIR"))
+            .status()
+            .expect("bash must run");
+        assert!(syntax.success(), "bash -n scripts/build-dmg.sh must pass");
+
+        let scratch = std::env::temp_dir().join(format!("lcv201-dmg-{}", std::process::id()));
+        fs::create_dir_all(scratch.join("scripts")).expect("scratch dir");
+        fs::copy(repo("scripts/build-dmg.sh"), scratch.join("scripts/build-dmg.sh"))
+            .expect("copy build-dmg.sh");
+        let out = std::process::Command::new("bash")
+            .arg("scripts/build-dmg.sh")
+            .current_dir(&scratch)
+            .output()
+            .expect("bash must run");
+        let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+        let built = scratch.join("dist").exists() || scratch.join("build").exists();
+        let _ = fs::remove_dir_all(&scratch);
+        assert!(!out.status.success(), "build-dmg.sh must refuse a Linux host");
+        assert!(stderr.contains("arm64"), "refusal must name arm64: {stderr}");
+        assert!(!built, "build-dmg.sh must refuse before creating build/ or dist/");
+    }
+}

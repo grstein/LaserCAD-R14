@@ -9,7 +9,7 @@
       (files: tests/it/repo/packaging.rs)
 - [x] T4 [AC1] `scripts/build-zip.ps1` (new), `assets/FIRST-RUN.txt` (new, names `docs/install.md`);
       delete `scripts/build-msi.ps1`, `wix/main.wxs` (files: scripts/build-zip.ps1, assets/FIRST-RUN.txt; deletions: scripts/build-msi.ps1, wix/main.wxs)
-- [ ] T5 [AC3] Test: `build-dmg.sh` refuses non-arm64, bundles `LaserCAD.app`, ad-hoc signs with
+- [x] T5 [AC3] Test: `build-dmg.sh` refuses non-arm64, bundles `LaserCAD.app`, ad-hoc signs with
       `codesign --force --deep -s -`, writes `dist/lasercad-<version>-macos-aarch64.dmg`; `bash -n`
       passes (files: tests/it/repo/packaging.rs)
 - [ ] T6 [AC3] Update `scripts/build-dmg.sh` (arm64 only, bundle name, codesign, FIRST-RUN.txt,
