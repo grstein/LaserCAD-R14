@@ -1,5 +1,5 @@
 //! LCV-186 — the `indices` form of the six edit tools: one call, one
-//! [`AgentAction::Set`], one step.
+//! [`AgentAction::Set`], one step. LCV-191 adds `set_layer`, indices only.
 //!
 //! Only the shape of the list is checked here — 1..=1000 entries, each a
 //! non-negative integer, no duplicate, not together with `index`. The range
@@ -13,6 +13,7 @@ use serde_json::{Value, json};
 
 use super::{ToolCallError, expected_form, parse_tool_call};
 use crate::agent::bridge::{AgentAction, SetOp};
+use crate::agent::drawing;
 
 /// The tools that accept `indices`.
 const SET_TOOLS: [&str; 6] = [
@@ -33,6 +34,25 @@ pub(super) fn parse_set(name: &str, args: &Value) -> Option<Result<AgentAction, 
     let tool = SET_TOOLS.into_iter().find(|t| *t == name)?;
     let raw = present(args, "indices")?;
     Some(build(tool, raw, args))
+}
+
+/// LCV-191 — `set_layer {indices, layer}`: both required, no `index` form.
+/// The list is checked as for the edit tools; the name by `layer_arg`.
+pub(super) fn parse_set_layer(args: &Value) -> Result<AgentAction, ToolCallError> {
+    const TOOL: &str = "set_layer";
+    if present(args, "index").is_some() {
+        return Err(refuse(TOOL, "index", "not accepted", "indices instead"));
+    }
+    let raw =
+        present(args, "indices").ok_or_else(|| ToolCallError::arg(TOOL, "indices", "missing"))?;
+    let indices = indices(TOOL, raw)?;
+    let layer = drawing::layer_arg(args)
+        .and_then(|name| name.ok_or_else(|| "missing".to_owned()))
+        .map_err(|reason| ToolCallError::arg(TOOL, "layer", reason))?;
+    Ok(AgentAction::Set {
+        indices,
+        op: SetOp::Layer { layer },
+    })
 }
 
 /// `args[key]` unless absent or JSON `null`.

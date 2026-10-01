@@ -325,6 +325,7 @@ mod tests {
                 }),
                 "scale_entity",
             ),
+            (set(SetOp::Layer { layer: "L".into() }), "set_layer"),
             (A::QueryEntities, "query_entities"),
             (A::QuerySelection, "query_selection"),
             (A::CaptureCanvas(CaptureFrame::View), "capture_canvas"),

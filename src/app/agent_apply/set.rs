@@ -31,6 +31,10 @@ pub(super) fn plan(tool: &str, indices: &[usize], op: &SetOp, doc: &Document) ->
     let n = sorted.len();
     let what = entities(n);
     let (sentence, command): (String, Box<dyn Command>) = match *op {
+        // LCV-191 T5 replaces this placeholder.
+        SetOp::Layer { .. } => {
+            return Planned::Answer(AgentOutcome::Refused(format!("{tool}: not applied yet")));
+        }
         SetOp::Delete => (
             delete_sentence(&sorted, count),
             Box::new(DeleteEntities::new(sorted)),

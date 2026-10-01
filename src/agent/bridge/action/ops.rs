@@ -75,6 +75,12 @@ pub enum SetOp {
         /// Uniform scale factor, positive and finite.
         factor: f64,
     },
+    /// `set_layer`: move the entities onto an existing layer (LCV-191).
+    Layer {
+        /// The layer name, 1..=64 characters; resolved by key at the apply
+        /// site (ADR 0012 §6).
+        layer: String,
+    },
 }
 
 impl SetOp {
@@ -87,6 +93,7 @@ impl SetOp {
             Self::Rotate { .. } => "rotate_entity",
             Self::Mirror { .. } => "mirror_entity",
             Self::Scale { .. } => "scale_entity",
+            Self::Layer { .. } => "set_layer",
         }
     }
 }

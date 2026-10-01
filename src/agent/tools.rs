@@ -147,6 +147,7 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
             validate_positive("scale_entity", "factor", factor)?;
             Ok(AgentAction::Scale { index, x, y, factor })
         }
+        "set_layer" => transform::parse_set_layer(args),
         // Read-only, argument-free: whatever the model sends as arguments —
         // `{}`, a stray field, or nothing at all — the answer is the same, so
         // there is no shape to check and nothing to refuse (AC 14, AC 15).
