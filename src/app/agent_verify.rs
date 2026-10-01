@@ -1,6 +1,6 @@
 //! LCV-197 — has the in-flight turn verified what it drew?
 //!
-//! The UI half of the verify reminder (ADR 0007 Amended (15)): the loop asks
+//! The UI half of the verify reminder (ADR 0007 Amended (16)): the loop asks
 //! `AgentAction::VerifyDue` once, on a text-only reply, and this state says
 //! yes when an applied action of this turn is not followed by an answered
 //! verification call. Pure bookkeeping, no document access.
