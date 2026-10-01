@@ -11,6 +11,7 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 ### Added
 
 - The agent can measure instead of guessing from coordinates: its read-only `measure` tool answers `distance` (between points and entities as drawn, with dx, dy and the two closest points), `length` (line, arc length or circumference), `bbox` (of the listed entities or the whole drawing), `intersections` (every crossing point, `none` or `overlap`) and `angle` (between two lines, counter-clockwise and between), in mm and degrees to 3 decimals. Entities are named by indices or ids; a measure call is one step and changes nothing. See LCV-194.
+- `Feedback after changes` (Agent Settings, off by default): after each reply that changed the drawing, the agent is told `Drawing now: <n> entities, X …, Y … mm.` and the CHECK summary on its last tool result, before the steps-left line; with both canvas opt-ins on it also gets one `drawing`-frame picture. It costs no step. See LCV-195.
 
 ## [0.6.0] - 2026-10-01
 
