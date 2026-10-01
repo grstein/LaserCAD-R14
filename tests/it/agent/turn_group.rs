@@ -14,7 +14,7 @@
 use crate::harness;
 
 use harness::{frame, tap};
-use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome};
+use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome, SetOp};
 use lasercad::app::{AGENT_FENCE_REFUSAL, App, arm_turn, cancel_turn};
 use lasercad::document::{CreateCircle, CreateLine, DeleteEntities, SelectionCommand};
 use lasercad::geometry::{Circle, Line, Vec2};
@@ -145,6 +145,148 @@ fn ac6_a_300_step_turn_over_200_human_entries_undoes_as_one() {
         panic!("the survivor must be a line: {:?}", app.document.entities);
     };
     assert_eq!(oldest.p1.y, 0.0, "the evicted entry is the oldest one");
+}
+
+// ── LCV-186 AC 7: a set action is part of the turn's one undo ───────────────
+
+/// Two human lines, then one agent turn of `actions`; the entities after
+/// the turn, the history length, and the entities after one Ctrl+Z.
+fn turn_of(actions: Vec<AgentAction>) -> (Vec<lasercad::document::Entity>, usize, App) {
+    let (ctx, mut app) = ctx_and_app();
+    human_line(&mut app, 100.0);
+    human_line(&mut app, 200.0);
+    let tx = arm_turn(&mut app, "edit a set");
+    let answers: Vec<_> = actions.into_iter().map(|a| push_act(&tx, a)).collect();
+    idle(&ctx, &mut app);
+    for answer in answers {
+        let outcome = answer.try_recv().unwrap();
+        assert!(!outcome.is_refused(), "{outcome:?}");
+    }
+    tx.send(AgentEvent::done("done")).unwrap();
+    idle(&ctx, &mut app);
+    assert!(!app.agent.busy);
+    let after = app.document.entities.clone();
+    let len = app.history.len();
+    tap(&ctx, &mut app, egui::Key::Z, ctrl());
+    (after, len, app)
+}
+
+/// LCV-186 AC 7 — a turn mixing set actions and single calls ends in the
+/// same drawing and the same history as the all-single turn, and one Ctrl+Z
+/// takes all of it back to the two human lines.
+#[test]
+fn lcv186_a_turn_with_set_actions_undoes_as_one() {
+    let set = |indices: Vec<usize>, op| AgentAction::Set { indices, op };
+    let (with_sets, len_sets, undone_sets) = turn_of(vec![
+        agent_line(10.0),
+        set(vec![2, 0, 1], SetOp::Move { dx: 5.0, dy: 1.0 }),
+        set(vec![1, 2], SetOp::Copy { dx: 0.0, dy: 3.0 }),
+        AgentAction::Delete { index: 0 },
+        set(vec![3, 0], SetOp::Delete),
+    ]);
+    let (with_singles, len_singles, undone_singles) = turn_of(vec![
+        agent_line(10.0),
+        AgentAction::Move {
+            index: 0,
+            dx: 5.0,
+            dy: 1.0,
+        },
+        AgentAction::Move {
+            index: 1,
+            dx: 5.0,
+            dy: 1.0,
+        },
+        AgentAction::Move {
+            index: 2,
+            dx: 5.0,
+            dy: 1.0,
+        },
+        AgentAction::Copy {
+            index: 1,
+            dx: 0.0,
+            dy: 3.0,
+        },
+        AgentAction::Copy {
+            index: 2,
+            dx: 0.0,
+            dy: 3.0,
+        },
+        AgentAction::Delete { index: 0 },
+        AgentAction::Delete { index: 3 },
+        AgentAction::Delete { index: 0 },
+    ]);
+    assert_eq!(with_sets.len(), 2, "control: the turn really edited");
+    assert_eq!(with_sets, with_singles);
+    assert_eq!(len_sets, len_singles);
+    assert_eq!(len_sets, 3, "two human lines + the turn");
+    let before = human_line_entities();
+    assert_ne!(with_sets, before, "control: the turn changed the drawing");
+    assert_eq!(undone_sets.document.entities, before);
+    assert_eq!(undone_singles.document.entities, before);
+}
+
+/// LCV-191 AC 5 — a turn of create + `set_layer` + move undoes in one
+/// step with every entity back on its original layer; redo restores it.
+#[test]
+fn lcv191_a_turn_with_set_layer_undoes_as_one() {
+    use lasercad::document::{AddLayer, LayerId};
+    let (ctx, mut app) = ctx_and_app();
+    human_line(&mut app, 100.0);
+    human_line(&mut app, 200.0);
+    app.commit(Box::new(AddLayer::new("Mark", [0, 0, 255], true)));
+    let mark = app.document.layer_by_name("Mark").unwrap().id;
+    let cut = LayerId(0);
+    let layers = |app: &App| -> Vec<Option<LayerId>> {
+        (0..app.document.entity_count())
+            .map(|i| app.document.entity_layer(i))
+            .collect()
+    };
+    let (before, len) = (app.document.entities.clone(), app.history.len());
+
+    let tx = arm_turn(&mut app, "sort the layers");
+    let answers: Vec<_> = [
+        agent_line(10.0),
+        AgentAction::Set {
+            indices: vec![2, 0],
+            op: SetOp::Layer {
+                layer: "Mark".into(),
+            },
+        },
+        AgentAction::Move {
+            index: 1,
+            dx: 5.0,
+            dy: 0.0,
+        },
+    ]
+    .into_iter()
+    .map(|a| push_act(&tx, a))
+    .collect();
+    idle(&ctx, &mut app);
+    for answer in answers {
+        let outcome = answer.try_recv().unwrap();
+        assert!(!outcome.is_refused(), "{outcome:?}");
+    }
+    tx.send(AgentEvent::done("done")).unwrap();
+    idle(&ctx, &mut app);
+    assert!(!app.agent.busy);
+    let after = app.document.entities.clone();
+    assert_eq!(layers(&app), vec![Some(mark), Some(cut), Some(mark)]);
+    assert_eq!(app.history.len(), len + 1, "the turn is one entry");
+
+    tap(&ctx, &mut app, egui::Key::Z, ctrl());
+    assert_eq!(app.document.entities, before);
+    assert_eq!(layers(&app), vec![Some(cut), Some(cut)]);
+    tap(&ctx, &mut app, egui::Key::Y, ctrl());
+    assert_eq!(app.document.entities, after);
+    assert_eq!(layers(&app), vec![Some(mark), Some(cut), Some(mark)]);
+}
+
+/// The two human lines `turn_of` starts from.
+fn human_line_entities() -> Vec<lasercad::document::Entity> {
+    let mut app = App::default();
+    human_line(&mut app, 100.0);
+    human_line(&mut app, 200.0);
+    app.document.entities
 }
 
 // ── AC 7: sealing and chronology ────────────────────────────────────────────
@@ -312,7 +454,8 @@ fn ac8_every_exit_after_250_acts_finalizes_once() {
         assert!(app.agent.rx.is_none(), "{exit}");
         assert_eq!(app.document.entity_count(), 250, "{exit}: applied stays");
         // Cancel writes its own `note` row first (LCV-129); the undo note is
-        // the one AC 8 counts, and it is written exactly once, last.
+        // the one AC 8 counts, written exactly once, before the metrics note
+        // that closes every turn (LCV-193).
         let undo_notes: Vec<_> = notes(&app)
             .into_iter()
             .filter(|n| n.starts_with("Applied"))
@@ -323,7 +466,7 @@ fn ac8_every_exit_after_250_acts_finalizes_once() {
             "{exit}: exactly one undo note"
         );
         assert_eq!(
-            app.agent.chat.last().map(|(_, t)| t.as_str()),
+            app.agent.chat.iter().rev().nth(1).map(|(_, t)| t.as_str()),
             Some(undo_notes[0]),
             "{exit}"
         );
@@ -361,14 +504,14 @@ fn ac10_a_malformed_act_is_refused_counted_and_then_fenced_after_a_trip() {
         app.agent.chat.last(),
         Some(&("refused".to_owned(), reason.to_owned()))
     );
-    assert_eq!(app.agent.turn.steps, 1);
+    assert_eq!(app.agent.turn.tally.steps, 1);
     assert!(app.agent.busy, "the turn continues");
 
     human_line(&mut app, 0.0);
     let answer = push_act(&tx, malformed());
     idle(&ctx, &mut app);
     assert_eq!(answer.try_recv().unwrap(), FENCED());
-    assert_eq!(app.agent.turn.steps, 2);
+    assert_eq!(app.agent.turn.tally.steps, 2);
 }
 
 // ── AC 12: the end-of-turn note comes from `end_group` ──────────────────────
@@ -396,7 +539,8 @@ fn ac12_the_note_follows_the_seal_not_the_fence() {
         } else {
             "Applied 3 actions before the drawing changed outside this turn."
         };
-        assert_eq!(notes(&app), [expected], "{case}");
+        assert_eq!(notes(&app)[..1], [expected], "{case}");
+        assert_eq!(notes(&app).len(), 2, "{case}: and the metrics note");
         if case == "replaced" {
             assert!(!app.agent.turn.fence.is_tripped(), "not from the fence");
         }

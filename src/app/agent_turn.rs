@@ -39,8 +39,10 @@
 //! `agent_worker::run_agent_turn`, which asks the UI thread through `ask_ui`.
 
 use super::agent_worker::{TurnConfig, ask_ui, run_agent_turn};
-use crate::agent::{AgentError, AgentEvent, prompt};
-use crate::app::{App, agent_memory};
+use crate::agent::{AgentError, AgentEvent, TurnMetrics, prompt};
+use crate::app::agent_checkpoint::Checkpoints;
+use crate::app::agent_verify::VerifyState;
+use crate::app::{App, agent_attach, agent_memory};
 use crate::io::settings::Settings;
 use std::sync::mpsc::{Sender, channel};
 
@@ -116,12 +118,10 @@ impl TurnFence {
 pub struct TurnState {
     /// Guards the turn against commits it did not make (ADR 0007 §D4, §D14).
     pub fence: TurnFence,
-    /// How many of the turn's actions really changed the drawing. Taken once
-    /// at turn end by the note row (LCV-142 AC 12).
-    pub applied: usize,
-    /// Step `Act`s received this turn (ADR 0007 §D13) — the `n` of the
-    /// panel's `n of limit`.
-    pub steps: u32,
+    /// The turn's counts (LCV-193): `steps` is the `n` of the panel's
+    /// `n of limit` (ADR 0007 §D13); `applied` is what the undo note reads
+    /// (LCV-142 AC 12).
+    pub tally: TurnMetrics,
     /// The turn's effective step limit, snapshotted when it was armed.
     pub limit: u32,
     /// The label of the turn's history group: `AI:` plus the prompt.
@@ -129,6 +129,15 @@ pub struct TurnState {
     /// The turn's user message as the model gets it: the prompt, prefixed
     /// when the drawing changed since the last turn (LCV-153 AC 7).
     pub user: String,
+    /// `tally.applied` when the turn last answered a feedback ask (LCV-195):
+    /// feedback is given only when it has moved since.
+    pub fed_at: u32,
+    /// Whether the turn verified what it applied (LCV-197).
+    pub(crate) verify: VerifyState,
+    /// The turn's named group marks; only `start` when armed (LCV-198).
+    pub(crate) checkpoints: Checkpoints,
+    /// The turn's user message carried an attached image (LCV-199).
+    pub(crate) image: bool,
 }
 
 /// The longest prompt prefix an undo label carries (AC 10).
@@ -163,11 +172,14 @@ fn arm_with_limit(app: &mut App, prompt: &str, limit: u32) -> Sender<AgentEvent>
     app.history.begin_group(&label);
     app.agent.turn = TurnState {
         fence: TurnFence::new(app.history.revision()),
-        applied: 0,
-        steps: 0,
+        tally: TurnMetrics::default(),
         limit,
         label,
         user,
+        fed_at: 0,
+        verify: VerifyState::default(),
+        checkpoints: Checkpoints::default(),
+        image: false,
     };
     tx
 }
@@ -178,14 +190,34 @@ fn arm_with_limit(app: &mut App, prompt: &str, limit: u32) -> Sender<AgentEvent>
 /// A no-op while a turn is in flight: one `agent.rx` and one fence mean one
 /// turn (ADR 0007 §Revisit criteria), and a second `arm_turn` would drop the
 /// first turn's receiver on the floor and strand its thread.
+///
+/// The attached image (LCV-199) is taken first: refused, it leaves an `error`
+/// row, puts `prompt` back in the draft and arms nothing (AC 5); taken, it
+/// rides the config and gets its `Image:` row under the prompt (AC 2).
 pub fn start_turn(app: &mut App, prompt: &str) {
     if app.agent.busy {
         return;
     }
+    let image = match agent_attach::take_for_send(app) {
+        Ok(image) => image,
+        Err(row) => {
+            app.agent.chat.push(("error".to_owned(), row));
+            app.agent.input_draft = prompt.to_owned();
+            return;
+        }
+    };
     // Armed first, so the config carries the memory `begin` just trimmed.
     let tx = arm_with_limit(app, prompt, effective_step_limit(&app.settings));
+    if let Some(image) = &image {
+        let row = format!("Image: {}", image.name);
+        app.agent.chat.push(("user".to_owned(), row));
+        app.agent.turn.image = true;
+    }
     // Owned, never borrowed: the thread outlives this frame (ADR 0007 §D1).
-    let config = config_for(app);
+    let config = TurnConfig {
+        image,
+        ..config_for(app)
+    };
     let prompt = app.agent.turn.user.clone();
     std::thread::spawn(move || {
         let (result, batches) = {
@@ -215,6 +247,7 @@ fn turn_config(settings: &Settings) -> TurnConfig {
         system_prompt: prompt::resolve(settings.agent_system_prompt.as_deref()).to_owned(),
         vision: settings.agent_allow_canvas_capture && settings.agent_model_supports_vision,
         memory: Vec::new(),
+        image: None,
     }
 }
 

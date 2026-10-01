@@ -94,6 +94,9 @@ pub fn draw_agent_side_panel(ctx: &egui::Context, app: &mut App) {
         .show(ctx, |ui| {
             crate::agent::draw_agent_panel(ui, app);
         });
+    // After the panel, so a press opens the picker in the same frame
+    // (LCV-199); the panel itself never reaches `rfd` (ADR 0005).
+    super::agent_attach::poll_attach_request(app);
 }
 
 /// Render the modal dialogs (LCV-069, LCV-076, LCV-062, LCV-113, LCV-114,
@@ -113,6 +116,7 @@ pub fn draw_dialogs(ctx: &egui::Context, app: &mut App, key: Option<DialogKey>) 
     draw_discard_dialog(ctx, app, key_for(Dialog::Discard));
     draw_bed_dialog(ctx, app, key_for(Dialog::Bed));
     crate::ui::draw_layers_dialog(ctx, app, key_for(Dialog::Layers));
+    crate::ui::check_dialog(ctx, &mut app.check_report);
 }
 
 /// The AI Settings window (LCV-076). Persists the settings when the window

@@ -91,6 +91,10 @@ pub struct ChatMessage {
     /// The [`ToolCall::id`] a `"tool"` turn answers.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
+    /// A thinking model's reasoning for a tool-call assistant turn, sent back
+    /// verbatim (LCV-154). Declared last so every other key keeps its place.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_content: Option<String>,
 }
 
 impl ChatMessage {
@@ -118,6 +122,16 @@ impl ChatMessage {
             content: content.map(Content::Text),
             tool_calls: Some(tool_calls),
             tool_call_id: None,
+            reasoning_content: None,
+        }
+    }
+
+    /// This turn with `reasoning_content` set; `None` leaves no key (LCV-154).
+    #[must_use]
+    pub fn with_reasoning(self, reasoning_content: Option<String>) -> Self {
+        Self {
+            reasoning_content,
+            ..self
         }
     }
 
@@ -128,6 +142,7 @@ impl ChatMessage {
             content: Some(Content::Text(content.into())),
             tool_calls: None,
             tool_call_id: Some(tool_call_id.into()),
+            reasoning_content: None,
         }
     }
 
@@ -138,6 +153,7 @@ impl ChatMessage {
             content: Some(Content::Parts(parts)),
             tool_calls: None,
             tool_call_id: None,
+            reasoning_content: None,
         }
     }
 
@@ -149,13 +165,14 @@ impl ChatMessage {
         }
     }
 
-    /// Whether any part of this turn is an image.
-    pub fn has_image(&self) -> bool {
+    /// How many parts of this turn are images.
+    pub fn image_count(&self) -> usize {
         match &self.content {
             Some(Content::Parts(parts)) => parts
                 .iter()
-                .any(|part| matches!(part, ContentPart::ImageUrl { .. })),
-            _ => false,
+                .filter(|part| matches!(part, ContentPart::ImageUrl { .. }))
+                .count(),
+            _ => 0,
         }
     }
 
@@ -166,6 +183,7 @@ impl ChatMessage {
             content: Some(Content::Text(content.into())),
             tool_calls: None,
             tool_call_id: None,
+            reasoning_content: None,
         }
     }
 }
@@ -210,10 +228,15 @@ impl ContentPart {
         Self::Text { text: text.into() }
     }
 
-    /// An image part carrying `png` as a base64 `data:` URL. This file is the
-    /// only place `base64` is used (LCV-145 AC 7).
+    /// An image part carrying `png` as a base64 `data:` URL.
     pub fn png(png: &[u8]) -> Self {
-        let url = format!("data:image/png;base64,{}", STANDARD.encode(png));
+        Self::image("image/png", png)
+    }
+
+    /// An image part carrying `bytes` of type `mime` as a base64 `data:` URL
+    /// (LCV-199). This file is the only place `base64` is used (LCV-145 AC 7).
+    pub fn image(mime: &str, bytes: &[u8]) -> Self {
+        let url = format!("data:{mime};base64,{}", STANDARD.encode(bytes));
         Self::ImageUrl {
             image_url: ImageUrl { url },
         }
@@ -247,6 +270,9 @@ pub struct AssistantMessage {
     /// The tool calls the model wants dispatched, in the order it sent them.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
+    /// A thinking model's reasoning, when it sent a string (LCV-154).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_content: Option<String>,
 }
 
 /// One completion choice. Only `choices[0]` is ever read.
@@ -385,6 +411,38 @@ mod tests {
         }
     }
 
+    /// LCV-154 AC 1/5 — `reasoning_content` parses when it is a string and is
+    /// `None` when missing or `null`; `None` adds no key, `Some` goes last.
+    #[test]
+    fn reasoning_content_parses_and_serialises_last_or_not_at_all() {
+        let parse = |body: &str| -> Option<String> {
+            serde_json::from_str::<AssistantMessage>(body)
+                .unwrap()
+                .reasoning_content
+        };
+        assert_eq!(
+            parse(r#"{"content":"a","reasoning_content":"R"}"#),
+            Some("R".to_owned())
+        );
+        assert_eq!(parse(r#"{"content":"a"}"#), None);
+        assert_eq!(parse(r#"{"content":"a","reasoning_content":null}"#), None);
+        let calls = vec![ToolCall::function("call_1", "create_line", r#"{"x1":0}"#)];
+        let pinned = r#"{"role":"assistant","tool_calls":[{"id":"call_1","type":"function","function":{"name":"create_line","arguments":"{\"x1\":0}"}}]}"#;
+        let bare = ChatMessage::assistant_with_tool_calls(None, calls.clone()).with_reasoning(None);
+        assert_eq!(serde_json::to_string(&bare).unwrap(), pinned);
+        let with =
+            ChatMessage::assistant_with_tool_calls(None, calls).with_reasoning(Some("R".into()));
+        let json = serde_json::to_string(&with).unwrap();
+        assert_eq!(
+            json,
+            format!(
+                "{},\"reasoning_content\":\"R\"}}",
+                &pinned[..pinned.len() - 1]
+            )
+        );
+        assert_eq!(serde_json::from_str::<ChatMessage>(&json).unwrap(), with);
+    }
+
     /// LCV-145 AC 9 — a parts message has the OpenAI chat-completions shape:
     /// typed `text` and `image_url` parts, the image a base64 PNG data URL.
     #[test]
@@ -402,11 +460,27 @@ mod tests {
                 r#"]}"#
             )
         );
-        assert!(message.has_image());
+        assert_eq!(message.image_count(), 1);
         assert_eq!(message.text_content(), None);
         let back: ChatMessage =
             serde_json::from_str(&serde_json::to_string(&message).unwrap()).unwrap();
         assert_eq!(back, message);
+    }
+
+    /// LCV-199 AC 2 — a JPEG rides as an `image/jpeg` data URL; `png` is
+    /// `image` with the PNG type.
+    #[test]
+    fn a_jpeg_part_is_an_image_jpeg_data_url() {
+        let jpeg = ContentPart::image("image/jpeg", &[0xFF, 0xD8, 0xFF]);
+        assert_eq!(
+            serde_json::to_string(&jpeg).unwrap(),
+            r#"{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,/9j/"}}"#
+        );
+        let bytes = [0x89, b'P', b'N', b'G'];
+        assert_eq!(
+            ContentPart::png(&bytes),
+            ContentPart::image("image/png", &bytes)
+        );
     }
 
     /// LCV-145 AC 10/11 — `replace_images` swaps every image part, in every
@@ -425,7 +499,7 @@ mod tests {
         let before_text = messages[0].clone();
         assert_eq!(replace_images(&mut messages, "gone"), 2);
         assert_eq!(messages[0], before_text);
-        assert!(!messages.iter().any(ChatMessage::has_image));
+        assert!(messages.iter().all(|m| m.image_count() == 0));
         assert_eq!(
             messages[1],
             ChatMessage::user_parts(vec![
@@ -437,8 +511,17 @@ mod tests {
         );
         assert_eq!(replace_images(&mut messages, "gone"), 0, "idempotent");
         assert_eq!(messages[0].text_content(), Some("u"));
-        assert!(!ChatMessage::user("u").has_image());
-        assert!(!ChatMessage::user_parts(vec![ContentPart::text("t")]).has_image());
+        assert_eq!(ChatMessage::user("u").image_count(), 0);
+        assert_eq!(
+            ChatMessage::user_parts(vec![ContentPart::text("t")]).image_count(),
+            0
+        );
+        let two = [
+            ContentPart::png(&[1]),
+            ContentPart::text("t"),
+            ContentPart::png(&[2]),
+        ];
+        assert_eq!(ChatMessage::user_parts(two.to_vec()).image_count(), 2);
     }
 
     /// AC 3 — the wire types stay kernel-pure. Bounded to the implementation

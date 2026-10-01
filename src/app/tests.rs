@@ -7,6 +7,17 @@ fn roles(app: &App) -> Vec<&str> {
     app.agent.chat.iter().map(|(r, _)| r.as_str()).collect()
 }
 
+/// The row before the metrics note every ended turn closes with (LCV-193);
+/// asserts that note is there.
+fn before_metrics(app: &App) -> Option<&(String, String)> {
+    let rows = &app.agent.chat;
+    let last = rows
+        .last()
+        .map(|(role, text)| (role.as_str(), text.starts_with("Turn: ")));
+    assert_eq!(last, Some(("note", true)), "{rows:?}");
+    rows.iter().rev().nth(1)
+}
+
 /// LCV-030 AC#1 — `App::default()` produces an empty document and an
 /// empty history.
 #[test]
@@ -187,7 +198,7 @@ fn agent_rx_done_updates_chat_and_clears_busy() {
     tx.send(AgentEvent::done("done")).unwrap();
     poll_agent_rx(&mut app);
     assert_eq!(
-        app.agent.chat.last(),
+        before_metrics(&app),
         Some(&("assistant".into(), "done".into())),
     );
     assert!(!app.agent.busy);
@@ -210,7 +221,7 @@ fn agent_rx_failed_updates_chat_and_clears_busy() {
     };
     tx.send(AgentEvent::failed("err")).unwrap();
     poll_agent_rx(&mut app);
-    assert_eq!(app.agent.chat.last(), Some(&("error".into(), "err".into())));
+    assert_eq!(before_metrics(&app), Some(&("error".into(), "err".into())));
     assert!(!app.agent.busy);
     assert!(app.agent.rx.is_none());
 }
@@ -237,7 +248,7 @@ fn a_dropped_sender_ends_the_turn_instead_of_hanging_busy() {
     drop(tx);
     poll_agent_rx(&mut app);
     assert_eq!(
-        app.agent.chat.last(),
+        before_metrics(&app),
         Some(&("error".into(), AGENT_LOST_MESSAGE.to_owned())),
     );
     assert!(!app.agent.busy, "a lost turn must clear agent.busy");
@@ -304,10 +315,11 @@ fn an_act_is_applied_answered_and_followed_by_the_terminal_event() {
     assert_eq!(app.history.revision(), before + 1);
     assert!(app.history.can_undo());
     // LCV-123 AC 23 — the row order of a one-action turn: the action's
-    // `tool` row, the terminal row, then the note (AC 22).
+    // `tool` row, the terminal row, then the note (AC 22) and the metrics
+    // note (LCV-193).
     assert_eq!(
         roles(&app),
-        ["tool", "assistant", "note"],
+        ["tool", "assistant", "note", "note"],
         "{:?}",
         app.agent.chat
     );
@@ -376,7 +388,7 @@ fn a_lone_act_leaves_the_turn_running() {
     // The turn ends only when a terminal event arrives, on a later frame.
     tx.send(AgentEvent::done("drawn")).unwrap();
     poll_agent_rx(&mut app);
-    assert_eq!(roles(&app), ["tool", "assistant", "note"]);
+    assert_eq!(roles(&app), ["tool", "assistant", "note", "note"]);
     assert_eq!(
         app.agent.chat[1],
         ("assistant".to_owned(), "drawn".to_owned())
@@ -441,8 +453,8 @@ fn a_worker_that_stops_listening_mid_act_still_ends_the_turn() {
     assert!(app.agent.rx.is_none(), "nothing more can arrive");
     assert_eq!(
         roles(&app),
-        ["tool", "error", "note"],
-        "the applied action, the verdict, then the undo shape (AC 22, AC 23)"
+        ["tool", "error", "note", "note"],
+        "the applied action, the verdict, the undo shape (AC 22, AC 23), the metrics"
     );
     assert_eq!(
         app.agent.chat.get(1),

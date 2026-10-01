@@ -4,6 +4,10 @@
 - **Depends on**: LCV-143
 - **Implementation**: -
 - **Scheduling**: Deferred; not part of the current implementation queue.
+- **Note (2026-09-30)**: candidate for the "agent CAD loop" milestone — coding agents that
+  save what they learned as a reusable skill file (e.g. a Blender skill,
+  <https://til.simonwillison.net/llms/blender-coding-agents-macos>) are the concrete
+  consumer AC 2 asks for.
 
 ## Problem
 

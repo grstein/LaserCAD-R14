@@ -44,6 +44,9 @@ pub enum CommandInput {
     Zoom(ZoomKind),
     /// `"layer"` / `"la"`: open the Layers… dialog (LCV-156, ADR 0012 §7).
     Layers,
+    /// `"check"`: check the drawing for open ends, gaps, duplicates,
+    /// degenerate and off-bed entities (LCV-190). A word only; no letter.
+    Check,
     /// The field was blank (empty or whitespace-only).
     ///
     /// Distinct from `Unknown(String::new())`: pressing Enter on a blank

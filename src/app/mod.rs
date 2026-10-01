@@ -35,6 +35,7 @@
 
 mod autosave;
 mod bed_dialog;
+mod check;
 mod cmdline;
 mod dialog_order;
 mod discard;
@@ -52,14 +53,21 @@ mod unsaved_guard;
 mod viewport;
 
 mod agent_apply;
+mod agent_attach;
 mod agent_capture;
+mod agent_checkpoint;
+mod agent_feedback;
+mod agent_inline;
 mod agent_memory;
 mod agent_narrate;
 mod agent_poll;
 mod agent_state;
 mod agent_turn;
+mod agent_verify;
 mod agent_worker;
 pub use agent_apply::apply;
+pub use agent_attach::{Attachment, attach_image};
+pub use agent_inline::{InlineTurn, run_turn_inline};
 pub use agent_poll::{AGENT_CANCELLED_MESSAGE, AGENT_LOST_MESSAGE, cancel_turn, poll_agent_rx};
 pub use agent_state::AgentState;
 pub use agent_turn::{AGENT_FENCE_REFUSAL, TurnFence, TurnState, arm_turn, config_for, start_turn};
@@ -137,6 +145,9 @@ pub struct App {
     pub bed_dialog: Option<[f64; 2]>,
     /// The open Layers… dialog, `None` when closed (LCV-156, `src/app/layers.rs`).
     pub layers_dialog: Option<LayersDialog>,
+    /// The last `check` report's lines while the Check window is open, else
+    /// `None` (LCV-190, `src/app/check.rs`). A snapshot; never live.
+    pub check_report: Option<Vec<String>>,
     /// The open dialogs, oldest first; the last takes Enter and Escape
     /// (LCV-169, `src/app/dialog_order.rs`).
     pub dialog_order: Vec<Dialog>,

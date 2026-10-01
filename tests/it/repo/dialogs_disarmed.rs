@@ -38,6 +38,13 @@ fn save_file_dialog_panics_in_an_integration_binary() {
     lasercad::io::save_file_dialog("untitled.svg");
 }
 
+/// LCV-199 — the agent's image picker is guarded in this binary too.
+#[test]
+#[should_panic(expected = "disarmed")]
+fn pick_image_dialog_panics_in_an_integration_binary() {
+    lasercad::io::dialogs::pick_image_dialog();
+}
+
 /// AC 8 — no file under `tests/` (including `tests/harness/`) ever arms
 /// native dialogs. Built with `concat!("arm_native_", "dialogs")` so this
 /// file's own literal use of the name in prose above does not make the

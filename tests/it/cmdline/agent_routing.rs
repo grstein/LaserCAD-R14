@@ -470,8 +470,9 @@ fn a_second_turn_is_refused_not_queued() {
     lasercad::app::poll_agent_rx(&mut app);
     assert!(!app.agent.busy);
     assert_eq!(
-        app.agent.chat.last(),
-        Some(&("assistant".to_owned(), "done".to_owned()))
+        app.agent.chat.iter().rev().nth(1),
+        Some(&("assistant".to_owned(), "done".to_owned())),
+        "the reply, before the metrics note (LCV-193)"
     );
 }
 

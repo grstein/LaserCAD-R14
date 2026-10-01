@@ -11,6 +11,7 @@
 //! no document type. The system prompt is never stored (LCV-143 resolves it per
 //! turn) and nothing here is ever persisted.
 
+use crate::agent::attachment::ATTACHED_IMAGE_ELIDED;
 use crate::agent::wire::{ChatMessage, Content, ContentPart};
 
 /// `Settings::agent_context_tokens` when the operator has not chosen.
@@ -65,9 +66,22 @@ pub enum TurnEnd {
 /// One turn's memory entry: `user`, then `batches`, then the closing
 /// assistant text `end` dictates. A cancelled turn keeps no batches (AC 6).
 /// A stopped turn's error loses a trailing full stop, so the sentence that
-/// wraps it ends in exactly one.
-pub fn turn_record(user: &str, batches: Vec<ChatMessage>, end: &TurnEnd) -> Vec<ChatMessage> {
-    let mut record = vec![ChatMessage::user(user)];
+/// wraps it ends in exactly one. A turn that carried an attached `image`
+/// keeps `[user, image elided]` parts in its place (LCV-199 AC 6).
+pub fn turn_record(
+    user: &str,
+    image: bool,
+    batches: Vec<ChatMessage>,
+    end: &TurnEnd,
+) -> Vec<ChatMessage> {
+    let mut record = vec![if image {
+        ChatMessage::user_parts(vec![
+            ContentPart::text(user),
+            ContentPart::text(ATTACHED_IMAGE_ELIDED),
+        ])
+    } else {
+        ChatMessage::user(user)
+    }];
     let closing = match end {
         TurnEnd::Done { text } => text.clone(),
         TurnEnd::Stopped { error } => format!("Turn stopped: {}.", error.trim_end_matches('.')),
@@ -108,14 +122,16 @@ pub fn whole_batches(messages: &[ChatMessage]) -> Vec<ChatMessage> {
     kept
 }
 
-/// The token estimate of AC 8: UTF-8 bytes of every text and tool-call
-/// argument string, summed, then divided by four once.
+/// The token estimate of AC 8: UTF-8 bytes of every text, tool-call
+/// argument string and `reasoning_content` (LCV-154), summed, then divided
+/// by four once.
 pub fn estimate_tokens(messages: &[ChatMessage]) -> usize {
     messages.iter().map(message_bytes).sum::<usize>() / 4
 }
 
 /// The bytes one message adds to the estimate: its text (every text part of
-/// a parts message) and the arguments of every tool call it carries.
+/// a parts message), the arguments of every tool call it carries and its
+/// `reasoning_content`.
 fn message_bytes(message: &ChatMessage) -> usize {
     let text = match &message.content {
         Some(Content::Text(text)) => text.len(),
@@ -134,7 +150,8 @@ fn message_bytes(message: &ChatMessage) -> usize {
         .flatten()
         .map(|call| call.function.arguments.len())
         .sum();
-    text + arguments
+    let reasoning = message.reasoning_content.as_ref().map_or(0, String::len);
+    text + arguments + reasoning
 }
 
 /// The conversation so far, one entry per turn, oldest first.
@@ -216,6 +233,7 @@ mod tests {
             content: Some(Content::Text(text.to_owned())),
             tool_calls: None,
             tool_call_id: None,
+            reasoning_content: None,
         }
     }
 
@@ -262,11 +280,27 @@ mod tests {
         let end = TurnEnd::Done {
             text: "drawn".to_owned(),
         };
-        let record = turn_record("draw it", batches.clone(), &end);
+        let record = turn_record("draw it", false, batches.clone(), &end);
         let mut expected = vec![ChatMessage::user("draw it")];
         expected.extend(batches);
         expected.push(reply("drawn"));
         assert_eq!(record, expected);
+    }
+
+    /// LCV-199 AC 6 — a turn that carried an attached image keeps the
+    /// placeholder beside its prompt, never the image.
+    #[test]
+    fn an_image_turn_keeps_the_placeholder() {
+        let end = TurnEnd::Done { text: "ok".into() };
+        let record = turn_record("from the sketch", true, Vec::new(), &end);
+        assert_eq!(
+            record[0],
+            ChatMessage::user_parts(vec![
+                ContentPart::text("from the sketch"),
+                ContentPart::text("image elided"),
+            ])
+        );
+        assert_eq!(record[0].image_count(), 0);
     }
 
     /// AC 5 — a failed turn keeps its batches and closes with the error.
@@ -276,7 +310,7 @@ mod tests {
         let end = TurnEnd::Stopped {
             error: "transport error: 503".to_owned(),
         };
-        let record = turn_record("go", batches.clone(), &end);
+        let record = turn_record("go", false, batches.clone(), &end);
         let mut expected = vec![ChatMessage::user("go")];
         expected.extend(batches);
         expected.push(reply("Turn stopped: transport error: 503."));
@@ -285,7 +319,7 @@ mod tests {
         let end = TurnEnd::Stopped {
             error: "Agent turn ended without a reply.".to_owned(),
         };
-        let record = turn_record("go", Vec::new(), &end);
+        let record = turn_record("go", false, Vec::new(), &end);
         assert_eq!(
             record.last(),
             Some(&reply("Turn stopped: Agent turn ended without a reply."))
@@ -296,7 +330,7 @@ mod tests {
     #[test]
     fn a_cancelled_turn_is_user_and_the_cancelled_text() {
         let batches = turn("x", "r")[1..3].to_vec();
-        let record = turn_record("go", batches, &TurnEnd::Cancelled);
+        let record = turn_record("go", false, batches, &TurnEnd::Cancelled);
         assert_eq!(record, vec![ChatMessage::user("go"), reply(CANCELLED_TEXT)]);
     }
 
@@ -308,7 +342,7 @@ mod tests {
             TurnEnd::Stopped { error: "e".into() },
             TurnEnd::Cancelled,
         ] {
-            let record = turn_record("u", turn("x", "r")[1..3].to_vec(), &end);
+            let record = turn_record("u", false, turn("x", "r")[1..3].to_vec(), &end);
             assert!(!record.is_empty());
             assert!(record.iter().all(|m| m.role != "system"), "{end:?}");
         }
@@ -348,6 +382,33 @@ mod tests {
         let parts = ChatMessage::user_parts(vec![ContentPart::text("abcd")]);
         assert_eq!(estimate_tokens(&[parts]), 1);
         assert_eq!(estimate_tokens(&[]), 0);
+    }
+
+    /// LCV-154 AC 6 — `reasoning_content` bytes count like any text: 8 bytes
+    /// of arguments and 8 of reasoning are 16 bytes, 4 tokens.
+    #[test]
+    fn the_estimate_counts_reasoning_content() {
+        let reasoned = calls(&["a"], "{\"ab\":1}").with_reasoning(Some("thinking".into()));
+        assert_eq!(estimate_tokens(&[reasoned]), 4);
+        let short = calls(&["a"], "{}").with_reasoning(Some("abcdef".into()));
+        assert_eq!(estimate_tokens(&[short]), 2);
+    }
+
+    /// LCV-154 AC 6 — the trim counts reasoning toward the cap: without the
+    /// 200 reasoning bytes the two turns (410 bytes) sit under a 150-token
+    /// cap; with them (610 bytes) the trim elides and then drops turn 0.
+    #[test]
+    fn the_trim_counts_reasoning_toward_the_cap() {
+        let plain = vec![turn("u", &"r".repeat(200)), turn("u", &"r".repeat(200))];
+        let mut untouched = memory(plain.clone());
+        untouched.trim(300);
+        assert_eq!(untouched, memory(plain.clone()));
+        let mut reasoned = plain.clone();
+        reasoned[0][1] = reasoned[0][1].clone().with_reasoning(Some("t".repeat(200)));
+        let mut m = memory(reasoned);
+        assert_eq!(estimate_tokens(&m.flatten()), 152);
+        m.trim(300);
+        assert_eq!(m, memory(plain[1..].to_vec()));
     }
 
     /// AC 8 — default 128 000, clamped to 8 000..=2 000 000.

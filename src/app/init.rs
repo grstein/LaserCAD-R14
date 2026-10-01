@@ -53,6 +53,7 @@ impl Default for App {
             agent_settings_open: false,
             bed_dialog: None,
             layers_dialog: None,
+            check_report: None,
             dialog_order: Vec::new(),
             command_line_input: String::new(),
             command_history: CommandHistory::default(),
@@ -146,6 +147,12 @@ impl App {
 
 #[cfg(test)]
 mod tests {
+    /// LCV-190 — a fresh app has no Check window open.
+    #[test]
+    fn default_app_has_no_check_report() {
+        assert_eq!(super::App::default().check_report, None);
+    }
+
     /// LCV-119 AC 2 / ADR 0006 — `App::new` is the **only** place that
     /// resolves a real per-user filesystem location, and it must fill *both*
     /// path fields. If it ever stops filling one, the app silently stops

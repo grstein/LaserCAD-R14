@@ -42,7 +42,8 @@ use crate::io::{open_file_dialog, save_file_dialog};
 /// The blank document is seeded with the operator's configured default bed
 /// (LCV-114 AC 11) so `File > New` lands on their machine, not on 400 × 400.
 pub fn action_new(app: &mut App) {
-    app.document = Document::with_bed(app.settings.clamped_default_bed_mm());
+    app.document =
+        Document::with_bed(app.settings.clamped_default_bed_mm()).ids_after(&app.document);
     app.history = History::default();
     app.current_file = None;
     app.mark_saved();
@@ -83,7 +84,7 @@ pub fn action_open(app: &mut App) {
     // Y around a different height. The settings seed is deliberately left
     // alone — opening a file does not re-home the operator's machine.
     // Its layers, membership and current layer come with it (LCV-156 AC 9).
-    app.document = document;
+    app.document = document.ids_after(&app.document);
     app.history = History::default();
     app.frame_bed_pending = true; // LCV-164 AC 7
     app.current_file = Some(path.clone());
@@ -147,7 +148,7 @@ pub fn action_open_path(app: &mut App, path: PathBuf) {
 
     // Adopts the file's bed and layers, same as `action_open` (LCV-114 AC 10,
     // LCV-156 AC 9).
-    app.document = document;
+    app.document = document.ids_after(&app.document);
     app.history = History::default();
     app.frame_bed_pending = true; // LCV-164 AC 7
     app.current_file = Some(path.clone());

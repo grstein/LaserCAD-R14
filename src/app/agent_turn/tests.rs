@@ -76,7 +76,7 @@ fn arm_turn_records_the_user_row_and_arms_a_live_channel() {
     );
     assert!(app.agent.busy);
     assert!(app.agent.rx.is_some());
-    assert_eq!(app.agent.turn.applied, 0);
+    assert_eq!(app.agent.turn.tally.applied, 0);
     assert_eq!(app.agent.turn.label, "AI: draw a 20 mm square");
     assert!(app.history.group_open(), "the turn's group is open");
 
@@ -318,7 +318,7 @@ fn the_turn_label_cuts_on_character_boundaries() {
 ///
 /// Every `*_open` flag on `App` is a modal or a panel; a turn that set one
 /// would take the canvas away, which ADR 0007 §D4 names a non-goal. The
-/// scan covers both files that run turn code.
+/// scan covers every file that runs turn code.
 #[test]
 fn no_turn_function_opens_a_dialog() {
     let witness = "app.agent_settings_open = true; app.agent.panel_open = false;";
@@ -344,10 +344,16 @@ fn no_turn_function_opens_a_dialog() {
                 "/src/app/agent_poll.rs"
             )),
         ),
+        (
+            "agent_poll/turn_end.rs",
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/src/app/agent_poll/turn_end.rs"
+            )),
+        ),
     ] {
-        let at = src
-            .find("\n#[cfg(test)]")
-            .expect("a bare #[cfg(test)] marker");
+        // `turn_end.rs` has no test module: all of it is implementation.
+        let at = src.find("\n#[cfg(test)]").unwrap_or(src.len());
         let needle = concat!("_open", " =");
         assert!(
             witness.contains(needle),
@@ -397,4 +403,30 @@ fn the_fence_is_declared_here_and_this_file_imports_no_ui() {
             "agent_turn.rs must not name `{forbidden}`: {hit:?}"
         );
     }
+}
+
+/// LCV-199 AC 5 — an attached image that cannot be read when the prompt is
+/// sent arms nothing: an `error` row, the prompt back in the draft, and the
+/// attachment kept. No thread and no socket are involved.
+#[test]
+fn an_unreadable_image_sends_nothing_and_keeps_the_prompt() {
+    let mut app = App::default();
+    app.settings.agent_model_supports_vision = true;
+    app.agent.attachment = Some(crate::app::Attachment {
+        path: "/nonexistent/lcv199/sketch.png".into(),
+        name: "sketch.png".into(),
+        kind: crate::agent::ImageKind::Png,
+    });
+    start_turn(&mut app, "draw the sketch");
+    assert!(!app.agent.busy && app.agent.rx.is_none());
+    assert_eq!(app.agent.input_draft, "draw the sketch");
+    assert_eq!(app.agent.chat.len(), 1);
+    let (role, row) = &app.agent.chat[0];
+    assert_eq!(role, "error");
+    assert!(
+        row.starts_with("Image sketch.png could not be read: "),
+        "{row}"
+    );
+    assert!(row.ends_with("Nothing was sent."), "{row}");
+    assert!(app.agent.attachment.is_some());
 }

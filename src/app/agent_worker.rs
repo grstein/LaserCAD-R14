@@ -11,9 +11,10 @@
 
 use crate::agent::loop_::{Dispatch, IMAGE_ELIDED};
 use crate::agent::memory::whole_batches;
-use crate::agent::wire::replace_images;
+use crate::agent::wire::{ContentPart, replace_images};
 use crate::agent::{
-    AgentAction, AgentError, AgentEvent, AgentOutcome, AssistantMessage, ChatMessage, agent_loop,
+    AgentAction, AgentError, AgentEvent, AgentOutcome, AssistantMessage, ChatMessage, RefusedCalls,
+    ToolCallError, UserImage, agent_loop,
 };
 use std::sync::mpsc::{Sender, channel};
 
@@ -23,7 +24,7 @@ use std::sync::mpsc::{Sender, channel};
 ///
 /// Carries the API key and the prompt, so its `Debug` is written by hand: it
 /// prints `api_key: "<redacted>"` (ADR 0007 §D10) and the prompt's length
-/// only (LCV-143 AC 7).
+/// only (LCV-143 AC 7), and the attached image's name and size only (LCV-199).
 #[derive(Clone, PartialEq)]
 pub struct TurnConfig {
     /// OpenAI-compatible base URL.
@@ -43,6 +44,8 @@ pub struct TurnConfig {
     /// The conversation so far (LCV-153, ADR 0007 §D16), flattened: sent
     /// between the system prompt and the new user message. Never printed.
     pub memory: Vec<ChatMessage>,
+    /// The operator's attached image (LCV-199), sent in the user message.
+    pub image: Option<UserImage>,
 }
 
 impl std::fmt::Debug for TurnConfig {
@@ -55,6 +58,7 @@ impl std::fmt::Debug for TurnConfig {
             .field("system_prompt_len", &self.system_prompt.len())
             .field("vision", &self.vision)
             .field("memory_len", &self.memory.len())
+            .field("image", &self.image)
             .finish()
     }
 }
@@ -72,7 +76,8 @@ impl std::fmt::Debug for TurnConfig {
 /// already been through [`crate::agent::clamp_step_budget`]. At most
 /// `step_limit` actions are dispatched per turn.
 ///
-/// `config.memory` goes between the system prompt and `prompt`. Returns the
+/// `config.memory` goes between the system prompt and `prompt`; with
+/// `config.image` the user message is `[prompt, image]` parts (LCV-199). Returns the
 /// result together with the whole tool-call batches that followed `prompt`,
 /// images elided, whether the turn succeeded or not (LCV-153).
 ///
@@ -115,7 +120,7 @@ where
 /// `ask`, with `send_fn` injected so the worker's own rules — the fence stop
 /// (§D14) and malformed calls (§D15) — are testable without an endpoint.
 /// `config.system_prompt` is the turn's system message, verbatim.
-fn drive_turn<F, A>(
+pub(super) fn drive_turn<F, A>(
     prompt: &str,
     config: &TurnConfig,
     send_fn: &mut F,
@@ -129,18 +134,43 @@ where
     // so each request is a prefix of the next, and of the next turn's.
     let mut messages = vec![ChatMessage::system(config.system_prompt.as_str())];
     messages.extend(config.memory.iter().cloned());
-    messages.push(ChatMessage::user(prompt));
+    messages.push(match &config.image {
+        Some(image) => ChatMessage::user_parts(vec![
+            ContentPart::text(prompt),
+            ContentPart::image(image.kind.mime(), &image.bytes),
+        ]),
+        None => ChatMessage::user(prompt),
+    });
     let first_batch = messages.len();
     // A refusal is a tool result, not a failure (ADR 0007 §D2a), and so is a
     // malformed call (§D15); a `Fenced` answer is read by `agent_loop` (§D14).
     // An upload check names the turn's endpoint and model, never its key
-    // (ADR 0011 item 10).
+    // (ADR 0011 item 10); a note, a model reply and the after-batch feedback
+    // ask and the verify ask ride as non-step actions (LCV-187, LCV-193,
+    // LCV-195, LCV-197). A call repeating a refused one is answered from the
+    // first refusal, still as a step (LCV-192 AC 4).
+    let mut refused = RefusedCalls::default();
     let mut dispatch_fn = |dispatch: Dispatch<'_>| match dispatch {
-        Dispatch::Tool { name, args } => ask(to_action(name, args)),
+        Dispatch::Tool { name, args } => {
+            let action = match refused.check(name, args) {
+                Some(reason) => AgentAction::Malformed {
+                    tool: name.to_owned(),
+                    reason,
+                },
+                None => to_action(name, args),
+            };
+            let outcome = ask(action)?;
+            refused.record(name, args, &outcome);
+            Ok(outcome)
+        }
         Dispatch::AuthorizeUpload => ask(AgentAction::AuthorizeUpload {
             endpoint: config.endpoint.clone(),
             model: config.model.clone(),
         }),
+        Dispatch::Note(text) => ask(AgentAction::Note(text.to_owned())),
+        Dispatch::Replied { captures } => ask(AgentAction::Replied { captures }),
+        Dispatch::Feedback => ask(AgentAction::Feedback),
+        Dispatch::VerifyDue => ask(AgentAction::VerifyDue),
     };
     let result = agent_loop(send_fn, &mut dispatch_fn, &mut messages, config.step_limit);
     // What memory keeps of this turn: whole batches, no image (§D3, ADR 0011).
@@ -161,10 +191,23 @@ fn to_action(name: &str, args: &str) -> AgentAction {
         tool: name.to_owned(),
         reason,
     };
+    // LCV-192 AC 3: the whole argument string is the path `(root)`.
+    let root = |reason: String, expected: String| {
+        malformed(
+            ToolCallError::Arg {
+                tool: name.to_owned(),
+                path: "(root)".to_owned(),
+                reason,
+                expected,
+            }
+            .to_string(),
+        )
+    };
     if args.len() > MAX_TOOL_ARGUMENT_BYTES {
-        return malformed(format!(
-            "tool `{name}` arguments exceed {MAX_TOOL_ARGUMENT_BYTES} bytes"
-        ));
+        return root(
+            format!("arguments exceed {MAX_TOOL_ARGUMENT_BYTES} bytes"),
+            format!("at most {MAX_TOOL_ARGUMENT_BYTES} bytes"),
+        );
     }
     // The argument-free queries are routinely called with `""` rather than
     // `"{}"`, which is not JSON; both mean the same empty object here.
@@ -173,7 +216,9 @@ fn to_action(name: &str, args: &str) -> AgentAction {
     } else {
         match serde_json::from_str::<serde_json::Value>(args) {
             Ok(value) => value,
-            Err(e) => return malformed(format!("tool `{name}` arguments are not valid JSON: {e}")),
+            Err(e) => {
+                return root(format!("not valid JSON ({e})"), "a JSON object".to_owned());
+            }
         }
     };
     crate::agent::parse_tool_call(name, &value).unwrap_or_else(|e| malformed(e.to_string()))

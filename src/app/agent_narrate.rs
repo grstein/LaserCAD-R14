@@ -81,7 +81,8 @@ fn layer_name(doc: &Document, index: usize) -> &str {
         .map_or("?", |l| l.name.as_str())
 }
 
-/// `QueryEntities`: the whole drawing, one entity per line, indices first.
+/// `QueryEntities`: the whole drawing, one entity per line, index and stable
+/// id first: `0 e7: line …` (LCV-188 AC 1, ADR 0014 §8).
 ///
 /// The header says the count even when it is zero — the model needs to know
 /// that it looked and found nothing, which reads differently from a tool that
@@ -99,8 +100,12 @@ pub(super) fn list_entities(doc: &Document) -> String {
     );
     for (i, entity) in doc.entities.iter().enumerate() {
         let layer = layer_name(doc, i);
+        // Invariant: one id per entity (lockstep), so the fallback never shows.
+        let id = doc
+            .entity_id(i)
+            .map_or_else(String::new, |id| id.to_string());
         out.push_str(&format!(
-            "\n{i}: {} {} layer {layer}",
+            "\n{i} {id}: {} {} layer {layer}",
             kind(entity),
             geometry(entity)
         ));
@@ -143,4 +148,23 @@ pub(super) fn batch_created(n: usize, first: usize, count: usize, revision: u64)
         )
     };
     format!("{created} The drawing now has {count} entities. Revision {revision}.")
+}
+
+/// LCV-188 AC 6 — the ids of the entities from `first` on, as an outcome
+/// suffix: ` New id: e7.`, ` New ids: e7..=e9.` when contiguous (one command
+/// takes its fresh ids in sequence), else comma-separated; empty when the
+/// document did not grow past `first` (ADR 0014 §8).
+pub(super) fn new_ids(doc: &Document, first: usize) -> String {
+    let ids: Vec<u64> = (first..doc.entity_count())
+        .filter_map(|i| doc.entity_id(i).map(|id| id.0))
+        .collect();
+    match ids[..] {
+        [] => String::new(),
+        [only] => format!(" New id: e{only}."),
+        [a, .., b] if ids.windows(2).all(|w| w[1] == w[0] + 1) => format!(" New ids: e{a}..=e{b}."),
+        _ => {
+            let list: Vec<String> = ids.iter().map(|n| format!("e{n}")).collect();
+            format!(" New ids: {}.", list.join(", "))
+        }
+    }
 }

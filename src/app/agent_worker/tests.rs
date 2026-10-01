@@ -35,16 +35,46 @@ impl Applier {
     }
 
     fn ask(&mut self, action: AgentAction) -> Result<AgentOutcome, AgentError> {
+        // The after-batch feedback ask (LCV-195) is answered as with the
+        // setting off, and not recorded: these tests are about the steps.
+        if matches!(action, AgentAction::Feedback) && !self.cancel {
+            return Ok(AgentOutcome::Ok(String::new()));
+        }
+        // The verify ask (LCV-197) is answered no, and not recorded: these
+        // tests are not about the reminder.
+        if matches!(action, AgentAction::VerifyDue) && !self.cancel {
+            return Ok(AgentOutcome::Refused(String::new()));
+        }
         self.seen.push(action.clone());
         if self.cancel {
             return Err(AgentError::Cancelled);
         }
+        // A reply is a rendezvous, not a step (LCV-193): answered `Ok`
+        // without touching the document, as `agent_poll` does.
+        if matches!(action, AgentAction::Replied { .. }) {
+            return Ok(AgentOutcome::Ok(String::new()));
+        }
         Ok(agent_apply::apply(&mut self.app, &action))
+    }
+
+    /// What `ask` saw, minus the non-step rendezvous (LCV-193, LCV-195).
+    fn steps(&self) -> Vec<AgentAction> {
+        self.seen
+            .iter()
+            .filter(|a| !is_rendezvous(a))
+            .cloned()
+            .collect()
     }
 
     fn entities(&self) -> usize {
         self.app.document.entity_count()
     }
+}
+
+/// Is `action` a non-step rendezvous these tests skip: a model reply
+/// (LCV-193) or the after-batch feedback ask (LCV-195)?
+fn is_rendezvous(action: &AgentAction) -> bool {
+    matches!(action, AgentAction::Replied { .. } | AgentAction::Feedback)
 }
 
 // ── The turn, over a real socket ─────────────────────────────────────────
@@ -125,6 +155,7 @@ fn config(endpoint: &str, model: &str, step_limit: u32) -> TurnConfig {
         system_prompt: "test system prompt".to_owned(),
         vision: false,
         memory: Vec::new(),
+        image: None,
     }
 }
 
@@ -287,7 +318,7 @@ fn multi_step_turn_sends_the_whole_conversation_back() {
     assert_eq!(reply, "Done.");
     assert_eq!(applier.entities(), 1, "the tool call really was dispatched");
     assert_eq!(
-        applier.seen,
+        applier.steps(),
         [AgentAction::CreateLine {
             layer: None,
             x1: 0.0,
@@ -313,7 +344,7 @@ fn multi_step_turn_sends_the_whole_conversation_back() {
     assert_eq!(
         msgs[3]["content"],
         "Line created: (0.000, 0.000) → (20.000, 0.000) mm. \
-             The drawing now has 1 entities.",
+             The drawing now has 1 entities. New id: e1.\nSteps left this turn: 255 of 256.",
         "the model reads the real outcome, count and all (AC 9)"
     );
     assert_eq!(
@@ -383,7 +414,10 @@ fn a_refusal_is_fed_back_as_a_tool_result_and_the_turn_survives() {
     assert_eq!(roles, ["system", "user", "assistant", "tool"]);
     assert_eq!(msgs[3]["tool_call_id"], "call_bad");
     assert_eq!(
-        msgs[3]["content"], "index 7 is out of range (the drawing has 0 entities)",
+        msgs[3]["content"],
+        "delete_entity index: 7 is out of range; \
+         expected an index once the drawing has entities (it has 0)\n\
+         Steps left this turn: 255 of 256.",
         "the model must be told what went wrong, in the apply site's words"
     );
 }
@@ -529,7 +563,7 @@ fn every_tool_call_becomes_one_ask_in_order() {
 
     assert_eq!(reply, "Done.");
     assert_eq!(
-        applier.seen,
+        applier.steps(),
         [
             AgentAction::CreateLine {
                 layer: None,
@@ -774,6 +808,7 @@ fn batch(calls: &[(&str, &str)]) -> AssistantMessage {
                 })
                 .collect(),
         ),
+        reasoning_content: None,
     }
 }
 
@@ -781,6 +816,7 @@ fn text(content: &str) -> AssistantMessage {
     AssistantMessage {
         content: Some(content.to_owned()),
         tool_calls: None,
+        reasoning_content: None,
     }
 }
 
@@ -815,8 +851,8 @@ fn fenced_turn_with(
             _ => text("a third send must never happen"),
         })
     };
-    let mut ask = |_action: AgentAction| {
-        asks += 1;
+    let mut ask = |action: AgentAction| {
+        asks += usize::from(!is_rendezvous(&action));
         Ok(AgentOutcome::Fenced(
             crate::app::AGENT_FENCE_REFUSAL.to_owned(),
         ))
@@ -896,6 +932,13 @@ fn malformed_calls_reach_ask_and_the_turn_continues() {
     };
     let mut asked = Vec::new();
     let mut ask = |action: AgentAction| {
+        // LCV-197: the verify ask is answered no; these tests are not about it.
+        if matches!(action, AgentAction::VerifyDue) {
+            return Ok(AgentOutcome::Refused(String::new()));
+        }
+        if is_rendezvous(&action) {
+            return Ok(AgentOutcome::Ok(String::new()));
+        }
         asked.push(action.clone());
         match action {
             AgentAction::Malformed { reason, .. } => Ok(AgentOutcome::Refused(reason)),
@@ -922,7 +965,7 @@ fn malformed_calls_reach_ask_and_the_turn_continues() {
     assert!(
         reasons[0]
             .1
-            .starts_with("tool `create_line` arguments are not valid JSON: "),
+            .starts_with("create_line (root): not valid JSON ("),
         "{:?}",
         reasons[0]
     );
@@ -932,7 +975,7 @@ fn malformed_calls_reach_ask_and_the_turn_continues() {
     );
     assert_eq!(
         reasons[2].1,
-        "tool `create_line` missing required argument `x2`"
+        "create_line x2: not a number; expected a number in mm"
     );
     for (_, reason) in &reasons {
         assert!(!reason.contains(SENTINEL), "the raw args leaked: {reason}");
@@ -952,8 +995,8 @@ fn a_malformed_call_counts_as_a_step() {
         })
     };
     let mut asks = 0usize;
-    let mut ask = |_: AgentAction| {
-        asks += 1;
+    let mut ask = |action: AgentAction| {
+        asks += usize::from(!is_rendezvous(&action));
         Ok(AgentOutcome::Refused("bad".into()))
     };
     let (result, _) = drive_turn("go", &cfg("sys", 2), &mut send_fn, &mut ask);
@@ -962,6 +1005,121 @@ fn a_malformed_call_counts_as_a_step() {
         "got {result:?}"
     );
     assert_eq!(asks, 2);
+}
+
+/// LCV-192 AC 4 — the second byte-identical call to one refused in this turn
+/// reaches `ask` as `Malformed` quoting the first refusal, its tool result
+/// says the same, and it is still a step (the batch's steps-left line reads
+/// 253); other argument bytes run again.
+#[test]
+fn a_repeated_refused_call_is_answered_with_the_first_refusal() {
+    const ARGS: &str = r#"{"index":7}"#;
+    let mut sends = 0usize;
+    let mut last = Vec::new();
+    let mut send_fn = |msgs: &[ChatMessage]| {
+        sends += 1;
+        last = msgs.to_vec();
+        Ok(match sends {
+            1 => batch(&[("delete_entity", ARGS)]),
+            2 => batch(&[
+                ("delete_entity", ARGS),
+                ("delete_entity", r#"{"index": 7}"#),
+            ]),
+            _ => text("done"),
+        })
+    };
+    let mut applier = Applier::new();
+    let (result, _) = drive_turn(
+        "go",
+        &cfg("sys", AGENT_STEP_BUDGET_DEFAULT),
+        &mut send_fn,
+        &mut |action| applier.ask(action),
+    );
+    assert_eq!(result.ok().as_deref(), Some("done"));
+
+    let first = "delete_entity index: 7 is out of range; \
+                 expected an index once the drawing has entities (it has 0)";
+    let repeat = format!("repeated call, refused before: {first}; change the arguments");
+    let seen = applier.steps();
+    assert_eq!(seen.len(), 3, "the repeat still reaches ask");
+    assert_eq!(seen[0], AgentAction::Delete { index: 7 });
+    assert_eq!(
+        seen[1],
+        AgentAction::Malformed {
+            tool: "delete_entity".to_owned(),
+            reason: repeat.clone(),
+        }
+    );
+    assert_eq!(seen[2], AgentAction::Delete { index: 7 }, "other bytes");
+
+    let results: Vec<String> = last
+        .iter()
+        .filter(|m| m.role == "tool")
+        .map(|m| {
+            serde_json::to_value(m)
+                .map(|v| v["content"].to_string())
+                .unwrap_or_default()
+        })
+        .collect();
+    assert_eq!(
+        results,
+        [
+            json!(format!("{first}\nSteps left this turn: 255 of 256.")).to_string(),
+            json!(repeat).to_string(),
+            json!(format!("{first}\nSteps left this turn: 253 of 256.")).to_string(),
+        ],
+        "the repeat is answered in its tool result; 253 left counts it as a step"
+    );
+}
+
+/// LCV-191 AC 1 — one `set_layer` call over 5 entities is one ask and one
+/// step: its result reads 255 of 256 steps left.
+#[test]
+fn one_set_layer_call_over_five_entities_is_one_step() {
+    use crate::document::{AddLayer, Command};
+    let mut applier = Applier::new();
+    AddLayer::new("Mark", [0, 0, 255], true).do_(&mut applier.app.document);
+    for i in 0..5 {
+        let cx = f64::from(i) * 10.0;
+        let circle = AgentAction::CreateCircle {
+            cx,
+            cy: 0.0,
+            r: 1.0,
+            layer: None,
+        };
+        agent_apply::apply(&mut applier.app, &circle);
+    }
+    let mut sends = 0usize;
+    let mut last = Vec::new();
+    let mut send_fn = |msgs: &[ChatMessage]| {
+        sends += 1;
+        last = msgs.to_vec();
+        Ok(match sends {
+            1 => batch(&[("set_layer", r#"{"indices":[4,3,2,1,0],"layer":"Mark"}"#)]),
+            _ => text("done"),
+        })
+    };
+    let (result, _) = drive_turn(
+        "go",
+        &cfg("sys", AGENT_STEP_BUDGET_DEFAULT),
+        &mut send_fn,
+        &mut |action| applier.ask(action),
+    );
+    assert_eq!(result.ok().as_deref(), Some("done"));
+    assert_eq!(applier.steps().len(), 1, "one ask for the whole set");
+    let tool = last
+        .iter()
+        .rfind(|m| m.role == "tool")
+        .expect("a tool result");
+    assert_eq!(
+        serde_json::to_value(tool)
+            .map(|v| v["content"].clone())
+            .ok(),
+        Some(json!(
+            "Moved 5 entities to layer \"Mark\". The drawing now has 5 entities.\n\
+                    Steps left this turn: 255 of 256."
+        ))
+    );
 }
 
 // ── LCV-143 AC 6: the prompt grants nothing ──────────────────────────────
@@ -982,8 +1140,8 @@ fn no_prompt_raises_the_step_budget() {
             ]))
         };
         let mut asks = 0usize;
-        let mut ask = |_: AgentAction| {
-            asks += 1;
+        let mut ask = |action: AgentAction| {
+            asks += usize::from(!is_rendezvous(&action));
             Ok(AgentOutcome::Ok("none".into()))
         };
         let (result, _) = drive_turn("go", &cfg(system, 2), &mut send_fn, &mut ask);
@@ -1072,12 +1230,67 @@ fn the_argument_cap_is_inclusive_and_applies_to_every_tool() {
             over,
             AgentAction::Malformed {
                 tool: tool.to_owned(),
-                reason: format!("tool `{tool}` arguments exceed 1048576 bytes"),
+                reason: format!(
+                    "{tool} (root): arguments exceed 1048576 bytes; \
+                     expected at most 1048576 bytes"
+                ),
             },
             "{tool} one byte over"
         );
     }
     assert_eq!(MAX_TOOL_ARGUMENT_BYTES, 1_048_576);
+}
+
+/// LCV-192 AC 3 — invalid JSON is refused in the shape with path `(root)`,
+/// carrying serde's message, which names a position and never the payload.
+#[test]
+fn invalid_json_is_refused_at_the_root_in_the_shape() {
+    for bad in ["{", r#"{"x1": 0,"#, "[1, 2", "nonsense"] {
+        let serde = serde_json::from_str::<serde_json::Value>(bad)
+            .expect_err("not JSON")
+            .to_string();
+        assert_eq!(
+            to_action("create_line", bad),
+            AgentAction::Malformed {
+                tool: "create_line".to_owned(),
+                reason: format!(
+                    "create_line (root): not valid JSON ({serde}); expected a JSON object"
+                ),
+            },
+            "{bad}"
+        );
+    }
+}
+
+/// LCV-192 AC 5 — invalid JSON is refused without echoing what it held, and
+/// a value of the wrong type is named by its path, never quoted.
+#[test]
+fn a_refusal_never_echoes_the_arguments() {
+    let secret = "SECRET-7f3a";
+    for (name, args) in [
+        ("create_line", format!(r#"{{"x1": "{secret}""#)),
+        (
+            "create_line",
+            format!(r#"{{"x1": "{secret}", "y1": 0, "x2": 1, "y2": 1}}"#),
+        ),
+        (
+            "create_circle",
+            format!(r#"{{"cx": 0, "cy": 0, "r": 1, "layer": ["{secret}"]}}"#),
+        ),
+        ("delete_entity", format!(r#"{{"index": "{secret}"}}"#)),
+        (
+            "create_drawing",
+            format!(r#"{{"version": 1, "entities": [{secret}]}}"#),
+        ),
+    ] {
+        match to_action(name, &args) {
+            AgentAction::Malformed { reason, .. } => {
+                assert!(reason.starts_with(&format!("{name} ")), "{reason}");
+                assert!(!reason.contains(secret), "{args} echoed: {reason}");
+            }
+            other => panic!("accepted {args}: {other:?}"),
+        }
+    }
 }
 
 // ── LCV-145: the vision flag and the upload check ────────────────────────
@@ -1130,9 +1343,15 @@ fn the_upload_check_names_endpoint_and_model_never_the_key() {
     };
     let mut asked = Vec::new();
     let mut ask = |action: AgentAction| {
-        asked.push(action.clone());
+        // LCV-197: the verify ask is answered no; these tests are not about it.
+        if matches!(action, AgentAction::VerifyDue) {
+            return Ok(AgentOutcome::Refused(String::new()));
+        }
+        if !is_rendezvous(&action) {
+            asked.push(action.clone());
+        }
         Ok(match action {
-            AgentAction::CaptureCanvas => AgentOutcome::Observed {
+            AgentAction::CaptureCanvas(_) => AgentOutcome::Observed {
                 text: "Canvas".into(),
                 png: vec![1, 2, 3],
             },
@@ -1144,11 +1363,12 @@ fn the_upload_check_names_endpoint_and_model_never_the_key() {
     assert_eq!(
         asked,
         vec![
-            AgentAction::CaptureCanvas,
+            AgentAction::CaptureCanvas(crate::agent::CaptureFrame::View),
             AgentAction::AuthorizeUpload {
                 endpoint: "https://example.invalid/v1".into(),
                 model: "vision/model".into(),
             },
+            AgentAction::Note("Canvas image for call call_0 sent.".into()),
             AgentAction::QueryEntities,
         ]
     );
@@ -1196,8 +1416,12 @@ fn scripted(
         }
     };
     let mut ask = |action: AgentAction| {
+        // LCV-197: the verify ask is answered no; these tests are not about it.
+        if matches!(action, AgentAction::VerifyDue) {
+            return Ok(AgentOutcome::Refused(String::new()));
+        }
         Ok(match action {
-            AgentAction::CaptureCanvas => AgentOutcome::Observed {
+            AgentAction::CaptureCanvas(_) => AgentOutcome::Observed {
                 text: "Canvas".into(),
                 png: vec![1, 2, 3],
             },
@@ -1268,8 +1492,8 @@ fn each_request_is_a_byte_prefix_of_the_next_turn() {
         text: result.expect("text ends the turn"),
     };
     assert_eq!(batches.len(), 6, "two batches and the elided image message");
-    assert!(batches.iter().all(|m| !m.has_image()));
-    let memory = turn_record("draw", batches, &done);
+    assert!(batches.iter().all(|m| m.image_count() == 0));
+    let memory = turn_record("draw", false, batches, &done);
     let (_, _, turn2) = scripted("wider", &with_memory(memory), vec![Some(text("t"))]);
     let next = wire(&turn2[0]);
     for (n, request) in turn1.iter().enumerate() {
@@ -1281,27 +1505,54 @@ fn each_request_is_a_byte_prefix_of_the_next_turn() {
     assert_eq!(next.last(), wire(&[ChatMessage::user("wider")]).last());
 }
 
-/// AC 4 — a response's `reasoning_content` never reaches the batches.
+/// LCV-153 AC 4 as amended by LCV-154 AC 3/4 — a tool-call batch keeps
+/// its `reasoning_content` and memory replays it verbatim in the next
+/// turn; the recorded closing text never carries one, even when its reply
+/// did.
 #[test]
-fn reasoning_content_never_reaches_the_batches() {
+fn reasoning_content_rides_with_its_tool_call_batch() {
     let reply = |body: serde_json::Value| -> AssistantMessage {
         serde_json::from_value(body).expect("a response message parses")
     };
     let calls = reply(json!({
         "content": null,
-        "reasoning_content": "SECRET-THOUGHT",
+        "reasoning_content": "R1 \"verbatim\"",
         "tool_calls": [{"id": "c", "type": "function",
             "function": {"name": "query_entities", "arguments": "{}"}}]
     }));
-    let last = reply(json!({"content": "done", "reasoning_content": "SECRET-THOUGHT"}));
-    let (_, batches, _) = scripted(
+    let last = reply(json!({"content": "done", "reasoning_content": "LAST-THOUGHT"}));
+    let (result, batches, _) = scripted(
         "go",
         &with_memory(Vec::new()),
         vec![Some(calls), Some(last)],
     );
     assert_eq!(batches.len(), 2);
-    assert!(!wire(&batches).concat().contains("SECRET-THOUGHT"));
-    assert!(!wire(&batches).concat().contains("reasoning_content"));
+    assert_eq!(
+        batches[0].reasoning_content.as_deref(),
+        Some("R1 \"verbatim\"")
+    );
+    assert_eq!(batches[1].reasoning_content, None, "the tool result");
+    let done = TurnEnd::Done {
+        text: result.expect("text ends the turn"),
+    };
+    let memory = turn_record("go", false, batches, &done);
+    let closing = memory.last().expect("a closing text");
+    assert_eq!(
+        wire(std::slice::from_ref(closing)),
+        wire(&[ChatMessage::assistant("done")])
+    );
+    let (_, _, turn2) = scripted("again", &with_memory(memory), vec![Some(text("t"))]);
+    let sent = wire(&turn2[0]).concat();
+    assert_eq!(sent.matches("reasoning_content").count(), 1, "{sent}");
+    assert!(
+        sent.contains(r#""reasoning_content":"R1 \"verbatim\""}"#),
+        "{sent}"
+    );
+    assert!(!sent.contains("LAST-THOUGHT"));
+    assert_eq!(
+        turn2[0][2].reasoning_content.as_deref(),
+        Some("R1 \"verbatim\"")
+    );
 }
 
 /// AC 5 — a failed turn reports its whole batches only: a transport error
@@ -1311,11 +1562,6 @@ fn a_failed_turn_returns_its_whole_batches() {
     let one = || Some(batch(&[("query_entities", "{}")]));
     let cases = [
         ("transport", with_memory(Vec::new()), vec![one(), None]),
-        (
-            "budget",
-            cfg("sys", 2),
-            vec![one(), Some(batch(&[("a", ""), ("b", "")]))],
-        ),
         (
             "no content",
             with_memory(Vec::new()),
@@ -1328,6 +1574,16 @@ fn a_failed_turn_returns_its_whole_batches() {
         assert_eq!(batches, requests[1][2..].to_vec(), "{name}");
         assert_eq!(batches.len(), 2, "{name}: one call and its result");
     }
+    // LCV-189: the overrun batch is answered "not run", so it is whole too.
+    let over = || Some(batch(&[("a", ""), ("b", "")]));
+    let (result, batches, requests) = scripted("go", &cfg("sys", 2), vec![one(), over(), over()]);
+    assert!(matches!(result, Err(AgentError::IterationLimitExceeded(2))));
+    assert_eq!(batches, requests[2][2..].to_vec(), "budget");
+    assert_eq!(
+        batches.len(),
+        5,
+        "budget: the run batch and the not-run one"
+    );
     let (result, _, _, _) = fenced_turn(batch(&[("query_entities", "{}")]));
     assert!(matches!(result, Err(AgentError::FenceStopped)));
 }
@@ -1370,10 +1626,13 @@ fn a_cut_batch_is_dropped_and_an_unsent_image_is_elided() {
     let mut ask = |action: AgentAction| {
         asks += 1;
         match action {
-            AgentAction::CaptureCanvas => Ok(AgentOutcome::Observed {
+            AgentAction::CaptureCanvas(_) => Ok(AgentOutcome::Observed {
                 text: "Canvas".into(),
                 png: vec![9],
             }),
+            AgentAction::Replied { .. } | AgentAction::Feedback => {
+                Ok(AgentOutcome::Ok(String::new()))
+            }
             _ => Err(AgentError::Cancelled),
         }
     };
@@ -1381,10 +1640,232 @@ fn a_cut_batch_is_dropped_and_an_unsent_image_is_elided() {
     let (result, batches) = drive_turn("go", &config, &mut send_fn, &mut ask);
     assert!(matches!(result, Err(AgentError::Cancelled)));
     assert_eq!(batches.len(), 3, "the capture batch and its image message");
-    assert!(batches.iter().all(|m| !m.has_image()));
+    assert!(batches.iter().all(|m| m.image_count() == 0));
     assert!(
         wire(&batches)
             .concat()
             .contains(crate::agent::loop_::IMAGE_ELIDED)
     );
+}
+
+// ── LCV-193: every model reply reaches `ask` ─────────────────────────────
+
+/// LCV-193 AC 3 — each successful send reaches `ask` as one `Replied`, after
+/// the send and its image notes, carrying the authorised images that
+/// request carried: 0, then 1, then 0 for a withheld upload. A failed send
+/// is no reply. Each run batch's `Dispatch::Feedback` reaches `ask` as
+/// `AgentAction::Feedback`, after its last call (LCV-195).
+#[test]
+fn every_reply_reaches_ask_as_replied_with_its_captures() {
+    let mut sends = 0usize;
+    let mut send_fn = |_: &[ChatMessage]| {
+        sends += 1;
+        match sends {
+            1 | 2 => Ok(batch(&[("capture_canvas", "{}")])),
+            3 => Ok(text("done")),
+            _ => Err(AgentError::Transport("503".into())),
+        }
+    };
+    let (mut asked, mut uploads) = (Vec::new(), 0);
+    let mut ask = |action: AgentAction| {
+        // LCV-197: the verify ask is answered no; these tests are not about it.
+        if matches!(action, AgentAction::VerifyDue) {
+            return Ok(AgentOutcome::Refused(String::new()));
+        }
+        asked.push(action.clone());
+        Ok(match action {
+            AgentAction::CaptureCanvas(_) => AgentOutcome::Observed {
+                text: "Canvas".into(),
+                png: vec![1, 2, 3],
+            },
+            AgentAction::AuthorizeUpload { .. } => {
+                uploads += 1;
+                if uploads == 1 {
+                    AgentOutcome::Ok("yes".into())
+                } else {
+                    AgentOutcome::Refused("no".into())
+                }
+            }
+            _ => AgentOutcome::Ok(String::new()),
+        })
+    };
+    let config = config("https://example.invalid/v1", "vision/model", 8);
+    let (result, _) = drive_turn("look", &config, &mut send_fn, &mut ask);
+    assert_eq!(result.expect("text ends the turn"), "done");
+    let upload = AgentAction::AuthorizeUpload {
+        endpoint: "https://example.invalid/v1".into(),
+        model: "vision/model".into(),
+    };
+    let capture = AgentAction::CaptureCanvas(crate::agent::CaptureFrame::View);
+    assert_eq!(
+        asked,
+        [
+            AgentAction::Replied { captures: 0 },
+            capture.clone(),
+            AgentAction::Feedback,
+            upload.clone(),
+            AgentAction::Note("Canvas image for call call_0 sent.".into()),
+            AgentAction::Replied { captures: 1 },
+            capture,
+            AgentAction::Feedback,
+            upload,
+            AgentAction::Note("Canvas image for call call_0 withheld (permission changed).".into()),
+            AgentAction::Replied { captures: 0 },
+        ]
+    );
+
+    let mut asked = Vec::new();
+    let mut fail = |_: &[ChatMessage]| Err(AgentError::Transport("503".into()));
+    let mut ask = |action: AgentAction| {
+        asked.push(action);
+        Ok(AgentOutcome::Ok(String::new()))
+    };
+    let (result, _) = drive_turn("look", &config, &mut fail, &mut ask);
+    assert!(matches!(result, Err(AgentError::Transport(_))));
+    assert!(asked.is_empty(), "a failed send is no reply: {asked:?}");
+}
+
+/// LCV-193 AC 3 — a scripted turn over `drive_turn`, answered by the frame
+/// loop's own `answer_act` on an armed `App` with both canvas opt-ins on:
+/// a line, a refused delete, its repeat and a capture are four steps; the
+/// three completions are three replies; the one image that rode a replied
+/// request is one capture. After `Done` and one poll the last row is the note.
+#[test]
+fn a_scripted_turn_tallies_steps_refusals_repeats_captures_and_replies() {
+    use crate::agent::{AgentEvent, TurnMetrics};
+    use crate::app::agent_poll::answer_act;
+    use crate::app::{arm_turn, poll_agent_rx};
+
+    let mut app = App::default();
+    app.settings.agent_allow_canvas_capture = true;
+    app.settings.agent_model_supports_vision = true;
+    app.camera.viewport_size_px = [800.0, 600.0];
+    let tx = arm_turn(&mut app, "draw, delete, look");
+    let config = TurnConfig {
+        vision: true,
+        ..config(
+            &app.settings.agent_endpoint,
+            &app.settings.agent_model,
+            AGENT_STEP_BUDGET_DEFAULT,
+        )
+    };
+    const DELETE: &str = r#"{"index":7}"#;
+    let mut sends = 0usize;
+    let mut send_fn = |_: &[ChatMessage]| {
+        sends += 1;
+        Ok(match sends {
+            1 => batch(&[
+                ("create_line", r#"{"x1":0,"y1":0,"x2":10,"y2":0}"#),
+                ("delete_entity", DELETE),
+            ]),
+            2 => batch(&[("delete_entity", DELETE), ("capture_canvas", "{}")]),
+            _ => text("done"),
+        })
+    };
+    let (result, _) = drive_turn("draw, delete, look", &config, &mut send_fn, &mut |a| {
+        Ok(answer_act(&mut app, &a))
+    });
+    assert_eq!(result.as_deref().ok(), Some("done"));
+
+    let want = TurnMetrics {
+        steps: 4,
+        applied: 1,
+        refused: 2,
+        repeated: 1,
+        captures: 1,
+        replies: 3,
+    };
+    assert_eq!(app.agent.turn.tally, want);
+
+    tx.send(AgentEvent::done("done"))
+        .expect("the turn is armed");
+    poll_agent_rx(&mut app);
+    assert!(!app.agent.busy);
+    assert_eq!(
+        app.agent.chat.last(),
+        Some(&("note".to_owned(), want.note()))
+    );
+}
+
+// ── LCV-199: the attached reference image ───────────────────────────────
+
+fn with_image(kind: crate::agent::ImageKind, bytes: &[u8]) -> TurnConfig {
+    TurnConfig {
+        image: Some(UserImage {
+            name: "sketch".into(),
+            kind,
+            bytes: bytes.to_vec(),
+        }),
+        ..cfg("sys", AGENT_STEP_BUDGET_DEFAULT)
+    }
+}
+
+/// AC 2 — the attached image rides in the turn's user message, after the
+/// prompt, as an `image/png` or `image/jpeg` part.
+#[test]
+fn an_attached_image_rides_in_the_user_message() {
+    use crate::agent::ImageKind;
+    for (kind, bytes, url) in [
+        (
+            ImageKind::Png,
+            &b"\x89PNG"[..],
+            "data:image/png;base64,iVBORw==",
+        ),
+        (
+            ImageKind::Jpeg,
+            &[0xFF, 0xD8, 0xFF][..],
+            "data:image/jpeg;base64,/9j/",
+        ),
+    ] {
+        let (_, _, requests) =
+            scripted("draw this", &with_image(kind, bytes), vec![Some(text("t"))]);
+        let user = serde_json::to_string(&requests[0][1]).unwrap();
+        assert_eq!(
+            user,
+            format!(
+                r#"{{"role":"user","content":[{{"type":"text","text":"draw this"}},{{"type":"image_url","image_url":{{"url":"{url}"}}}}]}}"#
+            )
+        );
+    }
+}
+
+/// AC 7 — without an attachment the request is byte-identical to the one
+/// sent before LCV-199, pinned as JSON.
+#[test]
+fn a_turn_without_an_image_sends_the_pinned_bytes() {
+    let memory = vec![ChatMessage::user("before"), ChatMessage::assistant("reply")];
+    let (_, _, requests) = scripted("now", &with_memory(memory), vec![Some(text("t"))]);
+    assert_eq!(
+        serde_json::to_string(&requests[0]).unwrap(),
+        concat!(
+            r#"[{"role":"system","content":"sys"},"#,
+            r#"{"role":"user","content":"before"},"#,
+            r#"{"role":"assistant","content":"reply"},"#,
+            r#"{"role":"user","content":"now"}]"#
+        )
+    );
+}
+
+/// The config's `Debug` names the image and its size, never its bytes.
+#[test]
+fn turn_config_debug_prints_the_image_size_only() {
+    let shown = format!("{:?}", with_image(crate::agent::ImageKind::Png, &[0xAB; 5]));
+    assert!(shown.contains("bytes_len: 5"), "{shown}");
+    assert!(!shown.contains("171"), "{shown}");
+}
+
+/// AC 6 — inside the turn the attached image rides one request; the next
+/// carries the user message exactly as memory records it.
+#[test]
+fn the_next_request_carries_the_user_message_as_memory_keeps_it() {
+    let config = with_image(crate::agent::ImageKind::Png, b"\x89PNG");
+    let replies = vec![Some(batch(&[("query_selection", "")])), Some(text("t"))];
+    let (_, _, requests) = scripted("trace it", &config, replies);
+    assert_eq!(requests[0][1].image_count(), 1);
+    let done = TurnEnd::Done { text: "t".into() };
+    assert_eq!(
+        requests[1][1],
+        turn_record("trace it", true, Vec::new(), &done)[0]
+    );
+    assert!(requests[1].iter().all(|m| m.image_count() == 0));
 }

@@ -157,7 +157,7 @@ mod tests {
     use super::*;
 
     /// The sixteen icons in `TOOLS` order, named for failure messages.
-    const ICONS: [(&str, IconFn); 16] = [
+    const ICONS: [(&str, IconFn); 17] = [
         ("select", draw::select),
         ("line", draw::line),
         ("polyline", draw::polyline),
@@ -174,6 +174,7 @@ mod tests {
         ("extend", modify::extend),
         ("delete", modify::delete),
         ("dist", modify::dist),
+        ("check_drawing", modify::check_drawing),
     ];
 
     /// The menu-row glyphs (LCV-166), checked by the same rules.
@@ -255,6 +256,20 @@ mod tests {
     /// AC 1 (and LCV-166 AC 2/3 for the menu glyphs) — each icon paints
     /// something, and only line-art vector shapes: no text, mesh
     /// (image/texture) or callback.
+    /// LCV-190 — the check glyph's lens is one circle of radius 4.5 centred
+    /// on its grid point (12, 12), placed relative to the square.
+    #[test]
+    fn check_drawing_lens_is_one_circle_on_its_grid_point() {
+        let lens: Vec<(egui::Pos2, f32)> = paint(modify::check_drawing)
+            .into_iter()
+            .filter_map(|shape| match shape {
+                egui::Shape::Circle(c) => Some((c.center, c.radius)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(lens, vec![(square().min + egui::vec2(12.0, 12.0), 4.5)]);
+    }
+
     #[test]
     fn ac1_icons_paint_only_vector_shapes() {
         for (name, icon) in all_icons() {

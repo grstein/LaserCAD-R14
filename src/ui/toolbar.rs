@@ -14,13 +14,14 @@
 //! window scrolls instead of clipping. LCV-183 replaced the text buttons with
 //! 32 pt icon buttons (`crate::ui::icons`) in two columns — the draw group
 //! left, the modify group right — with the `AI` toggle below both, and a
-//! tooltip naming label, key and command word ([`tool_hover_text`]). The
+//! tooltip naming label, key and command word ([`tool_hover_text`]). LCV-190
+//! put a CHECK icon button beside `AI`. The
 //! rail's fixed width lives in `src/app/panels.rs::RAIL_WIDTH`.
 
 use crate::app::App;
 use crate::cmdline::ToolKind;
 use crate::tools;
-use crate::ui::icons::{icon_button, text_button};
+use crate::ui::icons::{icon_button, modify, text_button};
 
 mod table;
 pub(crate) use table::{TOOLS, ToolEntry};
@@ -36,6 +37,10 @@ pub(crate) const RAIL_GAP: f32 = 4.0;
 /// form): a 32 pt square button below both tool columns. Its hover text is
 /// `"AI Assistant"`, set at the one call site in [`draw_toolbar`].
 pub(crate) const AGENT_TOGGLE_LABEL: &str = "AI";
+
+/// Hover text of the CHECK button beside `AI` (LCV-190): a command, not a
+/// tool, so it is no `TOOLS` entry and has no key.
+pub(crate) const CHECK_HOVER: &str = "Check — CHECK";
 
 /// Hover-tooltip text for one `TOOLS` entry (LCV-183 AC 6):
 /// `<Label> — <key> · <WORD>`, or `<Label> — <WORD>` when the entry has no
@@ -54,7 +59,8 @@ pub(crate) fn tool_hover_text(entry: &ToolEntry) -> String {
 ///
 /// Two columns of [`icon_button`]s — the draw group (Select … Text) on the
 /// left, the modify group (Move … Dist) on the right — then a separator and
-/// the `AI` toggle below both. The active tool's button is painted in the
+/// a bottom row: the `AI` toggle, and beside it the CHECK button, which runs
+/// [`App::run_check`] (LCV-190). The active tool's button is painted in the
 /// selected fill. Clicking a button calls
 /// [`ToolManager::set_tool`](crate::tools::ToolManager::set_tool), which
 /// cancels any in-progress state on the old tool before switching.
@@ -78,7 +84,7 @@ pub fn draw_toolbar(ui: &mut egui::Ui, app: &mut App) {
     let (draw, modify) = TOOLS.split_at(MODIFY_GROUP_START);
 
     // At most one of these can be true/Some per frame.
-    let (clicked, agent_clicked): (Option<ToolKind>, bool) = egui::ScrollArea::vertical()
+    let (clicked, agent_clicked, check_clicked) = egui::ScrollArea::vertical()
         .show(ui, |ui| {
             ui.spacing_mut().item_spacing = egui::Vec2::splat(RAIL_GAP);
             let mut clicked: Option<ToolKind> = None;
@@ -98,11 +104,17 @@ pub fn draw_toolbar(ui: &mut egui::Ui, app: &mut App) {
             });
 
             ui.separator();
-            let agent_clicked = text_button(ui, agent_panel_open, AGENT_TOGGLE_LABEL)
-                .on_hover_text("AI Assistant")
-                .clicked();
+            let (agent_clicked, check_clicked) = ui
+                .horizontal(|ui| {
+                    let agent = text_button(ui, agent_panel_open, AGENT_TOGGLE_LABEL)
+                        .on_hover_text("AI Assistant");
+                    let check =
+                        icon_button(ui, false, modify::check_drawing).on_hover_text(CHECK_HOVER);
+                    (agent.clicked(), check.clicked())
+                })
+                .inner;
 
-            (clicked, agent_clicked)
+            (clicked, agent_clicked, check_clicked)
         })
         .inner;
 
@@ -111,6 +123,9 @@ pub fn draw_toolbar(ui: &mut egui::Ui, app: &mut App) {
     }
     if agent_clicked {
         app.agent.panel_open = !app.agent.panel_open;
+    }
+    if check_clicked {
+        app.run_check();
     }
 }
 

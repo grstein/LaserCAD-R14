@@ -55,6 +55,10 @@ pub fn parse(raw: &str) -> CommandInput {
     if lower == "layer" || lower == "la" {
         return CommandInput::Layers;
     }
+    // LCV-190: a command word, not a tool and not a letter (ADR 0003 §A2a).
+    if lower == "check" {
+        return CommandInput::Check;
+    }
     // Polar entry (LCV-159, ADR 0003 amendment (5)): `@d<a` is an offset from
     // the anchor, `d<a` a point from the origin. No new variant.
     if trimmed.contains('<') {
@@ -490,6 +494,18 @@ mod tests {
             assert_eq!(parse(word), CommandInput::Tool(ToolKind::Scale), "{word:?}");
         }
         assert_eq!(parse("s"), CommandInput::Tool(ToolKind::Select));
+    }
+
+    /// LCV-190 AC 1 — `check` (any case) is the Check command; no shorter
+    /// form or letter is a word.
+    #[test]
+    fn parses_check_word() {
+        for raw in ["check", "CHECK", " Check "] {
+            assert_eq!(parse(raw), CommandInput::Check, "{raw:?}");
+        }
+        for raw in ["ch", "chk", "checks", "check all"] {
+            assert_eq!(parse(raw), CommandInput::Unknown(raw.into()), "{raw:?}");
+        }
     }
 
     /// LCV-156 AC 4 — `layer` and `la` (any case) are the Layers command;

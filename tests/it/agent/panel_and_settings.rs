@@ -171,11 +171,12 @@ fn ac2_ac4_ac5_the_seven_rows_are_painted_one_line_each_in_order() {
     let lines = lines_on_surface_of(&runs, "AI Assistant");
     assert_eq!(
         lines.len(),
-        9,
-        "the panel paints its heading, seven rows and the prompt row, and \
-         nothing else: {:?}",
+        10,
+        "the panel paints its heading, seven rows, the attach row (LCV-199) \
+         and the prompt row, and nothing else: {:?}",
         texts(&lines)
     );
+    assert_eq!(texts(&lines[8..9]), [vec!["Attach image…".to_owned()]]);
     assert_eq!(
         lines[0].1.first().map(String::as_str),
         Some("AI Assistant"),
@@ -272,7 +273,7 @@ fn ac6_the_api_key_reaches_no_transcript_row() {
     assert!(!app.agent.busy, "the turn ended");
     assert_eq!(
         roles(&app),
-        ["user", "tool", "refused", "assistant", "note"],
+        ["user", "tool", "refused", "assistant", "note", "note"],
         "the turn really produced the rows this demand renders"
     );
     for (role, content) in &app.agent.chat {
@@ -339,6 +340,9 @@ fn ac8_ac9_ac10_the_settings_dialog_draws_headless_frame() {
 ///
 /// **LCV-153 note**: one more line — the Context tokens field, under the step
 /// budget's sentence.
+///
+/// **LCV-195 note**: two more lines — the Feedback after changes checkbox and
+/// its hint, under the canvas disclosure.
 #[test]
 fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
     let (ctx, mut app) = ctx_and_app();
@@ -372,6 +376,11 @@ fn ac8_ac9_ac10_the_form_paints_its_fields_and_both_sentences() {
             vec![concat!(
                 "When both are on, the agent may send a picture of the drawing ",
                 "(not the window) to the configured provider and model."
+            )],
+            vec!["Feedback after changes"],
+            vec![concat!(
+                "After each reply that changes the drawing, tell the agent its ",
+                "size and CHECK result."
             )],
             vec!["System prompt", "Restore Default"],
             vec![lasercad::agent::DEFAULT_PROMPT],

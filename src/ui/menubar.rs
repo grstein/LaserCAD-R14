@@ -175,6 +175,11 @@ fn tools_menu(ui: &mut egui::Ui, app: &mut App) {
                 app.tool_manager.set_tool(tools::make(entry.kind));
             }
         }
+        // CHECK is a one-shot command, not a tool: its row sits after TOOLS.
+        if menu_row(ui, Some(modify::check_drawing), "Check", "").clicked() {
+            ui.close_menu();
+            app.run_check();
+        }
     });
 }
 

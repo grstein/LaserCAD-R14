@@ -189,3 +189,5 @@ inside the `Act`, **not** a `ViewportCommand::Screenshot` framebuffer read.
 Draft AC 1 and AC 3–8 were replaced accordingly; draft AC 9–11 map to ADR
 0011 items 8–10 (AC 9–11 above). ADR 0007 §D1/§D8 are clarified there and in
 amendment (7).
+
+> **Amended 2026-09-30 by LCV-187:** `capture_canvas` now takes a `frame` argument (`viewport`, `drawing`, `region`); AC 3 "(no arguments)", AC 4 "frame is the visible viewport" and the out-of-scope "framing argument" line describe the default only.

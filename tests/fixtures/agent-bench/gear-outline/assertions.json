@@ -1,0 +1,21 @@
+[
+  {
+    "kind": "circles",
+    "r": 5,
+    "count": 1,
+    "tol": 0.05
+  },
+  {
+    "kind": "bbox",
+    "w": 59.872,
+    "h": 59.872,
+    "tol": 0.2
+  },
+  {
+    "kind": "closed"
+  },
+  {
+    "kind": "min_entities",
+    "n": 49
+  }
+]

@@ -117,6 +117,12 @@ pub struct Settings {
     #[serde(default)]
     pub agent_model_supports_vision: bool,
 
+    /// LCV-195 opt-in: after each reply that changed the drawing, the agent
+    /// is told its size and CHECK result (and shown it, when both canvas
+    /// opt-ins are on too). Off by default; read live by the UI thread.
+    #[serde(default)]
+    pub agent_feedback_after_changes: bool,
+
     /// The model's context window in tokens (LCV-153); conversation memory
     /// is capped at half of it. Stored verbatim — the reader clamps with
     /// `agent::memory::clamp_context_tokens` (ADR 0007 §D7).
@@ -166,6 +172,7 @@ impl Default for Settings {
             agent_system_prompt: None,
             agent_allow_canvas_capture: false,
             agent_model_supports_vision: false,
+            agent_feedback_after_changes: false,
             agent_context_tokens: default_agent_context_tokens(),
             object_snaps: SnapKinds::default(),
         }

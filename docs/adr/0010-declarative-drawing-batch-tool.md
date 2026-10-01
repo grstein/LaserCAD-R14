@@ -5,6 +5,33 @@
   (LCV-156): the root key set is `{version, entities}` plus an optional `layer` string naming an
   existing layer; the whole batch lands on it (else on the current layer). §5's "export preset"
   no longer exists. Nothing else changes.
+- **Amended (2)**: 2026-09-30 — LCV-185: an item's key set is that type's fields plus `type`;
+  another type's field (one the flat schema of §2 publishes) is tolerated only when `null`, and
+  refused with `not a <type> key; a <type> takes <keys>` otherwise. A key no type publishes stays
+  `unknown key`. The item properties of §2 are built from the per-type key lists. §2's schema rules
+  are unchanged.
+- **Amended (3)**: 2026-09-30 — LCV-192: every error of the **Errors** paragraph below ends
+  `; expected <form>` (ADR 0007 Amended (12)), and the whole argument string is the path
+  `(root)` (was `arguments`). The path, the 64-character key cut and the no-echo rule are
+  unchanged.
+- **Amended (4)**: 2026-09-30 — LCV-188, [ADR 0014](0014-stable-entity-ids.md) §8: §7's outcome
+  sentence gains the suffix ` New id: e<N>.` or ` New ids: e<A>..=e<B>.`; its words are
+  unchanged.
+- **Amended (5)**: 2026-10-01 — LCV-196: §2 and §3.3 gain six item types: `polyline {points,
+  closed}`, `rect {x, y, width, height, corner_radius}`, `polygon {cx, cy, r, sides, start_deg}`,
+  `text {x, y, height, text}`, `linear_array {of, count, dx, dy}` and
+  `polar_array {of, count, cx, cy, step_deg}`.
+  - **Expansion.** `drawing.rs` expands them into §4's `Line|Circle|Arc` before the `Act` exists.
+    The §3.2 cap of 1000 applies to the expanded count, which is computed before any copy is
+    made. §4's DTO is unchanged.
+  - **Kernel calls.** Expansion may call the kernel's `crate::geometry` and `crate::text` (both
+    kernel-pure). No document type crosses into `src/agent/`, and text goes through
+    `text::layout::text_strokes`, the function `TEXT` uses.
+  - **Arrays.** `of` references earlier items by batch position. A listed array contributes its
+    whole output, two levels at most.
+  - **Unchanged.** `version` stays 1, since every earlier payload stays valid. §2's schema rules
+    are unchanged (still no `oneOf`/`anyOf`/`allOf`/`const`/`additionalProperties`), and §1's
+    one dispatch = one command = one revision holds.
 - **Date**: 2026-09-27
 - **Deciders**: architect (LCV-144; in the 1.0 scope by the 2026-09-27 scope
   decision recorded in `PLAN.md`)
@@ -48,8 +75,8 @@ no document type). Order:
 2. **Root.** An object whose key set is exactly `{version, entities}`;
    `version` is the integer 1; `entities` is an array of 1..=1000.
 3. **Each entity.** An object; `type` ∈ {`line`, `circle`, `arc`}; its key set
-   is **exactly** that type's fields plus `type` — unknown or missing keys are
-   errors; numbers finite; `ccw` boolean; `r` through the **same** positive-
+   is that type's fields plus `type`; another type's field is tolerated only
+   when `null` (Amended (2)) — unknown or missing keys are errors; numbers finite; `ccw` boolean; `r` through the **same** positive-
    finite helper `create_circle` / `create_arc` use (shared with `tools.rs`,
    not copied).
 4. **Units.** mm in, mm out. `start_deg` / `end_deg` are converted to radians
@@ -69,6 +96,11 @@ rule, if ever wanted, is added to the shared helper and binds both paths.
 echoed; an unknown key's name is echoed truncated to 64 characters. Under §D15
 the error is a `Malformed` `Act` → `Refused` → tool result + transcript row;
 nothing applied, revision unchanged.
+
+> **Amended (3), 2026-09-30 (LCV-192).** The error gains the expected form:
+> `create_drawing entities[17].r: -3 is out of range; expected a positive
+> number in mm`. One `ToolCallError::Arg { tool, path, reason, expected }`
+> replaces the per-site variants; the root of the arguments is `(root)`.
 
 **4. DTO.** `AgentAction::CreateDrawing { items: Vec<DrawingItem> }`, with
 `DrawingItem { Line{x1,y1,x2,y2} | Circle{cx,cy,r} | Arc{cx,cy,r,start,end,ccw} }`

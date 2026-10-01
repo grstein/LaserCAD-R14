@@ -4,6 +4,7 @@ mod autosave_dirty;
 mod autosave_repaint;
 mod confirm_discard;
 mod document_title_and_file_feedback;
+mod entity_ids;
 mod feedback_agreement;
 mod idle_repaint;
 mod keyboard_routing;

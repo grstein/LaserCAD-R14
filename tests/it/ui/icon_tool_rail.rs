@@ -328,3 +328,52 @@ fn ac9_a_wheel_scroll_reveals_the_ai_toggle_on_a_short_window() {
         "a wheel scroll must reveal the AI toggle"
     );
 }
+
+/// Centre of the CHECK button: the `AI` row, the right column (LCV-190).
+fn check_point(ctx: &egui::Context, runs: &[Run]) -> egui::Pos2 {
+    let ai = ai_point(ctx, runs);
+    egui::pos2(centre(rail_rect(ctx), 1, 0).x, ai.y)
+}
+
+/// LCV-190 AC 1 — the bottom row carries a CHECK icon button beside `AI`,
+/// with the tooltip `Check — CHECK`, and paints no text of its own.
+#[test]
+fn lcv190_check_button_sits_beside_ai_with_its_tooltip() {
+    let (ctx, mut app) = ctx_and_app();
+    let runs = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
+    let pos = check_point(&ctx, &runs);
+    let ai = ai_point(&ctx, &runs);
+    assert!(pos.x > ai.x + BUTTON / 2.0, "CHECK is right of AI");
+    let texts = tooltip_at(SCREEN, pos);
+    assert!(
+        texts.iter().any(|t| t == "Check — CHECK"),
+        "the CHECK button's tooltip: {texts:?}"
+    );
+    assert!(
+        !texts.iter().any(|t| t == "AI Assistant"),
+        "the CHECK point is not the AI toggle: {texts:?}"
+    );
+}
+
+/// LCV-190 AC 1 — clicking CHECK runs the check: findings fill the report
+/// and the dock, a clean drawing says so; the active tool does not change.
+#[test]
+fn lcv190_clicking_check_runs_the_check() {
+    use lasercad::document::Entity;
+    use lasercad::geometry::{Line, Vec2};
+
+    let (ctx, mut app) = ctx_and_app();
+    let runs = painted_runs_at(&ctx, &mut app, SCREEN, Vec::new());
+    let pos = check_point(&ctx, &runs);
+    click(&ctx, &mut app, SCREEN, pos);
+    assert_eq!(app.command_feedback, "CHECK: no problems found.");
+    assert_eq!(app.check_report, None);
+
+    let open = Line::new(Vec2::new(10.0, 10.0), Vec2::new(50.0, 10.0));
+    app.document.push_current(Entity::Line(open));
+    click(&ctx, &mut app, SCREEN, pos);
+    assert_eq!(app.command_feedback, "CHECK: 2 open ends");
+    assert_eq!(app.check_report.as_ref().map(Vec::len), Some(3));
+    assert_eq!(app.tool_manager.active_tool_name(), "Select");
+    assert!(!app.agent.panel_open, "CHECK is not the AI toggle");
+}

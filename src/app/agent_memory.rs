@@ -30,14 +30,15 @@ pub(crate) fn begin(app: &mut App, prompt: &str) -> String {
     }
 }
 
-/// Append the ended turn to memory. Only `Done` advances the mark: after a
+/// Append the ended turn to memory, its attached image (LCV-199) as the
+/// placeholder. Only `Done` advances the mark: after a
 /// failed or cancelled turn the model has not seen its own applied actions
 /// described, so the next turn is told the drawing changed.
 pub(crate) fn record(app: &mut App, end: TurnEnd, batches: Vec<ChatMessage>) {
     let user = std::mem::take(&mut app.agent.turn.user);
     app.agent
         .memory
-        .push_turn(turn_record(&user, batches, &end));
+        .push_turn(turn_record(&user, app.agent.turn.image, batches, &end));
     if matches!(end, TurnEnd::Done { .. }) {
         app.agent.memory_mark = Some(live_mark(app));
     }
@@ -59,6 +60,23 @@ mod tests {
         app.agent.memory_mark = Some((app.history.id(), app.history.revision() + 1));
         let prefixed = begin(&mut app, "c");
         assert_eq!(prefixed, format!("{DRAWING_CHANGED_PREFIX}\nc"));
+    }
+
+    /// LCV-199 AC 6 — a turn that carried an image is remembered with the
+    /// placeholder; the flag is the turn's.
+    #[test]
+    fn record_keeps_the_image_placeholder_of_an_image_turn() {
+        let mut app = App::default();
+        app.agent.turn.user = "trace".into();
+        app.agent.turn.image = true;
+        record(&mut app, TurnEnd::Done { text: "ok".into() }, Vec::new());
+        let user = &app.agent.memory.turns()[0][0];
+        assert!(
+            serde_json::to_string(user)
+                .unwrap_or_default()
+                .contains("image elided")
+        );
+        assert_eq!(user.image_count(), 0);
     }
 
     #[test]

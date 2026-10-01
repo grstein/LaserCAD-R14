@@ -30,14 +30,19 @@
 //! Imports `egui` nowhere, `eframe` nowhere, `rfd` nowhere, and spawns no
 //! thread.
 
+use crate::agent::tools::refusal;
 use crate::agent::{AgentAction, AgentOutcome, DrawingItem};
-use crate::app::agent_narrate::{batch_created, list_entities, list_selection, pt, sweep};
-use crate::app::{App, agent_capture};
+use crate::app::agent_narrate::{batch_created, list_entities, list_selection, new_ids, pt, sweep};
+use crate::app::{App, agent_capture, agent_checkpoint};
 use crate::document::commands::CreateEntities;
-use crate::document::{Command, CreateArc, CreateCircle, CreateLine, Document, Entity, LayerId};
+use crate::document::{
+    Command, CreateArc, CreateCircle, CreateLine, Document, Entity, LayerId, check_drawing,
+};
 use crate::geometry::{Arc as GeoArc, Circle, Line, Vec2};
 
 mod edit;
+mod measure;
+mod set;
 
 /// The refusal for a capture while either opt-in is off (LCV-145 AC 2).
 pub(crate) const CAPTURE_DISABLED: &str = "canvas capture is disabled in Help > AI Settings…";
@@ -60,23 +65,31 @@ enum Planned {
 /// and leave `revision()` untouched. Either way the outcome is transcribed
 /// before it is returned (AC 23).
 pub fn apply(app: &mut App, action: &AgentAction) -> AgentOutcome {
-    // LCV-145: a capture reads the camera, which `plan` cannot see.
+    // LCV-145: a capture reads the camera, LCV-198 the turn's group and
+    // checkpoints, which `plan` cannot see.
     let planned = match action {
-        AgentAction::CaptureCanvas => Planned::Answer(agent_capture::capture(app)),
+        AgentAction::CaptureCanvas(frame) => Planned::Answer(agent_capture::capture(app, frame)),
+        AgentAction::Checkpoint { name } => {
+            Planned::Answer(agent_checkpoint::checkpoint(app, name))
+        }
+        AgentAction::Rollback { name } => Planned::Answer(agent_checkpoint::rollback(app, name)),
         _ => plan(action, &app.document),
     };
     let outcome = match planned {
         Planned::Answer(outcome) => outcome,
         Planned::Commit(command, sentence) => {
+            let first = app.document.entity_count();
             // Into the turn's flat group (ADR 0007 §D12); `App::commit` seals.
             app.history.commit_grouped(command, &mut app.document);
-            AgentOutcome::Ok(with_count(&sentence, app.document.entity_count()))
+            let text = with_count(&sentence, app.document.entity_count());
+            AgentOutcome::Ok(text + &new_ids(&app.document, first))
         }
         Planned::Batch(command, n) => {
             let first = app.document.entity_count();
             app.history.commit_grouped(command, &mut app.document);
             let (count, revision) = (app.document.entity_count(), app.history.revision());
-            AgentOutcome::Ok(batch_created(n, first, count, revision))
+            let text = batch_created(n, first, count, revision);
+            AgentOutcome::Ok(text + &new_ids(&app.document, first))
         }
     };
     transcribe(app, &outcome);
@@ -110,7 +123,7 @@ pub(crate) fn transcribe(app: &mut App, outcome: &AgentOutcome) {
 /// because afterwards it is gone.
 fn plan(action: &AgentAction, doc: &Document) -> Planned {
     // LCV-156: a named layer must exist; no name means the current layer.
-    let layer = match target_layer(action.layer(), doc) {
+    let layer = match target_layer(action.tool_name(), action.layer(), doc) {
         Ok(id) => id,
         Err(refusal) => return Planned::Answer(refusal),
     };
@@ -164,18 +177,36 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
             y,
             factor,
         } => edit::scale(index, Vec2::new(x, y), factor, doc),
+        AgentAction::Set {
+            ref indices,
+            ref op,
+        } => set::plan(action.tool_name(), indices, op, doc),
+        AgentAction::ById { ref ids, ref op } => set::by_ids(action.tool_name(), ids, op, doc),
         AgentAction::QueryEntities => Planned::Answer(AgentOutcome::Ok(list_entities(doc))),
         AgentAction::QuerySelection => Planned::Answer(AgentOutcome::Ok(list_selection(doc))),
+        AgentAction::CheckDrawing => {
+            Planned::Answer(AgentOutcome::Ok(check_drawing(doc).lines().join("\n")))
+        }
+        AgentAction::Measure(ref request) => measure::answer(request, doc),
         // One command for the whole batch (ADR 0010 §1, §5).
         AgentAction::CreateDrawing { ref items, .. } => Planned::Batch(
             Box::new(CreateEntities::new(items.iter().map(entity_of).collect()).on_layer(layer)),
             items.len(),
         ),
-        // Never planned against the document: `apply` answers a capture from
-        // the live app, and `agent_poll` answers an upload check before the
-        // fence. Reaching here is a routing slip, so the answer is the safe
-        // one — nothing is rendered and nothing is authorised (LCV-145).
-        AgentAction::CaptureCanvas | AgentAction::AuthorizeUpload { .. } => {
+        // Never planned against the document: `apply` answers a capture, a
+        // checkpoint and a rollback from the live app, and `agent_poll` answers an upload check, a note,
+        // a reply, a feedback ask and a verify ask before the fence. Reaching
+        // here is a routing slip, so the answer is the safe one — nothing is
+        // rendered and nothing is authorised (LCV-145, LCV-187, LCV-193,
+        // LCV-195, LCV-197, LCV-198).
+        AgentAction::CaptureCanvas(_)
+        | AgentAction::AuthorizeUpload { .. }
+        | AgentAction::Note(_)
+        | AgentAction::Replied { .. }
+        | AgentAction::Feedback
+        | AgentAction::VerifyDue
+        | AgentAction::Checkpoint { .. }
+        | AgentAction::Rollback { .. } => {
             Planned::Answer(AgentOutcome::Refused(CAPTURE_DISABLED.to_owned()))
         }
         // §D15: answered from the reason alone; the document is not read.
@@ -186,17 +217,21 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
 }
 
 /// The layer a creation lands on: the named one, resolved by key, else the
-/// current one. An unknown name is refused naming the layers (ADR 0012 §6).
-fn target_layer(name: Option<&str>, doc: &Document) -> Result<LayerId, AgentOutcome> {
+/// current one. An unknown name is refused naming the layers (ADR 0012 §6),
+/// in the LCV-192 shape; the name is at most 64 characters (`layer_arg`).
+fn target_layer(tool: &str, name: Option<&str>, doc: &Document) -> Result<LayerId, AgentOutcome> {
     let Some(name) = name else {
         return Ok(doc.current_layer());
     };
     doc.layer_by_name(name).map(|l| l.id).ok_or_else(|| {
-        let names: Vec<&str> = doc.layers().iter().map(|l| l.name.as_str()).collect();
-        AgentOutcome::Refused(format!(
-            "unknown layer \"{name}\" (the layers are: {}); nothing was drawn",
-            names.join(", ")
-        ))
+        let names: Vec<String> = doc
+            .layers()
+            .iter()
+            .map(|l| format!("\"{}\"", l.name))
+            .collect();
+        let reason = format!("unknown layer \"{name}\"");
+        let expected = format!("one of {}", names.join(", "));
+        AgentOutcome::Refused(refusal(tool, "layer", &reason, &expected))
     })
 }
 

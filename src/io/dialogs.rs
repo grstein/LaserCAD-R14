@@ -1,5 +1,6 @@
-//! Thin blocking wrappers around [`rfd::FileDialog`] for the three file-system
-//! operations LaserCAD needs: open a file, save a file, and pick a directory.
+//! Thin blocking wrappers around [`rfd::FileDialog`] for the file-system
+//! operations LaserCAD needs: open a file, save a file, pick a directory, and
+//! pick an image for the agent (LCV-199).
 //!
 //! These functions are the sole consumers of `rfd` in the codebase.  All file
 //! I/O (reading / writing SVG) is handled by [`crate::io::svg`]; these
@@ -47,7 +48,7 @@ pub fn arm_native_dialogs() {
 /// This is a deliberate `panic!`, not a silent `unwrap`/`expect`, and not a
 /// violation of `AGENTS.md`'s ban on those: returning `None` here would be
 /// indistinguishable from "the user cancelled", which is a valid, documented
-/// return from all three wrappers — a disarmed call returning `None` would
+/// return from every wrapper — a disarmed call returning `None` would
 /// let a regression that reaches this point run down a wrong code path and
 /// go green. Panicking is an ordinary libtest failure: it names the test,
 /// prints this message, and the rest of the run continues. See ADR 0005
@@ -99,9 +100,21 @@ pub fn pick_folder_dialog() -> Option<PathBuf> {
     rfd::FileDialog::new().pick_folder()
 }
 
+/// Opens a native file-open dialog filtered to PNG and JPEG images, for the
+/// agent's reference image (LCV-199). The file's real format is checked by
+/// its first bytes after the pick, not here.
+///
+/// Returns `Some(path)` on confirm, `None` on cancel.
+pub fn pick_image_dialog() -> Option<PathBuf> {
+    require_armed("pick_image_dialog");
+    rfd::FileDialog::new()
+        .add_filter("Images", &["png", "jpg", "jpeg"])
+        .pick_file()
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{open_file_dialog, pick_folder_dialog, save_file_dialog};
+    use super::{open_file_dialog, pick_folder_dialog, pick_image_dialog, save_file_dialog};
 
     /// LCV-061 AC#1–3 — compile-time assertion that the three wrappers carry
     /// exactly the declared signatures.  No dialog is opened; the test passes
@@ -111,6 +124,7 @@ mod tests {
         let _: fn() -> Option<std::path::PathBuf> = open_file_dialog;
         let _: fn(&str) -> Option<std::path::PathBuf> = save_file_dialog;
         let _: fn() -> Option<std::path::PathBuf> = pick_folder_dialog;
+        let _: fn() -> Option<std::path::PathBuf> = pick_image_dialog;
     }
 
     // -- LCV-118 (ADR 0005) — native dialogs disarmed until `crate::run()` --
@@ -146,6 +160,13 @@ mod tests {
     #[should_panic(expected = "pick_folder_dialog")]
     fn pick_folder_dialog_panics_when_disarmed() {
         pick_folder_dialog();
+    }
+
+    /// LCV-199 AC 1 — the image picker is guarded like its siblings.
+    #[test]
+    #[should_panic(expected = "pick_image_dialog")]
+    fn pick_image_dialog_panics_when_disarmed() {
+        pick_image_dialog();
     }
 
     /// AC 4 — a second `should_panic` on the same wrapper, asserting a

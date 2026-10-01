@@ -1,6 +1,7 @@
 //! SVG import/export: orientation, layers, checked-in examples.
 
 mod docs_examples_roundtrip;
+mod entity_ids;
 mod export_layers;
 mod import;
 mod import_fuzz;

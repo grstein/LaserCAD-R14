@@ -76,7 +76,7 @@ fn ac4_the_thinking_row_counts_every_act_against_the_limit() {
     ];
     let lines = panel_lines(&ctx, &mut app);
     assert!(app.agent.busy, "Acts are not verdicts");
-    assert_eq!(app.agent.turn.steps, 3);
+    assert_eq!(app.agent.turn.tally.steps, 3);
     assert!(has(&lines, "Thinking… 3 of 256 steps"), "{lines:?}");
     assert!(
         !has(&lines, "Thinking… 0 of 256 steps"),

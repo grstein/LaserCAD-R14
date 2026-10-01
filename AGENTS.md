@@ -14,6 +14,7 @@ Linux first. All versioned artifacts are English; conversation may be any langua
 scripts/gate.sh                    # THE gate: fmt check, clippy -D warnings, tests --no-fail-fast, LOC cap, backlog check
 scripts/check.sh [filter...]       # inner loop: clippy + lib/integration tests matching filter, no doctests
 scripts/mutants.sh [base=main]     # cargo-mutants on src/ lines changed since base (review, high-risk specs)
+scripts/agent-bench.sh <settings>  # agent eval bench against a live model (opt-in; the gate replays it offline)
 cargo run                          # run the app (debug)
 cargo test <substring>             # one test while iterating
 scripts/backlog.sh                 # regenerate docs/product/backlog.md from spec headers
@@ -82,8 +83,8 @@ The tree is orientation; `ls` is the inventory.
 - Kernel — `src/geometry/`, `src/document/`, `src/io/svg/`, `src/text/`, `src/cmdline/` — never imports `egui`, `eframe` or `rfd`.
   `src/render/raster.rs` is kernel-pure too, although the rest of `render/` imports `egui` (ADR 0011).
 - `src/agent/`: only `panel.rs` and `settings_ui.rs` may import `egui`; none may import `eframe`/`rfd`.
-  `classifier.rs`, `wire.rs`, `transport.rs`, `tools.rs`, `tools/schema.rs`, `bridge.rs`, `bridge/action.rs`, `loop_.rs`, `prompt.rs`,
-  `memory.rs`, `drawing.rs` and `mod.rs` are kernel-pure. Only `transport.rs` imports `reqwest`; only `wire.rs` uses `base64` (ADR 0011). `panel.rs` never spawns a thread
+  `classifier.rs`, `wire.rs`, `transport.rs`, `tools.rs`, `tools/args.rs`, `tools/schema.rs`, `tools/transform.rs`, `tools/capture.rs`, `tools/measure.rs`, `drawing/*.rs` (`keys.rs`, `items.rs`, `items/array.rs`, `expand.rs`, `schema.rs`), `bridge.rs`, `bridge/action.rs`, `bridge/action/ops.rs`, `bridge/action/measure.rs`, `loop_.rs`, `loop_/images.rs`, `loop_/batch.rs`, `loop_/verify.rs`, `settings_ui/copy.rs`, `prompt.rs`,
+  `memory.rs`, `repeat.rs`, `metrics.rs`, `attachment.rs`, `drawing.rs` and `mod.rs` are kernel-pure. Only `transport.rs` imports `reqwest`; only `wire.rs` uses `base64` (ADR 0011). `panel.rs` never spawns a thread
   and never builds a `Document`/`History` (ADR 0007 §D8).
 
 ### Invariants (review blockers)
@@ -131,6 +132,7 @@ UI directives: `DESIGN.md`.
 - 0009 dialog body capped at 426pt · 0010 declarative drawing batch tool · 0011 canvas observation raster
 - 0012 document layers, mother SVG with one `<g>` per layer, one export file per layer
 - 0013 tools describe canvas feedback as styled marks (`Tool::feedback`)
+- 0014 stable entity ids `e<N>` beside indices, for the app run, never persisted
 
 A reversed ADR gets a `**Superseded**` header; ADR text keeps its original line citations.
 Product principles: `docs/product/README.md`. Roadmap: `PLAN.md`. User-visible changes: `CHANGELOG.md`.
