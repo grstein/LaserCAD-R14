@@ -1,8 +1,8 @@
 # LCV-198 — Agent turn checkpoints
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: LCV-188
-- **Implementation**: -
+- **Implementation**: 83d9302..0a3e1ff
 
 ## Problem
 
