@@ -6,8 +6,8 @@
 //!
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
-use super::Document;
-use crate::geometry::Vec2;
+use super::{Document, Entity};
+use crate::geometry::{EPSILON, Vec2};
 
 /// One problem the check found. Indices are zero-based document indices.
 #[derive(Clone, Debug, PartialEq)]
@@ -43,8 +43,89 @@ pub struct CheckReport {
 }
 
 /// Check the drawing on Output-on layers and report what is wrong with it.
-pub fn check_drawing(_doc: &Document) -> CheckReport {
-    CheckReport::default()
+pub fn check_drawing(doc: &Document) -> CheckReport {
+    let scope: Vec<usize> = (0..doc.entities.len())
+        .filter(|&i| {
+            doc.entity_layer(i)
+                .and_then(|id| doc.layer(id))
+                .is_some_and(|l| l.output)
+        })
+        .collect();
+    let (open, gaps) = end_findings(doc, &scope);
+    let mut findings = open;
+    findings.extend(gaps);
+    CheckReport { findings }
+}
+
+/// The two endpoints of a line or arc; a circle has none.
+fn endpoints(entity: &Entity) -> Option<[Vec2; 2]> {
+    match entity {
+        Entity::Line(l) => Some([l.p1, l.p2]),
+        Entity::Arc(a) => Some([a.start_point(), a.end_point()]),
+        Entity::Circle(_) => None,
+    }
+}
+
+/// Open ends and gaps among the endpoints of the `chained` entities.
+///
+/// An endpoint *meets* when another endpoint lies within [`EPSILON`]. Ends
+/// that meet nothing pair greedily, nearest first, while closer than
+/// [`GAP_MM`]; each pair is one gap and the rest are open ends, so a gap never
+/// also counts as two open ends.
+fn end_findings(doc: &Document, chained: &[usize]) -> (Vec<Finding>, Vec<Finding>) {
+    let ends: Vec<(usize, Vec2)> = chained
+        .iter()
+        .filter_map(|&i| endpoints(&doc.entities[i]).map(|pts| pts.map(|at| (i, at))))
+        .flatten()
+        .collect();
+    let unmet: Vec<(usize, Vec2)> = ends
+        .iter()
+        .enumerate()
+        .filter(|&(k, &(_, at))| {
+            !ends
+                .iter()
+                .enumerate()
+                .any(|(m, &(_, other))| m != k && at.distance(other) <= EPSILON)
+        })
+        .map(|(_, end)| *end)
+        .collect();
+    let mut pairs: Vec<(f64, usize, usize)> = Vec::new();
+    for k in 0..unmet.len() {
+        for m in k + 1..unmet.len() {
+            let width = unmet[k].1.distance(unmet[m].1);
+            if width < GAP_MM {
+                pairs.push((width, k, m));
+            }
+        }
+    }
+    pairs.sort_by(|x, y| x.0.total_cmp(&y.0));
+    let mut used = vec![false; unmet.len()];
+    let mut gaps = Vec::new();
+    for (width, k, m) in pairs {
+        if used[k] || used[m] {
+            continue;
+        }
+        (used[k], used[m]) = (true, true);
+        let (ik, im) = (unmet[k].0, unmet[m].0);
+        gaps.push((
+            ik.min(im),
+            ik.max(im),
+            unmet[k].1.lerp(unmet[m].1, 0.5),
+            width,
+        ));
+    }
+    gaps.sort_by_key(|&(a, b, _, _)| (a, b));
+    let gaps = gaps
+        .into_iter()
+        .map(|(a, b, mid, width)| Finding::Gap { a, b, mid, width })
+        .collect();
+    let open = unmet
+        .iter()
+        .zip(&used)
+        .filter(|(_, used)| !**used)
+        .map(|(&(index, at), _)| Finding::OpenEnd { index, at })
+        .collect();
+    (open, gaps)
 }
 
 #[cfg(test)]

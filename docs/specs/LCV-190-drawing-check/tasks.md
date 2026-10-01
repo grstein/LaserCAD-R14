@@ -6,7 +6,7 @@ Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/
   line+arc fillet contour → none; 0.3 mm gap → one gap, no open ends; 0.6 mm → two open ends; ends
   within `EPSILON` meet; a T-junction end is open; entities on an Output-off layer are ignored
   (files: src/document/check/tests.rs)
-- [ ] T2 [AC2][AC3] `check_drawing`, `CheckReport`, `Finding`; endpoint collection, meet test,
+- [x] T2 [AC2][AC3] `check_drawing`, `CheckReport`, `Finding`; endpoint collection, meet test,
   greedy nearest-first gap pairing (files: src/document/check.rs, src/document/mod.rs)
 - [ ] T3 [AC4] Test: duplicates — reversed line, same circle, CW arc vs its CCW twin, three copies
   → two findings against the lowest index, different span → none, a doubled open line still shows

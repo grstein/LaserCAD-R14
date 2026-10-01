@@ -73,7 +73,10 @@ fn open_l_polyline_has_two_open_ends() {
 /// AC 2 — a closed rectangle reports nothing.
 #[test]
 fn closed_rectangle_is_clean() {
-    assert_eq!(check_drawing(&doc_of(&rectangle(0.0))), CheckReport::default());
+    assert_eq!(
+        check_drawing(&doc_of(&rectangle(0.0))),
+        CheckReport::default()
+    );
 }
 
 /// AC 2 — a closed contour of lines and a CCW fillet arc reports nothing.
