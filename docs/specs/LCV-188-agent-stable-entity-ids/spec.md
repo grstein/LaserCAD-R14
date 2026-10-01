@@ -1,8 +1,8 @@
 # LCV-188 — Stable entity ids for agent edits
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: LCV-186, LCV-191
-- **Implementation**: -
+- **Implementation**: d4e6e47..b5ba11b
 
 ## Problem
 
