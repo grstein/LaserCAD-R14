@@ -64,8 +64,8 @@ The owning spec is the Draft that brings the feature to the target (§6).
 | `<g>` nesting | ✅ one per layer | ✅ recursive | OK | — |
 | `data-*` | ✅ `data-layer`, `data-output`, `data-current` | ✅ | Plain SVG 2; LaserGRBL and Inkscape ignore them. | — |
 | `id`, `class` | not emitted | ignored | `class` feeds the CSS cascade. | 175 |
-| `<defs>`, `<symbol>`, `<use>` (`href`, `xlink:href`) | ⛔ not needed | ❌ Geometry inside `<defs>`/`<symbol>` is **imported as if rendered**; `<use>` is ignored. | Never-rendered content is skipped; `<use>` is expanded as a shadow tree. | 171, 178 |
-| `<switch>`, conditional attributes | — | ❌ every branch is imported | Evaluate conditions; import the first passing child only. | 178 |
+| `<defs>`, `<symbol>`, `<use>` (`href`, `xlink:href`) | ⛔ not needed | ✅ done by LCV-171/178: `<defs>`/`<symbol>` content is not drawn in place; each `<use>` of a same-document `#id` (`href` over `xlink:href`) imports independent copies under its transform then `translate(x, y)`, a `symbol` mapped into its viewport, styles inherited from the `<use>`, on the `<use>`'s layer, nested `<use>` recursive. Unresolved or external references (`use (unresolved)`) and cycles (`use (cycle)`) are skipped and reported; nesting past depth 32 or more than 100 000 instanced entities refuses the file. | Never-rendered content is skipped; `<use>` is expanded as a shadow tree. | 171, 178 |
+| `<switch>`, conditional attributes | — | ✅ done by LCV-178: only the first child whose conditions pass is imported (`switch (branch skipped)` for the others); on any element a non-empty `requiredExtensions` fails, `systemLanguage` passes only for `en`/`en-*`, `requiredFeatures` is ignored; a failing element is reported `<element> (conditions)` | Evaluate conditions; import the first passing child only. | 178 |
 | `<a>` | — | ◐ treated as a group | Treat as a group (same result). | 178 |
 | `<title>`, `<desc>`, `<metadata>` | ❌ | ignored | Optional; could carry a generator note. | 170 |
 | Nested `<svg>` viewport | — | ✅ done by LCV-173: `x y width height viewBox preserveAspectRatio` establish a viewport; not clipped, reported as `svg (not clipped)` | Establish a new viewport and clip region. | 173 |
@@ -163,7 +163,8 @@ one becomes an acceptance criterion of the owning spec:
    nothing, and an invalid shape is skipped and reported instead of failing the file
    (`SvgImportError::MalformedAttribute` is gone).
 9. **LCV-171 AC 5 amended by LCV-174 AC 10**: `rect`, `polyline` and `polygon` are imported, so
-   they are no longer reported as ignored elements.
+   they are no longer reported as ignored elements. **Amended again by LCV-178**: `use` and
+   `switch` are handled, not reported as ignored elements.
 7. ~~`parse_path` rejects a chord longer than `2r + EPSILON` (1e-9), where the spec scales the radii
    up. *Suspected*, to be confirmed by a test: a semicircular arc may fail to reopen after the
    `{:.4}` rounding in `encode_entity`.~~ **Done by LCV-172**: SVG 2 §F.6.6 applies to every arc.
