@@ -34,7 +34,7 @@
       100 000 plain lines without `use` still import (files: tests/it/io_svg/reuse.rs)
 - [x] T12 [AC9] `SvgImportError::LimitExceeded`, depth check, `instanced` budget
       (files: src/io/svg/import.rs, src/io/svg/import/walk.rs)
-- [ ] T13 [AC9] Test: `action_open_path` on a depth-33 file leaves the document, title and
+- [x] T13 [AC9] Test: `action_open_path` on a depth-33 file leaves the document, title and
       entities unchanged and surfaces the error (files: tests/it/app/document_title_and_file_feedback.rs)
 - [ ] T14 [AC12] Test: two `<use>` of one `<line>` give two entities with distinct ids;
       committing `MoveEntities` on one leaves the other's geometry bit-identical

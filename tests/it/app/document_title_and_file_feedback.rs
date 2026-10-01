@@ -669,3 +669,38 @@ fn open_recent_malformed_svg_preserves_state_and_surfaces_the_error() {
     assert!(app.error_message.is_some());
     assert_eq!(app.settings.recent_files, recent_before);
 }
+
+/// LCV-178 AC 9 — a file whose `<use>` nesting passes depth 32 is refused:
+/// the drawing, history, title and `current_file` are untouched and the
+/// error names the limit.
+#[test]
+fn open_path_refuses_a_too_deep_use_chain_and_keeps_the_document() {
+    let mut defs = r##"<line id="u0" x1="0" y1="0" x2="5" y2="0" stroke="#ff0000"/>"##.to_owned();
+    for k in 1..33 {
+        defs += &format!(r##"<use id="u{k}" href="#u{}"/>"##, k - 1);
+    }
+    let src = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="200mm" height="200mm" viewBox="0 0 200 200"><defs>{defs}</defs><use href="#u32"/></svg>"##
+    );
+    let dir = tempdir("open_path_use_depth");
+    let deep = dir.join("deep.svg");
+    std::fs::write(&deep, src).unwrap();
+    let mut app = App {
+        current_file: Some(PathBuf::from("original.svg")),
+        ..App::default()
+    };
+    app.history
+        .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
+    app.mark_saved();
+    let (entities, revision) = (app.document.entities.clone(), app.history.revision());
+    let title_before = app.display_title();
+
+    app.action_open_path(deep);
+
+    assert_eq!(app.document.entities, entities);
+    assert_eq!(app.history.revision(), revision);
+    assert_eq!(app.display_title(), title_before);
+    assert_eq!(app.current_file, Some(PathBuf::from("original.svg")));
+    let err = app.error_message.as_deref().unwrap_or_default();
+    assert!(err.contains("use nesting depth 32"), "{err:?}");
+}
