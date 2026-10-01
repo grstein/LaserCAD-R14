@@ -23,7 +23,7 @@
   suffix (files: tests/it/io_svg/export_layers.rs)
 - [x] T9 [AC3] Suffix and severity in `action_export_layers`, counting only the plan's layers
   (files: src/io/export_layers.rs)
-- [ ] T10 [AC4] Test: with out-of-bed geometry, the saved mother equals `export_svg(&doc)` byte
+- [x] T10 [AC4] Test: with out-of-bed geometry, the saved mother equals `export_svg(&doc)` byte
   for byte and every layer file equals its `layer_exports` text (files:
   tests/it/io_svg/export_layers.rs)
 - [ ] T11 [AC5] Test: Save to a path in a missing folder, Export Layers with the mother in a

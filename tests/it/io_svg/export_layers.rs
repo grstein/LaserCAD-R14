@@ -9,8 +9,8 @@ use std::path::{Path, PathBuf};
 use lasercad::app::{App, Severity};
 use lasercad::document::{AddLayer, Command, Document, Entity, LayerId};
 use lasercad::geometry::{Arc, Circle, Line, Vec2};
-use lasercad::io::svg::{export_layer_svg, import_svg};
-use lasercad::io::{action_export_layers, layer_exports};
+use lasercad::io::svg::{export_layer_svg, export_svg, import_svg};
+use lasercad::io::{action_export_layers, action_save, layer_exports};
 
 fn tempdir(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("lcv156_{name}"));
@@ -222,4 +222,31 @@ fn export_warns_only_about_exported_layers_outside_the_bed() {
         "Exported layers: plate-Cut.svg, plate-Fine_mark.svg"
     );
     assert_eq!(app.command_feedback_severity, Severity::Info);
+}
+
+/// LCV-168 AC 4 — with geometry outside the bed, Save still writes the
+/// mother byte for byte as `export_svg`, and Export Layers writes every
+/// layer file byte for byte as its `layer_exports` text.
+#[test]
+fn out_of_bed_geometry_is_written_unchanged() {
+    let dir = tempdir("lcv168_bytes");
+    let (mut document, cut, mark) = layered_doc();
+    document.push_entity(off_bed_line(), cut);
+    document.push_entity(
+        Entity::Circle(Circle::new(Vec2::new(5.0, 175.0), 20.0)),
+        mark,
+    );
+    let mut app = exporting_app(&dir, "sign.svg", document);
+
+    action_save(&mut app);
+    action_export_layers(&mut app);
+
+    assert!(app.error_message.is_none());
+    let mother = std::fs::read(dir.join("sign.svg")).unwrap();
+    assert_eq!(mother, export_svg(&app.document).into_bytes());
+    let plan = layer_exports(&app.document, &dir.join("sign.svg"));
+    assert_eq!(plan.len(), 2);
+    for (path, svg) in plan {
+        assert_eq!(std::fs::read(&path).unwrap(), svg.into_bytes(), "{path:?}");
+    }
 }
