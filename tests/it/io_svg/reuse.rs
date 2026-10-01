@@ -225,6 +225,25 @@ fn a_fan_out_that_draws_nothing_is_refused_quickly() {
     }
 }
 
+/// AC 9 — exactly 100 000 expansions import; one more is refused. Nine
+/// uses of a 4-level ×10 fan-out expand 9 × 11 111 times, one more `<use>`
+/// makes 100 000.
+#[test]
+fn the_expansion_budget_is_inclusive() {
+    let mut defs = r#"<g id="g0"/>"#.to_owned();
+    for k in 1..=4 {
+        let uses = format!(r##"<use href="#g{}"/>"##, k - 1).repeat(10);
+        defs += &format!(r#"<g id="g{k}">{uses}</g>"#);
+    }
+    let body = format!(
+        r##"<defs>{defs}</defs>{}<use href="#g0"/>"##,
+        r##"<use href="#g4"/>"##.repeat(9)
+    );
+    assert!(page(&body).entities.is_empty());
+    let err = refused(&format!(r##"{body}<use href="#g0"/>"##));
+    assert!(err.starts_with("LimitExceeded"), "{err}");
+}
+
 /// AC 9 — the entity cap applies to instances only: 100 000 plain lines
 /// import.
 #[test]
