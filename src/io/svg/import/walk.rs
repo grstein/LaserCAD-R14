@@ -186,11 +186,11 @@ impl<'a, 'input> Walk<'a, 'input> {
                 }
             }
             (Kind::Switch, Some(c)) => {
-                // The first passing SVG element child; every other one is a
-                // skipped branch (LCV-178 AC 10).
+                // The first passing rendering child; every other one is a
+                // skipped branch, silent ones are neither (LCV-178 AC 10).
                 let mut chosen = false;
                 let branches = child.children().filter(|n| n.is_element());
-                for branch in branches.filter(|n| n.tag_name().namespace() == Some(SVG_NS)) {
+                for branch in branches.filter(|n| !matches!(classify(*n), Kind::Silent)) {
                     if !chosen && passes(branch) {
                         chosen = true;
                         self.element(branch, layer, &c, &inner_style)?;

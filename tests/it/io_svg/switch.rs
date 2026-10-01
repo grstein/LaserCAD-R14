@@ -97,3 +97,19 @@ fn a_switch_transform_moves_its_child() {
     );
     assert_eq!(report, vec![entry("switch (branch skipped)", 1)]);
 }
+
+/// AC 10 — `title`, `desc` and other silent children are neither chosen
+/// nor counted: the first rendering child is the branch.
+#[test]
+fn a_switch_skips_silent_children_when_choosing() {
+    let (es, report) = page(
+        r#"<switch><title>t</title><g><line x1="1" y1="2" x2="3" y2="4"/></g></switch>
+           <switch><desc/><x:a xmlns:x="urn:x"/><line x1="0" y1="0" x2="5" y2="0"/><circle r="1"/></switch>"#,
+    );
+    assert_eq!(es.len(), 2, "{es:?}");
+    let l = line(&es[0]);
+    assert!(l.p1.approx_eq(w(1.0, 2.0), TOL), "{l:?}");
+    let l = line(&es[1]);
+    assert!(l.p2.approx_eq(w(5.0, 0.0), TOL), "{l:?}");
+    assert_eq!(report, vec![entry("switch (branch skipped)", 1)]);
+}
