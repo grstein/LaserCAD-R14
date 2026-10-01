@@ -45,7 +45,7 @@
   goes back to its first-point prompt and the press adds no entity; at `Command:` after `c` ⏎
   Esc → CIRCLE; the selection is unchanged; middle-drag still pans (files:
   tests/it/app/right_click.rs, tests/it/app/mod.rs)
-- [ ] T19 [AC6] `handle_hover`: the secondary press → `cmdline::submit(app, "")`;
+- [x] T19 [AC6] `handle_hover`: the secondary press → `cmdline::submit(app, "")`;
   `PointerButton::Secondary` doc updated; T18 green (files: src/app/viewport.rs,
   src/tools/pointer_event.rs)
 - [ ] T20 [AC7] Test first: `s`, a base point, `-1` ⏎ and `0` ⏎ with the pointer never on the

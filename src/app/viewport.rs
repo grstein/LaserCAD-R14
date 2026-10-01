@@ -137,6 +137,13 @@ fn handle_hover(
     };
     app.last_cursor_world = Some(world_pos);
 
+    // A right press is Enter on an empty line (LCV-165 AC 6, reversing
+    // LCV-041 AC 4): finish, accept or repeat — the field's text is ignored
+    // and no tool ever sees it as a point.
+    if ctx.input(|i| i.pointer.button_pressed(egui::PointerButton::Secondary)) {
+        super::submit(app, "");
+    }
+
     // Pointer events (LCV-041).
     if ctx.input(|i| i.pointer.primary_pressed()) {
         let shift = ctx.input(|i| i.modifiers.shift);
