@@ -53,6 +53,7 @@ mod unsaved_guard;
 mod viewport;
 
 mod agent_apply;
+mod agent_attach;
 mod agent_capture;
 mod agent_checkpoint;
 mod agent_feedback;
@@ -64,6 +65,7 @@ mod agent_turn;
 mod agent_verify;
 mod agent_worker;
 pub use agent_apply::apply;
+pub use agent_attach::{Attachment, attach_image};
 pub use agent_poll::{AGENT_CANCELLED_MESSAGE, AGENT_LOST_MESSAGE, cancel_turn, poll_agent_rx};
 pub use agent_state::AgentState;
 pub use agent_turn::{AGENT_FENCE_REFUSAL, TurnFence, TurnState, arm_turn, config_for, start_turn};

@@ -13,7 +13,7 @@
 - [x] T5 [AC2] [AC6] `send_images` consent and capture split; `turn_record` keeps `image elided`.
   Unit tests: an attached image asks nothing, a later capture still asks, memory holds the
   placeholder (files: src/agent/loop_/images.rs, src/agent/memory.rs, src/app/agent_memory.rs)
-- [ ] T6 [AC4] [AC5] `agent_attach.rs` (`attach_image`, `poll_attach_request`, `take_for_send`) and
+- [x] T6 [AC4] [AC5] `agent_attach.rs` (`attach_image`, `poll_attach_request`, `take_for_send`) and
   the `AgentState` fields (files: src/app/agent_attach.rs, src/app/agent_state.rs, src/app/mod.rs)
 - [ ] T7 [AC2] [AC5] `start_turn` takes the attachment: `Image:` row, clear, or refuse and restore the
   draft (files: src/app/agent_turn.rs)
