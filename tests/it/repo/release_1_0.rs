@@ -108,3 +108,39 @@ fn parity_table_covers_every_v1_capability_with_real_tests() {
         }
     }
 }
+
+/// LCV-202 AC 6 — `docs/release/smoke-1-0.md` is a numbered checklist for
+/// Linux, Windows and macOS covering draw, edit, snap, layers, save,
+/// reopen, export layers and opening the result in LaserGRBL.
+#[test]
+fn smoke_checklist_covers_the_three_systems_and_the_whole_flow() {
+    let smoke = read("docs/release/smoke-1-0.md");
+    let steps: Vec<String> = smoke
+        .lines()
+        .map(str::trim_start)
+        .filter(|l| {
+            let digits = l.chars().take_while(char::is_ascii_digit).count();
+            digits > 0 && l[digits..].starts_with(". ")
+        })
+        .map(str::to_lowercase)
+        .collect();
+    assert!(steps.len() >= 8, "a numbered checklist: {steps:?}");
+    for os in ["Linux", "Windows", "macOS"] {
+        assert!(smoke.contains(os), "smoke checklist must name {os}");
+    }
+    for topic in [
+        "draw",
+        "edit",
+        "snap",
+        "layer",
+        "save",
+        "reopen",
+        "export layers",
+        "lasergrbl",
+    ] {
+        assert!(
+            steps.iter().any(|s| s.contains(topic)),
+            "no numbered step covers {topic:?}"
+        );
+    }
+}
