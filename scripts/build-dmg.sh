@@ -124,7 +124,7 @@ PLIST_EOF
 #    unsigned binary. Gatekeeper still warns (see docs/install.md).
 # ---------------------------------------------------------------------------
 echo "==> Ad-hoc signing ${APP_DIR}"
-codesign --force --deep -s - "${APP_DIR}"
+codesign --force -s - "${APP_DIR}"
 
 # ---------------------------------------------------------------------------
 # 9. Create dmg-staging directory:

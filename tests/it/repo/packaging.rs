@@ -74,7 +74,7 @@ fn build_dmg_sh_bundles_signs_and_refuses_non_arm64() {
         "LaserCAD.app",
         "CFBundleShortVersionString",
         "iconutil",
-        "codesign --force --deep -s -",
+        "codesign --force -s -",
         "FIRST-RUN.txt",
         "lasercad-${VERSION}-macos-aarch64.dmg",
     ] {

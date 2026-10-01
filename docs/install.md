@@ -38,7 +38,8 @@ To remove LaserCAD, delete the folder (and, if you like, the files listed below)
 1. Open `lasercad-<version>-macos-aarch64.dmg` and drag `LaserCAD.app` onto `Applications`.
 2. The first time, right-click (or Control-click) `LaserCAD.app` in Applications, choose
    **Open**, then **Open** again in the Gatekeeper dialog. A plain double-click only offers to
-   move the app to the Trash.
+   move the app to the Trash. On macOS 15 (Sequoia) and later, which dropped that shortcut,
+   double-click once, then choose **Open Anyway** in System Settings > Privacy & Security.
 3. If macOS still refuses ("LaserCAD is damaged and can't be opened"), clear the download
    quarantine flag in Terminal, then open the app normally:
 
