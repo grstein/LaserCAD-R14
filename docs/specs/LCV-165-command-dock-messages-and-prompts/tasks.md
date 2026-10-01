@@ -26,7 +26,7 @@
   src/tools/line.rs, src/tools/polyline.rs, src/tools/rect.rs)
 - [x] T10 [AC3] CIRCLE, ARC, TEXT prompts; tests follow (files: src/tools/circle.rs,
   src/tools/arc.rs, src/tools/text.rs)
-- [ ] T11 [AC3] DIST, MOVE, COPY prompts; tests follow (files: src/tools/dist.rs,
+- [x] T11 [AC3] DIST, MOVE, COPY prompts; tests follow (files: src/tools/dist.rs,
   src/tools/move_.rs, src/tools/copy.rs)
 - [ ] T12 [AC3] ROTATE, SCALE, MIRROR prompts; tests follow (files: src/tools/rotate.rs,
   src/tools/scale.rs, src/tools/mirror.rs)

@@ -246,7 +246,7 @@ fn typed_move_relocates_the_selection() {
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "MOVE Specify destination point:"
+        "MOVE  Specify destination point:"
     );
     submit_command(&ctx, &mut app, "0,25");
 

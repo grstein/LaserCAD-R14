@@ -70,8 +70,8 @@ impl Tool for CopyTool {
 
     fn status_text(&self) -> Cow<'_, str> {
         match &self.state {
-            CopyState::Idle => "COPY Specify base point:".into(),
-            CopyState::WaitingSecond { .. } => "COPY Specify second point:".into(),
+            CopyState::Idle => "COPY  Specify base point:".into(),
+            CopyState::WaitingSecond { .. } => "COPY  Specify second point:".into(),
         }
     }
 
@@ -239,10 +239,10 @@ mod tests {
     fn prompts_follow_the_state() {
         let mut tool = CopyTool::default();
         assert_eq!(tool.name(), "COPY");
-        assert_eq!(tool.status_text(), "COPY Specify base point:");
+        assert_eq!(tool.status_text(), "COPY  Specify base point:");
         let (mut doc, mut hist) = doc_with_line_selected();
         click(&mut tool, Vec2::new(0.0, 0.0), &mut doc, &mut hist);
-        assert_eq!(tool.status_text(), "COPY Specify second point:");
+        assert_eq!(tool.status_text(), "COPY  Specify second point:");
     }
 
     /// AC2 — an empty selection leaves the drawing unchanged and the tool at
@@ -255,7 +255,7 @@ mod tests {
         click(&mut tool, Vec2::new(1.0, 1.0), &mut doc, &mut hist);
         assert_eq!(doc.entity_count(), 1);
         assert!(!hist.can_undo());
-        assert_eq!(tool.status_text(), "COPY Specify base point:");
+        assert_eq!(tool.status_text(), "COPY  Specify base point:");
         assert_eq!(tool.anchor(), None);
     }
 
@@ -282,7 +282,7 @@ mod tests {
         let (mut doc, mut hist) = doc_with_line_selected();
         click(&mut tool, Vec2::new(0.0, 0.0), &mut doc, &mut hist);
         click(&mut tool, Vec2::new(10.0, 0.0), &mut doc, &mut hist);
-        assert_eq!(tool.status_text(), "COPY Specify second point:");
+        assert_eq!(tool.status_text(), "COPY  Specify second point:");
         assert_eq!(tool.anchor(), Some(Vec2::new(0.0, 0.0)));
         click(&mut tool, Vec2::new(0.0, 5.0), &mut doc, &mut hist);
         assert_eq!(doc.entity_count(), 3);
@@ -326,7 +326,7 @@ mod tests {
         click(&mut tool, Vec2::new(5.0, 5.0), &mut doc, &mut hist);
         assert_eq!(doc.entity_count(), 1);
         assert!(!hist.can_undo());
-        assert_eq!(tool.status_text(), "COPY Specify second point:");
+        assert_eq!(tool.status_text(), "COPY  Specify second point:");
     }
 
     /// AC8 — Enter and Escape end the run; the placed copies stay and the
@@ -340,7 +340,7 @@ mod tests {
             click(&mut tool, Vec2::new(10.0, 0.0), &mut doc, &mut hist);
             tool.on_key(key, &mut App::default());
             assert_eq!(tool.name(), "COPY");
-            assert_eq!(tool.status_text(), "COPY Specify base point:");
+            assert_eq!(tool.status_text(), "COPY  Specify base point:");
             assert!(tool.preview().is_empty());
             assert_eq!(doc.entity_count(), 2, "{key:?} keeps the copies");
         }
@@ -376,7 +376,7 @@ mod tests {
         assert_eq!(doc.entity_count(), 0);
         click(&mut tool, Vec2::new(20.0, 0.0), &mut doc, &mut hist);
         assert_eq!(doc.entity_count(), 0);
-        assert_eq!(tool.status_text(), "COPY Specify base point:");
+        assert_eq!(tool.status_text(), "COPY  Specify base point:");
         assert!(hist.can_redo(), "nothing was committed");
     }
 
