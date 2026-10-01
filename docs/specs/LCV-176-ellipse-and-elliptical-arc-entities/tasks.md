@@ -26,7 +26,7 @@
   and hover paint it (files: tests/it/app/ellipse_paint.rs, tests/it/app/mod.rs)
 - [x] T9 [AC4] `ellipse_polyline(e, 0.5·mm_per_px)` in the entity, selection and dashed painters
   (files: src/render/entities.rs, src/render/selection.rs, src/render/preview.rs)
-- [ ] T10 [AC5] Test: a click within the aperture of the curve selects, a click at the centre does
+- [x] T10 [AC5] Test: a click within the aperture of the curve selects, a click at the centre does
   not, and a window/crossing box selects like an arc (files: tests/it/app/ellipse_edit.rs,
   tests/it/app/mod.rs)
 - [ ] T11 [AC5] `Rect::{contains,crosses}_ellipse` and the ellipse arms of `hit.rs` (files:
