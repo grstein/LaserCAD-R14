@@ -1,0 +1,11 @@
+# LCV-173 AC 4 — a viewBox with its origin at the centre: (-50, -25) is the
+# bed's top-left corner, one user unit = 1 mm. Page x = svg x + 50, page
+# y = svg y + 25, world y = 50 - page y.
+bed 100 50
+layer "Cut" #ff0000 output=1 current=1
+line 0 0 50 100 0
+circle 0 50 25 10
+# Page (40, 5) to (60, 5), r 10: a half turn, centre page (50, 5) = world
+# (50, 45). sweep 0 = counter-clockwise on screen: from the left (180 deg)
+# under the bottom to the right (0 deg), counter-clockwise.
+arc 0 50 45 10 180 0 ccw

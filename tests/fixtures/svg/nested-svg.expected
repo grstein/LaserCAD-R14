@@ -1,0 +1,15 @@
+# LCV-173 AC 9 — nested <svg> viewports. One user unit = 1 mm at the root,
+# world y = 100 - page y.
+bed 100 100
+layer "Cut" #ff0000 output=1 current=1
+# viewBox 20 × 20 onto (20, 10, 60, 30), xMidYMid meet: scale min(3, 1.5) =
+# 1.5, content 30 × 30 centred horizontally: page x = 1.5 x + 35, page
+# y = 1.5 y + 10.
+line 0 35 90 65 90
+circle 0 50 75 7.5
+# Below the nested viewport (page y 47.5 > 40): imported, not clipped.
+line 0 35 52.5 65 52.5
+# No viewBox: translate(x, y) = (10, 10), then its own transform
+# translate(0, 50) in the parent space: (0, 0) -> (10, 60).
+line 0 10 40 20 40
+ignored 2 svg (not clipped)

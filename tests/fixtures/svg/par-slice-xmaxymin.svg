@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="50mm" viewBox="0 0 100 25" preserveAspectRatio="xMaxYMin slice">
+  <line x1="50" y1="0" x2="100" y2="25" fill="none" stroke="#000"/>
+  <circle cx="75" cy="12.5" r="5" fill="none" stroke="#000"/>
+  <line x1="0" y1="0" x2="10" y2="0" fill="none" stroke="#000"/>
+</svg>

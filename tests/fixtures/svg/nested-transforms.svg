@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="100mm" viewBox="0 0 100 100">
+  <g transform="translate(10,10)">
+    <g transform="rotate(90)">
+      <line x1="0" y1="0" x2="20" y2="0" fill="none" stroke="#000"/>
+      <circle cx="10" cy="-30" r="5" fill="none" stroke="#000"/>
+    </g>
+    <g transform="matrix(2,0,0,2,40,40)">
+      <path d="M 0 0 L 10 0 A 5 5 0 0 1 20 0" fill="none" stroke="#000"/>
+    </g>
+  </g>
+  <g transform="scale(-1,1) translate(-100,0)">
+    <path d="M 10 80 A 10 10 0 0 1 30 80" fill="none" stroke="#000"/>
+  </g>
+  <g transform="scale(2,1)">
+    <circle cx="10" cy="10" r="2" fill="none" stroke="#000"/>
+  </g>
+  <g transform="rotate(">
+    <line x1="0" y1="95" x2="5" y2="95" fill="none" stroke="#000"/>
+  </g>
+</svg>

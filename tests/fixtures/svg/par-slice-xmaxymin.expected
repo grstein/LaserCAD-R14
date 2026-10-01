@@ -1,0 +1,11 @@
+# LCV-173 AC 4 — a 100 × 25 viewBox onto a 100 × 50 mm bed with
+# `xMaxYMin slice`: the scale is max(1, 2) = 2, the content is 200 × 50 mm
+# and its right edge meets the bed's, so page x = 2 x - 100, page y = 2 y.
+# World y = 50 - page y.
+bed 100 50
+layer "Cut" #ff0000 output=1 current=1
+line 0 0 50 100 0
+# Centre page (50, 25), r 10.
+circle 0 50 25 10
+# Outside the bed, which a viewer slices away: imported, not clipped.
+line 0 -100 50 -80 50

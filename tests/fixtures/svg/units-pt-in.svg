@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="4in" height="216pt">
+  <line x1="1in" y1="72pt" x2="2in" y2="72pt" fill="none" stroke="#000"/>
+  <circle cx="5cm" cy="15mm" r="0.5in" fill="none" stroke="#000"/>
+  <line x1="96" y1="0" x2="96px" y2="6pc" fill="none" stroke="#000"/>
+  <path d="M 0 288 L 384 0" fill="none" stroke="#000"/>
+</svg>
