@@ -39,6 +39,22 @@ pub enum Finding {
         /// The later entity's start point (a circle's centre), mm.
         at: Vec2,
     },
+    /// A zero-length line, a zero-span arc, or a zero-radius circle or arc.
+    Degenerate {
+        /// The entity.
+        index: usize,
+        /// Its start point (a circle's centre), mm.
+        at: Vec2,
+    },
+    /// An entity whose bounding box leaves the bed.
+    OffBed {
+        /// The entity.
+        index: usize,
+        /// Bounding-box minimum corner, mm.
+        min: Vec2,
+        /// Bounding-box maximum corner, mm.
+        max: Vec2,
+    },
 }
 
 /// Endpoints closer than this (mm) that do not meet form a gap.

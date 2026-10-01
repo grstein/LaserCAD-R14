@@ -13,7 +13,7 @@ Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/
   its open ends (files: src/document/check/tests.rs)
 - [x] T4 [AC4] Duplicate detection with CCW-normalised arcs; later duplicates leave the endpoint
   analysis (files: src/document/check.rs)
-- [ ] T5 [AC5][AC6] Test: degenerate zero-length line, zero-span arc, zero-radius circle; off-bed
+- [x] T5 [AC5][AC6] Test: degenerate zero-length line, zero-span arc, zero-radius circle; off-bed
   line past the right edge, arc whose endpoints are inside but bulge crosses y=0, entity touching
   an edge exactly → not off-bed (files: src/document/check/tests.rs)
 - [ ] T6 [AC5][AC6] Degenerate and off-bed findings (files: src/document/check.rs)

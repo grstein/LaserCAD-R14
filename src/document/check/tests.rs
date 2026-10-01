@@ -293,3 +293,114 @@ fn doubled_rectangle_reports_duplicates_only() {
     assert_eq!(duplicates(&r), vec![(4, 0), (5, 1), (6, 2), (7, 3)]);
     assert_eq!(r.findings.len(), 4);
 }
+
+/// AC 5 — a zero-length line is degenerate, located at its point, and has
+/// no open ends.
+#[test]
+fn zero_length_line_is_degenerate() {
+    let r = check_drawing(&doc_of(&[line(10.0, 10.0, 10.0, 10.0)]));
+    assert_eq!(
+        r.findings,
+        vec![Finding::Degenerate {
+            index: 0,
+            at: p(10.0, 10.0)
+        }]
+    );
+}
+
+/// AC 5 — a line just longer than `EPSILON` is not degenerate.
+#[test]
+fn short_line_is_not_degenerate() {
+    let r = check_drawing(&doc_of(&[line(10.0, 10.0, 10.0 + 2.0 * EPSILON, 10.0)]));
+    assert!(
+        !r.findings
+            .iter()
+            .any(|f| matches!(f, Finding::Degenerate { .. }))
+    );
+}
+
+/// AC 5 — a zero-span arc is degenerate, located at its start point.
+#[test]
+fn zero_span_arc_is_degenerate() {
+    let r = check_drawing(&doc_of(&[arc(100.0, 100.0, 10.0, 0.0, 0.0, true)]));
+    assert_eq!(
+        r.findings,
+        vec![Finding::Degenerate {
+            index: 0,
+            at: p(110.0, 100.0)
+        }]
+    );
+}
+
+/// AC 5 — a zero-radius circle or arc is degenerate.
+#[test]
+fn zero_radius_circle_and_arc_are_degenerate() {
+    let r = check_drawing(&doc_of(&[
+        circle(100.0, 100.0, 0.0),
+        arc(150.0, 100.0, 0.0, 0.0, PI, true),
+    ]));
+    assert_eq!(
+        r.findings,
+        vec![
+            Finding::Degenerate {
+                index: 0,
+                at: p(100.0, 100.0)
+            },
+            Finding::Degenerate {
+                index: 1,
+                at: p(150.0, 100.0)
+            },
+        ]
+    );
+}
+
+/// AC 2/5 — a degenerate line on a free end does not close it, and two
+/// degenerate copies are reported as degenerate only.
+#[test]
+fn degenerate_entities_leave_the_other_analyses() {
+    let doc = doc_of(&[
+        line(10.0, 10.0, 50.0, 10.0),
+        line(50.0, 10.0, 50.0, 10.0),
+        line(50.0, 10.0, 50.0, 10.0),
+    ]);
+    let r = check_drawing(&doc);
+    assert_eq!(open_ends(&r), vec![(0, p(10.0, 10.0)), (0, p(50.0, 10.0))]);
+    assert!(duplicates(&r).is_empty());
+    assert_eq!(r.findings.len(), 4);
+}
+
+/// AC 6 — a line past the right edge is off-bed, with its bbox.
+#[test]
+fn line_past_right_edge_is_off_bed() {
+    let r = check_drawing(&doc_of(&[line(390.0, 10.0, 410.0, 10.0)]));
+    assert!(r.findings.contains(&Finding::OffBed {
+        index: 0,
+        min: p(390.0, 10.0),
+        max: p(410.0, 10.0)
+    }));
+}
+
+/// AC 6 — an arc with both endpoints inside whose bulge crosses y = 0 is
+/// off-bed.
+#[test]
+fn arc_bulge_below_zero_is_off_bed() {
+    let r = check_drawing(&doc_of(&[arc(100.0, 5.0, 10.0, PI, 2.0 * PI, true)]));
+    assert!(
+        r.findings
+            .iter()
+            .any(|f| matches!(f, Finding::OffBed { index: 0, .. })),
+        "{r:?}"
+    );
+}
+
+/// AC 6 — a closed contour touching every bed edge exactly is clean.
+#[test]
+fn contour_on_the_bed_edges_is_clean() {
+    let doc = doc_of(&[
+        line(0.0, 0.0, 400.0, 0.0),
+        line(400.0, 0.0, 400.0, 300.0),
+        line(400.0, 300.0, 0.0, 300.0),
+        line(0.0, 300.0, 0.0, 0.0),
+    ]);
+    assert_eq!(check_drawing(&doc), CheckReport::default());
+}
