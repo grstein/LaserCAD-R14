@@ -324,7 +324,10 @@ fn feedback_after_changes_defaults_off_and_round_trips() {
         ..Settings::default()
     };
     let json = serde_json::to_string(&on).unwrap();
-    assert!(json.contains(r#""agent_feedback_after_changes":true"#), "{json}");
+    assert!(
+        json.contains(r#""agent_feedback_after_changes":true"#),
+        "{json}"
+    );
     let back: Settings = serde_json::from_str(&json).unwrap();
     assert_eq!(back, on);
 }

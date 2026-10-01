@@ -381,12 +381,29 @@ struct Run {
 
 /// Drive the loop: `reply(n)` answers the n-th send (1-based), a
 /// `capture_canvas` dispatch observes [`PNG`], anything else is `Ok`, and
-/// the upload check answers `verdict`.
+/// the upload check answers `verdict`. Feedback (LCV-195) answers `Ok("")`
+/// and leaves no event.
 fn run(
-    mut reply: impl FnMut(usize) -> Result<AssistantMessage, AgentError>,
-    mut verdict: impl FnMut() -> Result<AgentOutcome, AgentError>,
+    reply: impl FnMut(usize) -> Result<AssistantMessage, AgentError>,
+    verdict: impl FnMut() -> Result<AgentOutcome, AgentError>,
     budget: u32,
 ) -> Run {
+    run_fed(reply, verdict, None, budget)
+}
+
+/// The answer a scripted turn gives to `Dispatch::Feedback` (LCV-195).
+type Feedback<'a> = &'a mut dyn FnMut() -> Result<AgentOutcome, AgentError>;
+
+/// [`run`] with `feedback` answering `Dispatch::Feedback`, if given; then
+/// every tool call and every feedback ask is an event too. A tool named
+/// `fenced` is answered `Fenced`.
+fn run_fed(
+    mut reply: impl FnMut(usize) -> Result<AssistantMessage, AgentError>,
+    mut verdict: impl FnMut() -> Result<AgentOutcome, AgentError>,
+    mut feedback: Option<Feedback<'_>>,
+    budget: u32,
+) -> Run {
+    let fed = feedback.is_some();
     let (mut requests, mut authorisations, mut tools) = (Vec::new(), 0, 0);
     let events = std::cell::RefCell::new(Vec::new());
     let mut messages = vec![ChatMessage::system("s"), ChatMessage::user("u")];
@@ -410,15 +427,25 @@ fn run(
                 events.borrow_mut().push(format!("replied {captures}"));
                 Ok(AgentOutcome::Ok(String::new()))
             }
+            Dispatch::Feedback => match feedback.as_mut() {
+                Some(answer) => {
+                    events.borrow_mut().push("feedback".to_owned());
+                    answer()
+                }
+                None => Ok(AgentOutcome::Ok(String::new())),
+            },
             Dispatch::Tool { name, .. } => {
                 tools += 1;
-                Ok(if name == "capture_canvas" {
-                    AgentOutcome::Observed {
+                if fed {
+                    events.borrow_mut().push(format!("tool {name}"));
+                }
+                Ok(match name {
+                    "capture_canvas" => AgentOutcome::Observed {
                         text: format!("Canvas {tools}"),
                         png: PNG.to_vec(),
-                    }
-                } else {
-                    AgentOutcome::Ok("ok".into())
+                    },
+                    "fenced" => AgentOutcome::Fenced("fenced".into()),
+                    _ => AgentOutcome::Ok("ok".into()),
                 })
             }
         },
@@ -1242,4 +1269,153 @@ fn a_reply_is_not_a_step() {
             "ok\nSteps left this turn: 1 of 3."
         ]
     );
+}
+
+// ── LCV-195: feedback after a batch ──────────────────────────────────────
+
+/// The events of a fed run without the `replied` bookkeeping.
+fn fed_events(r: &Run) -> Vec<&str> {
+    r.events
+        .iter()
+        .map(String::as_str)
+        .filter(|e| !e.starts_with("replied "))
+        .collect()
+}
+
+/// LCV-195 AC 1 — a batch that ran asks `Feedback` exactly once, after its
+/// last call and before the next send.
+#[test]
+fn a_run_batch_asks_feedback_once_after_its_last_call() {
+    let mut feedback = || Ok(AgentOutcome::Ok(String::new()));
+    let r = run_fed(
+        |n| match n {
+            1 => named_calls(&["query_entities", "create_line"]),
+            2 => named_calls(&["delete_entity"]),
+            _ => text_reply("done"),
+        },
+        yes,
+        Some(&mut feedback),
+        10,
+    );
+    assert_eq!(r.result.unwrap(), "done");
+    assert_eq!(
+        fed_events(&r),
+        [
+            "send 1",
+            "tool query_entities",
+            "tool create_line",
+            "feedback",
+            "send 2",
+            "tool delete_entity",
+            "feedback",
+            "send 3",
+        ]
+    );
+}
+
+/// LCV-195 AC 4, AC 6 — an empty feedback leaves every result as today.
+#[test]
+fn an_empty_feedback_leaves_the_results_as_today() {
+    let mut feedback = || Ok(AgentOutcome::Ok(String::new()));
+    let r = run_fed(
+        |n| match n {
+            1 => named_calls(&["query_entities"; 2]),
+            _ => text_reply("done"),
+        },
+        yes,
+        Some(&mut feedback),
+        10,
+    );
+    assert_eq!(
+        tool_texts(&r.messages),
+        ["ok", "ok\nSteps left this turn: 8 of 10."]
+    );
+}
+
+/// LCV-195 AC 1, AC 5 — a feedback text goes on the last result only,
+/// before the steps-left line, which still counts the tool calls alone.
+#[test]
+fn a_feedback_text_goes_before_the_steps_left_line() {
+    let mut feedback = || Ok(AgentOutcome::Ok("Drawing now: 1 entity.".into()));
+    let r = run_fed(
+        |n| match n {
+            1 => named_calls(&["create_line"; 2]),
+            2 => named_calls(&["create_line"]),
+            _ => text_reply("done"),
+        },
+        yes,
+        Some(&mut feedback),
+        10,
+    );
+    assert_eq!(r.result.unwrap(), "done");
+    assert_eq!(r.tools, 3, "feedback is not a step");
+    assert_eq!(
+        tool_texts(&r.messages),
+        [
+            "ok",
+            "ok\nDrawing now: 1 entity.\nSteps left this turn: 8 of 10.",
+            "ok\nDrawing now: 1 entity.\nSteps left this turn: 7 of 10.",
+        ]
+    );
+}
+
+/// LCV-195 AC 4 — a fence-stopped batch asks no feedback, whether the
+/// fence answered a middle call or the last one, and neither does an
+/// over-budget batch.
+#[test]
+fn a_fenced_or_over_budget_batch_asks_no_feedback() {
+    for calls in [
+        &["create_line", "fenced", "create_line"][..],
+        &["create_line", "fenced"][..],
+    ] {
+        let mut feedback = || Ok(AgentOutcome::Ok("Drawing now: 1 entity.".into()));
+        let r = run_fed(
+            |n| match n {
+                1 => named_calls(calls),
+                _ => text_reply("stopped"),
+            },
+            yes,
+            Some(&mut feedback),
+            10,
+        );
+        assert_eq!(r.result.unwrap(), "stopped");
+        assert!(!r.events.iter().any(|e| e == "feedback"), "{:?}", r.events);
+        assert!(
+            tool_texts(&r.messages)
+                .iter()
+                .all(|t| !t.contains("Drawing"))
+        );
+    }
+    let mut feedback = || Ok(AgentOutcome::Ok("Drawing now: 1 entity.".into()));
+    let r = run_fed(
+        |n| match n {
+            1 => named_calls(&["create_line"; 3]),
+            _ => text_reply("too big"),
+        },
+        yes,
+        Some(&mut feedback),
+        2,
+    );
+    assert_eq!(r.result.unwrap(), "too big");
+    assert_eq!(r.tools, 0);
+    assert!(!r.events.iter().any(|e| e == "feedback"), "{:?}", r.events);
+}
+
+/// LCV-195 AC 5 — a cancelled feedback ask ends the turn like any other
+/// cancelled rendezvous, before the next send.
+#[test]
+fn a_cancelled_feedback_ends_the_turn() {
+    let mut feedback = || Err(AgentError::Cancelled);
+    let r = run_fed(
+        |_| named_calls(&["create_line"]),
+        yes,
+        Some(&mut feedback),
+        10,
+    );
+    assert!(
+        matches!(r.result, Err(AgentError::Cancelled)),
+        "{:?}",
+        r.result
+    );
+    assert_eq!(r.requests.len(), 1);
 }
