@@ -404,3 +404,29 @@ fn the_fence_is_declared_here_and_this_file_imports_no_ui() {
         );
     }
 }
+
+/// LCV-199 AC 5 — an attached image that cannot be read when the prompt is
+/// sent arms nothing: an `error` row, the prompt back in the draft, and the
+/// attachment kept. No thread and no socket are involved.
+#[test]
+fn an_unreadable_image_sends_nothing_and_keeps_the_prompt() {
+    let mut app = App::default();
+    app.settings.agent_model_supports_vision = true;
+    app.agent.attachment = Some(crate::app::Attachment {
+        path: "/nonexistent/lcv199/sketch.png".into(),
+        name: "sketch.png".into(),
+        kind: crate::agent::ImageKind::Png,
+    });
+    start_turn(&mut app, "draw the sketch");
+    assert!(!app.agent.busy && app.agent.rx.is_none());
+    assert_eq!(app.agent.input_draft, "draw the sketch");
+    assert_eq!(app.agent.chat.len(), 1);
+    let (role, row) = &app.agent.chat[0];
+    assert_eq!(role, "error");
+    assert!(
+        row.starts_with("Image sketch.png could not be read: "),
+        "{row}"
+    );
+    assert!(row.ends_with("Nothing was sent."), "{row}");
+    assert!(app.agent.attachment.is_some());
+}

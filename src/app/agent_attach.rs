@@ -84,10 +84,6 @@ pub(crate) fn poll_attach_request(app: &mut App) {
 /// The transcript row saying why nothing was sent: the file cannot be read
 /// or is no longer a PNG or JPEG under 2 MB, or `Model supports images` was
 /// turned off after attaching. The attachment is kept.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "LCV-199 T7 wires it into start_turn")
-)]
 pub(crate) fn take_for_send(app: &mut App) -> Result<Option<UserImage>, String> {
     let Some(attachment) = &app.agent.attachment else {
         return Ok(None);

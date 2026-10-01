@@ -15,7 +15,7 @@
   placeholder (files: src/agent/loop_/images.rs, src/agent/memory.rs, src/app/agent_memory.rs)
 - [x] T6 [AC4] [AC5] `agent_attach.rs` (`attach_image`, `poll_attach_request`, `take_for_send`) and
   the `AgentState` fields (files: src/app/agent_attach.rs, src/app/agent_state.rs, src/app/mod.rs)
-- [ ] T7 [AC2] [AC5] `start_turn` takes the attachment: `Image:` row, clear, or refuse and restore the
+- [x] T7 [AC2] [AC5] `start_turn` takes the attachment: `Image:` row, clear, or refuse and restore the
   draft (files: src/app/agent_turn.rs)
 - [ ] T8 [AC1] [AC3] Panel chip + `Attach image…` button + tooltip; `panels.rs` polls the request
   (files: src/agent/panel.rs, src/app/panels.rs)

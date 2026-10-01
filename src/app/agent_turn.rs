@@ -42,7 +42,7 @@ use super::agent_worker::{TurnConfig, ask_ui, run_agent_turn};
 use crate::agent::{AgentError, AgentEvent, TurnMetrics, prompt};
 use crate::app::agent_checkpoint::Checkpoints;
 use crate::app::agent_verify::VerifyState;
-use crate::app::{App, agent_memory};
+use crate::app::{App, agent_attach, agent_memory};
 use crate::io::settings::Settings;
 use std::sync::mpsc::{Sender, channel};
 
@@ -190,14 +190,34 @@ fn arm_with_limit(app: &mut App, prompt: &str, limit: u32) -> Sender<AgentEvent>
 /// A no-op while a turn is in flight: one `agent.rx` and one fence mean one
 /// turn (ADR 0007 §Revisit criteria), and a second `arm_turn` would drop the
 /// first turn's receiver on the floor and strand its thread.
+///
+/// The attached image (LCV-199) is taken first: refused, it leaves an `error`
+/// row, puts `prompt` back in the draft and arms nothing (AC 5); taken, it
+/// rides the config and gets its `Image:` row under the prompt (AC 2).
 pub fn start_turn(app: &mut App, prompt: &str) {
     if app.agent.busy {
         return;
     }
+    let image = match agent_attach::take_for_send(app) {
+        Ok(image) => image,
+        Err(row) => {
+            app.agent.chat.push(("error".to_owned(), row));
+            app.agent.input_draft = prompt.to_owned();
+            return;
+        }
+    };
     // Armed first, so the config carries the memory `begin` just trimmed.
     let tx = arm_with_limit(app, prompt, effective_step_limit(&app.settings));
+    if let Some(image) = &image {
+        let row = format!("Image: {}", image.name);
+        app.agent.chat.push(("user".to_owned(), row));
+        app.agent.turn.image = true;
+    }
     // Owned, never borrowed: the thread outlives this frame (ADR 0007 §D1).
-    let config = config_for(app);
+    let config = TurnConfig {
+        image,
+        ..config_for(app)
+    };
     let prompt = app.agent.turn.user.clone();
     std::thread::spawn(move || {
         let (result, batches) = {
