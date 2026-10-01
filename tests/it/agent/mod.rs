@@ -1,5 +1,6 @@
 //! The LLM agent: turns, panel, settings, prompt, memory, observations.
 
+mod bench_score;
 mod canvas_capture;
 mod check_drawing;
 mod checkpoints;

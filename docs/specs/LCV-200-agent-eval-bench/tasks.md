@@ -6,7 +6,7 @@
 - [x] T2 [AC2] `run_turn_inline` + `InlineTurn`; `drive_turn`/`answer_act`/`end_turn` visibility;
   unit test with a two-reply scripted `send_fn` that draws a line
   (files: src/app/agent_inline.rs, src/app/agent_worker.rs, src/app/mod.rs)
-- [ ] T3 [AC3] Scorer: rasterize + 1 px dilation + IoU, and the four assertion kinds, with
+- [x] T3 [AC3] Scorer: rasterize + 1 px dilation + IoU, and the four assertion kinds, with
   self-tests (identical → 1.0, disjoint → 0.0) (files: tests/it/agent/bench_score.rs,
   tests/it/agent/mod.rs)
 - [ ] T4 [AC1] Fixtures `plate-holes`, `box-face-tabs`: prompt, reference, assertions, replies
