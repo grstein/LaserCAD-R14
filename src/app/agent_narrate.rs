@@ -57,8 +57,11 @@ pub(super) fn geometry(entity: &Entity) -> String {
                 e.rotation.to_degrees()
             )
         }
-        // LCV-177 T24: the points arrive with the narration arm.
-        Entity::Bezier(_) => String::new(),
+        // LCV-177: the points in path order, start first and end last.
+        Entity::Bezier(b) => {
+            let pts: Vec<String> = b.points().iter().map(|p| pt(p.x, p.y)).collect();
+            format!("{} mm", pts.join(" → "))
+        }
     }
 }
 

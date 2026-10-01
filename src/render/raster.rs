@@ -8,6 +8,7 @@
 use std::f64::consts::TAU;
 
 use crate::document::Entity;
+use crate::geometry::Vec2;
 
 /// Background grey level.
 pub const WHITE: u8 = 255;
@@ -54,14 +55,15 @@ pub fn rasterize(
                 };
                 canvas.arc((a.center.x, a.center.y), a.r, start, sweep);
             }
+            // Half a pixel of chord deviation, every vertex on the curve.
             Entity::Ellipse(e) => {
-                // Half a pixel of chord deviation, every vertex on the curve.
                 let pts = e.polyline(0.5 / canvas.sx.max(canvas.sy));
-                for pair in pts.windows(2) {
-                    canvas.segment((pair[0].x, pair[0].y), (pair[1].x, pair[1].y), INK);
-                }
+                canvas.polyline(&pts);
             }
-            Entity::Bezier(_) => {}
+            Entity::Bezier(b) => {
+                let pts = b.polyline(0.5 / canvas.sx.max(canvas.sy));
+                canvas.polyline(&pts);
+            }
         }
     }
     canvas.pixels
@@ -142,6 +144,13 @@ impl Canvas {
         }
     }
 
+    /// Consecutive vertices joined by [`INK`] segments.
+    fn polyline(&mut self, pts: &[Vec2]) {
+        for pair in pts.windows(2) {
+            self.segment((pair[0].x, pair[0].y), (pair[1].x, pair[1].y), INK);
+        }
+    }
+
     /// A 1 px segment: clipped to the frame (Liang–Barsky), then walked one
     /// pixel centre at a time along its major axis.
     fn segment(&mut self, a: (f64, f64), b: (f64, f64), value: u8) {
@@ -212,7 +221,7 @@ fn clip(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::{Arc, Circle, Ellipse, EllipseSpan, Line, Vec2};
+    use crate::geometry::{Arc, Bezier, Circle, Ellipse, EllipseSpan, Line, Vec2};
 
     const BED: [f64; 2] = [100.0, 100.0];
 
@@ -339,6 +348,38 @@ mod tests {
             }
         }
         assert!(ink >= 2 * 2 * 40, "only {ink} ink pixels");
+    }
+
+    /// LCV-177 — at 10 px/mm a cubic and a quadratic ink only pixels within
+    /// one pixel of their curves, ends included, never their control points.
+    #[test]
+    fn every_bezier_pixel_lies_within_a_pixel_of_the_curve() {
+        let v = Vec2::new;
+        let curves = [
+            Bezier::Cubic([v(1.0, 1.0), v(3.0, 9.0), v(7.0, -3.0), v(9.0, 5.0)]),
+            Bezier::Quadratic([v(1.0, 8.0), v(5.0, 0.0), v(9.0, 9.0)]),
+        ];
+        for b in curves {
+            let px = decoded(&[Entity::Bezier(b)], [0.0, 0.0, 10.0, 10.0], 101, 101);
+            let at = |p: Vec2| px[(100 - (p.y * 10.0) as usize) * 101 + (p.x * 10.0) as usize];
+            assert_eq!((at(b.start()), at(b.end())), (INK, INK), "{b:?} ends");
+            let mut ink = 0;
+            for row in 0..101usize {
+                for col in 0..101usize {
+                    if px[row * 101 + col] != INK {
+                        continue;
+                    }
+                    ink += 1;
+                    let p = v(col as f64 / 10.0, 10.0 - row as f64 / 10.0);
+                    let off = b.distance_to_point(p) * 10.0;
+                    assert!(
+                        off <= 1.0 + 1e-9,
+                        "{b:?}: pixel ({col}, {row}) is {off} px off"
+                    );
+                }
+            }
+            assert!(ink >= 80, "{b:?}: only {ink} ink pixels");
+        }
     }
 
     #[test]

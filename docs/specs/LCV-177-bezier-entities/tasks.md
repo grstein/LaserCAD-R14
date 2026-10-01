@@ -67,7 +67,7 @@
   tests/fixtures/svg/beziers.{svg,expected})
 - [x] T23 [AC14] Test: `query_entities` lists a cubic and a quadratic with kinds `cubic` and
   `quadratic` and their points in mm, in order (files: tests/it/agent/turn.rs)
-- [ ] T24 [AC14] The narration arm, a prompt line saying Béziers are read-only, and the raster
+- [x] T24 [AC14] The narration arm, a prompt line saying Béziers are read-only, and the raster
   arm (files: src/app/agent_narrate.rs, src/agent/prompt.rs, src/render/raster.rs)
 - [ ] T25 Docs: `AGENTS.md` export bullet plus ADR 0016 in the list, coverage rows (files:
   AGENTS.md, docs/research/svg-spec-coverage.md)

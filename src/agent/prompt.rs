@@ -70,6 +70,9 @@ query_entities {}: list every entity with its index, kind, geometry in mm
 and layer, plus the bed size and the layers. Changes nothing.
 Ellipses (kind ellipse) are read-only to you: no tool creates one. Their
 start and end angles are parametric, not polar.
+Bezier curves (kind cubic or quadratic) are read-only to you too: no tool
+creates one. Their points are listed start first, then the control points,
+then the end.
 
 query_selection {}: list the indices of the entities the operator has
 selected. Changes nothing.
