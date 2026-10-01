@@ -61,5 +61,5 @@ Prerequisites: LCV-185, LCV-192 Done; LCV-188 Done (the outcome's `New ids` suff
   CHANGELOG.md)
 - [x] T14 `scripts/mutants.sh` on the diff (`src/agent/drawing*`, `src/text/layout.rs`). Kill the
   survivors or justify them in the commit body.
-- [ ] T15 Docs: append plan.md's "ADR amendment" to ADR 0010 as the next free `Amended (n)`
+- [x] T15 Docs: append plan.md's "ADR amendment" to ADR 0010 as the next free `Amended (n)`
   (files: docs/adr/0010-declarative-drawing-batch-tool.md)

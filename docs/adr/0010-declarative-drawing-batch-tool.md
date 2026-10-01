@@ -17,6 +17,21 @@
 - **Amended (4)**: 2026-09-30 — LCV-188, [ADR 0014](0014-stable-entity-ids.md) §8: §7's outcome
   sentence gains the suffix ` New id: e<N>.` or ` New ids: e<A>..=e<B>.`; its words are
   unchanged.
+- **Amended (5)**: 2026-10-01 — LCV-196: §2 and §3.3 gain six item types: `polyline {points,
+  closed}`, `rect {x, y, width, height, corner_radius}`, `polygon {cx, cy, r, sides, start_deg}`,
+  `text {x, y, height, text}`, `linear_array {of, count, dx, dy}` and
+  `polar_array {of, count, cx, cy, step_deg}`.
+  - **Expansion.** `drawing.rs` expands them into §4's `Line|Circle|Arc` before the `Act` exists.
+    The §3.2 cap of 1000 applies to the expanded count, which is computed before any copy is
+    made. §4's DTO is unchanged.
+  - **Kernel calls.** Expansion may call the kernel's `crate::geometry` and `crate::text` (both
+    kernel-pure). No document type crosses into `src/agent/`, and text goes through
+    `text::layout::text_strokes`, the function `TEXT` uses.
+  - **Arrays.** `of` references earlier items by batch position. A listed array contributes its
+    whole output, two levels at most.
+  - **Unchanged.** `version` stays 1, since every earlier payload stays valid. §2's schema rules
+    are unchanged (still no `oneOf`/`anyOf`/`allOf`/`const`/`additionalProperties`), and §1's
+    one dispatch = one command = one revision holds.
 - **Date**: 2026-09-27
 - **Deciders**: architect (LCV-144; in the 1.0 scope by the 2026-09-27 scope
   decision recorded in `PLAN.md`)
