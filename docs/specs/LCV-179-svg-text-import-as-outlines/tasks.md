@@ -30,7 +30,7 @@
   `text (missing glyph)` 1 and the next glyph still advances; `empty()` book → no entities and
   `text (no font)`; drop `text` from the unsupported list and rewrite the LCV-171 report test
   (files: `src/io/svg/import/report.rs`, `src/io/svg/import/text.rs`, `src/io/svg/import/tests.rs`)
-- [ ] T11 [AC9] Test first: `textPath` and `writing-mode="tb"` skip the text with their labels;
+- [x] T11 [AC9] Test first: `textPath` and `writing-mode="tb"` skip the text with their labels;
   `rotate`, `inline-size`, `letter-spacing`, `word-spacing` lay out unchanged and are reported
   once each (files: `src/io/svg/import/text.rs`)
 - [ ] T12 [AC10] Test first: fill-only red text lands on the red layer; a tspan with

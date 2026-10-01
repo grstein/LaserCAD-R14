@@ -14,12 +14,12 @@ use crate::document::LayerId;
 use crate::geometry::Vec2;
 use crate::io::svg::css::Sheet;
 use crate::io::svg::layers::Slot;
-use crate::io::svg::length::{font_size, parse_length, to_user};
+use crate::io::svg::length::font_size;
 use crate::io::svg::path_data::{PathData, Segment};
 use crate::io::svg::viewport::Ctx;
 use crate::text::{FaceId, Glyph, Seg, glyph};
 
-use layout::{Span, layout, positions};
+use layout::{Span, collapse, layout, list, positions};
 
 mod layout;
 
@@ -36,6 +36,10 @@ const SUBSTITUTED: &str = "text (font substituted)";
 
 /// The report label of a character without a glyph, per character (AC 8).
 const MISSING: &str = "text (missing glyph)";
+
+/// Properties laid out as if absent and reported `text (<name>)` once per
+/// `<text>` when not neutral (AC 9).
+const IGNORED: [&str; 4] = ["rotate", "inline-size", "letter-spacing", "word-spacing"];
 
 /// The initial `font-size` in user units (CSS `medium`).
 const DEFAULT_SIZE: f64 = 16.0;
@@ -70,20 +74,10 @@ struct Flat {
 impl Flat {
     /// Append `ch`, a whitespace becoming a space; a run of collapsible
     /// whitespace keeps one space, none at the start (AC 7).
-    fn push(&mut self, mut ch: Char, preserve: bool) {
-        let white = matches!(ch.c, ' ' | '\t' | '\n' | '\r');
-        if white {
-            ch.c = ' ';
+    fn push(&mut self, ch: Char, preserve: bool) {
+        if let Some(c) = collapse(ch.c, preserve, &mut self.collapse) {
+            self.chars.push(Char { c, ..ch });
         }
-        if white && !preserve {
-            if self.collapse {
-                return;
-            }
-            self.collapse = true;
-        } else {
-            self.collapse = false;
-        }
-        self.chars.push(ch);
     }
 
     /// Drop a trailing collapsed space (AC 7).
@@ -107,6 +101,17 @@ impl<'a, 'input> Walk<'a, 'input> {
         if self.fonts.face("sans-serif", 400, false).is_none() {
             self.report.note(NO_FONT);
             return;
+        }
+        if let Some(label) = self.skipped(node) {
+            self.report.note(label);
+            return;
+        }
+        for name in IGNORED {
+            let used = (node.descendants().filter(|n| n.is_element()))
+                .any(|n| inherited(n, &self.sheet, name).is_some_and(|v| !neutral(&v)));
+            if used {
+                self.report.note(&format!("text ({name})"));
+            }
         }
         let mut flat = Flat {
             collapse: true,
@@ -194,15 +199,32 @@ impl<'a, 'input> Walk<'a, 'input> {
             if !child.is_element() || child.tag_name().namespace() != Some(SVG_NS) {
                 continue;
             }
-            if let "tspan" | "a" = child.tag_name().name() {
-                let inner = style.child(child, &self.sheet, &mut self.report);
-                if !inner.display_none {
-                    self.report.note_properties(child);
-                    self.flatten(child, layer, ctx, &inner, flat);
+            match child.tag_name().name() {
+                "tspan" | "a" => {
+                    let inner = style.child(child, &self.sheet, &mut self.report);
+                    if !inner.display_none {
+                        self.report.note_properties(child);
+                        self.flatten(child, layer, ctx, &inner, flat);
+                    }
                 }
+                "tref" => self.report.note("text (tref)"),
+                _ => {}
             }
         }
         flat.spans[span].1 = flat.chars.len();
+    }
+
+    /// The report label when `node` is not laid out (AC 9): it holds a
+    /// `textPath` or its `writing-mode` is vertical.
+    fn skipped(&self, node: Node<'_, '_>) -> Option<&'static str> {
+        if node
+            .descendants()
+            .any(|n| n.has_tag_name((SVG_NS, "textPath")))
+        {
+            return Some("text (textPath)");
+        }
+        let mode = inherited(node, &self.sheet, "writing-mode").unwrap_or_default();
+        (mode.starts_with("tb") || mode.starts_with("vertical")).then_some("text (vertical)")
     }
 
     /// Each character's glyph and font-unit scale (`size / units_per_em`),
@@ -234,6 +256,12 @@ fn inherited(node: Node<'_, '_>, sheet: &Sheet, prop: &str) -> Option<String> {
         .map(|v| v.to_ascii_lowercase())
 }
 
+/// An [`IGNORED`] value that changes nothing: `normal`, `auto` or zero.
+fn neutral(value: &str) -> bool {
+    let number = value.trim_end_matches(|c: char| c.is_ascii_alphabetic() || c == '%');
+    matches!(value, "normal" | "auto") || number.parse::<f64>().is_ok_and(|n| n == 0.0)
+}
+
 /// `font-weight` as a number: 1–1000 as written, `bold`/`bolder` 700,
 /// anything else 400.
 fn weight(value: Option<&str>) -> u16 {
@@ -255,19 +283,6 @@ fn size(node: Node<'_, '_>, sheet: &Sheet) -> f64 {
             .and_then(|v| font_size(&v, parent))
             .unwrap_or(parent)
     })
-}
-
-/// The `x`, `y`, `dx` or `dy` list of `node` in user units (`%` of the
-/// viewport width for `x`/`dx`, height for `y`/`dy`), up to the first
-/// invalid value.
-fn list(node: Node<'_, '_>, name: &str, ctx: &Ctx) -> Vec<f64> {
-    let reference = ctx.viewport[usize::from(name.ends_with('y'))];
-    node.attribute(name)
-        .unwrap_or("")
-        .split(|c: char| c == ',' || c.is_ascii_whitespace())
-        .filter(|t| !t.is_empty())
-        .map_while(|t| parse_length(t).map(|len| to_user(len, reference)))
-        .collect()
 }
 
 #[cfg(test)]
@@ -525,5 +540,53 @@ mod tests {
         let svg = page_with(r#"<text x="10" y="50">l</text>"#, &FontBook::empty());
         assert!(svg.entities.is_empty());
         assert_eq!(svg.report, label(1, "text (no font)"));
+    }
+
+    /// AC 9 — a `textPath` descendant skips the whole text; a `tref` is
+    /// skipped and reported.
+    #[test]
+    fn text_path_skips_the_text_and_tref_is_reported() {
+        let svg = page(
+            r##"<text x="10" y="50">l<tspan><textPath href="#p">l</textPath></tspan></text>"##,
+        );
+        assert!(svg.entities.is_empty());
+        assert_eq!(svg.report, label(1, "text (textPath)"));
+        let svg = page(r##"<text x="10" y="50">l<tref href="#t"/></text>"##);
+        assert!(!svg.entities.is_empty());
+        assert_eq!(svg.report, label(1, "text (tref)"));
+    }
+
+    /// AC 9 — a vertical `writing-mode`, inherited or own, skips the text.
+    #[test]
+    fn vertical_writing_mode_skips_the_text() {
+        let svg = page(
+            r#"<text writing-mode="tb" x="10" y="50">l</text><g style="writing-mode: vertical-rl"><text x="10" y="50">l</text></g><text writing-mode="lr" x="10" y="50">l</text>"#,
+        );
+        assert_eq!(
+            svg.entities,
+            page(r#"<text x="10" y="50">l</text>"#).entities
+        );
+        assert_eq!(svg.report, label(2, "text (vertical)"));
+    }
+
+    /// AC 9 — `rotate`, `inline-size`, `letter-spacing` and `word-spacing`
+    /// are ignored for layout and reported once each per text; `normal`,
+    /// `auto` and zero are not reported.
+    #[test]
+    fn spacing_rotate_and_inline_size_are_ignored_and_reported() {
+        let plain = page(r#"<text x="10" y="50" font-size="20.48">l l</text>"#);
+        let svg = page(
+            r#"<g letter-spacing="2"><text x="10" y="50" font-size="20.48" rotate="30" style="word-spacing: 3px; inline-size: 50">l <tspan letter-spacing="1" rotate="5">l</tspan></text></g>"#,
+        );
+        assert_eq!(svg.entities, plain.entities);
+        let mut report = svg.report;
+        report.sort();
+        let want = ["inline-size", "letter-spacing", "rotate", "word-spacing"]
+            .map(|n| (format!("text ({n})"), 1));
+        assert_eq!(report, want);
+        let neutral = page(
+            r#"<text x="10" y="50" font-size="20.48" letter-spacing="normal" word-spacing="0" inline-size="auto" rotate="0px">l l</text>"#,
+        );
+        assert!(neutral.report.is_empty(), "{:?}", neutral.report);
     }
 }

@@ -5,6 +5,8 @@
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use crate::geometry::Vec2;
+use crate::io::svg::length::{parse_length, to_user};
+use crate::io::svg::viewport::Ctx;
 
 /// A laid-out element's characters `first..end` and its `x`, `y`, `dx`,
 /// `dy` lists in user units.
@@ -61,4 +63,32 @@ fn shift(chunk: &mut [Vec2], anchor: f64, end: f64) {
     for o in chunk {
         o.x -= dx;
     }
+}
+
+/// The `x`, `y`, `dx` or `dy` list of `node` in user units (`%` of the
+/// viewport width for `x`/`dx`, height for `y`/`dy`), up to the first
+/// invalid value.
+pub(super) fn list(node: roxmltree::Node<'_, '_>, name: &str, ctx: &Ctx) -> Vec<f64> {
+    let reference = ctx.viewport[usize::from(name.ends_with('y'))];
+    node.attribute(name)
+        .unwrap_or("")
+        .split(|c: char| c == ',' || c.is_ascii_whitespace())
+        .filter(|t| !t.is_empty())
+        .map_while(|t| parse_length(t).map(|len| to_user(len, reference)))
+        .collect()
+}
+
+/// The character kept for `c` (AC 7): whitespace becomes a space and,
+/// unless `preserve`, a whitespace run keeps one space, none while
+/// `collapse` (at the start or after a kept collapsed space).
+pub(super) fn collapse(c: char, preserve: bool, collapse: &mut bool) -> Option<char> {
+    let white = matches!(c, ' ' | '\t' | '\n' | '\r');
+    if white && !preserve {
+        if std::mem::replace(collapse, true) {
+            return None;
+        }
+    } else {
+        *collapse = false;
+    }
+    Some(if white { ' ' } else { c })
 }
