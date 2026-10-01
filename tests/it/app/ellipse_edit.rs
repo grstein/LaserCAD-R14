@@ -1,5 +1,6 @@
 //! LCV-176 — editing ellipses through the real `App::update_ui`: picking and
-//! box selection (AC 5), and the modify tools typed on the command line (AC 6).
+//! box selection (AC 5), the modify tools typed on the command line (AC 6),
+//! and TRIM/EXTEND leaving ellipses alone (AC 8).
 //!
 //! Each scene hovers the canvas middle on an empty document to learn the
 //! world point `w0` under a known screen position `p`, then places geometry
@@ -11,8 +12,8 @@ use harness::{frame, submit_command, tap};
 use lasercad::app::App;
 use lasercad::document::Entity;
 use lasercad::document::commands::CreateEntities;
-use lasercad::geometry::{Ellipse, EllipseSpan, Vec2};
-use lasercad::tools::{SelectTool, Tool};
+use lasercad::geometry::{Ellipse, EllipseSpan, Line, Vec2};
+use lasercad::tools::{ExtendTool, SelectTool, Tool, TrimTool};
 
 struct Scene {
     ctx: egui::Context,
@@ -63,8 +64,16 @@ impl Scene {
     }
 
     fn add(&mut self, e: Ellipse) {
-        let cmd = CreateEntities::new(vec![Entity::Ellipse(e)]);
-        self.app.commit(Box::new(cmd));
+        self.add_all(vec![Entity::Ellipse(e)]);
+    }
+
+    fn add_all(&mut self, entities: Vec<Entity>) {
+        self.app.commit(Box::new(CreateEntities::new(entities)));
+    }
+
+    /// The line from `a` to `b`, both in pixels from `w0`.
+    fn line(&self, a: (f64, f64), b: (f64, f64)) -> Entity {
+        Entity::Line(Line::new(self.w(a.0, a.1), self.w(b.0, b.1)))
     }
 
     fn press(&mut self, at: egui::Pos2, pressed: bool) {
@@ -273,5 +282,81 @@ fn ctrl() -> egui::Modifiers {
         ctrl: true,
         command: true,
         ..egui::Modifiers::NONE
+    }
+}
+
+const REFUSAL: &str = "Cannot trim/extend an ellipse";
+
+/// AC 8 — a TRIM or EXTEND click on an ellipse or elliptical arc (on its
+/// curve, or at an arc end) changes nothing, adds no undo step and says why.
+#[test]
+fn trim_and_extend_aimed_at_an_ellipse_refuse() {
+    for arc in [false, true] {
+        let tools: [fn() -> Box<dyn Tool>; 2] = [
+            || Box::new(TrimTool::default()),
+            || Box::new(ExtendTool::default()),
+        ];
+        for tool in tools {
+            let mut s = Scene::new(tool());
+            let e = s.ellipse(arc);
+            let crossing = s.line((-300.0, 0.0), (300.0, 0.0));
+            s.add_all(vec![Entity::Ellipse(e), crossing]);
+            let name = s.app.tool_manager.active_tool_name();
+            let mut aims = vec![e.point(1.0)];
+            aims.extend(e.end_point());
+            for at in aims {
+                let depth = s.app.history.len();
+                s.app.command_feedback.clear();
+                s.click(at);
+                assert_eq!(
+                    s.app.document.entities,
+                    vec![Entity::Ellipse(e), crossing],
+                    "{name} arc={arc} at {at:?}: unchanged"
+                );
+                assert_eq!(s.app.history.len(), depth, "{name}: no undo step");
+                assert_eq!(s.app.command_feedback, REFUSAL, "{name} arc={arc}");
+            }
+        }
+    }
+}
+
+/// AC 8 — an ellipse is no cutter for TRIM and no boundary for EXTEND: a
+/// line through it is cut, and grown, only at a line beyond it.
+#[test]
+fn an_ellipse_is_no_cutter_and_no_boundary() {
+    for arc in [false, true] {
+        let mut s = Scene::new(Box::new(TrimTool::default()));
+        let e = s.ellipse(arc);
+        let wall = s.line((250.0, -50.0), (250.0, 50.0));
+        let through = s.line((-300.0, 0.0), (300.0, 0.0));
+        s.add_all(vec![Entity::Ellipse(e), through, wall]);
+        // TRIM keeps the clicked side: everything left of the wall.
+        s.click(s.w(-280.0, 0.0));
+        let trimmed = s.line((-300.0, 0.0), (250.0, 0.0));
+        let Entity::Line(got) = s.app.document.entities[1] else {
+            panic!("the trimmed line stays a line");
+        };
+        let Entity::Line(want) = trimmed else {
+            unreachable!()
+        };
+        assert!(
+            got.p1.approx_eq(want.p1, 1e-9) && got.p2.approx_eq(want.p2, 1e-9),
+            "arc={arc}: TRIM cuts at the wall only: {got:?}"
+        );
+
+        let mut s = Scene::new(Box::new(ExtendTool::default()));
+        let e = s.ellipse(arc);
+        let wall = s.line((250.0, -50.0), (250.0, 50.0));
+        let short = s.line((-300.0, 0.0), (-200.0, 0.0));
+        s.add_all(vec![Entity::Ellipse(e), short, wall]);
+        s.click(s.w(-202.0, 0.0));
+        let Entity::Line(got) = s.app.document.entities[1] else {
+            panic!("the extended line stays a line");
+        };
+        assert!(
+            got.p2.approx_eq(s.w(250.0, 0.0), 1e-9),
+            "arc={arc}: EXTEND grows to the wall: {got:?}"
+        );
+        assert_ne!(s.app.command_feedback, REFUSAL, "arc={arc}");
     }
 }

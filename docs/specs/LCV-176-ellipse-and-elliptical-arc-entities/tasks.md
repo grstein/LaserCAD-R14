@@ -41,7 +41,7 @@
 - [x] T15 [AC6] Test: MOVE, COPY, ROTATE, MIRROR and SCALE on an ellipse arc through the tools.
   Each is exact, mirror negates rotation and reverses direction, and each undoes as one step
   (files: tests/it/app/ellipse_edit.rs)
-- [ ] T16 [AC8] Test: TRIM and EXTEND aimed at an ellipse leave the document and history unchanged
+- [x] T16 [AC8] Test: TRIM and EXTEND aimed at an ellipse leave the document and history unchanged
   and set "Cannot trim/extend an ellipse". An ellipse is never a cutter or boundary for a line
   (files: tests/it/app/ellipse_edit.rs)
 - [ ] T17 [AC8] Pick distance and `take_message` in TRIM/EXTEND; `cut_points`/`extend_reach` arms
