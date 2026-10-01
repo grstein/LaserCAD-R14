@@ -5,13 +5,17 @@
 //! Runs on the UI thread, like every `Act` (ADR 0007 §D1): the worker never
 //! sees the document, only the sentence.
 
-use crate::agent::AgentOutcome;
-use crate::app::App;
+use crate::agent::{AgentOutcome, CaptureFrame};
+use crate::app::{App, agent_capture};
 use crate::document::{Document, check_drawing};
 
 /// `AgentAction::Feedback`: [`summary`] when the setting is on, read live,
 /// and the turn applied something since its last feedback; else `Ok("")`,
 /// which adds nothing to the tool result. Not a step and not fenced.
+///
+/// The summary is `Observed` with a `drawing` frame capture appended when
+/// that capture succeeds — both canvas opt-ins on, live, and a drawing with
+/// area (ADR 0011); any capture refusal leaves the text alone.
 pub(crate) fn feedback(app: &mut App) -> AgentOutcome {
     let turn = &mut app.agent.turn;
     let moved = turn.tally.applied != turn.fed_at;
@@ -19,7 +23,14 @@ pub(crate) fn feedback(app: &mut App) -> AgentOutcome {
     if !(moved && app.settings.agent_feedback_after_changes) {
         return AgentOutcome::Ok(String::new());
     }
-    AgentOutcome::Ok(summary(&app.document))
+    let text = summary(&app.document);
+    match agent_capture::capture(app, &CaptureFrame::Drawing) {
+        AgentOutcome::Observed { text: seen, png } => AgentOutcome::Observed {
+            text: format!("{text}\n{seen}"),
+            png,
+        },
+        _ => AgentOutcome::Ok(text),
+    }
 }
 
 /// `Drawing now: <n> entities, X <x0>..<x1> mm, Y <y0>..<y1> mm. <check>`,

@@ -44,7 +44,7 @@ Prerequisites: LCV-187, LCV-189, LCV-190 Done on `agent-harness`.
   - The steps count is unchanged.
 
   (files: tests/it/agent/feedback_after_changes.rs, src/agent/loop_/tests.rs)
-- [ ] T11 [AC3] Capture in `feedback`; `agent_capture::allowed` becomes `pub(crate)`; `run_batch`
+- [x] T11 [AC3] Capture in `feedback`; `agent_capture::allowed` becomes `pub(crate)`; `run_batch`
   takes `Observed` from feedback (files: src/app/agent_feedback.rs, src/app/agent_capture.rs,
   src/agent/loop_/batch.rs)
 - [ ] T12 [AC7] Test: Agent Settings shows the checkbox `Feedback after changes` and the hint text,

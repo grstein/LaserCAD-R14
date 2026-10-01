@@ -25,7 +25,8 @@ pub(super) struct Steps {
 /// answered [`AgentOutcome::Fenced`] the rest get [`FENCE_STOP_PLACEHOLDER`]
 /// undispatched. A batch that ran to its end unfenced asks
 /// [`Dispatch::Feedback`] once, after its last call, and appends a non-empty
-/// answer to the last result before the steps-left line (LCV-195). Returns
+/// answer to the last result before the steps-left line; an observed answer
+/// also rides its image under the last call's id (LCV-195). Returns
 /// whether the batch was fenced.
 pub(super) fn run_batch<D>(
     dispatch_fn: &mut D,
@@ -46,18 +47,11 @@ where
             let outcome = dispatch_fn(Dispatch::Tool { name, args })?;
             steps.dispatched += 1;
             fenced = outcome.is_fenced();
-            match outcome {
-                AgentOutcome::Observed { text, png } => {
-                    let label = format!("canvas image for tool call {}", call.id);
-                    images.extend([ContentPart::text(label), ContentPart::png(&png)]);
-                    shown.push(call.id.clone());
-                    text
-                }
-                other => other.into_text(),
-            }
+            seen(outcome, &call.id, &mut images, shown)
         };
         if i + 1 == calls.len() && !fenced {
-            let text = dispatch_fn(Dispatch::Feedback)?.into_text();
+            let feedback = dispatch_fn(Dispatch::Feedback)?;
+            let text = seen(feedback, &call.id, &mut images, shown);
             if !text.is_empty() {
                 result.push('\n');
                 result.push_str(&text);
@@ -71,6 +65,25 @@ where
         messages.push(ChatMessage::user_parts(images));
     }
     Ok(fenced)
+}
+
+/// The text of `outcome`. An observed one also queues its image, labelled
+/// with `id`, and records `id` in `shown` so the image's fate is noted.
+fn seen(
+    outcome: AgentOutcome,
+    id: &str,
+    images: &mut Vec<ContentPart>,
+    shown: &mut Vec<String>,
+) -> String {
+    match outcome {
+        AgentOutcome::Observed { text, png } => {
+            let label = format!("canvas image for tool call {id}");
+            images.extend([ContentPart::text(label), ContentPart::png(&png)]);
+            shown.push(id.to_owned());
+            text
+        }
+        other => other.into_text(),
+    }
 }
 
 /// The line that ends the last tool result of a batch that ran to its end
