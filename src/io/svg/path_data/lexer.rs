@@ -19,28 +19,81 @@ impl<'a> Lexer<'a> {
     /// The next command letter, consumed; `None` (nothing consumed) when the
     /// next token is not a path command.
     pub(super) fn command(&mut self) -> Option<u8> {
-        let _ = (self.src, self.pos);
-        None
+        self.skip_separators();
+        let c = self.peek().filter(|c| b"MmLlHhVvZzAaCcSsQqTt".contains(c))?;
+        self.pos += 1;
+        Some(c)
     }
 
-    /// The next number; `None` at a syntax error or a non-finite value.
+    /// The next number (SVG 2 grammar: sign, digits, `.`, exponent); `None`
+    /// at a syntax error or a non-finite value.
     pub(super) fn number(&mut self) -> Option<f64> {
-        None
+        self.skip_separators();
+        let start = self.pos;
+        self.eat(|c| c == b'+' || c == b'-');
+        let mut digits = self.digits();
+        if self.eat(|c| c == b'.') {
+            digits += self.digits();
+        }
+        if digits == 0 {
+            return None;
+        }
+        if self.eat(|c| c == b'e' || c == b'E') {
+            self.eat(|c| c == b'+' || c == b'-');
+            if self.digits() == 0 {
+                return None;
+            }
+        }
+        let value = self.src.get(start..self.pos)?.parse::<f64>().ok()?;
+        value.is_finite().then_some(value)
     }
 
     /// The next flag: exactly one `0` or `1` character.
     pub(super) fn flag(&mut self) -> Option<bool> {
-        None
+        self.skip_separators();
+        let flag = match self.peek()? {
+            b'0' => false,
+            b'1' => true,
+            _ => return None,
+        };
+        self.pos += 1;
+        Some(flag)
     }
 
     /// Whether only separators remain.
     pub(super) fn at_end(&mut self) -> bool {
-        false
+        self.skip_separators();
+        self.peek().is_none()
     }
 
     /// Whether the next token starts a number (a sign, a digit or `.`).
     pub(super) fn number_ahead(&mut self) -> bool {
-        false
+        self.skip_separators();
+        self.peek()
+            .is_some_and(|c| c.is_ascii_digit() || matches!(c, b'+' | b'-' | b'.'))
+    }
+
+    fn peek(&self) -> Option<u8> {
+        self.src.as_bytes().get(self.pos).copied()
+    }
+
+    /// Consume one byte matching `pred`; whether one was consumed.
+    fn eat(&mut self, pred: impl Fn(u8) -> bool) -> bool {
+        let hit = self.peek().is_some_and(pred);
+        self.pos += usize::from(hit);
+        hit
+    }
+
+    /// Consume a run of ASCII digits; how many.
+    fn digits(&mut self) -> usize {
+        let from = self.pos;
+        while self.eat(|c| c.is_ascii_digit()) {}
+        self.pos - from
+    }
+
+    /// Skip commas and SVG whitespace (space, tab, CR, LF, form feed).
+    fn skip_separators(&mut self) {
+        while self.eat(|c| c == b',' || c.is_ascii_whitespace()) {}
     }
 }
 
