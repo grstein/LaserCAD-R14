@@ -24,7 +24,7 @@
   tests/it/app/bezier_paint.rs, tests/it/app/mod.rs)
 - [x] T8 [AC5] `polyline(0.5·mm_per_px)` in the entity, selection and dashed painters (files:
   src/render/entities.rs, src/render/selection.rs, src/render/preview.rs)
-- [ ] T9 [AC6, AC7] Test: a click within the aperture of the curve selects, a click on an
+- [x] T9 [AC6, AC7] Test: a click within the aperture of the curve selects, a click on an
   off-curve control point does not; a window box tight around the curve (not its control polygon)
   selects; a crossing box over the curve selects, one over only the control polygon does not;
   ZOOM Extents frames the curve's tight bbox (files: tests/it/app/bezier_edit.rs,
