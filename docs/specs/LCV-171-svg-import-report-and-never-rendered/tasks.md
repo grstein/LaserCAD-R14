@@ -48,7 +48,7 @@
 - [x] T14 [AC9] `open_content(app, path, &content)` shared by `action_open` and
       `action_open_path`; rewrite the `action_open` source scan to assert the `open_content(` call
       and `None => return,` (files: src/io/file_actions.rs, src/io/file_actions/tests.rs)
-- [ ] T15 [AC11] `.expected` gains `ignored <count> <label…>` lines (count first, label to end of
+- [x] T15 [AC11] `.expected` gains `ignored <count> <label…>` lines (count first, label to end of
       line); the runner compares the report in order, and no `ignored` line means an empty report;
       parser tests for both (files: tests/it/io_svg/corpus/expected.rs, tests/it/io_svg/corpus.rs)
 - [ ] T16 [AC11] [AC3] Fixture `inkscape-defs`: Inkscape namespaces, `<sodipodi:namedview>`,

@@ -12,6 +12,9 @@
 //! circle 0 cx cy r
 //! arc 1 cx cy r start_deg end_deg ccw|cw
 //! error MalformedLayer                      # alone: import must fail so
+//! ignored 2 path (unsupported data)         # LCV-171: one import-report entry,
+//!                                            # count first, label to end of line;
+//!                                            # in report order; none = empty report
 //! ```
 
 use lasercad::document::layer::parse_color_hex;
@@ -66,6 +69,8 @@ pub enum Expected {
         bed: [f64; 2],
         layers: Vec<ExpLayer>,
         entities: Vec<ExpEntity>,
+        /// The import report, `(label, count)` in order (LCV-171).
+        report: Vec<(String, usize)>,
     },
     /// Import fails with this `SvgImportError` variant.
     Error(String),
@@ -76,6 +81,7 @@ pub fn parse(text: &str) -> Result<Expected, String> {
     let mut bed = None;
     let mut layers = Vec::new();
     let mut entities = Vec::new();
+    let mut report = Vec::new();
     let mut error = None;
     let mut records = 0;
     for (i, raw) in text.lines().enumerate() {
@@ -108,6 +114,7 @@ pub fn parse(text: &str) -> Result<Expected, String> {
                 });
             }
             "arc" => entities.push(arc(rest).map_err(at)?),
+            "ignored" => report.push(ignored(rest).map_err(at)?),
             "error" if rest.len() == 1 && ERROR_VARIANTS.contains(&rest[0].as_str()) => {
                 error = Some(rest[0].clone());
             }
@@ -140,7 +147,23 @@ pub fn parse(text: &str) -> Result<Expected, String> {
         bed,
         layers,
         entities,
+        report,
     })
+}
+
+/// `ignored <count> <label…>`: a positive count, then the label as the rest
+/// of the line (tokens joined by one space).
+fn ignored(toks: &[String]) -> Result<(String, usize), String> {
+    let (count, label) = toks.split_first().ok_or("ignored takes <count> <label>")?;
+    let count = count
+        .parse::<usize>()
+        .ok()
+        .filter(|&n| n > 0)
+        .ok_or_else(|| format!("{count:?} is not a positive count"))?;
+    if label.is_empty() {
+        return Err("ignored needs a label".to_owned());
+    }
+    Ok((label.join(" "), count))
 }
 
 /// Split one line into tokens; `"…"` is one token (`\"` and `\\` escaped).
@@ -265,11 +288,13 @@ fn parses_every_record_kind_and_comments() {
         bed,
         layers,
         entities,
+        report,
     } = parse(text).unwrap()
     else {
         panic!("expected a document");
     };
     assert_eq!(bed, [300.0, 180.0]);
+    assert!(report.is_empty(), "no `ignored` line is an empty report");
     assert_eq!(layers.len(), 2);
     assert_eq!(
         (
@@ -342,6 +367,9 @@ fn malformed_lines_are_errors_naming_the_line() {
         ("line x 1 2 3 4\n", 3),
         ("circle 0 1 2 inf\n", 3),
         ("arc 0 1 2 3 4 5 up\n", 3),
+        ("ignored image\n", 3),
+        ("ignored 0 image\n", 3),
+        ("ignored 2\n", 3),
         ("polygon 0 1 2\n", 3),
         ("error NotAVariant\n", 3),
     ] {
@@ -371,4 +399,25 @@ fn incomplete_files_are_errors() {
     ] {
         assert!(parse(bad).is_err(), "{bad:?}");
     }
+}
+
+/// LCV-171 — `ignored` lines keep their order; the label runs to the end of
+/// the line and a trailing comment is not part of it.
+#[test]
+fn parses_ignored_lines_in_order() {
+    let text = "bed 300 180\n\
+        layer \"Cut\" #ff0000 output=1 current=1\n\
+        ignored 1 defs\n\
+        ignored 2 path (unsupported data)  # two paths\n\
+        ignored 1 transform\n";
+    let Ok(Expected::Doc { report, .. }) = parse(text) else {
+        panic!("expected a document");
+    };
+    let want = [
+        ("defs", 1),
+        ("path (unsupported data)", 2),
+        ("transform", 1),
+    ]
+    .map(|(label, count)| (label.to_owned(), count));
+    assert_eq!(report, want);
 }

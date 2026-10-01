@@ -4,7 +4,8 @@
 //! [`super::corpus_expected`]). The expectation is derived from the SVG text by hand, never
 //! by running `import_svg`, so the corpus measures import against SVG 2 rather
 //! than against LaserCAD's own exporter. The directory is listed at run time:
-//! adding a fixture needs no code change.
+//! adding a fixture needs no code change. The import report is compared
+//! too (LCV-171): an `.expected` with no `ignored` line expects none.
 
 use std::collections::BTreeSet;
 use std::f64::consts::TAU;
@@ -71,17 +72,21 @@ fn variant(e: &SvgImportError) -> &'static str {
 
 /// Every mismatch between importing `svg` and `want`.
 fn compare(svg: &str, want: &Expected) -> Vec<String> {
-    let got = import_svg(svg).and_then(|imported| imported.into_document());
+    let got = import_svg(svg).and_then(|imported| {
+        let report = imported.report.clone();
+        imported.into_document().map(|doc| (doc, report))
+    });
     match (got, want) {
         (Err(e), Expected::Error(v)) if variant(&e) == v => Vec::new(),
         (Err(e), _) => vec![format!("import failed: {} ({e})", variant(&e))],
         (Ok(_), Expected::Error(v)) => vec![format!("import succeeded, expected {v}")],
         (
-            Ok(doc),
+            Ok((doc, report)),
             Expected::Doc {
                 bed,
                 layers,
                 entities,
+                report: want_report,
             },
         ) => {
             let mut out = Vec::new();
@@ -90,6 +95,9 @@ fn compare(svg: &str, want: &Expected) -> Vec<String> {
             }
             out.extend(compare_layers(&doc, layers));
             out.extend(compare_entities(&doc, entities));
+            if &report != want_report {
+                out.push(format!("report {report:?}, expected {want_report:?}"));
+            }
             out
         }
     }
@@ -210,6 +218,20 @@ fn runner_accepts_a_match_and_names_a_mismatch() {
     std::fs::write(dir.join("ok.svg"), PAIR_SVG).unwrap();
     std::fs::write(dir.join("ok.expected"), PAIR_EXPECTED).unwrap();
     assert_eq!(check_corpus(&dir), Vec::<String>::new());
+    let noisy = PAIR_SVG.replace("<line", "<image/><line");
+    std::fs::write(dir.join("noisy.svg"), &noisy).unwrap();
+    std::fs::write(
+        dir.join("noisy.expected"),
+        format!("{PAIR_EXPECTED}ignored 1 image\n"),
+    )
+    .unwrap();
+    std::fs::write(dir.join("quiet.svg"), noisy).unwrap();
+    std::fs::write(dir.join("quiet.expected"), PAIR_EXPECTED).unwrap();
+    let failures = check_corpus(&dir);
+    assert_eq!(failures.len(), 1, "{failures:?}");
+    assert!(failures[0].starts_with("quiet.svg: report"), "{failures:?}");
+    std::fs::remove_file(dir.join("quiet.svg")).unwrap();
+    std::fs::remove_file(dir.join("quiet.expected")).unwrap();
     let off = PAIR_EXPECTED.replace("line 0 1 48", "line 0 1 47.9999");
     std::fs::write(dir.join("off.svg"), PAIR_SVG).unwrap();
     std::fs::write(dir.join("off.expected"), off).unwrap();
