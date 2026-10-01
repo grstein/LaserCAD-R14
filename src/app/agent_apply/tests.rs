@@ -268,9 +268,9 @@ fn query_entities_lists_the_live_drawing() {
         apply(&mut app, &AgentAction::QueryEntities).into_text(),
         "The drawing has 3 entities. Bed 400.000 × 400.000 mm.\n\
              Layers: Cut (current).\n\
-             0: line (0.000, 0.000) → (10.000, 0.000) mm layer Cut\n\
-             1: circle center (10.000, 10.000) mm, r = 5.000 mm layer Cut\n\
-             2: arc center (0.000, 0.000) mm, r = 8.000 mm, 0.0°→90.0° ccw layer Cut"
+             0 e1: line (0.000, 0.000) → (10.000, 0.000) mm layer Cut\n\
+             1 e2: circle center (10.000, 10.000) mm, r = 5.000 mm layer Cut\n\
+             2 e3: arc center (0.000, 0.000) mm, r = 8.000 mm, 0.0°→90.0° ccw layer Cut"
     );
 }
 
@@ -724,7 +724,7 @@ fn a_batch_narrates_its_indices_count_and_revision() {
         panic!("a query is answered")
     };
     assert!(
-        listing.contains("\n3: arc center (1.000, 1.000) mm, r = 2.000 mm, 0.0°→90.0° ccw"),
+        listing.contains("\n3 e4: arc center (1.000, 1.000) mm, r = 2.000 mm, 0.0°→90.0° ccw"),
         "{listing}"
     );
     assert!(app.history.undo(&mut app.document));

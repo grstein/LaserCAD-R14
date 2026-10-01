@@ -153,11 +153,11 @@ fn query_entities_reports_each_entity_layer() {
         .collect();
     assert_eq!(rows.len(), 2, "{text}");
     assert!(
-        rows[0].starts_with("0: circle") && rows[0].ends_with("layer Cut"),
+        rows[0].starts_with("0 e1: circle") && rows[0].ends_with("layer Cut"),
         "{text}"
     );
     assert!(
-        rows[1].starts_with("1: line") && rows[1].ends_with("layer Mark"),
+        rows[1].starts_with("1 e2: line") && rows[1].ends_with("layer Mark"),
         "{text}"
     );
 }

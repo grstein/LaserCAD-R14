@@ -81,7 +81,8 @@ fn layer_name(doc: &Document, index: usize) -> &str {
         .map_or("?", |l| l.name.as_str())
 }
 
-/// `QueryEntities`: the whole drawing, one entity per line, indices first.
+/// `QueryEntities`: the whole drawing, one entity per line, index and stable
+/// id first: `0 e7: line …` (LCV-188 AC 1, ADR 0014 §8).
 ///
 /// The header says the count even when it is zero — the model needs to know
 /// that it looked and found nothing, which reads differently from a tool that
@@ -99,8 +100,10 @@ pub(super) fn list_entities(doc: &Document) -> String {
     );
     for (i, entity) in doc.entities.iter().enumerate() {
         let layer = layer_name(doc, i);
+        // Invariant: one id per entity (lockstep), so the fallback never shows.
+        let id = doc.entity_id(i).map_or_else(String::new, |id| id.to_string());
         out.push_str(&format!(
-            "\n{i}: {} {} layer {layer}",
+            "\n{i} {id}: {} {} layer {layer}",
             kind(entity),
             geometry(entity)
         ));
