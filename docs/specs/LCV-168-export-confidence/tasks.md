@@ -31,7 +31,7 @@
   `command_feedback` unchanged and write no `Saved`/warning text; the failures set
   `error_message` (files: tests/it/app/document_title_and_file_feedback.rs,
   tests/it/io_svg/export_layers.rs)
-- [ ] T12 [AC6] Test: an autosave flush with an out-of-bed entity leaves a sentinel
+- [x] T12 [AC6] Test: an autosave flush with an out-of-bed entity leaves a sentinel
   `command_feedback` unchanged (files: tests/it/app/autosave_dirty.rs)
 - [ ] T13 [AC7] DESIGN.md §7 (dock messages: `Saved …` Info, out-of-bed Warning) and §9 (the
   ` — n entities outside the bed` suffix pattern) (files: DESIGN.md)

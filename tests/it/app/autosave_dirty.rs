@@ -12,8 +12,12 @@
 
 use crate::harness;
 
+use std::time::{Duration, Instant};
+
 use harness::frame;
-use lasercad::app::App;
+use lasercad::app::{App, Severity};
+use lasercad::document::Entity;
+use lasercad::geometry::{Line, Vec2};
 use lasercad::tools::LineTool;
 
 /// A complete primary-button click at `pos`: move, press, release, all in
@@ -124,4 +128,36 @@ fn undo_via_frame_body_marks_document_dirty() {
         app.dirty_since.is_some(),
         "undo must re-dirty the document on the next frame"
     );
+}
+
+/// LCV-168 AC 6 — an autosave flush, through the real frame body, with an
+/// entity outside the bed shows neither the `Saved` line nor the out-of-bed
+/// warning: the dock keeps its previous message.
+#[test]
+fn autosave_flush_announces_nothing() {
+    let dir = std::env::temp_dir().join("lcv168_autosave_silent");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let autosave = dir.join("autosave.json");
+    let ctx = egui::Context::default();
+    let mut app = App {
+        autosave_path: Some(autosave.clone()),
+        ..App::default()
+    };
+    frame(&ctx, &mut app, vec![]); // warm-up
+    let cut = app.document.current_layer();
+    let off_bed = Line::new(Vec2::new(-5.0, 10.0), Vec2::new(50.0, 10.0));
+    app.document.push_entity(Entity::Line(off_bed), cut);
+    app.dirty_since = Instant::now().checked_sub(Duration::from_secs(5));
+    app.say(Severity::Error, "sentinel");
+
+    frame(&ctx, &mut app, vec![]);
+
+    assert!(
+        autosave.is_file(),
+        "positive control: the autosave was written"
+    );
+    assert!(app.last_autosave_at.is_some());
+    assert_eq!(app.command_feedback, "sentinel");
+    assert_eq!(app.command_feedback_severity, Severity::Error);
 }
