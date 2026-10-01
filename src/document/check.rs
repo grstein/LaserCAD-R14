@@ -6,7 +6,7 @@
 //!
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
-use super::{Document, Entity};
+use super::{Document, Entity, outside_bed};
 use crate::geometry::{Arc, EPSILON, Vec2};
 
 /// One problem the check found. Indices are zero-based document indices.
@@ -76,11 +76,14 @@ pub fn check_drawing(doc: &Document) -> CheckReport {
                 .is_some_and(|l| l.output)
         })
         .collect();
+    let (degenerate, sound): (Vec<usize>, Vec<usize>) = scope
+        .iter()
+        .partition(|&&i| is_degenerate(&doc.entities[i]));
     let mut chained = Vec::new();
     let mut duplicates = Vec::new();
-    for (n, &j) in scope.iter().enumerate() {
+    for (n, &j) in sound.iter().enumerate() {
         let later = &doc.entities[j];
-        match scope[..n]
+        match sound[..n]
             .iter()
             .find(|&&i| same_geometry(&doc.entities[i], later))
         {
@@ -96,7 +99,28 @@ pub fn check_drawing(doc: &Document) -> CheckReport {
     let mut findings = open;
     findings.extend(gaps);
     findings.extend(duplicates);
+    findings.extend(degenerate.into_iter().map(|index| Finding::Degenerate {
+        index,
+        at: first_point(&doc.entities[index]),
+    }));
+    findings.extend(scope.into_iter().filter_map(|index| {
+        let entity = &doc.entities[index];
+        outside_bed(entity, doc.bed_mm).then(|| {
+            let (min, max) = entity.bbox();
+            Finding::OffBed { index, min, max }
+        })
+    }));
     CheckReport { findings }
+}
+
+/// A line of length ≤ [`EPSILON`], an arc whose span is ≤ [`EPSILON`], or a
+/// circle or arc whose radius is ≤ [`EPSILON`].
+fn is_degenerate(entity: &Entity) -> bool {
+    match entity {
+        Entity::Line(l) => l.length() <= EPSILON,
+        Entity::Circle(c) => c.r <= EPSILON,
+        Entity::Arc(a) => a.r <= EPSILON || a.sweep_angle() <= EPSILON,
+    }
 }
 
 /// A line's start, an arc's start point, a circle's centre.
