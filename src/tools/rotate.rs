@@ -400,6 +400,25 @@ mod tests {
         assert_eq!(tool.anchor(), None);
     }
 
+    /// LCV-165 AC7 — a non-finite angle is refused with ROTATE's own line,
+    /// handed out once through `take_message`; nothing is committed.
+    #[test]
+    fn non_finite_angle_leaves_its_refusal() {
+        let mut tool = RotateTool::default();
+        let (mut doc, mut h) = doc_selected();
+        tool.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
+        for value in [f64::NAN, f64::INFINITY] {
+            assert!(!tool.on_command_input(degrees(value), &mut doc, &mut h));
+            assert_eq!(
+                tool.take_message().as_deref(),
+                Some("Rotation angle must be a finite number.")
+            );
+            assert_eq!(tool.take_message(), None, "single-shot");
+        }
+        assert!(!h.can_undo());
+        assert_eq!(tool.status_text(), "ROTATE  Specify rotation angle:");
+    }
+
     /// An undo past the base point cancels instead of rotating stale indices.
     #[test]
     fn changed_sources_cancel() {

@@ -48,7 +48,7 @@
 - [x] T19 [AC6] `handle_hover`: the secondary press → `cmdline::submit(app, "")`;
   `PointerButton::Secondary` doc updated; T18 green (files: src/app/viewport.rs,
   src/tools/pointer_event.rs)
-- [ ] T20 [AC7] Test first: `s`, a base point, `-1` ⏎ and `0` ⏎ with the pointer never on the
+- [x] T20 [AC7] Test first: `s`, a base point, `-1` ⏎ and `0` ⏎ with the pointer never on the
   canvas → `Scale factor must be greater than 0.`, Warning, never `NO_DIRECTION`; ROTATE unit
   test: a non-finite angle leaves its refusal message (files:
   tests/it/cmdline/transform_commands.rs, src/tools/rotate.rs)
