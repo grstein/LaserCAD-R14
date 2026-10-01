@@ -1,6 +1,6 @@
 # LCV-179 — SVG text import as outlines
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-173, LCV-175, LCV-177
 - **Implementation**: -
 
