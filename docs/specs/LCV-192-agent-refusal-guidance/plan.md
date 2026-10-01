@@ -76,3 +76,7 @@ One refusal shape, `<tool> <path>: <reason>; expected <form>`, built by one form
 - Overlap with LCV-186, which is being implemented now: `tools.rs`, `tools/transform.rs`,
   `bridge/action.rs` and `agent_apply/set.rs`. LCV-192 starts only after LCV-186 is Done, and T8
   rewords the refusals it added. LCV-187 edits `tools.rs` and `bridge/action.rs` again.
+
+## Seam (post-implementation)
+
+`src/agent/bridge/action.rs` ended at 299 LOC. Split point: move `CaptureFrame` and `SetOp` (enum + `SetOp::tool_name`) into `bridge/action/ops.rs`, re-exported by `action.rs`; `AgentAction` and its accessors stay where LCV-188/190/191/193 add variants.
