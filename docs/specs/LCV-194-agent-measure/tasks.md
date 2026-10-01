@@ -56,7 +56,7 @@ Prerequisites: LCV-188, LCV-190, LCV-192 Done on `agent-harness`.
   same turn still applies (no fence trip). (files: tests/it/agent/measure.rs)
 - [x] T12 [AC9] Test, then the `DEFAULT_PROMPT` lines for `measure` and its five queries
   (files: src/agent/prompt.rs, tests/it/agent/default_prompt.rs)
-- [ ] T13 Docs: the AGENTS.md purity list gains `bridge/action/measure.rs` and `tools/measure.rs`;
+- [x] T13 Docs: the AGENTS.md purity list gains `bridge/action/measure.rs` and `tools/measure.rs`;
   CHANGELOG line (files: AGENTS.md, CHANGELOG.md)
 - [ ] T14 `scripts/mutants.sh` on the diff (`src/agent/`, `src/geometry/distance.rs`,
   `overlap.rs`). Kill the survivors or justify them in the commit body.
