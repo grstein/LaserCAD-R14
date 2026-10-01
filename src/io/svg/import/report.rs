@@ -52,6 +52,16 @@ impl Report {
     /// the null namespace by exact name, then `style` declarations ASCII
     /// case-insensitively. `fill` whose value is `none` is not counted.
     pub(super) fn note_properties(&mut self, node: roxmltree::Node<'_, '_>) {
+        self.note_properties_with(node, false);
+    }
+
+    /// [`Report::note_properties`], `fill` not counted at all when
+    /// `fill_applied` (an unstroked text's fill picks its layer, LCV-179).
+    pub(super) fn note_properties_with(
+        &mut self,
+        node: roxmltree::Node<'_, '_>,
+        fill_applied: bool,
+    ) {
         let attrs = node
             .attributes()
             .filter(|attr| attr.namespace().is_none())
@@ -67,7 +77,7 @@ impl Report {
             Some((*prop, value))
         });
         for (prop, value) in attrs.chain(styled) {
-            if prop != "fill" || !value.trim().eq_ignore_ascii_case("none") {
+            if prop != "fill" || !(fill_applied || value.trim().eq_ignore_ascii_case("none")) {
                 self.note(prop);
             }
         }

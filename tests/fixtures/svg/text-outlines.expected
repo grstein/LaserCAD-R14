@@ -3,7 +3,6 @@
 # default `Cut`, and each text is reported.
 bed 100 100
 layer "Cut" #ff0000 output=1 current=1
-# The first text's fill="#ff0000" is an unapplied property (the second's
-# fill="none" is exempt); reported before the texts are laid out.
-ignored 1 fill
+# Neither fill is reported: a text's fill picks its layer when it has no
+# stroke, and fill="none" is exempt.
 ignored 2 text (no font)

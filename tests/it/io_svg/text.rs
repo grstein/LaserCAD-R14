@@ -33,7 +33,7 @@ fn imported() -> ImportedSvg {
 #[test]
 fn text_outlines_export_as_lines_and_curves() {
     let imported = imported();
-    assert_eq!(imported.report, vec![("fill".to_owned(), 1)]);
+    assert!(imported.report.is_empty(), "{:?}", imported.report);
     let count = imported.entities.len();
     assert!(count > 0);
     let svg = export_svg(&imported.into_document().unwrap());

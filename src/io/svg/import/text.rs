@@ -206,7 +206,8 @@ impl<'a, 'input> Walk<'a, 'input> {
                 "tspan" | "a" => {
                     let inner = style.child(child, &self.sheet, &mut self.report);
                     if !inner.display_none {
-                        self.report.note_properties(child);
+                        let fill_applied = inner.stroke().is_none();
+                        self.report.note_properties_with(child, fill_applied);
                         self.flatten(child, layer, ctx, &inner, flat);
                     }
                 }
@@ -698,5 +699,18 @@ mod tests {
         assert_eq!(l(r#"font-style="oblique""#).entities, italic);
         assert_eq!(l(r#"style="font-style: Oblique 10deg""#).entities, italic);
         assert_eq!(l(r#"font-style="normal""#).entities, upright);
+    }
+
+    /// AC 10 — a fill that picks the layer of an unstroked text or
+    /// `tspan` is applied, not reported; beside a stroke it is.
+    #[test]
+    fn a_fill_that_picks_the_layer_is_not_reported() {
+        let svg =
+            page(r##"<text x="10" y="50" fill="#ff0000">l<tspan fill="#00ff00">l</tspan></text>"##);
+        assert!(svg.report.is_empty(), "{:?}", svg.report);
+        let svg = page(
+            r##"<text x="10" y="50" fill="#ff0000" stroke="#0000ff">l<tspan fill="#00ff00">l</tspan></text>"##,
+        );
+        assert_eq!(svg.report, label(2, "fill"));
     }
 }

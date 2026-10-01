@@ -169,7 +169,8 @@ impl<'a, 'input> Walk<'a, 'input> {
                 self.report.note(label);
                 return Ok(());
             }
-            self.report.note_properties(child);
+            let fill_applied = matches!(kind, Kind::Text) && inner_style.stroke().is_none();
+            self.report.note_properties_with(child, fill_applied);
             inner_ctx = self.local(child, ctx);
         }
         if let (Kind::Descend, "svg", Some(c)) = (&kind, name, inner_ctx) {
