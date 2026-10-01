@@ -9,6 +9,9 @@
 
 use crate::geometry::arc::Arc;
 use crate::geometry::circle::Circle;
+use crate::geometry::intersect::{
+    arc_arc, circle_arc, circle_circle, line_arc, line_circle, line_line,
+};
 use crate::geometry::line::Line;
 use crate::geometry::vec2::Vec2;
 
@@ -26,9 +29,119 @@ pub enum Prim {
 }
 
 /// The two closest points, the first on `a` and the second on `b`.
+///
+/// A crossing or tangency answers that point twice. Otherwise the minimum is
+/// taken over the candidate pairs (LCV-194 plan): every endpoint of one
+/// primitive against the other, and the mutual-normal points of a curve on
+/// the line through both centres, or through the foot of the perpendicular
+/// for a segment, each kept only on the arc's span. The first minimum wins,
+/// so the answer is deterministic.
 pub fn closest(a: Prim, b: Prim) -> (Vec2, Vec2) {
-    let _ = (a, b);
-    (Vec2::default(), Vec2::default())
+    if let Some(&x) = intersections(a, b).first() {
+        return (x, x);
+    }
+    let mut best = (a.anchor(), b.foot(a.anchor()));
+    let mut keep = |p: Vec2, q: Vec2| {
+        if p.distance_squared(q) < best.0.distance_squared(best.1) {
+            best = (p, q);
+        }
+    };
+    for p in a.candidates(b) {
+        keep(p, b.foot(p));
+    }
+    for q in b.candidates(a) {
+        keep(a.foot(q), q);
+    }
+    best
+}
+
+/// Every crossing or tangency point of two primitives, in the order the
+/// `intersect` routines give them. A point never intersects here (its
+/// distance is the foot); collinear or concentric overlaps give none.
+pub fn intersections(a: Prim, b: Prim) -> Vec<Vec2> {
+    use Prim::{Arc as A, Circle as C, Line as L};
+    match (a, b) {
+        (L(l), L(m)) => line_line(&l, &m).into_iter().collect(),
+        (L(l), C(c)) | (C(c), L(l)) => line_circle(&l, &c),
+        (L(l), A(r)) | (A(r), L(l)) => line_arc(&l, &r),
+        (C(c), C(d)) => circle_circle(&c, &d),
+        (C(c), A(r)) | (A(r), C(c)) => circle_arc(&c, &r),
+        (A(r), A(s)) => arc_arc(&r, &s),
+        _ => Vec::new(),
+    }
+}
+
+impl Prim {
+    /// One point that is surely on the primitive.
+    fn anchor(self) -> Vec2 {
+        match self {
+            Self::Point(p) => p,
+            Self::Line(l) => l.p1,
+            Self::Circle(c) => c.center + Vec2::new(c.r, 0.0),
+            Self::Arc(a) => a.start_point(),
+        }
+    }
+
+    /// The point of the primitive closest to `p`; the centre of a curve
+    /// answers its point at angle 0 (or the arc's start).
+    fn foot(self, p: Vec2) -> Vec2 {
+        match self {
+            Self::Point(q) => q,
+            Self::Line(l) => l.closest_point(p),
+            Self::Circle(c) => radial(c.center, c.r, p),
+            Self::Arc(a) => {
+                let on = radial(a.center, a.r, p);
+                let v = on - a.center;
+                if (p - a.center).normalize().is_some() && a.contains_angle(v.y.atan2(v.x)) {
+                    return on;
+                }
+                let (s, e) = (a.start_point(), a.end_point());
+                if p.distance_squared(e) < p.distance_squared(s) {
+                    e
+                } else {
+                    s
+                }
+            }
+        }
+    }
+
+    /// The points of `self` that may be closest to `other`: its endpoints,
+    /// plus, for a curve, its points on the line through its centre and
+    /// the other curve's centre, or through the foot of the perpendicular on
+    /// the other segment; an arc keeps only those on its span.
+    fn candidates(self, other: Prim) -> Vec<Vec2> {
+        let (center, r) = match self {
+            Self::Point(p) => return vec![p],
+            Self::Line(l) => return vec![l.p1, l.p2],
+            Self::Circle(c) => (c.center, c.r),
+            Self::Arc(a) => (a.center, a.r),
+        };
+        let toward = match other {
+            Self::Circle(c) => (c.center - center).normalize(),
+            Self::Arc(a) => (a.center - center).normalize(),
+            Self::Line(l) => l.direction().map(|d| Vec2::new(-d.y, d.x)),
+            Self::Point(_) => None,
+        };
+        let mut out = vec![self.anchor()];
+        if let Self::Arc(a) = self {
+            out.push(a.end_point());
+        }
+        if let Some(u) = toward {
+            for p in [center + u * r, center - u * r] {
+                let v = p - center;
+                if !matches!(self, Self::Arc(a) if !a.contains_angle(v.y.atan2(v.x))) {
+                    out.push(p);
+                }
+            }
+        }
+        out
+    }
+}
+
+/// The point of the circle (`center`, `r`) closest to `p`; the centre
+/// itself answers the point at angle 0.
+fn radial(center: Vec2, r: f64, p: Vec2) -> Vec2 {
+    center + (p - center).normalize().unwrap_or(Vec2::new(1.0, 0.0)) * r
 }
 
 #[cfg(test)]

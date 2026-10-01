@@ -2,7 +2,7 @@
 
 Prerequisites: LCV-188, LCV-190, LCV-192 Done on `agent-harness`.
 
-- [ ] T1 [AC1] Test: closest points for every pair of point, line, circle and arc. Cases:
+- [x] T1 [AC1] Test: closest points for every pair of point, line, circle and arc. Cases:
   - crossing segments → 0;
   - parallel and skew segments;
   - a line outside, inside and through a circle;
@@ -12,7 +12,7 @@ Prerequisites: LCV-188, LCV-190, LCV-192 Done on `agent-harness`.
   - a point and each kind.
 
   (files: src/geometry/distance.rs)
-- [ ] T2 [AC1] `Prim`, `closest`: intersections first, then the candidate minimum with the span
+- [x] T2 [AC1] `Prim`, `closest`: intersections first, then the candidate minimum with the span
   filter (files: src/geometry/distance.rs, src/geometry/mod.rs)
 - [ ] T3 [AC5] Test: `overlaps`:
   - collinear overlapping segments → true;
