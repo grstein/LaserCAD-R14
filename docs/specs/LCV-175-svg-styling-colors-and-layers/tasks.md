@@ -49,7 +49,7 @@
       with a combinator) and `inkscape-hidden-layer` (`style="display:none"` layer)
       (files: tests/fixtures/svg/illustrator-classes.{svg,expected},
       tests/fixtures/svg/inkscape-hidden-layer.{svg,expected})
-- [ ] T15 ADR 0012 §4 amendment note (stray colored geometry → color layer, LCV-175); LCV-171
+- [x] T15 ADR 0012 §4 amendment note (stray colored geometry → color layer, LCV-175); LCV-171
       AC 7 note (`display`/`visibility` now applied) (files: docs/adr/0012-document-layers-and-per-layer-export.md,
       docs/specs/LCV-171-svg-import-report-and-never-rendered/spec.md)
 - [ ] T16 Run the stray-`#ff0000` fixtures outside `io_svg` (`scripts/check.sh memory turn_group

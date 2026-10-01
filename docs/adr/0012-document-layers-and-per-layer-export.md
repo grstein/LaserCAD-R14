@@ -67,6 +67,13 @@ output is a new `SvgImportError::MalformedLayer`, document untouched; duplicate 
 first `data-current="1"` layer is current, else the first layer. **Geometry outside any layer group
 goes to the first layer of the file; a file with no layer group gets the default `Cut` layer.**
 v0.2 files (`<g id="cut|mark|engrave">`) therefore load entirely onto `Cut` (migration out of scope).
+*Amended by LCV-175:* geometry outside any layer group that resolves a stroke color (else, with
+`stroke` none, a fill color) through the style cascade goes to the first layer of that exact color,
+else to a new layer named `#rrggbb` (Output on, appended in order of first appearance; `#rrggbb 2`, …
+when the name key is taken); only uncolored stray geometry goes to the first layer, and the default
+`Cut` layer is made only when the file declares no layer group and some geometry is uncolored (or
+there is none). v0.2 files now open with one `#rrggbb` layer per stroke color they use. Layer groups
+keep their own stroke reading; a `<style>` rule never recolors one.
 `Preset`, `from_group_id`, `App::export_preset`, the preset menu and badge are deleted.
 
 **5. Per-layer files.** Kernel, pure: `export_layer_svg(doc, id) -> String` = the same header and

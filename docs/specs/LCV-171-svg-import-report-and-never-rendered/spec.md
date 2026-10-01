@@ -31,6 +31,9 @@ target (`docs/research/svg-spec-coverage.md` §1) forbids silent loss and silent
 5. WHEN import meets any other SVG element it does not turn into entities (e.g. `image`, `text`,
    `use`, `switch`, `rect`, `style`, `script`, `foreignObject`) THE SYSTEM SHALL skip its subtree
    and add the element name to the report.
+   *Amended by LCV-175:* `style` is read by the style cascade and silent; what its sheet drops is
+   reported instead (`style @x`, `style rule (…)`), and a never-rendered element whose only element
+   children are `<style>` is not reported.
 6. WHEN a `<path>`'s data is not turned into an entity THE SYSTEM SHALL add `path (unsupported
    data)` to the report instead of skipping it silently.
 7. WHEN an element that is imported or descended into carries `transform`, `fill` (other than
@@ -39,6 +42,8 @@ target (`docs/research/svg-spec-coverage.md` §1) forbids silent loss and silent
    property name to the report.
    *Amended by LCV-173 AC 5:* `transform` is applied, no longer reported; only an invalid or
    singular one is (`transform (invalid)`, `transform (singular)`).
+   *Amended by LCV-175 AC 7:* `display` and `visibility` are applied, no longer reported as
+   properties; each hidden element is counted as `hidden (display:none)` or `hidden (visibility)`.
 8. THE SYSTEM SHALL expose the report on `ImportedSvg` as entries `(label, count)` in order of
    first occurrence, one entry per label.
 9. WHEN Open or Open Recent succeeds with a non-empty report THE SYSTEM SHALL set the command-line
