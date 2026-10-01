@@ -18,7 +18,7 @@
   `import_svg_with` (files: `src/app/mod.rs`, `src/io/file_actions.rs`, `tests/it/app/…`)
 - [x] T6 [AC4] Test first: `"ll"` places the second glyph exactly one advance right of the first;
   `"AV"` gets no kerning (files: `src/io/svg/import/text.rs`)
-- [ ] T7 [AC5] Test first: `text-anchor` `middle`/`end` shift each chunk by w/2 / w, a tspan with
+- [x] T7 [AC5] Test first: `text-anchor` `middle`/`end` shift each chunk by w/2 / w, a tspan with
   its own `x` anchoring separately; then chunk shift (files: `src/io/svg/import/text.rs`)
 - [ ] T8 [AC6] Test first: `x="0 10 20"` places three chars at 0/10/20, the 4th continues by
   advance; `dy` list on a tspan; inner list overrides outer; then positions

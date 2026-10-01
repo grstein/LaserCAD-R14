@@ -19,6 +19,10 @@ use crate::io::svg::path_data::{PathData, Segment};
 use crate::io::svg::viewport::Ctx;
 use crate::text::{FaceId, Glyph, Seg, glyph};
 
+use layout::{Span, layout, positions};
+
+mod layout;
+
 type Node<'a, 'input> = roxmltree::Node<'a, 'input>;
 
 /// The report label of a `<text>` skipped because no font is installed.
@@ -35,13 +39,11 @@ struct Char {
     /// `font-size` in user units.
     size: f64,
     slot: Slot,
+    /// `text-anchor` as a fraction of the chunk width: 0, ½ or 1.
+    anchor: f64,
     /// Visible and painted: its outline is imported.
     drawn: bool,
 }
-
-/// A laid-out element's characters `first..end` and its `x`, `y`, `dx`,
-/// `dy` lists in user units.
-type Span = (usize, usize, [Vec<f64>; 4]);
 
 /// The characters of one `<text>` and its elements' spans, in document
 /// order (an element before its descendants).
@@ -71,7 +73,10 @@ impl<'a, 'input> Walk<'a, 'input> {
             self.report.note(NO_FONT);
             return;
         };
-        let origins = layout(&glyphs, &positions(flat.chars.len(), &flat.spans));
+        let advances: Vec<_> = glyphs.iter().map(|(g, s)| g.advance * s).collect();
+        let anchors: Vec<_> = flat.chars.iter().map(|ch| ch.anchor).collect();
+        let pos = positions(flat.chars.len(), &flat.spans);
+        let origins = layout(&advances, &anchors, &pos);
         for ((ch, (g, s)), o) in flat.chars.iter().zip(&glyphs).zip(origins) {
             if !ch.drawn {
                 continue;
@@ -114,6 +119,11 @@ impl<'a, 'input> Walk<'a, 'input> {
             face,
             size: size(node, &self.sheet),
             slot: style.slot(layer),
+            anchor: match inherited(node, &self.sheet, "text-anchor").as_deref() {
+                Some("middle") => 0.5,
+                Some("end") => 1.0,
+                _ => 0.0,
+            },
             drawn: !style.invisible,
         };
         let span = flat.spans.len();
@@ -157,37 +167,6 @@ impl<'a, 'input> Walk<'a, 'input> {
         }
         out.into_iter().collect()
     }
-}
-
-/// Per character of `n`, its `x`, `y`, `dx`, `dy`: the i-th value of an
-/// element's list goes to its i-th character, an inner element's list
-/// overriding its ancestors' (AC 6).
-fn positions(n: usize, spans: &[Span]) -> Vec<[Option<f64>; 4]> {
-    let mut pos = vec![[None; 4]; n];
-    for (first, end, lists) in spans {
-        let chars = pos.get_mut(*first..(*end).min(n)).unwrap_or_default();
-        for (k, values) in lists.iter().enumerate() {
-            for (p, v) in chars.iter_mut().zip(values) {
-                p[k] = Some(*v);
-            }
-        }
-    }
-    pos
-}
-
-/// Each character's glyph origin in user units: the pen starts at (0, 0),
-/// moves to a given `x`/`y`, then by `dx`/`dy`, and advances by the glyph's
-/// scaled advance after each character (AC 1, AC 4, AC 6).
-fn layout(glyphs: &[(Glyph, f64)], pos: &[[Option<f64>; 4]]) -> Vec<Vec2> {
-    let mut pen = Vec2::new(0.0, 0.0);
-    let mut origins = Vec::with_capacity(glyphs.len());
-    for ((g, s), [x, y, dx, dy]) in glyphs.iter().zip(pos) {
-        pen.x = x.unwrap_or(pen.x) + dx.unwrap_or(0.0);
-        pen.y = y.unwrap_or(pen.y) + dy.unwrap_or(0.0);
-        origins.push(pen);
-        pen.x += g.advance * s;
-    }
-    origins
 }
 
 /// The nearest declared value of the inherited property `prop` at `node`
@@ -360,5 +339,36 @@ mod tests {
         let s = 20.48 / UPEM;
         let v = placed_box('V', 10.0 + 1366.0 * s, 50.0, s);
         assert_box(entity_box(&av[a.len()..]), v);
+    }
+
+    /// AC 5 — `middle` and `end` shift the chunk left by half or all of
+    /// its advance width; `start` does not.
+    #[test]
+    fn text_anchor_shifts_the_chunk() {
+        let s = 20.48 / UPEM;
+        for (anchor, shift) in [("start", 0.0), ("middle", 455.0), ("end", 910.0)] {
+            let es = page(&format!(
+                r#"<text x="50" y="50" font-size="20.48" text-anchor="{anchor}">ll</text>"#
+            ))
+            .entities;
+            let (lo, _) = placed_box('l', 50.0 - shift * s, 50.0, s);
+            let (_, hi) = placed_box('l', 50.0 - shift * s + 455.0 * s, 50.0, s);
+            assert_box(entity_box(&es), (lo, hi));
+        }
+    }
+
+    /// AC 5 — a `tspan` with its own `x` starts a chunk anchored on its own;
+    /// an inherited anchor applies to both.
+    #[test]
+    fn each_chunk_is_anchored_separately() {
+        let es = page(
+            r#"<g text-anchor="middle"><text x="10" y="50" font-size="20.48">l<tspan x="60" y="70">l</tspan></text></g>"#,
+        )
+        .entities;
+        let s = 20.48 / UPEM;
+        let half = 455.0 * s / 2.0;
+        let n = es.len() / 2;
+        assert_box(entity_box(&es[..n]), placed_box('l', 10.0 - half, 50.0, s));
+        assert_box(entity_box(&es[n..]), placed_box('l', 60.0 - half, 70.0, s));
     }
 }
