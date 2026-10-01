@@ -45,11 +45,20 @@ fn build_zip_ps1_stages_the_portable_windows_zip() {
         "Compress-Archive",
         "lasercad-$Version-windows-x86_64.zip",
     ] {
-        assert!(script.contains(needle), "build-zip.ps1 must mention {needle:?}");
+        assert!(
+            script.contains(needle),
+            "build-zip.ps1 must mention {needle:?}"
+        );
     }
-    assert!(repo("assets/FIRST-RUN.txt").is_file(), "assets/FIRST-RUN.txt must exist");
+    assert!(
+        repo("assets/FIRST-RUN.txt").is_file(),
+        "assets/FIRST-RUN.txt must exist"
+    );
     assert!(repo("LICENSE-APACHE").is_file() && repo("LICENSE-MIT").is_file());
-    assert!(!repo("scripts/build-msi.ps1").exists(), "build-msi.ps1 must be deleted");
+    assert!(
+        !repo("scripts/build-msi.ps1").exists(),
+        "build-msi.ps1 must be deleted"
+    );
     assert!(!repo("wix").exists(), "wix/ must be deleted");
 }
 
@@ -69,7 +78,10 @@ fn build_dmg_sh_bundles_signs_and_refuses_non_arm64() {
         "FIRST-RUN.txt",
         "lasercad-${VERSION}-macos-aarch64.dmg",
     ] {
-        assert!(script.contains(needle), "build-dmg.sh must mention {needle:?}");
+        assert!(
+            script.contains(needle),
+            "build-dmg.sh must mention {needle:?}"
+        );
     }
     assert!(
         !script.contains("x86_64) ARCH"),
@@ -85,8 +97,11 @@ fn build_dmg_sh_bundles_signs_and_refuses_non_arm64() {
 
         let scratch = std::env::temp_dir().join(format!("lcv201-dmg-{}", std::process::id()));
         fs::create_dir_all(scratch.join("scripts")).expect("scratch dir");
-        fs::copy(repo("scripts/build-dmg.sh"), scratch.join("scripts/build-dmg.sh"))
-            .expect("copy build-dmg.sh");
+        fs::copy(
+            repo("scripts/build-dmg.sh"),
+            scratch.join("scripts/build-dmg.sh"),
+        )
+        .expect("copy build-dmg.sh");
         let out = std::process::Command::new("bash")
             .arg("scripts/build-dmg.sh")
             .current_dir(&scratch)
@@ -95,9 +110,18 @@ fn build_dmg_sh_bundles_signs_and_refuses_non_arm64() {
         let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
         let built = scratch.join("dist").exists() || scratch.join("build").exists();
         let _ = fs::remove_dir_all(&scratch);
-        assert!(!out.status.success(), "build-dmg.sh must refuse a Linux host");
-        assert!(stderr.contains("arm64"), "refusal must name arm64: {stderr}");
-        assert!(!built, "build-dmg.sh must refuse before creating build/ or dist/");
+        assert!(
+            !out.status.success(),
+            "build-dmg.sh must refuse a Linux host"
+        );
+        assert!(
+            stderr.contains("arm64"),
+            "refusal must name arm64: {stderr}"
+        );
+        assert!(
+            !built,
+            "build-dmg.sh must refuse before creating build/ or dist/"
+        );
     }
 }
 
@@ -128,8 +152,14 @@ fn ci_job(ci: &str, name: &str) -> String {
 #[test]
 fn ci_packages_on_dispatch_with_zip_and_dmg() {
     let ci = read(".github/workflows/ci.yml");
-    assert!(ci.contains("\n  workflow_dispatch:"), "ci.yml must accept workflow_dispatch");
-    assert!(!ci.contains("wix") && !ci.contains(".msi"), "ci.yml must not use WiX/MSI");
+    assert!(
+        ci.contains("\n  workflow_dispatch:"),
+        "ci.yml must accept workflow_dispatch"
+    );
+    assert!(
+        !ci.contains("wix") && !ci.contains(".msi"),
+        "ci.yml must not use WiX/MSI"
+    );
 
     let package = ci_job(&ci, "package");
     assert!(
@@ -138,15 +168,27 @@ fn ci_packages_on_dispatch_with_zip_and_dmg() {
         ),
         "package must run on tags and on workflow_dispatch"
     );
-    assert!(package.contains("./scripts/build-zip.ps1"), "Windows step must run build-zip.ps1");
-    assert!(package.contains("./scripts/build-dmg.sh"), "macOS step must run build-dmg.sh");
-    for path in ["dist/lasercad-*-windows-x86_64.zip", "dist/lasercad-*-macos-aarch64.dmg"] {
+    assert!(
+        package.contains("./scripts/build-zip.ps1"),
+        "Windows step must run build-zip.ps1"
+    );
+    assert!(
+        package.contains("./scripts/build-dmg.sh"),
+        "macOS step must run build-dmg.sh"
+    );
+    for path in [
+        "dist/lasercad-*-windows-x86_64.zip",
+        "dist/lasercad-*-macos-aarch64.dmg",
+    ] {
         assert!(package.contains(path), "package must upload {path}");
     }
 
     let release = ci_job(&ci, "release");
     assert!(release.contains("if: startsWith(github.ref, 'refs/tags/')\n"));
-    for path in ["dist/lasercad-*-windows-x86_64.zip", "dist/lasercad-*-macos-aarch64.dmg"] {
+    for path in [
+        "dist/lasercad-*-windows-x86_64.zip",
+        "dist/lasercad-*-macos-aarch64.dmg",
+    ] {
         assert!(release.contains(path), "release must attach {path}");
     }
 
@@ -155,8 +197,15 @@ fn ci_packages_on_dispatch_with_zip_and_dmg() {
         .lines()
         .find(|l| l.trim_start().starts_with("os:"))
         .expect("test job must have an os matrix");
-    for needle in ["github.event_name == 'workflow_dispatch'", "windows-2022", "macos-15"] {
-        assert!(matrix.contains(needle), "test matrix must include {needle:?}");
+    for needle in [
+        "github.event_name == 'workflow_dispatch'",
+        "windows-2022",
+        "macos-15",
+    ] {
+        assert!(
+            matrix.contains(needle),
+            "test matrix must include {needle:?}"
+        );
     }
 }
 
@@ -172,8 +221,16 @@ fn release_sh_lists_zip_and_dmg_and_names_the_missing_one() {
     let _ = fs::remove_dir_all(&scratch);
     fs::create_dir_all(scratch.join("scripts")).expect("scratch dir");
     fs::create_dir_all(scratch.join("dist")).expect("scratch dist");
-    fs::copy(repo("scripts/release.sh"), scratch.join("scripts/release.sh")).expect("copy");
-    fs::write(scratch.join("Cargo.toml"), "[package]\nversion = \"9.9.9\"\n").expect("toml");
+    fs::copy(
+        repo("scripts/release.sh"),
+        scratch.join("scripts/release.sh"),
+    )
+    .expect("copy");
+    fs::write(
+        scratch.join("Cargo.toml"),
+        "[package]\nversion = \"9.9.9\"\n",
+    )
+    .expect("toml");
     let assets = [
         "dist/lasercad-x86_64.AppImage",
         "dist/lasercad_9.9.9_amd64.deb",
@@ -208,13 +265,21 @@ fn release_sh_lists_zip_and_dmg_and_names_the_missing_one() {
     }
     assert!(!all.contains("missing:"), "nothing is missing:\n{all}");
 
-    assert!(ok_partial, "a missing .dmg must not fail --list-assets: {partial}");
     assert!(
-        partial.lines().any(|l| l == "missing: dist/lasercad-9.9.9-macos-aarch64.dmg"),
+        ok_partial,
+        "a missing .dmg must not fail --list-assets: {partial}"
+    );
+    assert!(
+        partial
+            .lines()
+            .any(|l| l == "missing: dist/lasercad-9.9.9-macos-aarch64.dmg"),
         "the absent .dmg must be named:\n{partial}"
     );
     for a in &assets[..3] {
-        assert!(partial.lines().any(|l| l == *a), "{a} must still be listed:\n{partial}");
+        assert!(
+            partial.lines().any(|l| l == *a),
+            "{a} must still be listed:\n{partial}"
+        );
     }
 }
 
@@ -244,9 +309,15 @@ fn install_guide_covers_first_run_and_file_locations() {
         "~/Library/Application Support/lasercad/autosave.json",
         "recent",
     ] {
-        assert!(guide.contains(needle), "docs/install.md must mention {needle:?}");
+        assert!(
+            guide.contains(needle),
+            "docs/install.md must mention {needle:?}"
+        );
     }
-    assert!(read("README.md").contains("(docs/install.md)"), "README.md must link docs/install.md");
+    assert!(
+        read("README.md").contains("(docs/install.md)"),
+        "README.md must link docs/install.md"
+    );
     assert!(
         read("assets/FIRST-RUN.txt").contains("docs/install.md"),
         "FIRST-RUN.txt must name docs/install.md"
