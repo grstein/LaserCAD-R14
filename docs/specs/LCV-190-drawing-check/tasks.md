@@ -50,7 +50,7 @@ Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/
   (files: src/agent/bridge/action.rs, src/agent/tools.rs, src/agent/tools/schema.rs)
 - [x] T19 [AC9] Answer arm in `agent_apply.rs::plan`; prompt tool line and its pinned text (files:
   src/app/agent_apply.rs, src/agent/prompt.rs, tests/it/agent/system_prompt.rs)
-- [ ] T20 Mutation testing: `scripts/mutants.sh <base>` (MUTANTS_TARGET_DIR set); a test for every
+- [x] T20 Mutation testing: `scripts/mutants.sh <base>` (MUTANTS_TARGET_DIR set); a test for every
   missed mutant (files: src/document/check/tests.rs, tests/it/agent/check_drawing.rs)
 - [ ] T21 DESIGN.md §7: rail bottom row (CHECK beside AI) and the Check window (files: DESIGN.md)
 - [ ] T22 CHANGELOG line (files: CHANGELOG.md)

@@ -122,6 +122,15 @@ fn wide_opening_is_two_open_ends() {
     assert_eq!(open_ends(&r), vec![(0, p(10.0, 10.0)), (3, p(10.6, 10.0))]);
 }
 
+/// AC 3 — a gap is *closer than* 0.5 mm: an opening of exactly `GAP_MM` is
+/// two open ends.
+#[test]
+fn opening_of_exactly_gap_mm_is_two_open_ends() {
+    let r = check_drawing(&doc_of(&rectangle(GAP_MM)));
+    assert!(gaps(&r).is_empty(), "{r:?}");
+    assert_eq!(open_ends(&r), vec![(0, p(10.0, 10.0)), (3, p(10.5, 10.0))]);
+}
+
 /// AC 2 — ends within `EPSILON` of each other meet.
 #[test]
 fn ends_within_epsilon_meet() {

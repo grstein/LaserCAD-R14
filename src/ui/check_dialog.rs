@@ -22,7 +22,8 @@ pub fn check_dialog(ctx: &egui::Context, report: &mut Option<Vec<String>>) {
         .collapsible(false)
         .show(ctx, |ui| {
             let spacing = ui.spacing();
-            let close_row = spacing.interact_size.y + 2.0 * spacing.item_spacing.y;
+            // The Close row under the scroll area: one item gap, then the button.
+            let close_row = spacing.interact_size.y + spacing.item_spacing.y;
             egui::ScrollArea::vertical()
                 .max_height(BODY_CAP - close_row)
                 .show(ui, |ui| {

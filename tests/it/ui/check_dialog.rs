@@ -51,7 +51,8 @@ fn check_window_paints_every_report_line() {
 
 /// ADR 0009 — a 200-finding report scrolls: from its first line to the
 /// bottom of Close the body stays within 426 pt, even on a tall screen, and
-/// the last line is not painted (the report really is longer than the body).
+/// fills it (only the button's padding under Close's text is left), and the
+/// last line is not painted (the report really is longer than the body).
 #[test]
 fn long_report_body_stays_within_the_cap() {
     let lines = report(200);
@@ -63,6 +64,10 @@ fn long_report_body_stays_within_the_cap() {
         assert_eq!((first.len(), close.len()), (1, 1), "{screen:?}");
         let body = close[0].pos.y + close[0].height - first[0].pos.y;
         assert!(body <= BODY_CAP, "{screen:?}: body {body} pt");
+        assert!(
+            body >= BODY_CAP - 4.0,
+            "{screen:?}: body {body} pt fills the cap"
+        );
         assert!(
             close[0].pos.y + close[0].height <= screen[1],
             "{screen:?}: Close on screen"

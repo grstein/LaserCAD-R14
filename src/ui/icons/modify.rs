@@ -88,8 +88,8 @@ pub(crate) fn dist(p: &Painter, r: Rect, s: Stroke) {
 /// Check (LCV-190): a contour under a magnifying glass.
 pub(crate) fn check_drawing(p: &Painter, r: Rect, s: Stroke) {
     square(p, r, [2.0, 2.0], 10.0, s);
-    let scale = r.width() / super::ICON_SIZE;
-    p.circle_stroke(super::at(r, [12.0, 12.0]), 4.5 * scale, s);
+    let lens = super::at(r, [12.0, 12.0]);
+    p.circle_stroke(lens, lens.distance(super::at(r, [16.5, 12.0])), s);
     path(p, r, &[[15.5, 15.5], [18.5, 18.5]], false, s);
 }
 
