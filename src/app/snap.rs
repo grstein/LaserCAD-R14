@@ -63,6 +63,11 @@ fn to_snap_entity(e: &Entity) -> SnapEntity {
         Entity::Circle(c) => SnapEntity::Circle(*c),
         Entity::Arc(a) => SnapEntity::Arc(*a),
         Entity::Ellipse(e) => SnapEntity::Ellipse(*e),
+        // LCV-177 T12: offers nothing until the snap engine knows Béziers.
+        Entity::Bezier(_) => {
+            let nowhere = crate::geometry::Vec2::new(f64::NAN, f64::NAN);
+            SnapEntity::Line(crate::geometry::Line::new(nowhere, nowhere))
+        }
     }
 }
 

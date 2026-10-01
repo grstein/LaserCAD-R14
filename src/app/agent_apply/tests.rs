@@ -14,7 +14,7 @@ fn app_with(entities: Vec<Entity>) -> App {
             Entity::Line(l) => Box::new(CreateLine::new(l)),
             Entity::Circle(c) => Box::new(CreateCircle::new(c)),
             Entity::Arc(a) => Box::new(CreateArc::new(a)),
-            Entity::Ellipse(_) => {
+            Entity::Ellipse(_) | Entity::Bezier(_) => {
                 Box::new(crate::document::commands::CreateEntities::new(vec![entity]))
             }
         };

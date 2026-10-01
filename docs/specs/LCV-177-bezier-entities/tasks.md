@@ -12,10 +12,10 @@
 - [x] T4 [AC8] Test: `Transform::bezier` for rotate, mirror and scale equals `Transform::point`
   on every control point, and maps `point(t)` onto the image curve (files:
   tests/it/geometry/transform_props.rs)
-- [ ] T5 [AC6, AC8] `Transform::bezier` plus `Entity::Bezier` with `bbox`, `kind_name`,
+- [x] T5 [AC6, AC8] `Transform::bezier` plus `Entity::Bezier` with `bbox`, `kind_name`,
   `translate`, `transformed`; schema doc line (files: src/geometry/transform.rs,
   src/document/entity.rs, src/document/schema.rs)
-- [ ] T6 Compile-only arms in every other exhaustive `match`: render draws nothing, pick distance
+- [x] T6 Compile-only arms in every other exhaustive `match`: render draws nothing, pick distance
   `f64::INFINITY`, trim/extend nothing, export nothing, narration `cubic|quadratic`. Mechanical;
   later tasks replace each arm. Breaks the 1–3 files rule; the compiler forces it (files: those
   the compiler lists)

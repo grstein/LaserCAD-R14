@@ -3,7 +3,7 @@
 //! [`Entity`] is the single sum type used throughout the document model and
 //! every downstream consumer (`Command` trait, history stack, selection,
 //! render, tools, SVG export). It wraps the kernel's geometry value types
-//! (`Line`, `Circle`, `Arc`, `Ellipse`) declared in [`crate::geometry`] and never adds
+//! (`Line`, `Circle`, `Arc`, `Ellipse`, `Bezier`) declared in [`crate::geometry`] and never adds
 //! its own coordinates — the variants are pure carriers of the existing
 //! primitives.
 //!
@@ -18,7 +18,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::geometry::{Arc, Circle, Ellipse, Line, Transform, Vec2};
+use crate::geometry::{Arc, Bezier, Circle, Ellipse, Line, Transform, Vec2};
 
 /// A document-level entity: a tagged union over the kernel's geometry
 /// primitives.
@@ -42,6 +42,8 @@ pub enum Entity {
     Arc(Arc),
     /// A full ellipse or an elliptical arc (LCV-176, ADR 0015).
     Ellipse(Ellipse),
+    /// A quadratic or cubic Bézier segment (LCV-177, ADR 0016).
+    Bezier(Bezier),
 }
 
 impl Entity {
@@ -57,12 +59,14 @@ impl Entity {
             Entity::Circle(circle) => circle.bbox(),
             Entity::Arc(arc) => arc.bbox(),
             Entity::Ellipse(e) => e.bbox(),
+            Entity::Bezier(b) => b.bbox(),
         }
     }
 
     /// Short lowercase ASCII tag identifying the variant.
     ///
-    /// Returns exactly `"line"`, `"circle"`, `"arc"` or `"ellipse"`. The strings are safe
+    /// Returns exactly `"line"`, `"circle"`, `"arc"`, `"ellipse"`, `"quadratic"` or
+    /// `"cubic"`. The strings are safe
     /// for logs, telemetry, and any future `serde` tag without further
     /// mapping.
     pub fn kind_name(&self) -> &'static str {
@@ -71,6 +75,8 @@ impl Entity {
             Entity::Circle(_) => "circle",
             Entity::Arc(_) => "arc",
             Entity::Ellipse(_) => "ellipse",
+            Entity::Bezier(Bezier::Quadratic(_)) => "quadratic",
+            Entity::Bezier(Bezier::Cubic(_)) => "cubic",
         }
     }
 
@@ -99,19 +105,24 @@ impl Entity {
             Entity::Ellipse(e) => {
                 e.center = e.center + delta;
             }
+            Entity::Bezier(b) => {
+                *b = b.map(|p| p + delta);
+            }
         }
     }
 
     /// The entity mapped through `transform`, same variant.
     ///
     /// Dispatches to [`Transform::line`], [`Transform::circle`],
-    /// [`Transform::arc`] and [`Transform::ellipse`]; adds no geometry of its own (LCV-158).
+    /// [`Transform::arc`], [`Transform::ellipse`] and [`Transform::bezier`]; adds no
+    /// geometry of its own (LCV-158).
     pub fn transformed(&self, transform: &Transform) -> Entity {
         match *self {
             Entity::Line(line) => Entity::Line(transform.line(line)),
             Entity::Circle(circle) => Entity::Circle(transform.circle(circle)),
             Entity::Arc(arc) => Entity::Arc(transform.arc(arc)),
             Entity::Ellipse(e) => Entity::Ellipse(transform.ellipse(e)),
+            Entity::Bezier(b) => Entity::Bezier(transform.bezier(b)),
         }
     }
 }
@@ -306,6 +317,36 @@ mod tests {
                 center: Vec2::new(3.0, 0.0),
                 ..e
             })
+        );
+    }
+
+    /// LCV-177 — a Bézier delegates bbox and transforms, translates every
+    /// control point, and is named by its degree.
+    #[test]
+    fn entity_bezier_dispatches() {
+        let v = Vec2::new;
+        let c = Bezier::Cubic([v(0.0, 0.0), v(0.0, 40.0), v(10.0, 40.0), v(10.0, 0.0)]);
+        let q = Bezier::Quadratic([v(0.0, 0.0), v(5.0, 20.0), v(10.0, 0.0)]);
+        assert_eq!(Entity::Bezier(c).kind_name(), "cubic");
+        assert_eq!(Entity::Bezier(q).kind_name(), "quadratic");
+        assert!(bbox_approx_eq(Entity::Bezier(c).bbox(), c.bbox()));
+        let t = Transform::Rotate {
+            base: Vec2::default(),
+            angle: FRAC_PI_2,
+        };
+        assert_eq!(
+            Entity::Bezier(q).transformed(&t),
+            Entity::Bezier(t.bezier(q))
+        );
+        let mut moved = Entity::Bezier(q);
+        moved.translate(v(2.0, -1.0));
+        assert_eq!(
+            moved,
+            Entity::Bezier(Bezier::Quadratic([
+                v(2.0, -1.0),
+                v(7.0, 19.0),
+                v(12.0, -1.0)
+            ]))
         );
     }
 }

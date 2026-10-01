@@ -24,6 +24,7 @@ pub(super) fn kind(entity: &Entity) -> &'static str {
         Entity::Circle(_) => "circle",
         Entity::Arc(_) => "arc",
         Entity::Ellipse(_) => "ellipse",
+        Entity::Bezier(_) => entity.kind_name(),
     }
 }
 
@@ -56,6 +57,8 @@ pub(super) fn geometry(entity: &Entity) -> String {
                 e.rotation.to_degrees()
             )
         }
+        // LCV-177 T24: the points arrive with the narration arm.
+        Entity::Bezier(_) => String::new(),
     }
 }
 

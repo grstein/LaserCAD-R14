@@ -51,7 +51,7 @@ fn endpoints(e: &Entity) -> Option<[Vec2; 2]> {
     match e {
         Entity::Line(l) => Some([l.p1, l.p2]),
         Entity::Arc(a) => Some([a.start_point(), a.end_point()]),
-        Entity::Circle(_) | Entity::Ellipse(_) => None,
+        Entity::Circle(_) | Entity::Ellipse(_) | Entity::Bezier(_) => None,
     }
 }
 

@@ -162,6 +162,7 @@ fn encode_entity(entity: &Entity, bed_height_mm: f64) -> String {
             )
         }
         Entity::Ellipse(e) => encode_ellipse(e, bed_height_mm),
+        Entity::Bezier(_) => String::new(),
     }
 }
 

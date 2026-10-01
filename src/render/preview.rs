@@ -115,6 +115,7 @@ pub fn draw_dashed(
             .collect(),
         Entity::Arc(a) => crate::render::arc_polyline(a, CURVE_SEGMENTS),
         Entity::Ellipse(e) => crate::render::ellipse_polyline(e, camera.mm_per_px),
+        Entity::Bezier(_) => Vec::new(),
     };
     let offset = rect.min.to_vec2();
     let points: Vec<egui::Pos2> = world

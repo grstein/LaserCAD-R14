@@ -22,7 +22,9 @@
 //!   optional field that older builds can ignore, broadening a numeric range
 //!   that is already nullable, or adding a wholly new variant that older
 //!   builds can refuse with a clear error (note: adding `Entity` variants is
-//!   one such case; see [`crate::document::entity`] notes).
+//!   one such case; see [`crate::document::entity`] notes). `Entity::Ellipse`
+//!   (LCV-176, ADR 0015 §10) and `Entity::Bezier` (LCV-177, ADR 0016 §8)
+//!   were added this way, without a bump.
 //!
 //! Introduced by demand LCV-020.
 

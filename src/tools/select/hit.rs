@@ -76,6 +76,7 @@ pub(super) fn entity_distance_to_point(entity: &Entity, p: Vec2) -> f64 {
         Entity::Circle(c) => c.distance_to_point(p).abs(),
         Entity::Arc(a) => arc_distance_to_point(a, p),
         Entity::Ellipse(e) => e.distance_to_point(p),
+        Entity::Bezier(_) => f64::INFINITY,
     }
 }
 
@@ -107,6 +108,7 @@ pub(super) fn entity_in_window(entity: &Entity, rect: &Rect) -> bool {
         Entity::Circle(c) => rect.contains_circle(c),
         Entity::Arc(a) => rect.contains_arc(a),
         Entity::Ellipse(e) => rect.contains_ellipse(e),
+        Entity::Bezier(_) => false,
     }
 }
 
@@ -117,6 +119,7 @@ pub(super) fn entity_in_crossing(entity: &Entity, rect: &Rect) -> bool {
         Entity::Circle(c) => rect.crosses_circle(c),
         Entity::Arc(a) => rect.crosses_arc(a),
         Entity::Ellipse(e) => rect.crosses_ellipse(e),
+        Entity::Bezier(_) => false,
     }
 }
 

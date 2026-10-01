@@ -61,6 +61,7 @@ pub fn rasterize(
                     canvas.segment((pair[0].x, pair[0].y), (pair[1].x, pair[1].y), INK);
                 }
             }
+            Entity::Bezier(_) => {}
         }
     }
     canvas.pixels

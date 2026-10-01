@@ -20,6 +20,7 @@ fn bits(e: &Entity) -> Vec<u64> {
             f64::from(u8::from(a.ccw)),
         ],
         Entity::Ellipse(e) => vec![e.center.x, e.center.y, e.rx, e.ry, e.rotation],
+        Entity::Bezier(b) => b.points().iter().flat_map(|p| [p.x, p.y]).collect(),
     };
     v.into_iter().map(f64::to_bits).collect()
 }
