@@ -1,8 +1,8 @@
 # LCV-201 — Windows and macOS packaging
 
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on**: LCV-180
-- **Implementation**: -
+- **Implementation**: 1204524..83694c2; CI run https://github.com/grstein/LaserCAD-R14-V2/actions/runs/36833345767 (all three OS green, package-windows/package-macos artifacts)
 
 ## Problem
 
