@@ -1,8 +1,8 @@
 # LCV-191 — Agent moves entities between layers
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: LCV-186
-- **Implementation**: -
+- **Implementation**: 5566478..e849dd7
 
 ## Problem
 
