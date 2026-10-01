@@ -1,0 +1,36 @@
+# LCV-202 / ADR 0018 — the frozen 1.0 export contract, read back as a corpus
+# file. One user unit = 1 mm, world y = 250 - svg y. Arc centres and angles
+# follow SVG 2 §F.6.5 from the four-decimal endpoints, so they sit a few
+# 1e-5 mm off the round values the contract document was built from.
+bed 400 250
+layer "Cut" #ff0000 output=1
+layer "Engrave & mark" #0000ff output=1 current=1
+layer "Spare" #00aa00 output=0
+# Layer `Cut`, in file order.
+line 0 10 20 110 45.5
+# Polyline output: three lines.
+line 0 20 200 60 200
+line 0 60 200 60 230
+line 0 60 230 20 200
+circle 0 150 60 25
+# M (230, 90) to (267.5517, 80.4115), r 20, small, sweep 1 = clockwise on
+# screen: from world (230, 160) at 180 deg round to (267.5517, 169.5885).
+arc 0 249.9999999998 160.0000784873 20 -179.9997751504 28.6475983776 cw
+# rotate(-30) is counter-clockwise on screen, so +30 deg in the world.
+ellipse 0 180 140 30 12.5 30
+quadratic 0 300 200 330 240 360 200
+# Layer `Engrave & mark`.
+# M (280, 190) to (237.5156, 162.7211), r 30, small, sweep 0 = counter-
+# clockwise on screen: from world (280, 60) at 0 deg to about 114.59 deg.
+arc 1 250 59.9999748628 30 0.0000480085 114.5915483218 ccw
+ellipse 1 80 120 40 20 0
+# rx 35, ry 15, x-axis rotation 60 = -60 deg in the world; large 1, sweep 0:
+# centre world (320, 120), parameter 0 round counter-clockwise to 270 deg.
+ellipse 1 319.9999904984 119.9999836467 35 15 -60 0.0000419082 -90.0000309122 ccw
+cubic 1 300 20 320 60 360 -5 390 30
+# TEXT "V1": four strokes.
+line 1 114.4444 210 120 200
+line 1 120 200 125.5556 210
+line 1 128.8889 207.7778 132.2222 210
+line 1 132.2222 210 132.2222 200
+# Layer `Spare` is empty.
