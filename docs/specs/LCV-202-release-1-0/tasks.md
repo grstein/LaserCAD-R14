@@ -18,7 +18,7 @@ Start T1 only after LCV-180 and then the `svg` branch (LCV-170..179) have merged
       (files: src/io/v0_5_compat.rs, src/io/mod.rs)
 - [x] T6 [P] [AC5] Test: every `TOOLS` label appears in `docs/user-guide.md` (fails: no guide)
       (files: src/ui/toolbar.rs)
-- [ ] T7 [AC5] Write the user guide: every TOOLS entry, every command-line alias, layers,
+- [x] T7 [AC5] Write the user guide: every TOOLS entry, every command-line alias, layers,
       Export layers, the AI panel; link `docs/install.md` (files: docs/user-guide.md)
 - [ ] T8 [AC1] Test: parity table has one row per §Scope target bullet, no empty cell, and every
       cited test exists (files: tests/it/repo/release_1_0.rs, tests/it/repo/mod.rs)
