@@ -1,4 +1,5 @@
-//! Hershey single-stroke font data and ASCII text → line-geometry layout.
+//! Hershey single-stroke font data and ASCII text → line-geometry layout;
+//! outline fonts for SVG text import ([`fonts`], LCV-179).
 //!
 //! # Overview
 //!
@@ -13,9 +14,11 @@
 //!
 //! Introduced by demand LCV-055.
 
+pub mod fonts;
 pub mod hershey;
 pub mod hershey_data;
 pub mod layout;
 
+pub use fonts::{FaceId, FontBook};
 pub use hershey::CAP_HEIGHT_HERSHEY;
 pub use layout::layout_text;

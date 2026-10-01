@@ -3,7 +3,7 @@
 - [x] T1 [AC12] Bundle the test font: subset Liberation Sans Regular and Bold to ASCII 0x20–0x7E
   with `pyftsubset`, add `OFL.txt`; add `fontdb`/`ttf-parser` to `Cargo.toml`
   (files: `tests/fixtures/fonts/*`, `Cargo.toml`)
-- [ ] T2 [AC2, AC3] Test first: `FontBook::from_files` resolves `"Nope, Liberation Sans"`,
+- [x] T2 [AC2, AC3] Test first: `FontBook::from_files` resolves `"Nope, Liberation Sans"`,
   `sans-serif`, bold/italic nearest face, unknown family → `substituted`, `empty()` → `None`;
   then `FontBook` (files: `src/text/fonts.rs`, `src/text/mod.rs`)
 - [ ] T3 [AC1, AC4, AC8] Test first: glyph `l` of the bundled font is closed contours of lines,
