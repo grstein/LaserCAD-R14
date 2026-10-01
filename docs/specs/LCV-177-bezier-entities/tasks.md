@@ -22,7 +22,7 @@
 - [x] T7 [AC5] Test on painted shapes: a cubic and a quadratic at two zooms, every vertex on the
   curve, chord deviation ≤ 0.5 px, layer colour stroke, selection halo and hover paint it (files:
   tests/it/app/bezier_paint.rs, tests/it/app/mod.rs)
-- [ ] T8 [AC5] `polyline(0.5·mm_per_px)` in the entity, selection and dashed painters (files:
+- [x] T8 [AC5] `polyline(0.5·mm_per_px)` in the entity, selection and dashed painters (files:
   src/render/entities.rs, src/render/selection.rs, src/render/preview.rs)
 - [ ] T9 [AC6, AC7] Test: a click within the aperture of the curve selects, a click on an
   off-curve control point does not; a window box tight around the curve (not its control polygon)

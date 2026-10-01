@@ -76,7 +76,7 @@ pub(super) fn entity_distance_to_point(entity: &Entity, p: Vec2) -> f64 {
         Entity::Circle(c) => c.distance_to_point(p).abs(),
         Entity::Arc(a) => arc_distance_to_point(a, p),
         Entity::Ellipse(e) => e.distance_to_point(p),
-        Entity::Bezier(_) => f64::INFINITY,
+        Entity::Bezier(b) => b.distance_to_point(p),
     }
 }
 

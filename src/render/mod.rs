@@ -19,7 +19,7 @@ pub mod snaps;
 pub use bed::{Bed, draw_bed, draw_bed_fill};
 pub use camera::Camera;
 pub use cursor::{cursor_color, draw_crosshair, draw_pickbox};
-pub use entities::{PaintOptions, arc_polyline, draw_entities, ellipse_polyline};
+pub use entities::{PaintOptions, arc_polyline, bezier_polyline, draw_entities, ellipse_polyline};
 pub use grid::draw_grid;
 pub use preview::{draw_dashed, draw_preview};
 pub use selection::{draw_hover, draw_selection_highlight};
