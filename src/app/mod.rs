@@ -67,7 +67,7 @@ pub use autosave::{AutosaveState, autosave_due, schedule_flush_repaint};
 pub use bed_dialog::{apply_bed_dialog_result, draw_bed_dialog};
 pub(crate) use cmdline::agent_available;
 pub use cmdline::submit;
-pub use discard::{apply_dialog_result, draw_discard_dialog, poll_close_request};
+pub use discard::{DiscardChoice, apply_dialog_result, draw_discard_dialog, poll_close_request};
 pub use document_title::DocumentTitleState;
 pub use feedback::Severity;
 pub use file_ops::PendingAction;

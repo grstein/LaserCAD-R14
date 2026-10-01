@@ -19,7 +19,7 @@
 - [x] T7 [AC6] [AC7] Test first: the Discard dialog paints `Save`, `Discard`, `Cancel` left to
   right; the `Discard` run's colour is `palette::DANGER`; no filled shape uses `DANGER` (files:
   tests/it/ui/dialog_keyboard.rs, tests/it/ui/discard_dialog_pointer_click.rs)
-- [ ] T8 [AC6] [AC7] `discard.rs` draws its own window with `DiscardChoice`; `confirm_dialog`
+- [x] T8 [AC6] [AC7] `discard.rs` draws its own window with `DiscardChoice`; `confirm_dialog`
   is removed (files: src/app/discard.rs, src/ui/dialogs.rs, src/ui/mod.rs)
 - [ ] T9 [AC8] Test first: Save with a writable current path runs the parked `New` once; a path
   in a missing folder, and an untitled drawing (disarmed Save As), keep the drawing, drop the

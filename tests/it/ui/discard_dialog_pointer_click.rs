@@ -13,7 +13,7 @@
 //! tests never exercised.
 //!
 //! **Investigation finding (AC 8), corrected:** New and OpenPath, driven
-//! through this real pointer path, reproduce no defect — `confirm_dialog`'s
+//! through this real pointer path, reproduce no defect — the prompt's
 //! button is reachable, click-through to the canvas behind the modal does
 //! not happen, and a stray second click at the button's old position does
 //! not re-dispatch. Layer ordering (the `CentralPanel`'s `Order::Background`

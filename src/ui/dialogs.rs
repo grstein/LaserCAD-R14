@@ -1,11 +1,11 @@
-//! In-app modal dialogs: confirm, error, and about.
+//! In-app modal dialogs: error and about, plus the shared [`DialogResult`].
 //!
 //! All dialogs are pure egui floating windows — no OS dialog, no extra crate.
 //! They are stateless helpers; the caller owns any open/visible `bool` flag.
 //!
 //! The keyboard-shortcuts dialog used to live here too; LCV-134 moved it, whole,
 //! to `src/ui/shortcuts_dialog.rs` (ADR 0004 Amended (2)). `src/ui/mod.rs`
-//! re-exports it next to these three, so no caller outside `src/ui/` needs to
+//! re-exports it next to these two, so no caller outside `src/ui/` needs to
 //! know which file a dialog is in.
 //!
 //! Every dialog here is **read-only with respect to the keyboard**: none of
@@ -19,64 +19,18 @@ use egui::{Align2, Context, Window};
 // Public types
 // ---------------------------------------------------------------------------
 
-/// The definitive answer returned by a confirmation dialog.
+/// The definitive answer of a two-way dialog (Bed Size: `OK` / `Cancel`).
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum DialogResult {
-    /// The user clicked the confirm button (`confirm_label`, e.g. `"Yes"` or
-    /// `"Discard"` — the label is caller-supplied, LCV-113).
+    /// The operator confirmed (`OK`).
     Confirmed,
-    /// The user clicked the cancel button (`cancel_label`, e.g. `"No"` or
-    /// `"Cancel"` — the label is caller-supplied, LCV-113).
+    /// The operator cancelled (`Cancel` or the title-bar ×).
     Cancelled,
 }
 
 // ---------------------------------------------------------------------------
 // Dialog functions
 // ---------------------------------------------------------------------------
-
-/// Render a modal-style confirmation window centered in the viewport.
-///
-/// The window is not resizable, not collapsible, and has no × close button.
-/// The body shows `message` and two buttons, `confirm_label` then
-/// `cancel_label`, in that order in a horizontal row (LCV-113: the labels
-/// were hard-coded `"Yes"` / `"No"` until the discard-confirmation dialog
-/// needed `"Discard"` / `"Cancel"`).
-///
-/// Returns:
-/// - `Some(DialogResult::Confirmed)` on the frame `confirm_label` is clicked.
-/// - `Some(DialogResult::Cancelled)` on the frame `cancel_label` is clicked.
-/// - `None` every other frame.
-///
-/// The caller is responsible for holding a `bool` flag and stopping the
-/// call once a `Some` result is received.
-pub fn confirm_dialog(
-    ctx: &Context,
-    title: &str,
-    message: &str,
-    confirm_label: &str,
-    cancel_label: &str,
-) -> Option<DialogResult> {
-    let mut result = None;
-
-    Window::new(title)
-        .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
-        .resizable(false)
-        .collapsible(false)
-        .show(ctx, |ui| {
-            ui.label(message);
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                if ui.button(confirm_label).clicked() {
-                    result = Some(DialogResult::Confirmed);
-                }
-                if ui.button(cancel_label).clicked() {
-                    result = Some(DialogResult::Cancelled);
-                }
-            });
-        });
-
-    result
-}
 
 /// Render a modal-style error window centered in the viewport.
 ///
@@ -142,37 +96,6 @@ pub fn about_dialog(ctx: &Context, open: &mut bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// §1 — confirm_dialog returns None when no button is clicked.
-    #[test]
-    fn confirm_dialog_returns_none_without_click() {
-        let ctx = egui::Context::default();
-        let mut captured = None;
-        let _out = ctx.run(egui::RawInput::default(), |ctx| {
-            captured = confirm_dialog(ctx, "T", "M", "Yes", "No");
-        });
-        assert_eq!(captured, None);
-    }
-
-    /// LCV-113 AC 10 — the button labels are caller-supplied, not hard-coded
-    /// `"Yes"` / `"No"`. Renders with the discard dialog's own labels and
-    /// asserts only that nothing panics and no click means no result — the
-    /// same shape as the test above, with different labels.
-    #[test]
-    fn confirm_dialog_renders_custom_labels() {
-        let ctx = egui::Context::default();
-        let mut captured = None;
-        let _out = ctx.run(egui::RawInput::default(), |ctx| {
-            captured = confirm_dialog(
-                ctx,
-                "Discard unsaved changes?",
-                "The current drawing has unsaved changes.",
-                "Discard",
-                "Cancel",
-            );
-        });
-        assert_eq!(captured, None);
-    }
 
     /// §2 — error_dialog returns false when no button is clicked.
     #[test]

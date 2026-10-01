@@ -21,27 +21,66 @@ use crate::ui::DialogResult;
 
 use super::{App, PendingAction};
 
-/// Render the discard-confirmation dialog. Renders nothing while
-/// `UnsavedGuard::pending_action` is `None`; on a click, delegates the
-/// decision to [`apply_dialog_result`].
+/// The operator's answer to the discard prompt (LCV-169 AC 7).
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum DiscardChoice {
+    /// Save the drawing, then run the parked action if the save landed.
+    Save,
+    /// Drop the unsaved changes and run the parked action.
+    Discard,
+    /// Keep the drawing; drop the parked action. The title-bar × too.
+    Cancel,
+}
+
+/// Render the discard prompt: the message, then `Save`, `Discard` (its text
+/// in `palette::DANGER`, LCV-169 AC 6) and `Cancel`, left to right. Returns
+/// the operator's answer on the frame it is given; the × answers `Cancel`.
+fn discard_window(ctx: &egui::Context) -> Option<DiscardChoice> {
+    let mut open = true;
+    let mut choice = None;
+    egui::Window::new("Discard unsaved changes?")
+        .open(&mut open)
+        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+        .resizable(false)
+        .collapsible(false)
+        .show(ctx, |ui| {
+            ui.label("The current drawing has unsaved changes. Continuing will discard them and the undo history.");
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                let danger = egui::RichText::new("Discard").color(crate::render::palette::DANGER);
+                if ui.button("Save").clicked() {
+                    choice = Some(DiscardChoice::Save);
+                }
+                if ui.add(egui::Button::new(danger)).clicked() {
+                    choice = Some(DiscardChoice::Discard);
+                }
+                if ui.button("Cancel").clicked() {
+                    choice = Some(DiscardChoice::Cancel);
+                }
+            });
+        });
+    if open {
+        choice
+    } else {
+        Some(DiscardChoice::Cancel)
+    }
+}
+
+/// Render the discard prompt while an action is parked and apply the answer.
 ///
 /// Called from [`super::panels::draw_dialogs`]. The render and the decision
-/// are split on purpose (not inlined here): it is what makes
-/// [`apply_dialog_result`] testable directly, with no simulated pointer
-/// click, which is how the Discard and Cancel behaviour is actually covered.
+/// are split on purpose: it is what makes [`apply_dialog_result`] testable
+/// directly, with no simulated pointer click.
 pub fn draw_discard_dialog(ctx: &egui::Context, app: &mut App) {
     if app.guard.pending_action.is_none() {
         return;
     }
-    if let Some(result) = crate::ui::confirm_dialog(
-        ctx,
-        "Discard unsaved changes?",
-        "The current drawing has unsaved changes. Continuing will discard them and the undo history.",
-        "Discard",
-        "Cancel",
-    ) {
-        apply_dialog_result(ctx, app, result);
-    }
+    let result = match discard_window(ctx) {
+        None => return,
+        Some(DiscardChoice::Discard) => DialogResult::Confirmed,
+        Some(DiscardChoice::Save | DiscardChoice::Cancel) => DialogResult::Cancelled,
+    };
+    apply_dialog_result(ctx, app, result);
 }
 
 /// Apply the operator's answer to the parked action.
