@@ -13,7 +13,7 @@
 - [x] T3 [AC1, AC2, AC3] Impl: the tri-state rules in `import_shape` for line, circle and ellipse.
   Ellipse radius errors use `(invalid attribute)` instead of LCV-176's `(invalid radius)`.
   (files: src/io/svg/import/shapes.rs, src/io/svg/import/conic.rs)
-- [ ] T4 [AC3] Refactor: remove `SvgImportError::MalformedAttribute`, `malformed` and `attr_f64`,
+- [x] T4 [AC3] Refactor: remove `SvgImportError::MalformedAttribute`, `malformed` and `attr_f64`,
   and drop the kind from the corpus error table.
   (files: src/io/svg/import.rs, tests/it/io_svg/corpus.rs, tests/it/io_svg/corpus_expected.rs)
 - [ ] T5 [AC4, AC10] Test:

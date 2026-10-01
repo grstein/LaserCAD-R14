@@ -77,16 +77,6 @@ pub enum SvgImportError {
     /// (a root without `xmlns` included).
     #[error("no <svg> root element in the SVG namespace found")]
     NoSvgRoot,
-    /// A required numeric attribute could not be parsed, or `r ≤ 0` on `<circle>`.
-    #[error("<{element}> attribute {attr}={value:?} is not a valid number")]
-    MalformedAttribute {
-        /// The element name, e.g. `circle`.
-        element: &'static str,
-        /// The attribute name, e.g. `r`.
-        attr: &'static str,
-        /// The raw attribute text that failed to parse.
-        value: String,
-    },
     /// A root `<svg>` bed attribute (`width`, `height` or `viewBox`) that is
     /// present but unusable: unparseable, non-finite, ≤ 0, or outside
     /// `1.0..=2000.0` mm (LCV-114 AC 9).
