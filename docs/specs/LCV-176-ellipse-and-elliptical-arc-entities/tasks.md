@@ -55,7 +55,7 @@
 - [x] T20 [AC1] Test: `A` with rx ≠ ry, for each combination of large/sweep, with φ ≠ 0, relative,
   and needing radius correction. Endpoints match within `EPSILON`. rx = ry still gives an `Arc`,
   and the `path elliptical arc` note is gone (files: tests/it/io_svg/ellipse.rs)
-- [ ] T21 [AC1] `PathData::Arc` keeps `phi`; `conic.rs::{center_arc, conic_entity}`;
+- [x] T21 [AC1] `PathData::Arc` keeps `phi`; `conic.rs::{center_arc, conic_entity}`;
   `path_entities` routes the elliptical case (files: src/io/svg/path_data.rs,
   src/io/svg/import/conic.rs, src/io/svg/import/path.rs)
 - [ ] T22 [AC2] Test: `<ellipse>` with rx ≠ ry, rx = ry → Circle, `auto`/absent radius, `%`

@@ -13,7 +13,7 @@ mod lexer;
 pub(super) enum Segment {
     /// `L`, `H`, `V`, or the closing line of `Z` (possibly zero-length).
     Line(Vec2, Vec2),
-    /// `A`; the x-axis rotation is dropped, only circular arcs are imported.
+    /// `A`, with its x-axis rotation.
     Arc {
         /// The current point before the arc.
         from: Vec2,
@@ -23,6 +23,8 @@ pub(super) enum Segment {
         rx: f64,
         /// The y radius as written (sign included).
         ry: f64,
+        /// The x-axis rotation in degrees, as written.
+        phi: f64,
         /// The large-arc flag.
         large: bool,
         /// The sweep flag.
@@ -128,7 +130,7 @@ impl Pen {
             b'V' => Segment::Line(from, Vec2::new(from.x, base.y + lx.number()?)),
             b'Z' => Segment::Line(from, self.start),
             b'A' => {
-                let (rx, ry, _rotation) = (lx.number()?, lx.number()?, lx.number()?);
+                let (rx, ry, phi) = (lx.number()?, lx.number()?, lx.number()?);
                 let (large, sweep) = (lx.flag()?, lx.flag()?);
                 let to = point(lx)?;
                 Segment::Arc {
@@ -136,6 +138,7 @@ impl Pen {
                     to,
                     rx,
                     ry,
+                    phi,
                     large,
                     sweep,
                 }
@@ -203,19 +206,20 @@ mod tests {
 
     #[test]
     fn arcs_resolve_absolute_and_relative() {
-        let arc = |from, to, rx, ry, large, sweep| Segment::Arc {
+        let arc = |from, to, rx, ry, phi, large, sweep| Segment::Arc {
             from,
             to,
             rx,
             ry,
+            phi,
             large,
             sweep,
         };
         assert_eq!(
             ok("M 10 0 A 10 10 30 0 1 0 10 a 5 -5 0 1 0 -5 -5"),
             [
-                arc(p(10.0, 0.0), p(0.0, 10.0), 10.0, 10.0, false, true),
-                arc(p(0.0, 10.0), p(-5.0, 5.0), 5.0, -5.0, true, false),
+                arc(p(10.0, 0.0), p(0.0, 10.0), 10.0, 10.0, 30.0, false, true),
+                arc(p(0.0, 10.0), p(-5.0, 5.0), 5.0, -5.0, 0.0, true, false),
             ]
         );
     }

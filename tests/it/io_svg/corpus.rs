@@ -176,6 +176,32 @@ fn compare_entities(doc: &Document, want: &[ExpEntity]) -> Vec<String> {
                     && same_angle(a.end_angle, *end)
                     && a.ccw == *ccw
             }
+            (
+                Entity::Ellipse(e),
+                ExpEntity::Ellipse {
+                    layer,
+                    c,
+                    rx,
+                    ry,
+                    rotation,
+                    span,
+                },
+            ) => {
+                let spans = match (e.span, span) {
+                    (None, None) => true,
+                    (Some(s), Some((start, end, ccw))) => {
+                        same_angle(s.start, *start) && same_angle(s.end, *end) && s.ccw == *ccw
+                    }
+                    _ => false,
+                };
+                layer_index(i) == Some(*layer)
+                    && close(e.center.x, c[0])
+                    && close(e.center.y, c[1])
+                    && close(e.rx, *rx)
+                    && close(e.ry, *ry)
+                    && same_angle(e.rotation, *rotation)
+                    && spans
+            }
             _ => false,
         };
         if !ok {

@@ -1,16 +1,14 @@
-//! Path segments to world entities (LCV-172): lines, circular arcs, and the
-//! report labels of what is not imported yet.
+//! Path segments to world entities (LCV-172): lines, circular and elliptical
+//! arcs (LCV-176), and the report labels of what is not imported yet.
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
+use super::conic::{center_arc, conic_entity};
 use super::to_world;
 use crate::document::entity::Entity;
 use crate::geometry::{Arc, EPSILON, Line, Vec2};
 use crate::io::svg::path_data::{PathData, Segment};
 use crate::io::svg::viewport::Ctx;
-
-/// The report label of an `A` with `|rx| ≠ |ry|` (AC 7, until LCV-176).
-const ELLIPTICAL_ARC: &str = "path elliptical arc";
 
 /// The report label of a circular arc under a non-similarity map (LCV-173
 /// AC 7, until LCV-176).
@@ -22,10 +20,11 @@ const NON_UNIFORM_ARC: &str = "arc (non-uniform transform)";
 /// Zero-length lines are dropped (AC 3, AC 4). Arcs follow SVG 2 §F.6.6
 /// (AC 6): equal endpoints draw nothing, a zero radius draws a line,
 /// negative radii count as positive; `|rx| = |ry|` imports a circular arc
-/// whatever its rotation (AC 5), any other arc is labelled (AC 7). Lengths
-/// and radii are compared with [`EPSILON`] after the mirror. Under a
-/// similarity of scale `s` an arc's radius is `rx · s` and a reflection
-/// flips its sweep (LCV-173 AC 6); under any other map it is labelled (AC 7).
+/// whatever its rotation (AC 5), any other arc an elliptical arc through
+/// [`conic_entity`] (LCV-176 AC 1). Lengths and radii are compared with
+/// [`EPSILON`] after the mirror. Under a similarity of scale `s` a circular
+/// arc's radius is `rx · s` and a reflection flips its sweep (LCV-173 AC 6);
+/// under any other map it is labelled (AC 7).
 pub(super) fn path_entities(
     data: &PathData,
     ctx: &Ctx,
@@ -43,6 +42,7 @@ pub(super) fn path_entities(
                 to,
                 rx,
                 ry,
+                phi,
                 large,
                 sweep,
             } => {
@@ -51,7 +51,8 @@ pub(super) fn path_entities(
                 if rx < EPSILON || ry < EPSILON {
                     entities.extend(line(a, b));
                 } else if (rx - ry).abs() > EPSILON {
-                    labels.push(ELLIPTICAL_ARC);
+                    let conic = center_arc(from, to, (rx, ry), phi, large, sweep);
+                    entities.extend(conic.and_then(|k| conic_entity(ctx, k, bed_h)));
                 } else if let Some(s) = ctx.ctm.similarity_scale() {
                     entities.extend(circular_arc(a, b, rx * s, large, sweep != flip));
                 } else {
@@ -192,13 +193,14 @@ mod tests {
         assert!((a.center.x - 15.0).abs() < EPSILON && (a.center.y - 50.0).abs() < EPSILON);
     }
 
-    /// AC 7 — an elliptical arc or a curve imports nothing and is labelled.
+    /// AC 7 — a curve imports nothing and is labelled; an elliptical arc
+    /// imports an ellipse (LCV-176 AC 1).
     #[test]
-    fn ellipses_and_curves_are_labelled_not_imported() {
-        assert_eq!(
+    fn curves_are_labelled_and_ellipses_imported() {
+        assert!(matches!(
             entities("M 0 0 A 10 5 0 0 1 10 0"),
-            (vec![], vec!["path elliptical arc"])
-        );
+            (es, labels) if labels.is_empty() && matches!(es.as_slice(), [Entity::Ellipse(_)])
+        ));
         assert_eq!(
             entities("M 0 0 C 1 1 2 2 3 3 L 3 10 q 1 1 2 2"),
             (

@@ -11,6 +11,8 @@
 //! line 0 x1 y1 x2 y2                        # first field = layer index
 //! circle 0 cx cy r
 //! arc 1 cx cy r start_deg end_deg ccw|cw
+//! ellipse 0 cx cy rx ry rotation_deg [start_deg end_deg ccw|cw]
+//!                                            # LCV-176: span angles parametric
 //! error MalformedLayer                      # alone: import must fail so
 //! ignored 2 path (unsupported data)         # LCV-171: one import-report entry,
 //!                                            # count first, label to end of line;
@@ -57,6 +59,15 @@ pub enum ExpEntity {
         start: f64,
         end: f64,
         ccw: bool,
+    },
+    /// LCV-176: `span` is `(start, end, ccw)` in parametric radians.
+    Ellipse {
+        layer: usize,
+        c: [f64; 2],
+        rx: f64,
+        ry: f64,
+        rotation: f64,
+        span: Option<(f64, f64, bool)>,
     },
 }
 
@@ -113,6 +124,7 @@ pub fn parse(text: &str) -> Result<Expected, String> {
                 });
             }
             "arc" => entities.push(arc(rest).map_err(at)?),
+            "ellipse" => entities.push(ellipse(rest).map_err(at)?),
             "ignored" => report.push(ignored(rest).map_err(at)?),
             "error" if rest.len() == 1 && ERROR_VARIANTS.contains(&rest[0].as_str()) => {
                 error = Some(rest[0].clone());
@@ -137,7 +149,8 @@ pub fn parse(text: &str) -> Result<Expected, String> {
     let layer_of = |e: &ExpEntity| match e {
         ExpEntity::Line { layer, .. }
         | ExpEntity::Circle { layer, .. }
-        | ExpEntity::Arc { layer, .. } => *layer,
+        | ExpEntity::Arc { layer, .. }
+        | ExpEntity::Ellipse { layer, .. } => *layer,
     };
     if let Some(e) = entities.iter().find(|e| layer_of(e) >= layers.len()) {
         return Err(format!("entity names missing layer {}", layer_of(e)));
@@ -271,6 +284,65 @@ fn arc(toks: &[String]) -> Result<ExpEntity, String> {
         end: v[4].to_radians(),
         ccw,
     })
+}
+
+/// `ellipse <layer> cx cy rx ry rotation_deg`, then optionally
+/// `start_deg end_deg ccw|cw`.
+fn ellipse(toks: &[String]) -> Result<ExpEntity, String> {
+    let (span, rest) = match toks.split_last() {
+        Some((dir, rest)) if toks.len() == 9 => {
+            let ccw = match dir.as_str() {
+                "ccw" => true,
+                "cw" => false,
+                other => return Err(format!("{other:?} is not ccw|cw")),
+            };
+            (Some(ccw), rest)
+        }
+        _ => (None, toks),
+    };
+    let (layer, v) = indexed(rest, if span.is_some() { 7 } else { 5 })?;
+    Ok(ExpEntity::Ellipse {
+        layer,
+        c: [v[0], v[1]],
+        rx: v[2],
+        ry: v[3],
+        rotation: v[4].to_radians(),
+        span: span.map(|ccw| (v[5].to_radians(), v[6].to_radians(), ccw)),
+    })
+}
+
+/// LCV-176: a full ellipse and an elliptical arc record.
+#[test]
+fn parses_ellipse_records() {
+    let text = "bed 10 10\nlayer \"Cut\" #ff0000 output=1 current=1\n\
+        ellipse 0 1 2 3 4 30\n\
+        ellipse 0 1 2 3 4 -90 180 0 cw\n";
+    let Expected::Doc { entities, .. } = parse(text).unwrap() else {
+        panic!("expected a document");
+    };
+    let rad = f64::to_radians;
+    assert_eq!(
+        entities,
+        [
+            ExpEntity::Ellipse {
+                layer: 0,
+                c: [1.0, 2.0],
+                rx: 3.0,
+                ry: 4.0,
+                rotation: rad(30.0),
+                span: None,
+            },
+            ExpEntity::Ellipse {
+                layer: 0,
+                c: [1.0, 2.0],
+                rx: 3.0,
+                ry: 4.0,
+                rotation: rad(-90.0),
+                span: Some((rad(180.0), 0.0, false)),
+            },
+        ]
+    );
+    assert!(parse("bed 1 1\nlayer \"C\" #ff0000 output=1 current=1\nellipse 0 1 2 3\n").is_err());
 }
 
 #[test]
