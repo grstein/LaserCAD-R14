@@ -5,6 +5,7 @@
 //! Submodules arrive with demands LCV-056 (export) and LCV-057 (import);
 //! LCV-114 split the root-`<svg>` header (the bed size) into its own module.
 
+mod css;
 mod css_color;
 pub mod export;
 pub mod header;

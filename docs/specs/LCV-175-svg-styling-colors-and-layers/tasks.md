@@ -1,6 +1,6 @@
 # LCV-175 — Tasks
 
-- [ ] T1 [AC3] [AC4] Test: `css.rs` unit tests — type, `*`, `.a`, `#b`, `g.a#b` compounds and a
+- [x] T1 [AC3] [AC4] Test: `css.rs` unit tests — type, `*`, `.a`, `#b`, `g.a#b` compounds and a
       comma list parse with their specificity; `g path`, `g>path`, `a:hover`, `[x]` drop the rule
       and note `style rule (unsupported selector)`; `@import url(x);` and `@media print { … }`
       are skipped and noted `style @import` / `style @media`; comments stripped; an unterminated
