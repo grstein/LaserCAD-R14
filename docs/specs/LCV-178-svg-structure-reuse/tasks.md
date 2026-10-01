@@ -11,7 +11,7 @@
       (files: tests/it/io_svg/switch.rs, tests/it/io_svg/mod.rs)
 - [x] T4 [AC10] [AC11] Walk: conditions gate on every element, `Kind::Switch` arm, `switch`
       out of `Other` (files: src/io/svg/import/walk.rs)
-- [ ] T5 [AC2] [AC7] [AC8] Test: `reuse.rs` unit tests — `Index` first-id-wins; `href` beats
+- [x] T5 [AC2] [AC7] [AC8] Test: `reuse.rs` unit tests — `Index` first-id-wins; `href` beats
       `xlink:href`; `xlink:href` alone resolves; missing href, `#nope`, `other.svg#a`,
       `http://x/#a`, `#` are unresolved; self, ancestor and stacked-use cycles are detected
       (files: src/io/svg/import/reuse.rs, src/io/svg/import.rs)

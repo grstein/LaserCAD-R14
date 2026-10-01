@@ -63,6 +63,7 @@ mod conditions;
 mod conic;
 mod path;
 pub(super) mod report;
+mod reuse;
 mod shapes;
 mod style;
 mod walk;
