@@ -28,7 +28,7 @@
 - [x] T5b [AC1] Integration tests that locate rows by tab labels (`"New\tCtrl+N"`,
   `Open Recent ▶`) locate the bare label run instead; T2 green (files:
   tests/it/ui/discard_dialog_pointer_click.rs, tests/it/app/document_title_and_file_feedback.rs)
-- [ ] T6 [AC2] Test first: with a selection, Edit > Delete erases it and one Ctrl+Z restores it;
+- [x] T6 [AC2] Test first: with a selection, Edit > Delete erases it and one Ctrl+Z restores it;
   with no selection the row is disabled (files: tests/it/ui/menu_rows.rs)
 - [ ] T7 [AC2] Edit > Delete row (icon `modify::delete`, shortcut `Del`) calls
   `tools::delete::commit_delete`, raised to `pub(crate)` (files: src/ui/menubar.rs,

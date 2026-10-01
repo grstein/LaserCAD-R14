@@ -376,3 +376,72 @@ fn format_and_help_menu_rows() {
     let format = open_menu(&ctx, &mut app, "Format");
     assert_menu(&format, &[("Layers…", None)]);
 }
+
+/// Two committed lines with both selected.
+fn app_with_selection() -> App {
+    use lasercad::document::{CreateLine, SelectionCommand};
+    use lasercad::geometry::{Line, Vec2};
+    let mut app = App::default();
+    for y in [0.0, 10.0] {
+        let line = Line::new(Vec2::new(0.0, y), Vec2::new(10.0, y));
+        app.commit(Box::new(CreateLine::new(line)));
+    }
+    app.commit(Box::new(SelectionCommand::new(vec![0usize, 1])));
+    app
+}
+
+/// Click Edit > Delete through real pointer input.
+fn click_edit_delete(ctx: &egui::Context, app: &mut App) -> Painted {
+    let edit = open_menu(ctx, app, "Edit");
+    let row = rows(&edit, &["Undo", "Delete"])[1].clone();
+    click(ctx, app, centre(&row));
+    edit
+}
+
+/// AC 2 — Edit > Delete carries its icon and `Del`, erases the selection,
+/// and one Ctrl+Z restores both the entities and the selection.
+#[test]
+fn edit_delete_erases_the_selection_in_one_undo_step() {
+    let ctx = ctx();
+    let mut app = app_with_selection();
+    let edit = click_edit_delete(&ctx, &mut app);
+    assert_menu(
+        &edit,
+        &[
+            ("Undo", Some("Ctrl+Z")),
+            ("Redo", Some("Ctrl+Y")),
+            ("Delete", Some("Del")),
+            ("Select All", None),
+        ],
+    );
+    assert_slots(&edit, &["Undo", "Redo", "Delete"], true);
+    assert_eq!(app.document.entity_count(), 0, "the selection is erased");
+    harness::tap(
+        &ctx,
+        &mut app,
+        egui::Key::Z,
+        egui::Modifiers {
+            ctrl: true,
+            command: true,
+            ..egui::Modifiers::NONE
+        },
+    );
+    assert_eq!(app.document.entity_count(), 2, "one Ctrl+Z restores them");
+    assert_eq!(app.document.selection.len(), 2, "and their selection");
+}
+
+/// AC 2 — with nothing selected Edit > Delete is disabled: a click commits
+/// nothing.
+#[test]
+fn edit_delete_is_disabled_without_a_selection() {
+    let ctx = ctx();
+    let mut app = app_with_selection();
+    app.commit(Box::new(lasercad::document::SelectionCommand::new(Vec::<
+        usize,
+    >::new(
+    ))));
+    let before = app.history.revision();
+    let _ = click_edit_delete(&ctx, &mut app);
+    assert_eq!(app.document.entity_count(), 2);
+    assert_eq!(app.history.revision(), before, "nothing is committed");
+}
