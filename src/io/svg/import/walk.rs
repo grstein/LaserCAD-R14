@@ -101,9 +101,13 @@ impl Walk {
                 self.report.note_properties(child);
                 inner_ctx = self.local(child, ctx);
             }
-            if matches!(kind, Kind::Descend) && name == "svg" {
-                inner_ctx = inner_ctx.map(|c| nested(child, &c));
-                self.report.note(UNCLIPPED_SVG);
+            if let (Kind::Descend, "svg", Some(c)) = (&kind, name, inner_ctx) {
+                inner_ctx = nested(child, &c);
+                let label = match inner_ctx {
+                    Some(_) => UNCLIPPED_SVG,
+                    None => SINGULAR_TRANSFORM,
+                };
+                self.report.note(label);
             }
             let entity = match kind {
                 Kind::Import => match (inner_ctx, name) {

@@ -305,3 +305,27 @@ fn a_css_transform_is_applied_and_wins_over_the_attribute() {
     assert_eq!(report, [entry("transform (invalid)", 1)]);
     assert_line(&es[0], w(1.0, 1.0), w(2.0, 1.0));
 }
+
+/// AC 9 — a nested `<svg>` with a zero width or height renders nothing: it
+/// imports nothing and is reported as singular, like a singular transform.
+#[test]
+fn a_zero_size_nested_svg_imports_nothing_and_is_reported() {
+    let (es, report) = page(
+        r#"<svg x="10" y="10" width="0" height="20" viewBox="0 0 10 10"><line x1="0" y1="0" x2="10" y2="10"/></svg>
+           <svg x="10" y="10" width="20" height="0%"><line x1="0" y1="0" x2="10" y2="10"/></svg>"#,
+    );
+    assert!(es.is_empty(), "{es:?}");
+    assert_eq!(report, [entry("transform (singular)", 2)]);
+}
+
+/// AC 9 — a nested `<svg>` with a negative width or height is an error in
+/// SVG 2: it imports nothing (never a mirrored copy) and is reported.
+#[test]
+fn a_negative_size_nested_svg_imports_nothing_and_is_reported() {
+    let (es, report) = page(
+        r#"<svg x="10" y="10" width="-20" height="20" viewBox="0 0 10 10"><line x1="0" y1="0" x2="10" y2="10"/></svg>
+           <svg x="10" y="10" width="20" height="-5"><line x1="0" y1="0" x2="10" y2="10"/></svg>"#,
+    );
+    assert!(es.is_empty(), "{es:?}");
+    assert_eq!(report, [entry("transform (singular)", 2)]);
+}

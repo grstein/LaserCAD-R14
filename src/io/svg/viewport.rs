@@ -106,8 +106,10 @@ pub(super) fn view_box_map(vb: [f64; 4], rect: [f64; 4], par: Par) -> Matrix {
 /// mapped per `preserveAspectRatio` onto `x y width height`, or a plain
 /// translation by `x y` without one. `x`, `y` default to 0 and `width`,
 /// `height` to 100%; `%` refers to the parent viewport; an invalid length or
-/// viewBox counts as absent. Nothing is clipped.
-pub(super) fn nested(node: roxmltree::Node<'_, '_>, ctx: &Ctx) -> Ctx {
+/// viewBox counts as absent. Nothing is clipped. `None` when the viewport
+/// renders nothing: a width or height that is not positive, or a singular
+/// map.
+pub(super) fn nested(node: roxmltree::Node<'_, '_>, ctx: &Ctx) -> Option<Ctx> {
     let [pw, ph] = ctx.viewport;
     let len = |attr: &str, reference: f64, default: f64| {
         node.attribute(attr)
@@ -120,6 +122,9 @@ pub(super) fn nested(node: roxmltree::Node<'_, '_>, ctx: &Ctx) -> Ctx {
         len("width", pw, pw),
         len("height", ph, ph),
     ];
+    if !(rect[2] > 0.0 && rect[3] > 0.0) {
+        return None;
+    }
     let (map, viewport) = match node.attribute("viewBox").and_then(parse_view_box) {
         Some(vb) => {
             let par = par(node.attribute("preserveAspectRatio"));
@@ -127,10 +132,8 @@ pub(super) fn nested(node: roxmltree::Node<'_, '_>, ctx: &Ctx) -> Ctx {
         }
         None => (Matrix::translate(rect[0], rect[1]), [rect[2], rect[3]]),
     };
-    Ctx {
-        ctm: map.then(ctx.ctm),
-        viewport,
-    }
+    let ctm = map.then(ctx.ctm);
+    (!ctm.is_singular()).then_some(Ctx { ctm, viewport })
 }
 
 #[cfg(test)]
