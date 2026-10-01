@@ -7,7 +7,7 @@ Start T1 only after LCV-180 and then the `svg` branch (LCV-170..179) have merged
 - [x] T2 [AC3] Test: `contract_1_0.rs` exports the every-kind, three-layer contract document and
       compares bytes with the fixture, then re-imports it within `FORMAT_TOL` (fails: no fixture)
       (files: tests/it/io_svg/contract_1_0.rs, tests/it/io_svg/mod.rs)
-- [ ] T3 [AC3] Write `contract-1.0.svg` from the T2 export; review each line against AGENTS.md
+- [x] T3 [AC3] Write `contract-1.0.svg` from the T2 export; review each line against AGENTS.md
       §SVG export before committing (files: tests/fixtures/svg/contract-1.0.svg)
 - [ ] T4 [P] [AC4] Generate the v0.5.0 settings, autosave and mother SVG in a scratch worktree of
       8c6701d under ~/.cache with its own `CARGO_TARGET_DIR` (throwaway ignored test, no GUI);

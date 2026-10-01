@@ -19,6 +19,11 @@ use lasercad::text::layout_text;
 /// Half a unit in the fourth decimal, plus room for the mirror's own rounding.
 const FORMAT_TOL: f64 = 5e-5 + 1e-9;
 
+/// Points derived from rounded values (arc midpoints, rotated vertices)
+/// drift by more than `FORMAT_TOL`; a micrometre still pins flags and
+/// rotation.
+const SHAPE_TOL: f64 = 1e-3;
+
 /// The frozen byte reference.
 const FIXTURE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -94,33 +99,46 @@ fn contract_doc() -> Document {
         .expect("valid contract document")
 }
 
-/// Points that pin an entity's geometry, independent of how import picks
-/// equivalent parameters (full-ellipse vertices compare as a set).
-fn samples(e: &Entity) -> (&'static str, Vec<Vec2>) {
+/// An entity as `(kind, written, shape)`: `written` holds the values the
+/// file states to four decimals (endpoints, centers, radii as `(r, 0)` or
+/// `(rx, ry)`, control points), compared within `FORMAT_TOL`; `shape` holds
+/// points derived from them (arc midpoints, rotated ellipse vertices as a
+/// set), compared within [`SHAPE_TOL`] to pin flags and rotation.
+fn samples(e: &Entity) -> (&'static str, Vec<Vec2>, Vec<Vec2>) {
     match e {
-        Entity::Line(l) => ("line", vec![l.p1, l.p2]),
-        Entity::Circle(c) => ("circle", vec![c.center, c.center + v(c.r, 0.0)]),
+        Entity::Line(l) => ("line", vec![l.p1, l.p2], vec![]),
+        Entity::Circle(c) => ("circle", vec![c.center, v(c.r, 0.0)], vec![]),
         Entity::Arc(a) => {
             let half = if a.ccw { 0.5 } else { -0.5 } * a.sweep_angle();
             let mid = Circle::new(a.center, a.r).point_at_angle(a.start_angle + half);
-            ("arc", vec![a.start_point(), mid, a.end_point()])
+            let written = vec![a.start_point(), a.end_point(), v(a.r, 0.0)];
+            ("arc", written, vec![mid])
         }
         Entity::Ellipse(el) => match el.span {
             Some(s) => {
                 let half = if s.ccw { 0.5 } else { -0.5 } * el.sweep();
                 let ends = [el.start_point(), el.end_point()].map(Option::unwrap_or_default);
-                ("arc", vec![ends[0], el.point(s.start + half), ends[1]])
+                let written = vec![ends[0], ends[1], v(el.rx, el.ry)];
+                ("elliptical arc", written, vec![el.point(s.start + half)])
             }
             None => {
                 let mut q = el.quadrants();
                 q.sort_by(|a, b| a.x.total_cmp(&b.x).then(a.y.total_cmp(&b.y)));
-                q.insert(0, el.center);
-                ("ellipse", q)
+                ("ellipse", vec![el.center, v(el.rx, el.ry)], q)
             }
         },
-        Entity::Bezier(Bezier::Quadratic(p)) => ("quadratic", p.to_vec()),
-        Entity::Bezier(Bezier::Cubic(p)) => ("cubic", p.to_vec()),
+        Entity::Bezier(Bezier::Quadratic(p)) => ("quadratic", p.to_vec(), vec![]),
+        Entity::Bezier(Bezier::Cubic(p)) => ("cubic", p.to_vec(), vec![]),
     }
+}
+
+/// Within `tol` on both axes.
+fn close(got: &[Vec2], want: &[Vec2], tol: f64) -> bool {
+    got.len() == want.len()
+        && got
+            .iter()
+            .zip(want)
+            .all(|(g, w)| (g.x - w.x).abs() <= tol && (g.y - w.y).abs() <= tol)
 }
 
 /// AC 3 — the export is byte-identical to the frozen fixture.
@@ -147,18 +165,27 @@ fn contract_fixture_reimports_within_format_tolerance() {
     assert_eq!(back.bed_mm, doc.bed_mm);
     assert_eq!(back.layers(), doc.layers());
     assert_eq!(back.current_layer(), doc.current_layer());
-    assert_eq!(back.entity_count(), doc.entity_count());
-    for i in 0..doc.entity_count() {
-        assert_eq!(back.entity_layer(i), doc.entity_layer(i), "entity {i}");
-        let (kind, want) = samples(&doc.entities[i]);
-        let (got_kind, got) = samples(&back.entities[i]);
+    // The mother groups entities by layer, in layer order, each layer
+    // keeping document order: that is the order they come back in.
+    let d = &doc;
+    let order: Vec<usize> = d
+        .layers()
+        .iter()
+        .flat_map(|l| (0..d.entity_count()).filter(move |&i| d.entity_layer(i) == Some(l.id)))
+        .collect();
+    assert_eq!(back.entity_count(), order.len());
+    for (i, &k) in order.iter().enumerate() {
+        assert_eq!(back.entity_layer(i), doc.entity_layer(k), "entity {i}");
+        let (kind, written, shape) = samples(&doc.entities[k]);
+        let (got_kind, got_written, got_shape) = samples(&back.entities[i]);
         assert_eq!(got_kind, kind, "entity {i}");
-        assert_eq!(got.len(), want.len(), "entity {i}");
-        for (g, w) in got.iter().zip(&want) {
-            assert!(
-                (g.x - w.x).abs() <= FORMAT_TOL && (g.y - w.y).abs() <= FORMAT_TOL,
-                "entity {i} ({kind}): {g:?} vs {w:?}"
-            );
-        }
+        assert!(
+            close(&got_written, &written, FORMAT_TOL),
+            "entity {i} ({kind}): {got_written:?} vs {written:?}"
+        );
+        assert!(
+            close(&got_shape, &shape, SHAPE_TOL),
+            "entity {i} ({kind}): {got_shape:?} vs {shape:?}"
+        );
     }
 }
