@@ -113,6 +113,7 @@ pub fn draw_dialogs(ctx: &egui::Context, app: &mut App, key: Option<DialogKey>) 
     draw_discard_dialog(ctx, app, key_for(Dialog::Discard));
     draw_bed_dialog(ctx, app, key_for(Dialog::Bed));
     crate::ui::draw_layers_dialog(ctx, app, key_for(Dialog::Layers));
+    crate::ui::check_dialog(ctx, &mut app.check_report);
 }
 
 /// The AI Settings window (LCV-076). Persists the settings when the window

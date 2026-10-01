@@ -36,7 +36,7 @@ Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/
 - [x] T13 [AC1] Test (paint harness): the Check window paints every report line, its body stays
   ≤426 pt with a long report, Close clears `check_report` (files: tests/it/ui/check_dialog.rs,
   tests/it/ui/mod.rs)
-- [ ] T14 [AC1] `ui/check_dialog.rs::check_dialog` and its `draw_dialogs` call (files:
+- [x] T14 [AC1] `ui/check_dialog.rs::check_dialog` and its `draw_dialogs` call (files:
   src/ui/check_dialog.rs, src/ui/mod.rs, src/app/panels.rs)
 - [ ] T15 [AC1] Test (paint harness): the rail paints a CHECK icon button beside `AI`, tooltip
   `Check — CHECK`; clicking it runs the check (files: tests/it/ui/icon_tool_rail.rs)
