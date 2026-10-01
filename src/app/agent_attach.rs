@@ -119,6 +119,17 @@ mod tests {
         app
     }
 
+    /// A raised request reaches the picker — which, disarmed here (ADR 0005),
+    /// panics by name instead of opening; no request opens nothing.
+    #[test]
+    #[should_panic(expected = "pick_image_dialog")]
+    fn a_raised_request_opens_the_image_picker() {
+        let mut app = App::default();
+        poll_attach_request(&mut app);
+        app.agent.attach_requested = true;
+        poll_attach_request(&mut app);
+    }
+
     #[test]
     fn a_png_attaches_and_is_taken_once() {
         let mut app = vision_app();
