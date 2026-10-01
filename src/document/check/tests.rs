@@ -404,3 +404,104 @@ fn contour_on_the_bed_edges_is_clean() {
     ]);
     assert_eq!(check_drawing(&doc), CheckReport::default());
 }
+
+/// AC 7 — a clean drawing prints exactly one line.
+#[test]
+fn clean_report_prints_no_problems_found() {
+    let lines = check_drawing(&doc_of(&rectangle(0.0))).lines();
+    assert_eq!(lines, vec!["CHECK: no problems found.".to_string()]);
+    assert_eq!(
+        CheckReport::default().lines(),
+        vec!["CHECK: no problems found."]
+    );
+}
+
+/// AC 1 — summary lines in kind order with counts and plurals, then one line
+/// per finding by kind then index, coordinates at three decimals.
+#[test]
+fn report_lines_summary_then_findings() {
+    let doc = doc_of(&[
+        line(10.0, 10.0, 50.0, 10.0),      // 0: two open ends
+        line(10.0, 10.0, 50.0, 10.0),      // 1: duplicate of 0
+        circle(100.0, 100.0, 0.0),         // 2: degenerate
+        line(390.0, 50.0, 410.0, 50.0),    // 3: open ends, off-bed
+        line(100.0, 200.0, 150.0, 200.0),  // 4
+        line(150.25, 200.0, 150.0, 250.0), // 5: gap with 4, open end
+    ]);
+    let lines = check_drawing(&doc).lines();
+    assert_eq!(
+        lines,
+        vec![
+            "CHECK: 6 open ends",
+            "CHECK: 1 gap",
+            "CHECK: 1 duplicate",
+            "CHECK: 1 degenerate entity",
+            "CHECK: 1 off-bed entity",
+            "open end: entity 0 at (10.000, 10.000) mm",
+            "open end: entity 0 at (50.000, 10.000) mm",
+            "open end: entity 3 at (390.000, 50.000) mm",
+            "open end: entity 3 at (410.000, 50.000) mm",
+            "open end: entity 4 at (100.000, 200.000) mm",
+            "open end: entity 5 at (150.000, 250.000) mm",
+            "gap: entities 4 and 5, 0.250 mm wide at (150.125, 200.000) mm",
+            "duplicate: entity 1 of entity 0 at (10.000, 10.000) mm",
+            "degenerate: entity 2 at (100.000, 100.000) mm",
+            "off-bed: entity 3 from (390.000, 50.000) to (410.000, 50.000) mm",
+        ]
+    );
+}
+
+/// AC 1 — singular and plural forms; kinds with no finding are omitted.
+#[test]
+fn report_summary_plurals_and_omissions() {
+    let gaps2 = vec![
+        Finding::Gap {
+            a: 0,
+            b: 1,
+            mid: p(0.0, 0.0),
+            width: 0.1,
+        };
+        2
+    ];
+    let lines = CheckReport { findings: gaps2 }.lines();
+    assert_eq!(lines[0], "CHECK: 2 gaps");
+    assert_eq!(lines.len(), 3);
+    let one_open = CheckReport {
+        findings: vec![Finding::OpenEnd {
+            index: 7,
+            at: p(1.23456, -2.0),
+        }],
+    };
+    assert_eq!(
+        one_open.lines(),
+        vec![
+            "CHECK: 1 open end",
+            "open end: entity 7 at (1.235, -2.000) mm"
+        ]
+    );
+    let dups = Finding::Duplicate {
+        index: 2,
+        of: 0,
+        at: p(0.0, 0.0),
+    };
+    let deg = Finding::Degenerate {
+        index: 3,
+        at: p(0.0, 0.0),
+    };
+    let off = Finding::OffBed {
+        index: 4,
+        min: p(0.0, 0.0),
+        max: p(1.0, 1.0),
+    };
+    let many = CheckReport {
+        findings: vec![dups.clone(), dups, deg.clone(), deg, off.clone(), off],
+    };
+    assert_eq!(
+        many.lines()[..3],
+        [
+            "CHECK: 2 duplicates",
+            "CHECK: 2 degenerate entities",
+            "CHECK: 2 off-bed entities"
+        ]
+    );
+}

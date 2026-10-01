@@ -17,7 +17,7 @@ Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/
   line past the right edge, arc whose endpoints are inside but bulge crosses y=0, entity touching
   an edge exactly → not off-bed (files: src/document/check/tests.rs)
 - [x] T6 [AC5][AC6] Degenerate and off-bed findings (files: src/document/check.rs)
-- [ ] T7 [AC1][AC7] Test: `CheckReport::lines()` — summary lines in kind order, singular/plural,
+- [x] T7 [AC1][AC7] Test: `CheckReport::lines()` — summary lines in kind order, singular/plural,
   zero-count kinds omitted, finding lines by kind then index with `{:.3}` mm, clean drawing →
   exactly `CHECK: no problems found.` (files: src/document/check/tests.rs)
 - [ ] T8 [AC1][AC7] `CheckReport::lines()`; move formatting to `check/report.rs` if `check.rs`

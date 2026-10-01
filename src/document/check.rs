@@ -9,6 +9,8 @@
 use super::{Document, Entity, outside_bed};
 use crate::geometry::{Arc, EPSILON, Vec2};
 
+mod report;
+
 /// One problem the check found. Indices are zero-based document indices.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Finding {
