@@ -605,3 +605,172 @@ fn lcv196_ac8_null_foreign_keys_and_per_type_optional_keys() {
         "create_drawing entities[0].start_deg: missing; expected a number in degrees"
     );
 }
+
+// ── LCV-196: arrays ──────────────────────────────────────────────────────────
+
+fn circle_at(cx: f64, cy: f64) -> DrawingItem {
+    DrawingItem::Circle { cx, cy, r: 1.0 }
+}
+fn linear(of: Value, count: Value, dx: f64, dy: f64) -> Value {
+    json!({"type": "linear_array", "of": of, "count": count, "dx": dx, "dy": dy})
+}
+const OF_FORM: &str = "expected the index of an earlier item, once; not an array of arrays";
+
+#[test]
+fn lcv196_ac5_a_linear_array_copies_its_items_in_batch_order() {
+    let got = items(json!([
+        {"type": "line", "x1": 0, "y1": 0, "x2": 1, "y2": 0},
+        {"type": "circle", "cx": 5, "cy": 0, "r": 1},
+        linear(json!([0, 1]), json!(3), 10.0, 1.0)
+    ]));
+    assert_eq!(
+        got,
+        vec![
+            line(0.0, 0.0, 1.0, 0.0),
+            circle_at(5.0, 0.0),
+            line(10.0, 1.0, 11.0, 1.0),
+            circle_at(15.0, 1.0),
+            line(20.0, 2.0, 21.0, 2.0),
+            circle_at(25.0, 2.0),
+        ]
+    );
+}
+
+#[test]
+fn lcv196_ac6_a_polar_array_rotates_endpoints_and_arc_angles() {
+    let got = items(json!([
+        {"type": "line", "x1": 1, "y1": 0, "x2": 2, "y2": 0},
+        {"type": "arc", "cx": 3, "cy": 0, "r": 1, "start_deg": 0, "end_deg": 90, "ccw": true},
+        {"type": "polar_array", "of": [0, 1], "count": 3, "cx": 0, "cy": 0, "step_deg": 90}
+    ]));
+    assert_close(
+        &got,
+        &[
+            line(1.0, 0.0, 2.0, 0.0),
+            arc(3.0, 0.0, 1.0, 0.0, FRAC_PI_2),
+            line(0.0, 1.0, 0.0, 2.0),
+            arc(0.0, 3.0, 1.0, FRAC_PI_2, PI),
+            line(-1.0, 0.0, -2.0, 0.0),
+            arc(-3.0, 0.0, 1.0, PI, 1.5 * PI),
+        ],
+    );
+}
+
+#[test]
+fn lcv196_ac7_an_array_of_an_array_is_a_grid() {
+    let got = items(json!([
+        {"type": "circle", "cx": 0, "cy": 0, "r": 1},
+        linear(json!([0]), json!(3), 10.0, 0.0),
+        linear(json!([1]), json!(2), 0.0, 10.0)
+    ]));
+    let want: Vec<DrawingItem> = [(0, 0), (10, 0), (20, 0), (0, 10), (10, 10), (20, 10)]
+        .iter()
+        .map(|&(x, y)| circle_at(f64::from(x), f64::from(y)))
+        .collect();
+    assert_eq!(got, want);
+    // Listing a base item and the array that already lists it copies it once.
+    let both = items(json!([
+        {"type": "circle", "cx": 0, "cy": 0, "r": 1},
+        linear(json!([0]), json!(2), 10.0, 0.0),
+        linear(json!([1, 0]), json!(2), 0.0, 10.0)
+    ]));
+    assert_eq!(both.len(), 4);
+}
+
+#[test]
+fn lcv196_ac8_of_must_name_distinct_earlier_items_two_levels_deep() {
+    let c = json!({"type": "circle", "cx": 0, "cy": 0, "r": 1});
+    let cases = [
+        (
+            json!([c, linear(json!([1]), json!(2), 1.0, 0.0)]),
+            "entities[1].of[0]: names itself",
+        ),
+        (
+            json!([c, linear(json!([0, 2]), json!(2), 1.0, 0.0), c]),
+            "entities[1].of[1]: names a later item",
+        ),
+        (
+            json!([c, linear(json!([0, 0]), json!(2), 1.0, 0.0)]),
+            "entities[1].of[1]: repeats an earlier entry",
+        ),
+        (
+            json!([c, linear(json!([0.5]), json!(2), 1.0, 0.0)]),
+            "entities[1].of[0]: not an index",
+        ),
+        (
+            json!([
+                c,
+                linear(json!([0]), json!(2), 1.0, 0.0),
+                linear(json!([1]), json!(2), 0.0, 1.0),
+                linear(json!([0, 2]), json!(2), 0.0, 1.0)
+            ]),
+            "entities[3].of[1]: names an array that lists an array",
+        ),
+    ];
+    for (entities, want) in cases {
+        assert_eq!(
+            err(batch(entities)),
+            format!("create_drawing {want}; {OF_FORM}")
+        );
+    }
+    let list = "expected a list of distinct indices of earlier items";
+    assert_eq!(
+        err(batch(json!([c, linear(json!([]), json!(2), 1.0, 0.0)]))),
+        format!("create_drawing entities[1].of: has 0 items; {list}")
+    );
+    assert_eq!(
+        err(batch(json!([c, linear(json!(0), json!(2), 1.0, 0.0)]))),
+        format!("create_drawing entities[1].of: not a list; {list}")
+    );
+}
+
+#[test]
+fn lcv196_ac8_count_is_two_to_a_thousand() {
+    let c = json!({"type": "circle", "cx": 0, "cy": 0, "r": 1});
+    assert_eq!(
+        items(json!([c, linear(json!([0]), json!(2), 1.0, 0.0)])).len(),
+        2
+    );
+    assert_eq!(
+        items(json!([c, linear(json!([0]), json!(1000), 1.0, 0.0)])).len(),
+        1000
+    );
+    for n in [1, 1001] {
+        assert_eq!(
+            err(batch(json!([c, linear(json!([0]), json!(n), 1.0, 0.0)]))),
+            format!(
+                "create_drawing entities[1].count: {n} is out of range; \
+                 expected an integer from 2 to 1000"
+            )
+        );
+    }
+}
+
+#[test]
+fn lcv196_ac8_the_cap_counts_the_expansion_before_building_it() {
+    let c = json!({"type": "circle", "cx": 0, "cy": 0, "r": 1});
+    let form = "expected items that expand to 1 to 1000 entities";
+    assert_eq!(
+        err(batch(json!([
+            c,
+            linear(json!([0]), json!(1000), 1.0, 0.0),
+            c
+        ]))),
+        format!("create_drawing entities: expands to 1001 entities; {form}")
+    );
+    // A million copies are counted, never built.
+    assert_eq!(
+        err(batch(json!([
+            c,
+            linear(json!([0]), json!(1000), 1.0, 0.0),
+            linear(json!([1]), json!(1000), 0.0, 1.0)
+        ]))),
+        format!("create_drawing entities: expands to 1000000 entities; {form}")
+    );
+    assert_eq!(
+        err(batch(
+            json!([{"type": "text", "x": 0, "y": 0, "height": 5, "text": "   "}])
+        )),
+        format!("create_drawing entities: expands to 0 entities; {form}")
+    );
+}

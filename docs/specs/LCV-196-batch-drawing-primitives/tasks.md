@@ -27,7 +27,7 @@ Prerequisites: LCV-185, LCV-192 Done; LCV-188 Done (the outcome's `New ids` suff
 - [x] T4 [AC1][AC2][AC3][AC4][AC8] `drawing/items.rs`: `Shape`, per-type parse; `expand.rs` for
   the shapes (files: src/agent/drawing/items.rs, src/agent/drawing/expand.rs,
   src/agent/drawing.rs)
-- [ ] T5 [AC5][AC6][AC7][AC8] Test (parser), arrays:
+- [x] T5 [AC5][AC6][AC7][AC8] Test (parser), arrays:
   - `linear_array` of two items, count 3 → items plus 4 copies in batch order;
   - `polar_array` of a line and an arc by 90° → rotated endpoints and arc angles;
   - a grid = an array of an array.
