@@ -80,40 +80,44 @@ pub fn confirm_dialog(
 
 /// Render a modal-style error window centered in the viewport.
 ///
-/// The window is not resizable, not collapsible, and has no × close button.
-/// The body shows `message` and a single **OK** button.
+/// The window is not resizable and not collapsible. The body shows `message`
+/// and a single **Close** button; the title-bar × does the same (LCV-169
+/// AC 4).
 ///
-/// Returns `true` on the frame **OK** is clicked, `false` every other frame.
+/// Returns `true` on the frame **Close** or × is clicked, `false` every other
+/// frame.
 ///
 /// The caller is responsible for holding a `bool` flag and stopping the
 /// call once `true` is returned.
 pub fn error_dialog(ctx: &Context, title: &str, message: &str) -> bool {
+    let mut open = true;
     let mut clicked = false;
 
     Window::new(title)
+        .open(&mut open)
         .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
         .resizable(false)
         .collapsible(false)
         .show(ctx, |ui| {
             ui.label(message);
             ui.add_space(8.0);
-            if ui.button("OK").clicked() {
-                clicked = true;
-            }
+            clicked = ui.button("Close").clicked();
         });
 
-    clicked
+    clicked || !open
 }
 
 /// Render the About dialog.
 ///
-/// The window is opened/closed via `open`; egui's built-in × button sets
-/// `*open = false`. The body shows the application name, the crate version
-/// from `Cargo.toml`, and the license identifier.
+/// The window is opened/closed via `open`; egui's built-in × button and the
+/// **Close** button (LCV-169 AC 4) both set `*open = false`. The body shows
+/// the application name, the crate version from `Cargo.toml`, and the license
+/// identifier.
 ///
 /// Pass `open: &mut bool` from `App`; the Help → About menu item sets it to
 /// `true` (wired by LCV-065).
 pub fn about_dialog(ctx: &Context, open: &mut bool) {
+    let mut close = false;
     Window::new("About LaserCAD")
         .open(open)
         .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
@@ -123,7 +127,12 @@ pub fn about_dialog(ctx: &Context, open: &mut bool) {
             ui.label("LaserCAD v2");
             ui.label(env!("CARGO_PKG_VERSION"));
             ui.label("MIT OR Apache-2.0");
+            ui.add_space(8.0);
+            close = ui.button("Close").clicked();
         });
+    if close {
+        *open = false;
+    }
 }
 
 // ---------------------------------------------------------------------------

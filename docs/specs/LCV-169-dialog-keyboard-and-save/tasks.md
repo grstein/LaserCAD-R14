@@ -7,7 +7,7 @@
   `Close` (About, Keyboard Shortcuts, Error, AI Settings), `OK`·`Cancel` (Bed Size),
   `Apply`…`Close` (Layers) and `Save`·`Discard`·`Cancel` (Discard), in reading order, with the
   Cancel/Close run last (files: tests/it/ui/dialog_keyboard.rs, tests/it/ui/mod.rs)
-- [ ] T3 [AC4] About gets `Close`; Error's `OK` becomes `Close` and it gets a × (files:
+- [x] T3 [AC4] About gets `Close`; Error's `OK` becomes `Close` and it gets a × (files:
   src/ui/dialogs.rs, src/app/panels.rs)
 - [ ] T4 [AC4] Keyboard Shortcuts gets a `Close` row below its `ScrollArea`;
   `shortcuts_dialog_fits.rs` stays green unchanged (files: src/ui/shortcuts_dialog.rs)
