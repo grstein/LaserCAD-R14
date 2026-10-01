@@ -17,7 +17,7 @@
 - [x] T7 [AC4] [AC9] Test: `ci.yml` `package` job runs on tags or `workflow_dispatch`, the Windows
       step runs `build-zip.ps1` with no `cargo-wix`, uploads and the release list use the new
       names; the `test` matrix lists `windows-2022` and `macos-15` on dispatch (files: tests/it/repo/packaging.rs)
-- [ ] T8 [AC4] Edit `ci.yml` accordingly (files: .github/workflows/ci.yml)
+- [x] T8 [AC4] Edit `ci.yml` accordingly (files: .github/workflows/ci.yml)
 - [ ] T9 [AC7] Test (Unix): `release.sh --list-assets` in a temp copy with a fake `dist/` lists
       AppImage, `.deb`, `.zip`, `.dmg`; with the `.dmg` removed it prints `missing: …dmg`, exits 0
       (files: tests/it/repo/packaging.rs)

@@ -140,12 +140,13 @@ jobs:
 
   # ──────────────────────────────────────────────────────────────────────────
   # package: run platform packaging scripts and upload installable artifacts.
-  # Runs only on v*.*.* tag pushes; starts only after all build legs pass.
+  # Runs on v*.*.* tag pushes and on workflow_dispatch (so artifacts can be
+  # verified without tagging); starts only after all build legs pass.
   # ──────────────────────────────────────────────────────────────────────────
   package:
     name: package (${{ matrix.os }})
     needs: [build]
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -185,20 +186,12 @@ jobs:
           ./scripts/build-appimage.sh
           ./scripts/build-deb.sh
 
-      - name: Install Rust toolchain (from rust-toolchain.toml) (Windows)
-        if: runner.os == 'Windows'
-        run: rustup show
-
-      - name: Install cargo-wix (Windows)
-        if: runner.os == 'Windows'
-        run: cargo install cargo-wix --locked
-
-      - name: Package (Windows) — MSI via PowerShell
+      - name: Package (Windows) — portable zip
         if: runner.os == 'Windows'
         shell: pwsh
-        run: ./scripts/build-msi.ps1
+        run: ./scripts/build-zip.ps1
 
-      - name: Package (macOS) — DMG
+      - name: Package (macOS) — DMG (arm64, ad-hoc signed)
         if: runner.os == 'macOS'
         run: ./scripts/build-dmg.sh
 
@@ -217,7 +210,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: package-windows
-          path: dist/lasercad-x86_64.msi
+          path: dist/lasercad-*-windows-x86_64.zip
           retention-days: 1
 
       - name: Upload package artifact (macOS)
@@ -225,7 +218,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: package-macos
-          path: dist/lasercad-aarch64.dmg
+          path: dist/lasercad-*-macos-aarch64.dmg
           retention-days: 1
 
   # ──────────────────────────────────────────────────────────────────────────
@@ -279,5 +272,5 @@ jobs:
             --notes-file /tmp/release-notes.md \
             dist/lasercad-x86_64.AppImage \
             dist/lasercad_*_amd64.deb \
-            dist/lasercad-x86_64.msi \
-            dist/lasercad-aarch64.dmg
+            dist/lasercad-*-windows-x86_64.zip \
+            dist/lasercad-*-macos-aarch64.dmg
