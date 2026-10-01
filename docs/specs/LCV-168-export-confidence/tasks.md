@@ -21,7 +21,7 @@
 - [x] T8 [AC3] Test: Export Layers with an out-of-bed entity on an exported layer → Warning
   `Exported layers: … — 1 entity outside the bed`; one on an Output-off layer only → Info, no
   suffix (files: tests/it/io_svg/export_layers.rs)
-- [ ] T9 [AC3] Suffix and severity in `action_export_layers`, counting only the plan's layers
+- [x] T9 [AC3] Suffix and severity in `action_export_layers`, counting only the plan's layers
   (files: src/io/export_layers.rs)
 - [ ] T10 [AC4] Test: with out-of-bed geometry, the saved mother equals `export_svg(&doc)` byte
   for byte and every layer file equals its `layer_exports` text (files:
