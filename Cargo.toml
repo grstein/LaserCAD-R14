@@ -14,7 +14,7 @@ directories = "6"
 eframe = { version = "0.36", default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "web_screen_reader", "x11"] }
 egui = "0.36"
 png = "0.18"
-reqwest = { version = "0.12", features = ["json", "blocking"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "blocking", "native-tls", "charset", "http2", "system-proxy"] }
 rfd = { version = "0.17", default-features = true }
 roxmltree = "0.21"
 serde = { version = "1", features = ["derive"] }

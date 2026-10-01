@@ -46,7 +46,7 @@ commit, then T8–T13 one each, then T14. Each commit passes `scripts/gate.sh` a
 - [x] T11 [AC4] rfd 0.17 with default features. ADR 0005 tests (`src/io/dialogs.rs`,
       `src/lib.rs`) stay unchanged; `ldd` shows no new hard dependency (files: Cargo.toml,
       Cargo.lock, src/io/dialogs.rs only if the API forces it)
-- [ ] T12 [AC6] reqwest 0.13 with native-tls (plan §TLS). The transport tests stay unchanged and
+- [x] T12 [AC6] reqwest 0.13 with native-tls (plan §TLS). The transport tests stay unchanged and
       T1 passes. If `transport.rs` changes, run `scripts/mutants.sh` on it
       (files: Cargo.toml, Cargo.lock)
 - [ ] T13 [AC1] [AC7] [AC8] [AC9] Run `cargo update`, then `cargo update -p flate2 --precise
