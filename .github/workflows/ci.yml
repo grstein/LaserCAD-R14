@@ -263,14 +263,19 @@ jobs:
             CHANGELOG.md > /tmp/release-notes.md
           [ -s /tmp/release-notes.md ] || { echo "No CHANGELOG section for ${VERSION}"; exit 1; }
 
+      # A release created by hand before the tag run finishes gets the
+      # packages attached instead of failing the job.
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            --title "LaserCAD ${{ github.ref_name }}" \
-            --notes-file /tmp/release-notes.md \
-            dist/lasercad-x86_64.AppImage \
-            dist/lasercad_*_amd64.deb \
-            dist/lasercad-*-windows-x86_64.zip \
-            dist/lasercad-*-macos-aarch64.dmg
+          ASSETS=(dist/lasercad-x86_64.AppImage dist/lasercad_*_amd64.deb \
+            dist/lasercad-*-windows-x86_64.zip dist/lasercad-*-macos-aarch64.dmg)
+          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            gh release upload "${{ github.ref_name }}" "${ASSETS[@]}" --clobber
+          else
+            gh release create "${{ github.ref_name }}" \
+              --title "LaserCAD ${{ github.ref_name }}" \
+              --notes-file /tmp/release-notes.md \
+              "${ASSETS[@]}"
+          fi
