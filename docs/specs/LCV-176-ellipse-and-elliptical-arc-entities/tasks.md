@@ -13,7 +13,7 @@
   (rx < ry included). Skewed u, v give principal radii that match an SVD. A reflection negates the
   span and flips `ccw`. Endpoints are preserved within `EPSILON` (files:
   src/geometry/ellipse/conjugate.rs, src/geometry/ellipse.rs)
-- [ ] T5 [AC6] Test: `Transform::ellipse` for rotate, mirror (rotation `2θ − r`, span negated,
+- [x] T5 [AC6] Test: `Transform::ellipse` for rotate, mirror (rotation `2θ − r`, span negated,
   `ccw` flipped, endpoints map to endpoints) and scale (files: tests/it/geometry/transform_props.rs)
 - [ ] T6 [AC6] `Transform::ellipse` plus `Entity::Ellipse` with `bbox`, `kind_name`, `translate`
   and `transformed` (files: src/geometry/transform.rs, src/document/entity.rs)
