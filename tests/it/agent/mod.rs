@@ -2,6 +2,7 @@
 
 mod canvas_capture;
 mod check_drawing;
+mod checkpoints;
 mod default_prompt;
 mod drawing_batch;
 mod entity_ids;

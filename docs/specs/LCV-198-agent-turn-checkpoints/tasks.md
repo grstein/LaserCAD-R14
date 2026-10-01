@@ -13,7 +13,7 @@
   `agent_checkpoint.rs` with unit tests. The `TurnState` field is reset by `arm_turn`
   (files: src/app/agent_checkpoint.rs, src/app/agent_turn.rs, src/app/mod.rs)
 - [x] T5 [AC1] [AC2] Wire both actions into `agent_apply::apply` (files: src/app/agent_apply.rs)
-- [ ] T6 [AC1]–[AC9] Integration tests, one per AC, driven by `arm_turn` + `poll_agent_rx` as in
+- [x] T6 [AC1]–[AC9] Integration tests, one per AC, driven by `arm_turn` + `poll_agent_rx` as in
   `turn_metrics.rs`. AC3 deletes and moves `e2` after a checkpoint, rolls back, and expects
   `e2` at its old geometry (files: tests/it/agent/checkpoints.rs, tests/it/agent/mod.rs)
 - [ ] T7 `DEFAULT_PROMPT` checkpoint sentence; update the prompt and tool-list scans if they
