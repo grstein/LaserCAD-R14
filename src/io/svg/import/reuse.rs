@@ -58,7 +58,7 @@ impl<'a, 'input> Walk<'a, 'input> {
     /// the `<use>` lands on (AC 5). A `symbol` or `svg` target walks its
     /// children in its viewport; any other is imported as in place, so a
     /// nested `<use>` recurses (AC 6). Nesting deeper than [`MAX_DEPTH`] or
-    /// more than [`MAX_INSTANCED`] instanced entities refuse the file
+    /// more than [`MAX_INSTANCED`] instanced elements refuse the file
     /// (AC 9); each expansion counts as one, so a fan-out that draws
     /// nothing is bounded too.
     pub(super) fn expand(
@@ -70,7 +70,7 @@ impl<'a, 'input> Walk<'a, 'input> {
     ) -> Result<(), SvgImportError> {
         self.instanced += 1;
         if self.instanced > MAX_INSTANCED {
-            return Err(SvgImportError::LimitExceeded("100000 instanced entities"));
+            return Err(SvgImportError::LimitExceeded("100000 instanced elements"));
         }
         let Some(target) = target(use_, &self.index) else {
             self.report.note(UNRESOLVED);
@@ -97,7 +97,7 @@ impl<'a, 'input> Walk<'a, 'input> {
         self.uses.pop();
         done?;
         match self.instanced > MAX_INSTANCED {
-            true => Err(SvgImportError::LimitExceeded("100000 instanced entities")),
+            true => Err(SvgImportError::LimitExceeded("100000 instanced elements")),
             false => Ok(()),
         }
     }

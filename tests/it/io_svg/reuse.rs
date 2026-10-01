@@ -185,7 +185,7 @@ fn use_nesting_is_capped_at_depth_32() {
 }
 
 /// AC 9 — a six-level ×10 fan-out (10⁶ lines) refuses the file once it
-/// passes 100 000 instanced entities, without expanding the rest.
+/// passes 100 000 instanced elements, without expanding the rest.
 #[test]
 fn a_use_fan_out_is_refused_past_100000_entities() {
     let mut defs = format!(r#"<g id="g0"><line {LINE}/></g>"#);
