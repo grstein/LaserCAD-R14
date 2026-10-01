@@ -13,7 +13,9 @@ use crate::agent::wire::{AssistantMessage, ChatMessage, replace_images};
 /// anything is sent. After the send returns, success or error, every image is
 /// elided, so none outlives its one request, and each call id in `shown` gets
 /// one [`Dispatch::Note`] saying whether its image was sent, withheld or not
-/// delivered — before an error returns. `shown` is left empty.
+/// delivered — before an error returns. `shown` is left empty. A send that
+/// returned a reply then gets one [`Dispatch::Replied`] with the images it
+/// carried, 0 when withheld (LCV-193); a failed send gets none.
 pub(super) fn send_images<F, D>(
     send_fn: &mut F,
     dispatch_fn: &mut D,
@@ -24,8 +26,9 @@ where
     F: FnMut(&[ChatMessage]) -> Result<AssistantMessage, AgentError>,
     D: FnMut(Dispatch<'_>) -> Result<AgentOutcome, AgentError>,
 {
+    let images: usize = messages.iter().map(ChatMessage::image_count).sum();
     let mut withheld = false;
-    if messages.iter().any(|m| m.image_count() > 0) {
+    if images > 0 {
         let verdict = dispatch_fn(Dispatch::AuthorizeUpload)?;
         withheld = !matches!(verdict, AgentOutcome::Ok(_));
         if withheld {
@@ -43,6 +46,14 @@ where
         dispatch_fn(Dispatch::Note(&format!(
             "Canvas image for call {id} {fate}."
         )))?;
+    }
+    if reply.is_ok() {
+        let captures = if withheld {
+            0
+        } else {
+            u32::try_from(images).unwrap_or(u32::MAX)
+        };
+        dispatch_fn(Dispatch::Replied { captures })?;
     }
     reply
 }
