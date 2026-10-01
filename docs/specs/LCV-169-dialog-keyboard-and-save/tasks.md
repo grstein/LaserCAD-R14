@@ -40,7 +40,7 @@
 - [x] T15 [AC1] [AC2] [AC3] Bed Size, Layers and Discard take the key. Test: Enter and OK on
   twin apps with an out-of-range typed draft give the same clamped bed (files:
   src/app/bed_dialog.rs, src/ui/layers_dialog.rs, src/app/discard.rs)
-- [ ] T16 [AC1] Test and code: with the AI Settings system prompt focused, Enter inserts a
+- [x] T16 [AC1] Test and code: with the AI Settings system prompt focused, Enter inserts a
   newline and the window stays open; `SYSTEM_PROMPT_ID` is skipped by `take_dialog_key` (files:
   src/agent/settings_ui.rs, src/app/input.rs, tests/it/ui/dialog_keyboard.rs)
 - [ ] T17 [AC9] ADR 0002 §A6 amendment note (dialog row) (files: docs/adr/0002-*.md)

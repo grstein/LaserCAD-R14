@@ -18,6 +18,10 @@ use crate::io::settings::Settings;
 /// Minimum width of every text field, in logical pixels.
 const FIELD_MIN_WIDTH: f32 = 320.0;
 
+/// The system prompt editor's `egui::Id` source (LCV-169 AC 1): Enter stays
+/// a newline while this editor has focus.
+pub const SYSTEM_PROMPT_ID: &str = "agent_system_prompt";
+
 /// Minimum width of a grid column, so the label column of the field grid and
 /// of the budget grid line up despite being two separate grids.
 const LABEL_COL_WIDTH: f32 = 110.0;
@@ -203,6 +207,10 @@ pub fn draw_agent_settings(ui: &mut egui::Ui, settings: &mut Settings) -> AgentS
 
 /// The System prompt row: label, Restore Default, then the editor. Returns
 /// whether either changed `settings.agent_system_prompt`.
+///
+/// The editor carries the fixed id [`SYSTEM_PROMPT_ID`]: while it has focus,
+/// `src/app/input.rs::take_dialog_key` leaves Enter to it, so Enter inserts
+/// a newline instead of closing the dialog (LCV-169 AC 1).
 fn prompt_editor(ui: &mut egui::Ui, settings: &mut Settings) -> bool {
     let mut changed = false;
     ui.horizontal(|ui| {
@@ -219,7 +227,7 @@ fn prompt_editor(ui: &mut egui::Ui, settings: &mut Settings) -> bool {
         .show(ui, |ui| {
             ui.add(
                 egui::TextEdit::multiline(&mut text)
-                    .id_salt("agent_system_prompt")
+                    .id(egui::Id::new(SYSTEM_PROMPT_ID))
                     .desired_width(f32::INFINITY)
                     .desired_rows(PROMPT_ROWS),
             )

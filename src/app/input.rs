@@ -44,7 +44,9 @@ const TOOL_ROUTED_KEYS: [egui::Key; 3] =
 /// Called first in [`App::update_ui`]. Syncs [`App::dialog_order`]; with no
 /// dialog open it returns `None` and takes nothing. Otherwise both keys are
 /// consumed, so no shortcut, tool, command line or recall sees them, and the
-/// first one pressed is returned for the topmost dialog. egui drops widget
+/// first one pressed is returned for the topmost dialog. Enter is left
+/// alone while the AI Settings system prompt has focus: there it is a
+/// newline ([`crate::agent::SYSTEM_PROMPT_ID`]). egui drops widget
 /// focus on Escape before the frame starts (`Memory::begin_pass`), so a
 /// command line that had focus asks for it back: the operator's typing
 /// survives a dialog's Escape (AC 2).
@@ -52,8 +54,10 @@ pub fn take_dialog_key(ctx: &egui::Context, app: &mut App) -> Option<DialogKey> 
     sync_dialog_order(app);
     topmost(app)?;
     let none = egui::Modifiers::NONE;
+    let prompt = egui::Id::new(crate::agent::SYSTEM_PROMPT_ID);
+    let newline = ctx.memory(|m| m.has_focus(prompt));
     let (enter, escape) = ctx.input_mut(|i| {
-        let enter = i.consume_key(none, egui::Key::Enter);
+        let enter = !newline && i.consume_key(none, egui::Key::Enter);
         (enter, i.consume_key(none, egui::Key::Escape))
     });
     if escape && app.command_line_focused {

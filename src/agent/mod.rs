@@ -18,7 +18,7 @@ pub mod wire;
 pub use wire::{AssistantMessage, ChatMessage, ChatResponse, Choice, ToolCall, ToolCallFunction};
 
 pub mod settings_ui;
-pub use settings_ui::{AgentSettingsFrame, draw_agent_settings};
+pub use settings_ui::{AgentSettingsFrame, SYSTEM_PROMPT_ID, draw_agent_settings};
 
 pub mod transport;
 pub use transport::{TransportError, chat_completion};

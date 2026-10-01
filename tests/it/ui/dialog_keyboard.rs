@@ -409,3 +409,22 @@ fn ac1_escape_on_each_dialog_is_its_cancel_or_close() {
         assert_eq!(snapshot(&by_key), snapshot(&by_button), "{}", d.title);
     }
 }
+
+/// AC 1 — with the AI Settings system prompt focused, Enter inserts a
+/// newline into the prompt and the window stays open.
+#[test]
+fn ac1_enter_in_the_system_prompt_is_a_newline() {
+    let (ctx, mut app) = open("AI Settings");
+    let _ = window_runs(&ctx, &mut app, "AI Settings");
+    let editor = egui::Id::new(lasercad::agent::SYSTEM_PROMPT_ID);
+    ctx.memory_mut(|m| m.request_focus(editor));
+    harness::frame(&ctx, &mut app, vec![]);
+    assert!(ctx.memory(|m| m.has_focus(editor)), "control: focused");
+
+    press(&ctx, &mut app, egui::Key::Enter);
+    assert!(app.agent_settings_open, "the window stays open");
+    let lines = |s: &str| s.matches('\n').count();
+    let typed = app.settings.agent_system_prompt.as_deref().unwrap_or("");
+    let default = lasercad::agent::DEFAULT_PROMPT;
+    assert_eq!(lines(typed), lines(default) + 1, "Enter typed a newline");
+}
