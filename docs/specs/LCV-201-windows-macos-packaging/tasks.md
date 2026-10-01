@@ -38,7 +38,7 @@
       `cargo clippy --all-targets --target x86_64-pc-windows-gnu -- -D warnings` is clean. Found
       instead: `release.sh` expanded empty arrays under `set -u`, which macOS's bash 3.2 rejects
       (the macOS leg runs the `--list-assets` test); fixed in `scripts/release.sh`.
-- [ ] T15 CHANGELOG line: Windows `.zip` and macOS `.dmg` (unsigned, see install guide) (files: CHANGELOG.md)
+- [x] T15 CHANGELOG line: Windows `.zip` and macOS `.dmg` (unsigned, see install guide) (files: CHANGELOG.md)
 - [ ] T16 [AC4] [AC9] After merge and with CI minutes available: one green `workflow_dispatch`
       run on all three OSes with `package-windows`/`package-macos` artifacts; record the run URL
       in `spec.md` (otherwise Status → Blocked) (files: docs/specs/LCV-201-windows-macos-packaging/spec.md)
