@@ -37,7 +37,7 @@
 - [x] T14 [AC1] [AC2] `draw_dialogs` hands the key to the topmost dialog. About, Shortcuts,
   Error and AI Settings treat it as a click (files: src/app/panels.rs, src/ui/dialogs.rs,
   src/ui/shortcuts_dialog.rs)
-- [ ] T15 [AC1] [AC2] [AC3] Bed Size, Layers and Discard take the key. Test: Enter and OK on
+- [x] T15 [AC1] [AC2] [AC3] Bed Size, Layers and Discard take the key. Test: Enter and OK on
   twin apps with an out-of-range typed draft give the same clamped bed (files:
   src/app/bed_dialog.rs, src/ui/layers_dialog.rs, src/app/discard.rs)
 - [ ] T16 [AC1] Test and code: with the AI Settings system prompt focused, Enter inserts a

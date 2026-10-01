@@ -110,9 +110,9 @@ pub fn draw_dialogs(ctx: &egui::Context, app: &mut App, key: Option<DialogKey>) 
     crate::ui::shortcuts_dialog(ctx, &mut app.shortcuts_open, shortcuts_key);
     agent_settings_dialog(ctx, app, key_for(Dialog::AiSettings));
     error_modal(ctx, app, key_for(Dialog::Error));
-    draw_discard_dialog(ctx, app);
-    draw_bed_dialog(ctx, app);
-    crate::ui::draw_layers_dialog(ctx, app);
+    draw_discard_dialog(ctx, app, key_for(Dialog::Discard));
+    draw_bed_dialog(ctx, app, key_for(Dialog::Bed));
+    crate::ui::draw_layers_dialog(ctx, app, key_for(Dialog::Layers));
 }
 
 /// The AI Settings window (LCV-076). Persists the settings when the window

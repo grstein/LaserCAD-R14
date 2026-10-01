@@ -16,14 +16,15 @@
 
 use super::App;
 use crate::document::SetBedSize;
-use crate::ui::DialogResult;
+use crate::ui::{DialogKey, DialogResult};
 use crate::util::{BED_MAX_MM, BED_MIN_MM, clamp_bed_mm};
 
 /// Render the Bed size… window when `App::bed_dialog` holds a draft.
 ///
 /// A no-op on every frame the dialog is closed. The draft is written back to
 /// `App::bed_dialog` each frame so the `DragValue`s keep their edits; nothing
-/// reaches the document until OK.
+/// reaches the document until OK. A handed-in [`DialogKey`] is a click:
+/// Enter is OK and Escape is Cancel (LCV-169 AC 1, AC 3).
 ///
 /// The settings write lives here rather than in [`apply_bed_dialog_result`]
 /// for the same reason as the AI Settings window (`src/app/panels.rs`):
@@ -32,7 +33,7 @@ use crate::util::{BED_MAX_MM, BED_MIN_MM, clamp_bed_mm};
 /// a real user file in any case — [`App::persist_settings`] writes only where
 /// `App::new` pointed it, and is a no-op in a test `App` — and it swallows a
 /// failed write, as everywhere else.
-pub fn draw_bed_dialog(ctx: &egui::Context, app: &mut App) {
+pub fn draw_bed_dialog(ctx: &egui::Context, app: &mut App, key: Option<DialogKey>) {
     let Some(mut draft) = app.bed_dialog else {
         return;
     };
@@ -68,6 +69,10 @@ pub fn draw_bed_dialog(ctx: &egui::Context, app: &mut App) {
     if !open {
         result = result.or(Some(DialogResult::Cancelled)); // × = Cancel (LCV-169 AC 4)
     }
+    result = result.or(key.map(|k| match k {
+        DialogKey::Enter => DialogResult::Confirmed,
+        DialogKey::Escape => DialogResult::Cancelled,
+    }));
     if let Some(result) = result
         && apply_bed_dialog_result(app, result)
     {
@@ -200,7 +205,9 @@ mod tests {
     fn draw_is_a_no_op_while_closed() {
         let ctx = egui::Context::default();
         let mut app = App::default();
-        let _ = ctx.run(Default::default(), |ctx| draw_bed_dialog(ctx, &mut app));
+        let _ = ctx.run(Default::default(), |ctx| {
+            draw_bed_dialog(ctx, &mut app, None)
+        });
         assert_eq!(app.bed_dialog, None);
         assert!(!app.history.can_undo());
     }
@@ -212,7 +219,9 @@ mod tests {
         let ctx = egui::Context::default();
         let mut app = app_with_draft([128.0, 128.0]);
         for _ in 0..2 {
-            let _ = ctx.run(Default::default(), |ctx| draw_bed_dialog(ctx, &mut app));
+            let _ = ctx.run(Default::default(), |ctx| {
+                draw_bed_dialog(ctx, &mut app, None)
+            });
         }
         assert_eq!(app.bed_dialog, Some([128.0, 128.0]));
         assert_eq!(app.document.bed_mm, [400.0, 400.0]);

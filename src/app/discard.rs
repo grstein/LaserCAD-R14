@@ -18,6 +18,7 @@
 //! once a parked `Exit` is confirmed (see its own doc comment for why).
 
 use super::{App, PendingAction};
+use crate::ui::DialogKey;
 
 /// The operator's answer to the discard prompt (LCV-169 AC 7).
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -65,15 +66,21 @@ fn discard_window(ctx: &egui::Context) -> Option<DiscardChoice> {
 }
 
 /// Render the discard prompt while an action is parked and apply the answer.
+/// A handed-in [`DialogKey`] is a click: Enter is Save and Escape is Cancel
+/// (LCV-169 AC 1).
 ///
 /// Called from [`super::panels::draw_dialogs`]. The render and the decision
 /// are split on purpose: it is what makes [`apply_discard_choice`] testable
 /// directly, with no simulated pointer click.
-pub fn draw_discard_dialog(ctx: &egui::Context, app: &mut App) {
+pub fn draw_discard_dialog(ctx: &egui::Context, app: &mut App, key: Option<DialogKey>) {
     if app.guard.pending_action.is_none() {
         return;
     }
-    if let Some(choice) = discard_window(ctx) {
+    let keyed = key.map(|k| match k {
+        DialogKey::Enter => DiscardChoice::Save,
+        DialogKey::Escape => DiscardChoice::Cancel,
+    });
+    if let Some(choice) = discard_window(ctx).or(keyed) {
         apply_discard_choice(ctx, app, choice);
     }
 }

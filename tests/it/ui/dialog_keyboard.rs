@@ -364,3 +364,48 @@ fn ac2_dialog_keys_never_reach_the_command_line_or_the_tool() {
     assert_eq!(app.tool_manager.active_status_text(), prompt);
     assert_eq!(app.document.entity_count(), 0);
 }
+
+/// AC 3 — Enter on Bed Size is exactly OK: twin apps type an out-of-range
+/// width into the same field, one presses Enter and one clicks OK, and both
+/// land on the same clamped bed.
+#[test]
+fn ac3_enter_on_bed_size_is_exactly_ok() {
+    let typed = |app: &mut App, ctx: &egui::Context| {
+        app.bed_dialog = Some([100.0, 200.0]);
+        let width = locate(ctx, app, "Bed Size", "100");
+        click(ctx, app, width);
+        harness::type_command(ctx, app, "99999");
+    };
+    let (ctx, mut by_enter) = open("Bed Size");
+    typed(&mut by_enter, &ctx);
+    press(&ctx, &mut by_enter, egui::Key::Enter);
+
+    let (ctx2, mut by_ok) = open("Bed Size");
+    typed(&mut by_ok, &ctx2);
+    let ok = locate(&ctx2, &mut by_ok, "Bed Size", "OK");
+    click(&ctx2, &mut by_ok, ok);
+
+    let max = lasercad::util::BED_MAX_MM;
+    assert_eq!(by_ok.bed_dialog, None, "control: OK closed the dialog");
+    assert_eq!(by_ok.document.bed_mm, [max, 200.0], "control: OK clamps");
+    assert_eq!(by_enter.bed_dialog, None);
+    assert_eq!(by_enter.document.bed_mm, by_ok.document.bed_mm);
+    assert_eq!(by_enter.history.revision(), by_ok.history.revision());
+}
+
+/// AC 1 — on each of the seven dialogs, alone, Escape leaves exactly the
+/// state its Cancel or Close button leaves.
+#[test]
+fn ac1_escape_on_each_dialog_is_its_cancel_or_close() {
+    for d in &DIALOGS {
+        let (ctx, mut by_key) = open(d.title);
+        let _ = window_runs(&ctx, &mut by_key, d.title);
+        press(&ctx, &mut by_key, egui::Key::Escape);
+
+        let (ctx2, mut by_button) = open(d.title);
+        let pos = locate(&ctx2, &mut by_button, d.title, cancel_label(d.title));
+        click(&ctx2, &mut by_button, pos);
+
+        assert_eq!(snapshot(&by_key), snapshot(&by_button), "{}", d.title);
+    }
+}

@@ -7,10 +7,12 @@
 //! cap however many layers there are.
 //!
 //! Reads no keyboard events (ADR 0002 §A6); the name field owns its own
-//! text-edit state. MUST NOT import `eframe` or `rfd`.
+//! text-edit state. A [`DialogKey`] handed in by `draw_dialogs` is a click:
+//! Enter is Apply and Escape is Close (LCV-169 AC 1). MUST NOT import `eframe` or `rfd`.
 
 use crate::app::App;
 use crate::document::LayerId;
+use crate::ui::DialogKey;
 
 /// Height of the scrolling layer list, in points (ADR 0009: the whole body
 /// must fit in 426pt).
@@ -32,7 +34,7 @@ enum Click {
 }
 
 /// Render the Layers window while `App::layers_dialog` is `Some`.
-pub fn draw_layers_dialog(ctx: &egui::Context, app: &mut App) {
+pub fn draw_layers_dialog(ctx: &egui::Context, app: &mut App, key: Option<DialogKey>) {
     let Some(mut draft) = app.layers_dialog.clone() else {
         return;
     };
@@ -114,6 +116,10 @@ pub fn draw_layers_dialog(ctx: &egui::Context, app: &mut App) {
     if !open {
         click = Some(Click::Close);
     }
+    click = click.or(key.map(|k| match k {
+        DialogKey::Enter => Click::Apply,
+        DialogKey::Escape => Click::Close,
+    }));
     match click {
         Some(Click::Select(id)) => app.layers_select(id),
         Some(Click::New) => app.layers_add(),
