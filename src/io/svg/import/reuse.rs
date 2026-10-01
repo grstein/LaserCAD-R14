@@ -5,6 +5,7 @@
 //! reads a file or the network: only same-document `#id` references resolve.
 
 use super::SVG_NS;
+use crate::io::svg::viewport::Ctx;
 use std::collections::HashMap;
 
 type Node<'a, 'input> = roxmltree::Node<'a, 'input>;
@@ -56,9 +57,22 @@ pub(super) fn is_cycle(target: Node<'_, '_>, use_: Node<'_, '_>, stack: &[Node<'
     uses.any(|u| u.ancestors().any(|a| a == target))
 }
 
+/// The context of an instance of `target` placed by `use_`, given `ctx`
+/// (the `<use>`'s, its own `transform` already composed): then
+/// `translate(x, y)` (AC 1); for a `symbol` or `svg` target, its `viewBox`
+/// mapped per its `preserveAspectRatio` onto `width`/`height` of the
+/// `<use>`, else the target's, else 100% (AC 3). `None` when the instance
+/// renders nothing.
+pub(super) fn instance_ctx(use_: Node<'_, '_>, target: Node<'_, '_>, ctx: &Ctx) -> Option<Ctx> {
+    let _ = (use_, target);
+    Some(*ctx)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::geometry::Vec2;
+    use crate::io::svg::matrix::{Matrix, parse_transform};
 
     const DOC: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
       <defs>
@@ -135,5 +149,78 @@ mod tests {
         assert!(!is_cycle(n("c"), n("ub"), &[n("u2")]));
         assert!(is_cycle(n("b"), n("uc"), &[n("u2"), n("ub")]));
         assert!(!is_cycle(n("a"), n("u1"), &[n("u2"), n("ub")]));
+    }
+
+    /// Where `instance_ctx` of `<use {use_attrs}/>` on `<{target}/>` sends
+    /// each of `points`, in a 100 × 100 viewport under `transform`.
+    fn placed(transform: &str, use_attrs: &str, target: &str, points: &[(f64, f64)]) -> Vec<Vec2> {
+        let src = format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"><use {use_attrs}/><{target}/></svg>"#
+        );
+        let doc = roxmltree::Document::parse(&src).expect("test XML");
+        let mut kids = doc.root_element().children().filter(|n| n.is_element());
+        let (use_, target) = (kids.next().expect("use"), kids.next().expect("target"));
+        let ctx = Ctx {
+            ctm: parse_transform(transform).unwrap_or(Matrix::IDENTITY),
+            viewport: [100.0, 100.0],
+        };
+        let inner = instance_ctx(use_, target, &ctx).expect("renders");
+        points
+            .iter()
+            .map(|&(x, y)| inner.ctm.apply(Vec2::new(x, y)))
+            .collect()
+    }
+
+    fn near(got: &[Vec2], want: &[(f64, f64)]) -> bool {
+        got.len() == want.len()
+            && (got.iter().zip(want)).all(|(g, &(x, y))| g.approx_eq(Vec2::new(x, y), 1e-9))
+    }
+
+    /// AC 1 — the `<use>`'s transform, then `translate(x, y)`; a non-symbol
+    /// target ignores `width`/`height`.
+    #[test]
+    fn transform_then_translate() {
+        let got = placed(
+            "rotate(90)",
+            r#"x="10" y="5" width="3""#,
+            "line",
+            &[(0.0, 0.0), (1.0, 0.0)],
+        );
+        assert!(near(&got, &[(-5.0, 10.0), (-5.0, 11.0)]), "{got:?}");
+    }
+
+    /// AC 3 — a symbol's viewBox into the `<use>`'s `width`/`height`,
+    /// `xMidYMid meet` by default, after the translate.
+    #[test]
+    fn symbol_view_box_meets_the_use_viewport() {
+        let sym = r#"symbol viewBox="0 0 10 10""#;
+        let got = placed(
+            "",
+            r#"x="1" width="20" height="40""#,
+            sym,
+            &[(0.0, 0.0), (10.0, 10.0)],
+        );
+        assert!(near(&got, &[(1.0, 10.0), (21.0, 30.0)]), "{got:?}");
+        let none = r#"symbol viewBox="0 0 10 10" preserveAspectRatio="none""#;
+        let got = placed("", r#"width="20" height="40""#, none, &[(10.0, 10.0)]);
+        assert!(near(&got, &[(20.0, 40.0)]), "{got:?}");
+    }
+
+    /// AC 3 — without `width`/`height` on the `<use>`, the symbol's own,
+    /// else 100% of the viewport.
+    #[test]
+    fn symbol_size_falls_back_to_its_own_then_100_percent() {
+        let own = r#"symbol viewBox="0 0 10 10" width="5" height="5""#;
+        let got = placed("", "", own, &[(10.0, 10.0)]);
+        assert!(near(&got, &[(5.0, 5.0)]), "{got:?}");
+        let got = placed(
+            "",
+            r#"height="50%""#,
+            r#"symbol viewBox="0 0 10 10""#,
+            &[(10.0, 10.0)],
+        );
+        assert!(near(&got, &[(75.0, 50.0)]), "{got:?}");
+        let got = placed("", "", r#"symbol viewBox="0 0 10 10""#, &[(10.0, 10.0)]);
+        assert!(near(&got, &[(100.0, 100.0)]), "{got:?}");
     }
 }

@@ -16,7 +16,7 @@
       `http://x/#a`, `#` are unresolved; self, ancestor and stacked-use cycles are detected
       (files: src/io/svg/import/reuse.rs, src/io/svg/import.rs)
 - [x] T6 [AC2] [AC7] [AC8] `Index::build`, `target`, `is_cycle` (files: src/io/svg/import/reuse.rs)
-- [ ] T7 [AC1] [AC3] Test: `instance_ctx` — `transform="rotate(90)" x="10"` composes
+- [x] T7 [AC1] [AC3] Test: `instance_ctx` — `transform="rotate(90)" x="10"` composes
       transform then translate; a `symbol viewBox="0 0 10 10"` into `width="20" height="40"`
       with default `xMidYMid meet`, with `none`, with no width (symbol's, then 100%)
       (files: src/io/svg/import/reuse.rs)
