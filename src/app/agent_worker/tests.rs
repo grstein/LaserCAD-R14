@@ -971,7 +971,8 @@ fn a_malformed_call_counts_as_a_step() {
 
 /// LCV-192 AC 4 — the second byte-identical call to one refused in this turn
 /// reaches `ask` as `Malformed` quoting the first refusal, its tool result
-/// says the same, and it is still a step; other argument bytes run again.
+/// says the same, and it is still a step (the batch's steps-left line reads
+/// 253); other argument bytes run again.
 #[test]
 fn a_repeated_refused_call_is_answered_with_the_first_refusal() {
     const ARGS: &str = r#"{"index":7}"#;
@@ -1029,10 +1030,10 @@ fn a_repeated_refused_call_is_answered_with_the_first_refusal() {
         results,
         [
             json!(format!("{first}\nSteps left this turn: 255 of 256.")).to_string(),
-            json!(format!("{repeat}\nSteps left this turn: 254 of 256.")).to_string(),
+            json!(repeat).to_string(),
             json!(format!("{first}\nSteps left this turn: 253 of 256.")).to_string(),
         ],
-        "the repeat is answered in its tool result and counted as a step"
+        "the repeat is answered in its tool result; 253 left counts it as a step"
     );
 }
 

@@ -13,7 +13,7 @@ use crate::agent::loop_::{Dispatch, IMAGE_ELIDED};
 use crate::agent::memory::whole_batches;
 use crate::agent::wire::replace_images;
 use crate::agent::{
-    AgentAction, AgentError, AgentEvent, AgentOutcome, AssistantMessage, ChatMessage,
+    AgentAction, AgentError, AgentEvent, AgentOutcome, AssistantMessage, ChatMessage, RefusedCalls,
     ToolCallError, agent_loop,
 };
 use std::sync::mpsc::{Sender, channel};
@@ -135,9 +135,23 @@ where
     // A refusal is a tool result, not a failure (ADR 0007 §D2a), and so is a
     // malformed call (§D15); a `Fenced` answer is read by `agent_loop` (§D14).
     // An upload check names the turn's endpoint and model, never its key
-    // (ADR 0011 item 10); a note rides as a non-step action (LCV-187).
+    // (ADR 0011 item 10); a note rides as a non-step action (LCV-187). A call
+    // repeating a refused one is answered from the first refusal, still as a
+    // step (LCV-192 AC 4).
+    let mut refused = RefusedCalls::default();
     let mut dispatch_fn = |dispatch: Dispatch<'_>| match dispatch {
-        Dispatch::Tool { name, args } => ask(to_action(name, args)),
+        Dispatch::Tool { name, args } => {
+            let action = match refused.check(name, args) {
+                Some(reason) => AgentAction::Malformed {
+                    tool: name.to_owned(),
+                    reason,
+                },
+                None => to_action(name, args),
+            };
+            let outcome = ask(action)?;
+            refused.record(name, args, &outcome);
+            Ok(outcome)
+        }
         Dispatch::AuthorizeUpload => ask(AgentAction::AuthorizeUpload {
             endpoint: config.endpoint.clone(),
             model: config.model.clone(),
