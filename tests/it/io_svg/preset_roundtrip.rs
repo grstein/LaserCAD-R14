@@ -1,12 +1,13 @@
 //! LCV-156 — a v0.2 preset file (`<g id="cut|mark|engrave">`) still opens.
 //!
-//! The global export preset is gone (AC 15); migration of v0.2 files is out
-//! of scope, so their geometry lands on the default `Cut` layer (ADR 0012 §4)
-//! with every world coordinate intact, and a re-save writes the layer format.
+//! The global export preset is gone (AC 15); a v0.2 file declares no layer,
+//! so its geometry lands on one `#rrggbb` layer per stroke color it uses
+//! (ADR 0012 §4 as amended by LCV-175), with every world coordinate intact,
+//! and a re-save writes the layer format.
 //!
 //! Kernel-only: no `App`, no egui, no filesystem.
 
-use lasercad::document::{Entity, Layer};
+use lasercad::document::{Entity, Layer, LayerId};
 use lasercad::geometry::{Line, Vec2};
 use lasercad::io::svg::{export_svg, import_svg};
 
@@ -26,15 +27,22 @@ const V02_MARK_FILE: &str = concat!(
     "</svg>",
 );
 
-/// A v0.2 marking file opens on `Cut`, keeps its bed and world coordinates,
-/// and re-saves as one `Cut` layer group.
+/// A v0.2 marking file opens on one blue `#0000ff` layer (its empty
+/// `cut`/`engrave` groups make none), keeps its bed and world coordinates,
+/// and re-saves as that layer's group.
 #[test]
-fn v02_preset_file_opens_on_the_default_layer() {
+fn v02_preset_file_opens_on_one_layer_per_color() {
     let doc = import_svg(V02_MARK_FILE)
         .expect("a v0.2 file imports")
         .into_document()
-        .expect("default layer is valid");
-    assert_eq!(doc.layers(), &[Layer::default_cut()]);
+        .expect("color layer is valid");
+    let blue = Layer {
+        id: LayerId(0),
+        name: "#0000ff".to_owned(),
+        color: [0, 0, 255],
+        output: true,
+    };
+    assert_eq!(doc.layers(), &[blue]);
     assert_eq!(doc.bed_mm, [300.0, 180.0]);
     assert_eq!(doc.entity_count(), 1);
     let Entity::Line(l) = doc.entities[0] else {
@@ -48,7 +56,7 @@ fn v02_preset_file_opens_on_the_default_layer() {
 
     let resaved = export_svg(&doc);
     assert!(
-        resaved.contains(r##"<g data-layer="Cut" stroke="#ff0000""##),
+        resaved.contains(r##"<g data-layer="#0000ff" stroke="#0000ff""##),
         "{resaved}"
     );
     assert!(!resaved.contains(" id="), "{resaved}");

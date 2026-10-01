@@ -38,7 +38,7 @@
       `v03-mother-three-layers` seed reopen with identical layers, colors, output, current and
       memberships; a sheet rule `g{stroke:blue}` does not recolor a `<g data-layer>`
       (files: tests/it/io_svg/color_layers.rs)
-- [ ] T12 [AC8] [AC10] Follow the ADR 0012 §4 amendment: `layers_roundtrip.rs::
+- [x] T12 [AC8] [AC10] Follow the ADR 0012 §4 amendment: `layers_roundtrip.rs::
       stray_geometry_goes_to_the_first_layer` (v0.2 part now `#0000ff`) and
       `preset_roundtrip.rs` (one layer per preset color) (files: tests/it/io_svg/layers_roundtrip.rs,
       tests/it/io_svg/preset_roundtrip.rs)

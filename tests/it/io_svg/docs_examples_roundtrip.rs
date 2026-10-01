@@ -75,6 +75,14 @@ const BED400_SRC: &str = include_str!(concat!(
     "/docs/examples/bed-400mm.svg"
 ));
 
+/// The layer a v0.2 file's red geometry opens on (LCV-175).
+fn red_layer() -> Layer {
+    Layer {
+        name: "#ff0000".to_owned(),
+        ..Layer::default_cut()
+    }
+}
+
 fn close(a: f64, b: f64, tol: f64) -> bool {
     (a - b).abs() < tol
 }
@@ -97,11 +105,13 @@ fn assert_line_eq(entity: &Entity, p1: Vec2, p2: Vec2, tol: f64, ctx: &str) {
 
 // ── bed-128mm.svg — header ──────────────────────────────────────────────
 
+/// LCV-175 AC 8, AC 10 — a v0.2 file declares no layer and every entity
+/// strokes red, so it opens on one `#ff0000` layer, no `Cut`.
 #[test]
-fn bed128_fixture_declares_its_own_bed_and_default_layer() {
+fn bed128_fixture_declares_its_own_bed_and_a_red_layer() {
     let imported = import_svg(BED128_SRC).unwrap();
     assert_eq!(imported.bed_mm, [128.0, 128.0]);
-    assert_eq!(imported.layers, vec![Layer::default_cut()]);
+    assert_eq!(imported.layers, vec![red_layer()]);
     // 4 non-text primitives + every Hershey stroke for "128".
     let text = layout_text("128", Vec2::new(80.0, 78.0), 11.0, 1.0);
     assert_eq!(imported.entities.len(), 3 + text.len());
@@ -175,11 +185,13 @@ fn bed128_text_strokes_round_trip_against_a_fresh_layout_text_call() {
 
 // ── bed-400mm.svg — the default-bed fixture ─────────────────────────────
 
+/// LCV-175 AC 8, AC 10 — a v0.2 file declares no layer and every entity
+/// strokes red, so it opens on one `#ff0000` layer, no `Cut`.
 #[test]
-fn bed400_fixture_declares_its_own_bed_and_default_layer() {
+fn bed400_fixture_declares_its_own_bed_and_a_red_layer() {
     let imported = import_svg(BED400_SRC).unwrap();
     assert_eq!(imported.bed_mm, [400.0, 400.0]);
-    assert_eq!(imported.layers, vec![Layer::default_cut()]);
+    assert_eq!(imported.layers, vec![red_layer()]);
     let text = layout_text("400", Vec2::new(250.0, 245.0), 35.0, 1.0);
     assert_eq!(imported.entities.len(), 3 + text.len());
 }
