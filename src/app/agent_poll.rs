@@ -116,7 +116,8 @@ pub fn poll_agent_rx(app: &mut App) {
 ///
 /// LCV-145: the pre-upload check is a rendezvous, not a step — no count, no
 /// fence, no `tool` row (ADR 0011 item 10); nor is an image's post-send note,
-/// a `note` row (LCV-187), nor a model reply, no row at all (LCV-193). Every
+/// a `note` row (LCV-187), nor a model reply, no row at all (LCV-193), nor
+/// the after-batch feedback ask (LCV-195). Every
 /// other action is a step, applied behind the fence and counted, refusals and
 /// LCV-192 repeats included.
 pub(crate) fn answer_act(app: &mut App, action: &AgentAction) -> AgentOutcome {
@@ -134,6 +135,7 @@ pub(crate) fn answer_act(app: &mut App, action: &AgentAction) -> AgentOutcome {
             tally.captures = tally.captures.saturating_add(*captures);
             AgentOutcome::Ok(String::new())
         }
+        AgentAction::Feedback => AgentOutcome::Ok(String::new()),
         _ => {
             let outcome = apply_fenced(app, action);
             let repeated = match action {

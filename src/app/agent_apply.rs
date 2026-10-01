@@ -189,14 +189,15 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
             items.len(),
         ),
         // Never planned against the document: `apply` answers a capture from
-        // the live app, and `agent_poll` answers an upload check, a note
-        // and a reply before the fence. Reaching here is a routing slip, so
-        // the answer is the safe one — nothing is rendered and nothing is
-        // authorised (LCV-145, LCV-187, LCV-193).
+        // the live app, and `agent_poll` answers an upload check, a note,
+        // a reply and a feedback ask before the fence. Reaching here is a
+        // routing slip, so the answer is the safe one — nothing is rendered
+        // and nothing is authorised (LCV-145, LCV-187, LCV-193, LCV-195).
         AgentAction::CaptureCanvas(_)
         | AgentAction::AuthorizeUpload { .. }
         | AgentAction::Note(_)
-        | AgentAction::Replied { .. } => {
+        | AgentAction::Replied { .. }
+        | AgentAction::Feedback => {
             Planned::Answer(AgentOutcome::Refused(CAPTURE_DISABLED.to_owned()))
         }
         // §D15: answered from the reason alone; the document is not read.

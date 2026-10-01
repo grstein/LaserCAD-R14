@@ -181,6 +181,11 @@ pub enum AgentAction {
         /// Authorised image parts the answered request carried.
         captures: u32,
     },
+    /// What the model should be told about the drawing after a batch that
+    /// ran unfenced (LCV-195). **Not a step**, like `AuthorizeUpload`: the UI
+    /// answers it from the live document, outside the fence and the tally;
+    /// `Ok("")` adds nothing.
+    Feedback,
     /// Append a whole validated batch as one command (LCV-144, ADR 0010).
     CreateDrawing {
         /// The entities, in order; 1..=1000, already shape-checked.
@@ -233,6 +238,8 @@ impl AgentAction {
             | Self::AuthorizeUpload { .. }
             | Self::Note(_)
             | Self::Replied { .. } => "capture_canvas",
+            // Not a tool: the loop asks it, the model never calls it.
+            Self::Feedback => "",
             Self::CreateDrawing { .. } => "create_drawing",
             Self::Malformed { tool, .. } => tool,
         }
@@ -376,6 +383,7 @@ mod tests {
             ),
             (A::Note("n".into()), "capture_canvas"),
             (A::Replied { captures: 1 }, "capture_canvas"),
+            (A::Feedback, ""),
             (
                 A::CreateDrawing {
                     items: vec![],

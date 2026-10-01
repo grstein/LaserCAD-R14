@@ -18,7 +18,7 @@ Prerequisites: LCV-187, LCV-189, LCV-190 Done on `agent-harness`.
   - The steps-left count is unchanged.
 
   (files: src/agent/loop_/tests.rs)
-- [ ] T6 [AC4] `AgentAction::Feedback`, plus an `answer_act` arm that answers `Ok("")` uncounted
+- [x] T6 [AC4] `AgentAction::Feedback`, plus an `answer_act` arm that answers `Ok("")` uncounted
   (files: src/agent/bridge/action.rs, src/app/agent_poll.rs)
 - [ ] T7 [AC1][AC5] `Dispatch::Feedback`, the append in `run_batch`, and the worker arm
   (files: src/agent/loop_.rs, src/agent/loop_/batch.rs, src/app/agent_worker.rs)
