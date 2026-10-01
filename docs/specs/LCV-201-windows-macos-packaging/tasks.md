@@ -21,7 +21,7 @@
 - [x] T9 [AC7] Test (Unix): `release.sh --list-assets` in a temp copy with a fake `dist/` lists
       AppImage, `.deb`, `.zip`, `.dmg`; with the `.dmg` removed it prints `missing: …dmg`, exits 0
       (files: tests/it/repo/packaging.rs)
-- [ ] T10 [AC7] `release.sh`: shared asset list, `--list-assets` mode, optional `.zip`/`.dmg`
+- [x] T10 [AC7] `release.sh`: shared asset list, `--list-assets` mode, optional `.zip`/`.dmg`
       attached when present, missing ones printed (files: scripts/release.sh)
 - [ ] T11 [AC5] [AC6] Test: `docs/install.md` exists with SmartScreen and Gatekeeper/`xattr`
       steps and settings/autosave paths for Linux, Windows and macOS; `README.md` links it;
