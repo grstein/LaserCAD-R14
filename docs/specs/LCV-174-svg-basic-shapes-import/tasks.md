@@ -49,7 +49,7 @@
   `classify` marks `polyline|polygon` as `Import`. If `shapes.rs` passes 200 LOC, split it into
   `shapes/points.rs`.
   (files: src/io/svg/import/shapes.rs, src/io/svg/path_data/lexer.rs, src/io/svg/import/walk.rs)
-- [ ] T13 [AC9] Test + fix: `<g transform>` around a rect, polyline and polygon; `scale(2,1)` on a
+- [x] T13 [AC9] Test + fix: `<g transform>` around a rect, polyline and polygon; `scale(2,1)` on a
   rounded rect gives elliptical corners, `rotate(30)` keeps circular arcs. Expected to pass with
   no code change, otherwise fix in `shapes.rs`.
   (files: tests/it/io_svg/shapes.rs, src/io/svg/import/shapes.rs)

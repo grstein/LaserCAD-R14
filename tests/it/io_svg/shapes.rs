@@ -281,3 +281,48 @@ fn bad_points_keep_the_pairs_before_the_error() {
         ]
     );
 }
+
+/// AC 9 — shapes under a `transform` map like paths (LCV-173): a
+/// translated group moves rect, polyline and polygon lines; `scale(2,1)`
+/// turns round corners elliptical; `rotate(30)` keeps them circular.
+#[test]
+fn shapes_map_through_transforms() {
+    let (es, report) = page(
+        r#"<g transform="translate(10,20)"><rect width="10" height="5"/>
+           <polyline points="0 0 5 5"/><polygon points="0 0 5 0 5 5"/></g>"#,
+    );
+    assert!(report.is_empty(), "{report:?}");
+    assert_eq!(
+        es,
+        [
+            line((10.0, 20.0), (20.0, 20.0)),
+            line((20.0, 20.0), (20.0, 25.0)),
+            line((20.0, 25.0), (10.0, 25.0)),
+            line((10.0, 25.0), (10.0, 20.0)),
+            line((10.0, 20.0), (15.0, 25.0)),
+            line((10.0, 20.0), (15.0, 20.0)),
+            line((15.0, 20.0), (15.0, 25.0)),
+            line((15.0, 25.0), (10.0, 20.0)),
+        ]
+    );
+    let (es, _) = page(r#"<rect width="20" height="20" rx="5" transform="scale(2,1)"/>"#);
+    let corners: Vec<_> = es.iter().skip(1).step_by(2).collect();
+    assert_eq!(corners.len(), 4, "{es:?}");
+    for e in corners {
+        let Entity::Ellipse(e) = e else {
+            panic!("{e:?}")
+        };
+        let (big, small) = (e.rx.max(e.ry), e.rx.min(e.ry));
+        assert!(
+            (big - 10.0).abs() < TOL && (small - 5.0).abs() < TOL,
+            "{e:?}"
+        );
+    }
+    let (es, _) = page(r#"<rect width="20" height="20" rx="5" transform="rotate(30)"/>"#);
+    let k = ["line", "arc"];
+    assert_eq!(kinds(&es), [k, k, k, k].concat());
+    for e in es.iter().skip(1).step_by(2) {
+        let Entity::Arc(a) = e else { panic!("{e:?}") };
+        assert!((a.r - 5.0).abs() < TOL, "{a:?}");
+    }
+}
