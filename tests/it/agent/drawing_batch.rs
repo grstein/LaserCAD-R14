@@ -630,3 +630,47 @@ fn lcv192_ac1_create_drawing_refusals_name_path_reason_and_form() {
         assert_eq!(refused_args(args.clone()), want, "{args:.80}");
     }
 }
+
+/// LCV-192 AC 5 — the limits hold in the new shape: an unknown key's name is
+/// cut to 64 characters, at the root and in an item, and no argument value
+/// is ever echoed.
+#[test]
+fn lcv192_ac5_refusals_cut_key_names_and_never_echo_values() {
+    let long = "k".repeat(200);
+    let cut = "k".repeat(64);
+    let circle = json!({"type": "circle", "cx": 0, "cy": 0, "r": 1});
+    let mut root = json!({"version": 1, "entities": [circle.clone()]});
+    root[&long] = json!(1);
+    let mut item = circle.clone();
+    item[&long] = json!(1);
+    for (args, path) in [
+        (root, cut.clone()),
+        (
+            json!({"version": 1, "entities": [item]}),
+            format!("entities[0].{cut}"),
+        ),
+    ] {
+        let reason = refused_args(args);
+        assert!(
+            reason.starts_with(&format!("create_drawing {path}: unknown key; expected ")),
+            "{reason}"
+        );
+        assert!(!reason.contains(&"k".repeat(65)), "cut to 64: {reason}");
+    }
+
+    let secret = "SECRET-7f3a";
+    let mut secret_r = circle.clone();
+    secret_r["r"] = json!(secret);
+    for args in [
+        json!({"version": 1, "entities": [circle.clone()], "layer": 98765}),
+        json!({"version": 1, "entities": [circle.clone()], "layer": [secret]}),
+        json!({"version": 1, "entities": [secret_r]}),
+        json!({"version": secret, "entities": [circle]}),
+    ] {
+        let reason = refused_args(args.clone());
+        assert!(
+            !reason.contains(secret) && !reason.contains("98765"),
+            "{args} echoed: {reason}"
+        );
+    }
+}

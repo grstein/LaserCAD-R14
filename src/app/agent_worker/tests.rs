@@ -1177,6 +1177,37 @@ fn invalid_json_is_refused_at_the_root_in_the_shape() {
     }
 }
 
+/// LCV-192 AC 5 — invalid JSON is refused without echoing what it held, and
+/// a value of the wrong type is named by its path, never quoted.
+#[test]
+fn a_refusal_never_echoes_the_arguments() {
+    let secret = "SECRET-7f3a";
+    for (name, args) in [
+        ("create_line", format!(r#"{{"x1": "{secret}""#)),
+        (
+            "create_line",
+            format!(r#"{{"x1": "{secret}", "y1": 0, "x2": 1, "y2": 1}}"#),
+        ),
+        (
+            "create_circle",
+            format!(r#"{{"cx": 0, "cy": 0, "r": 1, "layer": ["{secret}"]}}"#),
+        ),
+        ("delete_entity", format!(r#"{{"index": "{secret}"}}"#)),
+        (
+            "create_drawing",
+            format!(r#"{{"version": 1, "entities": [{secret}]}}"#),
+        ),
+    ] {
+        match to_action(name, &args) {
+            AgentAction::Malformed { reason, .. } => {
+                assert!(reason.starts_with(&format!("{name} ")), "{reason}");
+                assert!(!reason.contains(secret), "{args} echoed: {reason}");
+            }
+            other => panic!("accepted {args}: {other:?}"),
+        }
+    }
+}
+
 // ── LCV-145: the vision flag and the upload check ────────────────────────
 
 /// AC 2 — the tools offered are `tool_definitions(config.vision)`.
