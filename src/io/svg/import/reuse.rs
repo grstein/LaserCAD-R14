@@ -21,27 +21,39 @@ pub(super) struct Index<'a, 'input> {
 impl<'a, 'input> Index<'a, 'input> {
     /// Index every SVG-namespace element at or below `root` that has an `id`.
     pub(super) fn build(root: Node<'a, 'input>) -> Self {
-        let _ = root;
-        Self {
-            ids: HashMap::new(),
+        let mut ids = HashMap::new();
+        let svg = root
+            .descendants()
+            .filter(|n| n.is_element() && n.tag_name().namespace() == Some(SVG_NS));
+        for node in svg {
+            if let Some(id) = node.attribute("id") {
+                ids.entry(id).or_insert(node);
+            }
         }
+        Self { ids }
     }
 }
 
-/// The element `use_` references, or `None` when it is unresolved (AC 8).
+/// The element `use_` references: `href`, else `xlink:href` (AC 2), which
+/// must be `#` and a non-empty indexed id once trimmed. `None` when it is
+/// unresolved (AC 8); nothing is ever fetched.
 pub(super) fn target<'a, 'input>(
     use_: Node<'a, 'input>,
     index: &Index<'a, 'input>,
 ) -> Option<Node<'a, 'input>> {
-    let _ = (use_, index, XLINK_NS, SVG_NS);
-    None
+    let href = use_
+        .attribute("href")
+        .or_else(|| use_.attribute((XLINK_NS, "href")))?;
+    let id = href.trim().strip_prefix('#').filter(|id| !id.is_empty())?;
+    index.ids.get(id).copied()
 }
 
 /// Whether expanding `target` for `use_` re-enters an element already being
-/// expanded (AC 7).
+/// expanded (AC 7): `target` is `use_` itself, contains it, or contains a
+/// `<use>` on the expansion `stack` (`ancestors` includes self).
 pub(super) fn is_cycle(target: Node<'_, '_>, use_: Node<'_, '_>, stack: &[Node<'_, '_>]) -> bool {
-    let _ = (target, use_, stack);
-    false
+    let mut uses = stack.iter().chain([&use_]);
+    uses.any(|u| u.ancestors().any(|a| a == target))
 }
 
 #[cfg(test)]
@@ -57,6 +69,7 @@ mod tests {
         <g id="self"><use id="us" href="#self"/></g>
         <g id="outer"><g><use id="deep" href="#outer"/></g></g>
         <x:g xmlns:x="urn:x" id="foreign"/>
+        <g id=""/>
       </defs>
       <use id="u1" href="#a" xlink:href="#self"/>
       <use id="u2" xlink:href="#b"/>
