@@ -10,7 +10,7 @@
 
 use serde_json::{Value, json};
 
-use super::ToolCallError;
+use super::{ToolCallError, get_f64};
 use crate::agent::bridge::CaptureFrame;
 
 const TOOL: &str = "capture_canvas";
@@ -33,14 +33,6 @@ fn present<'a>(args: &'a Value, key: &str) -> Option<&'a Value> {
     args.get(key).filter(|v| !v.is_null())
 }
 
-fn invalid(field: &'static str, reason: &str) -> ToolCallError {
-    ToolCallError::InvalidArg {
-        tool: TOOL,
-        field,
-        reason: reason.to_owned(),
-    }
-}
-
 /// The frame a `capture_canvas` call asks for. No `frame` (or `null`) is
 /// `"view"`; a corner is required by `"region"` and refused by the others,
 /// `null` counting as absent; any other key is ignored, as before LCV-187.
@@ -50,23 +42,23 @@ pub(super) fn parse(args: &Value) -> Result<CaptureFrame, ToolCallError> {
         Some(v) => v
             .as_str()
             .filter(|name| ["view", "drawing", "region"].contains(name))
-            .ok_or_else(|| invalid("frame", r#"must be "view", "drawing" or "region""#))?,
+            .ok_or_else(|| ToolCallError::arg(TOOL, "frame", "unknown frame"))?,
     };
     if frame == "region" {
-        let corner = |field: &'static str| {
-            args.get(field)
-                .and_then(Value::as_f64)
-                .ok_or(ToolCallError::MissingField { tool: TOOL, field })
-        };
         return Ok(CaptureFrame::Region {
-            x0: corner("x0")?,
-            y0: corner("y0")?,
-            x1: corner("x1")?,
-            y1: corner("y1")?,
+            x0: get_f64(args, TOOL, "x0")?,
+            y0: get_f64(args, TOOL, "y0")?,
+            x1: get_f64(args, TOOL, "x1")?,
+            y1: get_f64(args, TOOL, "y1")?,
         });
     }
     if let Some(field) = CORNERS.into_iter().find(|f| present(args, f).is_some()) {
-        return Err(invalid(field, r#"only used with frame "region""#));
+        return Err(ToolCallError::Arg {
+            tool: TOOL.to_owned(),
+            path: field.to_owned(),
+            reason: format!(r#"given with frame "{frame}""#),
+            expected: r#"corners only with frame "region""#.to_owned(),
+        });
     }
     Ok(if frame == "drawing" {
         CaptureFrame::Drawing

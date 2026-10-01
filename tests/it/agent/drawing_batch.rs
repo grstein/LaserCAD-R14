@@ -142,7 +142,7 @@ fn ac3_an_invalid_batch_is_one_refused_step_and_changes_nothing() {
     let answer = push_act(&tx, batch(Value::Array(entities)));
     idle(&ctx, &mut app);
 
-    let reason = "create_drawing entities[17].r: -3 is not a positive finite number";
+    let reason = "create_drawing entities[17].r: -3 is out of range";
     assert_eq!(
         answer.try_recv().unwrap(),
         AgentOutcome::Refused(reason.into())

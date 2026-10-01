@@ -1,10 +1,16 @@
     use super::*;
+    use super::args::{expected_form, refusal};
     use core::f64::consts::FRAC_PI_2;
     use serde_json::json;
 
     fn ok(nm: &str, a: Value) -> AgentAction { parse_tool_call(nm, &a).unwrap() }
     fn err(nm: &str, a: Value) -> ToolCallError { parse_tool_call(nm, &a).unwrap_err() }
     fn req(d: &Value, i: usize) -> Value { d[i]["function"]["parameters"]["required"].clone() }
+    /// The tool, path and reason of an argument refusal (LCV-192).
+    fn at(e: &ToolCallError) -> (&str, &str, &str) {
+        let ToolCallError::Arg { tool, path, reason, .. } = e else { panic!("{e:?}") };
+        (tool, path, reason)
+    }
 
     // ── Schema (LCV-123 AC 13: five tools became seven) ──────────────────────
 
@@ -159,15 +165,13 @@
     #[test]
     fn parse_create_circle_negative_radius() {
         let e = err("create_circle", json!({"cx":0.0,"cy":0.0,"r":-1.0}));
-        let ToolCallError::InvalidArg { field, reason, .. } = e else { panic!("{e:?}") };
-        assert_eq!(field, "r");
-        assert_eq!(reason, "-1 is not a positive finite number");
+        assert_eq!(at(&e), ("create_circle", "r", "-1 is out of range"));
     }
     /// AC 5 — a zero radius is rejected by the same check as a negative one.
     #[test]
     fn parse_create_circle_zero_radius() {
         let e = err("create_circle", json!({"cx":0.0,"cy":0.0,"r":0.0}));
-        assert!(matches!(e, ToolCallError::InvalidArg { field: "r", .. }), "{e:?}");
+        assert!(at(&e).1 == "r", "{e:?}");
     }
     /// AC 5 — degrees in, radians out, to within 1e-12.
     #[test]
@@ -193,7 +197,7 @@
     fn parse_create_arc_rejects_bad_radius() {
         let e = err("create_arc", json!({"cx":0.0,"cy":0.0,"r":0.0,
             "start_deg":0.0,"end_deg":90.0,"ccw":true}));
-        assert!(matches!(e, ToolCallError::InvalidArg { tool: "create_arc", field: "r", .. }), "{e:?}");
+        assert!((at(&e).0, at(&e).1) == ("create_arc", "r"), "{e:?}");
     }
     #[test]
     fn parse_delete_entity_happy_path() {
@@ -213,9 +217,9 @@
         assert_eq!(ok("copy_entity", json!({"index":99,"dx":0.0,"dy":0.0})),
             AgentAction::Copy { index: 99, dx: 0.0, dy: 0.0 });
         let e = err("copy_entity", json!({"index":0,"dx":1.0}));
-        assert!(matches!(e, ToolCallError::MissingField { tool: "copy_entity", field: "dy" }), "{e:?}");
+        assert!(at(&e) == ("copy_entity", "dy", "missing"), "{e:?}");
         let e = err("copy_entity", json!({"index":-1,"dx":1.0,"dy":1.0}));
-        assert!(matches!(e, ToolCallError::InvalidArg { tool: "copy_entity", field: "index", .. }), "{e:?}");
+        assert!((at(&e).0, at(&e).1) == ("copy_entity", "index"), "{e:?}");
     }
     /// LCV-158 AC9 — `rotate_entity` takes degrees and parses to radians; the
     /// range check is the apply site's.
@@ -224,9 +228,9 @@
         assert_eq!(ok("rotate_entity", json!({"index":2,"x":1.0,"y":-3.0,"degrees":90.0})),
             AgentAction::Rotate { index: 2, x: 1.0, y: -3.0, angle: FRAC_PI_2 });
         let e = err("rotate_entity", json!({"index":0,"x":1.0,"y":1.0}));
-        assert!(matches!(e, ToolCallError::MissingField { tool: "rotate_entity", field: "degrees" }), "{e:?}");
+        assert!(at(&e) == ("rotate_entity", "degrees", "missing"), "{e:?}");
         let e = err("rotate_entity", json!({"index":-1,"x":0.0,"y":0.0,"degrees":1.0}));
-        assert!(matches!(e, ToolCallError::InvalidArg { tool: "rotate_entity", field: "index", .. }), "{e:?}");
+        assert!((at(&e).0, at(&e).1) == ("rotate_entity", "index"), "{e:?}");
     }
     /// LCV-181 AC10 — `mirror_entity` takes two line points and
     /// `erase_source`; the range and distinct-points checks are the apply site's.
@@ -236,13 +240,13 @@
         assert_eq!(ok("mirror_entity", args),
             AgentAction::Mirror { index: 1, x1: 0.0, y1: -1.0, x2: 2.0, y2: 3.0, erase_source: true });
         let e = err("mirror_entity", json!({"index":0,"x1":0.0,"y1":0.0,"x2":1.0,"y2":1.0}));
-        assert!(matches!(e, ToolCallError::MissingField { tool: "mirror_entity", field: "erase_source" }), "{e:?}");
+        assert!(at(&e) == ("mirror_entity", "erase_source", "missing"), "{e:?}");
         let e = err("mirror_entity",
             json!({"index":0,"x1":0.0,"y1":0.0,"x2":1.0,"y2":1.0,"erase_source":"no"}));
-        assert!(matches!(e, ToolCallError::MissingField { tool: "mirror_entity", field: "erase_source" }), "{e:?}");
+        assert!(at(&e) == ("mirror_entity", "erase_source", "not a boolean"), "{e:?}");
         let e = err("mirror_entity",
             json!({"index":-1,"x1":0.0,"y1":0.0,"x2":1.0,"y2":1.0,"erase_source":false}));
-        assert!(matches!(e, ToolCallError::InvalidArg { tool: "mirror_entity", field: "index", .. }), "{e:?}");
+        assert!((at(&e).0, at(&e).1) == ("mirror_entity", "index"), "{e:?}");
     }
     /// LCV-182 AC8 — `scale_entity` takes a base point and a factor; a zero,
     /// negative or non-finite factor is refused at parse time, like `r`.
@@ -251,13 +255,13 @@
         assert_eq!(ok("scale_entity", json!({"index":1,"x":2.0,"y":-3.0,"factor":0.5})),
             AgentAction::Scale { index: 1, x: 2.0, y: -3.0, factor: 0.5 });
         let e = err("scale_entity", json!({"index":0,"x":0.0,"y":0.0}));
-        assert!(matches!(e, ToolCallError::MissingField { tool: "scale_entity", field: "factor" }), "{e:?}");
+        assert!(at(&e) == ("scale_entity", "factor", "missing"), "{e:?}");
         for factor in [0.0, -2.0] {
             let e = err("scale_entity", json!({"index":0,"x":0.0,"y":0.0,"factor":factor}));
-            assert!(matches!(e, ToolCallError::InvalidArg { tool: "scale_entity", field: "factor", .. }), "{e:?}");
+            assert!((at(&e).0, at(&e).1) == ("scale_entity", "factor"), "{e:?}");
         }
         let e = err("scale_entity", json!({"index":-1,"x":0.0,"y":0.0,"factor":2.0}));
-        assert!(matches!(e, ToolCallError::InvalidArg { tool: "scale_entity", field: "index", .. }), "{e:?}");
+        assert!((at(&e).0, at(&e).1) == ("scale_entity", "index"), "{e:?}");
     }
     #[test]
     fn parse_unknown_tool() {
@@ -269,7 +273,7 @@
     #[test]
     fn parse_missing_field() {
         let e = err("create_line", json!({"x1":0.0}));
-        assert!(matches!(e, ToolCallError::MissingField { tool: "create_line", field: "y1" }), "{e:?}");
+        assert!(at(&e) == ("create_line", "y1", "missing"), "{e:?}");
     }
     /// AC 5 — a rejected call yields no action at all. This is what
     /// `dispatch_missing_field_no_commit` asserted before there was an action
@@ -286,9 +290,9 @@
     fn parse_nan_coordinate_is_reported_as_a_missing_field() {
         assert_eq!(json!({"x1": f64::NAN})["x1"], Value::Null);
         let e = err("create_line", json!({"x1":f64::NAN,"y1":0.0,"x2":1.0,"y2":1.0}));
-        assert!(matches!(e, ToolCallError::MissingField { field: "x1", .. }), "{e:?}");
+        assert!((at(&e).1, at(&e).2) == ("x1", "missing"), "{e:?}");
         let e = err("create_circle", json!({"cx":0.0,"cy":0.0,"r":f64::INFINITY}));
-        assert!(matches!(e, ToolCallError::MissingField { field: "r", .. }), "{e:?}");
+        assert!((at(&e).1, at(&e).2) == ("r", "missing"), "{e:?}");
     }
     /// AC 5 — the finite half of `validate_r` is unreachable through JSON, so
     /// it is pinned directly. Deleting `r.is_finite()` turns this red.
@@ -301,16 +305,13 @@
             assert!(validate_r("create_circle", good).is_ok(), "{good} must be accepted");
         }
     }
-    /// AC 5 — a negative index and a fractional index are both shape errors,
-    /// with the message they have always had.
+    /// AC 5 — a negative index and a fractional index are both shape errors
+    /// (LCV-192 wording).
     #[test]
     fn parse_index_must_be_a_non_negative_integer() {
-        for (raw, text) in [(json!(-1), "-1 is not a non-negative integer"),
-                            (json!(1.5), "1.5 is not a non-negative integer")] {
+        for (raw, text) in [(json!(-1), "-1 is not an index"), (json!(1.5), "1.5 is not an index")] {
             let e = err("delete_entity", json!({"index": raw}));
-            let ToolCallError::InvalidArg { field, reason, .. } = e else { panic!("{e:?}") };
-            assert_eq!(field, "index");
-            assert_eq!(reason, text);
+            assert_eq!(at(&e), ("delete_entity", "index", text));
         }
     }
 
@@ -327,11 +328,31 @@
     }
 
     #[test]
-    fn tool_call_error_display_non_empty() {
-        let e1 = ToolCallError::UnknownTool("x".into());
-        let e2 = ToolCallError::MissingField { tool: "t", field: "f" };
-        let e3 = ToolCallError::InvalidArg { tool: "t", field: "f", reason: "bad".into() };
-        assert!(!e1.to_string().is_empty() && !e2.to_string().is_empty() && !e3.to_string().is_empty());
+    fn tool_call_error_display() {
+        assert_eq!(ToolCallError::UnknownTool("x".into()).to_string(), "unknown tool: `x`");
+        assert_eq!(ToolCallError::arg("t", "f", "bad").to_string(),
+            "t f: bad; expected a value the tool's schema allows");
+        assert_eq!(refusal("t", "p", "why", "form"), "t p: why; expected form");
+    }
+    /// LCV-192 AC 1 — every row of the expected-form table, so a row cannot
+    /// drift or fall through to the default unnoticed.
+    #[test]
+    fn expected_form_names_each_field() {
+        for f in ["x1","y1","x2","y2","cx","cy","dx","dy","x","y","x0","y0"] {
+            assert_eq!(expected_form(f), "a number in mm", "{f}");
+        }
+        for f in ["start_deg","end_deg","degrees"] { assert_eq!(expected_form(f), "a number in degrees"); }
+        for f in ["ccw","erase_source"] { assert_eq!(expected_form(f), "true or false"); }
+        for (f, form) in [("r", "a positive number in mm"), ("factor", "a positive number"),
+            ("index", "a non-negative integer (an index from query_entities)"),
+            ("indices", "a list of 1 to 1000 distinct entity indices"),
+            ("layer", "the name of an existing layer, 1 to 64 characters"),
+            ("frame", r#""view", "drawing" or "region""#), ("version", "the integer 1"),
+            ("entities", "a list of 1 to 1000 entity objects"),
+            ("type", r#""line", "circle" or "arc""#), ("(root)", "a JSON object"),
+            ("bogus", "a value the tool's schema allows")] {
+            assert_eq!(expected_form(f), form, "{f}");
+        }
     }
 
     // ── AC 7 / AC 3: what this file must never become ────────────────────────

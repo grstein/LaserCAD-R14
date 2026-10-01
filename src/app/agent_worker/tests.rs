@@ -935,7 +935,7 @@ fn malformed_calls_reach_ask_and_the_turn_continues() {
     );
     assert_eq!(
         reasons[2].1,
-        "tool `create_line` missing required argument `x2`"
+        "create_line x2: not a number; expected a number in mm"
     );
     for (_, reason) in &reasons {
         assert!(!reason.contains(SENTINEL), "the raw args leaked: {reason}");

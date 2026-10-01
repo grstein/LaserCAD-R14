@@ -21,23 +21,19 @@ pub enum ToolCallError {
     /// [`tool_definitions`](super::tool_definitions).
     #[error("unknown tool: `{0}`")]
     UnknownTool(String),
-    /// A required argument was absent, or present with the wrong JSON type.
-    #[error("tool `{tool}` missing required argument `{field}`")]
-    MissingField {
+    /// An argument refusal (LCV-192 AC 1), shown as
+    /// `<tool> <path>: <reason>; expected <form>` by [`refusal`]. Names the
+    /// field and its accepted form; never echoes a string payload.
+    #[error("{}", refusal(tool, path, reason, expected))]
+    Arg {
         /// The tool that was called.
-        tool: &'static str,
-        /// The argument that was missing.
-        field: &'static str,
-    },
-    /// An argument was present and of the right type, but out of its domain.
-    #[error("tool `{tool}` argument `{field}` is invalid: {reason}")]
-    InvalidArg {
-        /// The tool that was called.
-        tool: &'static str,
-        /// The argument that was rejected.
-        field: &'static str,
-        /// Human-readable explanation, read by the model as the tool result.
+        tool: String,
+        /// The failing field: `r`, `indices[2]`, `entities[3].r`, `(root)`.
+        path: String,
+        /// What is wrong with it: `missing`, `not a number`, `-3 is out of range`.
         reason: String,
+        /// The accepted type and range, usually [`expected_form`] of the key.
+        expected: String,
     },
     /// A `create_drawing` root-level failure (ADR 0010 §3). `field` is a root
     /// key, `arguments`, or `entities[i]` when the item is not an object.
@@ -60,58 +56,104 @@ pub enum ToolCallError {
     },
 }
 
-pub(super) fn get_f64(
-    args: &Value,
-    tool: &'static str,
-    field: &'static str,
-) -> Result<f64, ToolCallError> {
-    args.get(field)
-        .and_then(|v| v.as_f64())
-        .ok_or(ToolCallError::MissingField { tool, field })
+impl ToolCallError {
+    /// The refusal of `field` itself: the path is the field and the expected
+    /// form is [`expected_form`] of it.
+    pub(crate) fn arg(tool: &str, field: &str, reason: impl Into<String>) -> Self {
+        Self::Arg {
+            tool: tool.to_owned(),
+            path: field.to_owned(),
+            reason: reason.into(),
+            expected: expected_form(field).to_owned(),
+        }
+    }
 }
 
-pub(super) fn get_bool(
-    args: &Value,
-    tool: &'static str,
-    field: &'static str,
-) -> Result<bool, ToolCallError> {
+/// The one refusal shape of LCV-192 (AC 1, AC 2, AC 3), shared by argument
+/// and document refusals: `<tool> <path>: <reason>; expected <form>`.
+pub(crate) fn refusal(tool: &str, path: &str, reason: &str, expected: &str) -> String {
+    format!("{tool} {path}: {reason}; expected {expected}")
+}
+
+/// The accepted form of an argument, by its key, in the words the model
+/// reads after `expected` (LCV-192 AC 1).
+pub(crate) fn expected_form(field: &str) -> &'static str {
+    match field {
+        "x1" | "y1" | "x2" | "y2" | "cx" | "cy" | "dx" | "dy" | "x" | "y" | "x0" | "y0" => {
+            "a number in mm"
+        }
+        "r" => "a positive number in mm",
+        "start_deg" | "end_deg" | "degrees" => "a number in degrees",
+        "ccw" | "erase_source" => "true or false",
+        "factor" => "a positive number",
+        "index" => "a non-negative integer (an index from query_entities)",
+        "indices" => "a list of 1 to 1000 distinct entity indices",
+        "layer" => "the name of an existing layer, 1 to 64 characters",
+        "frame" => r#""view", "drawing" or "region""#,
+        "version" => "the integer 1",
+        "entities" => "a list of 1 to 1000 entity objects",
+        "type" => r#""line", "circle" or "arc""#,
+        "(root)" => "a JSON object",
+        _ => "a value the tool's schema allows",
+    }
+}
+
+/// `args[field]` unless absent or JSON `null`: both read as `missing`.
+fn present<'a>(args: &'a Value, tool: &str, field: &str) -> Result<&'a Value, ToolCallError> {
     args.get(field)
-        .and_then(|v| v.as_bool())
-        .ok_or(ToolCallError::MissingField { tool, field })
+        .filter(|v| !v.is_null())
+        .ok_or_else(|| ToolCallError::arg(tool, field, "missing"))
+}
+
+/// A number argument: absent is `missing`, any other type `not a number`.
+pub(super) fn get_f64(args: &Value, tool: &str, field: &str) -> Result<f64, ToolCallError> {
+    present(args, tool, field)?
+        .as_f64()
+        .ok_or_else(|| ToolCallError::arg(tool, field, "not a number"))
+}
+
+/// A boolean argument: absent is `missing`, any other type `not a boolean`.
+pub(super) fn get_bool(args: &Value, tool: &str, field: &str) -> Result<bool, ToolCallError> {
+    present(args, tool, field)?
+        .as_bool()
+        .ok_or_else(|| ToolCallError::arg(tool, field, "not a boolean"))
 }
 
 /// Shape check only: non-negative, integral, finite. The range check
 /// (`index < entities.len()`) lives at the apply site — ADR 0007 §D2a.
-#[rustfmt::skip]
-pub(super) fn get_index(args: &Value, tool: &'static str) -> Result<usize, ToolCallError> {
-    let raw = args.get("index").and_then(|v| v.as_f64())
-        .ok_or(ToolCallError::MissingField { tool, field: "index" })?;
-    if raw < 0.0 || raw.fract() != 0.0 || !raw.is_finite() { return Err(
-        ToolCallError::InvalidArg { tool, field: "index",
-            reason: format!("{raw} is not a non-negative integer") }); }
+pub(super) fn get_index(args: &Value, tool: &str) -> Result<usize, ToolCallError> {
+    let raw = get_f64(args, tool, "index")?;
+    if raw < 0.0 || raw.fract() != 0.0 || !raw.is_finite() {
+        return Err(ToolCallError::arg(
+            tool,
+            "index",
+            format!("{raw} is not an index"),
+        ));
+    }
     Ok(raw as usize)
 }
 
 /// The one radius rule, shared by `create_circle`, `create_arc` and
 /// `create_drawing` (ADR 0010 §3).
-pub(crate) fn validate_r(tool: &'static str, r: f64) -> Result<(), ToolCallError> {
+pub(crate) fn validate_r(tool: &str, r: f64) -> Result<(), ToolCallError> {
     validate_positive(tool, "r", r)
 }
 
 /// `value` must be positive and finite: a radius, or a scale factor
 /// (LCV-182).
-#[rustfmt::skip]
-pub(super) fn validate_positive(tool: &'static str, field: &'static str, value: f64)
-    -> Result<(), ToolCallError> {
-    if value > 0.0 && value.is_finite() { Ok(()) } else { Err(ToolCallError::InvalidArg {
-        tool, field, reason: format!("{value} is not a positive finite number") }) }
+pub(super) fn validate_positive(tool: &str, field: &str, value: f64) -> Result<(), ToolCallError> {
+    if value > 0.0 && value.is_finite() {
+        Ok(())
+    } else {
+        Err(ToolCallError::arg(
+            tool,
+            field,
+            format!("{value} is out of range"),
+        ))
+    }
 }
 
 /// The optional `layer` argument of a scalar creation tool (LCV-156).
-pub(super) fn get_layer(args: &Value, tool: &'static str) -> Result<Option<String>, ToolCallError> {
-    drawing::layer_arg(args).map_err(|reason| ToolCallError::InvalidArg {
-        tool,
-        field: "layer",
-        reason,
-    })
+pub(super) fn get_layer(args: &Value, tool: &str) -> Result<Option<String>, ToolCallError> {
+    drawing::layer_arg(args).map_err(|reason| ToolCallError::arg(tool, "layer", reason))
 }

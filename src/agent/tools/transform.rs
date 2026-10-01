@@ -112,11 +112,7 @@ fn entry(value: &Value) -> Option<usize> {
 
 /// A refusal of the `indices` argument.
 fn invalid(tool: &'static str, reason: String) -> ToolCallError {
-    ToolCallError::InvalidArg {
-        tool,
-        field: "indices",
-        reason,
-    }
+    ToolCallError::arg(tool, "indices", reason)
 }
 
 /// The single-index action's operation, without its placeholder index.
@@ -157,9 +153,9 @@ mod tests {
         parse_tool_call(name, &args).unwrap_or_else(|e| panic!("{e}"))
     }
 
-    fn reason(name: &str, args: Value) -> (&'static str, String) {
+    fn reason(name: &str, args: Value) -> (String, String) {
         match parse_tool_call(name, &args) {
-            Err(ToolCallError::InvalidArg { field, reason, .. }) => (field, reason),
+            Err(ToolCallError::Arg { path, reason, .. }) => (path, reason),
             other => panic!("{other:?}"),
         }
     }
@@ -246,11 +242,8 @@ mod tests {
             json!({"indices":[0,1],"x":0,"y":0,"factor":0}),
         );
         assert_eq!(field, "factor");
-        let e = parse_tool_call("move_entity", &json!({"indices":[0],"dx":1})).unwrap_err();
-        assert!(
-            matches!(e, ToolCallError::MissingField { field: "dy", .. }),
-            "{e:?}"
-        );
+        let (field, text) = reason("move_entity", json!({"indices":[0],"dx":1}));
+        assert_eq!((field.as_str(), text.as_str()), ("dy", "missing"));
     }
 
     /// A null `indices` or `index` counts as absent; other tools ignore

@@ -54,7 +54,7 @@ fn creation_tools_take_an_optional_layer_string() {
     let bad = json!({"version":1,"layer":3,"entities":[{"type":"circle","cx":0,"cy":0,"r":1}]});
     assert!(matches!(
         parse_tool_call("create_drawing", &bad),
-        Err(ToolCallError::DrawingRoot { .. })
+        Err(ToolCallError::Arg { .. })
     ));
 }
 

@@ -549,20 +549,25 @@ fn no_frame_or_view_parses_to_the_viewport() {
 /// naming its field.
 #[test]
 fn a_bad_frame_or_corner_is_refused_naming_the_field() {
-    let frame = "tool `capture_canvas` argument `frame` is invalid: \
-                 must be \"view\", \"drawing\" or \"region\"";
+    let frame = "capture_canvas frame: unknown frame; \
+                 expected \"view\", \"drawing\" or \"region\"";
     for bad in [json!("bed"), json!("VIEW"), json!(3), json!(true)] {
         assert_eq!(parse(json!({"frame": bad})), Err(frame.to_owned()), "{bad}");
     }
     let full = json!({"frame": "region", "x0": 0, "y0": 0, "x1": 10, "y1": 10});
     for field in ["x0", "y0", "x1", "y1"] {
-        for bad in [Value::Null, json!("inf"), json!("NaN"), json!([1])] {
+        for (bad, reason) in [
+            (Value::Null, "missing"),
+            (json!("inf"), "not a number"),
+            (json!("NaN"), "not a number"),
+            (json!([1]), "not a number"),
+        ] {
             let mut args = full.clone();
             args[field] = bad.clone();
             assert_eq!(
                 parse(args),
                 Err(format!(
-                    "tool `capture_canvas` missing required argument `{field}`"
+                    "capture_canvas {field}: {reason}; expected a number in mm"
                 )),
                 "{field} = {bad}"
             );
@@ -574,9 +579,10 @@ fn a_bad_frame_or_corner_is_refused_naming_the_field() {
     for name in ["view", "drawing"] {
         assert_eq!(
             parse(json!({"frame": name, "y1": 5})),
-            Err("tool `capture_canvas` argument `y1` is invalid: \
-                 only used with frame \"region\""
-                .to_owned()),
+            Err(format!(
+                "capture_canvas y1: given with frame \"{name}\"; \
+                 expected corners only with frame \"region\""
+            )),
             "{name}"
         );
     }

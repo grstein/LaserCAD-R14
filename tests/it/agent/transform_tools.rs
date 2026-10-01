@@ -274,10 +274,10 @@ fn with(base: &serde_json::Value, extra: serde_json::Value) -> serde_json::Value
 fn a_bad_indices_list_is_refused_naming_the_entry() {
     let too_many: Vec<usize> = (0..1001).collect();
     let cases = [
-        (json!({"indices": []}), vec!["`indices`", "empty"]),
+        (json!({"indices": []}), vec!["indices:", "empty"]),
         (
             json!({"indices": too_many}),
-            vec!["`indices`", "1001", "1000"],
+            vec!["indices:", "1001", "1000"],
         ),
         (
             json!({"indices": [0, 4, 2, 4]}),
@@ -295,7 +295,7 @@ fn a_bad_indices_list_is_refused_naming_the_entry() {
             json!({"indices": [0, "2"]}),
             vec!["indices[1]", "non-negative integer"],
         ),
-        (json!({"indices": 3}), vec!["`indices`", "list"]),
+        (json!({"indices": 3}), vec!["indices:", "list"]),
         (
             json!({"index": 0, "indices": [1]}),
             vec!["`index`", "`indices`", "not both"],
@@ -592,7 +592,7 @@ fn a_set_that_cannot_apply_to_every_entity_changes_nothing() {
         "scale_entity",
         &json!({"indices":[0, 1],"x":0,"y":0,"factor":-2}),
     );
-    assert!(bad.unwrap_err().to_string().contains("`factor`"));
+    assert!(bad.unwrap_err().to_string().contains("factor:"));
     let noop = [
         (
             "rotate_entity",

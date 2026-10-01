@@ -87,12 +87,10 @@ pub fn layer_arg(args: &Value) -> Result<Option<String>, String> {
     let Some(value) = args.get("layer") else {
         return Ok(None);
     };
-    let name = value.as_str().ok_or("must be a string")?;
+    let name = value.as_str().ok_or("not a string")?;
     let chars = name.chars().count();
     if chars == 0 || chars > MAX_LAYER_NAME_CHARS {
-        return Err(format!(
-            "must hold 1..={MAX_LAYER_NAME_CHARS} characters, got {chars}"
-        ));
+        return Err(format!("has {chars} characters"));
     }
     Ok(Some(name.to_owned()))
 }
@@ -233,7 +231,7 @@ fn item(index: usize, value: &Value) -> Result<DrawingItem, ToolCallError> {
 /// The reason of the shared radius check, without its scalar-tool framing.
 fn reason_of(e: ToolCallError) -> String {
     match e {
-        ToolCallError::InvalidArg { reason, .. } => reason,
+        ToolCallError::Arg { reason, .. } => reason,
         other => other.to_string(),
     }
 }
@@ -384,12 +382,12 @@ mod tests {
     fn a_zero_or_negative_radius_is_refused_with_the_scalar_wording() {
         assert_eq!(
             err(batch(json!([{"type": "circle", "cx": 0, "cy": 0, "r": 0}]))),
-            "create_drawing entities[0].r: 0 is not a positive finite number"
+            "create_drawing entities[0].r: 0 is out of range"
         );
         assert_eq!(
             err(batch(json!([{"type": "arc", "cx": 0, "cy": 0, "r": -3,
                 "start_deg": 0, "end_deg": 90, "ccw": true}]))),
-            "create_drawing entities[0].r: -3 is not a positive finite number"
+            "create_drawing entities[0].r: -3 is out of range"
         );
     }
 
@@ -400,7 +398,7 @@ mod tests {
             items[bad]["r"] = json!(-3);
             assert_eq!(
                 err(batch(Value::Array(items))),
-                format!("create_drawing entities[{bad}].r: -3 is not a positive finite number")
+                format!("create_drawing entities[{bad}].r: -3 is out of range")
             );
         }
     }

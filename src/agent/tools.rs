@@ -157,8 +157,8 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
         "capture_canvas" => Ok(AgentAction::CaptureCanvas(capture::parse(args)?)),
         "create_drawing" => Ok(AgentAction::CreateDrawing {
             items: drawing::parse(args)?,
-            layer: drawing::layer_arg(args).map_err(|reason| ToolCallError::DrawingRoot {
-                field: "layer".to_owned(), reason })?,
+            layer: drawing::layer_arg(args)
+                .map_err(|reason| ToolCallError::arg("create_drawing", "layer", reason))?,
         }),
         _ => Err(ToolCallError::UnknownTool(name.to_owned())),
     }
