@@ -34,7 +34,7 @@
       name clash gives `#ff0000 2` (files: tests/it/io_svg/color_layers.rs, tests/it/io_svg/mod.rs)
 - [x] T10 [AC8] [AC9] [AC10] `Slot`, `LayerReader::finish(slots)`, walk pushes slots, `STRAY_LAYER`
       removed (files: src/io/svg/layers.rs, src/io/svg/import/walk.rs, src/io/svg/import.rs)
-- [ ] T11 [AC12] Test: every `export_svg`/`export_layer_svg` output and the
+- [x] T11 [AC12] Test: every `export_svg`/`export_layer_svg` output and the
       `v03-mother-three-layers` seed reopen with identical layers, colors, output, current and
       memberships; a sheet rule `g{stroke:blue}` does not recolor a `<g data-layer>`
       (files: tests/it/io_svg/color_layers.rs)

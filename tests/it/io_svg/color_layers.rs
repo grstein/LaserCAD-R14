@@ -135,3 +135,96 @@ fn a_taken_hex_name_gets_a_counter() {
     assert_eq!(memberships(&imported), ["#ff0000 3"]);
     assert!(imported.clone().into_document().is_ok());
 }
+
+/// `Cut` + `Mark` (Output off, current) + an empty `Engrave`, entities
+/// interleaved, on a 300 × 180 bed.
+fn layered_doc() -> lasercad::document::Document {
+    use lasercad::document::{AddLayer, Command, Document, Entity, SetCurrentLayer};
+    use lasercad::geometry::{Arc, Circle, Line, Vec2};
+    let mut doc = Document::with_bed([300.0, 180.0]);
+    let cut = doc.current_layer();
+    let mut add = |name: &str, color, output| {
+        let mut cmd = AddLayer::new(name, color, output);
+        cmd.do_(&mut doc);
+        cmd.id().expect("allocated by do_")
+    };
+    let mark = add("Mark", [0, 0, 255], false);
+    add("Engrave", [0, 170, 0], true);
+    let line = Entity::Line(Line::new(Vec2::new(1.0, 2.0), Vec2::new(30.0, 40.0)));
+    doc.push_entity(line, cut);
+    let circle = Entity::Circle(Circle::new(Vec2::new(50.0, 50.0), 5.0));
+    doc.push_entity(circle, mark);
+    let arc = Entity::Arc(Arc::new(Vec2::new(150.0, 90.0), 10.0, 0.0, 2.0, true));
+    doc.push_entity(arc, cut);
+    SetCurrentLayer::new(mark).do_(&mut doc);
+    doc
+}
+
+/// AC 12 — the mother SVG and every per-layer file reopen with identical
+/// layers, colors, Output, current layer and memberships, report empty.
+#[test]
+fn lasercad_files_reopen_exactly() {
+    use lasercad::io::svg::{export_layer_svg, export_svg};
+    let doc = layered_doc();
+    let rows = |layers: &[Layer]| -> Vec<_> {
+        layers
+            .iter()
+            .map(|l| (l.name.clone(), l.color, l.output))
+            .collect()
+    };
+    let mother = export_svg(&doc);
+    let imported = import_svg(&mother).expect("imports");
+    assert_eq!(layers(&imported), rows(doc.layers()));
+    assert_eq!(imported.current_layer, doc.current_layer());
+    assert_eq!(memberships(&imported), ["Cut", "Cut", "Mark"]);
+    assert_eq!(imported.report, []);
+    let back = imported.into_document().expect("valid layers");
+    assert_eq!(export_svg(&back), mother, "re-save is byte-stable");
+    for layer in doc.layers() {
+        let one = import_svg(&export_layer_svg(&doc, layer.id)).expect("imports");
+        assert_eq!(
+            layers(&one),
+            rows(std::slice::from_ref(layer)),
+            "{}",
+            layer.name
+        );
+        let count = (0..doc.entity_count())
+            .filter(|&i| doc.entity_layer(i) == Some(layer.id))
+            .count();
+        assert_eq!(memberships(&one), vec![layer.name.clone(); count]);
+        assert_eq!(one.report, [], "{}", layer.name);
+    }
+}
+
+/// AC 12 — the `v03-mother-three-layers` corpus seed reopens as written.
+#[test]
+fn the_v03_mother_seed_reopens_exactly() {
+    let src = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/svg/v03-mother-three-layers.svg"
+    ));
+    let imported = import_svg(src).expect("imports");
+    let want = [
+        row("Cut", [255, 0, 0], true),
+        row("Fine mark", [0, 0, 255], true),
+        row("Guide", [0, 170, 0], false),
+    ];
+    assert_eq!(layers(&imported), want);
+    assert_eq!(imported.current_layer, imported.layers[1].id);
+    let want = ["Cut", "Cut", "Cut", "Fine mark", "Guide"];
+    assert_eq!(memberships(&imported), want);
+    assert_eq!(imported.report, []);
+}
+
+/// AC 12 — a sheet rule never recolors a `<g data-layer>`; its geometry
+/// stays on it.
+#[test]
+fn a_sheet_rule_does_not_recolor_a_layer_group() {
+    let body = format!(
+        r##"<style>g{{stroke:blue}} *{{stroke:lime}}</style><g data-layer="A" stroke="#ff0000">{}</g>"##,
+        line("")
+    );
+    let imported = import(&body);
+    assert_eq!(layers(&imported), [row("A", [255, 0, 0], true)]);
+    assert_eq!(memberships(&imported), ["A"]);
+}
