@@ -39,7 +39,7 @@
 - [x] T14 [AC12] Test: two `<use>` of one `<line>` give two entities with distinct ids;
       committing `MoveEntities` on one leaves the other's geometry bit-identical
       (files: tests/it/io_svg/reuse.rs)
-- [ ] T15 [AC1] [AC3] [AC10] Corpus pairs `inkscape-clones` and `icon-symbols` with hand-written
+- [x] T15 [AC1] [AC3] [AC10] Corpus pairs `inkscape-clones` and `icon-symbols` with hand-written
       `.expected` (files: tests/fixtures/svg/)
 - [ ] T16 Coverage §3 `<use>`/`<switch>` rows → ✅; CHANGELOG line (files:
       docs/research/svg-spec-coverage.md, CHANGELOG.md)
