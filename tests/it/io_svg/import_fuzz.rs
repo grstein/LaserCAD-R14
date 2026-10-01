@@ -122,8 +122,27 @@ fn path_svg(d: &str) -> String {
 fn transform_token() -> impl Strategy<Value = String> {
     prop_oneof![
         prop::sample::select(vec![
-            "matrix", "translate", "scale", "rotate", "skewX", "skewY", "(", ")", " ", ",", "-",
-            ".", "e", "0", "1", "90", "1e308", "1e999", "NaN", "inf", "x",
+            "matrix",
+            "translate",
+            "scale",
+            "rotate",
+            "skewX",
+            "skewY",
+            "(",
+            ")",
+            " ",
+            ",",
+            "-",
+            ".",
+            "e",
+            "0",
+            "1",
+            "90",
+            "1e308",
+            "1e999",
+            "NaN",
+            "inf",
+            "x",
         ])
         .prop_map(str::to_owned),
         any::<f64>().prop_map(|v| v.to_string()),
@@ -150,7 +169,11 @@ fn transform_svg(t: &str) -> String {
 /// `width`/`height`, and on a nested `<svg>`.
 fn view_box_svg(vb: &str, par: &str, sized: bool) -> String {
     let (vb, par) = (attr(vb), attr(par));
-    let size = if sized { r#" width="100mm" height="50mm""# } else { "" };
+    let size = if sized {
+        r#" width="100mm" height="50mm""#
+    } else {
+        ""
+    };
     format!(
         r#"<svg xmlns="http://www.w3.org/2000/svg"{size} viewBox="{vb}" preserveAspectRatio="{par}"><circle cx="5" cy="5" r="2"/><svg x="10%" viewBox="{vb}" preserveAspectRatio="{par}"><line x1="0" y1="0" x2="3" y2="4"/></svg></svg>"#
     )
