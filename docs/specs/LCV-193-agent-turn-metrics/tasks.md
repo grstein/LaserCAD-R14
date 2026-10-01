@@ -15,4 +15,4 @@
 - [x] T13 [AC3] Test: scripted turn, stub `send_fn` over `drive_turn` with `ask = answer_act` on an `arm_turn`ed `App` (both canvas opt-ins on): create_line, a refused delete, the same delete again (repeated), capture_canvas, final text → `tally` equals `{steps 4, applied 1, refused 2, repeated 1, captures 1, replies 3}` and, after `Done` + one poll, the last row is the matching note (files: src/app/agent_worker/tests.rs)
 - [ ] T14 Mutation testing on the changed lines; add tests for missed mutants (files: tests as needed)
 - [x] T15 Amend ADR 0007 (11): §D11 metrics note on every exit, §D13 `Replied` non-step rendezvous, §D8 `metrics.rs` row; ADR 0011 item 10 `captures` (files: docs/adr/0007-agent-turn-mutates-the-live-document.md, docs/adr/0011-canvas-observation-is-an-offscreen-raster.md)
-- [ ] T16 CHANGELOG line (files: CHANGELOG.md)
+- [x] T16 CHANGELOG line (files: CHANGELOG.md)
