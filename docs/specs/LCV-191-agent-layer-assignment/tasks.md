@@ -12,5 +12,5 @@ Starts after LCV-186 and LCV-192 are Done (shared: `tools.rs`, `tools/transform.
 - [x] T7 [AC1] Test: one `set_layer` call over 5 entities costs one step (steps-left line) (files: src/app/agent_worker/tests.rs)
 - [x] T8 [AC6] Prompt: `set_layer {indices, layer}` paragraph; LAYERS section says `set_layer` moves entities and still no tool creates, renames or deletes layers; `default_prompt.rs` stays green (files: src/agent/prompt.rs, tests/it/agent/default_prompt.rs, tests/it/agent/system_prompt.rs)
 - [ ] T9 Mutation testing: `MUTANTS_TARGET_DIR=/tmp/mutants-agent scripts/mutants.sh <base>`; one test per survivor (files: tests as needed)
-- [ ] T10 ADR 0012 §6 amendment: `set_layer` moves entities onto an existing layer (files: docs/adr/0012-*.md)
+- [x] T10 ADR 0012 §6 amendment: `set_layer` moves entities onto an existing layer (files: docs/adr/0012-*.md)
 - [ ] T11 CHANGELOG line (files: CHANGELOG.md)
