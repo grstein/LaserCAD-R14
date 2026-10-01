@@ -10,6 +10,8 @@
 
 use lasercad::agent::{AgentAction, AgentError, AgentEvent, AgentOutcome};
 use lasercad::app::{App, arm_turn, config_for, poll_agent_rx, run_agent_turn};
+use lasercad::document::CreateLine;
+use lasercad::geometry::{Line, Vec2};
 use serde_json::json;
 use std::sync::mpsc::channel;
 
@@ -167,4 +169,70 @@ fn a_create_then_text_is_reminded_once_and_ends_with_the_second_answer() {
         .map(|(_, text)| text.as_str())
         .collect();
     assert_eq!(assistant, ["Drew a line. Length 10 mm: pass."]);
+}
+
+/// Run `replies` as a turn whose app gets `setup` first; assert every reply
+/// was requested once, the turn ended with `want` and wrote no reminder note.
+fn unreminded(
+    replies: &[String],
+    setup: impl FnOnce(&mut App),
+    before: impl FnMut(&mut App, &AgentAction),
+    want: &str,
+) {
+    let replies: Vec<&str> = replies.iter().map(String::as_str).collect();
+    let mut turn = Turn::new(&replies, None);
+    setup(&mut turn.app);
+    let (result, rows) = turn.run(before);
+    turn.assert_all_sent();
+    assert_eq!(result.as_deref(), Ok(want));
+    assert!(!notes(&rows).contains(&NOTE), "{rows:?}");
+}
+
+/// AC 7 — a query-only turn is never reminded.
+#[test]
+fn a_query_only_turn_is_not_reminded() {
+    let replies = [calls(&[("query_entities", "{}")]), text("Empty.")];
+    unreminded(&replies, |_| {}, |_, _| {}, "Empty.");
+}
+
+/// AC 3 — a `create_line` followed by `check_drawing` already verified.
+#[test]
+fn a_create_then_check_drawing_is_not_reminded() {
+    let replies = [
+        calls(&[("create_line", LINE)]),
+        calls(&[("check_drawing", "{}")]),
+        text("Drew a line; check: pass."),
+    ];
+    unreminded(&replies, |_| {}, |_, _| {}, "Drew a line; check: pass.");
+}
+
+/// AC 6 — a turn the fence stopped after it applied a line ends with its
+/// last word, unreminded.
+#[test]
+fn a_fenced_turn_is_not_reminded() {
+    let replies = [
+        calls(&[("create_line", LINE)]),
+        calls(&[("create_line", LINE)]),
+        text("Stopped after one line."),
+    ];
+    let mut creates = 0;
+    let foreign = |app: &mut App, action: &AgentAction| {
+        if matches!(action, AgentAction::CreateLine { .. }) {
+            creates += 1;
+            if creates == 2 {
+                let line = Line::new(Vec2::new(0.0, 50.0), Vec2::new(5.0, 50.0));
+                app.commit(Box::new(CreateLine::new(line)));
+            }
+        }
+    };
+    unreminded(&replies, |_| {}, foreign, "Stopped after one line.");
+}
+
+/// AC 6 — a step budget of 1 spent on the create leaves no step for the
+/// reminder.
+#[test]
+fn a_spent_step_budget_is_not_reminded() {
+    let replies = [calls(&[("create_line", LINE)]), text("Drew a line.")];
+    let budget = |app: &mut App| app.settings.agent_step_budget = 1;
+    unreminded(&replies, budget, |_, _| {}, "Drew a line.");
 }

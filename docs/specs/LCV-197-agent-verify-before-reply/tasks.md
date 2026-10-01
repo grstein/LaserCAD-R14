@@ -43,7 +43,7 @@ do LCV-195 T1 (the `loop_/batch.rs` seam) as T0 here.
   - The final reply comes from the second answer.
 
   (files: tests/it/agent/verify_before_reply.rs, tests/it/agent/mod.rs)
-- [ ] T8 [AC6][AC7] Test (scripted turn):
+- [x] T8 [AC6][AC7] Test (scripted turn):
   - A query-only turn → no reminder.
   - A turn whose `create_line` is followed by `check_drawing` → no reminder.
   - A fenced turn → no reminder.
