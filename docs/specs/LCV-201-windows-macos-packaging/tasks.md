@@ -30,9 +30,14 @@
 - [x] T13 [AC8] `docs/build-local.md` "Windows cross-check" section; run
       `cargo check --release --target x86_64-pc-windows-gnu` if the target installs and fix any
       `cfg(windows)` warnings (files: docs/build-local.md)
-- [ ] T14 [AC9] Make path-string source scans separator-agnostic (`replace('\\', "/")`); any test
+- [x] T14 [AC9] Make path-string source scans separator-agnostic (`replace('\\', "/")`); any test
       that cannot run headless on Windows/macOS gets `cfg_attr(…, ignore = "<reason>")`
       (files: tests/it/agent/canvas_capture.rs, tests/it/repo/*.rs as found)
+      Sweep result: every compared path already rebuilds from `components()` joined with `/`
+      (`tests/harness/scan.rs` rule 4), so no scan changed and no test needed `ignore`;
+      `cargo clippy --all-targets --target x86_64-pc-windows-gnu -- -D warnings` is clean. Found
+      instead: `release.sh` expanded empty arrays under `set -u`, which macOS's bash 3.2 rejects
+      (the macOS leg runs the `--list-assets` test); fixed in `scripts/release.sh`.
 - [ ] T15 CHANGELOG line: Windows `.zip` and macOS `.dmg` (unsigned, see install guide) (files: CHANGELOG.md)
 - [ ] T16 [AC4] [AC9] After merge and with CI minutes available: one green `workflow_dispatch`
       run on all three OSes with `package-windows`/`package-macos` artifacts; record the run URL

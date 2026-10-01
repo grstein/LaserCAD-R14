@@ -44,6 +44,8 @@ fail()  { printf '\033[1;31m[FAIL]\033[0m  %s\n' "$*" >&2; exit 1; }
 # ---------------------------------------------------------------------------
 # Release assets — one list shared by --list-assets and the real run.
 # ASSETS: files that exist; MISSING_REQUIRED / MISSING_OPTIONAL: absent ones.
+# `${A[@]+"${A[@]}"}` expands an empty array safely under `set -u` on bash < 4.4
+# (macOS ships bash 3.2, and the macOS CI leg runs --list-assets).
 # ---------------------------------------------------------------------------
 ASSETS=()
 MISSING_REQUIRED=()
@@ -62,8 +64,8 @@ for optional in "dist/lasercad-${VERSION}-windows-x86_64.zip" "dist/lasercad-${V
 done
 
 if (( LIST_ONLY )); then
-    for a in "${ASSETS[@]}"; do printf '%s\n' "${a}"; done
-    for m in "${MISSING_REQUIRED[@]}" "${MISSING_OPTIONAL[@]}"; do printf 'missing: %s\n' "${m}"; done
+    for a in ${ASSETS[@]+"${ASSETS[@]}"}; do printf '%s\n' "${a}"; done
+    for m in ${MISSING_REQUIRED[@]+"${MISSING_REQUIRED[@]}"} ${MISSING_OPTIONAL[@]+"${MISSING_OPTIONAL[@]}"}; do printf 'missing: %s\n' "${m}"; done
     exit 0
 fi
 
@@ -88,7 +90,7 @@ ok "gh CLI found: $(gh --version | head -1)."
 if (( ${#MISSING_REQUIRED[@]} > 0 )); then
     fail "Required artifact(s) missing: ${MISSING_REQUIRED[*]}. Run scripts/build-appimage.sh and scripts/build-deb.sh first."
 fi
-for m in "${MISSING_OPTIONAL[@]}"; do
+for m in ${MISSING_OPTIONAL[@]+"${MISSING_OPTIONAL[@]}"}; do
     printf 'missing: %s\n' "${m}" >&2
 done
 ok "Assets: ${ASSETS[*]}"
