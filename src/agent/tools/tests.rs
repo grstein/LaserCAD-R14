@@ -367,3 +367,39 @@
             assert!(hit.is_none(), "tools.rs must not name `{forbidden}` in code: {hit:?}");
         }
     }
+
+    // ── LCV-192 AC 1: every argument refusal has one shape ───────────────────
+
+    /// LCV-192 AC 1 — `<tool> <field>: <reason>; expected <form>`, pinned
+    /// exactly: absent, wrong type and out of domain are distinct reasons.
+    #[test]
+    fn scalar_refusals_name_tool_field_reason_and_form() {
+        let mm_r = "expected a positive number in mm";
+        let index = "expected a non-negative integer (an index from query_entities)";
+        let layer = "expected the name of an existing layer, 1 to 64 characters";
+        let cases = [
+            ("create_circle", json!({"cx":0,"cy":0}), format!("create_circle r: missing; {mm_r}")),
+            ("create_circle", json!({"cx":0,"cy":0,"r":"5"}),
+                format!("create_circle r: not a number; {mm_r}")),
+            ("create_circle", json!({"cx":0,"cy":0,"r":-3}),
+                format!("create_circle r: -3 is out of range; {mm_r}")),
+            ("scale_entity", json!({"index":0,"x":0,"y":0,"factor":0}),
+                "scale_entity factor: 0 is out of range; expected a positive number".to_owned()),
+            ("delete_entity", json!({"index":-1}), format!("delete_entity index: -1 is not an index; {index}")),
+            ("delete_entity", json!({"index":1.5}), format!("delete_entity index: 1.5 is not an index; {index}")),
+            ("delete_entity", json!({"index":"2"}), format!("delete_entity index: not a number; {index}")),
+            ("create_line", json!({"x1":0,"y1":0,"x2":1,"y2":1,"layer":"x".repeat(65)}),
+                format!("create_line layer: has 65 characters; {layer}")),
+            ("create_line", json!({"x1":0,"y1":0,"x2":1,"y2":1,"layer":5}),
+                format!("create_line layer: not a string; {layer}")),
+            ("create_line", json!({"x1":0,"y1":0,"y2":1}),
+                "create_line x2: missing; expected a number in mm".to_owned()),
+            ("create_arc", json!({"cx":0,"cy":0,"r":1,"start_deg":0,"end_deg":9,"ccw":"yes"}),
+                "create_arc ccw: not a boolean; expected true or false".to_owned()),
+            ("rotate_entity", json!({"index":0,"x":0,"y":0}),
+                "rotate_entity degrees: missing; expected a number in degrees".to_owned()),
+        ];
+        for (tool, args, want) in cases {
+            assert_eq!(err(tool, args.clone()).to_string(), want, "{tool} {args}");
+        }
+    }
