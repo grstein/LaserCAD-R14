@@ -1,8 +1,8 @@
 # LCV-176 — Ellipse and elliptical-arc entities
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: LCV-172, LCV-173
-- **Implementation**: -
+- **Implementation**: 880b7c1..e0e25c0
 
 ## Problem
 
