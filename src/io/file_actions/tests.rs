@@ -305,11 +305,42 @@ fn both_save_paths_export_the_mother_svg() {
         ),
         ("pub fn action_save_as(app: &mut App)", "\n// Save helpers"),
     ] {
+        let action = body(start_marker, end_marker);
+        let write_at = action
+            .find("write_mother(app, &path)")
+            .unwrap_or_else(|| panic!("{start_marker} must write through write_mother"));
+        let announce_at = action
+            .find("announce_saved(app, &path)")
+            .unwrap_or_else(|| panic!("{start_marker} must announce the save (LCV-168 AC 1)"));
         assert!(
-            body(start_marker, end_marker).contains("write_mother(app, &path)"),
-            "{start_marker} must write through write_mother"
+            write_at < announce_at,
+            "{start_marker} must announce only after the write"
         );
     }
+}
+
+/// LCV-168 AC 1 — the Save As success path past its (disarmed, ADR 0005)
+/// dialog: `write_mother` then `announce_saved` write the file and give the
+/// Info line with the file name and bed.
+#[test]
+fn save_as_success_path_writes_and_announces_info() {
+    let dir = tempdir("lcv168_save_as_info");
+    let mut app = App {
+        document: Document::with_bed([600.0, 297.5]),
+        ..app_with_tempdir(&dir)
+    };
+    let path = dir.join("part.svg");
+
+    assert!(write_mother(&mut app, &path), "the write must succeed");
+    announce_saved(&mut app, &path);
+
+    assert_eq!(
+        fs::read_to_string(&path).unwrap(),
+        export_svg(&app.document)
+    );
+    assert_eq!(app.command_feedback, "Saved part.svg (600 × 297.5 mm)");
+    assert_eq!(app.command_feedback_severity, Severity::Info);
+    assert_eq!(app.error_message, None);
 }
 
 /// AC 3 — action_new clears current_file.

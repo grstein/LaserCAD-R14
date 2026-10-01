@@ -11,7 +11,7 @@
 - [x] T4 [AC1] Extract `write_mother`; add `announce_saved` + `outside_bed_phrase`; call it on
   Save and Save As success; update any Save test that expected empty feedback (files:
   src/io/file_actions.rs, src/io/file_actions/tests.rs)
-- [ ] T5 [AC1] Test: Save As success path — `write_mother` then `announce_saved` on a tempdir
+- [x] T5 [AC1] Test: Save As success path — `write_mother` then `announce_saved` on a tempdir
   path gives the Info line; the source-scan test pins that both actions call both helpers
   (files: src/io/file_actions/tests.rs)
 - [ ] T6 [AC2] Test: Save with one and with two out-of-bed entities → Warning with
