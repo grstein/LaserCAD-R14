@@ -1,6 +1,6 @@
 # LCV-172 — Tasks
 
-- [ ] T1 [AC1] Test (unit, `lexer.rs`): `M1-2.5.5` → `M`, 1, −2.5, 0.5; commas and whitespace in
+- [x] T1 [AC1] Test (unit, `lexer.rs`): `M1-2.5.5` → `M`, 1, −2.5, 0.5; commas and whitespace in
       any mix; `1e3`, `-1.5E-2`, `.5`, `+2`; flags `1110` → 1, 1, then number 10; errors on `.`,
       `1e`, `-`, `2` as a flag, and `1e999` (non-finite) (files: src/io/svg/path_data/lexer.rs)
 - [ ] T2 [AC1] Lexer: cursor, `command()`, `number()`, `flag()`, separator skipping (files:

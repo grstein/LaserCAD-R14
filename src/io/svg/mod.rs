@@ -10,6 +10,7 @@ pub mod export;
 pub mod header;
 pub mod import;
 mod layers;
+mod path_data;
 
 pub use export::{export_layer_svg, export_svg};
 pub use import::{ImportedSvg, SvgImportError, import_svg};
