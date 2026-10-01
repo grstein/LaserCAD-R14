@@ -40,3 +40,14 @@ fn text_outlines_export_as_lines_and_curves() {
     assert_eq!(again.entities.len(), count);
     assert!(again.report.is_empty(), "{:?}", again.report);
 }
+
+/// AC 12 — the same file through two fresh font books imports identical
+/// entities on identical layers.
+#[test]
+fn the_same_file_and_fonts_import_identically() {
+    let (a, b) = (imported(), imported());
+    assert!(!a.entities.is_empty());
+    assert_eq!(a.entities, b.entities);
+    assert_eq!(a.entity_layers, b.entity_layers);
+    assert_eq!(a.layers, b.layers);
+}

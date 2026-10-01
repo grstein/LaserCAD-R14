@@ -39,7 +39,7 @@
 - [x] T13 [AC11] Test first: import a text fixture with the bundled font, export, assert no
   `<text`, `Q`/`C`/`L` path data present and a reimport yields the same entity count
   (files: `tests/it/io_svg/text.rs`, `tests/fixtures/svg/text-outlines.svg`)
-- [ ] T14 [AC12] Test first: the same file through two fresh `FontBook::from_files` imports
+- [x] T14 [AC12] Test first: the same file through two fresh `FontBook::from_files` imports
   identical entities (`==` on the vectors) (files: `tests/it/io_svg/text.rs`)
 - [ ] T15 Mutation run on `src/text/{fonts,outline}.rs` and `import/text.rs`; kill or justify
   survivors in the review notes (files: tests above as needed)
