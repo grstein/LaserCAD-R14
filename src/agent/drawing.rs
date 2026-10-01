@@ -133,11 +133,11 @@ pub fn parse(args: &Value) -> Result<Vec<DrawingItem>, ToolCallError> {
     if entities.is_empty() || entities.len() > MAX_DRAWING_ENTITIES {
         return Err(root("entities", &format!("has {} items", entities.len())));
     }
-    let shapes = entities
-        .iter()
-        .enumerate()
-        .map(|(i, v)| items::item(i, v))
-        .collect::<Result<Vec<_>, _>>()?;
+    let mut shapes = Vec::with_capacity(entities.len());
+    for (i, value) in entities.iter().enumerate() {
+        let shape = items::item(i, value, &shapes)?;
+        shapes.push(shape);
+    }
     expand::expand(&shapes)
 }
 

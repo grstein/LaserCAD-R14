@@ -40,7 +40,7 @@ Prerequisites: LCV-185, LCV-192 Done; LCV-188 Done (the outcome's `New ids` suff
   - text of spaces only → refused at `entities`.
 
   (files: src/agent/drawing/tests.rs)
-- [ ] T6 [AC5][AC6][AC7][AC8] Arrays in `expand.rs`: output ranges, the `of` closure, the depth
+- [x] T6 [AC5][AC6][AC7][AC8] Arrays in `expand.rs`: output ranges, the `of` closure, the depth
   check, the count before allocation, and the copies via `Transform::Rotate`
   (files: src/agent/drawing/expand.rs, src/agent/drawing/items.rs)
 - [ ] T7 [AC9] Test (headless turn): a batch mixing `rect` and `polar_array` is one step, one undo

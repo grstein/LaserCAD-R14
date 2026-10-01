@@ -6,37 +6,148 @@
 
 use core::f64::consts::{FRAC_PI_2, TAU};
 
-use super::items::Shape;
+use core::ops::Range;
+
+use super::items::{Shape, Step};
 use super::{DrawingItem, MAX_DRAWING_ENTITIES, arg};
 use crate::agent::tools::ToolCallError;
-use crate::geometry::{EPSILON, Vec2};
+use crate::geometry::{EPSILON, Transform, Vec2};
 use crate::text::layout::{DEFAULT_SPACING_FACTOR, text_strokes};
 
-/// The batch's items in batch order, each shape expanded in place.
+/// The batch's items in batch order, each shape expanded in place; an
+/// array appends `count − 1` copies of its sources' output after its own
+/// position, copy by copy.
 ///
 /// # Errors
 ///
 /// At `entities` when the expansion has no item or more than
-/// [`MAX_DRAWING_ENTITIES`].
+/// [`MAX_DRAWING_ENTITIES`]; the count is known before any copy is built.
 pub(super) fn expand(shapes: &[Shape]) -> Result<Vec<DrawingItem>, ToolCallError> {
-    let total = shapes
-        .iter()
-        .fold(0usize, |sum, s| sum.saturating_add(base(s).len()));
+    let total = lens(shapes).into_iter().fold(0usize, usize::saturating_add);
     if total == 0 || total > MAX_DRAWING_ENTITIES {
         let form = "items that expand to 1 to 1000 entities";
         let reason = format!("expands to {total} entities");
         return Err(arg("entities".to_owned(), &reason, form));
     }
-    let mut out = Vec::with_capacity(total);
+    let mut out: Vec<DrawingItem> = Vec::with_capacity(total);
+    let mut ranges: Vec<Range<usize>> = Vec::with_capacity(shapes.len());
     for shape in shapes {
-        out.extend(base(shape));
+        let start = out.len();
+        if let Shape::Array { of, count, step } = shape {
+            let sources: Vec<usize> = sources(of, shapes)
+                .into_iter()
+                .flat_map(|j| ranges[j].clone())
+                .collect();
+            for k in 1..*count {
+                for &i in &sources {
+                    out.push(place(&out[i], *step, k as f64));
+                }
+            }
+        } else {
+            out.extend(base(shape));
+        }
+        ranges.push(start..out.len());
     }
     Ok(out)
 }
 
-/// The items of one shape.
+/// How many items each shape expands to, saturating; built from the shapes
+/// alone, so a huge array costs one number.
+fn lens(shapes: &[Shape]) -> Vec<usize> {
+    let mut lens: Vec<usize> = Vec::with_capacity(shapes.len());
+    for shape in shapes {
+        let n = match shape {
+            Shape::Array { of, count, .. } => sources(of, shapes)
+                .into_iter()
+                .fold(0usize, |sum, j| sum.saturating_add(lens[j]))
+                .saturating_mul(count - 1),
+            _ => base(shape).len(),
+        };
+        lens.push(n);
+    }
+    lens
+}
+
+/// The items an array copies, in batch order: those it lists plus, for each
+/// listed array, the items that one lists (its whole output).
+fn sources(of: &[usize], shapes: &[Shape]) -> Vec<usize> {
+    let mut all = of.to_vec();
+    for &j in of {
+        if let Shape::Array { of: inner, .. } = &shapes[j] {
+            all.extend(inner);
+        }
+    }
+    all.sort_unstable();
+    all.dedup();
+    all
+}
+
+/// Copy `k` of `item`: moved by k · offset, or turned by k · angle about the
+/// centre through `Transform::Rotate`, arc angles turning with it.
+fn place(item: &DrawingItem, step: Step, k: f64) -> DrawingItem {
+    let (map, turn) = match step {
+        Step::Linear(offset) => (Placement::Move(offset * k), 0.0),
+        Step::Polar { center, angle } => {
+            let turn = angle * k;
+            let rotate = Transform::Rotate {
+                base: center,
+                angle: turn,
+            };
+            (Placement::Turn(rotate), turn)
+        }
+    };
+    let at = |x: f64, y: f64| map.point(Vec2::new(x, y));
+    match *item {
+        DrawingItem::Line { x1, y1, x2, y2 } => line(at(x1, y1), at(x2, y2)),
+        DrawingItem::Circle { cx, cy, r } => {
+            let c = at(cx, cy);
+            DrawingItem::Circle {
+                cx: c.x,
+                cy: c.y,
+                r,
+            }
+        }
+        DrawingItem::Arc {
+            cx,
+            cy,
+            r,
+            start,
+            end,
+            ccw,
+        } => {
+            let c = at(cx, cy);
+            DrawingItem::Arc {
+                cx: c.x,
+                cy: c.y,
+                r,
+                start: start + turn,
+                end: end + turn,
+                ccw,
+            }
+        }
+    }
+}
+
+/// A copy's point map: a translation, or a kernel rotation.
+enum Placement {
+    Move(Vec2),
+    Turn(Transform),
+}
+
+impl Placement {
+    fn point(&self, p: Vec2) -> Vec2 {
+        match self {
+            Placement::Move(offset) => p + *offset,
+            Placement::Turn(t) => t.point(p),
+        }
+    }
+}
+
+/// The items of one non-array shape; an array has none of its own, its
+/// copies come from the earlier output (see [`expand`]).
 fn base(shape: &Shape) -> Vec<DrawingItem> {
     match shape {
+        Shape::Array { .. } => Vec::new(),
         Shape::Item(item) => vec![item.clone()],
         Shape::Polyline { points, closed } => {
             let close = closed.then(|| (points[points.len() - 1], points[0]));

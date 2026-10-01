@@ -11,6 +11,9 @@ use super::{DrawingItem, MAX_DRAWING_ENTITIES, TOOL, arg, cut};
 use crate::agent::tools::{ToolCallError, expected_form, validate_r};
 use crate::geometry::{EPSILON, Vec2};
 
+mod array;
+pub(super) use array::Step;
+
 /// Longest `text` an item may carry, in characters.
 const MAX_TEXT_CHARS: usize = 256;
 
@@ -41,11 +44,17 @@ pub(super) enum Shape {
         height: f64,
         text: String,
     },
+    /// `count − 1` copies of the output of the earlier items `of`.
+    Array {
+        of: Vec<usize>,
+        count: usize,
+        step: Step,
+    },
 }
 
 /// One entity: an object, a known `type`, that type's keys (another type's
-/// key only as `null`), then its values.
-pub(super) fn item(index: usize, value: &Value) -> Result<Shape, ToolCallError> {
+/// key only as `null`), then its values; `earlier` are the shapes before it.
+pub(super) fn item(index: usize, value: &Value, earlier: &[Shape]) -> Result<Shape, ToolCallError> {
     let obj = value.as_object().ok_or_else(|| {
         let form = "an object with a type and that type's keys";
         arg(format!("entities[{index}]"), "not an object", form)
@@ -90,7 +99,7 @@ pub(super) fn item(index: usize, value: &Value) -> Result<Shape, ToolCallError> 
             height: f.positive("height")?,
             text: text(&f)?,
         },
-        _ => return Err(f.fail("type", "unknown type")),
+        name => array::array(&f, name == "polar_array", earlier)?,
     })
 }
 
