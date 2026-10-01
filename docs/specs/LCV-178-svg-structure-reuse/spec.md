@@ -36,6 +36,9 @@ instead of the first whose conditions pass. SVG 2 ch. 5 defines the shadow-tree 
 9. IF `<use>` nesting exceeds depth 32 or expansion would create more than 100 000 entities, THEN
    THE SYSTEM SHALL refuse the file with an error naming the limit and leave the open document
    unchanged.
+   *Amended by the LCV-178 review fix:* the limit counts instanced elements: every `<use>`
+   expansion and every entity it creates, so a fan-out that draws nothing is bounded too; more
+   than 100 000 instanced elements refuse the file.
 10. WHEN a `<switch>` is imported, THE SYSTEM SHALL import only its first direct child whose
     conditions pass and count the others in the import report.
 11. WHEN evaluating conditions on any element, THE SYSTEM SHALL fail a non-empty
