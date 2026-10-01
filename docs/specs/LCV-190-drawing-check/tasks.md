@@ -38,7 +38,7 @@ Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/
   tests/it/ui/mod.rs)
 - [x] T14 [AC1] `ui/check_dialog.rs::check_dialog` and its `draw_dialogs` call (files:
   src/ui/check_dialog.rs, src/ui/mod.rs, src/app/panels.rs)
-- [ ] T15 [AC1] Test (paint harness): the rail paints a CHECK icon button beside `AI`, tooltip
+- [x] T15 [AC1] Test (paint harness): the rail paints a CHECK icon button beside `AI`, tooltip
   `Check — CHECK`; clicking it runs the check (files: tests/it/ui/icon_tool_rail.rs)
 - [ ] T16 [AC1] `check` glyph and the rail button (files: src/ui/icons/modify.rs, src/ui/toolbar.rs)
 - [ ] T17 [AC9] Test: `check_drawing` parses to `CheckDrawing` whatever its arguments; the tool list
