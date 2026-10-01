@@ -3,6 +3,7 @@
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
+use super::length::{parse_length, to_user};
 use super::matrix::Matrix;
 
 /// What the import walk knows at one element.
@@ -97,6 +98,38 @@ pub(super) fn view_box_map(vb: [f64; 4], rect: [f64; 4], par: Par) -> Matrix {
         d: sy,
         e: tx,
         f: ty,
+    }
+}
+
+/// The context inside a nested `<svg>` (LCV-173 AC 9), given `ctx` (its
+/// parent's, with its own `transform` already composed): its `viewBox`
+/// mapped per `preserveAspectRatio` onto `x y width height`, or a plain
+/// translation by `x y` without one. `x`, `y` default to 0 and `width`,
+/// `height` to 100%; `%` refers to the parent viewport; an invalid length or
+/// viewBox counts as absent. Nothing is clipped.
+pub(super) fn nested(node: roxmltree::Node<'_, '_>, ctx: &Ctx) -> Ctx {
+    let [pw, ph] = ctx.viewport;
+    let len = |attr: &str, reference: f64, default: f64| {
+        node.attribute(attr)
+            .and_then(parse_length)
+            .map_or(default, |l| to_user(l, reference))
+    };
+    let rect = [
+        len("x", pw, 0.0),
+        len("y", ph, 0.0),
+        len("width", pw, pw),
+        len("height", ph, ph),
+    ];
+    let (map, viewport) = match node.attribute("viewBox").and_then(parse_view_box) {
+        Some(vb) => {
+            let par = par(node.attribute("preserveAspectRatio"));
+            (view_box_map(vb, rect, par), [vb[2], vb[3]])
+        }
+        None => (Matrix::translate(rect[0], rect[1]), [rect[2], rect[3]]),
+    };
+    Ctx {
+        ctm: map.then(ctx.ctm),
+        viewport,
     }
 }
 

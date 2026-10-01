@@ -504,7 +504,8 @@ fn entry(label: &str, count: usize) -> (String, usize) {
 }
 
 /// AC 2 — `a` and a nested `svg` are descended into; the prefixed SVG
-/// namespace is the SVG namespace.
+/// namespace is the SVG namespace. A nested `svg` is reported as not
+/// clipped (LCV-173 AC 9).
 #[test]
 fn a_and_nested_svg_are_descended_into() {
     for inner in [
@@ -516,7 +517,12 @@ fn a_and_nested_svg_are_descended_into() {
     ] {
         let imported = import_svg(&svg(&inner)).unwrap();
         assert_eq!(imported.entities.len(), 1, "{inner}");
-        assert!(imported.report.is_empty(), "{inner}");
+        let nested = usize::from(inner.contains("<svg>"));
+        let want: Vec<_> = (nested > 0)
+            .then(|| entry("svg (not clipped)", nested))
+            .into_iter()
+            .collect();
+        assert_eq!(imported.report, want, "{inner}");
     }
 }
 
@@ -637,7 +643,11 @@ fn unapplied_properties_are_reported_on_imported_and_descended_elements() {
                 let src = svg(&host.replace("{p}", &form));
                 let imported = import_svg(&src).unwrap();
                 assert_eq!(imported.entities.len(), count, "{src}");
-                assert_eq!(imported.report, [entry(prop, 1)], "{src}");
+                let mut want = vec![entry(prop, 1)];
+                if host.starts_with("<svg") {
+                    want.push(entry("svg (not clipped)", 1));
+                }
+                assert_eq!(imported.report, want, "{src}");
             }
         }
     }

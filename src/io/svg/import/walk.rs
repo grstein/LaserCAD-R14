@@ -12,7 +12,7 @@ use crate::document::entity::Entity;
 use crate::io::svg::layers::{LayerReader, STRAY_LAYER};
 use crate::io::svg::matrix::parse_transform;
 use crate::io::svg::path_data::parse_path_data;
-use crate::io::svg::viewport::Ctx;
+use crate::io::svg::viewport::{Ctx, nested};
 
 /// The report label of a `<path>` with no `d` (LCV-171 AC 6).
 const UNSUPPORTED_PATH: &str = "path (unsupported data)";
@@ -28,6 +28,10 @@ const SINGULAR_TRANSFORM: &str = "transform (singular)";
 
 /// The report label of a circle under a non-similarity map (LCV-173 AC 7).
 const NON_UNIFORM_CIRCLE: &str = "circle (non-uniform transform)";
+
+/// The report label of a nested `<svg>`, imported without clipping
+/// (LCV-173 AC 9).
+const UNCLIPPED_SVG: &str = "svg (not clipped)";
 
 /// What the walk does with one element (the table in [`super`]'s docs).
 enum Kind {
@@ -96,6 +100,10 @@ impl Walk {
             if matches!(kind, Kind::Import | Kind::Descend) {
                 self.report.note_properties(child);
                 inner_ctx = self.local(child, ctx);
+            }
+            if matches!(kind, Kind::Descend) && name == "svg" {
+                inner_ctx = inner_ctx.map(|c| nested(child, &c));
+                self.report.note(UNCLIPPED_SVG);
             }
             let entity = match kind {
                 Kind::Import => match (inner_ctx, name) {

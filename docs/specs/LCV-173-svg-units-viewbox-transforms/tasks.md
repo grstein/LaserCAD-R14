@@ -37,7 +37,7 @@
 - [x] T14 [AC9] Test: nested `<svg>` with `x y width height viewBox preserveAspectRatio` and a
   transform, content imported unclipped, report `svg (not clipped)` (files:
   tests/it/io_svg/transforms.rs)
-- [ ] T15 [AC9] `viewport::nested` and the walk's nested `svg` arm (files:
+- [x] T15 [AC9] `viewport::nested` and the walk's nested `svg` arm (files:
   src/io/svg/viewport.rs, src/io/svg/import/walk.rs)
 - [ ] T16 [AC12] Corpus fixtures: `inkscape-px`, `units-pt-in`, `viewbox-offset`,
   `par-slice-xmaxymin`, `nested-transforms` and `nested-svg`, with hand-written `.expected` files
