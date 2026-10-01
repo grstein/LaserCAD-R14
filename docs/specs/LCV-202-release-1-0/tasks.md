@@ -26,7 +26,7 @@ Start T1 only after LCV-180 and then the `svg` branch (LCV-170..179) have merged
 - [x] T10 [AC6] Test, then write the numbered smoke checklist for Linux, Windows and macOS (draw,
       edit, snap, layers, save, reopen, export layers, open in LaserGRBL)
       (files: tests/it/repo/release_1_0.rs, docs/release/smoke-1-0.md)
-- [ ] T11 [AC8] Test, then README: 1.0 is stable, links install and user guides, lists the
+- [x] T11 [AC8] Test, then README: 1.0 is stable, links install and user guides, lists the
       non-goals (DXF, G-code, fillet/chamfer/offset, blocks) (files: tests/it/repo/release_1_0.rs,
       README.md)
 - [ ] T12 [AC7] [AC9] Run `scripts/backlog.sh --check` and confirm every Depends-on spec is Done;

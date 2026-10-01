@@ -144,3 +144,23 @@ fn smoke_checklist_covers_the_three_systems_and_the_whole_flow() {
         );
     }
 }
+
+/// LCV-202 AC 8 — the README calls 1.0 stable, links the install and user
+/// guides, and lists the non-goals (DXF, G-code, fillet/chamfer/offset,
+/// blocks).
+#[test]
+fn readme_says_stable_links_the_guides_and_lists_the_non_goals() {
+    let readme = read("README.md");
+    let status = section(&readme, "Status").join("\n");
+    assert!(status.contains("Stable"), "README §Status calls 1.0 stable");
+    for link in ["(docs/install.md)", "(docs/user-guide.md)"] {
+        assert!(readme.contains(link), "README must link {link}");
+    }
+    let non_goals = section(&readme, "Non-goals").join("\n").to_lowercase();
+    for item in ["DXF", "G-code", "fillet", "chamfer", "offset", "blocks"] {
+        assert!(
+            non_goals.contains(&item.to_lowercase()),
+            "README §Non-goals must list {item}"
+        );
+    }
+}
