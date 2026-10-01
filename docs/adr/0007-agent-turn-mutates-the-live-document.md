@@ -86,6 +86,11 @@
   §D16's memory now keeps a tool-call assistant turn's `reasoning_content`
   and replays it verbatim with its batch; plain-text assistant turns and
   image parts are stored as before. Nothing else changes.
+- **Amended (12)**: 2026-09-30 — LCV-192 (refusal guidance). §D15's `reason`
+  and every apply-site refusal take one shape,
+  `<tool> <path>: <reason>; expected <form>`; a call repeating, byte for byte,
+  the tool and arguments of a call already refused in the turn is answered
+  `Malformed` from the first refusal and is still a step. Nothing else changes.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
@@ -860,6 +865,17 @@ document, transcribes it (LCV-123 AC 23: every action leaves a row) and counts
 it as a step. It goes through the fence like every action, so after a trip it
 is `Fenced` and §D14 stops. `reason` names the field and never echoes the
 arguments (ADR 0010). Cost: one frame per malformed call.
+
+> **Amended (12), 2026-09-30 (LCV-192).** Every refusal the model reads —
+> this `reason` and the apply site's range, mirror and layer refusals — is
+> `<tool> <path>: <reason>; expected <form>`, e.g. `delete_entity index: 7
+> is out of range; expected 0..=2 (the drawing has 3 entities)`. The whole
+> argument string is the path `(root)`. The worker keeps, for the turn only,
+> each `Refused` call's `(name, args)` bytes and first refusal
+> (`agent/repeat.rs::RefusedCalls`); a byte-identical call is not parsed or
+> run but sent as `Malformed` with `repeated call, refused before: <first>;
+> change the arguments`, so it is transcribed, fenced and counted as a step
+> like any other. `Ok`, `Observed` and `Fenced` outcomes are never recorded.
 
 ### D16 — Conversation memory is UI-side state that crosses the thread by value
 

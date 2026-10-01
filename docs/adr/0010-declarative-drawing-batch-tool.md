@@ -10,6 +10,10 @@
   refused with `not a <type> key; a <type> takes <keys>` otherwise. A key no type publishes stays
   `unknown key`. The item properties of §2 are built from the per-type key lists. §2's schema rules
   are unchanged.
+- **Amended (3)**: 2026-09-30 — LCV-192: every error of the **Errors** paragraph below ends
+  `; expected <form>` (ADR 0007 Amended (12)), and the whole argument string is the path
+  `(root)` (was `arguments`). The path, the 64-character key cut and the no-echo rule are
+  unchanged.
 - **Date**: 2026-09-27
 - **Deciders**: architect (LCV-144; in the 1.0 scope by the 2026-09-27 scope
   decision recorded in `PLAN.md`)
@@ -74,6 +78,11 @@ rule, if ever wanted, is added to the shared helper and binds both paths.
 echoed; an unknown key's name is echoed truncated to 64 characters. Under §D15
 the error is a `Malformed` `Act` → `Refused` → tool result + transcript row;
 nothing applied, revision unchanged.
+
+> **Amended (3), 2026-09-30 (LCV-192).** The error gains the expected form:
+> `create_drawing entities[17].r: -3 is out of range; expected a positive
+> number in mm`. One `ToolCallError::Arg { tool, path, reason, expected }`
+> replaces the per-site variants; the root of the arguments is `(root)`.
 
 **4. DTO.** `AgentAction::CreateDrawing { items: Vec<DrawingItem> }`, with
 `DrawingItem { Line{x1,y1,x2,y2} | Circle{cx,cy,r} | Arc{cx,cy,r,start,end,ccw} }`
