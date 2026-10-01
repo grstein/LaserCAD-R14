@@ -2,7 +2,7 @@
 
 Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/`); LCV-192, 191, 187 Done.
 
-- [ ] T1 [AC2][AC3] Test: open ends and gaps — open L-polyline → 2 open ends; closed rectangle and
+- [x] T1 [AC2][AC3] Test: open ends and gaps — open L-polyline → 2 open ends; closed rectangle and
   line+arc fillet contour → none; 0.3 mm gap → one gap, no open ends; 0.6 mm → two open ends; ends
   within `EPSILON` meet; a T-junction end is open; entities on an Output-off layer are ignored
   (files: src/document/check/tests.rs)

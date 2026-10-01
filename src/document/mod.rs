@@ -7,6 +7,7 @@
 //! Submodules arrive with demands LCV-020 .. LCV-027.
 
 mod bed;
+mod check;
 pub mod commands;
 pub mod entity;
 pub mod history;
@@ -16,6 +17,7 @@ pub mod selection;
 pub mod state;
 
 pub use bed::outside_bed;
+pub use check::{CheckReport, Finding, GAP_MM, check_drawing};
 pub use commands::{
     AddLayer, Command, CompositeCommand, CopyEntities, CreateArc, CreateCircle, CreateLine,
     DeleteEntities, DeleteLayer, EditLayer, ExtendEntity, MoveEntities, NoOpCommand,
