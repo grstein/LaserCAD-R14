@@ -9,8 +9,18 @@
 /// starts with `en-` (ASCII case-insensitive, trimmed), so an empty one
 /// fails; `requiredFeatures` is ignored (SVG 2 dropped it).
 pub(super) fn passes(node: roxmltree::Node<'_, '_>) -> bool {
-    let _ = node;
-    true
+    let extensions = node.attribute("requiredExtensions");
+    if extensions.is_some_and(|e| !e.trim().is_empty()) {
+        return false;
+    }
+    node.attribute("systemLanguage")
+        .is_none_or(|langs| langs.split(',').any(english))
+}
+
+/// Whether one language tag is `en` or `en-*`.
+fn english(tag: &str) -> bool {
+    let tag = tag.trim().as_bytes();
+    tag.eq_ignore_ascii_case(b"en") || (tag.len() > 3 && tag[..3].eq_ignore_ascii_case(b"en-"))
 }
 
 #[cfg(test)]

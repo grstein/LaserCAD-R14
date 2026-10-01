@@ -3,7 +3,7 @@
 - [x] T1 [AC11] Test: `conditions.rs` unit tests — `requiredExtensions=""` passes, `"x"` fails;
       `systemLanguage` `en`, `en-US`, `fr, en-GB`, ` EN ` pass; `fr`, `english`, `""` fail;
       `requiredFeatures="x"` ignored (files: src/io/svg/import/conditions.rs, src/io/svg/import.rs)
-- [ ] T2 [AC11] `conditions::passes` (files: src/io/svg/import/conditions.rs)
+- [x] T2 [AC11] `conditions::passes` (files: src/io/svg/import/conditions.rs)
 - [ ] T3 [AC10] [AC11] Test: a `<line systemLanguage="fr">` is not imported and notes
       `line (conditions)`; a `<g requiredExtensions="x">` hides its subtree; a `<switch>` with a
       failing `foreignObject`, a passing `<g>` and a trailing `<line>` imports only the `<g>` and
