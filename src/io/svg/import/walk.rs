@@ -96,7 +96,8 @@ pub(super) struct Walk<'a, 'input> {
     pub(super) index: Index<'a, 'input>,
     /// The `<use>` elements being expanded, outermost first.
     pub(super) uses: Vec<roxmltree::Node<'a, 'input>>,
-    /// Entities pushed while `uses` is non-empty (LCV-178 AC 9).
+    /// Entities pushed while `uses` is non-empty, plus one per `<use>`
+    /// expansion (LCV-178 AC 9).
     pub(super) instanced: usize,
 }
 

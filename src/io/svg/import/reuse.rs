@@ -59,7 +59,8 @@ impl<'a, 'input> Walk<'a, 'input> {
     /// children in its viewport; any other is imported as in place, so a
     /// nested `<use>` recurses (AC 6). Nesting deeper than [`MAX_DEPTH`] or
     /// more than [`MAX_INSTANCED`] instanced entities refuse the file
-    /// (AC 9).
+    /// (AC 9); each expansion counts as one, so a fan-out that draws
+    /// nothing is bounded too.
     pub(super) fn expand(
         &mut self,
         use_: Node<'a, 'input>,
@@ -67,6 +68,10 @@ impl<'a, 'input> Walk<'a, 'input> {
         ctx: &Ctx,
         style: &Style,
     ) -> Result<(), SvgImportError> {
+        self.instanced += 1;
+        if self.instanced > MAX_INSTANCED {
+            return Err(SvgImportError::LimitExceeded("100000 instanced entities"));
+        }
         let Some(target) = target(use_, &self.index) else {
             self.report.note(UNRESOLVED);
             return Ok(());

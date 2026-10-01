@@ -198,6 +198,29 @@ fn a_use_fan_out_is_refused_past_100000_entities() {
     assert!(err.contains("100000"), "{err}");
 }
 
+/// AC 9 — every expansion counts toward the cap, so a ten-level ×10
+/// fan-out whose leaf draws nothing (an empty group, a hidden or invalid
+/// shape, an unresolved `<use>`) is refused instead of running for ever.
+#[test]
+fn a_fan_out_that_draws_nothing_is_refused_quickly() {
+    for leaf in [
+        r#"<g id="g0"/>"#,
+        r#"<line id="g0" display="none" x2="1"/>"#,
+        r#"<circle id="g0" r="-1"/>"#,
+        r##"<use id="g0" href="#nope"/>"##,
+    ] {
+        let mut defs = leaf.to_owned();
+        for k in 1..=10 {
+            let uses = format!(r##"<use href="#g{}"/>"##, k - 1).repeat(10);
+            defs += &format!(r#"<g id="g{k}">{uses}</g>"#);
+        }
+        let start = std::time::Instant::now();
+        let err = refused(&format!(r##"<defs>{defs}</defs><use href="#g10"/>"##));
+        assert!(err.starts_with("LimitExceeded"), "{leaf}: {err}");
+        assert!(start.elapsed().as_secs() < 30, "{leaf}: {:?}", start.elapsed());
+    }
+}
+
 /// AC 9 — the entity cap applies to instances only: 100 000 plain lines
 /// import.
 #[test]
