@@ -1,5 +1,6 @@
     use super::*;
     use super::args::{expected_form, refusal};
+    use crate::agent::SetOp;
     use core::f64::consts::FRAC_PI_2;
     use serde_json::json;
 
@@ -454,4 +455,105 @@
         for (tool, args, want) in cases {
             assert_eq!(err(tool, args.clone()).to_string(), want, "{tool} {args}");
         }
+    }
+
+    // ── Stable ids (LCV-188, ADR 0014 §7) ────────────────────────────────────
+
+    /// The seven tools that take `index`/`indices`, with their other
+    /// arguments, and the operation they build.
+    fn id_tools() -> Vec<(&'static str, Value, SetOp)> {
+        vec![
+            ("delete_entity", json!({}), SetOp::Delete),
+            ("move_entity", json!({"dx":1,"dy":2}), SetOp::Move { dx: 1.0, dy: 2.0 }),
+            ("copy_entity", json!({"dx":1,"dy":2}), SetOp::Copy { dx: 1.0, dy: 2.0 }),
+            ("rotate_entity", json!({"x":1,"y":2,"degrees":90}),
+                SetOp::Rotate { x: 1.0, y: 2.0, angle: FRAC_PI_2 }),
+            ("mirror_entity", json!({"x1":0,"y1":1,"x2":2,"y2":3,"erase_source":false}),
+                SetOp::Mirror { x1: 0.0, y1: 1.0, x2: 2.0, y2: 3.0, erase_source: false }),
+            ("scale_entity", json!({"x":1,"y":2,"factor":0.5}),
+                SetOp::Scale { x: 1.0, y: 2.0, factor: 0.5 }),
+            ("set_layer", json!({"layer":"Mark"}), SetOp::Layer { layer: "Mark".into() }),
+        ]
+    }
+    fn with(args: &Value, extra: Value) -> Value {
+        let mut out = args.clone();
+        for (k, v) in extra.as_object().unwrap() { out[k] = v.clone(); }
+        out
+    }
+
+    /// AC 4 — `ids` and `id` build `ById` with the op the tool builds, ids in
+    /// the order given; `id` is a one-entry `ids`.
+    #[test]
+    fn id_and_ids_build_by_id_on_every_index_tool() {
+        for (tool, args, op) in id_tools() {
+            let got = ok(tool, with(&args, json!({"ids":["e12","e3"]})));
+            assert_eq!(got, AgentAction::ById { ids: vec![12, 3], op: op.clone() }, "{tool}");
+            let got = ok(tool, with(&args, json!({"id":"e7","ids":null})));
+            assert_eq!(got, AgentAction::ById { ids: vec![7], op }, "{tool}");
+        }
+        let all: Vec<String> = (1..=1000).map(|n| format!("e{n}")).collect();
+        let AgentAction::ById { ids, .. } = ok("delete_entity", json!({ "ids": all })) else {
+            panic!("ById")
+        };
+        assert_eq!(ids, (1..=1000).collect::<Vec<u64>>());
+        let big = ok("delete_entity", json!({"id":"e18446744073709551615"}));
+        assert_eq!(big, AgentAction::ById { ids: vec![u64::MAX], op: SetOp::Delete });
+    }
+
+    /// AC 4 — a bad id or list is refused naming the entry, in the LCV-192
+    /// shape: a bare integer, `e0`, `x7`, an empty list, 1001 entries, a
+    /// duplicate.
+    #[test]
+    fn bad_ids_are_refused_naming_the_entry() {
+        let id = expected_form("id");
+        let list = expected_form("ids");
+        let too_many: Vec<String> = (1..=1001).map(|n| format!("e{n}")).collect();
+        let cases = [
+            (json!({"id":7}), format!("id: not a string; expected {id}")),
+            (json!({"ids":[7]}), format!("ids[0]: not a string; expected {id}")),
+            (json!({"id":"e0"}), format!("id: not an id; expected {id}")),
+            (json!({"ids":["e1","x7"]}), format!("ids[1]: not an id; expected {id}")),
+            (json!({"id":""}), format!("id: not an id; expected {id}")),
+            (json!({"id":"e"}), format!("id: not an id; expected {id}")),
+            (json!({"id":"e+5"}), format!("id: not an id; expected {id}")),
+            (json!({"id":"e1.5"}), format!("id: not an id; expected {id}")),
+            (json!({"id":"e18446744073709551616"}), format!("id: not an id; expected {id}")),
+            (json!({"ids":[]}), format!("ids: empty list; expected {list}")),
+            (json!({"ids":"e1"}), format!("ids: not a list; expected {list}")),
+            (json!({"ids":too_many}), format!("ids: has 1001 entries; expected {list}")),
+            (json!({"ids":["e4","e2","e4"]}),
+                "ids[2]: duplicate of ids[0]; expected distinct ids".to_owned()),
+        ];
+        for (tool, args, _) in id_tools() {
+            for (extra, want) in &cases {
+                let text = err(tool, with(&args, extra.clone())).to_string();
+                assert_eq!(text, format!("{tool} {want}"), "{tool} {extra}");
+            }
+        }
+    }
+
+    /// AC 4 — any two of `index`, `indices`, `id`, `ids` are refused, the
+    /// first named; `set_layer` still refuses `index` as before (LCV-191).
+    #[test]
+    fn two_handles_are_refused() {
+        let handles = [("index", json!(0)), ("indices", json!([1])), ("id", json!("e1")),
+                       ("ids", json!(["e2"]))];
+        for (tool, args, _) in id_tools() {
+            for (i, (a, va)) in handles.iter().enumerate() {
+                for (b, vb) in &handles[i + 1..] {
+                    let mut call = args.clone();
+                    call[*a] = va.clone();
+                    call[*b] = vb.clone();
+                    let text = err(tool, call).to_string();
+                    let want = if tool == "set_layer" && *a == "index" {
+                        "set_layer index: not accepted; expected indices instead".to_owned()
+                    } else {
+                        format!("{tool} {a}: given together with {b}; expected either {a} or {b}, not both")
+                    };
+                    assert_eq!(text, want, "{tool} {a}+{b}");
+                }
+            }
+        }
+        let text = err("set_layer", json!({"layer":"Mark"})).to_string();
+        assert_eq!(text, format!("set_layer indices: missing; expected {}", expected_form("indices")));
     }

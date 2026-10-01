@@ -26,7 +26,7 @@
   `id`/`e<N>` in the output (files: tests/it/io_svg/entity_ids.rs, tests/it/io_svg/mod.rs)
 - [x] T11 [AC1] Test, then `list_entities` prints `<i> e<N>: …`; update the exact-string listings
   (files: tests/it/agent/entity_ids.rs, tests/it/agent/mod.rs, src/app/agent_narrate.rs)
-- [ ] T12 [AC4, AC5] Test (parser): `id`/`ids` on the six edit tools and `set_layer` build `ById`;
+- [x] T12 [AC4, AC5] Test (parser): `id`/`ids` on the six edit tools and `set_layer` build `ById`;
   refused: bare integer, `e0`, `x7`, empty, 1001 entries, duplicate, and any two of
   `index|indices|id|ids` (files: src/agent/tools/tests.rs)
 - [ ] T13 [AC4] `AgentAction::ById` + `tool_name` arm; `id`/`ids` parse; routing in

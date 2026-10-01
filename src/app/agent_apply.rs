@@ -172,6 +172,7 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
             ref indices,
             ref op,
         } => set::plan(action.tool_name(), indices, op, doc),
+        AgentAction::ById { .. } => Planned::Answer(AgentOutcome::Refused(String::new())),
         AgentAction::QueryEntities => Planned::Answer(AgentOutcome::Ok(list_entities(doc))),
         AgentAction::QuerySelection => Planned::Answer(AgentOutcome::Ok(list_selection(doc))),
         AgentAction::CheckDrawing => {

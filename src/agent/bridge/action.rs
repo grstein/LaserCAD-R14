@@ -17,7 +17,8 @@ pub use ops::{CaptureFrame, SetOp};
 ///
 /// `index` is a **positional** handle into `Document::entities`, so a delete
 /// renumbers every higher index down by one. That is disclosed in the prompt
-/// and in every outcome string (ADR 0007 §D5) until stable ids land.
+/// and in every outcome string (ADR 0007 §D5). [`AgentAction::ById`] names
+/// entities by their stable id instead (LCV-188, ADR 0014).
 #[derive(Debug, Clone, PartialEq)]
 pub enum AgentAction {
     /// Append a line between two endpoints, in mm.
@@ -137,6 +138,15 @@ pub enum AgentAction {
         /// The edit applied to every listed entity.
         op: SetOp,
     },
+    /// [`AgentAction::Set`] addressed by stable ids, `e<N>` on the wire
+    /// (LCV-188, ADR 0014 §7): resolved to indices at the apply site.
+    ById {
+        /// The `N` of each `e<N>`: 1..=1000, unique, each ≥ 1, shape-checked
+        /// at parse time; an id that is not live is refused at the apply site.
+        ids: Vec<u64>,
+        /// The edit applied to every listed entity.
+        op: SetOp,
+    },
     /// Read back every entity in the drawing. Commits nothing.
     QueryEntities,
     /// Read back the current selection. Commits nothing.
@@ -209,7 +219,7 @@ impl AgentAction {
             Self::Rotate { .. } => "rotate_entity",
             Self::Mirror { .. } => "mirror_entity",
             Self::Scale { .. } => "scale_entity",
-            Self::Set { op, .. } => op.tool_name(),
+            Self::Set { op, .. } | Self::ById { op, .. } => op.tool_name(),
             Self::QueryEntities => "query_entities",
             Self::QuerySelection => "query_selection",
             Self::CheckDrawing => "check_drawing",
