@@ -30,22 +30,26 @@
 //! `ScrollArea` so it never scrolls away. Enabled from `agent.busy` in the
 //! frame it is drawn; its body is one call into
 //! [`crate::app::AgentState::clear_conversation`], which empties the
-//! transcript and the memory and starts nothing.
+//! transcript and the memory and starts nothing. LCV-199's `Attach image…`
+//! only raises `agent.attach_requested` (see [`attach_row`]).
 
 use crate::app::App;
 
 /// Colour of an action / outcome row (AC 2).
 ///
 /// A cool accent, deliberately neither the `#d0d0d0` the theme gives assistant
-/// prose (`src/ui/theme.rs::apply_theme`) nor the red an `error` row uses, so
+/// prose (`src/ui/theme.rs::apply_theme`) nor the `error_fg_color` an `error` row uses, so
 /// the §D5 renumbering sentence is findable in a column of chat at a glance.
 /// `the_row_colours_are_distinct_under_the_real_theme` pins all three apart.
 const TOOL_COLOR: egui::Color32 = egui::Color32::from_rgb(120, 190, 255);
 
-/// Vertical space (points) the separator and the composer row below the
-/// transcript always need, whether or not a turn is running (LCV-080's
-/// original reservation). Generous, not exact — see [`BUSY_ROW_RESERVE`].
-const COMPOSER_RESERVE: f32 = 60.0;
+/// Vertical space (points) the separator, the attach row (LCV-199: +26) and
+/// the composer row always need, busy or not (LCV-080). Generous, not exact —
+/// see [`BUSY_ROW_RESERVE`].
+const COMPOSER_RESERVE: f32 = 86.0;
+
+/// The disabled `Attach image…` tooltip (LCV-199 AC 3).
+const ATTACH_DISABLED_TIP: &str = "Turn on \"Model supports images\" in agent settings.";
 
 /// Extra vertical space the busy "Thinking… / Cancel" row and its own
 /// surrounding gap need, on top of [`COMPOSER_RESERVE`], only while a turn is
@@ -120,7 +124,10 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
             ui.spinner();
             // Progress is counted UI-side, per `Act` received (ADR 0007 §D13).
             let turn = &app.agent.turn;
-            ui.label(format!("Thinking… {} of {} steps", turn.steps, turn.limit));
+            ui.label(format!(
+                "Thinking… {} of {} steps",
+                turn.tally.steps, turn.limit
+            ));
             if ui.button("Cancel").clicked() {
                 crate::app::cancel_turn(app);
             }
@@ -128,6 +135,7 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
     }
 
     ui.separator();
+    attach_row(ui, app);
 
     // ── Input row ─────────────────────────────────────────────────────────────
     let can_send = !app.agent.busy && !app.agent.input_draft.trim().is_empty();
@@ -172,6 +180,33 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
     }
 }
 
+/// `Attach image…`, enabled only while `Model supports images` is on, then
+/// the attached file's chip: its name and a `×` that removes it (LCV-199
+/// AC 1, AC 3). The frame wiring opens the picker (ADR 0005), never this file.
+fn attach_row(ui: &mut egui::Ui, app: &mut App) {
+    ui.horizontal(|ui| {
+        let attach = egui::Button::new("Attach image…").small();
+        let vision = app.settings.agent_model_supports_vision;
+        let response = ui.add_enabled(vision, attach);
+        if response
+            .on_disabled_hover_text(ATTACH_DISABLED_TIP)
+            .clicked()
+        {
+            app.agent.attach_requested = true;
+        }
+        let name = app.agent.attachment.as_ref().map(|a| a.name.clone());
+        if let Some(name) = name {
+            egui::Frame::group(ui.style()).show(ui, |ui| {
+                ui.label(name);
+                let remove = ui.small_button("×").on_hover_text("Remove image");
+                if remove.clicked() {
+                    app.agent.attachment = None;
+                }
+            });
+        }
+    });
+}
+
 // ── One transcript row ────────────────────────────────────────────────────────
 
 /// Render one `agent.chat` row the way its role deserves (LCV-125 AC 1).
@@ -184,9 +219,9 @@ pub fn draw_agent_panel(ui: &mut egui::Ui, app: &mut App) {
 /// | `user` | LCV-123 AC 3 (`app::arm_turn`), and LCV-124 when the prompt arrives from the command line | the prompt, verbatim |
 /// | `tool` | LCV-123 AC 23 (`app::agent_apply::transcribe`) | one action that happened |
 /// | `refused` | LCV-123 AC 23 (same site, plus `app::agent_poll` for a fence refusal) | one action that did not |
-/// | `assistant` | LCV-123 AC 7 (`app::agent_poll::end_turn`) | the model's closing prose |
+/// | `assistant` | LCV-123 AC 7 (`app::agent_poll::turn_end::end_turn`) | the model's closing prose |
 /// | `error` | LCV-123 AC 7 (same site) | the turn failed, and why |
-/// | `note` | LCV-123 AC 11 (`app::agent_poll::finish_turn`) | the turn's undo shape |
+/// | `note` | LCV-123 AC 11 (`app::agent_poll::turn_end::finish_turn`), LCV-193 (`turn_end::end_turn`), LCV-129, LCV-187 | the turn's undo shape, its metrics line, a cancel, an image's fate |
 ///
 /// Why `tool` and `refused` are loud: ADR 0007 §D5 makes the outcome sentence
 /// the *disclosure mechanism* for positional indices shifting under the model
@@ -209,7 +244,10 @@ fn draw_chat_row(ui: &mut egui::Ui, role: &str, content: &str) {
             ui.add(egui::Label::new(content).wrap());
         }
         "error" => {
-            ui.add(egui::Label::new(egui::RichText::new(content).color(egui::Color32::RED)).wrap());
+            // `status.error`, which `ui::theme::apply_theme` writes into egui's
+            // own `error_fg_color` (LCV-167 AC 7).
+            let colour = ui.visuals().error_fg_color;
+            ui.add(egui::Label::new(egui::RichText::new(content).color(colour)).wrap());
         }
         "tool" => {
             // One `ui.add` per row in a vertical layout, so two consecutive

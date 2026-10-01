@@ -16,7 +16,7 @@
 //! **Dashes are a state form** (LCV-163, ADR 0013): the rubber band stays a
 //! solid translucent stroke (LCV-037), while [`draw_dashed`] strokes an entity
 //! with egui 0.29's `Shape::dashed_line` over its projected polyline (circles
-//! and arcs sampled like `arc_polyline`). The crossing box is dashed in
+//! and arcs sampled by `render/tessellate.rs`). The crossing box is dashed in
 //! `preview`; what TRIM or ERASE will remove is dashed in `danger`.
 //!
 //! **Drawing order**: caller invokes [`draw_preview`] AFTER
@@ -29,15 +29,11 @@
 //! Introduced by demand LCV-037.
 
 use crate::document::Entity;
-use crate::geometry::Vec2;
 use crate::render::Camera;
 
 /// Dash and gap lengths of [`draw_dashed`], in screen points.
 const DASH_PT: f32 = 6.0;
 const GAP_PT: f32 = 4.0;
-
-/// Polyline samples of a full circle or an arc in [`draw_dashed`].
-const CURVE_SEGMENTS: usize = 64;
 
 /// Preview stroke: 1-px translucent amber/yellow.
 ///
@@ -61,8 +57,8 @@ pub(crate) fn preview_stroke() -> egui::Stroke {
 ///
 /// For each entity in `preview_entities`, dispatch on variant (line, circle,
 /// arc) and draw with [`preview_stroke`]. The dispatch logic mirrors
-/// [`crate::render::draw_entities`]; this function reuses
-/// [`crate::render::selection::draw_entity_with_stroke`] from LCV-036.
+/// [`crate::render::draw_entities`]: one shape per entity through
+/// [`crate::render::stroke_entity`] (LCV-164 AC 6).
 ///
 /// **Empty input**: `draw_preview(_, _, _, &[])` is a no-op — no draw calls,
 /// no panic. Tools that have nothing to preview (e.g., before the first click)
@@ -89,15 +85,15 @@ pub fn draw_preview(
     let stroke = preview_stroke();
 
     for entity in preview_entities {
-        crate::render::selection::draw_entity_with_stroke(painter, rect, camera, entity, stroke);
+        crate::render::stroke_entity(painter, rect, camera, entity, stroke);
     }
 }
 
 /// Stroke `entity` dashed in `color` (1 pt): the crossing selection box in
 /// `preview`, the TRIM / ERASE removal preview in `danger` (LCV-163 AC 2,
 /// AC 4, AC 5). Lines are one dashed segment; circles and arcs are dashed
-/// along a [`CURVE_SEGMENTS`] polyline, so the dash pattern runs on around
-/// the curve.
+/// along their [`crate::render::screen_points`] polyline (LCV-164), so the
+/// dash pattern runs on around the curve.
 pub fn draw_dashed(
     painter: &egui::Painter,
     rect: egui::Rect,
@@ -105,23 +101,7 @@ pub fn draw_dashed(
     entity: &Entity,
     color: egui::Color32,
 ) {
-    let world: Vec<Vec2> = match entity {
-        Entity::Line(l) => vec![l.p1, l.p2],
-        Entity::Circle(c) => (0..=CURVE_SEGMENTS)
-            .map(|i| {
-                let t = i as f64 / CURVE_SEGMENTS as f64;
-                c.point_at_angle(t * core::f64::consts::TAU)
-            })
-            .collect(),
-        Entity::Arc(a) => crate::render::arc_polyline(a, CURVE_SEGMENTS),
-        Entity::Ellipse(e) => crate::render::ellipse_polyline(e, camera.mm_per_px),
-        Entity::Bezier(b) => crate::render::bezier_polyline(b, camera.mm_per_px),
-    };
-    let offset = rect.min.to_vec2();
-    let points: Vec<egui::Pos2> = world
-        .into_iter()
-        .map(|w| camera.world_to_screen(w) + offset)
-        .collect();
+    let points = crate::render::screen_points(rect, camera, entity);
     let stroke = egui::Stroke::new(1.0_f32, color);
     painter.extend(egui::Shape::dashed_line(&points, stroke, DASH_PT, GAP_PT));
 }
@@ -129,7 +109,7 @@ pub fn draw_dashed(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::{Arc, Circle, Line};
+    use crate::geometry::{Arc, Circle, Line, Vec2};
     use core::f64::consts::FRAC_PI_2;
 
     /// Every `LineSegment` `paint` emits, as (ends, width, colour).

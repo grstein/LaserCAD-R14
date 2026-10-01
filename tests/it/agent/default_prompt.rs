@@ -173,7 +173,7 @@ fn the_sections_appear_in_order() {
         "one tool call is one step",
         &default,
         &range,
-        "no message",
+        "steps left this turn",
         // Reply style (AC 7).
         "brief",
         "do not ask for confirmation",
@@ -191,7 +191,7 @@ fn the_sections_appear_in_order() {
 /// LCV-156 AC 14 — a LAYERS section, after the index section, says that a
 /// creation lands on the current layer unless `layer` names an existing one,
 /// where to read the names, that an unknown name is refused, and that no
-/// tool edits layers.
+/// tool edits layers; LCV-191 AC 6 — that `set_layer` moves entities.
 #[test]
 fn the_prompt_describes_layers() {
     let folded = DEFAULT_PROMPT
@@ -215,8 +215,274 @@ fn the_prompt_describes_layers() {
         "refused",
         "nothing is drawn",
         "no tool creates, renames or deletes layers",
+        "set_layer moves entities onto an existing layer",
     ] {
         let lower = section.to_lowercase();
         assert!(lower.contains(needle), "`{needle}` missing: {section}");
+    }
+    assert!(
+        !section.contains("moves entities between them"),
+        "the old no-move sentence is gone: {section}"
+    );
+}
+
+/// LCV-185 AC 7 — the create_drawing paragraph says that keys of other types
+/// may be omitted or null, and no longer demands exactly one type's keys.
+#[test]
+fn the_create_drawing_paragraph_tolerates_null_foreign_keys() {
+    let paragraph = DEFAULT_PROMPT
+        .split("\n\n")
+        .find(|p| words(p).first() == Some(&"create_drawing"))
+        .expect("a create_drawing paragraph");
+    let folded = paragraph.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(
+        folded
+            .to_lowercase()
+            .contains("keys of other types may be omitted or null"),
+        "{folded}"
+    );
+    assert!(!folded.contains("exactly that type's"), "{folded}");
+}
+
+/// LCV-189 AC 4 — the STEP BUDGET section says that each call of a parallel
+/// batch counts one step, that create_drawing and a set operation count one,
+/// and that the remaining count arrives in tool results; it no longer says
+/// the turn ends with no message.
+#[test]
+fn the_step_budget_section_says_how_steps_are_counted() {
+    let folded = DEFAULT_PROMPT
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
+    let section = folded
+        .split_once("step budget one tool call")
+        .map(|(_, rest)| rest)
+        .expect("a STEP BUDGET section");
+    let section = section.split_once("reply style").map_or(section, |s| s.0);
+    for needle in [
+        "each call in a parallel batch counts one step",
+        "create_drawing counts one",
+        "so does a set operation",
+        "the remaining count arrives in tool results",
+        "\"steps left this turn: n of b.\"",
+        "\"not run: this reply has k tool calls but n steps are left\"",
+    ] {
+        assert!(section.contains(needle), "`{needle}` missing: {section}");
+    }
+    assert!(!section.contains("no message"), "{section}");
+}
+
+/// LCV-186 — the TOOLS section says what a set call is: 1 to 1000 distinct
+/// indices instead of index, one step, one base point or mirror line, all or
+/// nothing; each of the six edit paragraphs offers `index, indices, id or ids` (LCV-188), and
+/// copies are appended in ascending source order.
+#[test]
+fn the_edit_paragraphs_offer_indices() {
+    let folded = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let paragraphs: Vec<String> = DEFAULT_PROMPT.split("\n\n").map(folded).collect();
+    let tools = paragraphs
+        .iter()
+        .find(|p| p.starts_with("TOOLS "))
+        .expect("a TOOLS paragraph");
+    for needle in [
+        "take either index, one entity, or indices, a list of 1 to 1000 different entity indices, never both",
+        "in one step",
+        "one base point, one mirror line",
+        "nothing changes and the result names it, for example indices[3]",
+    ] {
+        assert!(tools.contains(needle), "`{needle}` missing: {tools}");
+    }
+    for tool in [
+        "delete_entity",
+        "move_entity",
+        "copy_entity",
+        "rotate_entity",
+        "mirror_entity",
+        "scale_entity",
+    ] {
+        let own = paragraphs
+            .iter()
+            .find(|p| words(p).first() == Some(&tool))
+            .unwrap_or_else(|| panic!("a {tool} paragraph"));
+        assert!(
+            own.contains(&format!("{tool} {{index, indices, id or ids")),
+            "{own}"
+        );
+    }
+    for tool in ["copy_entity", "mirror_entity"] {
+        let own = paragraphs.iter().find(|p| p.starts_with(tool)).unwrap();
+        assert!(own.contains("ascending source index order"), "{own}");
+    }
+}
+
+/// LCV-188 AC 4/5 — an ENTITY IDS section says ids are `"e<N>"` strings
+/// from query_entities that survive other edits, prefers them to indices,
+/// names the `New ids` suffix and says an unknown id is refused.
+#[test]
+fn the_ids_section_prefers_stable_ids() {
+    let folded = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let section = DEFAULT_PROMPT
+        .split("\n\n")
+        .map(folded)
+        .find(|p| p.starts_with("ENTITY IDS "))
+        .expect("an ENTITY IDS section");
+    for needle in [
+        "a string such as \"e7\"",
+        "query_entities lists after the index",
+        "never changes and is never reused",
+        "Prefer ids to indices",
+        "\"New ids: e8..=e12.\"",
+        "An unknown id is refused and nothing changes",
+    ] {
+        assert!(section.contains(needle), "`{needle}` missing: {section}");
+    }
+}
+
+/// LCV-187 — the capture_canvas paragraph names the frame argument, its
+/// three values and the region corners, and says what size the frames are.
+#[test]
+fn the_capture_paragraph_names_the_frames_and_corners() {
+    let paragraph = DEFAULT_PROMPT
+        .split("\n\n")
+        .find(|p| p.starts_with("capture_canvas"))
+        .expect("a capture_canvas paragraph");
+    let found = words(paragraph);
+    for word in [
+        "frame", "view", "drawing", "region", "x0", "y0", "x1", "y1", "1024",
+    ] {
+        assert!(found.contains(&word), "{word} missing from: {paragraph}");
+    }
+}
+
+/// LCV-194 AC 9 — the `measure` paragraph names every query, says entities
+/// are taken as drawn, and that the answer changes nothing.
+#[test]
+fn the_prompt_describes_measure_and_every_query() {
+    let paragraph = DEFAULT_PROMPT
+        .split("\n\n")
+        .find(|p| words(p).first() == Some(&"measure"))
+        .expect("a measure paragraph");
+    let found = words(paragraph);
+    for query in ["distance", "length", "bbox", "intersections", "angle"] {
+        assert!(found.contains(&query), "query {query} missing");
+    }
+    let folded = paragraph.split_whitespace().collect::<Vec<_>>().join(" ");
+    for needle in [
+        "never extended",
+        "Changes nothing",
+        "overlap",
+        "counter-clockwise",
+    ] {
+        assert!(folded.contains(needle), "`{needle}` missing from: {folded}");
+    }
+}
+
+/// LCV-196 AC 10 — the create_drawing paragraph names every item type and
+/// each new key, says `of` refers to earlier items by position, and that the
+/// 1000-entity limit counts the expanded entities.
+#[test]
+fn the_create_drawing_paragraph_names_the_new_types() {
+    let paragraph = DEFAULT_PROMPT
+        .split("\n\n")
+        .find(|p| words(p).first() == Some(&"create_drawing"))
+        .expect("a create_drawing paragraph");
+    let said = words(paragraph);
+    for word in [
+        "polyline",
+        "rect",
+        "polygon",
+        "text",
+        "linear_array",
+        "polar_array",
+        "points",
+        "closed",
+        "width",
+        "height",
+        "corner_radius",
+        "sides",
+        "start_deg",
+        "of",
+        "count",
+        "dx",
+        "dy",
+        "step_deg",
+    ] {
+        assert!(said.contains(&word), "{word} missing from: {paragraph}");
+    }
+    let folded = paragraph
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
+    for needle in ["earlier items by position", "after expansion"] {
+        assert!(folded.contains(needle), "{needle} missing from: {folded}");
+    }
+}
+
+/// LCV-197 AC 1 — a VERIFY section, before REPLY STYLE, tells the model to
+/// derive a short checklist of measurable requirements from the request and,
+/// after drawing, check each item with a verification call, fixing failures
+/// before it replies.
+#[test]
+fn the_prompt_asks_for_a_checklist_verified_after_drawing() {
+    let folded = DEFAULT_PROMPT
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    let section = folded
+        .split_once("VERIFY ")
+        .map(|(_, rest)| rest)
+        .expect("a VERIFY section");
+    assert!(
+        folded.find("VERIFY ") < folded.find("REPLY STYLE"),
+        "VERIFY precedes REPLY STYLE"
+    );
+    let section = section.split_once("REPLY STYLE").map_or(section, |s| s.0);
+    for needle in [
+        "short checklist of measurable requirements",
+        "after drawing",
+        "measure",
+        "check_drawing",
+        "capture_canvas",
+        "Fix every item that fails before you reply",
+    ] {
+        assert!(section.contains(needle), "`{needle}` missing: {section}");
+    }
+}
+
+/// LCV-197 AC 2 — REPLY STYLE says a reply that changed the drawing ends
+/// with each checklist item marked pass or fail.
+#[test]
+fn the_reply_style_ends_with_each_check_marked() {
+    let folded = DEFAULT_PROMPT
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    let section = folded
+        .split_once("REPLY STYLE ")
+        .map(|(_, rest)| rest)
+        .expect("a REPLY STYLE section");
+    assert!(
+        section.contains(
+            "When you changed the drawing, end the reply with each checklist item marked pass or fail"
+        ),
+        "{section}"
+    );
+}
+
+/// LCV-198 — the prompt tells the model to set a checkpoint before a risky
+/// step and roll back to it instead of deleting by hand.
+#[test]
+fn the_prompt_advises_checkpoint_and_rollback_over_hand_deletes() {
+    let folded = DEFAULT_PROMPT
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    for needle in [
+        "Before a risky step, set a checkpoint",
+        "roll back to it instead of deleting entities one by one",
+    ] {
+        assert!(folded.contains(needle), "`{needle}` missing");
     }
 }

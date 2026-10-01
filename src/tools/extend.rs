@@ -13,6 +13,10 @@ use crate::document::{Document, Entity, ExtendEntity, History};
 use crate::geometry::Vec2;
 use crate::tools::trim::refusal;
 use crate::tools::{Mark, PICK_APERTURE_PT, Tool};
+use std::borrow::Cow;
+
+/// The EXTEND prompt (LCV-165 AC 3).
+const PROMPT: &str = "EXTEND  Select object to extend:";
 
 /// Compact hover state: (target_idx, extend_endpoint, boundary_idx, preview).
 #[derive(Debug, Clone, Copy)]
@@ -84,11 +88,10 @@ impl Tool for ExtendTool {
         "EXTEND"
     }
 
-    fn status_text(&self) -> &'static str {
-        match self.state {
-            State::Idle => "EXTEND: Click near a line or arc endpoint to extend it",
-            State::Hover(_) => "EXTEND: Click to extend  |  Esc to cancel",
-        }
+    /// The picking prompt (LCV-165 AC 3), the same whether or not an
+    /// endpoint is hovered: the preview already shows what a click extends.
+    fn status_text(&self) -> Cow<'_, str> {
+        PROMPT.into()
     }
 
     fn on_pointer_move(&mut self, pos: Vec2, doc: &mut Document) {
@@ -216,15 +219,17 @@ mod tests {
         assert!(!t.preview().is_empty());
         t.on_key(egui::Key::Escape, &mut crate::app::App::default());
         assert!(t.preview().is_empty());
-        assert!(t.status_text().contains("Click near"));
+        assert_eq!(t.status_text(), PROMPT);
     }
 
+    /// LCV-165 AC 3 — one picking prompt, idle or hovering.
     #[test]
-    fn status_text_transitions() {
+    fn status_text_is_the_picking_prompt_in_both_states() {
         let (mut t, mut d, _) = hd();
-        assert!(t.status_text().contains("Click near"));
+        assert_eq!(t.status_text(), "EXTEND  Select object to extend:");
         t.on_pointer_move(v(5.2, 0.), &mut d);
-        assert!(t.status_text().contains("Click to extend"));
+        assert!(!t.preview().is_empty(), "hovering an endpoint");
+        assert_eq!(t.status_text(), "EXTEND  Select object to extend:");
     }
 
     #[test]
@@ -349,13 +354,13 @@ mod tests {
     }
 
     /// LCV-160 AC 5 — an Arc endpoint previews the grown arc; the idle
-    /// status names both kinds.
+    /// status is the picking prompt (LCV-165 AC 3).
     #[test]
     fn hover_arc_endpoint_previews_grown_arc() {
         use crate::geometry::Arc;
         use core::f64::consts::{FRAC_PI_2, PI};
         let mut t = ExtendTool::default();
-        assert!(t.status_text().contains("line or arc endpoint"));
+        assert_eq!(t.status_text(), PROMPT);
         let quarter = Entity::Arc(Arc::new(v(0., 0.), 10., 0., FRAC_PI_2, true));
         let mut d = mk(vec![quarter, le(-5., -20., -5., 20.)]);
         t.on_pointer_move(v(0.5, 10.5), &mut d);

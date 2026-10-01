@@ -4,11 +4,11 @@
 //!
 //! * `name()` returns `"ERASE"`.
 //! * `on_pointer_down` — if the selection is non-empty: commit `DeleteEntities`
-//!   for the selected indices then commit `SelectionCommand` (empty) to clear
-//!   the selection through the history stack so both operations are undoable
-//!   together. If the selection is empty the event is a no-op.
-//! * `on_key(Delete | Backspace)` — same two-commit sequence via
-//!   `app.document` and `app.history`.
+//!   for the selected indices and `SelectionCommand` (empty) as one
+//!   `CompositeCommand`, so one Ctrl+Z undoes both (LCV-166). If the
+//!   selection is empty the event is a no-op.
+//! * `on_key(Delete | Backspace)` — the same commit via `app.document` and
+//!   `app.history`; `Edit > Delete` reuses it too.
 //! * All other events are no-ops. The tool is stateless (unit struct).
 //!
 //! The primary UX path for most users is Delete/Backspace *while* `SelectTool`
@@ -18,9 +18,12 @@
 //! MUST NOT import `eframe` or `rfd`. Introduced by demand LCV-052.
 
 use crate::app::App;
-use crate::document::{DeleteEntities, Document, Entity, History, SelectionCommand};
+use crate::document::{
+    Command, CompositeCommand, DeleteEntities, Document, Entity, History, SelectionCommand,
+};
 use crate::geometry::Vec2;
 use crate::tools::{Mark, Tool};
+use std::borrow::Cow;
 
 // ---------------------------------------------------------------------------
 // DeleteTool
@@ -28,33 +31,41 @@ use crate::tools::{Mark, Tool};
 
 /// Stateless erase tool: deletes selected entities on pointer-down or key press.
 ///
-/// Two commands are committed in sequence so both the deletion *and* the
-/// resulting selection-clear participate in the undo stack atomically:
+/// Two commands are committed as one composite so both the deletion *and*
+/// the resulting selection-clear are one undo step (LCV-166):
 ///
 /// 1. `DeleteEntities` — removes the entities at the selected indices.
 /// 2. `SelectionCommand::new([])` — clears the (now stale) selection.
 ///
-/// Ctrl+Z undoes in reverse order (clear first, then re-insert), restoring
-/// the previous state exactly.
+/// Ctrl+Z undoes both in reverse order (clear first, then re-insert),
+/// restoring the previous state exactly.
 #[derive(Debug, Default)]
 pub struct DeleteTool;
 
-/// Commit the two-step delete+clear sequence to `history`/`doc`.
+/// Commit delete+clear as one undo step to `history`/`doc`; a no-op on an
+/// empty selection.
 ///
-/// Extracted so both `on_pointer_down` and `on_key` share the exact same
-/// code path without duplication.
-fn commit_delete(doc: &mut Document, history: &mut History) {
+/// Shared by `on_pointer_down`, `on_key` and `Edit > Delete` (LCV-166).
+pub(crate) fn commit_delete(doc: &mut Document, history: &mut History) {
     if doc.selection.is_empty() {
         return;
     }
     let indices: Vec<usize> = doc.selection.iter().collect();
-    history.commit(Box::new(DeleteEntities::new(indices)), doc);
-    history.commit(Box::new(SelectionCommand::new(Vec::<usize>::new())), doc);
+    let steps: Vec<Box<dyn Command>> = vec![
+        Box::new(DeleteEntities::new(indices)),
+        Box::new(SelectionCommand::new(Vec::<usize>::new())),
+    ];
+    history.commit(Box::new(CompositeCommand::new(steps, "Erase")), doc);
 }
 
 impl Tool for DeleteTool {
     fn name(&self) -> &'static str {
         "ERASE"
+    }
+
+    /// The picking prompt (LCV-165 AC 3).
+    fn status_text(&self) -> Cow<'_, str> {
+        "ERASE  Select objects:".into()
     }
 
     fn on_pointer_down(
@@ -125,6 +136,12 @@ mod tests {
     #[test]
     fn name_is_erase() {
         assert_eq!(DeleteTool.name(), "ERASE");
+    }
+
+    /// LCV-165 AC 3 — ERASE shows the picking prompt, not its bare name.
+    #[test]
+    fn status_text_is_the_picking_prompt() {
+        assert_eq!(DeleteTool.status_text(), "ERASE  Select objects:");
     }
 
     /// AC#2 — object safety: `DeleteTool` stores as `Box<dyn Tool>`.
@@ -199,7 +216,8 @@ mod tests {
         assert!(doc.selection.is_empty());
     }
 
-    /// AC#7 — after `on_pointer_down` deletes, `hist.undo` restores the entity.
+    /// AC#7 — after `on_pointer_down` deletes, one `hist.undo` restores the
+    /// entity and its selection (one undo step since LCV-166).
     #[test]
     fn pointer_down_delete_is_undoable() {
         let mut doc = doc_with_line();
@@ -210,9 +228,7 @@ mod tests {
         tool.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut hist);
         assert_eq!(doc.entity_count(), 0);
 
-        // Undo the selection-clear.
-        hist.undo(&mut doc);
-        // Undo the DeleteEntities.
+        // One step undoes the selection-clear and the DeleteEntities.
         hist.undo(&mut doc);
 
         assert_eq!(

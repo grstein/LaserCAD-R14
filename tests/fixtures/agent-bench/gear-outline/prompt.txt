@@ -1,0 +1,1 @@
+Draw a 12-tooth gear outline centred at (200, 200): root radius 25 mm, tip radius 30 mm, each tooth a trapezoid 17.5 degrees wide at the root and 7.5 degrees wide at the tip, the first tooth centred on the +X axis. Add a 5 mm-radius bore at the centre.

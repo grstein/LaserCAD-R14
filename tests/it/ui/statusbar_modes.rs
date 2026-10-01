@@ -6,9 +6,9 @@
 //! of that contract: rendering alone changes nothing, and the one gesture the
 //! indicators share with the keyboard (`F3`) lands identically.
 //!
-//! The pointer click on a specific `selectable_label` is **[manual]** per the
-//! demand — hit-testing a label by position is brittle. The logic behind the
-//! click is covered by `src/ui/statusbar.rs::tests::toggle_click_flips_only_its_own_flag`,
+//! The pointer click on each mode pill is driven by position in
+//! `tests/it/ui/visual_refresh.rs` (LCV-184). The logic behind the click is
+//! covered by `src/ui/statusbar.rs::tests::toggle_click_flips_only_its_own_flag`,
 //! which calls the same `apply_toggle` the click handler calls.
 //!
 //! ADR 0002 §A4: key taps are press+release (`harness::tap`), no `Ctrl+O` /
@@ -73,14 +73,17 @@ fn rendering_the_bar_mutates_no_document_state() {
     // would still be far inside the 800 ms debounce.
     frame(&ctx, &mut app, vec![]);
     let revision = app.history.revision();
-    let dirty = app.dirty_since;
+    let dirty = app.autosave.dirty_since;
     let entities = app.document.entity_count();
 
     frame(&ctx, &mut app, vec![]);
 
     assert_eq!(app.document.entity_count(), entities);
     assert_eq!(app.history.revision(), revision, "no history entry");
-    assert_eq!(app.dirty_since, dirty, "no second writer of dirty_since");
+    assert_eq!(
+        app.autosave.dirty_since, dirty,
+        "no second writer of dirty_since"
+    );
     assert_eq!(entities, 1, "positive control: the line really is there");
 }
 
@@ -153,17 +156,26 @@ fn the_autosave_indicator_states_are_reachable() {
     let mut app = App::default();
 
     frame(&ctx, &mut app, vec![]);
-    assert!(app.dirty_since.is_none(), "fresh: not pending");
-    assert!(app.last_autosave_at.is_none(), "fresh: never saved");
+    assert!(app.autosave.dirty_since.is_none(), "fresh: not pending");
+    assert!(
+        app.autosave.last_autosave_at.is_none(),
+        "fresh: never saved"
+    );
 
     app.commit(Box::new(CreateLine::new(Line::new(
         Vec2::new(0.0, 0.0),
         Vec2::new(10.0, 10.0),
     ))));
     frame(&ctx, &mut app, vec![]);
-    assert!(app.dirty_since.is_some(), "edited: a write is pending");
+    assert!(
+        app.autosave.dirty_since.is_some(),
+        "edited: a write is pending"
+    );
 
     app.mark_clean();
     frame(&ctx, &mut app, vec![]);
-    assert!(app.dirty_since.is_none(), "settled: nothing pending");
+    assert!(
+        app.autosave.dirty_since.is_none(),
+        "settled: nothing pending"
+    );
 }

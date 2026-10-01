@@ -49,7 +49,7 @@ fn click_anchors_and_a_second_click_does_not_move_it() {
 fn non_empty_text_advances_to_the_height_prompt() {
     let (mut t, mut d, mut h) = anchored();
     assert!(t.on_raw_input("HELLO", &mut d, &mut h));
-    assert_eq!(t.status_text(), "TEXT Specify height <5>:");
+    assert_eq!(t.status_text(), "TEXT  Specify height <5>:");
     assert_eq!(d.entity_count(), 0, "the string alone commits nothing");
 }
 
@@ -57,7 +57,7 @@ fn non_empty_text_advances_to_the_height_prompt() {
 fn empty_text_cancels_and_commits_nothing() {
     let (mut t, mut d, mut h) = anchored();
     assert!(t.on_raw_input("", &mut d, &mut h));
-    assert_eq!(t.status_text(), "TEXT Specify start point:");
+    assert_eq!(t.status_text(), "TEXT  Specify start point:");
     assert_eq!(d.entity_count(), 0);
     assert_eq!(h.len(), 0);
 }
@@ -66,7 +66,7 @@ fn empty_text_cancels_and_commits_nothing() {
 fn whitespace_only_text_cancels_and_commits_nothing() {
     let (mut t, mut d, mut h) = anchored();
     assert!(t.on_raw_input("   ", &mut d, &mut h));
-    assert_eq!(t.status_text(), "TEXT Specify start point:");
+    assert_eq!(t.status_text(), "TEXT  Specify start point:");
     assert_eq!(d.entity_count(), 0);
 }
 
@@ -74,13 +74,13 @@ fn whitespace_only_text_cancels_and_commits_nothing() {
 fn escape_from_either_waiting_state_returns_to_idle_uncommitted() {
     let (mut t, d, _h) = anchored();
     t.cancel();
-    assert_eq!(t.status_text(), "TEXT Specify start point:");
+    assert_eq!(t.status_text(), "TEXT  Specify start point:");
     assert_eq!(d.entity_count(), 0);
 
     let (mut t2, mut d2, mut h2) = anchored();
     t2.on_raw_input("HELLO", &mut d2, &mut h2);
     t2.cancel();
-    assert_eq!(t2.status_text(), "TEXT Specify start point:");
+    assert_eq!(t2.status_text(), "TEXT  Specify start point:");
     assert_eq!(d2.entity_count(), 0);
     assert_eq!(h2.len(), 0);
 }
@@ -127,7 +127,7 @@ fn empty_height_commits_at_five_millimetres() {
         })
         .fold(f64::NEG_INFINITY, f64::max);
     assert!((max_y - 5.0).abs() < EPSILON);
-    assert_eq!(t.status_text(), "TEXT Specify start point:");
+    assert_eq!(t.status_text(), "TEXT  Specify start point:");
 }
 
 #[test]
@@ -217,7 +217,7 @@ fn a_refused_height_keeps_the_text_and_sets_the_retry_prompt() {
     t.on_raw_input("abc", &mut d, &mut h);
     assert_eq!(
         t.status_text(),
-        "TEXT Height must be between 0.1 and 2000 mm. Specify height <5>:"
+        "TEXT  Height must be between 0.1 and 2000 mm. Specify height <5>:"
     );
     match &t.state {
         TextToolState::WaitingHeight { text, .. } => assert_eq!(text, "HELLO"),
@@ -235,7 +235,7 @@ fn a_refused_height_then_a_valid_one_commits_normally() {
     t.on_raw_input("10", &mut d, &mut h);
     assert_eq!(h.len(), 1);
     assert!(d.entity_count() > 0);
-    assert_eq!(t.status_text(), "TEXT Specify start point:");
+    assert_eq!(t.status_text(), "TEXT  Specify start point:");
 }
 
 /// AC 8 — `'H'` spans exactly `hy ∈ [-9, 0]` (baseline to cap), so at a
@@ -280,27 +280,41 @@ fn layout_with_no_glyphs_commits_nothing() {
     assert_eq!(h.len(), 0);
     assert_eq!(
         t.status_text(),
-        "TEXT Specify start point:",
+        "TEXT  Specify start point:",
         "state still returns to Idle"
     );
 }
 
 // ── AC 6 — prompts ───────────────────────────────────────────────────
 
+/// LCV-165 AC 2 — the height prompt is formatted from
+/// `DEFAULT_TEXT_HEIGHT_MM` at runtime, so it is an owned string.
+#[test]
+fn height_prompt_is_owned_and_formats_the_default() {
+    let (mut t, mut d, mut h) = anchored();
+    t.on_raw_input("HELLO", &mut d, &mut h);
+    let prompt = t.status_text();
+    assert_eq!(prompt, "TEXT  Specify height <5>:");
+    assert!(
+        matches!(prompt, std::borrow::Cow::Owned(_)),
+        "a runtime value makes the prompt owned: {prompt:?}"
+    );
+}
+
 #[test]
 fn prompt_matches_each_state() {
-    assert_eq!(idle().status_text(), "TEXT Specify start point:");
+    assert_eq!(idle().status_text(), "TEXT  Specify start point:");
 
     let (mut t, mut d, mut h) = anchored();
-    assert_eq!(t.status_text(), "TEXT Enter text:");
+    assert_eq!(t.status_text(), "TEXT  Specify text:");
 
     t.on_raw_input("HELLO", &mut d, &mut h);
-    assert_eq!(t.status_text(), "TEXT Specify height <5>:");
+    assert_eq!(t.status_text(), "TEXT  Specify height <5>:");
 
     t.on_raw_input("abc", &mut d, &mut h);
     assert_eq!(
         t.status_text(),
-        "TEXT Height must be between 0.1 and 2000 mm. Specify height <5>:"
+        "TEXT  Height must be between 0.1 and 2000 mm. Specify height <5>:"
     );
 }
 
@@ -356,7 +370,7 @@ fn pointer_move_and_up_are_noops() {
     t.on_pointer_up(Vec2::new(10.0, 10.0), false, &mut d, &mut h);
     assert_eq!(
         t.status_text(),
-        "TEXT Enter text:",
+        "TEXT  Specify text:",
         "neither call advances the phase"
     );
 }

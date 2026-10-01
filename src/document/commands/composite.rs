@@ -29,7 +29,7 @@ pub struct CompositeCommand {
     /// The children, in the order they were originally committed.
     commands: Vec<Box<dyn Command>>,
     /// What the history-aware UI shows for this entry, e.g.
-    /// `"Agent: draw a square"`.
+    /// `"AI: draw a square"`.
     label: String,
 }
 
@@ -115,8 +115,8 @@ mod tests {
     /// AC 11 — `label()` returns the stored label verbatim.
     #[test]
     fn composite_label_is_the_stored_string() {
-        let composite = CompositeCommand::new(vec![], "Agent: draw a square");
-        assert_eq!(composite.label(), "Agent: draw a square");
+        let composite = CompositeCommand::new(vec![], "AI: draw a square");
+        assert_eq!(composite.label(), "AI: draw a square");
     }
 
     /// AC 11 — `do_` runs the children **forward**. Run in reverse the same

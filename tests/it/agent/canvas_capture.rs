@@ -1,4 +1,5 @@
-//! LCV-145 — opt-in canvas observations, driven through real frames.
+//! LCV-145 — opt-in canvas observations, driven through real frames;
+//! LCV-187 — the `frame` argument and the post-send notes.
 //!
 //! Like `tests/it/agent/turn.rs`, every test pushes `Act`s by hand onto a turn
 //! armed with `arm_turn` and reads the answers off its own reply `Receiver`:
@@ -11,13 +12,16 @@
 use crate::harness;
 
 use harness::frame;
-use lasercad::agent::{AgentAction, AgentEvent, AgentOutcome};
+use lasercad::agent::{
+    AgentAction, AgentEvent, AgentOutcome, CaptureFrame, parse_tool_call, tool_definitions,
+};
 use lasercad::app::{AGENT_FENCE_REFUSAL, App, arm_turn};
 use lasercad::document::{CreateCircle, CreateLine};
 use lasercad::geometry::{Circle, Line, Vec2};
+use serde_json::{Value, json};
 use std::sync::mpsc::{Receiver, Sender, channel};
 
-const DISABLED: &str = "canvas capture is disabled in Agent settings";
+const DISABLED: &str = "canvas capture is disabled in Help > AI Settings…";
 
 fn ctx_and_app() -> (egui::Context, App) {
     let ctx = egui::Context::default();
@@ -68,7 +72,17 @@ fn capture_in_one_frame(
     app: &mut App,
     tx: &Sender<AgentEvent>,
 ) -> AgentOutcome {
-    let answer = push_act(tx, AgentAction::CaptureCanvas);
+    capture_frame_in_one_frame(ctx, app, tx, CaptureFrame::View)
+}
+
+/// Answer one `CaptureCanvas(frame)` on an armed turn in one `update_ui`.
+fn capture_frame_in_one_frame(
+    ctx: &egui::Context,
+    app: &mut App,
+    tx: &Sender<AgentEvent>,
+    frame: CaptureFrame,
+) -> AgentOutcome {
+    let answer = push_act(tx, AgentAction::CaptureCanvas(frame));
     idle(ctx, app);
     answer
         .try_recv()
@@ -105,7 +119,7 @@ fn only_both_live_opt_ins_observe() {
             );
             assert_eq!((role.as_str(), row.as_str()), ("refused", DISABLED));
         }
-        assert_eq!(app.agent.turn.steps, 1, "a capture is one step");
+        assert_eq!(app.agent.turn.tally.steps, 1, "a capture is one step");
     }
 }
 
@@ -241,7 +255,7 @@ fn authorize_upload_is_not_a_step_and_a_yes_discloses() {
     let model = app.settings.agent_model.clone();
     let yes = authorize_in_one_frame(&ctx, &mut app, &tx);
     assert!(matches!(yes, AgentOutcome::Ok(_)), "{yes:?}");
-    assert_eq!(app.agent.turn.steps, 0, "not a step");
+    assert_eq!(app.agent.turn.tally.steps, 0, "not a step");
     assert_eq!(app.agent.chat.len(), rows + 1);
     assert_eq!(
         app.agent.chat.last().cloned(),
@@ -269,11 +283,11 @@ fn authorize_upload_is_answered_after_the_fence_tripped() {
         fenced.try_recv().unwrap().is_fenced(),
         "positive control: fence tripped"
     );
-    let steps = app.agent.turn.steps;
+    let steps = app.agent.turn.tally.steps;
     let yes = authorize_in_one_frame(&ctx, &mut app, &tx);
     assert!(matches!(yes, AgentOutcome::Ok(_)), "{yes:?}");
     assert_eq!(
-        app.agent.turn.steps, steps,
+        app.agent.turn.tally.steps, steps,
         "not counted behind the fence either"
     );
 }
@@ -303,7 +317,7 @@ fn a_live_model_change_refuses_the_upload() {
     assert_eq!(app.agent.chat.len(), rows, "a no leaves no row");
 }
 
-/// AC 2 — at 800×600 the Agent Settings dialog paints both opt-in checkboxes
+/// AC 2 — at 800×600 the AI Settings dialog paints both opt-in checkboxes
 /// and the exact disclosure sentence.
 #[test]
 fn agent_settings_paints_both_opt_ins_and_the_disclosure() {
@@ -489,4 +503,352 @@ fn no_log_call_carries_the_png() {
     for (path, body) in src_sections(true) {
         assert!(!logs_png(&body), "{path} logs the png");
     }
+}
+
+// ── LCV-187: the `frame` argument ────────────────────────────────────────
+
+fn parse(args: Value) -> Result<AgentAction, String> {
+    parse_tool_call("capture_canvas", &args).map_err(|e| e.to_string())
+}
+
+fn region(x0: f64, y0: f64, x1: f64, y1: f64) -> CaptureFrame {
+    CaptureFrame::Region { x0, y0, x1, y1 }
+}
+
+/// LCV-187 AC 1 — no arguments, `{}`, a null or `"view"` frame, and stray
+/// keys all parse to today's viewport capture.
+#[test]
+fn no_frame_or_view_parses_to_the_viewport() {
+    for args in [
+        Value::Null,
+        json!({}),
+        json!({"frame": null}),
+        json!({"frame": "view"}),
+        json!({"frame": "view", "x0": null}),
+        json!({"stray": 1}),
+    ] {
+        assert_eq!(
+            parse(args.clone()),
+            Ok(AgentAction::CaptureCanvas(CaptureFrame::View)),
+            "{args}"
+        );
+    }
+    assert_eq!(
+        parse(json!({"frame": "drawing"})),
+        Ok(AgentAction::CaptureCanvas(CaptureFrame::Drawing))
+    );
+    assert_eq!(
+        parse(json!({"frame": "region", "x0": 30, "y0": 40.5, "x1": -10, "y1": 0})),
+        Ok(AgentAction::CaptureCanvas(region(30.0, 40.5, -10.0, 0.0))),
+        "corners are kept as given; the capture normalises them"
+    );
+}
+
+/// LCV-187 AC 4 — a frame name outside the three, a missing or non-numeric
+/// region corner, and a corner given with another frame are refused, each
+/// naming its field.
+#[test]
+fn a_bad_frame_or_corner_is_refused_naming_the_field() {
+    let frame = "capture_canvas frame: unknown frame; \
+                 expected \"view\", \"drawing\" or \"region\"";
+    for bad in [json!("bed"), json!("VIEW"), json!(3), json!(true)] {
+        assert_eq!(parse(json!({"frame": bad})), Err(frame.to_owned()), "{bad}");
+    }
+    let full = json!({"frame": "region", "x0": 0, "y0": 0, "x1": 10, "y1": 10});
+    for field in ["x0", "y0", "x1", "y1"] {
+        for (bad, reason) in [
+            (Value::Null, "missing"),
+            (json!("inf"), "not a number"),
+            (json!("NaN"), "not a number"),
+            (json!([1]), "not a number"),
+        ] {
+            let mut args = full.clone();
+            args[field] = bad.clone();
+            assert_eq!(
+                parse(args),
+                Err(format!(
+                    "capture_canvas {field}: {reason}; expected a number in mm"
+                )),
+                "{field} = {bad}"
+            );
+        }
+        let mut args = full.clone();
+        args.as_object_mut().unwrap().remove(field);
+        assert!(parse(args).is_err(), "{field} absent");
+    }
+    for name in ["view", "drawing"] {
+        assert_eq!(
+            parse(json!({"frame": name, "y1": 5})),
+            Err(format!(
+                "capture_canvas y1: given with frame \"{name}\"; \
+                 expected corners only with frame \"region\""
+            )),
+            "{name}"
+        );
+    }
+    assert!(
+        serde_json::from_str::<Value>(r#"{"x0":1e999}"#).is_err(),
+        "a non-finite corner cannot reach the parser: JSON has none"
+    );
+}
+
+/// LCV-187 AC 7 — with the opt-ins off `capture_canvas` stays unadvertised
+/// and every frame is refused as today.
+#[test]
+fn opt_ins_off_leave_every_frame_unadvertised_and_refused() {
+    let named = |vision: bool| {
+        tool_definitions(vision)
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|t| t["function"]["name"] == "capture_canvas")
+    };
+    assert!(named(true), "positive control: advertised with vision");
+    assert!(!named(false));
+    for frame in [
+        CaptureFrame::View,
+        CaptureFrame::Drawing,
+        region(0.0, 0.0, 9.0, 9.0),
+    ] {
+        let (ctx, mut app) = ctx_and_app();
+        draw_something(&mut app);
+        idle(&ctx, &mut app);
+        let tx = arm_turn(&mut app, "look");
+        pin_camera(&mut app);
+        assert_eq!(
+            capture_frame_in_one_frame(&ctx, &mut app, &tx, frame.clone()),
+            AgentOutcome::Refused(DISABLED.into()),
+            "{frame:?}"
+        );
+    }
+}
+
+/// The PNG's `(width, height)`, and whether any pixel is inked black.
+fn dims_and_ink(png: &[u8]) -> ((u32, u32), bool) {
+    let decoder = png::Decoder::new(std::io::Cursor::new(png));
+    let mut reader = decoder.read_info().expect("png header");
+    let mut buf = vec![0; reader.output_buffer_size().expect("size")];
+    let info = reader.next_frame(&mut buf).expect("png frame");
+    buf.truncate(info.buffer_size());
+    ((info.width, info.height), buf.contains(&0))
+}
+
+/// A line's two endpoints, `((x1, y1), (x2, y2))` mm.
+type Segment = ((f64, f64), (f64, f64));
+
+/// Capture `frame` on a fresh app holding `lines`, the camera
+/// pinned elsewhere; returns the outcome, the last row and the revision.
+fn capture_lines(lines: &[Segment], frame: CaptureFrame) -> (AgentOutcome, (String, String), u64) {
+    let (ctx, mut app) = ctx_and_app();
+    for &((ax, ay), (bx, by)) in lines {
+        app.commit(Box::new(CreateLine::new(Line::new(
+            Vec2::new(ax, ay),
+            Vec2::new(bx, by),
+        ))));
+    }
+    allow(&mut app, true, true);
+    idle(&ctx, &mut app);
+    let tx = arm_turn(&mut app, "look");
+    pin_camera(&mut app);
+    let outcome = capture_frame_in_one_frame(&ctx, &mut app, &tx, frame);
+    let row = app.agent.chat.last().cloned().expect("a row");
+    assert_eq!(
+        app.agent.turn.tally.steps, 1,
+        "a framed capture is one step"
+    );
+    (outcome, row, app.history.revision())
+}
+
+fn observed(outcome: AgentOutcome) -> (String, Vec<u8>) {
+    match outcome {
+        AgentOutcome::Observed { text, png } => (text, png),
+        other => panic!("expected Observed, got {other:?}"),
+    }
+}
+
+fn canvas_text(w: u32, h: u32, x: &str, y: &str, revision: u64) -> String {
+    format!(
+        "Canvas {w}×{h} px of X {x} mm, Y {y} mm \
+         (Y up; bed outline grey, entities black), revision {revision}."
+    )
+}
+
+/// LCV-187 AC 2 / AC 5 — `"drawing"` frames the extents plus 5 % of the
+/// longest extent on each side, whatever the viewport shows, and renders
+/// the longest edge at exactly 1024 px, aspect kept, under 2 MiB; the
+/// outcome text reports that frame.
+#[test]
+fn the_drawing_frame_is_the_extents_plus_five_percent_at_1024() {
+    // Extents X 10..210, Y 20..120: margin 10 mm → 220 × 120 mm.
+    let lines = [
+        ((10.0, 20.0), (210.0, 120.0)),
+        ((50.0, 100.0), (60.0, 20.0)),
+    ];
+    let (outcome, (role, row), revision) = capture_lines(&lines, CaptureFrame::Drawing);
+    let (text, png) = observed(outcome);
+    let expected = canvas_text(1024, 559, "0.000..220.000", "10.000..130.000", revision);
+    assert_eq!(text, expected);
+    assert_eq!((role.as_str(), row.as_str()), ("tool", expected.as_str()));
+    assert_eq!(dims_and_ink(&png), ((1024, 559), true));
+    assert!(png.len() < 2 * 1024 * 1024);
+
+    // A lone horizontal line still frames an area: the margin is the
+    // longest extent's, on both axes.
+    let (outcome, _, revision) =
+        capture_lines(&[((0.0, 0.0), (100.0, 0.0))], CaptureFrame::Drawing);
+    let (text, png) = observed(outcome);
+    assert_eq!(
+        text,
+        canvas_text(1024, 93, "-5.000..105.000", "-5.000..5.000", revision)
+    );
+    assert_eq!(dims_and_ink(&png), ((1024, 93), true));
+}
+
+/// LCV-187 AC 3 / AC 5 — `"region"` frames exactly that rectangle, corners
+/// in any order, longest edge 1024 px even when that upscales a tiny one.
+#[test]
+fn a_region_is_framed_exactly_at_1024() {
+    let lines = [((0.0, 0.0), (20.0, 20.0))];
+    let frame = CaptureFrame::Region {
+        x0: 30.0,
+        y0: 40.5,
+        x1: -10.0,
+        y1: 0.0,
+    };
+    let (outcome, _, revision) = capture_lines(&lines, frame);
+    let (text, png) = observed(outcome);
+    assert_eq!(
+        text,
+        canvas_text(1011, 1024, "-10.000..30.000", "0.000..40.500", revision)
+    );
+    assert_eq!(dims_and_ink(&png), ((1011, 1024), true));
+
+    let tiny = CaptureFrame::Region {
+        x0: 1.0,
+        y0: 1.0,
+        x1: 1.5,
+        y1: 1.25,
+    };
+    let (outcome, _, revision) = capture_lines(&lines, tiny);
+    let (text, png) = observed(outcome);
+    assert_eq!(
+        text,
+        canvas_text(1024, 512, "1.000..1.500", "1.000..1.250", revision)
+    );
+    assert_eq!(
+        dims_and_ink(&png),
+        ((1024, 512), true),
+        "the diagonal crosses it"
+    );
+    assert!(png.len() < 2 * 1024 * 1024, "{} bytes", png.len());
+}
+
+/// LCV-187 AC 4 — a frame with no area is refused naming the cause, is
+/// transcribed `refused`, and captures nothing.
+#[test]
+fn a_frame_without_area_is_refused_naming_the_cause() {
+    let region = |x0, y0, x1, y1| CaptureFrame::Region { x0, y0, x1, y1 };
+    let one = [((1.0, 1.0), (9.0, 9.0))];
+    let cases: [(&[Segment], CaptureFrame, &str); 8] = [
+        (
+            &[],
+            CaptureFrame::Drawing,
+            "the drawing is empty; nothing to capture",
+        ),
+        (
+            &[((5.0, 5.0), (5.0, 5.0))],
+            CaptureFrame::Drawing,
+            "the drawing has no area; nothing to capture",
+        ),
+        (
+            &one,
+            region(5.0, 5.0, 5.0, 20.0),
+            "the region has no area; nothing to capture",
+        ),
+        (
+            &one,
+            region(5.0, 5.0, 20.0, 5.0),
+            "the region has no area; nothing to capture",
+        ),
+        (
+            &one,
+            region(f64::NAN, 0.0, 1.0, 1.0),
+            "the region is not finite; nothing to capture",
+        ),
+        (
+            &one,
+            region(0.0, 0.0, 1.0, f64::INFINITY),
+            "the region is not finite; nothing to capture",
+        ),
+        (
+            &one,
+            region(0.0, f64::NEG_INFINITY, 1.0, 1.0),
+            "the region is not finite; nothing to capture",
+        ),
+        (
+            &one,
+            region(-1e308, 0.0, 1e308, 1.0),
+            "the region is not finite; nothing to capture",
+        ),
+    ];
+    for (lines, frame, reason) in cases {
+        let (outcome, (role, row), _) = capture_lines(lines, frame.clone());
+        assert_eq!(
+            outcome,
+            AgentOutcome::Refused(reason.to_owned()),
+            "{frame:?}"
+        );
+        assert_eq!((role.as_str(), row.as_str()), ("refused", reason));
+    }
+}
+
+/// LCV-187 AC 6 — a post-send `Note` is a `note` row after LCV-145's
+/// pre-send note, answered `Ok`; it is not a step and never fenced.
+#[test]
+fn a_post_send_note_follows_the_pre_send_note_and_is_not_a_step() {
+    let (ctx, mut app) = ctx_and_app();
+    idle(&ctx, &mut app);
+    let tx = arm_turn(&mut app, "look");
+    allow(&mut app, true, true);
+    pin_camera(&mut app);
+    let (text, _) = observed(capture_in_one_frame(&ctx, &mut app, &tx));
+    assert!(matches!(
+        authorize_in_one_frame(&ctx, &mut app, &tx),
+        AgentOutcome::Ok(_)
+    ));
+    let sent = "Canvas image for call call_1 sent.";
+    let answer = push_act(&tx, AgentAction::Note(sent.to_owned()));
+    idle(&ctx, &mut app);
+    assert_eq!(answer.try_recv(), Ok(AgentOutcome::Ok(sent.to_owned())));
+    let model = app.settings.agent_model.clone();
+    let tail: Vec<(String, String)> = app.agent.chat.iter().rev().take(3).rev().cloned().collect();
+    assert_eq!(
+        tail,
+        [
+            ("tool".to_owned(), text),
+            (
+                "note".to_owned(),
+                format!("Sending a canvas image to {model}.")
+            ),
+            ("note".to_owned(), sent.to_owned()),
+        ]
+    );
+    assert_eq!(app.agent.turn.tally.steps, 1, "the capture only");
+
+    app.commit(Box::new(CreateCircle::new(Circle::new(
+        Vec2::new(5.0, 5.0),
+        1.0,
+    ))));
+    let lost = "Canvas image for call call_2 not delivered (request failed).";
+    let answer = push_act(&tx, AgentAction::Note(lost.to_owned()));
+    idle(&ctx, &mut app);
+    assert_eq!(answer.try_recv(), Ok(AgentOutcome::Ok(lost.to_owned())));
+    assert_eq!(
+        app.agent.chat.last(),
+        Some(&("note".to_owned(), lost.to_owned()))
+    );
+    assert_eq!(
+        app.agent.turn.tally.steps, 1,
+        "not a step behind the fence either"
+    );
 }

@@ -116,7 +116,10 @@ fn autosave_flush_does_not_clear_unsaved_changes() {
 
     app.mark_clean(); // what flush_if_due calls after every write
 
-    assert!(app.dirty_since.is_none(), "the autosave signal is clean");
+    assert!(
+        app.autosave.dirty_since.is_none(),
+        "the autosave signal is clean"
+    );
     assert!(
         app.has_unsaved_changes(),
         "dirty_since is the wrong signal: an autosaved-but-not-saved-to-\
@@ -133,13 +136,13 @@ fn mark_saved_sets_revision_and_clears_dirty() {
     let mut app = App::default();
     commit_a_line(&mut app);
     app.sync_dirty();
-    assert!(app.dirty_since.is_some());
+    assert!(app.autosave.dirty_since.is_some());
 
     app.mark_saved();
 
     assert_eq!(app.guard.saved_revision, Some(app.history.revision()));
-    assert!(app.dirty_since.is_none());
-    assert_eq!(app.last_synced_revision, app.history.revision());
+    assert!(app.autosave.dirty_since.is_none());
+    assert_eq!(app.autosave.last_synced_revision, app.history.revision());
 }
 
 /// LCV-138 amended AC 4 — `mark_saved` is the only clearer of

@@ -145,6 +145,17 @@ fn walk(shape: &Shape, out: &mut Vec<Seg>) {
                 out.push((points[0], points[1], c, stroke.width));
             }
         }
+        // LCV-164: a curve is stroked as one path; split it into its chords.
+        Shape::Path(path) => {
+            if let ColorMode::Solid(c) = path.stroke.color {
+                let w = path.stroke.width;
+                let pts = &path.points;
+                out.extend(pts.windows(2).map(|p| (p[0], p[1], c, w)));
+                if path.closed && pts.len() > 1 {
+                    out.push((pts[pts.len() - 1], pts[0], c, w));
+                }
+            }
+        }
         _ => {}
     }
 }

@@ -18,22 +18,15 @@ use crate::app::App;
 use crate::cmdline::parse_number;
 use crate::document::{Document, Entity, History, commands::CreateEntities};
 use crate::geometry::Vec2;
-use crate::text::layout_text;
+use crate::text::layout::{DEFAULT_SPACING_FACTOR, MAX_HEIGHT_MM, MIN_HEIGHT_MM, layout_text};
 use crate::tools::Tool;
+use std::borrow::Cow;
 
 /// Height committed when the operator accepts the default at the height
 /// prompt (empty Enter) — the R14 `DTEXT` default. Also the height used by
 /// the `WaitingHeight` placement preview (AC 9): TEXT does not remember a
 /// previous height (§Out of scope), so the preview always shows this value.
 const DEFAULT_TEXT_HEIGHT_MM: f64 = 5.0;
-/// Hershey stroke spacing; TEXT never varies it (§Out of scope).
-const DEFAULT_SPACING_FACTOR: f64 = 1.0;
-/// Minimum accepted height, in mm — roughly one laser kerf. Below it,
-/// adjacent Hershey strokes fuse into an unreadable scorch.
-const MIN_HEIGHT_MM: f64 = 0.1;
-/// Maximum accepted height, in mm — `BED_MAX_MM` (LCV-114). Text taller than
-/// the largest possible bed cannot be cut and would wreck zoom-extents.
-const MAX_HEIGHT_MM: f64 = 2000.0;
 
 #[derive(Debug)]
 enum TextToolState {
@@ -83,14 +76,19 @@ impl Tool for TextTool {
     }
 
     /// The AC 6 prompt table, pulled fresh every frame.
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match &self.state {
-            TextToolState::Idle => "TEXT Specify start point:",
-            TextToolState::WaitingText { .. } => "TEXT Enter text:",
-            TextToolState::WaitingHeight { invalid: false, .. } => "TEXT Specify height <5>:",
-            TextToolState::WaitingHeight { invalid: true, .. } => {
-                "TEXT Height must be between 0.1 and 2000 mm. Specify height <5>:"
+            TextToolState::Idle => "TEXT  Specify start point:".into(),
+            TextToolState::WaitingText { .. } => "TEXT  Specify text:".into(),
+            TextToolState::WaitingHeight { invalid: false, .. } => {
+                format!("TEXT  Specify height <{DEFAULT_TEXT_HEIGHT_MM}>:").into()
             }
+            // The refusal keeps its sentence before `Specify` (LCV-165).
+            TextToolState::WaitingHeight { invalid: true, .. } => format!(
+                "TEXT  Height must be between {MIN_HEIGHT_MM} and {MAX_HEIGHT_MM} mm. \
+                 Specify height <{DEFAULT_TEXT_HEIGHT_MM}>:"
+            )
+            .into(),
         }
     }
 

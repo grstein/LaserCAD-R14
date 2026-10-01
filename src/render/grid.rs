@@ -5,7 +5,7 @@
 //! every zoom level.
 
 use crate::geometry::Vec2;
-use crate::render::Camera;
+use crate::render::{Camera, palette};
 
 /// Minimum desired screen spacing between minor grid lines (pixels).
 const MIN_SCREEN_PX: f64 = 8.0;
@@ -72,8 +72,11 @@ pub fn draw_grid(painter: &egui::Painter, rect: egui::Rect, camera: &Camera) {
     let world_top = world_tl.y.max(world_br.y);
 
     let offset = rect.min.to_vec2();
-    let minor_stroke = egui::Stroke::new(0.5_f32, egui::Color32::from_gray(48));
-    let major_stroke = egui::Stroke::new(1.0_f32, egui::Color32::from_gray(96));
+    // 1 pt on a pixel centre (LCV-164 AC 1): a 1 pt line straddling two
+    // pixels paints as two half-bright ones.
+    let minor_stroke = egui::Stroke::new(1.0_f32, palette::GRID_MINOR);
+    let major_stroke = egui::Stroke::new(1.0_f32, palette::GRID_MAJOR);
+    let snap = |v: f32| painter.round_to_pixel_center(v);
 
     // Vertical lines (constant world X).
     let mut x = (world_left / minor_mm).floor() * minor_mm;
@@ -84,8 +87,9 @@ pub fn draw_grid(painter: &egui::Painter, rect: egui::Rect, camera: &Camera) {
         } else {
             minor_stroke
         };
-        let p0 = camera.world_to_screen(Vec2::new(x, world_bottom)) + offset;
-        let p1 = camera.world_to_screen(Vec2::new(x, world_top)) + offset;
+        let mut p0 = camera.world_to_screen(Vec2::new(x, world_bottom)) + offset;
+        let mut p1 = camera.world_to_screen(Vec2::new(x, world_top)) + offset;
+        (p0.x, p1.x) = (snap(p0.x), snap(p0.x));
         painter.line_segment([p0, p1], stroke);
         x += minor_mm;
     }
@@ -99,8 +103,9 @@ pub fn draw_grid(painter: &egui::Painter, rect: egui::Rect, camera: &Camera) {
         } else {
             minor_stroke
         };
-        let p0 = camera.world_to_screen(Vec2::new(world_left, y)) + offset;
-        let p1 = camera.world_to_screen(Vec2::new(world_right, y)) + offset;
+        let mut p0 = camera.world_to_screen(Vec2::new(world_left, y)) + offset;
+        let mut p1 = camera.world_to_screen(Vec2::new(world_right, y)) + offset;
+        (p0.y, p1.y) = (snap(p0.y), snap(p0.y));
         painter.line_segment([p0, p1], stroke);
         y += minor_mm;
     }

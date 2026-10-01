@@ -12,7 +12,13 @@
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use crate::agent::bridge::AgentOutcome;
-use crate::agent::wire::{AssistantMessage, ChatMessage, ContentPart, replace_images};
+use crate::agent::wire::{AssistantMessage, ChatMessage};
+
+mod batch;
+mod images;
+mod verify;
+use batch::{Steps, run_batch};
+use images::send_images;
 
 // ── Step budget ──────────────────────────────────────────────────────────────
 
@@ -68,6 +74,25 @@ pub(crate) enum Dispatch<'a> {
     /// May the next request carry its canvas images? Not a step (ADR 0011
     /// item 10); `AgentOutcome::Ok` is yes, anything else is no.
     AuthorizeUpload,
+    /// A transcript note: what happened to one canvas image once its request
+    /// returned (LCV-187). Not a step; its answer is not read.
+    Note(&'a str),
+    /// The model answered one request (LCV-193): `captures` is the number of
+    /// image parts that request carried with its upload authorised. Not a
+    /// step; its answer is not read.
+    Replied {
+        /// Authorised image parts the answered request carried.
+        captures: u32,
+    },
+    /// What to tell the model about the drawing after a batch that ran to
+    /// its end unfenced (LCV-195): asked once, after its last call. Not a
+    /// step; a non-empty text goes on the last tool result before the
+    /// steps-left line.
+    Feedback,
+    /// Is a reminder to verify the drawing due (LCV-197)? Asked at most once,
+    /// on a text-only reply with a step left. Not a step; `AgentOutcome::Ok`
+    /// is yes, anything else is no.
+    VerifyDue,
 }
 
 // ── Error ────────────────────────────────────────────────────────────────────
@@ -124,7 +149,13 @@ impl std::error::Error for AgentError {}
 /// make; the guard fires **before** dispatching any call of a batch that would
 /// cross it, so a turn never half-applies a batch it cannot finish. The
 /// comparison is done in `usize` — narrower arithmetic could wrap on a large
-/// batch and wave it through.
+/// batch and wave it through. An overrunning batch is answered "not run" call
+/// by call and the model gets one more reply; a second overrun in a row ends
+/// the turn [`AgentError::IterationLimitExceeded`] (ADR 0007 §D13, LCV-189). A
+/// batch that runs unfenced asks [`Dispatch::Feedback`] once (LCV-195) and
+/// ends its last result with the answer's text, if any, then the steps left.
+/// A text reply goes through [`verify::verify_or_end`] (LCV-197), which may
+/// send one reminder to verify instead of ending the turn.
 ///
 /// `dispatch_fn` receives [`Dispatch::Tool`] and returns the
 /// outcome whose text becomes the `tool`-role result. It is the caller's
@@ -137,7 +168,8 @@ impl std::error::Error for AgentError {}
 ///
 /// An [`AgentOutcome::Observed`] (LCV-145) is a step like any other; its PNG
 /// rides after **all** of the batch's tool results in one `user` message,
-/// and every send goes through [`send_images`].
+/// and every send goes through [`send_images`], which notes each image's
+/// fate by its call id (LCV-187).
 pub(crate) fn agent_loop<F, D>(
     send_fn: &mut F,
     dispatch_fn: &mut D,
@@ -149,74 +181,69 @@ where
     D: FnMut(Dispatch<'_>) -> Result<AgentOutcome, AgentError>,
 {
     let budget = usize::try_from(step_budget).unwrap_or(usize::MAX);
-    let mut dispatched: usize = 0;
+    let mut steps = Steps {
+        dispatched: 0,
+        budget,
+        limit: step_budget,
+    };
+    let (mut overran, mut reminded) = (false, false);
+    // The call ids whose images ride the next send (LCV-187).
+    let mut shown: Vec<String> = Vec::new();
+    // Everything from here on followed the turn's user message (LCV-199).
+    let from = messages.len();
     loop {
-        let message = send_images(send_fn, dispatch_fn, messages)?;
+        let message = send_images(send_fn, dispatch_fn, messages, from, &mut shown)?;
         match (message.tool_calls, message.content) {
             (Some(calls), content) if !calls.is_empty() => {
-                if dispatched + calls.len() > budget {
+                let over = steps.dispatched + calls.len() > budget;
+                if over && overran {
                     return Err(AgentError::IterationLimitExceeded(step_budget));
                 }
-                messages.push(ChatMessage::assistant_with_tool_calls(
-                    content,
-                    calls.clone(),
-                ));
-                let (mut fenced, mut images) = (false, Vec::new());
-                for call in &calls {
-                    let result = if fenced {
-                        FENCE_STOP_PLACEHOLDER.to_owned()
-                    } else {
-                        let (name, args) = (&call.function.name, &call.function.arguments);
-                        let outcome = dispatch_fn(Dispatch::Tool { name, args })?;
-                        dispatched += 1;
-                        fenced = outcome.is_fenced();
-                        match outcome {
-                            AgentOutcome::Observed { text, png } => {
-                                let label = format!("canvas image for tool call {}", call.id);
-                                images.extend([ContentPart::text(label), ContentPart::png(&png)]);
-                                text
-                            }
-                            other => other.into_text(),
-                        }
-                    };
-                    messages.push(ChatMessage::tool_result(call.id.clone(), result));
+                messages.push(
+                    ChatMessage::assistant_with_tool_calls(content, calls.clone())
+                        .with_reasoning(message.reasoning_content),
+                );
+                overran = over;
+                if over {
+                    let left = budget - steps.dispatched;
+                    let text = format!(
+                        "not run: this reply has {} tool calls but {left} steps are left",
+                        calls.len()
+                    );
+                    for call in &calls {
+                        messages.push(ChatMessage::tool_result(call.id.clone(), text.clone()));
+                    }
+                    continue;
                 }
-                if !images.is_empty() {
-                    messages.push(ChatMessage::user_parts(images));
-                }
+                let fenced = run_batch(dispatch_fn, messages, &calls, &mut shown, &mut steps)?;
                 if fenced {
-                    return last_word(send_images(send_fn, dispatch_fn, messages)?);
+                    return last_word(send_images(
+                        send_fn,
+                        dispatch_fn,
+                        messages,
+                        from,
+                        &mut shown,
+                    )?);
                 }
             }
-            (_, Some(text)) => return Ok(text),
+            (_, Some(text)) => {
+                let left = steps.dispatched < budget;
+                let reasoning = message.reasoning_content;
+                let end = verify::verify_or_end(
+                    dispatch_fn,
+                    messages,
+                    text,
+                    reasoning,
+                    &mut reminded,
+                    left,
+                )?;
+                if let Some(text) = end {
+                    return Ok(text);
+                }
+            }
             _ => return Err(AgentError::NoContent),
         }
     }
-}
-
-/// Every send of the loop (ADR 0011 items 9–10). A request carrying an image
-/// first asks [`Dispatch::AuthorizeUpload`], once: no — or anything but
-/// `Ok` — withholds every image and sends text-only; a failed ask (cancel)
-/// returns before anything is sent. After the send returns, success or error,
-/// every image is elided, so none outlives its one request.
-fn send_images<F, D>(
-    send_fn: &mut F,
-    dispatch_fn: &mut D,
-    messages: &mut [ChatMessage],
-) -> Result<AssistantMessage, AgentError>
-where
-    F: FnMut(&[ChatMessage]) -> Result<AssistantMessage, AgentError>,
-    D: FnMut(Dispatch<'_>) -> Result<AgentOutcome, AgentError>,
-{
-    if messages.iter().any(ChatMessage::has_image) {
-        let verdict = dispatch_fn(Dispatch::AuthorizeUpload)?;
-        if !matches!(verdict, AgentOutcome::Ok(_)) {
-            replace_images(messages, IMAGE_WITHHELD);
-        }
-    }
-    let reply = send_fn(messages);
-    replace_images(messages, IMAGE_ELIDED);
-    reply
 }
 
 /// The one completion a fence-stopped turn is allowed (ADR 0007 §D14): text is

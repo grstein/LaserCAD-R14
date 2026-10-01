@@ -1,4 +1,4 @@
-//! View > Object snap (LCV-161): one checkbox per [`SnapKind`].
+//! View > Object Snap (LCV-161): one checkbox per [`SnapKind`].
 //!
 //! The item list is [`SNAP_KIND_LABELS`]; a toggle goes through
 //! [`App::set_object_snap`], which writes `settings.object_snaps` and
@@ -6,6 +6,8 @@
 
 use crate::app::App;
 use crate::geometry::SnapKind;
+
+use super::row::{check_row, slot_text};
 
 /// Every snap kind with its menu label, in menu order.
 const SNAP_KIND_LABELS: [(SnapKind, &str); 8] = [
@@ -19,12 +21,14 @@ const SNAP_KIND_LABELS: [(SnapKind, &str); 8] = [
     (SnapKind::Nearest, "Nearest"),
 ];
 
-/// The `Object snap` submenu: one checkbox per [`SNAP_KIND_LABELS`] entry.
+/// The `Object Snap` submenu: one check row per [`SNAP_KIND_LABELS`] entry,
+/// its title on the menu's label column (LCV-166).
 pub(super) fn object_snap_menu(ui: &mut egui::Ui, app: &mut App) {
-    ui.menu_button("Object snap", |ui| {
+    let title = slot_text(ui, "Object Snap");
+    ui.menu_button(title, |ui| {
         for (kind, label) in SNAP_KIND_LABELS {
             let mut on = app.settings.object_snaps.contains(kind);
-            if ui.checkbox(&mut on, label).changed() {
+            if check_row(ui, &mut on, label, "").changed() {
                 app.set_object_snap(kind, on);
             }
         }

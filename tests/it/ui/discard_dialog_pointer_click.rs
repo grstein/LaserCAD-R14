@@ -3,9 +3,9 @@
 //!
 //! `tests/it/app/confirm_discard.rs` and `src/app/file_ops.rs`'s inline tests exhaustively
 //! cover the *state machine* — `request_new`/`request_open`/`request_exit`
-//! parking the right `PendingAction`, and `apply_dialog_result` running it
-//! exactly once on `Confirmed` and restoring nothing on `Cancelled` — but
-//! every one of those tests calls `apply_dialog_result` directly. Every test
+//! parking the right `PendingAction`, and `apply_discard_choice` running it
+//! exactly once on `Discard` and restoring nothing on `Cancel` — but
+//! every one of those tests calls `apply_discard_choice` directly. Every test
 //! in this file instead locates the real "Discard" / "Cancel" button through
 //! `tests/harness/paint.rs`'s painted text and drives a real
 //! `PointerMoved` + `PointerButton` press/release pair at it (ADR 0002 §A4
@@ -13,7 +13,7 @@
 //! tests never exercised.
 //!
 //! **Investigation finding (AC 8), corrected:** New and OpenPath, driven
-//! through this real pointer path, reproduce no defect — `confirm_dialog`'s
+//! through this real pointer path, reproduce no defect — the prompt's
 //! button is reachable, click-through to the canvas behind the modal does
 //! not happen, and a stray second click at the button's old position does
 //! not re-dispatch. Layer ordering (the `CentralPanel`'s `Order::Background`
@@ -33,8 +33,8 @@
 //! `true` on that next frame: `poll_close_request` re-ran `request_exit`,
 //! re-parked `PendingAction::Exit`, and sent `CancelClose` — cancelling the
 //! close the operator just confirmed and reopening the dialog, forever. The
-//! fix is `App::guard.exit_confirmed`, a latch set by `apply_dialog_result`'s
-//! confirmed-`Exit` arm and checked first by `poll_close_request`
+//! fix is `App::guard.exit_confirmed`, a latch set by `apply_discard_choice`'s
+//! `Exit` arm and checked first by `poll_close_request`
 //! (`src/app/file_ops.rs`), which lets every later close request through
 //! unconditionally once the operator has answered once. A repeated *native*
 //! Close request arriving *before* any confirmation (the window-X pressed
@@ -194,9 +194,8 @@ fn click_button(ctx: &egui::Context, app: &mut App, pos: egui::Pos2) -> egui::Fu
 /// menubar — the same trap 7 shape as a `Window`: the dropdown is a popup
 /// `Area` of its own and paints no items on the frame it first opens, so one
 /// more idle frame is spent settling it before its items are handed back.
-/// The label a menu item paints is its whole button text verbatim, tab and
-/// all (`ui.button("New\tCtrl+N")` paints one `Shape::Text` reading exactly
-/// that), so a caller locates e.g. `"New\tCtrl+N"`, never a substring.
+/// A menu row paints its label and its shortcut as two runs (LCV-166), so a
+/// caller locates the bare label run, e.g. `"New"`, never a substring.
 fn open_file_menu(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
     let runs = paint::painted_runs(ctx, app);
     let file = locate(&runs, "File");
@@ -238,7 +237,7 @@ fn snapshot(app: &App) -> Snapshot {
         selection: app.document.selection.clone(),
         revision: app.history.revision(),
         current_file: app.current_file.clone(),
-        dirty_since: app.dirty_since,
+        dirty_since: app.autosave.dirty_since,
     }
 }
 
@@ -262,9 +261,31 @@ fn assert_unchanged(app: &App, before: &Snapshot) {
         "Cancel must not touch current_file"
     );
     assert_eq!(
-        app.dirty_since, before.dirty_since,
+        app.autosave.dirty_since, before.dirty_since,
         "Cancel must not touch the dirty signal"
     );
+}
+
+// ---------------------------------------------------------------------------
+// LCV-169 AC 7 — Save, Discard, Cancel, left to right
+// ---------------------------------------------------------------------------
+
+/// LCV-169 AC 7 — a real Ctrl+N on a dirty drawing parks `New` and the
+/// prompt paints `Save`, `Discard`, `Cancel` on one row, left to right.
+#[test]
+fn the_prompt_offers_save_discard_cancel_left_to_right() {
+    let ctx = egui::Context::default();
+    let mut app = App::default();
+    ctx.set_pixels_per_point(1.0);
+    boot(&ctx, &mut app);
+    with_lines(&mut app, 1);
+    let _ = ctx.run(raw_input(key_events(egui::Key::N, ctrl())), |c| {
+        app.update_ui(c)
+    });
+    let runs = settle(&ctx, &mut app);
+    let [save, discard, cancel] = ["Save", "Discard", "Cancel"].map(|l| locate(&runs, l));
+    assert!((save.y - discard.y).abs() < 1.0 && (discard.y - cancel.y).abs() < 1.0);
+    assert!(save.x < discard.x && discard.x < cancel.x);
 }
 
 // ---------------------------------------------------------------------------
@@ -463,7 +484,7 @@ fn file_menu_new_reaches_request_new_through_a_real_pointer_click() {
     with_lines(&mut app, 2);
 
     let menu_runs = open_file_menu(&ctx, &mut app);
-    let new_item = locate(&menu_runs, "New\tCtrl+N");
+    let new_item = locate(&menu_runs, "New");
     click_button(&ctx, &mut app, new_item);
 
     assert_eq!(
@@ -491,7 +512,7 @@ fn file_menu_open_reaches_request_open_through_a_real_pointer_click() {
     with_lines(&mut app, 1);
 
     let menu_runs = open_file_menu(&ctx, &mut app);
-    let open_item = locate(&menu_runs, "Open…\tCtrl+O");
+    let open_item = locate(&menu_runs, "Open…");
     click_button(&ctx, &mut app, open_item);
 
     assert_eq!(

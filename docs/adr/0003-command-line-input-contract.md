@@ -40,6 +40,17 @@
   (LCV-159 DIST); tools that do not override it are unaffected. `geometry::Transform`
   (LCV-158) is an additive kernel type below this contract and needs no ADR. Nothing in
   §A..§F is reversed.
+- **Amended (6)**: 2026-09-30 — LCV-165. §B5 `Empty`: while the active tool is at rest
+  (`Tool::at_rest`, default `false`; only Select's idle state overrides it) an empty Enter
+  starts the newest recall-ring entry that `parse`s to `CommandInput::Tool`
+  (`CommandHistory::last_tool`), as if typed, and pushes nothing to the ring; with no such
+  entry it does nothing. Otherwise Enter still goes to the tool. The keyboard gate's Enter
+  and a right press on the canvas take this same path (`app/cmdline.rs::empty_enter`).
+  §C: `Tool::status_text` returns `Cow<'_, str>` (the revisit criterion's mechanical change),
+  so `TEXT  Specify height <5>:` is formatted from its constant. §B6: `App::say` sets
+  `command_feedback` with a `Severity` (error / warning / info). A tool's typed-value refusal
+  reaches the dock through `take_message`, drained before the generic refusal lines; `bool`
+  stays the return type. Nothing else in §A..§F changes.
 - **Date**: 2026-09-12
 - **Deciders**: architect (Marco 1 / LCV-110, LCV-111, LCV-112)
 

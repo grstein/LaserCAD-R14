@@ -4,11 +4,14 @@
 use crate::harness;
 
 use harness::{frame, raw_input, submit_command, tap};
-use lasercad::app::App;
+use lasercad::app::{App, Severity};
 use lasercad::document::{AddLayer, Command, Entity};
 use lasercad::geometry::{Line, Transform, Vec2};
 
 const EPS: f64 = 1e-9;
+
+/// SCALE's refusal of a non-positive factor (LCV-165 AC7).
+const SCALE_REFUSAL: &str = "Scale factor must be greater than 0.";
 
 fn line_at(app: &App, i: usize) -> Line {
     match app.document.entities[i] {
@@ -42,12 +45,12 @@ fn ro_typed_ninety_degrees_rotates_ccw() {
     assert_eq!(app.tool_manager.active_tool_name(), "ROTATE");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ROTATE Specify base point:"
+        "ROTATE  Specify base point:"
     );
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ROTATE Specify rotation angle:"
+        "ROTATE  Specify rotation angle:"
     );
     submit_command(&ctx, &mut app, "90");
 
@@ -125,17 +128,17 @@ fn mirror_to_confirm(ctx: &egui::Context, word: &str) -> (App, Line, Transform) 
     assert_eq!(app.tool_manager.active_tool_name(), "MIRROR");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "MIRROR Specify first point of mirror line:"
+        "MIRROR  Specify first point of mirror line:"
     );
     submit_command(ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "MIRROR Specify second point of mirror line:"
+        "MIRROR  Specify second point of mirror line:"
     );
     submit_command(ctx, &mut app, "0,10");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "MIRROR Erase source objects? [Yes/No] <N>:"
+        "MIRROR  Erase source objects? [Yes/No] <N>:"
     );
     let t = Transform::Mirror {
         a: Vec2::new(0.0, 0.0),
@@ -207,7 +210,7 @@ fn escape_at_the_yes_no_prompt_cancels() {
     assert_eq!(app.tool_manager.active_tool_name(), "MIRROR");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "MIRROR Specify first point of mirror line:"
+        "MIRROR  Specify first point of mirror line:"
     );
 }
 
@@ -229,12 +232,12 @@ fn sc_typed_factor_two_doubles() {
     assert_eq!(app.tool_manager.active_tool_name(), "SCALE");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "SCALE Specify base point:"
+        "SCALE  Specify base point:"
     );
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "SCALE Specify scale factor:"
+        "SCALE  Specify scale factor:"
     );
     submit_command(&ctx, &mut app, "2");
 
@@ -276,13 +279,38 @@ fn scale_refuses_a_non_positive_factor() {
     for factor in ["-1", "0"] {
         app.command_feedback.clear();
         submit_command(&ctx, &mut app, factor);
-        assert_eq!(
-            app.command_feedback, "SCALE does not accept that input.",
-            "{factor:?}"
-        );
+        assert_eq!(app.command_feedback, SCALE_REFUSAL, "{factor:?}");
         assert_eq!(
             app.tool_manager.active_status_text(),
-            "SCALE Specify scale factor:"
+            "SCALE  Specify scale factor:"
+        );
+    }
+    assert_eq!(line_at(&app, 0), source);
+    assert_eq!(app.history.len(), 0);
+}
+
+/// LCV-165 AC7 — with the pointer never on the canvas, `-1` ⏎ and `0` ⏎ at
+/// the factor prompt show SCALE's own refusal as a Warning, never the
+/// no-direction line, and SCALE keeps prompting.
+#[test]
+fn scale_refusal_without_a_cursor_is_the_tools_own() {
+    let ctx = egui::Context::default();
+    let mut app = App::default();
+    let source = Line::new(Vec2::new(10.0, 0.0), Vec2::new(20.0, 5.0));
+    app.document.push_current(Entity::Line(source));
+    app.document.selection.add(0);
+
+    submit_command(&ctx, &mut app, "sc");
+    submit_command(&ctx, &mut app, "0,0");
+    for factor in ["-1", "0"] {
+        app.say(Severity::Info, "");
+        submit_command(&ctx, &mut app, factor);
+        assert_eq!(app.command_feedback, SCALE_REFUSAL, "{factor:?}");
+        assert_eq!(app.command_feedback_severity, Severity::Warning);
+        assert!(!app.command_feedback.starts_with("No direction"));
+        assert_eq!(
+            app.tool_manager.active_status_text(),
+            "SCALE  Specify scale factor:"
         );
     }
     assert_eq!(line_at(&app, 0), source);

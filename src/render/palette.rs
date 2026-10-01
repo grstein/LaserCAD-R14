@@ -1,5 +1,5 @@
-//! Canvas feedback tokens (DESIGN.md §3): the single home of `preview`,
-//! `danger` and `hover` (LCV-163 AC 8).
+//! Canvas tokens (DESIGN.md §3): the single home of `preview`, `danger` and
+//! `hover` (LCV-163 AC 8) and of the grid, origin and snap-edge tokens (LCV-164).
 //!
 //! State on the canvas is shown by form first (dash, width) and hue second,
 //! because entity colour belongs to the layer (LCV-156).
@@ -24,6 +24,30 @@ pub const DANGER: egui::Color32 = egui::Color32::from_rgb(255, 77, 106);
 /// pickbox. Its colour is the entity's layer colour; the width (thicker than
 /// the 1 pt entity stroke) is what marks it.
 pub const HOVER_WIDTH_PT: f32 = 2.5;
+
+/// The `grid.minor` token: gray 62, ≈1.38:1 on the bed fill (gray 40),
+/// painted 1 pt wide (LCV-164 AC 1).
+pub const GRID_MINOR: egui::Color32 = egui::Color32::from_gray(62);
+
+/// The `grid.major` token: gray 96, ≈2.34:1 on the bed fill, every tenth
+/// line, 1 pt wide (LCV-164 AC 1).
+pub const GRID_MAJOR: egui::Color32 = egui::Color32::from_gray(96);
+
+/// The `snap.edge` token: the canvas background, painted under every snap
+/// glyph shape 2 pt wider, so the glyph reads over bright geometry
+/// (LCV-164 AC 2). The one colour `render/` takes from `ui/`.
+pub const SNAP_EDGE: egui::Color32 = crate::ui::CANVAS_BG;
+
+/// The `origin` token: gray 220, the machine origin (0,0) where LaserGRBL
+/// starts (LCV-164 AC 4). Its arms lie on the bed's lower-left border, so
+/// width and brightness, not hue, set them apart.
+pub const ORIGIN: egui::Color32 = egui::Color32::from_gray(220);
+
+/// Length, in points, of each origin arm, along +X and +Y.
+pub const ORIGIN_ARM_PT: f32 = 12.0;
+
+/// Stroke width, in points, of the origin arms.
+pub const ORIGIN_WIDTH_PT: f32 = 2.0;
 
 #[cfg(test)]
 mod tests {
@@ -62,6 +86,23 @@ mod tests {
     fn hue_distance(a: f64, b: f64) -> f64 {
         let d = (a - b).abs();
         d.min(360.0 - d)
+    }
+
+    /// WCAG 2 contrast ratio of two opaque colours.
+    fn contrast(a: egui::Color32, b: egui::Color32) -> f64 {
+        let (a, b) = (luminance(a), luminance(b));
+        (a.max(b) + 0.05) / (a.min(b) + 0.05)
+    }
+
+    /// LCV-164 AC 1 — minor grid ≥1.35:1 and major grid ≥2.2:1 on the bed
+    /// fill (gray 40), both opaque.
+    #[test]
+    fn grid_tokens_contrast_with_the_bed_fill() {
+        let bed = egui::Color32::from_gray(40);
+        assert!(GRID_MINOR.a() == 255 && GRID_MAJOR.a() == 255);
+        let (minor, major) = (contrast(GRID_MINOR, bed), contrast(GRID_MAJOR, bed));
+        assert!(minor >= 1.35, "minor grid contrast {minor:.2}:1");
+        assert!(major >= 2.2, "major grid contrast {major:.2}:1");
     }
 
     /// LCV-163 AC 8 — `danger` is opaque with ≥3:1 WCAG contrast on the bed

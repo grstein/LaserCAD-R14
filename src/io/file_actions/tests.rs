@@ -1,4 +1,5 @@
 use super::*;
+use crate::app::AutosaveState;
 use crate::document::{CreateLine, Entity};
 use crate::geometry::{Line, Vec2};
 use std::path::Path;
@@ -276,13 +277,7 @@ fn both_save_paths_export_the_mother_svg() {
         env!("CARGO_MANIFEST_DIR"),
         "/src/io/file_actions.rs"
     ));
-    for (start_marker, end_marker) in [
-        (
-            "pub fn action_save(app: &mut App)",
-            "\n/// Load a document from a known file path",
-        ),
-        ("pub fn action_save_as(app: &mut App)", "\n#[cfg(test)]"),
-    ] {
+    let body = |start_marker: &str, end_marker: &str| -> &str {
         let start = src
             .find(start_marker)
             .unwrap_or_else(|| panic!("{start_marker} must exist"));
@@ -290,16 +285,60 @@ fn both_save_paths_export_the_mother_svg() {
             .find(end_marker)
             .unwrap_or_else(|| panic!("{start_marker} must be followed by {end_marker}"))
             + start;
-        let body = &src[start..end];
+        &src[start..end]
+    };
+    let writer = body("fn write_mother(", "\n/// Tell the operator");
+    assert!(
+        writer.contains("fs::write(path, svg.as_bytes())"),
+        "positive control: write_mother must write the file"
+    );
+    assert!(
+        writer.contains("export_svg(&app.document)"),
+        "write_mother must export the mother SVG (LCV-156 AC 9)"
+    );
+    for (start_marker, end_marker) in [
+        (
+            "pub fn action_save(app: &mut App)",
+            "\n/// Load a document from a known file path",
+        ),
+        ("pub fn action_save_as(app: &mut App)", "\n// Save helpers"),
+    ] {
+        let action = body(start_marker, end_marker);
+        let write_at = action
+            .find("write_mother(app, &path)")
+            .unwrap_or_else(|| panic!("{start_marker} must write through write_mother"));
+        let announce_at = action
+            .find("announce_saved(app, &path)")
+            .unwrap_or_else(|| panic!("{start_marker} must announce the save (LCV-168 AC 1)"));
         assert!(
-            body.contains("fs::write(&path, svg.as_bytes())"),
-            "positive control: {start_marker} must write the file"
-        );
-        assert!(
-            body.contains("export_svg(&app.document)"),
-            "{start_marker} must export the mother SVG (LCV-156 AC 9)"
+            write_at < announce_at,
+            "{start_marker} must announce only after the write"
         );
     }
+}
+
+/// LCV-168 AC 1 — the Save As success path past its (disarmed, ADR 0005)
+/// dialog: `write_mother` then `announce_saved` write the file and give the
+/// Info line with the file name and bed.
+#[test]
+fn save_as_success_path_writes_and_announces_info() {
+    let dir = tempdir("lcv168_save_as_info");
+    let mut app = App {
+        document: Document::with_bed([600.0, 297.5]),
+        ..app_with_tempdir(&dir)
+    };
+    let path = dir.join("part.svg");
+
+    assert!(write_mother(&mut app, &path), "the write must succeed");
+    announce_saved(&mut app, &path);
+
+    assert_eq!(
+        fs::read_to_string(&path).unwrap(),
+        export_svg(&app.document)
+    );
+    assert_eq!(app.command_feedback, "Saved part.svg (600 × 297.5 mm)");
+    assert_eq!(app.command_feedback_severity, Severity::Info);
+    assert_eq!(app.error_message, None);
 }
 
 /// AC 3 — action_new clears current_file.
@@ -317,11 +356,14 @@ fn action_new_resets_current_file() {
 #[test]
 fn action_new_clears_dirty_since() {
     let mut app = App {
-        dirty_since: Some(Instant::now()),
+        autosave: AutosaveState {
+            dirty_since: Some(Instant::now()),
+            ..AutosaveState::default()
+        },
         ..App::default()
     };
     action_new(&mut app);
-    assert!(app.dirty_since.is_none());
+    assert!(app.autosave.dirty_since.is_none());
 }
 
 /// LCV-113 AC 4 — action_new marks the fresh document safe to discard
@@ -425,13 +467,16 @@ fn action_save_clears_dirty_since() {
 
     let mut app = App {
         current_file: Some(tmp.clone()),
-        dirty_since: Some(Instant::now()),
+        autosave: AutosaveState {
+            dirty_since: Some(Instant::now()),
+            ..AutosaveState::default()
+        },
         ..App::default()
     };
 
     action_save(&mut app);
 
-    assert!(app.dirty_since.is_none());
+    assert!(app.autosave.dirty_since.is_none());
     let _ = std::fs::remove_file(&tmp);
 }
 

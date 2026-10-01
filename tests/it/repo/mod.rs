@@ -7,6 +7,7 @@ mod dialogs_disarmed;
 mod harness_is_shared;
 mod no_loopback_url_literals;
 mod normative_enumerations;
+mod packaging;
 mod prompt_scans;
 mod single_test_binary;
 mod skeleton;

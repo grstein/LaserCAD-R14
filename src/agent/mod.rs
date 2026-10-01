@@ -18,13 +18,16 @@ pub mod wire;
 pub use wire::{AssistantMessage, ChatMessage, ChatResponse, Choice, ToolCall, ToolCallFunction};
 
 pub mod settings_ui;
-pub use settings_ui::{AgentSettingsFrame, draw_agent_settings};
+pub use settings_ui::{AgentSettingsFrame, SYSTEM_PROMPT_ID, draw_agent_settings};
 
 pub mod transport;
 pub use transport::{TransportError, chat_completion};
 
 pub mod bridge;
-pub use bridge::{AgentAction, AgentEvent, AgentOutcome};
+pub use bridge::{
+    AgentAction, AgentEvent, AgentOutcome, CaptureFrame, MeasureQuery, MeasureRequest,
+    MeasureTargets, SetOp,
+};
 
 pub mod classifier;
 pub use classifier::{Route, classify};
@@ -47,8 +50,17 @@ pub use loop_::{
 // (ADR 0007 §D8). Re-exported here so that file needs no deep path.
 pub(crate) use loop_::agent_loop;
 
+pub mod repeat;
+pub use repeat::RefusedCalls;
+
+pub mod metrics;
+pub use metrics::TurnMetrics;
+
 pub mod memory;
 pub use memory::{Memory, TurnEnd};
+
+pub mod attachment;
+pub use attachment::{ImageKind, UserImage};
 
 pub mod panel;
 pub use panel::draw_agent_panel;

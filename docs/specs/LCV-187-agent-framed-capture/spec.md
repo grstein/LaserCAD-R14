@@ -1,8 +1,8 @@
 # LCV-187 — Framed canvas capture
 
-- **Status**: Draft
+- **Status**: Done
 - **Depends on**: none
-- **Implementation**: -
+- **Implementation**: 4d21f89..a7bcd30
 
 ## Problem
 

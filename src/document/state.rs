@@ -5,9 +5,12 @@
 //! MUST NOT import `egui`, `eframe`, or `rfd`. Introduced by demand LCV-021.
 
 use crate::document::layer::{check_fields, name_key};
-use crate::document::{Entity, Layer, LayerError, LayerId, Selection};
+use crate::document::{Entity, EntityId, Layer, LayerError, LayerId, Selection};
 use crate::geometry::Vec2;
 use crate::util::{DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
+
+pub mod ids;
+mod layers;
 
 /// The drawing the operator is editing.
 ///
@@ -15,11 +18,12 @@ use crate::util::{DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
 /// and the current [`Selection`]. `entities` is `pub` for reads; its length
 /// only changes through [`Document::push_entity`], [`Document::insert_entity`],
 /// [`Document::remove_entity`] and [`Document::truncate_entities`], which keep
-/// the private per-entity layer vector in lockstep.
+/// the private per-entity layer and id vectors in lockstep.
 ///
 /// Invariants of the private layer state: at least one layer; ids, name keys
 /// ([`name_key`]) and colors unique; `current_layer` exists; one layer id per
-/// entity, each existing.
+/// entity, each existing. One [`EntityId`] per entity, all below `next_id`,
+/// none repeated; `next_id` only goes up (ADR 0014).
 ///
 /// Not `Copy`, not `Clone` (ADR 0007).
 #[derive(Debug)]
@@ -40,6 +44,8 @@ pub struct Document {
     layers: Vec<Layer>,
     current_layer: LayerId,
     entity_layers: Vec<LayerId>,
+    entity_ids: Vec<EntityId>,
+    next_id: u64,
 }
 
 /// A blank document on a [`DEFAULT_BED_WIDTH_MM`] × [`DEFAULT_BED_HEIGHT_MM`]
@@ -61,6 +67,8 @@ impl Document {
             current_layer: cut.id,
             layers: vec![cut],
             entity_layers: Vec::new(),
+            entity_ids: Vec::new(),
+            next_id: 1,
         }
     }
 
@@ -97,6 +105,8 @@ impl Document {
             return Err(LayerError::UnknownLayer(format!("#{}", id.0)));
         }
         doc.current_layer = current_layer;
+        doc.entity_ids = (1..).take(entities.len()).map(EntityId).collect();
+        doc.next_id = 1 + entities.len() as u64;
         doc.entities = entities;
         doc.entity_layers = entity_layers;
         Ok(doc)
@@ -170,9 +180,16 @@ impl Document {
 
     /// Append `entity` on layer `layer`.
     pub fn push_entity(&mut self, entity: Entity, layer: LayerId) {
+        let id = self.fresh_id();
+        self.push_with(entity, layer, id);
+    }
+
+    /// Append `entity` on `layer` with `id` (callers vouch for the id).
+    fn push_with(&mut self, entity: Entity, layer: LayerId, id: EntityId) {
         debug_assert!(self.layer(layer).is_some(), "push_entity: unknown layer");
         self.entities.push(entity);
         self.entity_layers.push(layer);
+        self.entity_ids.push(id);
         self.debug_lockstep();
     }
 
@@ -181,88 +198,32 @@ impl Document {
         self.push_entity(entity, self.current_layer);
     }
 
-    /// Insert `entity` at `index` on layer `layer`.
-    pub fn insert_entity(&mut self, index: usize, entity: Entity, layer: LayerId) {
+    /// Insert `entity` at `index` on layer `layer` with the `id` it had when
+    /// [`Document::remove_entity`] took it out (undo of a delete).
+    pub fn insert_entity(&mut self, index: usize, entity: Entity, layer: LayerId, id: EntityId) {
         debug_assert!(self.layer(layer).is_some(), "insert_entity: unknown layer");
+        self.debug_restorable(id);
         self.entities.insert(index, entity);
         self.entity_layers.insert(index, layer);
+        self.entity_ids.insert(index, id);
         self.debug_lockstep();
     }
 
-    /// Remove and return entity `index` with its layer.
-    pub fn remove_entity(&mut self, index: usize) -> (Entity, LayerId) {
+    /// Remove and return entity `index` with its layer and id.
+    pub fn remove_entity(&mut self, index: usize) -> (Entity, LayerId, EntityId) {
         let entity = self.entities.remove(index);
         let layer = self.entity_layers.remove(index);
+        let id = self.entity_ids.remove(index);
         self.debug_lockstep();
-        (entity, layer)
+        (entity, layer, id)
     }
 
     /// Keep only the first `len` entities.
     pub fn truncate_entities(&mut self, len: usize) {
         self.entities.truncate(len);
         self.entity_layers.truncate(len);
+        self.entity_ids.truncate(len);
         self.debug_lockstep();
-    }
-
-    /// Refuse a new layer named `name` with `color` that would break the
-    /// layer invariants (AC 6).
-    pub fn check_new_layer(&self, name: &str, color: [u8; 3]) -> Result<(), LayerError> {
-        check_fields(&self.layers, None, name, color)
-    }
-
-    /// Refuse renaming/recoloring layer `id` to `name`/`color` (AC 6).
-    pub fn check_edit_layer(
-        &self,
-        id: LayerId,
-        name: &str,
-        color: [u8; 3],
-    ) -> Result<(), LayerError> {
-        if self.layer(id).is_none() {
-            return Err(LayerError::UnknownLayer(format!("#{}", id.0)));
-        }
-        check_fields(&self.layers, Some(id), name, color)
-    }
-
-    /// Refuse deleting layer `id` while it has entities or is the last (AC 7).
-    pub fn check_delete_layer(&self, id: LayerId) -> Result<(), LayerError> {
-        let layer = self
-            .layer(id)
-            .ok_or(LayerError::UnknownLayer(format!("#{}", id.0)))?;
-        if self.layer_entity_count(id) > 0 {
-            return Err(LayerError::NotEmpty(layer.name.clone()));
-        }
-        if self.layers.len() == 1 {
-            return Err(LayerError::LastLayer);
-        }
-        Ok(())
-    }
-
-    /// Insert `layer` at display position `pos` (layer commands only).
-    pub(crate) fn insert_layer(&mut self, pos: usize, layer: Layer) {
-        self.layers.insert(pos.min(self.layers.len()), layer);
-    }
-
-    /// Remove layer `id`, returning it and its display position.
-    pub(crate) fn remove_layer(&mut self, id: LayerId) -> Option<(usize, Layer)> {
-        let pos = self.layers.iter().position(|l| l.id == id)?;
-        Some((pos, self.layers.remove(pos)))
-    }
-
-    /// Replace the layer with `layer.id`, returning the old value.
-    pub(crate) fn replace_layer(&mut self, layer: Layer) -> Option<Layer> {
-        let slot = self.layers.iter_mut().find(|l| l.id == layer.id)?;
-        Some(std::mem::replace(slot, layer))
-    }
-
-    /// Make `id` current, returning the previous current layer.
-    pub(crate) fn set_current_layer(&mut self, id: LayerId) -> LayerId {
-        debug_assert!(self.layer(id).is_some(), "set_current_layer: unknown layer");
-        std::mem::replace(&mut self.current_layer, id)
-    }
-
-    /// Move entity `index` onto `layer`, returning its previous layer.
-    pub(crate) fn set_entity_layer(&mut self, index: usize, layer: LayerId) -> LayerId {
-        std::mem::replace(&mut self.entity_layers[index], layer)
     }
 
     fn debug_lockstep(&self) {
@@ -271,6 +232,7 @@ impl Document {
             self.entity_layers.len(),
             "layer lockstep"
         );
+        debug_assert_eq!(self.entities.len(), self.entity_ids.len(), "id lockstep");
     }
 }
 
@@ -281,6 +243,16 @@ mod tests {
 
     fn bbox_approx_eq(a: (Vec2, Vec2), b: (Vec2, Vec2)) -> bool {
         a.0.approx_eq(b.0, EPSILON) && a.1.approx_eq(b.1, EPSILON)
+    }
+
+    /// LCV-188 — the lockstep guard catches an id vector out of step.
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "id lockstep")]
+    fn the_lockstep_guard_catches_a_stray_id() {
+        let mut doc = Document::default();
+        doc.entity_ids.push(EntityId(1));
+        doc.debug_lockstep();
     }
 
     /// `with_bed` builds a blank document on the given bed.
@@ -411,7 +383,9 @@ mod tests {
             .expect("valid parts");
         doc.push_entity(a_line(), LayerId(3));
         doc.push_current(a_line());
-        doc.insert_entity(1, a_line(), LayerId(3));
+        doc.push_current(a_line());
+        let (line, _, id) = doc.remove_entity(2);
+        doc.insert_entity(1, line, LayerId(3), id);
         assert_eq!(doc.entity_layer(0), Some(LayerId(3)));
         assert_eq!(doc.entity_layer(1), Some(LayerId(3)));
         assert_eq!(doc.entity_layer(2), Some(LayerId(0)));

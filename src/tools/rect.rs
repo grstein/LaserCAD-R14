@@ -14,6 +14,7 @@ use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History, commands::CreateEntities};
 use crate::geometry::{EPSILON, Line, Vec2};
 use crate::tools::Tool;
+use std::borrow::Cow;
 
 /// Internal FSM state of [`RectTool`].
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -68,10 +69,10 @@ impl Tool for RectTool {
     }
 
     /// The R14 prompt table (LCV-111 AC 17).
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match self.state {
-            RectState::Idle => "RECT Specify first corner:",
-            RectState::WaitingSecondCorner { .. } => "RECT Specify opposite corner:",
+            RectState::Idle => "RECT  Specify first corner:".into(),
+            RectState::WaitingSecondCorner { .. } => "RECT  Specify opposite corner:".into(),
         }
     }
 
@@ -194,7 +195,7 @@ mod tests {
     #[test]
     fn idle_status_contains_first_corner() {
         let t = RectTool::new();
-        assert_eq!(t.status_text(), "RECT Specify first corner:");
+        assert_eq!(t.status_text(), "RECT  Specify first corner:");
     }
 
     // ── AC: first click ─────────────────────────────────────────────────
@@ -203,7 +204,7 @@ mod tests {
     fn first_click_transitions_to_waiting() {
         let (mut t, mut doc, mut h) = make();
         t.on_pointer_down(Vec2::new(1.0, 2.0), false, &mut doc, &mut h);
-        assert_eq!(t.status_text(), "RECT Specify opposite corner:");
+        assert_eq!(t.status_text(), "RECT  Specify opposite corner:");
         assert_eq!(doc.entity_count(), 0);
         assert!(!h.can_undo());
     }
@@ -309,7 +310,7 @@ mod tests {
         assert!(h.can_undo());
         // Tool returns to idle
         assert!(t.preview().is_empty());
-        assert_eq!(t.status_text(), "RECT Specify first corner:");
+        assert_eq!(t.status_text(), "RECT  Specify first corner:");
     }
 
     #[test]
@@ -351,7 +352,7 @@ mod tests {
         let mut app = crate::app::App::default();
         t.on_key(egui::Key::Escape, &mut app);
         assert!(t.preview().is_empty());
-        assert_eq!(t.status_text(), "RECT Specify first corner:");
+        assert_eq!(t.status_text(), "RECT  Specify first corner:");
     }
 
     #[test]
@@ -359,7 +360,7 @@ mod tests {
         let mut t = RectTool::new();
         t.cancel();
         assert!(t.preview().is_empty());
-        assert_eq!(t.status_text(), "RECT Specify first corner:");
+        assert_eq!(t.status_text(), "RECT  Specify first corner:");
     }
 
     // ── AC: object safety ───────────────────────────────────────────────
@@ -397,7 +398,7 @@ mod tests {
         assert_eq!(typed_doc.entities, clicked_doc.entities);
         assert_eq!(typed_doc.entity_count(), 4, "four sides");
         assert_eq!(typed_h.len(), 1, "one undo entry for the whole box");
-        assert_eq!(typed.status_text(), "RECT Specify first corner:");
+        assert_eq!(typed.status_text(), "RECT  Specify first corner:");
     }
 
     /// LCV-111 AC 5 / product decision 4 — RECT must **not** override

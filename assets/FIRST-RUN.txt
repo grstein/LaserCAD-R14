@@ -1,0 +1,20 @@
+LaserCAD - first run
+====================
+
+LaserCAD is not code-signed, so your operating system warns the first time
+you open it. The app is safe to run; the warning only says that the publisher
+is unknown.
+
+Windows (SmartScreen)
+  1. Unzip the archive and double-click lasercad.exe.
+  2. If "Windows protected your PC" appears, click "More info",
+     then "Run anyway".
+
+macOS (Gatekeeper)
+  1. Open the .dmg and drag LaserCAD.app to Applications.
+  2. Right-click LaserCAD.app, choose Open, then Open again.
+     Or, in Terminal:  xattr -dr com.apple.quarantine /Applications/LaserCAD.app
+
+The full install guide, including where settings, recent files and autosave
+are stored, is docs/install.md:
+https://github.com/grstein/LaserCAD-R14-V2/blob/main/docs/install.md

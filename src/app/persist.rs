@@ -35,7 +35,7 @@ impl App {
     ///
     /// A failed write is swallowed and the session continues: an unwritable
     /// config directory must not abort a CAD job mid-cut. Called by the three
-    /// file actions that touch the recent-files list, by the Agent Settings
+    /// file actions that touch the recent-files list, by the AI Settings
     /// window on close, and by the Bed size… modal on OK.
     pub fn persist_settings(&self) {
         let Some(path) = self.settings_path.as_deref() else {
@@ -64,6 +64,12 @@ impl App {
             return false;
         };
         save_autosave_to(&self.document, path).is_ok()
+    }
+
+    /// Whether this process was given an `autosave_path` — a pathless process
+    /// never writes, so it can never report a failed autosave (LCV-167 AC 9).
+    pub fn persists_autosave(&self) -> bool {
+        self.autosave_path.is_some()
     }
 
     /// Remove the autosave file at `autosave_path`, if this process was given

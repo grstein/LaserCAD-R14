@@ -6,8 +6,8 @@
 //! native dialog returned, and File > Exit / the window close button ended
 //! the process outright. This file owns the safe-to-discard signal, the
 //! parked-action state machine's four guards and the five `App` file-action
-//! wrappers; the egui half — rendering `confirm_dialog`
-//! (`src/ui/dialogs.rs`), applying the operator's answer and polling the
+//! wrappers; the egui half — rendering the Save/Discard/Cancel prompt,
+//! applying the operator's answer and polling the
 //! window close button — lives in `src/app/discard.rs` (split out, ADR 0004
 //! §"The `src/app/mod.rs` seam", when this file reached the 300-LOC
 //! implementation cap and LCV-138 needed to add a line to it).
@@ -27,13 +27,13 @@
 //!   `flush_if_due` keeps calling `mark_clean()` alone and never learns about
 //!   `saved_revision`.
 //! - [`PendingAction`] / `UnsavedGuard::pending_action` — the destructive
-//!   action parked while the confirmation dialog is up. `confirm_dialog` is
+//!   action parked while the confirmation dialog is up. The dialog is
 //!   immediate-mode, so this parked value *is* the whole state machine: the
 //!   four `request_*` guards below run the action immediately on a clean
 //!   document and park it on a dirty one; `discard.rs`'s
 //!   `draw_discard_dialog` renders the dialog only while something is
-//!   parked, and its `apply_dialog_result` is the one place that clears it,
-//!   on both the Discard and the Cancel path.
+//!   parked, and its `apply_discard_choice` is the one place that clears it,
+//!   on the Save, Discard and Cancel paths alike.
 //!
 //! MUST NOT import `eframe` or `rfd`. `request_open` / `request_open_path`
 //! reach `crate::io::action_open` / `action_open_path` only on a clean

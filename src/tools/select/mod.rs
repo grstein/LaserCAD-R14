@@ -21,6 +21,7 @@ use crate::app::App;
 use crate::document::{Document, Entity, History, SelectionCommand};
 use crate::geometry::Vec2;
 use crate::tools::{DRAG_THRESHOLD_PT, Mark, PICK_APERTURE_PT, Tool};
+use std::borrow::Cow;
 
 // ---------------------------------------------------------------------------
 // Internal state machine
@@ -76,8 +77,14 @@ impl Tool for SelectTool {
     /// R14's idle prompt, verbatim (LCV-111 AC 17). SELECT is the tool that
     /// is active when the operator is not in the middle of anything, so its
     /// prompt is the command line's resting state.
-    fn status_text(&self) -> &'static str {
-        "Command:"
+    fn status_text(&self) -> Cow<'_, str> {
+        "Command:".into()
+    }
+
+    /// At rest while no button is held (LCV-165 AC 4); a press or drag in
+    /// progress never repeats a command.
+    fn at_rest(&self) -> bool {
+        matches!(self.state, SelectState::Idle)
     }
 
     fn on_pointer_down(
@@ -148,16 +155,8 @@ impl Tool for SelectTool {
                     );
                 }
             }
-            egui::Key::Delete | egui::Key::Backspace if !app.document.selection.is_empty() => {
-                let indices: Vec<usize> = app.document.selection.iter().collect();
-                app.history.commit(
-                    Box::new(crate::document::DeleteEntities::new(indices)),
-                    &mut app.document,
-                );
-                app.history.commit(
-                    Box::new(SelectionCommand::new(Vec::<usize>::new())),
-                    &mut app.document,
-                );
+            egui::Key::Delete | egui::Key::Backspace => {
+                crate::tools::delete::commit_delete(&mut app.document, &mut app.history);
             }
             _ => {}
         }
@@ -237,6 +236,19 @@ mod tests {
     #[test]
     fn status_text_is_the_r14_idle_prompt() {
         assert_eq!(SelectTool::default().status_text(), "Command:");
+    }
+
+    /// LCV-165 AC 4 — SELECT is at rest only while no button is held.
+    #[test]
+    fn at_rest_only_while_idle() {
+        let mut t = SelectTool::default();
+        assert!(t.at_rest());
+        let mut doc = Document::default();
+        let mut history = History::default();
+        t.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut history);
+        assert!(!t.at_rest(), "a press in progress is not rest");
+        t.on_pointer_up(Vec2::new(0.0, 0.0), false, &mut doc, &mut history);
+        assert!(t.at_rest());
     }
 
     /// AC#15 — `preview()` is empty in Idle.

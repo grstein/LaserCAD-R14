@@ -115,7 +115,7 @@ fn no_direction_is_a_clean_refusal() {
     assert_eq!(app.history.len(), 1);
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify next point (Enter to finish):",
+        "LINE  Specify next point <Enter to finish>:",
         "the tool's phase must be untouched by a refusal"
     );
     assert_eq!(
@@ -133,12 +133,12 @@ fn mouse_free_circle_commits() {
     submit_command(&ctx, &mut app, "c");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "CIRCLE Specify center point:"
+        "CIRCLE  Specify center point:"
     );
     submit_command(&ctx, &mut app, "50,50");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "CIRCLE Specify radius:"
+        "CIRCLE  Specify radius:"
     );
     submit_command(&ctx, &mut app, "25");
 
@@ -164,7 +164,7 @@ fn typed_polyline_commits_exact_coordinates() {
     submit_command(&ctx, &mut app, "p");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "PLINE Specify start point:"
+        "PLINE  Specify first point:"
     );
     submit_command(&ctx, &mut app, "0,0");
     submit_command(&ctx, &mut app, "100,0");
@@ -184,12 +184,12 @@ fn typed_rect_commits_exact_coordinates() {
     submit_command(&ctx, &mut app, "r");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "RECT Specify first corner:"
+        "RECT  Specify first corner:"
     );
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "RECT Specify opposite corner:"
+        "RECT  Specify opposite corner:"
     );
     submit_command(&ctx, &mut app, "100,50");
 
@@ -208,17 +208,17 @@ fn typed_arc_commits_exact_geometry() {
     submit_command(&ctx, &mut app, "a");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ARC Specify start point:"
+        "ARC  Specify start point:"
     );
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ARC Specify end point:"
+        "ARC  Specify end point:"
     );
     submit_command(&ctx, &mut app, "100,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ARC Specify point on arc:"
+        "ARC  Specify point on arc:"
     );
     submit_command(&ctx, &mut app, "50,50");
 
@@ -246,7 +246,7 @@ fn typed_move_relocates_the_selection() {
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "MOVE Specify destination point:"
+        "MOVE  Specify destination point:"
     );
     submit_command(&ctx, &mut app, "0,25");
 
@@ -362,7 +362,7 @@ fn enter_on_an_empty_field_finishes_the_polyline_exactly_once() {
 
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "PLINE Specify start point:",
+        "PLINE  Specify first point:",
         "Enter must finish the polyline"
     );
     assert_eq!(
@@ -453,7 +453,7 @@ fn escape_clears_the_field_and_the_feedback_and_cancels_the_tool() {
     assert_eq!(app.command_feedback, "", "and the stale message");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify first point:",
+        "LINE  Specify first point:",
         "and cancels the tool, even while the field has focus"
     );
     assert_eq!(app.history.len(), 0, "cancelling commits nothing");
@@ -469,15 +469,21 @@ fn escape_clears_the_field_and_the_feedback_and_cancels_the_tool() {
 #[test]
 fn typed_commit_marks_the_document_dirty() {
     let (ctx, mut app) = boot();
-    assert!(app.dirty_since.is_none(), "a fresh document is clean");
+    assert!(
+        app.autosave.dirty_since.is_none(),
+        "a fresh document is clean"
+    );
 
     submit_command(&ctx, &mut app, "l");
     submit_command(&ctx, &mut app, "0,0");
-    assert!(app.dirty_since.is_none(), "a phase advance commits nothing");
+    assert!(
+        app.autosave.dirty_since.is_none(),
+        "a phase advance commits nothing"
+    );
 
     submit_command(&ctx, &mut app, "100,0");
     assert!(
-        app.dirty_since.is_some(),
+        app.autosave.dirty_since.is_some(),
         "a typed commit must arm the autosave debounce"
     );
 }
@@ -496,39 +502,39 @@ fn prompt_follows_the_active_phase() {
     submit_command(&ctx, &mut app, "l");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify first point:"
+        "LINE  Specify first point:"
     );
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify next point (Enter to finish):"
+        "LINE  Specify next point <Enter to finish>:"
     );
     submit_command(&ctx, &mut app, "100,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify next point (Enter to finish):",
+        "LINE  Specify next point <Enter to finish>:",
         "LINE chains, so the prompt stays on the next point"
     );
 
     submit_command(&ctx, &mut app, "a");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ARC Specify start point:"
+        "ARC  Specify start point:"
     );
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ARC Specify end point:"
+        "ARC  Specify end point:"
     );
     submit_command(&ctx, &mut app, "100,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ARC Specify point on arc:"
+        "ARC  Specify point on arc:"
     );
     submit_command(&ctx, &mut app, "50,50");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "ARC Specify start point:",
+        "ARC  Specify start point:",
         "a committed arc returns the tool to its idle prompt"
     );
 }

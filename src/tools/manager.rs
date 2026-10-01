@@ -16,6 +16,7 @@ use crate::geometry::Vec2;
 use crate::tools::feedback::FeedbackGate;
 use crate::tools::pointer_event::{PointerButton, PointerEvent};
 use crate::tools::{Mark, Tool};
+use std::borrow::Cow;
 
 /// Owner of the active tool, routes pointer and key events.
 ///
@@ -189,6 +190,12 @@ impl ToolManager {
         self.active.wants_raw_input()
     }
 
+    /// True when the active tool is at rest (LCV-165 AC 4). Delegates to
+    /// [`Tool::at_rest`].
+    pub fn at_rest(&self) -> bool {
+        self.active.at_rest()
+    }
+
     /// Forward one submitted, unparsed command-line string to the active
     /// tool (ADR 0003 §D, LCV-112). Called only while
     /// [`Self::wants_raw_input`] is `true`. Delegates to
@@ -214,7 +221,7 @@ impl ToolManager {
     /// Delegates to `active.status_text()`. When `SelectTool` is active this
     /// returns R14's idle prompt `"Command:"`; the drawing tools return a
     /// per-phase prompt (LCV-111 AC 17).
-    pub fn active_status_text(&self) -> &'static str {
+    pub fn active_status_text(&self) -> Cow<'_, str> {
         self.active.status_text()
     }
 
@@ -446,6 +453,15 @@ mod tests {
         assert_eq!(*ups.borrow(), 1, "middle release must be no-op");
     }
 
+    /// LCV-165 AC 4 — the manager is at rest under SELECT, not under LINE.
+    #[test]
+    fn tool_manager_at_rest_follows_the_active_tool() {
+        let mut manager = ToolManager::default();
+        assert!(manager.at_rest());
+        manager.set_tool(Box::new(crate::tools::LineTool::default()));
+        assert!(!manager.at_rest());
+    }
+
     /// LCV-068 AC#5 / LCV-111 AC 17, AC 18 — `active_status_text` returns
     /// R14's idle prompt `"Command:"` when `SelectTool` is active.
     #[test]
@@ -462,8 +478,8 @@ mod tests {
             fn name(&self) -> &'static str {
                 "Prompt"
             }
-            fn status_text(&self) -> &'static str {
-                "LINE: Click start point"
+            fn status_text(&self) -> Cow<'_, str> {
+                "LINE: Click start point".into()
             }
             fn on_pointer_down(&mut self, _: Vec2, _: bool, _: &mut Document, _: &mut History) {}
             fn on_pointer_move(&mut self, _: Vec2, _: &mut Document) {}
@@ -477,6 +493,25 @@ mod tests {
 
         let manager = ToolManager::new(Box::new(PromptTool));
         assert_eq!(manager.active_status_text(), "LINE: Click start point");
+    }
+
+    /// LCV-165 AC 2 — the manager hands an owned prompt through unchanged.
+    #[test]
+    fn tool_manager_hands_an_owned_prompt_through() {
+        let mut manager = ToolManager::default();
+        manager.set_tool(Box::new(crate::tools::TextTool::default()));
+        let mut doc = Document::default();
+        let mut history = History::default();
+        let press = PointerEvent::Press {
+            world_pos: Vec2::new(0.0, 0.0),
+            button: PointerButton::Primary,
+            shift: false,
+        };
+        manager.on_pointer_event(&press, &mut doc, &mut history);
+        manager.on_raw_input("HELLO", &mut doc, &mut history);
+        let prompt = manager.active_status_text();
+        assert_eq!(prompt, "TEXT  Specify height <5>:");
+        assert!(matches!(prompt, Cow::Owned(_)), "{prompt:?}");
     }
 
     /// LCV-068 AC#6 / LCV-111 AC 2 — `on_command_input` delegates the

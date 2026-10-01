@@ -64,7 +64,7 @@ fn relative_polar_without_anchor_is_refused() {
     assert_eq!(app.history.len(), 0);
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "LINE Specify first point:"
+        "LINE  Specify first point:"
     );
 }
 
@@ -96,12 +96,12 @@ fn typed_dist_reports_and_returns_to_select() {
     assert_eq!(app.tool_manager.active_tool_name(), "DIST");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "DIST Specify first point:"
+        "DIST  Specify first point:"
     );
     submit_command(&ctx, &mut app, "0,0");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "DIST Specify second point:"
+        "DIST  Specify second point:"
     );
     submit_command(&ctx, &mut app, "@30,40");
 
@@ -146,7 +146,7 @@ fn clicked_dist_reports_and_returns_to_select() {
     let first = app.last_cursor_world.expect("the cursor is on the canvas");
     assert_eq!(
         app.tool_manager.active_status_text(),
-        "DIST Specify second point:"
+        "DIST  Specify second point:"
     );
     click(&ctx, &mut app, viewport.center() + egui::vec2(80.0, 0.0));
     let second = app.last_cursor_world.expect("the cursor is on the canvas");

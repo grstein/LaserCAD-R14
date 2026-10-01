@@ -189,7 +189,10 @@ fn one_frame_drains_every_queued_act_and_then_the_terminal_event() {
     assert!(second.try_recv().is_ok(), "the second Act was answered");
     assert!(!app.agent.busy, "and the turn ended in the same frame");
     assert!(app.agent.rx.is_none());
-    assert_eq!(roles(&app), ["user", "tool", "tool", "assistant", "note"]);
+    assert_eq!(
+        roles(&app),
+        ["user", "tool", "tool", "assistant", "note", "note"]
+    );
 }
 
 /// AC 7 — a frame that carried only `Act`s leaves the turn running. Mutation
@@ -230,7 +233,7 @@ fn a_dropped_event_sender_ends_the_turn_with_the_lost_row() {
         "a lost worker must not leave the app spinning"
     );
     assert!(app.agent.rx.is_none());
-    assert_eq!(roles(&app), ["user", "error"]);
+    assert_eq!(roles(&app), ["user", "error", "note"]);
     assert_eq!(row(&app, 1), ("error", AGENT_LOST_MESSAGE));
 }
 
@@ -273,7 +276,7 @@ fn a_dead_reply_channel_ends_the_turn_with_the_same_row() {
         "the action was applied before the answer was lost, and it stays applied"
     );
     assert!(app.history.can_undo(), "and it stays undoable");
-    assert_eq!(roles(&app), ["user", "tool", "error", "note"]);
+    assert_eq!(roles(&app), ["user", "tool", "error", "note", "note"]);
     assert_eq!(
         app.agent.chat[2], expected,
         "exit (4) reports the same fact as exit (3), so it writes the same row"
@@ -298,7 +301,7 @@ fn a_failed_turn_reports_the_workers_error() {
 
     idle(&ctx, &mut app);
 
-    assert_eq!(roles(&app), ["user", "error"]);
+    assert_eq!(roles(&app), ["user", "error", "note"]);
     assert_eq!(row(&app, 1), ("error", "HTTP 401"));
     assert!(!app.agent.busy);
     assert!(app.agent.rx.is_none());
@@ -386,7 +389,7 @@ fn a_fence_refusal_is_transcribed_as_refused_after_the_applied_row() {
 
     assert_eq!(
         roles(&app),
-        ["user", "tool", "refused", "assistant", "note"]
+        ["user", "tool", "refused", "assistant", "note", "note"]
     );
     assert_eq!(row(&app, 1).1, applied.try_recv().unwrap().text());
     assert_eq!(row(&app, 2).1, refused.try_recv().unwrap().text());
@@ -437,7 +440,16 @@ fn a_four_action_turn_is_one_undo_entry() {
     );
     assert_eq!(
         roles(&app),
-        ["user", "tool", "tool", "tool", "tool", "assistant", "note"]
+        [
+            "user",
+            "tool",
+            "tool",
+            "tool",
+            "tool",
+            "assistant",
+            "note",
+            "note"
+        ]
     );
     assert_eq!(
         row(&app, 6),
@@ -489,7 +501,12 @@ fn a_fence_aborted_turn_is_one_entry_beneath_the_foreign_one() {
 
     assert_eq!(app.history.len(), stack_before + 2);
     assert_eq!(
-        app.agent.chat.last().map(|(r, t)| (r.as_str(), t.as_str())),
+        app.agent
+            .chat
+            .iter()
+            .rev()
+            .nth(1)
+            .map(|(r, t)| (r.as_str(), t.as_str())),
         Some((
             "note",
             "Applied 2 actions before the drawing changed outside this turn."
@@ -510,7 +527,7 @@ fn one_action_and_zero_action_turns_say_their_own_thing() {
     let _answer = push_act(&tx, line(10.0));
     tx.send(AgentEvent::done("Drew it.")).unwrap();
     idle(&ctx, &mut app);
-    assert_eq!(roles(&app), ["user", "tool", "assistant", "note"]);
+    assert_eq!(roles(&app), ["user", "tool", "assistant", "note", "note"]);
     assert_eq!(
         row(&app, 3),
         ("note", "Applied 1 action — Ctrl+Z undoes it.")
@@ -528,10 +545,10 @@ fn one_action_and_zero_action_turns_say_their_own_thing() {
     tx.send(AgentEvent::done("Nothing yet.")).unwrap();
     idle(&ctx, &mut app);
 
-    assert_eq!(roles(&app), ["user", "tool", "tool", "assistant"]);
+    assert_eq!(roles(&app), ["user", "tool", "tool", "assistant", "note"]);
     assert!(
-        !roles(&app).contains(&"note"),
-        "AC 11: zero applied actions means no note row"
+        row(&app, 4).1.starts_with("Turn: "),
+        "AC 11: zero applied actions means no undo note, only the metrics (LCV-193)"
     );
     assert_eq!(
         app.history.len(),
@@ -576,10 +593,14 @@ fn a_lost_turn_still_coalesces_and_still_says_so() {
             stack_before + 1,
             "{exit}: AC 22 — a lost turn gets the same undo shape as a clean one"
         );
-        let last_two: Vec<&str> = roles(&app).into_iter().rev().take(2).rev().collect();
-        assert_eq!(last_two, ["error", "note"], "{exit}: AC 22 row order");
+        let last_three: Vec<&str> = roles(&app).into_iter().rev().take(3).rev().collect();
         assert_eq!(
-            app.agent.chat.last().map(|(_, t)| t.as_str()),
+            last_three,
+            ["error", "note", "note"],
+            "{exit}: AC 22 row order"
+        );
+        assert_eq!(
+            app.agent.chat.iter().rev().nth(1).map(|(_, t)| t.as_str()),
             Some("Applied 3 actions — Ctrl+Z undoes the whole turn."),
             "{exit}: including the action whose answer was lost"
         );
@@ -610,7 +631,12 @@ fn a_lost_fence_aborted_turn_is_still_one_entry() {
 
     assert_eq!(app.history.len(), stack_before + 2, "turn, then circle");
     assert_eq!(
-        app.agent.chat.last().map(|(r, t)| (r.as_str(), t.as_str())),
+        app.agent
+            .chat
+            .iter()
+            .rev()
+            .nth(1)
+            .map(|(r, t)| (r.as_str(), t.as_str())),
         Some((
             "note",
             "Applied 3 actions before the drawing changed outside this turn."
@@ -638,8 +664,8 @@ fn the_transcript_holds_one_verbatim_row_per_action_in_order() {
 
     assert_eq!(
         roles(&app),
-        ["user", "tool", "tool", "tool", "assistant", "note"],
-        "AC 23: user, one row per action in apply order, terminal, note"
+        ["user", "tool", "tool", "tool", "assistant", "note", "note"],
+        "AC 23: user, one row per action in apply order, terminal, note, metrics"
     );
     assert_eq!(
         row(&app, 0),
@@ -836,6 +862,63 @@ fn a_whole_turn_lands_on_the_bed() {
     );
 }
 
+/// LCV-189 AC 5 — the budget a turn announces is the stored one clamped to
+/// 1..=4096 at the read site: `0` runs as 1 and `5000` as 4096, and one
+/// call leaves `budget - 1` in the tool result the model reads next.
+#[test]
+fn the_announced_budget_is_the_clamped_setting() {
+    for (stored, line) in [
+        (0u32, "Steps left this turn: 0 of 1."),
+        (5000, "Steps left this turn: 4095 of 4096."),
+    ] {
+        let mut server = mockito::Server::new();
+        let _call = server
+            .mock("POST", "/chat/completions")
+            .with_status(200)
+            .with_body(
+                r#"{"choices":[{"message":{"role":"assistant","content":null,"tool_calls":[
+                    {"id":"a","type":"function","function":{"name":"query_entities",
+                     "arguments":"{}"}}
+                ]}}]}"#,
+            )
+            .expect(1)
+            .create();
+        let told = server
+            .mock("POST", "/chat/completions")
+            .match_body(mockito::Matcher::Regex(regex_escape(line)))
+            .with_status(200)
+            .with_body(r#"{"choices":[{"message":{"role":"assistant","content":"Done."}}]}"#)
+            .expect(1)
+            .create();
+
+        let (ctx, mut app) = ctx_and_app();
+        app.settings.agent_endpoint = server.url();
+        app.settings.agent_api_key = DUMMY_KEY.to_owned();
+        app.settings.agent_model = "test/model".to_owned();
+        app.settings.agent_step_budget = stored;
+
+        start_turn(&mut app, "look");
+        run_until_idle(&ctx, &mut app, "the budget turn must finish");
+        told.assert();
+        let reply = app
+            .agent
+            .chat
+            .iter()
+            .rev()
+            .find(|(role, _)| role == "assistant");
+        assert_eq!(
+            reply.map(|(_, text)| text.as_str()),
+            Some("Done."),
+            "{stored}"
+        );
+    }
+}
+
+/// `text` with the regex metacharacters it uses (`.`) escaped.
+fn regex_escape(text: &str) -> String {
+    text.replace('.', "\\.")
+}
+
 // ── AC 19: the repaint that keeps a turn moving ────────────────────────────
 
 /// Everything in `src` up to the first bare `#[cfg(test)]` at column 0.
@@ -937,9 +1020,9 @@ fn query_entities_lists_ellipses_and_elliptical_arcs() {
     assert_eq!(
         rows,
         [
-            "0: ellipse center (100.000, 50.000) mm, rx = 40.000, ry = 20.000 mm, \
+            "0 e1: ellipse center (100.000, 50.000) mm, rx = 40.000, ry = 20.000 mm, \
              rotation_deg = 30.000 layer Cut",
-            "1: ellipse center (-5.500, 7.250) mm, rx = 12.000, ry = 3.500 mm, \
+            "1 e2: ellipse center (-5.500, 7.250) mm, rx = 12.000, ry = 3.500 mm, \
              rotation_deg = -15.000, 10.0°→200.0° ccw layer Cut",
         ],
         "{text}"
@@ -970,9 +1053,9 @@ fn query_entities_lists_cubics_and_quadratics() {
     assert_eq!(
         rows,
         [
-            "0: cubic (0.000, 0.000) → (10.500, 20.000) → (-3.250, 7.000) → \
+            "0 e1: cubic (0.000, 0.000) → (10.500, 20.000) → (-3.250, 7.000) → \
              (40.000, 0.125) mm layer Cut",
-            "1: quadratic (5.000, 5.000) → (15.000, 25.000) → (25.000, 5.000) mm layer Cut",
+            "1 e2: quadratic (5.000, 5.000) → (15.000, 25.000) → (25.000, 5.000) mm layer Cut",
         ],
         "{text}"
     );

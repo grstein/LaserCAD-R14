@@ -1,18 +1,19 @@
 //! LCV-145 — answer `capture_canvas` and the pre-upload check (ADR 0011
-//! items 1, 2, 6 and 10).
+//! items 1, 2, 6 and 10); LCV-187 — the `drawing` and `region` frames.
 //!
 //! Everything happens synchronously, on the UI thread, in the frame that
-//! received the `Act`: live permission check, framing from `App::camera`,
-//! software raster of the live document, PNG encode, outcome. There is no
+//! received the `Act`: live permission check, framing from `App::camera` or
+//! the live document, software raster of the live document, PNG encode, outcome. There is no
 //! pending capture, deadline or late event, and no framebuffer is read — the
 //! picture is a function of the document and the camera only.
 
-use crate::agent::AgentOutcome;
+use crate::agent::{AgentOutcome, CaptureFrame};
 use crate::app::App;
 use crate::app::agent_apply::CAPTURE_DISABLED;
 use crate::render::raster::{encode_png_gray, rasterize};
 
-/// Longest edge of a canvas image, in pixels. Never upscaled to reach it.
+/// Longest edge of a canvas image, in pixels: at most this for the viewport,
+/// never upscaled; exactly this for a drawing or region frame (LCV-187).
 const MAX_EDGE_PX: f32 = 1024.0;
 
 /// Largest PNG a capture may produce: 2 MiB (ADR 0011 item 5).
@@ -20,6 +21,16 @@ const MAX_PNG_BYTES: usize = 2 * 1024 * 1024;
 
 /// The refusal for a viewport with no area (LCV-145 AC 4).
 const NO_AREA: &str = "the canvas viewport has no area; nothing to capture";
+
+/// The refusals for a frame with no area (LCV-187 AC 4).
+const EMPTY_DRAWING: &str = "the drawing is empty; nothing to capture";
+const FLAT_DRAWING: &str = "the drawing has no area; nothing to capture";
+const FLAT_REGION: &str = "the region has no area; nothing to capture";
+const INFINITE_REGION: &str = "the region is not finite; nothing to capture";
+
+/// Margin around a drawing frame on each side, as a fraction of the
+/// drawing's longest extent (LCV-187 AC 2).
+const DRAWING_MARGIN: f64 = 0.05;
 
 /// The refusal for an upload the UI no longer authorises (ADR 0011 item 10).
 const UPLOAD_REFUSED: &str = "canvas upload not authorised";
@@ -29,19 +40,16 @@ fn allowed(app: &App) -> bool {
     app.settings.agent_allow_canvas_capture && app.settings.agent_model_supports_vision
 }
 
-/// `CaptureCanvas`: the visible viewport, rasterized and encoded, or the
-/// pinned refusal. Reads the live settings, never the turn's snapshot.
-pub(crate) fn capture(app: &App) -> AgentOutcome {
+/// `CaptureCanvas`: `frame` rasterized and encoded, or the pinned refusal.
+/// Reads the live settings, never the turn's snapshot.
+pub(crate) fn capture(app: &App, frame: &CaptureFrame) -> AgentOutcome {
     if !allowed(app) {
         return AgentOutcome::Refused(CAPTURE_DISABLED.to_owned());
     }
-    let [vw, vh] = app.camera.viewport_size_px;
-    let Some((w, h)) = pixel_size(vw, vh) else {
-        return AgentOutcome::Refused(NO_AREA.to_owned());
+    let (world, (w, h)) = match framing(app, frame) {
+        Ok(framed) => framed,
+        Err(reason) => return AgentOutcome::Refused(reason.to_owned()),
     };
-    let lo = app.camera.screen_to_world(egui::pos2(0.0, vh));
-    let hi = app.camera.screen_to_world(egui::pos2(vw, 0.0));
-    let world = [lo.x, lo.y, hi.x, hi.y];
     let pixels = rasterize(&app.document.entities, app.document.bed_mm, world, w, h);
     let png = match encode_png_gray(&pixels, w, h) {
         Ok(png) => png,
@@ -67,6 +75,62 @@ pub(crate) fn authorize(app: &mut App, endpoint: &str, model: &str) -> AgentOutc
     let note = format!("Sending a canvas image to {model}.");
     app.agent.chat.push(("note".to_owned(), note.clone()));
     AgentOutcome::Ok(note)
+}
+
+/// The world rectangle `[x0, y0, x1, y1]` mm and the pixel size of `frame`,
+/// or the refusal naming why it has no area.
+fn framing(app: &App, frame: &CaptureFrame) -> Result<([f64; 4], (u32, u32)), &'static str> {
+    let world = match *frame {
+        CaptureFrame::View => {
+            let [vw, vh] = app.camera.viewport_size_px;
+            let size = pixel_size(vw, vh).ok_or(NO_AREA)?;
+            let lo = app.camera.screen_to_world(egui::pos2(0.0, vh));
+            let hi = app.camera.screen_to_world(egui::pos2(vw, 0.0));
+            return Ok(([lo.x, lo.y, hi.x, hi.y], size));
+        }
+        CaptureFrame::Drawing => {
+            let (lo, hi) = app.document.bounds().ok_or(EMPTY_DRAWING)?;
+            let margin = DRAWING_MARGIN * (hi.x - lo.x).max(hi.y - lo.y);
+            let rect = [lo.x - margin, lo.y - margin, hi.x + margin, hi.y + margin];
+            with_area(rect, FLAT_DRAWING, FLAT_DRAWING)?
+        }
+        CaptureFrame::Region { x0, y0, x1, y1 } => {
+            if ![x0, y0, x1, y1].iter().all(|v| v.is_finite()) {
+                return Err(INFINITE_REGION);
+            }
+            let rect = [x0.min(x1), y0.min(y1), x0.max(x1), y0.max(y1)];
+            with_area(rect, INFINITE_REGION, FLAT_REGION)?
+        }
+    };
+    Ok((world, exact_size(world)))
+}
+
+/// `rect` if its width and height are finite and positive; else
+/// `not_finite` or `no_area`.
+fn with_area(
+    rect: [f64; 4],
+    not_finite: &'static str,
+    no_area: &'static str,
+) -> Result<[f64; 4], &'static str> {
+    let (w, h) = (rect[2] - rect[0], rect[3] - rect[1]);
+    if !(w.is_finite() && h.is_finite()) {
+        return Err(not_finite);
+    }
+    if w > 0.0 && h > 0.0 {
+        Ok(rect)
+    } else {
+        Err(no_area)
+    }
+}
+
+/// The image size for a world rectangle with area: the longest edge exactly
+/// [`MAX_EDGE_PX`], the other in proportion, at least one pixel (LCV-187).
+fn exact_size(world: [f64; 4]) -> (u32, u32) {
+    let (w, h) = (world[2] - world[0], world[3] - world[1]);
+    let scale = f64::from(MAX_EDGE_PX) / w.max(h);
+    // Both products are in (0, 1024] for a rectangle with area.
+    let px = |v: f64| (v * scale).round().max(1.0) as u32;
+    (px(w), px(h))
 }
 
 /// The image size for a `vw × vh` px viewport: scaled down uniformly so the
@@ -133,9 +197,18 @@ mod tests {
     fn a_zero_area_viewport_gets_the_pinned_refusal() {
         let app = app_with(true, true, [0.0, 600.0]);
         assert_eq!(
-            capture(&app),
+            capture(&app, &CaptureFrame::View),
             AgentOutcome::Refused("the canvas viewport has no area; nothing to capture".into())
         );
+    }
+
+    #[test]
+    fn exact_size_sets_the_long_edge_to_1024_and_keeps_one_pixel() {
+        assert_eq!(exact_size([0.0, 0.0, 220.0, 120.0]), (1024, 559));
+        assert_eq!(exact_size([-10.0, 0.0, 30.0, 40.5]), (1011, 1024));
+        assert_eq!(exact_size([0.0, 0.0, 0.5, 0.5]), (1024, 1024));
+        assert_eq!(exact_size([0.0, 0.0, 1000.0, 1e-4]), (1024, 1));
+        assert_eq!(exact_size([0.0, 0.0, 1e-4, 1000.0]), (1, 1024));
     }
 
     #[test]
@@ -162,7 +235,7 @@ mod tests {
         let mut app = app_with(true, true, [800.0, 600.0]);
         app.camera.center_world = Vec2::new(200.0, 150.0);
         app.camera.mm_per_px = 0.5;
-        let AgentOutcome::Observed { text, png } = capture(&app) else {
+        let AgentOutcome::Observed { text, png } = capture(&app, &CaptureFrame::View) else {
             panic!("expected Observed");
         };
         assert_eq!(
@@ -178,8 +251,8 @@ mod tests {
         for (allow, supports) in [(false, false), (true, false), (false, true)] {
             let app = app_with(allow, supports, [800.0, 600.0]);
             assert_eq!(
-                capture(&app),
-                AgentOutcome::Refused("canvas capture is disabled in Agent settings".into()),
+                capture(&app, &CaptureFrame::View),
+                AgentOutcome::Refused(CAPTURE_DISABLED.into()),
                 "({allow}, {supports})"
             );
         }

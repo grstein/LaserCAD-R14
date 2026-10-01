@@ -3,6 +3,8 @@
 - **Status**: Accepted
 - **Date**: 2026-09-29
 - **Deciders**: architect (LCV-156; LightBurn-style layers chosen by the user on 2026-09-29)
+- **Amended (1)**: 2026-09-30 — LCV-191: §6's "No layer-editing tools" now reads: `set_layer`
+  moves entities onto an existing layer; still no tool creates, renames, recolours or deletes a layer.
 
 ## Context
 
@@ -89,7 +91,10 @@ exports the live document and does not save the mother.
 optional root `layer` (one layer per batch; amends ADR 0010 §2/§3). Worker shape check: string,
 1..=64 chars. The apply site resolves it by key; unknown → `Refused` naming the existing layers,
 nothing committed. `query_entities` adds a `Layers: Cut (current), …` line and a `layer <name>`
-suffix per entity. No layer-editing tools.
+suffix per entity. No layer-editing tools. *(Amended (1), LCV-191: `set_layer {indices, layer}`
+moves entities onto an existing layer, resolved the same way, through `SetEntityLayers` as one
+command; entities already there are skipped. Still no tool creates, renames, recolours or deletes
+a layer, or changes Output.)*
 
 **7. Command line.** A new fieldless `CommandInput::Layers` with word rows `layer`, `la` (R14's
 alias; not a letter-axis entry). This is the variant change ADR 0003 §A2a reserves for an ADR.

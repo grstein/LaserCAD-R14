@@ -27,6 +27,7 @@ use crate::document::{Document, Entity, History, TransformEntities};
 use crate::geometry::{EPSILON, Transform, Vec2};
 use crate::tools::copy::sources_intact;
 use crate::tools::{SelectTool, Tool};
+use std::borrow::Cow;
 
 /// Internal state of [`RotateTool`].
 #[derive(Debug)]
@@ -57,6 +58,8 @@ pub struct RotateTool {
     state: RotateState,
     /// `true` after a commit; cleared by the first `take_successor()`.
     pending_successor: bool,
+    /// A typed value's refusal line (LCV-165 AC7); drained by `take_message()`.
+    message: Option<String>,
 }
 
 impl Default for RotateTool {
@@ -64,9 +67,13 @@ impl Default for RotateTool {
         Self {
             state: RotateState::Idle,
             pending_successor: false,
+            message: None,
         }
     }
 }
+
+/// The line shown when a typed value is refused (LCV-165 AC7).
+const REFUSAL: &str = "Rotation angle must be a finite number.";
 
 /// The angle of `p − base`, CCW from +X; `None` when the two coincide.
 fn angle_to(base: Vec2, p: Vec2) -> Option<f64> {
@@ -109,10 +116,10 @@ impl Tool for RotateTool {
     }
 
     /// The R14 prompts (AC1, AC3).
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match &self.state {
-            RotateState::Idle => "ROTATE Specify base point:",
-            RotateState::WaitingAngle { .. } => "ROTATE Specify rotation angle:",
+            RotateState::Idle => "ROTATE  Specify base point:".into(),
+            RotateState::WaitingAngle { .. } => "ROTATE  Specify rotation angle:".into(),
         }
     }
 
@@ -217,6 +224,7 @@ impl Tool for RotateTool {
         match (input, &self.state) {
             (ToolInput::Distance { value_mm, .. }, RotateState::WaitingAngle { .. }) => {
                 if !value_mm.is_finite() {
+                    self.message = Some(REFUSAL.to_owned());
                     return false;
                 }
                 self.rotate_by(value_mm.to_radians(), doc, history);
@@ -230,6 +238,11 @@ impl Tool for RotateTool {
                 None => false,
             },
         }
+    }
+
+    /// Single-shot: the refusal of the last typed value (LCV-165 AC7).
+    fn take_message(&mut self) -> Option<String> {
+        self.message.take()
     }
 
     /// Single-shot: `Some(SelectTool)` once after a commit.
@@ -292,10 +305,10 @@ mod tests {
         let mut tool = RotateTool::default();
         let (mut doc, mut h) = doc_selected();
         assert_eq!(tool.name(), "ROTATE");
-        assert_eq!(tool.status_text(), "ROTATE Specify base point:");
+        assert_eq!(tool.status_text(), "ROTATE  Specify base point:");
         assert_eq!(tool.anchor(), None);
         tool.on_pointer_down(Vec2::new(1.0, 2.0), false, &mut doc, &mut h);
-        assert_eq!(tool.status_text(), "ROTATE Specify rotation angle:");
+        assert_eq!(tool.status_text(), "ROTATE  Specify rotation angle:");
         assert_eq!(tool.anchor(), Some(Vec2::new(1.0, 2.0)));
     }
 
@@ -310,7 +323,7 @@ mod tests {
         tool.on_pointer_down(Vec2::new(0.0, 5.0), false, &mut doc, &mut h);
         assert_eq!(doc.entities, before);
         assert!(!h.can_undo());
-        assert_eq!(tool.status_text(), "ROTATE Specify base point:");
+        assert_eq!(tool.status_text(), "ROTATE  Specify base point:");
     }
 
     /// AC3 — the preview is the selection rotated by base → cursor.
@@ -349,7 +362,7 @@ mod tests {
         assert!(l.p2.approx_eq(Vec2::new(0.0, 20.0), EPSILON), "{l:?}");
         assert_eq!(h.len(), 1);
         assert_eq!(doc.selection, selection);
-        assert_eq!(tool.status_text(), "ROTATE Specify base point:");
+        assert_eq!(tool.status_text(), "ROTATE  Specify base point:");
         assert_eq!(tool.take_successor().map(|t| t.name()), Some("Select"));
         assert!(tool.take_successor().is_none());
     }
@@ -380,7 +393,7 @@ mod tests {
         tool.on_pointer_down(Vec2::new(4.0, 0.0), false, &mut doc, &mut h);
         tool.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
         assert!(!h.can_undo());
-        assert_eq!(tool.status_text(), "ROTATE Specify rotation angle:");
+        assert_eq!(tool.status_text(), "ROTATE  Specify rotation angle:");
         assert!(tool.take_successor().is_none());
     }
 
@@ -397,6 +410,25 @@ mod tests {
         assert_eq!(tool.name(), "ROTATE");
         assert!(tool.preview().is_empty());
         assert_eq!(tool.anchor(), None);
+    }
+
+    /// LCV-165 AC7 — a non-finite angle is refused with ROTATE's own line,
+    /// handed out once through `take_message`; nothing is committed.
+    #[test]
+    fn non_finite_angle_leaves_its_refusal() {
+        let mut tool = RotateTool::default();
+        let (mut doc, mut h) = doc_selected();
+        tool.on_pointer_down(Vec2::new(0.0, 0.0), false, &mut doc, &mut h);
+        for value in [f64::NAN, f64::INFINITY] {
+            assert!(!tool.on_command_input(degrees(value), &mut doc, &mut h));
+            assert_eq!(
+                tool.take_message().as_deref(),
+                Some("Rotation angle must be a finite number.")
+            );
+            assert_eq!(tool.take_message(), None, "single-shot");
+        }
+        assert!(!h.can_undo());
+        assert_eq!(tool.status_text(), "ROTATE  Specify rotation angle:");
     }
 
     /// An undo past the base point cancels instead of rotating stale indices.

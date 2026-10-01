@@ -1,4 +1,4 @@
-//! LCV-143 AC 3, AC 4 and AC 8 — the System prompt editor in Agent Settings,
+//! LCV-143 AC 3, AC 4 and AC 8 — the System prompt editor in AI Settings,
 //! driven headless through the real `App` and the real
 //! `src/app/panels.rs::agent_settings_dialog`, persisting to a test-owned
 //! `settings_path` (ADR 0006), never the real one.
@@ -41,7 +41,7 @@ fn run(ctx: &egui::Context, app: &mut App, events: Vec<egui::Event>) -> Vec<Run>
     painted_runs_at(ctx, app, SCREEN, events)
 }
 
-/// Open Agent Settings and settle it (trap 7: the first frame is unplaced).
+/// Open AI Settings and settle it (trap 7: the first frame is unplaced).
 fn open(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
     app.agent_settings_open = true;
     let _ = run(ctx, app, Vec::new());
@@ -77,17 +77,17 @@ fn click(ctx: &egui::Context, app: &mut App, pos: egui::Pos2) -> Vec<Run> {
     )
 }
 
-/// Click Done and return what the test-owned file persisted.
+/// Click Close and return what the test-owned file persisted.
 fn done(ctx: &egui::Context, app: &mut App) -> Settings {
     let runs = run(ctx, app, Vec::new());
-    let _ = click(ctx, app, locate(&runs, "Done"));
-    assert!(!app.agent_settings_open, "Done closes the dialog");
+    let _ = click(ctx, app, locate(&runs, "Close"));
+    assert!(!app.agent_settings_open, "Close closes the dialog");
     let path = app.settings_path.clone().expect("a test-owned path");
     let json = std::fs::read_to_string(path).expect("closing persists the settings");
     serde_json::from_str(&json).expect("the persisted settings parse")
 }
 
-/// AC 3 — opening and closing Agent Settings without touching the field
+/// AC 3 — opening and closing AI Settings without touching the field
 /// creates no override, and keeps an existing one exactly.
 #[test]
 fn ac3_an_untouched_editor_creates_no_override() {
@@ -110,7 +110,7 @@ fn ac3_an_untouched_editor_creates_no_override() {
 }
 
 /// AC 3 + AC 4 — text typed across several frames lands verbatim (no trim,
-/// newline kept), persists through Done, and is what a reopened dialog shows.
+/// newline kept), persists through Close, and is what a reopened dialog shows.
 #[test]
 fn ac3_typed_text_persists_verbatim_through_done() {
     let dir = tempdir("typed");
@@ -146,8 +146,8 @@ fn ac3_typed_text_persists_verbatim_through_done() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// AC 4 — Restore default clears the override and the editor shows the
-/// built-in text on the very frame of the click; Done persists `None`.
+/// AC 4 — Restore Default clears the override and the editor shows the
+/// built-in text on the very frame of the click; Close persists `None`.
 #[test]
 fn ac4_restore_default_clears_the_override_on_the_same_frame() {
     let dir = tempdir("restore");
@@ -158,7 +158,7 @@ fn ac4_restore_default_clears_the_override_on_the_same_frame() {
         "control"
     );
 
-    let runs = click(&ctx, &mut app, locate(&runs, "Restore default"));
+    let runs = click(&ctx, &mut app, locate(&runs, "Restore Default"));
     assert_eq!(app.settings.agent_system_prompt, None);
     assert!(
         runs.iter()
@@ -215,8 +215,8 @@ fn ac8_every_control_is_reachable_at_800x600_with_a_long_prompt() {
         "The API key is stored in plain text",
         "Steps per turn",
         "System prompt",
-        "Restore default",
-        "Done",
+        "Restore Default",
+        "Close",
     ] {
         assert!(
             contained(&top, label) || contained(&bottom, label),

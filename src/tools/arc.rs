@@ -11,6 +11,7 @@ use crate::cmdline::ToolInput;
 use crate::document::{Document, Entity, History, commands::CreateArc};
 use crate::geometry::{Arc, EPSILON, Line, Vec2};
 use crate::tools::Tool;
+use std::borrow::Cow;
 
 /// Internal state for [`ArcTool`].
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -86,11 +87,11 @@ impl Tool for ArcTool {
 
     /// The R14 prompt table (LCV-111 AC 17). ARC had no override before this
     /// demand and inherited [`Tool::name`], so it showed no phase.
-    fn status_text(&self) -> &'static str {
+    fn status_text(&self) -> Cow<'_, str> {
         match self.state {
-            ArcState::Idle => "ARC Specify start point:",
-            ArcState::WaitingEnd { .. } => "ARC Specify end point:",
-            ArcState::WaitingMid { .. } => "ARC Specify point on arc:",
+            ArcState::Idle => "ARC  Specify start point:".into(),
+            ArcState::WaitingEnd { .. } => "ARC  Specify end point:".into(),
+            ArcState::WaitingMid { .. } => "ARC  Specify point on arc:".into(),
         }
     }
 
@@ -403,10 +404,10 @@ mod tests {
     fn status_text_follows_the_phase() {
         let mut t = ArcTool::default();
         let (mut doc, mut h) = doc_and_hist();
-        assert_eq!(t.status_text(), "ARC Specify start point:");
+        assert_eq!(t.status_text(), "ARC  Specify start point:");
         t.on_pointer_down(Vec2::new(1.0, 0.0), false, &mut doc, &mut h);
-        assert_eq!(t.status_text(), "ARC Specify end point:");
+        assert_eq!(t.status_text(), "ARC  Specify end point:");
         t.on_pointer_down(Vec2::new(-1.0, 0.0), false, &mut doc, &mut h);
-        assert_eq!(t.status_text(), "ARC Specify point on arc:");
+        assert_eq!(t.status_text(), "ARC  Specify point on arc:");
     }
 }

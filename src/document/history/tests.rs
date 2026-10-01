@@ -1,5 +1,5 @@
 use super::*;
-use crate::document::{CreateLine, DeleteEntities, Entity, NoOpCommand};
+use crate::document::{CreateLine, DeleteEntities, Entity, MoveEntities, NoOpCommand};
 use crate::geometry::{Line, Vec2};
 
 fn line_a() -> Line {
@@ -473,5 +473,92 @@ fn a_group_longer_than_the_cap_seals_into_one_entry() {
         assert!(h.undo(&mut doc));
     }
     assert!(!h.undo(&mut doc), "the oldest human entry was evicted");
+    assert_eq!(doc.entities.len(), 1);
+}
+
+// --- LCV-198 — rewinding the open group to a mark (ADR 0007 §D12) --------
+
+/// Entities and ids of `doc`, in order: the state a checkpoint names.
+fn snapshot(doc: &Document) -> Vec<(Entity, Option<crate::document::EntityId>)> {
+    (0..doc.entities.len())
+        .map(|i| (doc.entities[i], doc.entity_id(i)))
+        .collect()
+}
+
+/// A human line, then a group holding one create (the mark) and then a
+/// create → move → delete that only a reverse-order undo can take back.
+fn group_with_mark(doc: &mut Document, h: &mut History) -> usize {
+    h.commit(Box::new(CreateLine::new(line_at(9.0))), doc);
+    h.begin_group("Agent: try");
+    h.commit_grouped(Box::new(CreateLine::new(line_at(0.0))), doc);
+    h.group_len()
+}
+
+fn risky_steps(doc: &mut Document, h: &mut History) {
+    h.commit_grouped(Box::new(CreateLine::new(line_at(1.0))), doc);
+    let delta = Vec2::new(5.0, 5.0);
+    h.commit_grouped(Box::new(MoveEntities::new(vec![1, 2], delta)), doc);
+    h.commit_grouped(Box::new(DeleteEntities::new(vec![1])), doc);
+}
+
+/// LCV-198 AC 2 — `group_len` counts the open group; the rewind undoes
+/// every command past the mark in reverse order, drops them, leaves redo
+/// empty and bumps the revision exactly once.
+#[test]
+fn rewind_group_undoes_past_the_mark_in_reverse_order() {
+    let (mut doc, mut h) = (Document::default(), History::new());
+    assert_eq!(h.group_len(), 0, "no group open");
+    let mark = group_with_mark(&mut doc, &mut h);
+    assert_eq!(mark, 1);
+    let at_mark = snapshot(&doc);
+    risky_steps(&mut doc, &mut h);
+    assert_eq!(h.group_len(), 4);
+    let rev = h.revision();
+
+    assert_eq!(h.rewind_group(mark, &mut doc), 3);
+    assert_eq!(snapshot(&doc), at_mark, "entities and ids as at the mark");
+    assert_eq!(h.revision(), rev + 1, "one bump for the whole rewind");
+    assert_eq!(h.group_len(), mark, "the rewound commands are dropped");
+    assert!(h.group_open(), "a rewind does not seal");
+    assert!(!h.can_redo(), "no redo of a rewind");
+}
+
+/// LCV-198 — a rewind with no group, or a mark at or past `group_len`,
+/// changes nothing and does not move the revision.
+#[test]
+fn rewind_group_is_a_no_op_without_a_group_or_past_its_length() {
+    let (mut doc, mut h) = (Document::default(), History::new());
+    h.commit(Box::new(CreateLine::new(line_at(0.0))), &mut doc);
+    assert_eq!(h.rewind_group(0, &mut doc), 0, "no group open");
+    assert_eq!((h.revision(), doc.entities.len()), (1, 1));
+
+    let mark = group_with_mark(&mut doc, &mut h);
+    let rev = h.revision();
+    for m in [mark, mark + 1, usize::MAX] {
+        assert_eq!(h.rewind_group(m, &mut doc), 0);
+    }
+    assert_eq!(h.revision(), rev);
+    assert_eq!((h.group_len(), doc.entities.len()), (1, 3));
+}
+
+/// LCV-198 AC 6 — `end_group` after a rewind seals only the survivors: one
+/// undo entry for them, and none when the rewind went back to 0.
+#[test]
+fn end_group_after_a_rewind_seals_only_the_survivors() {
+    let (mut doc, mut h) = (Document::default(), History::new());
+    let mark = group_with_mark(&mut doc, &mut h);
+    risky_steps(&mut doc, &mut h);
+    h.rewind_group(mark, &mut doc);
+    assert_eq!(h.end_group(), Some(1));
+    assert_eq!(h.len(), 2, "the human line plus the one survivor");
+    assert!(h.undo(&mut doc));
+    assert_eq!(doc.entities.len(), 1, "only the human line is left");
+
+    let (mut doc, mut h) = (Document::default(), History::new());
+    group_with_mark(&mut doc, &mut h);
+    risky_steps(&mut doc, &mut h);
+    assert_eq!(h.rewind_group(0, &mut doc), 4);
+    assert_eq!(h.end_group(), Some(0));
+    assert_eq!(h.len(), 1, "nothing survived: no entry for the turn");
     assert_eq!(doc.entities.len(), 1);
 }

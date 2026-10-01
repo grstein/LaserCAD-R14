@@ -41,9 +41,12 @@
 //! moment the channel dies (ADR 0007 §D2), so no thread is killed and none is
 //! asked to check a flag.
 
-use crate::agent::{AgentAction, AgentEvent, AgentOutcome, ChatMessage, TurnEnd};
-use crate::app::{App, agent_apply, agent_capture, agent_memory};
+use crate::agent::{AgentAction, AgentEvent, AgentOutcome, TurnEnd, repeat};
+use crate::app::{App, agent_apply, agent_capture, agent_feedback, agent_verify};
 use std::sync::mpsc::TryRecvError;
+
+mod turn_end;
+pub(super) use turn_end::end_turn;
 
 /// Text shown in the chat when the worker thread ended without a verdict.
 pub const AGENT_LOST_MESSAGE: &str = "Agent turn ended without a reply.";
@@ -71,14 +74,7 @@ pub fn poll_agent_rx(app: &mut App) {
     loop {
         match rx.try_recv() {
             Ok(AgentEvent::Act { action, reply }) => {
-                // LCV-145: the pre-upload check is a rendezvous, not a step —
-                // no count, no fence, no `tool` row (ADR 0011 item 10).
-                let outcome = match &action {
-                    AgentAction::AuthorizeUpload { endpoint, model } => {
-                        agent_capture::authorize(app, endpoint, model)
-                    }
-                    _ => apply_fenced(app, &action),
-                };
+                let outcome = answer_act(app, &action);
                 if reply.send(outcome).is_err() {
                     // The fourth turn exit: the worker panicked or returned
                     // between sending this `Act` and reading its answer. It
@@ -115,13 +111,52 @@ pub fn poll_agent_rx(app: &mut App) {
     }
 }
 
-/// Apply one action behind the turn's fence (ADR 0007 §D4), and count it.
+/// Answer one `Act` of the in-flight turn and count it in the turn's tally
+/// (LCV-193). The seam a scripted test drives without a channel.
 ///
-/// Four things happen here that `agent_apply` deliberately does not know
+/// LCV-145: the pre-upload check is a rendezvous, not a step — no count, no
+/// fence, no `tool` row (ADR 0011 item 10); nor is an image's post-send note,
+/// a `note` row (LCV-187), nor a model reply, no row at all (LCV-193), nor
+/// the after-batch feedback ask (LCV-195), nor the verify ask (LCV-197). Every
+/// other action is a step, applied behind the fence and counted, refusals and
+/// LCV-192 repeats included, and recorded for the verify ask.
+pub(crate) fn answer_act(app: &mut App, action: &AgentAction) -> AgentOutcome {
+    match action {
+        AgentAction::AuthorizeUpload { endpoint, model } => {
+            agent_capture::authorize(app, endpoint, model)
+        }
+        AgentAction::Note(text) => {
+            app.agent.chat.push(("note".to_owned(), text.clone()));
+            AgentOutcome::Ok(text.clone())
+        }
+        AgentAction::Replied { captures } => {
+            let tally = &mut app.agent.turn.tally;
+            tally.replies = tally.replies.saturating_add(1);
+            tally.captures = tally.captures.saturating_add(*captures);
+            AgentOutcome::Ok(String::new())
+        }
+        AgentAction::Feedback => agent_feedback::feedback(app),
+        AgentAction::VerifyDue => agent_verify::answer(app),
+        _ => {
+            let before = app.history.revision();
+            let outcome = apply_fenced(app, action);
+            let moved = app.history.revision() != before;
+            app.agent.turn.verify.after(action, &outcome, moved);
+            let repeated = match action {
+                AgentAction::Malformed { reason, .. } => repeat::is_repeat(reason),
+                _ => false,
+            };
+            app.agent.turn.tally.step(&outcome, repeated);
+            outcome
+        }
+    }
+}
+
+/// Apply one action behind the turn's fence (ADR 0007 §D4).
+///
+/// Three things happen here that `agent_apply` deliberately does not know
 /// about, because they are properties of the *turn* rather than of the action:
 ///
-/// - the step count the panel's progress row reads — every `Act`, ungated
-///   (LCV-142 AC 3/4);
 /// - the fence check, which answers `Fenced` to anything at all once the
 ///   revision moved outside this turn or its group was sealed — including a
 ///   query, whose answer would be read against a drawing the model has not
@@ -135,8 +170,6 @@ pub fn poll_agent_rx(app: &mut App) {
 /// action, it gets a transcript row like any other, and it is not an *applied*
 /// action.
 fn apply_fenced(app: &mut App, action: &AgentAction) -> AgentOutcome {
-    // Every `Act` is a step — fenced, malformed and queries included (§D13).
-    app.agent.turn.steps = app.agent.turn.steps.saturating_add(1);
     let (revision, group_open) = (app.history.revision(), app.history.group_open());
     if let Err(refusal) = app.agent.turn.fence.check(revision, group_open) {
         // §D14: the worker reads `Fenced` as "stop dispatching".
@@ -149,46 +182,10 @@ fn apply_fenced(app: &mut App, action: &AgentAction) -> AgentOutcome {
     let after = app.history.revision();
     if after != before {
         app.agent.turn.fence.advance(after);
-        app.agent.turn.applied += 1;
+        let tally = &mut app.agent.turn.tally;
+        tally.applied = tally.applied.saturating_add(1);
     }
     outcome
-}
-
-/// The work every turn end does, whichever exit got here (LCV-123 AC 22).
-///
-/// Seals the turn's history group — exactly once per turn, whatever it holds
-/// (ADR 0007 §D12) — then tells the operator what the turn left behind. A
-/// turn that applied nothing says nothing: a note row would be noise.
-///
-/// The note is derived from **`end_group`'s report**, never from the fence:
-/// only when this seal took all `applied` commands is the whole turn one
-/// `Ctrl+Z` away. A group sealed earlier by a foreign event, or dropped with
-/// a replaced document, reports `None` here and gets the neutral sentence.
-///
-/// The counter is **taken**, not read, so a second finish writes no note.
-fn finish_turn(app: &mut App) {
-    let applied = std::mem::take(&mut app.agent.turn.applied);
-    let sealed = app.history.end_group();
-    if applied == 0 {
-        return;
-    }
-    let whole = sealed == Some(applied);
-    app.agent
-        .chat
-        .push(("note".to_owned(), undo_note(applied, whole)));
-}
-
-/// What the operator is told about the turn they just watched (LCV-142 AC 12).
-///
-/// `whole` is true only when the turn's own seal took every applied action;
-/// otherwise the drawing changed outside the turn and no undo claim is made.
-fn undo_note(applied: usize, whole: bool) -> String {
-    match (applied, whole) {
-        (1, true) => "Applied 1 action — Ctrl+Z undoes it.".to_owned(),
-        (n, true) => format!("Applied {n} actions — Ctrl+Z undoes the whole turn."),
-        (1, false) => "Applied 1 action before the drawing changed outside this turn.".to_owned(),
-        (n, false) => format!("Applied {n} actions before the drawing changed outside this turn."),
-    }
 }
 
 /// Exits 3 and 4: the worker is gone, with no batches to report.
@@ -196,24 +193,6 @@ fn lost(app: &mut App) {
     let row = Some(("error", AGENT_LOST_MESSAGE.to_owned()));
     let error = AGENT_LOST_MESSAGE.to_owned();
     end_turn(app, row, TurnEnd::Stopped { error }, Vec::new());
-}
-
-/// Every exit path, in one place: push an optional chat row, do the turn-end
-/// work, record the turn in memory, clear the busy flag, drop the channel.
-/// ADR 0007 §D11 — a reviewer checks this list.
-///
-/// The order of the first two is the tail of AC 23's total ordering: the
-/// terminal row says how the turn ended, the note row says what it left behind.
-/// Memory is recorded after the seal, so a `Done` mark sees the sealed history
-/// (LCV-153, ADR 0007 §D16).
-fn end_turn(app: &mut App, row: Option<(&str, String)>, end: TurnEnd, batches: Vec<ChatMessage>) {
-    if let Some((role, text)) = row {
-        app.agent.chat.push((role.to_owned(), text));
-    }
-    finish_turn(app);
-    agent_memory::record(app, end, batches);
-    app.agent.busy = false;
-    app.agent.rx = None;
 }
 
 /// End the in-flight turn because the operator asked to (LCV-129 AC 6).
@@ -247,6 +226,7 @@ pub fn cancel_turn(app: &mut App) {
 
 #[cfg(test)]
 mod tests {
+    use super::turn_end::{finish_turn, undo_note};
     use super::*;
     use crate::app::arm_turn;
 
@@ -295,6 +275,29 @@ mod tests {
         assert_eq!(app.agent.chat.len(), rows, "no note row for zero actions");
         assert_eq!(app.history.len(), stack);
         assert!(!app.history.group_open(), "the group was still sealed");
+    }
+
+    /// LCV-198 AC 6 — after a rollback the note counts the surviving changes
+    /// the seal took, and a turn rolled back to `start` writes no note.
+    #[test]
+    fn the_undo_note_counts_what_survived_a_rollback() {
+        use crate::document::CreateLine;
+        use crate::geometry::{Line, Vec2};
+        for (mark, note) in [(1, Some("Applied 1 action — Ctrl+Z undoes it.")), (0, None)] {
+            let mut app = App::default();
+            let _tx = arm_turn(&mut app, "try");
+            for y in [0.0, 1.0, 2.0] {
+                let line = Line::new(Vec2::new(0.0, y), Vec2::new(1.0, y));
+                let cmd = Box::new(CreateLine::new(line));
+                app.history.commit_grouped(cmd, &mut app.document);
+            }
+            app.history.rewind_group(mark, &mut app.document);
+            app.agent.turn.tally.applied = 4;
+            let rows = app.agent.chat.len();
+            finish_turn(&mut app);
+            let last = app.agent.chat.get(rows).map(|(_, text)| text.as_str());
+            assert_eq!(last, note, "mark {mark}");
+        }
     }
 
     /// ADR 0007 §D11 — [`end_turn`] is the one place that clears `agent.rx`,
@@ -363,7 +366,14 @@ mod tests {
 
         cancel_turn(&mut app);
 
-        let (role, text) = app.agent.chat.last().expect("a row must have been written");
+        // The cancel row, then the metrics note every turn ends with (LCV-193).
+        let rows = &app.agent.chat;
+        assert!(rows.last().is_some_and(|(_, t)| t.starts_with("Turn: ")));
+        let (role, text) = rows
+            .iter()
+            .rev()
+            .nth(1)
+            .expect("a row must have been written");
         assert_eq!(role, "note");
         assert_eq!(
             text,
@@ -375,20 +385,19 @@ mod tests {
         assert_eq!(text, AGENT_CANCELLED_MESSAGE);
     }
 
-    /// The applied-action counter must not survive its turn: a second turn
-    /// that inherited it would write a note about work that is not its own.
+    /// LCV-193 — finishing reads the tally, so the metrics note sees the
+    /// applied count, and it stays readable until the next turn is armed,
+    /// which replaces it whole: no turn inherits another's counts.
     #[test]
-    fn finishing_a_turn_clears_the_applied_counter() {
+    fn the_tally_outlives_the_finish_until_the_next_turn_is_armed() {
         let mut app = App::default();
         let _tx = arm_turn(&mut app, "one");
-        app.agent.turn.applied = 3;
-        finish_turn(&mut app);
-        assert_eq!(app.agent.turn.applied, 0);
-        finish_turn(&mut app);
-        assert_eq!(
-            app.agent.chat.iter().filter(|(r, _)| r == "note").count(),
-            1,
-            "a second finish must not invent a second note"
-        );
+        app.agent.turn.tally.applied = 3;
+        app.agent.turn.tally.steps = 4;
+        end_turn(&mut app, None, TurnEnd::Cancelled, Vec::new());
+        assert_eq!(app.agent.turn.tally.applied, 3);
+        assert_eq!(app.agent.turn.tally.steps, 4);
+        let _tx = arm_turn(&mut app, "two");
+        assert_eq!(app.agent.turn.tally, crate::agent::TurnMetrics::default());
     }
 }

@@ -37,10 +37,10 @@ use crate::harness;
 
 use harness::paint::{self, Run};
 use harness::raw_input;
-use lasercad::app::{App, DocumentTitleState, PendingAction};
-use lasercad::document::CreateLine;
+use lasercad::app::DiscardChoice;
+use lasercad::app::{App, DocumentTitleState, PendingAction, Severity};
+use lasercad::document::{AddLayer, Command, CreateLine, Document, Entity};
 use lasercad::geometry::{Line, Vec2};
-use lasercad::ui::DialogResult;
 use std::path::PathBuf;
 
 // ---------------------------------------------------------------------------
@@ -131,10 +131,11 @@ fn open_file_menu(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
 /// Open File > Open Recent — a **nested** submenu, which egui-0.29.1 opens on
 /// hover, never on click (`menu.rs::submenu_button_interaction`,
 /// `!open && button.hovered()`). Only a `PointerMoved` is sent, landing on
-/// the already-open File menu's "Open Recent ▶" row.
+/// the already-open File menu's "Open Recent" row (no hand-drawn arrow since
+/// LCV-166).
 fn open_recent_submenu(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
     let menu_runs = open_file_menu(ctx, app);
-    let recent = locate(&menu_runs, "Open Recent \u{25b6}");
+    let recent = locate(&menu_runs, "Open Recent");
     let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(recent)]), |c| {
         app.update_ui(c)
     });
@@ -304,7 +305,7 @@ fn cancelling_the_discard_dialog_leaves_the_title_unchanged() {
 
     let ctx = egui::Context::default();
     let _ = ctx.run(egui::RawInput::default(), |c| {
-        lasercad::app::apply_dialog_result(c, &mut app, DialogResult::Cancelled);
+        lasercad::app::apply_discard_choice(c, &mut app, DiscardChoice::Cancel);
     });
 
     assert!(app.guard.pending_action.is_none());
@@ -372,8 +373,8 @@ fn recovered_badge_paints_with_its_hover_text_and_touches_nothing_else() {
     ctx.set_pixels_per_point(1.0);
     boot(&ctx, &mut app);
 
-    let dirty_before = app.dirty_since;
-    let autosave_before = app.last_autosave_at;
+    let dirty_before = app.autosave.dirty_since;
+    let autosave_before = app.autosave.last_autosave_at;
 
     let runs = paint::painted_runs(&ctx, &mut app);
     assert!(
@@ -395,11 +396,11 @@ fn recovered_badge_paints_with_its_hover_text_and_touches_nothing_else() {
     );
 
     assert_eq!(
-        app.dirty_since, dirty_before,
+        app.autosave.dirty_since, dirty_before,
         "rendering the recovery label must not touch dirty_since"
     );
     assert_eq!(
-        app.last_autosave_at, autosave_before,
+        app.autosave.last_autosave_at, autosave_before,
         "rendering the recovery label must not touch last_autosave_at"
     );
 }
@@ -559,7 +560,7 @@ fn open_recent_entry_hover_text_paints_the_full_path() {
     });
     // Unlike the recovered-badge hover test above, the pointer here has
     // already moved twice before landing on this entry (onto "File", then
-    // onto "Open Recent ▶"), so egui's pointer-velocity window
+    // onto "Open Recent"), so egui's pointer-velocity window
     // (`emath::History`, up to 0.1 s / 3 samples) is still warm and
     // `last_move_time` keeps advancing for a few more frames even though the
     // pointer itself has stopped. A handful of idle frames lets that window
@@ -703,4 +704,123 @@ fn open_path_refuses_a_too_deep_use_chain_and_keeps_the_document() {
     assert_eq!(app.current_file, Some(PathBuf::from("original.svg")));
     let err = app.error_message.as_deref().unwrap_or_default();
     assert!(err.contains("use nesting depth 32"), "{err:?}");
+}
+
+// ---------------------------------------------------------------------------
+// LCV-168 — Save confirms the file and warns about geometry outside the bed
+// ---------------------------------------------------------------------------
+
+/// An `App` saving to `dir/<name>` on a `bed_mm` bed, persistence paths in
+/// `dir` (ADR 0006).
+fn saving_app(dir: &std::path::Path, name: &str, bed_mm: [f64; 2]) -> App {
+    App {
+        settings_path: Some(dir.join("settings.json")),
+        autosave_path: Some(dir.join("autosave.json")),
+        current_file: Some(dir.join(name)),
+        document: Document::with_bed(bed_mm),
+        ..App::default()
+    }
+}
+
+/// LCV-168 AC 1 — a successful Save names the file and the bed as Info, with
+/// the bed sizes in Rust's shortest `f64` form.
+#[test]
+fn save_announces_the_file_and_bed_as_info() {
+    let dir = tempdir("lcv168_save_info");
+    let mut app = saving_app(&dir, "drawing.svg", [400.0, 400.0]);
+    app.history
+        .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
+
+    app.action_save();
+
+    assert_eq!(app.error_message, None, "the save must succeed");
+    assert_eq!(app.command_feedback, "Saved drawing.svg (400 × 400 mm)");
+    assert_eq!(app.command_feedback_severity, Severity::Info);
+
+    let mut app = saving_app(&dir, "half.svg", [400.0, 297.5]);
+    app.action_save();
+    assert_eq!(app.command_feedback, "Saved half.svg (400 × 297.5 mm)");
+    assert_eq!(app.command_feedback_severity, Severity::Info);
+}
+
+/// A line on `[400, 400]` that leaves the bed past its left edge.
+fn off_bed_line() -> Entity {
+    Entity::Line(Line::new(Vec2::new(-5.0, 10.0), Vec2::new(50.0, 10.0)))
+}
+
+/// LCV-168 AC 2 — out-of-bed entities turn the Save line into a Warning with
+/// the count appended, singular for one, and an Output-off layer's entity
+/// still counts (the mother file holds it).
+#[test]
+fn save_warns_about_entities_outside_the_bed() {
+    let dir = tempdir("lcv168_save_warning");
+    let mut app = saving_app(&dir, "one.svg", [400.0, 400.0]);
+    let cut = app.document.current_layer();
+    app.document.push_entity(off_bed_line(), cut);
+    app.document.push_entity(Entity::Line(some_line()), cut);
+
+    app.action_save();
+
+    assert_eq!(app.error_message, None, "the save must succeed");
+    assert_eq!(
+        app.command_feedback,
+        "Saved one.svg (400 × 400 mm) — 1 entity outside the bed"
+    );
+    assert_eq!(app.command_feedback_severity, Severity::Warning);
+
+    let mut app = saving_app(&dir, "two.svg", [400.0, 400.0]);
+    let cut = app.document.current_layer();
+    let mut add = AddLayer::new("Off", [9, 9, 9], false);
+    add.do_(&mut app.document);
+    let off = add.id().expect("allocated by do_");
+    app.document.push_entity(off_bed_line(), cut);
+    app.document.push_entity(off_bed_line(), off);
+
+    app.action_save();
+
+    assert_eq!(
+        app.command_feedback,
+        "Saved two.svg (400 × 400 mm) — 2 entities outside the bed"
+    );
+    assert_eq!(app.command_feedback_severity, Severity::Warning);
+}
+
+/// LCV-168 AC 5 — a Save that fails to write shows no `Saved` line and no
+/// out-of-bed warning: the dock keeps its previous message and the error
+/// dialog gets `error_message`, as before.
+#[test]
+fn failed_save_announces_nothing() {
+    let mut app = App {
+        current_file: Some(PathBuf::from("/nonexistent_dir_lcv168/canary.svg")),
+        ..App::default()
+    };
+    let cut = app.document.current_layer();
+    app.document.push_entity(off_bed_line(), cut);
+    app.say(Severity::Error, "sentinel");
+
+    app.action_save();
+
+    assert!(app.error_message.is_some(), "the save must fail");
+    assert_eq!(app.command_feedback, "sentinel");
+    assert_eq!(app.command_feedback_severity, Severity::Error);
+}
+
+/// LCV-168 AC 5 — a cancelled Save As announces nothing. The dialog is
+/// disarmed outside `crate::run` and panics rather than returning `None`
+/// (ADR 0005), so, like the title scan above, this pins that the cancel
+/// guard returns before the write and the announcement.
+#[test]
+fn cancelled_save_as_returns_before_announcing_source_scan() {
+    let src = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/io/file_actions.rs"
+    ));
+    let start = src
+        .find("pub fn action_save_as(app: &mut App) {")
+        .expect("action_save_as must exist");
+    let body = &src[start..];
+    let guard_at = body.find("None => return,").expect("cancel guard");
+    let write_at = body.find("write_mother(app, &path)").expect("write");
+    let announce_at = body.find("announce_saved(app, &path)").expect("announce");
+    assert!(guard_at < write_at && write_at < announce_at);
 }

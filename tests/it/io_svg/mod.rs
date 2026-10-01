@@ -6,6 +6,7 @@ mod corpus;
 mod corpus_expected;
 mod docs_examples_roundtrip;
 mod ellipse;
+mod entity_ids;
 mod export_audit;
 mod export_layers;
 mod import;

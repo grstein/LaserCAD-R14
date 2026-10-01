@@ -28,7 +28,7 @@
 //! [`CreateEntities`] introduced by demand LCV-045.
 
 use super::Command;
-use crate::document::{Document, Entity, LayerId};
+use crate::document::{Document, Entity, IdLedger, LayerId};
 use crate::geometry::{Arc, Circle, Line};
 
 /// Append a [`Line`] to a [`Document`].
@@ -45,6 +45,8 @@ pub struct CreateLine {
     captured_index: Option<usize>,
     /// Layer the entity lands on; `None` = the current layer at first `do_`.
     layer: Option<LayerId>,
+    /// The id the first `do_` handed out, reused on redo (ADR 0014).
+    ids: IdLedger,
 }
 
 impl CreateLine {
@@ -54,6 +56,7 @@ impl CreateLine {
             line,
             captured_index: None,
             layer: None,
+            ids: IdLedger::default(),
         }
     }
 
@@ -67,7 +70,7 @@ impl CreateLine {
 impl Command for CreateLine {
     fn do_(&mut self, doc: &mut Document) {
         let layer = *self.layer.get_or_insert(doc.current_layer());
-        doc.push_entity(Entity::Line(self.line), layer);
+        self.ids.push(doc, 0, Entity::Line(self.line), layer);
         self.captured_index = Some(doc.entities.len() - 1);
     }
 
@@ -92,6 +95,8 @@ pub struct CreateCircle {
     captured_index: Option<usize>,
     /// Layer the entity lands on; `None` = the current layer at first `do_`.
     layer: Option<LayerId>,
+    /// The id the first `do_` handed out, reused on redo (ADR 0014).
+    ids: IdLedger,
 }
 
 impl CreateCircle {
@@ -101,6 +106,7 @@ impl CreateCircle {
             circle,
             captured_index: None,
             layer: None,
+            ids: IdLedger::default(),
         }
     }
 
@@ -114,7 +120,7 @@ impl CreateCircle {
 impl Command for CreateCircle {
     fn do_(&mut self, doc: &mut Document) {
         let layer = *self.layer.get_or_insert(doc.current_layer());
-        doc.push_entity(Entity::Circle(self.circle), layer);
+        self.ids.push(doc, 0, Entity::Circle(self.circle), layer);
         self.captured_index = Some(doc.entities.len() - 1);
     }
 
@@ -139,6 +145,8 @@ pub struct CreateArc {
     captured_index: Option<usize>,
     /// Layer the entity lands on; `None` = the current layer at first `do_`.
     layer: Option<LayerId>,
+    /// The id the first `do_` handed out, reused on redo (ADR 0014).
+    ids: IdLedger,
 }
 
 impl CreateArc {
@@ -148,6 +156,7 @@ impl CreateArc {
             arc,
             captured_index: None,
             layer: None,
+            ids: IdLedger::default(),
         }
     }
 
@@ -161,7 +170,7 @@ impl CreateArc {
 impl Command for CreateArc {
     fn do_(&mut self, doc: &mut Document) {
         let layer = *self.layer.get_or_insert(doc.current_layer());
-        doc.push_entity(Entity::Arc(self.arc), layer);
+        self.ids.push(doc, 0, Entity::Arc(self.arc), layer);
         self.captured_index = Some(doc.entities.len() - 1);
     }
 
@@ -200,6 +209,8 @@ pub struct CreateEntities {
     captured_start: Option<usize>,
     /// Layer the batch lands on; `None` = the current layer at first `do_`.
     layer: Option<LayerId>,
+    /// The ids the first `do_` handed out, reused on redo (ADR 0014).
+    ids: IdLedger,
 }
 
 impl CreateEntities {
@@ -210,6 +221,7 @@ impl CreateEntities {
             entities,
             captured_start: None,
             layer: None,
+            ids: IdLedger::default(),
         }
     }
 
@@ -225,8 +237,8 @@ impl Command for CreateEntities {
         // Re-capture on redo: clear any prior start so LIFO truncate is safe.
         self.captured_start = Some(doc.entities.len());
         let layer = *self.layer.get_or_insert(doc.current_layer());
-        for &entity in &self.entities {
-            doc.push_entity(entity, layer);
+        for (k, &entity) in self.entities.iter().enumerate() {
+            self.ids.push(doc, k, entity, layer);
         }
     }
 

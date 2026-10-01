@@ -78,7 +78,7 @@ fn tools_array_is_sent_in_the_request_body() {
         .create();
 
     let tools = crate::agent::tools::tool_definitions(false);
-    assert_eq!(tools.as_array().map(|a| a.len()), Some(12), "fixture check");
+    assert_eq!(tools.as_array().map(|a| a.len()), Some(17), "fixture check");
 
     let result = chat_completion(
         &server.url(),
@@ -92,8 +92,8 @@ fn tools_array_is_sent_in_the_request_body() {
     let body = bodies.json(0);
     assert_eq!(
         body["tools"].as_array().map(|a| a.len()),
-        Some(12),
-        "AC 4: all twelve tool schemas must reach the wire, body was {body}"
+        Some(17),
+        "AC 4: all seventeen tool schemas must reach the wire, body was {body}"
     );
     assert_eq!(body["tools"][0]["function"]["name"], "create_line");
 }
@@ -298,7 +298,7 @@ fn status_401_is_unauthorized() {
         shown.contains("Authentication failed (HTTP 401)"),
         "{shown}"
     );
-    assert!(shown.contains("Check Help > Agent settings."), "{shown}");
+    assert!(shown.contains("Check Help > AI Settings…"), "{shown}");
     assert_no_key(&shown);
 }
 
@@ -645,7 +645,7 @@ fn ac2_a_timeout_says_exactly_what_the_operator_must_read() {
         concat!(
             "The endpoint did not answer within 120 s. It may be slow, ",
             "unreachable, or the endpoint URL may be wrong — check ",
-            "Help > Agent settings, or press Cancel and try a shorter prompt."
+            "Help > AI Settings…, or press Cancel and try a shorter prompt."
         )
     );
     assert_no_key(&shown);

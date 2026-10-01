@@ -310,6 +310,28 @@ fn canvas_opt_ins_default_off_and_round_trip() {
     assert_eq!(back, on);
 }
 
+/// LCV-195 AC 6 — a settings file written before `Feedback after changes`
+/// existed loads it off, as does the default; a set value round-trips.
+#[test]
+fn feedback_after_changes_defaults_off_and_round_trips() {
+    let old: Settings =
+        serde_json::from_str(r#"{"agent_model":"m","agent_allow_canvas_capture":true}"#).unwrap();
+    assert!(!old.agent_feedback_after_changes);
+    assert!(!Settings::default().agent_feedback_after_changes);
+
+    let on = Settings {
+        agent_feedback_after_changes: true,
+        ..Settings::default()
+    };
+    let json = serde_json::to_string(&on).unwrap();
+    assert!(
+        json.contains(r#""agent_feedback_after_changes":true"#),
+        "{json}"
+    );
+    let back: Settings = serde_json::from_str(&json).unwrap();
+    assert_eq!(back, on);
+}
+
 // ------------------------------------------------------------------
 // LCV-161 — per-kind object snaps
 // ------------------------------------------------------------------

@@ -165,7 +165,11 @@ now is.)
 Building the AppImage and `.deb` is not the same as publishing a release.
 That flow — version bump, `CHANGELOG.md`, the annotated git tag, and the
 GitHub release with these two files attached — lives in `scripts/release.sh`
-(see LCV-089) and is out of scope for this document.
+(see LCV-089) and is out of scope for this document. The Windows `.zip`
+(`scripts/build-zip.ps1`) and macOS `.dmg` (`scripts/build-dmg.sh`) are built
+by CI's `package` job on Windows and Apple Silicon hosts; `release.sh`
+attaches them when they are in `dist/` and names any that is missing
+(`scripts/release.sh --list-assets` shows the list without releasing).
 
 ## 8. Faster local linking with `mold` (optional)
 
@@ -194,3 +198,19 @@ rustflags = ["-C", "link-arg=-fuse-ld=mold"]
 Undo it by deleting those three lines. Not measured on the reference host
 (`mold` is not installed there); the timings in LCV-152's `plan.md` are with the
 default linker.
+
+## 9. Windows cross-check (optional)
+
+A Linux host can type-check the Windows build, including the
+`windows_subsystem` attribute in `src/main.rs` and any `cfg(windows)` code,
+without a Windows machine or a MinGW linker (`cargo check` does not link):
+
+```bash
+rustup target add x86_64-pc-windows-gnu
+cargo check --release --target x86_64-pc-windows-gnu
+```
+
+It must finish with no warnings. `scripts/gate.sh` does not run it, so the
+Linux gate never needs the target; CI's `windows-2022` leg builds and tests the
+real thing on `workflow_dispatch` and tags. Verified on the reference host
+(Rust 1.98) with no warnings (LCV-201).

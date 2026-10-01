@@ -1,66 +1,58 @@
 # LCV-166 — Menu icons and shortcut column, Zoom All/Extents and Ctrl+A
 
-- **Status**: Draft
+- **Status**: Done
 - **Depends on**: LCV-183
-- **Implementation**: -
+- **Implementation**: 6a270d3..8a98661
 
 ## Problem
 
-The menus are how operators learn the keyboard, but today they teach it poorly:
-
-- **Shortcuts.** They are pasted into the label with a tab (`"New\tCtrl+N"`,
-  `"Grid\tF7"` in `ui/menubar.rs`). egui renders the tab as a gap, not a column, so the
-  shortcuts do not line up.
-- **Submenus.** Two submenus add a hand-drawn arrow on top of egui's own (`"Open Recent ▶"`,
-  `"Export preset ▸"`), so each shows two arrows. The last of these goes away with LCV-156 AC 15.
-- **View menu.** It has Zoom In, Zoom Out and Fit to Bed, but not Zoom Extents. Zoom Extents only
-  exists as `F`/`Ctrl+0` (`app/viewport.rs::handle_zoom_extents`). Nothing shows the bed and
-  any geometry outside it at once.
-- **Select All.** `Edit > Select All` has no key. `Ctrl+A` is not in the ADR 0002 §A6 gate table.
+Shortcuts are pasted into menu labels with a tab (`"New\tCtrl+N"`, `"Grid\tF7"` in
+`ui/menubar.rs`); egui renders the tab as a gap, so they do not line up. `Open Recent ▶` adds a
+hand-drawn arrow on top of egui's own. The View menu has Zoom In, Zoom Out and Fit to Bed but no
+Zoom Extents (only `F`/`Ctrl+0`, `app/viewport.rs::handle_zoom_extents`), and nothing shows the
+bed and stray geometry at once. `Edit > Select All` has no key, and `Ctrl+A` is not in the
+ADR 0002 §A6 gate table. User decision 2026-09-30: menu rows get icons from the LCV-183 set.
 
 ## Stories
 
-- As an operator, I want each menu item's shortcut in an aligned column, so that I can learn
-  the keys by reading the menu.
-- As an operator, I want Zoom Extents and Zoom All in the View menu, so that I can find
-  geometry that has left the bed.
+- As an operator, I want each shortcut in an aligned column, so that I learn the keys from the menu.
+- As an operator, I want Zoom Extents and Zoom All in the View menu.
 - As an operator, I want Ctrl+A to select everything.
-
-## Direction
-
-- Shortcuts go in a right-aligned column: `egui::Button::shortcut_text` for buttons, and a small
-  custom row for the Grid/Snap/Ortho checkboxes, which have no `shortcut_text`. Drop the
-  hand-drawn submenu arrows.
-- View menu: `Zoom In`, `Zoom Out`, `Zoom Extents  F`, `Zoom All`, `Fit to Bed`, a separator,
-  then the three mode checkboxes. Zoom All follows R14: it fits the bed and the drawing extents
-  together.
-- `Ctrl+A` selects all visible entities through the same path as `Edit > Select All`. It joins
-  the ADR 0002 §A6 gate table in the global-commands class.
-- The Tools menu shows each tool's key in the same column (`toolbar::TOOLS`).
-- **Menu icons** (user decision 2026-09-30): each menu row is `icon | label | shortcut`. Tools
-  menu rows reuse the rail icon from `TOOLS` (LCV-183). File (New, Open, Save), Edit (Undo,
-  Redo, Delete) and View (Zoom In, Zoom Out, Zoom Extents, Fit to Bed) get icons from the same
-  `ui/icons/` set. Rows without an icon keep an empty icon slot, so labels stay aligned. The
-  mode checkboxes keep their check mark in the icon slot.
-- DESIGN.md §7 and §8 are updated in this spec's last task.
 
 ## Acceptance criteria
 
-To be written by /specify.
+1. THE SYSTEM SHALL paint every menu row as `icon slot | label | shortcut`, with the shortcut
+   right-aligned in one column per menu and no tab character in any label.
+2. THE SYSTEM SHALL paint the LCV-183 icon in the icon slot of every Tools-menu row, and icons from
+   the same set for File (New, Open, Save), Edit (Undo, Redo, Delete) and View (Zoom In, Zoom Out,
+   Zoom Extents, Fit to Bed); a row with no icon SHALL keep an empty slot of the same width.
+3. THE SYSTEM SHALL paint the Grid, Snap and Ortho check marks in the icon slot, with `F7`, `F3`
+   and `F8` in the shortcut column.
+4. THE SYSTEM SHALL show no hand-drawn arrow in a submenu label (`Open Recent`, `Object snap`).
+5. THE SYSTEM SHALL order the View menu as Zoom In, Zoom Out, Zoom Extents (`F`), Zoom All,
+   Fit to Bed, a separator, then Grid, Snap, Object snap and Ortho (amends LCV-116 AC 18/19).
+6. WHEN the operator picks `View > Zoom Extents` THE SYSTEM SHALL frame the drawing extents exactly
+   as `F` does.
+7. WHEN the operator picks `View > Zoom All` THE SYSTEM SHALL frame the union of the bed and the
+   drawing extents; with no entities it SHALL frame the bed.
+8. WHEN the operator presses `Ctrl+A` while the command line does not have focus THE SYSTEM SHALL
+   select all entities through the same path as `Edit > Select All` (one undo step).
+9. WHILE the command line has focus THE SYSTEM SHALL leave `Ctrl+A` to the text field.
+10. THE SYSTEM SHALL list `Ctrl+A` in the ADR 0002 §A6 gate table (global commands) and record
+    the menu row layout in DESIGN.md §7 and §8 in this spec's last task.
 
 ## Out of scope
 
-- Menu mnemonics (Alt+letter underlines). egui 0.29 has no support for them.
-- Icons for menu items that have no rail tool or view action (Export Layers, Bed size, Help).
-- A customisable shortcut table.
-- New menus or reordering (R14 order; LCV-156 adds `Format` after View).
+- Alt+letter mnemonics (egui 0.29 has none); a customisable shortcut table.
+- Icons for rows with no rail tool or view action (Export layers, Bed size, Help).
+- New menus or reordering beyond AC 5 (R14 order; `Format` stays after View).
 
 ## Open questions
 
-- ✱ LCV-116 AC 18/19 pin the View menu's labels (`Grid\tF7`, …) and its contents. This spec
-  amends both.
-- ✱ ADR 0002 §A6: `Ctrl+A` is a new global-command key. Does it fire while the command line has
-  focus? Proposal: no. A focused text field keeps Ctrl+A for "select all text".
-- Zoom All vs Fit to Bed: keep both, or let Zoom All replace Fit to Bed?
-- Seam: `ui/menubar.rs` is at 288 implementation LOC. The View/Edit menus probably need to move
-  to a sibling file (`plan.md`).
+- None. Decided (self-approved per user goal): Ctrl+A does not fire while the command line has
+  focus; Zoom All and Fit to Bed both stay; the `ui/menubar.rs` split (287 LOC) is a plan.md seam.
+
+## Notes
+
+- AC 10: the §A6 row for `Ctrl+A` is its own class, `select all | Ctrl+A | no`, not "global
+  commands": that class fires while a text widget has focus, which AC 9 forbids (T15).

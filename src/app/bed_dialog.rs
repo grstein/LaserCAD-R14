@@ -16,29 +16,32 @@
 
 use super::App;
 use crate::document::SetBedSize;
-use crate::ui::DialogResult;
+use crate::ui::{DialogKey, DialogResult};
 use crate::util::{BED_MAX_MM, BED_MIN_MM, clamp_bed_mm};
 
 /// Render the Bed size… window when `App::bed_dialog` holds a draft.
 ///
 /// A no-op on every frame the dialog is closed. The draft is written back to
 /// `App::bed_dialog` each frame so the `DragValue`s keep their edits; nothing
-/// reaches the document until OK.
+/// reaches the document until OK. A handed-in [`DialogKey`] is a click:
+/// Enter is OK and Escape is Cancel (LCV-169 AC 1, AC 3).
 ///
 /// The settings write lives here rather than in [`apply_bed_dialog_result`]
-/// for the same reason as the Agent Settings window (`src/app/panels.rs`):
+/// for the same reason as the AI Settings window (`src/app/panels.rs`):
 /// persisting a preference is a UI-boundary concern, not part of the pure
 /// helper that tests call directly. Since LCV-119 that helper could not reach
 /// a real user file in any case — [`App::persist_settings`] writes only where
 /// `App::new` pointed it, and is a no-op in a test `App` — and it swallows a
 /// failed write, as everywhere else.
-pub fn draw_bed_dialog(ctx: &egui::Context, app: &mut App) {
+pub fn draw_bed_dialog(ctx: &egui::Context, app: &mut App, key: Option<DialogKey>) {
     let Some(mut draft) = app.bed_dialog else {
         return;
     };
     let mut result = None;
+    let mut open = true;
 
-    egui::Window::new("Bed size")
+    egui::Window::new("Bed Size")
+        .open(&mut open)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
         .resizable(false)
         .collapsible(false)
@@ -63,6 +66,13 @@ pub fn draw_bed_dialog(ctx: &egui::Context, app: &mut App) {
         });
 
     app.bed_dialog = Some(draft);
+    if !open {
+        result = result.or(Some(DialogResult::Cancelled)); // × = Cancel (LCV-169 AC 4)
+    }
+    result = result.or(key.map(|k| match k {
+        DialogKey::Enter => DialogResult::Confirmed,
+        DialogKey::Escape => DialogResult::Cancelled,
+    }));
     if let Some(result) = result
         && apply_bed_dialog_result(app, result)
     {
@@ -83,7 +93,8 @@ fn bed_drag(v: &mut f64) -> egui::DragValue<'_> {
 /// Takes `App::bed_dialog` unconditionally, so both branches close the dialog.
 /// On [`DialogResult::Confirmed`] each axis goes through [`clamp_bed_mm`] and,
 /// **only if the result differs from the current bed**, a [`SetBedSize`] is
-/// committed and `Settings::default_bed_mm` is updated in memory — an OK that
+/// committed, `Settings::default_bed_mm` is updated in memory and the next
+/// frame frames the new bed (LCV-164 AC 7) — an OK that
 /// changes nothing must not cost the operator a Ctrl+Z. On
 /// [`DialogResult::Cancelled`] nothing else happens at all.
 ///
@@ -106,6 +117,7 @@ pub fn apply_bed_dialog_result(app: &mut App, result: DialogResult) -> bool {
     }
     app.commit(Box::new(SetBedSize::new(bed)));
     app.settings.default_bed_mm = bed;
+    app.frame_bed_pending = true; // LCV-164 AC 7: frame the new bed
     true
 }
 
@@ -193,7 +205,9 @@ mod tests {
     fn draw_is_a_no_op_while_closed() {
         let ctx = egui::Context::default();
         let mut app = App::default();
-        let _ = ctx.run(Default::default(), |ctx| draw_bed_dialog(ctx, &mut app));
+        let _ = ctx.run(Default::default(), |ctx| {
+            draw_bed_dialog(ctx, &mut app, None)
+        });
         assert_eq!(app.bed_dialog, None);
         assert!(!app.history.can_undo());
     }
@@ -205,7 +219,9 @@ mod tests {
         let ctx = egui::Context::default();
         let mut app = app_with_draft([128.0, 128.0]);
         for _ in 0..2 {
-            let _ = ctx.run(Default::default(), |ctx| draw_bed_dialog(ctx, &mut app));
+            let _ = ctx.run(Default::default(), |ctx| {
+                draw_bed_dialog(ctx, &mut app, None)
+            });
         }
         assert_eq!(app.bed_dialog, Some([128.0, 128.0]));
         assert_eq!(app.document.bed_mm, [400.0, 400.0]);

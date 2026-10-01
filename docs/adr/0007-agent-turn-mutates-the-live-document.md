@@ -76,6 +76,52 @@
   field, and `History` gains `id()`. **§D1 holds as written** — its "message
   list" already lives in the thread; memory is a longer message list, not
   document state. Nothing is reversed.
+- **Amended (10)**: 2026-09-30 — LCV-189 (step budget visibility). §D13's
+  "after exact exhaustion … tool calls in it end the turn" is relaxed: an
+  overrunning reply is answered "not run" call by call and gets one more reply
+  before the turn ends; a batch that runs tells the model the steps left. The
+  whole-batch preflight, the step definition, the range and the clamp stand.
+  Nothing else changes.
+- **Amended (11)**: 2026-09-30 — LCV-154 (replay `reasoning_content`).
+  §D16's memory now keeps a tool-call assistant turn's `reasoning_content`
+  and replays it verbatim with its batch; plain-text assistant turns and
+  image parts are stored as before. Nothing else changes.
+- **Amended (12)**: 2026-09-30 — LCV-192 (refusal guidance). §D15's `reason`
+  and every apply-site refusal take one shape,
+  `<tool> <path>: <reason>; expected <form>`; a call repeating, byte for byte,
+  the tool and arguments of a call already refused in the turn is answered
+  `Malformed` from the first refusal and is still a step. Nothing else changes.
+- **Amended (13)**: 2026-09-30 — LCV-193 (turn metrics). §D11: every exit
+  ends with one metrics `note` row, after the undo note. §D13: a returned
+  completion is a non-step `Replied` rendezvous. §D8 gains `metrics.rs`, and
+  `end_turn` moves to `agent_poll/turn_end.rs`. No exit is added and nothing
+  is reversed.
+- **Amended (14)**: 2026-09-30 — LCV-188: [ADR 0014](0014-stable-entity-ids.md) gives every
+  entity a stable id `e<N>`. §D5: indices still exist and still shift, so its prompt statement
+  stands; the six edit tools and `set_layer` also take `id`/`ids`, which do not shift, and
+  `query_entities` lists each id. §Deferred: the stable-id item is that ADR. Set outcomes
+  (`agent_apply/set.rs::plan`, LCV-186) report indices and counts instead of §D5's per-entity
+  description; an appending outcome ends with its new ids. Nothing else changes.
+- **Amended (15)**: 2026-10-01 — LCV-195: one more non-step rendezvous, `Dispatch::Feedback`,
+  asked once after a tool-call batch that ran to its end unfenced, before the steps-left line.
+  The UI thread answers from the live document. `Ok("")` adds nothing. A non-empty text is
+  appended to the batch's last tool result. `Observed` also attaches its image under the last
+  call's id, through ADR 0011's upload check. It is not a step, is not fenced and is not
+  counted. The worker still holds no document state (§D1).
+- **Amended (16)**: 2026-10-01 — LCV-197: one more non-step rendezvous, `Dispatch::VerifyDue`.
+  - **When it is asked.** At most once per turn, on a text-only reply. It is asked only while a
+    step is left and never after a fence stop (§D14).
+  - **How the UI answers.** It says yes when an action applied in this turn is not followed by an
+    answered verification call (`measure`, `check_drawing`, `capture_canvas`,
+    `query_entities`).
+  - **What a yes does.** The worker appends the model's text and one fixed, code-side user
+    message asking it to verify. The turn then continues instead of ending.
+  - **What stays the same.** The reminder grants nothing and is not a step. The flat group (§D12)
+    and the fence (§D14) are unchanged. Memory (§D16) keeps neither the interim reply nor the
+    reminder.
+- **Amended (17)**: 2026-10-01 — LCV-198 (turn checkpoints). §D12: `History` gains
+  `group_len()` and `rewind_group(mark, doc)`; the turn's `checkpoint` and `rollback` tools use
+  them, and the end-of-turn note counts the commands its seal took. Text under §D12.
 - **Date**: 2026-09-13
 - **Deciders**: architect (Marco 2 / Agent Harness MVP)
 
@@ -512,6 +558,22 @@ tool calls, a `tool` role and status mapping are added to them.
 >
 > `AgentState` gains `memory` and `memory_mark` as direct fields beside
 > `turn`: memory outlives a turn, and `TurnState` is reset per turn.
+>
+> **Amended (13) — rows added, 2026-09-30 (LCV-193).**
+>
+> ```
+> src/agent/
+>   metrics.rs       TurnMetrics {steps, applied, refused, repeated, captures,
+>                    replies}, step(outcome, repeated), note(). Kernel-pure.
+> src/app/
+>   agent_poll/turn_end.rs  end_turn, finish_turn, undo_note — split out of
+>                    agent_poll.rs (ADR 0004 seam); `agent_poll::answer_act`
+>                    answers each `Act` and keeps the tally.
+> ```
+>
+> `TurnState.tally: TurnMetrics` replaces the separate applied and step
+> counts; it is reset by `arm_turn` and stays readable after the turn ends
+> until the next one is armed.
 
 ### D9 — Command-line routing precedence
 
@@ -695,6 +757,15 @@ them into leaving `agent_busy` set must fail.
 > `finish_turn`, on every exit — `cancel_turn` and exits 3/4 included, with the
 > batches empty because no terminal event arrived. Recording is infallible and
 > cannot return early, so the closure property is unchanged; no exit is added.
+>
+> **Amended (13):** every exit ends with exactly one metrics row, role `note`,
+> `TurnState.tally.note()`, pushed by `end_turn` after `finish_turn` (so after
+> the undo note, when there is one) and before recording memory: `Turn: <s>
+> steps, <a> actions applied, <r> refused (<p> repeated), <c> captures sent,
+> <m> model replies.` Zero counts included, `cancel_turn` included. The counts
+> come from the `Act`s the UI answered, never from the model's text. Pushing
+> a row cannot fail or return early, so the closure property is unchanged; no
+> exit is added.
 
 ### D12 — One turn is one flat history group, opened at turn start and sealed by anything that is not the turn
 
@@ -756,6 +827,23 @@ otherwise its wording is neutral. The words are `product-owner`'s.
 Memory: up to 4096 small captured-geometry commands per turn, freed at the
 first eviction or document replacement. Accepted.
 
+> **Amended (17), 2026-10-01 (LCV-198).** §D12: `History` gains two group operations.
+> `group_len()` is the number of commands in the open group, 0 when none is open.
+> `rewind_group(mark, doc)` undoes, in reverse order, every command of the open group past
+> `mark`, drops them, leaves redo empty and bumps `revision` once when it undid at least one.
+> It returns how many it undid, and is a no-op when no group is open or `mark ≥ group_len()`.
+> The turn uses it for `rollback` to a checkpoint (a group mark it keeps in `TurnState`). A
+> rewind is the turn's own change, like `commit_grouped`. It does not seal the group, and §D14's
+> fence advances to the new revision as after any applied call, so it re-arms nothing. A
+> rolled-back command is gone: there is no redo of a rollback. `end_group` then seals only the
+> survivors, so one turn is still at most one undo entry, and no entry when nothing survived.
+> Rollback never reaches past the group's start, so it never touches the undo stack below.
+> The end-of-turn note above therefore no longer compares the seal with `applied`, which
+> counts rolled-back commands and the rollback itself: when `finish_turn`'s own `end_group`
+> finds the group still open, the note says the turn is one `Ctrl+Z` away and counts the
+> commands it sealed, and a seal of zero writes no undo note. A group sealed or dropped
+> earlier still gets the neutral wording.
+
 ### D13 — The step budget is a `u32`, default 256, range 1..=4096
 
 *(Added by amendment (7). Supersedes §D7's constants and type.)*
@@ -774,6 +862,16 @@ first eviction or document replacement. Accepted.
   whole-batch preflight stays: a batch that would cross the budget is refused
   before any of it is dispatched. After exact exhaustion one more completion
   is sent; tool calls in it end the turn with `IterationLimitExceeded`.
+- **Amended (10):** the model sees the budget and gets one grace reply
+  (LCV-189). The last tool result of a batch that ran to its end — not one
+  the fence stopped — ends with `Steps left this turn: <n> of <budget>.`. A
+  reply whose calls would cross the budget is still refused whole, but no
+  longer ends the turn at once: its assistant message is kept, each call is
+  answered `not run: this reply has <k> tool calls but <n> steps are left`
+  (not a step, no steps-left line), and one more completion is sent. If that
+  reply overruns again the turn ends `IterationLimitExceeded`; a batch that
+  runs clears the grace, so a later overrun gets its own. `AuthorizeUpload`
+  is still not a step.
 - **Everything that crosses into the worker is one owned `TurnConfig`**
   (`agent_worker.rs`): endpoint, key, model, budget — and, from LCV-143, the
   effective system prompt; from ADR 0011, the vision flag. `run_agent_turn`
@@ -790,6 +888,14 @@ first eviction or document replacement. Accepted.
   receives them and holds the snapshotted limit. Because every step is an
   `Act` (§D15), the count is exact with no progress event. Non-step
   rendezvous (ADR 0011's `AuthorizeUpload`) are not counted.
+- **Amended (13):** after each completion that returns, the loop dispatches
+  `Dispatch::Replied { captures }`, which the worker sends as
+  `AgentAction::Replied { captures }` — a **non-step** rendezvous like
+  `AuthorizeUpload` and `Note`: it bypasses the fence and the step count, is
+  answered `Ok` with no row, and `agent_poll::answer_act` adds it to the
+  tally (`replies + 1`, `captures + n`). A failed request dispatches nothing.
+  A step tallies `refused` on `Refused` or `Fenced`, and `repeated` when it is
+  §D15's LCV-192 repeat (`agent/repeat.rs::is_repeat`).
 
 ### D14 — The fence has two witnesses, and a tripped fence stops dispatch
 
@@ -841,6 +947,17 @@ it as a step. It goes through the fence like every action, so after a trip it
 is `Fenced` and §D14 stops. `reason` names the field and never echoes the
 arguments (ADR 0010). Cost: one frame per malformed call.
 
+> **Amended (12), 2026-09-30 (LCV-192).** Every refusal the model reads —
+> this `reason` and the apply site's range, mirror and layer refusals — is
+> `<tool> <path>: <reason>; expected <form>`, e.g. `delete_entity index: 7
+> is out of range; expected 0..=2 (the drawing has 3 entities)`. The whole
+> argument string is the path `(root)`. The worker keeps, for the turn only,
+> each `Refused` call's `(name, args)` bytes and first refusal
+> (`agent/repeat.rs::RefusedCalls`); a byte-identical call is not parsed or
+> run but sent as `Malformed` with `repeated call, refused before: <first>;
+> change the arguments`, so it is transcribed, fenced and counted as a step
+> like any other. `Ok`, `Observed` and `Fenced` outcomes are never recorded.
+
 ### D16 — Conversation memory is UI-side state that crosses the thread by value
 
 *(Added by amendment (9), LCV-153.)*
@@ -890,6 +1007,13 @@ a missing one lets the model reuse shifted indices.
 is built; recording happens in `end_turn` after `finish_turn` (§D11). Policy
 (record, whole batches, estimate, trim) is in kernel-pure `agent/memory.rs`;
 `app/agent_memory.rs` is glue.
+
+> **Amended (11), 2026-09-30 (LCV-154).** A thinking model's
+> `reasoning_content` rides verbatim on the tool-call assistant message it
+> came with — within the turn and, through the whole batch, in every later
+> turn memory replays — and counts toward the token estimate. It never rides
+> on plain text: a final reply, live or recorded, is `ChatMessage::assistant`
+> without it. The trim never edits it; dropping a turn drops it.
 
 ## Consequences
 

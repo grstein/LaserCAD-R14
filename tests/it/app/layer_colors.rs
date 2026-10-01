@@ -82,7 +82,12 @@ fn walk(shape: &Shape, out: &mut Vec<(&'static str, Color32)>) {
                 out.push(("line", c));
             }
         }
-        Shape::Circle(c) => out.push(("circle", c.stroke.color)),
+        // A circle is one closed path (LCV-164 AC 6).
+        Shape::Path(p) if p.closed => {
+            if let ColorMode::Solid(c) = p.stroke.color {
+                out.push(("circle", c));
+            }
+        }
         _ => {}
     }
 }

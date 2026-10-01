@@ -1,7 +1,7 @@
-//! LCV-161 AC 8 — View > Object snap: one checkbox per snap kind, persisted.
+//! LCV-161 AC 8 — View > Object Snap: one checkbox per snap kind, persisted.
 //!
 //! The submenu is opened through real pointer input: a click on `View`, then
-//! a hover on the nested `Object snap` row (egui 0.29.1 opens a nested menu on
+//! a hover on the nested `Object Snap` row (egui 0.29.1 opens a nested menu on
 //! hover, never on click — see
 //! `tests/it/app/document_title_and_file_feedback.rs::open_recent_submenu`).
 
@@ -65,14 +65,14 @@ fn click(ctx: &egui::Context, app: &mut App, pos: egui::Pos2) {
     let _ = ctx.run(raw_input(click_events(pos)), |c| app.update_ui(c));
 }
 
-/// Open View, hover `Object snap`, and return the runs painted with the
+/// Open View, hover `Object Snap`, and return the runs painted with the
 /// submenu open.
 fn open_object_snap_menu(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
     ctx.set_pixels_per_point(1.0);
     let runs = paint::painted_runs(ctx, app);
     click(ctx, app, locate(&runs, "View"));
     let runs = paint::painted_runs(ctx, app);
-    let row = locate(&runs, "Object snap");
+    let row = locate(&runs, "Object Snap");
     let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(row)]), |c| {
         app.update_ui(c)
     });

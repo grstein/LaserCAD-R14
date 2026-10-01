@@ -1,0 +1,1 @@
+Draw one face of a box for laser cutting: an 80 x 50 mm rectangle with its lower-left corner at (30, 30), with three finger tabs 10 mm wide and 3 mm deep sticking out of the bottom edge and three out of the top edge, starting 10, 35 and 60 mm from the left side. Make the outline one closed shape.

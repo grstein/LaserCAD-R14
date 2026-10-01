@@ -17,7 +17,7 @@
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use super::Command;
-use crate::document::{Document, Entity};
+use crate::document::{Document, Entity, IdLedger};
 use crate::geometry::Transform;
 
 /// Map a set of entities through a [`Transform`], in place.
@@ -36,6 +36,8 @@ pub struct TransformEntities {
     originals: Vec<(usize, Entity)>,
     /// Entity count before the last keep-source `do_`; `undo` truncates to it.
     len_before: usize,
+    /// The ids the first keep-source `do_` handed out, reused on redo.
+    ids: IdLedger,
 }
 
 impl TransformEntities {
@@ -47,6 +49,7 @@ impl TransformEntities {
             keep_source: false,
             originals: Vec::new(),
             len_before: 0,
+            ids: IdLedger::default(),
         }
     }
 
@@ -63,11 +66,11 @@ impl Command for TransformEntities {
         self.originals.clear();
         self.len_before = doc.entities.len();
         if self.keep_source {
-            for &i in &self.indices {
+            for (k, &i) in self.indices.iter().enumerate() {
                 debug_assert!(i < self.len_before, "TransformEntities: index OOR");
                 let image = doc.entities[i].transformed(&self.transform);
                 let layer = doc.entity_layer(i).unwrap_or_else(|| doc.current_layer());
-                doc.push_entity(image, layer);
+                self.ids.push(doc, k, image, layer);
             }
             return;
         }

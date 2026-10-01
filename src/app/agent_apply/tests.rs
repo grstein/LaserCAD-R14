@@ -34,31 +34,32 @@ fn circle() -> Entity {
 // ── AC 6: the range check lives here and refuses ─────────────────────────
 
 /// AC 6, app side — an index past the end of the drawing is refused, in
-/// the wording `get_index` used to produce, and **nothing** happens: no
-/// commit, no revision bump, no entity lost.
+/// the LCV-192 AC 2 shape naming the valid range, and **nothing** happens:
+/// no commit, no revision bump, no entity lost.
 #[test]
 fn an_out_of_range_index_is_refused_and_changes_nothing() {
     let mut app = app_with(vec![line(0.0), line(1.0), circle()]);
     let before = app.history.revision();
 
-    for action in [
-        AgentAction::Delete { index: 7 },
-        AgentAction::Move {
-            index: 7,
-            dx: 1.0,
-            dy: 1.0,
-        },
+    for (tool, action) in [
+        ("delete_entity", AgentAction::Delete { index: 7 }),
+        (
+            "move_entity",
+            AgentAction::Move {
+                index: 7,
+                dx: 1.0,
+                dy: 1.0,
+            },
+        ),
     ] {
         let outcome = apply(&mut app, &action);
         assert_eq!(
             outcome,
-            AgentOutcome::Refused(
-                "index 7 is out of range (the drawing has 3 entities)".to_string()
-            ),
+            AgentOutcome::Refused(format!(
+                "{tool} index: 7 is out of range; expected 0..=2 (the drawing has 3 entities)"
+            )),
             "{action:?}"
         );
-        assert!(outcome.text().contains("out of range"));
-        assert!(outcome.text().contains('3'));
         assert_eq!(app.history.revision(), before, "a refusal commits nothing");
         assert_eq!(app.document.entity_count(), 3);
     }
@@ -73,15 +74,68 @@ fn the_range_boundary_is_exactly_the_entity_count() {
     assert!(!apply(&mut app, &AgentAction::Delete { index: 1 }).is_refused());
 }
 
-/// AC 6 — an empty drawing refuses index 0 and says so in its own terms.
+/// AC 6 — an empty drawing refuses index 0 and says so in its own terms
+/// (LCV-192 AC 2: no range to name, so the form says when one exists).
 #[test]
 fn an_empty_drawing_refuses_index_zero() {
     let mut app = App::default();
     let outcome = apply(&mut app, &AgentAction::Delete { index: 0 });
     assert_eq!(
         outcome,
-        AgentOutcome::Refused("index 0 is out of range (the drawing has 0 entities)".to_string())
+        AgentOutcome::Refused(
+            "delete_entity index: 0 is out of range; \
+             expected an index once the drawing has entities (it has 0)"
+                .to_string()
+        )
     );
+}
+
+/// LCV-192 AC 2 — a set names the first out-of-range entry by its path,
+/// and a mirror line whose points coincide names the second point; both in
+/// the shape, both committing nothing.
+#[test]
+fn set_range_and_mirror_refusals_use_the_shape() {
+    let mut app = app_with(vec![line(0.0), line(1.0), circle(), line(2.0)]);
+    let before = app.history.revision();
+    let set = AgentAction::Set {
+        indices: vec![0, 4, 1],
+        op: crate::agent::SetOp::Move { dx: 1.0, dy: 1.0 },
+    };
+    assert_eq!(
+        apply(&mut app, &set),
+        AgentOutcome::Refused(
+            "move_entity indices[1]: 4 is out of range; \
+             expected 0..=3 (the drawing has 4 entities)"
+                .to_string()
+        )
+    );
+    let mirror = "mirror_entity x2, y2: same point as x1, y1 at (2.000, 2.000) mm; \
+                  expected a second point distinct from x1, y1";
+    let single = AgentAction::Mirror {
+        index: 0,
+        x1: 2.0,
+        y1: 2.0,
+        x2: 2.0,
+        y2: 2.0,
+        erase_source: false,
+    };
+    let many = AgentAction::Set {
+        indices: vec![0, 1],
+        op: crate::agent::SetOp::Mirror {
+            x1: 2.0,
+            y1: 2.0,
+            x2: 2.0,
+            y2: 2.0,
+            erase_source: true,
+        },
+    };
+    for action in [single, many] {
+        assert_eq!(
+            apply(&mut app, &action),
+            AgentOutcome::Refused(mirror.to_owned())
+        );
+    }
+    assert_eq!(app.history.revision(), before);
 }
 
 // ── AC 8: one action, one command, one revision ──────────────────────────
@@ -217,9 +271,9 @@ fn query_entities_lists_the_live_drawing() {
         apply(&mut app, &AgentAction::QueryEntities).into_text(),
         "The drawing has 3 entities. Bed 400.000 × 400.000 mm.\n\
              Layers: Cut (current).\n\
-             0: line (0.000, 0.000) → (10.000, 0.000) mm layer Cut\n\
-             1: circle center (10.000, 10.000) mm, r = 5.000 mm layer Cut\n\
-             2: arc center (0.000, 0.000) mm, r = 8.000 mm, 0.0°→90.0° ccw layer Cut"
+             0 e1: line (0.000, 0.000) → (10.000, 0.000) mm layer Cut\n\
+             1 e2: circle center (10.000, 10.000) mm, r = 5.000 mm layer Cut\n\
+             2 e3: arc center (0.000, 0.000) mm, r = 8.000 mm, 0.0°→90.0° ccw layer Cut"
     );
 }
 
@@ -422,14 +476,14 @@ fn every_mutating_outcome_reports_the_resulting_count() {
     assert!(
         apply(&mut empty, &create)
             .text()
-            .ends_with(" The drawing now has 1 entities.")
+            .ends_with(" The drawing now has 1 entities. New id: e1.")
     );
 
     let mut two = app_with(vec![line(0.0), line(1.0)]);
     assert!(
         apply(&mut two, &create)
             .text()
-            .ends_with(" The drawing now has 3 entities.")
+            .ends_with(" The drawing now has 3 entities. New id: e3.")
     );
 
     let mut two = app_with(vec![line(0.0), line(1.0)]);
@@ -472,7 +526,7 @@ fn the_create_sentences_are_unchanged_apart_from_the_suffix() {
         )
         .into_text(),
         "Line created: (0.000, 0.000) → (20.000, 0.000) mm. \
-             The drawing now has 1 entities."
+             The drawing now has 1 entities. New id: e1."
     );
     let mut app = App::default();
     assert_eq!(
@@ -487,7 +541,7 @@ fn the_create_sentences_are_unchanged_apart_from_the_suffix() {
         )
         .into_text(),
         "Circle created: center (5.000, 5.000) mm, r = 3.000 mm. \
-             The drawing now has 1 entities."
+             The drawing now has 1 entities. New id: e1."
     );
     let mut app = App::default();
     assert_eq!(
@@ -505,7 +559,7 @@ fn the_create_sentences_are_unchanged_apart_from_the_suffix() {
         )
         .into_text(),
         "Arc created: center (0.000, 0.000) mm, r = 1.000 mm, 0.0°→90.0° ccw. \
-             The drawing now has 1 entities."
+             The drawing now has 1 entities. New id: e1."
     );
 }
 
@@ -643,7 +697,8 @@ fn a_batch_narrates_its_indices_count_and_revision() {
     assert_eq!(
         outcome,
         AgentOutcome::Ok(format!(
-            "Created 2 entities (indices 3..=4). The drawing now has 5 entities. Revision {}.",
+            "Created 2 entities (indices 3..=4). The drawing now has 5 entities. Revision {}. \
+             New ids: e4..=e5.",
             before + 1
         ))
     );
@@ -665,7 +720,7 @@ fn a_batch_narrates_its_indices_count_and_revision() {
     assert_eq!(
         outcome,
         AgentOutcome::Ok(format!(
-            "Created 1 entity (index 3). The drawing now has 4 entities. Revision {}.",
+            "Created 1 entity (index 3). The drawing now has 4 entities. Revision {}. New id: e4.",
             before + 1
         ))
     );
@@ -673,7 +728,7 @@ fn a_batch_narrates_its_indices_count_and_revision() {
         panic!("a query is answered")
     };
     assert!(
-        listing.contains("\n3: arc center (1.000, 1.000) mm, r = 2.000 mm, 0.0°→90.0° ccw"),
+        listing.contains("\n3 e4: arc center (1.000, 1.000) mm, r = 2.000 mm, 0.0°→90.0° ccw"),
         "{listing}"
     );
     assert!(app.history.undo(&mut app.document));
@@ -757,7 +812,10 @@ fn an_out_of_range_copy_is_refused_and_changes_nothing() {
     };
     assert_eq!(
         apply(&mut app, &action),
-        AgentOutcome::Refused("index 1 is out of range (the drawing has 1 entities)".to_string())
+        AgentOutcome::Refused(
+            "copy_entity index: 1 is out of range; expected 0..=0 (the drawing has 1 entities)"
+                .to_string()
+        )
     );
     assert_eq!(app.history.revision(), before);
     assert_eq!(app.document.entities, vec![line(0.0)]);
@@ -792,7 +850,7 @@ fn a_copy_lands_on_the_source_layer_as_one_undo_step() {
     assert_eq!(
         outcome.text(),
         "Copied entity 0 (circle, center (10.000, 10.000) mm, r = 5.000 mm) \
-         by (3.000, 4.000) mm as entity 1. The drawing now has 2 entities."
+         by (3.000, 4.000) mm as entity 1. The drawing now has 2 entities. New id: e2."
     );
     assert_eq!(app.document.entities[0], circle());
     assert_eq!(
@@ -803,4 +861,54 @@ fn a_copy_lands_on_the_source_layer_as_one_undo_step() {
     assert_eq!(app.history.revision(), before + 1);
     assert!(app.history.undo(&mut app.document));
     assert_eq!(app.document.entities, vec![circle()]);
+}
+
+/// LCV-188 AC 6 — the suffix names one id, a contiguous range, a
+/// non-contiguous list, or nothing when the document did not grow.
+#[test]
+fn new_ids_names_the_appended_ids() {
+    use crate::app::agent_narrate::new_ids;
+    let mut doc = Document::default();
+    for y in 0..4 {
+        doc.push_current(line(f64::from(y)));
+    }
+    assert_eq!(new_ids(&doc, 3), " New id: e4.");
+    assert_eq!(new_ids(&doc, 1), " New ids: e2..=e4.");
+    assert_eq!(new_ids(&doc, 4), "");
+    assert_eq!(new_ids(&doc, 9), "");
+    doc.remove_entity(2);
+    assert_eq!(new_ids(&doc, 1), " New ids: e2, e4.");
+    assert_eq!(new_ids(&doc, 0), " New ids: e1, e2, e4.");
+}
+
+// ── LCV-198: checkpoint and rollback reach the live app ──────────────────
+
+/// LCV-198 AC 1, AC 2 — `apply` answers both tools from the turn's group
+/// and transcribes the answer like any other action.
+#[test]
+fn checkpoint_and_rollback_are_applied_and_transcribed() {
+    let mut app = app_with(vec![line(0.0)]);
+    drop(crate::app::arm_turn(&mut app, "try"));
+    let set = apply(&mut app, &AgentAction::Checkpoint { name: "a".into() });
+    assert_eq!(
+        set,
+        AgentOutcome::Ok("Checkpoint a set at 0 changes.".into())
+    );
+    apply(
+        &mut app,
+        &AgentAction::CreateLine {
+            x1: 0.0,
+            y1: 5.0,
+            x2: 1.0,
+            y2: 5.0,
+            layer: None,
+        },
+    );
+    let back = apply(&mut app, &AgentAction::Rollback { name: "a".into() });
+    let text = "Rolled back to a: 1 changes undone, 1 entities.";
+    assert_eq!(back, AgentOutcome::Ok(text.into()));
+    assert_eq!(
+        app.agent.chat.last(),
+        Some(&("tool".to_owned(), text.to_owned()))
+    );
 }

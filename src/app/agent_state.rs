@@ -20,7 +20,7 @@
 use std::sync::mpsc::Receiver;
 
 use crate::agent::{AgentEvent, Memory};
-use crate::app::TurnState;
+use crate::app::{Attachment, TurnState};
 
 /// The agent's UI-side state: the chat transcript, the in-flight turn's
 /// channel and [`TurnState`], and the panel's own visibility and input draft.
@@ -54,6 +54,11 @@ pub struct AgentState {
     /// `(History::id(), History::revision())` up to which the model has seen
     /// every change; `None` before the first turn (ADR 0007 §D16).
     pub memory_mark: Option<(u64, u64)>,
+    /// The image attached to the next prompt (LCV-199); taken when it is sent.
+    pub attachment: Option<Attachment>,
+    /// The panel's `Attach image…` was pressed; the frame wiring opens the
+    /// picker and clears it (LCV-199, ADR 0005).
+    pub attach_requested: bool,
 }
 
 impl AgentState {
@@ -85,7 +90,7 @@ mod tests {
         assert!(!state.busy);
         assert!(state.rx.is_none());
         assert_eq!(state.turn.fence, crate::app::TurnFence::new(0));
-        assert_eq!(state.turn.applied, 0);
+        assert_eq!(state.turn.tally.applied, 0);
         assert!(state.turn.label.is_empty());
     }
 

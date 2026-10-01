@@ -29,8 +29,9 @@ that change, and that change's last task updates this file.
 7. **Fits 800×600.** Every surface passes the budgets in §2.
 8. **No decoration.** No emoji, gradients, shadows or animation (§12). Icons are functional,
    not decoration: flat line icons with R14 metaphors on the tool rail and in the menus
-   (user decision 2026-09-30; gap → LCV-183, LCV-166). Modern means flat and consistent, never
-   ornamental (gap → LCV-184).
+   (user decision 2026-09-30; rail: LCV-183; menus: gap → LCV-166). Modern means flat and consistent, never
+   ornamental (LCV-184): windows and menus carry no shadow, one 1 pt `border`, one radius per
+   kind (§5), and every chrome colour is a §3 token in `ui/theme.rs::apply_theme`.
 
 ## 2. Layout
 
@@ -39,7 +40,7 @@ that change, and that change's last task updates this file.
 ├──────────┬─────────────────────────────────┬───────────────────┤
 │ tool     │ canvas                          │ AI Assistant      │
 │ rail     │ bed · grid · geometry ·         │ panel             │
-│ ≤120 pt  │ feedback                        │ ≤ ⅓ app width,    │
+│ ≤80 pt   │ feedback                        │ ≤ ⅓ app width,    │
 │          │                                 │ closed by default │
 ├──────────┴─────────────────────────────────┴───────────────────┤
 │ command dock: prompt row + editor row                  ≤64 pt  │
@@ -50,8 +51,8 @@ that change, and that change's last task updates this file.
 
 - Panels: `app/panels.rs` (`menubar`, `statusbar`, `command_line`, `toolbar` left,
   `agent_panel` right); canvas `app/viewport.rs::draw`.
-- Budgets, proven at 800×600, 1024×600 and 1280×800 at the default font: rail ≤120 pt and
-  status rows ≤56 pt (LCV-140); dock ≤64 pt, editor ≥240 pt wide (LCV-139); agent panel ≤ ⅓
+- Budgets, proven at 800×600, 1024×600 and 1280×800 at the default font: rail ≤80 pt, never
+  scrolling at these sizes (LCV-183), status rows ≤56 pt (LCV-140); dock ≤64 pt, editor ≥240 pt wide (LCV-139); agent panel ≤ ⅓
   of the app width (LCV-141); canvas ≥320×300 pt with every panel open (LCV-140 AC 6).
 - New UI goes into an existing region (LCV-156 puts its layer control in the status bar). A new
   docked region must justify itself against these budgets in its spec.
@@ -60,22 +61,26 @@ that change, and that change's last task updates this file.
 ## 3. Colour tokens
 
 Contrast is WCAG, measured on the surface named. Home: where the value lives today. The goal is
-one named constant per token in `ui/theme.rs` (chrome) or a new `render/palette.rs` (canvas)
-(gap → F4).
+one named constant per token in `ui/theme.rs` (chrome, done by LCV-184) or a new
+`render/palette.rs` (canvas) (gap → F4).
 
 **Chrome** (surface `bg.panel` #252525)
 
 | Token | Value | Role | Contrast | Home |
 |---|---|---|---|---|
-| `bg.canvas` | #1a1a1a | canvas outside the bed | — | `ui/theme.rs::CANVAS_BG` |
-| `bg.panel` | #252525 | panels, windows | — | `ui/theme.rs::apply_theme` |
-| `text.primary` | #d0d0d0 | all chrome text | 9.9:1 | `apply_theme` (`override_text_color`) |
-| `text.muted` | #8c8c8c | secondary text, only on `bg.panel` | 4.6:1 (3.3:1 on buttons, forbidden) | not used yet |
-| `fill.selected` | #005c80 | selected widget fill | — | egui default |
-| `status.warning` | #ff8f00 | warnings, command feedback | 6.7:1 | egui `warn_fg_color` |
+| `bg.canvas` | #1a1a1a | canvas outside the bed | — | `ui/theme.rs::BG_CANVAS` (alias `CANVAS_BG`) |
+| `bg.panel` | #252525 | panels, windows | — | `ui/theme.rs::BG_PANEL` |
+| `text.primary` | #d0d0d0 | all chrome text | 9.9:1 | `ui/theme.rs::TEXT_PRIMARY` |
+| `text.muted` | #8c8c8c | secondary text, only on `bg.panel` | 4.6:1 (3.3:1 on buttons, forbidden) | `ui/theme.rs::TEXT_MUTED` |
+| `fill.selected` | #005c80 | selected widget fill | — | `ui/theme.rs::FILL_SELECTED` |
+| `fill.widget` | #3c3c3c | idle button or field fill | — | `ui/theme.rs::FILL_WIDGET` |
+| `fill.hover` | #464646 | hovered widget fill | — | `ui/theme.rs::FILL_HOVER` |
+| `fill.active` | #373737 | pressed or open widget fill | — | `ui/theme.rs::FILL_ACTIVE` |
+| `border` | #404040 | the one 1 pt border: windows, menus, separators, off pills | — | `ui/theme.rs::BORDER` |
+| `status.warning` | #ff8f00 | warnings, command feedback | 6.7:1 | `ui/theme.rs::STATUS_WARNING` |
 | `agent.tool` | #78beff | agent tool rows | 7.7:1 | `agent/panel.rs::TOOL_COLOR` |
-| `status.error` | #ff6b6b | errors (today `Color32::RED`, 3.8:1) | 5.5:1 | gap → LCV-167 |
-| `accent` | #4fa3e0 | foreground-only highlight, never a fill | 5.5:1 | gap → LCV-167 |
+| `status.error` | #ff6b6b | errors: AI panel error rows, error-severity dock lines, failed autosave badge (egui `error_fg_color`) | 5.5:1 | `ui/theme.rs::STATUS_ERROR` |
+| `accent` | #4fa3e0 | foreground-only highlight, never a fill: focus rings, active pill text, active rail icon, prompt verb (amends LCV-071 AC 4; selection fill stays egui's #005c80, `fill.selected`) | 5.5:1 | `ui/theme.rs::ACCENT` |
 
 **Canvas** (surface: bed, gray 40)
 
@@ -85,13 +90,15 @@ one named constant per token in `ui/theme.rs` (chrome) or a new `render/palette.
 | `bed.fill` | gray 40 | work area | — | `render/bed.rs::draw_bed_fill` |
 | `bed.border` | gray 160, 1.5 pt | bed edge | 5.6:1 | `render/bed.rs::draw_bed` |
 | `bed.outside` | black α 96 | dims off-bed area | — | `render/bed.rs::draw_bed` |
-| `grid.minor` | gray 48, 0.5 pt | minor grid | 1.12:1 (target ≈1.4:1 @1 pt, gap → LCV-164) | `render/grid.rs::draw_grid` |
-| `grid.major` | gray 96, 1 pt | major grid | 2.3:1 | `render/grid.rs::draw_grid` |
+| `grid.minor` | gray 62, 1 pt on a pixel centre | minor grid | 1.38:1 | `render/palette.rs::GRID_MINOR` |
+| `grid.major` | gray 96, 1 pt on a pixel centre | major grid, every tenth line | 2.34:1 | `render/palette.rs::GRID_MAJOR` |
+| `origin` | gray 220, 2 pt, two 12 pt arms | machine origin (0,0) | 10.8:1 | `render/palette.rs::ORIGIN` |
 | `entity` | its layer's colour, 1 pt | geometry | per layer (§3 rules) | `render/entities.rs::draw_entities` |
 | `layer.new` | #0000ff, #00aa00, #ff00ff, #00aaaa, #ff8000, #8000ff | colours offered to new layers, in order | per layer | `app/layers.rs::NEW_LAYER_COLORS` |
 | `selection` | rgba(64,160,255,180), 3 pt | selection halo | 3.4:1 blended (floor) | `render/selection.rs` |
 | `preview` | rgba(255,220,100,160) | rubber-band geometry, window/crossing box | 5.3:1 blended | `render/palette.rs::preview` |
-| `snap` | #ffa000, 8 pt glyph | object snap marker | 7.2:1 | `render/snaps.rs::marker_color` |
+| `snap` | #ffa000, 8 pt glyph and its kind label | object snap marker | 7.2:1 | `render/snaps.rs::marker_color` |
+| `snap.edge` | `bg.canvas`, glyph stroke + 2 pt | dark edge under each snap glyph shape | — | `render/palette.rs::SNAP_EDGE` |
 | `cursor` | gray 220, 1 pt | crosshair and pickbox | 10.8:1 | `render/cursor.rs::cursor_color` |
 | `hover` | its layer's colour, 2.5 pt | entity a click would pick | per layer (§3 rules) | `render/palette.rs::HOVER_WIDTH_PT` |
 | `danger` | #ff4d6a, 1 pt dashed | what TRIM or ERASE will remove | 4.6:1 | `render/palette.rs::DANGER` |
@@ -101,7 +108,7 @@ Rules:
 - Text ≥4.5:1 on its surface. State graphics (halo, glyph, box, preview) ≥3:1 on the bed.
 - Every layer colour shown on the canvas should reach ≥3:1 on the bed. LCV-156 paints the
   layer colour as it is (ADR 0012 §9): the default Cut `#ff0000` gives 3.7:1, but `#0000ff`
-  gives 1.7:1. Display lightening or a curated palette: gap → LCV-164.
+  gives 1.7:1. LCV-164 keeps them raw: no display lightening, no curated palette.
 - The grid stays visible but below the geometry.
 - Colour is never the only cue (§1.5).
 - **No new colour literal outside the token homes.** A new colour is a new token, in this table,
@@ -115,8 +122,9 @@ Rules:
   small 9, heading 18, monospace 12. No custom fonts.
 - Monospace is for key bindings (`ui/shortcuts_dialog.rs`), agent tool rows (`agent/panel.rs`),
   and any text aligned in columns.
-- Live numbers keep a fixed width: pad with figure spaces (U+2007), not ASCII spaces
-  (`ui/statusbar.rs::format_coords` today; gap → LCV-167).
+- Live numbers keep a fixed width: pad with figure spaces (U+2007), not ASCII spaces.
+  `ui/statusbar.rs::format_coords` right-aligns each coordinate to 8 chars (sign, 4 digits,
+  point, 2 decimals); a wider value grows the string (LCV-167).
 - `heading` is for a surface title (the AI Assistant panel) or a dialog section. Everything else
   is body or small.
 - Any change to a font size re-measures the LCV-139/140 budgets and the ADR 0009 cap.
@@ -126,20 +134,28 @@ Rules:
 - Units are egui points everywhere in the chrome. Names ending in `_PX` are points
   (e.g. `render/snaps.rs::MARKER_SIZE_PX`). Geometry is millimetres (AGENTS.md invariants).
 - egui's default spacing. Any other size is a named constant next to its use.
-- Canvas strokes: hairline 1 pt · bed border 1.5 pt · selection halo 3 pt · hover 2.5 pt · snap glyph 8 pt ·
+- Chrome (LCV-184, `ui/theme.rs`): one border weight, 1 pt `border`; corners 3 pt on widgets
+  (`WIDGET_ROUNDING`) and 4 pt on windows and menus; no shadows. Mode pill padding 6×1 pt
+  (`ui/statusbar/pill.rs::PILL_PADDING`); editor-row frame margin 4×2 pt
+  (`ui/command_line.rs::EDITOR_FRAME_MARGIN`).
+- Canvas strokes: hairline 1 pt · grid 1 pt on pixel centres · bed border 1.5 pt · origin 2 pt with
+  12 pt arms · selection halo 3 pt · hover 2.5 pt · snap glyph 8 pt, its edge 2 pt wider ·
   snap aperture 12 pt (`app/snap.rs::SNAP_TOLERANCE_PX`) · crosshair and pickbox 1 pt.
 - **Pointer tolerances are in screen points**, turned into mm with the live zoom: entity pick
   aperture 5 pt for Select, TRIM and EXTEND (`tools/tool.rs::PICK_APERTURE_PT`; the pickbox
   side is twice it) and box-drag threshold 2 pt (`tools/tool.rs::DRAG_THRESHOLD_PT`). New
   tolerances are in points.
-- Curves are tessellated to a chord tolerance in points. Today it is 64 segments
-  (`render/entities.rs::PaintOptions`, LCV-035 AC 2) (gap → LCV-164).
+- Curves are tessellated so each chord's sagitta is ≤0.25 pt on screen:
+  `n = ⌈2π / (2·acos(1 − 0.25/r_pt))⌉` chords per full turn, clamped to [8, 1024] (8 when
+  r ≤ 0.25 pt); an arc gets `⌈n·sweep/2π⌉`, at least 2 (`render/tessellate.rs`, LCV-164). Each
+  entity, and each overlay of it (halo, hover, preview), is one shape: a segment or one path.
 
 ## 6. Canvas visual language
 
 Paint order (LCV-137 AC 1, `app/viewport/paint.rs::paint`): canvas background → bed fill → grid →
-bed border and outside overlay → entities → selection halo → hover → preview and danger marks in
-the tool's order (ADR 0013, LCV-163) → snap glyph → pickbox → crosshair (LCV-162).
+bed border and outside overlay → origin marker (LCV-164) → entities → selection halo → hover →
+preview and danger marks in the tool's order (ADR 0013, LCV-163) → snap edge, glyph and label →
+pickbox → crosshair (LCV-162).
 
 | Element | Form | Status |
 |---|---|---|
@@ -150,10 +166,13 @@ the tool's order (ADR 0013, LCV-163) → snap glyph → pickbox → crosshair (L
 | Window box / crossing box | solid / dashed `preview` outline | shipped |
 | Trim / Delete preview | dashed, `danger` | shipped |
 | Crosshair + pickbox | full canvas, `cursor`; pickbox only while an entity pick is pending; OS cursor hidden | shipped |
-| Origin (0,0) | small X/Y marker under geometry | gap → LCV-164 |
+| Origin (0,0) | one `origin` path: 12 pt along +X → (0,0) → 12 pt along +Y, on the bed's lower-left border, under geometry (`render/bed.rs::draw_origin`) | shipped |
 
-Snap glyphs are R14 shapes at a fixed 8 pt in `snap` (`render/snaps.rs::marker_shape_for`). A
-dark edge and a kind label are planned (gap → LCV-164).
+Snap glyphs are R14 shapes at a fixed 8 pt in `snap` (`render/snaps.rs::marker_shape_for`). Each
+glyph is painted twice from one shape list (`render/snaps.rs::glyph_shapes`): first 2 pt wider in
+`snap.edge`, then in `snap`. The kind's lower-case name (`endpoint`, `midpoint`, …) follows in the
+body font and `snap`, no backing, shown at once, its left-top 8 × 6 pt below-right of the point,
+clear of the point and the crosshair (`render/snaps/label.rs`, LCV-164).
 
 | Kind | Glyph | Status |
 |---|---|---|
@@ -172,35 +191,98 @@ dark edge and a kind label are planned (gap → LCV-164).
   pointer leaves (gap → F2).
 - Navigation: the wheel zooms about the cursor (gap → F3), middle-drag pans, `F` / `Ctrl+0`
   zoom to extents, `View > Fit to Bed` frames the bed. Zoom All and Zoom Extents in the menu:
-  gap → LCV-166. Framing the bed on startup and Open: gap → LCV-164.
+  gap → LCV-166. Startup (autosave recovery included), Open and a Bed dialog OK that changes the
+  size frame the bed as `View > Fit to Bed` does, on the first frame whose viewport has a size
+  (`App::frame_bed_pending`, LCV-164). Undo of a bed change and `File > New` do not reframe.
 
 ## 7. Chrome components
 
 - **Menubar**: R14 order — File Edit View Format Tools Help (`Format > Layers…`, LCV-156).
   Title Case labels (§9); `…` only when a dialog
-  follows. Shortcuts in an aligned column: gap → LCV-166 (today `"\t"` in `ui/menubar.rs`).
-- **Tool rail** (`ui/toolbar.rs::TOOLS`): text labels. One table drives the rail, the Tools
-  menu and the shortcuts dialog. Groups: draw (Select … Text) | modify (Move, Copy, Rotate,
-  Mirror, Scale, Trim, Extend, Delete, Dist) | AI toggle. The v0.3 tools have no bare-letter
-  key (ADR 0003 amendment 5). Painted icons in two columns (draw | modify), with name, key and
-  command word in the tooltip: gap → LCV-183.
+  follows. Every row is `icon slot | label | shortcut` (`ui/menubar/row.rs`, LCV-166): a 16 pt
+  slot holding the row's rail or menu icon (`ui/icons.rs`, `ui/icons/menu.rs`) in the row's
+  text colour, or left empty, so all labels start at one x; the shortcut is egui's
+  `shortcut_text`, right-aligned in `text.muted`, one column per menu; never a `"\t"` in a
+  label. Toggles (Grid, Snap, Ortho, the Object Snap kinds) paint a check mark in the slot while
+  on. Submenus use egui's own arrow, never a hand-drawn `▶`. A disabled row fades its icon with
+  its text. View order: Zoom In, Zoom Out, Zoom Extents, Zoom All, Fit to Bed, then Grid, Snap,
+  Object Snap, Ortho.
+- **Tool rail** (`ui/toolbar.rs::TOOLS`, LCV-183): 32 pt square buttons with no text, each
+  holding a flat line icon painted with egui shapes (`ui/icons.rs`: 1.5 pt stroke in the text
+  colour, `accent` on the active tool, centred 20 pt square, R14 metaphors). Buttons take the
+  theme's 3 pt corners and state fills: flat when idle, `fill.hover` hovered, `fill.selected`
+  for the active tool (LCV-184). Two columns: draw (Select … Text) left, modify
+  (Move, Copy, Rotate, Mirror, Scale, Trim, Extend, Delete, Dist) right; then a separator and
+  a bottom row: the `AI` toggle (32 pt square, text `AI`, tooltip `AI Assistant`) and beside it
+  the CHECK button (32 pt square, magnifier-over-square icon, tooltip `Check — CHECK`; it runs
+  the drawing check and is not in `TOOLS`, LCV-190). No group captions. Width
+  fixed at 76 pt (`app/panels.rs::RAIL_WIDTH`); the rail scrolls only when the window is too
+  short. Tooltip `<Label> — <key> · <WORD>` or `<Label> — <WORD>` (`tool_hover_text`), e.g.
+  `Line — L · LINE`. One table drives the rail, the Tools menu (text labels) and the shortcuts
+  dialog. The v0.3 tools have no bare-letter key (ADR 0003 amendment 5).
 - **Command dock** (`ui/command_line.rs`, ADR 0003)
   - Prompt row, then editor row with its destination label (`ui/command_destination.rs`).
-  - New prompts follow `VERB  Specify <thing> [Opt/Opt]:`. A `<default>` needs a runtime
-    value, which ADR 0003 §C rules out (`&'static str`). Defaults and existing prompts:
-    gap → LCV-165.
-  - Messages state a fact and the next step. Severity is error / warning / info (gap → LCV-165;
-    today everything is `status.warning`). Query results such as DIST are info.
+  - The prompt is coloured by part (`ui/command_line/prompt.rs::prompt_spans`, LCV-184): the
+    leading verb (≥2 capitals ending at a space or `:`) in `accent`, the request in
+    `text.primary`, `[Options]` and `<default>` in `text.muted`. A prompt without a verb
+    (`Command:`) is all `text.primary`.
+  - The editor row sits in a 1 pt frame, `border` idle and `accent` while the editor holds
+    keyboard focus; the field itself is frameless.
+  - Every waiting tool prompts `VERB  Specify <thing> [Opt/Opt] <default>:` — the verb, two
+    spaces, the request; options and default only where the tool acts on them (LCV-165).
+    Picking tools use `Select`: `TRIM  Select object to trim:`. `Tool::status_text` returns
+    `Cow<str>`, so a default may be a runtime value (ADR 0003 amendment 6). The prompts:
+    `LINE`/`PLINE  Specify first point:` / `Specify next point <Enter to finish>:` ·
+    `RECT  Specify first corner:` / `Specify opposite corner:` ·
+    `CIRCLE  Specify center point:` / `Specify radius:` ·
+    `ARC  Specify start point:` / `Specify end point:` / `Specify point on arc:` ·
+    `TEXT  Specify start point:` / `Specify text:` / `Specify height <5>:` ·
+    `MOVE`/`COPY`/`ROTATE`/`SCALE  Specify base point:` · `MOVE  Specify destination point:` ·
+    `COPY  Specify second point:` · `ROTATE  Specify rotation angle:` ·
+    `SCALE  Specify scale factor:` · `DIST  Specify first point:` / `Specify second point:` ·
+    `MIRROR  Specify first point of mirror line:` / `Specify second point of mirror line:` /
+    `Erase source objects? [Yes/No] <N>:` · `TRIM  Select object to trim:` ·
+    `EXTEND  Select object to extend:` · `ERASE  Select objects:` · Select: `Command:`.
+  - Messages state a fact and the next step. Each carries a severity (`app/feedback.rs::Severity`,
+    set through `App::say`, LCV-165): **error** in `status.error` — an operation or
+    configuration failed (AI unavailable); **warning** in `status.warning` — input refused
+    (unknown word, no base point, no direction, a tool's own refusal, AI empty or busy, export
+    not possible); **info** in `text.primary` — results and acknowledgements (DIST, `SNAP on`,
+    `→ AI: "…"`, `Exported layers: …`). A refused value names the tool's reason
+    (`Scale factor must be greater than 0.`) before any generic line.
+  - Save and Save As confirm in **info**: `Saved <file name> (<w> × <h> mm)`, the bed in the
+    shortest number form (`400`, `297.5`). Geometry outside the bed turns the Save line, or
+    Export Layers' `Exported layers: …` line, into a **warning** with the out-of-bed suffix (§9);
+    Save counts every layer, Export Layers only the layers it wrote. Failures, cancels and
+    autosave say nothing new (LCV-168).
 - **Status bar** (`ui/statusbar.rs::draw_statusbar`): coords · tool · `Entities: n` · current
-  layer dropdown (`ui/layer_combo.rs`, LCV-156) · SNAP GRID ORTHO · autosave. Mode toggles are
-  always-visible `selectable_label`s (LCV-116); on/off pills and separators: gap → LCV-184.
+  layer dropdown (`ui/layer_combo.rs`, LCV-156) · SNAP GRID ORTHO · autosave. The autosave
+  badge has four states, first match wins: `× autosave failed` in `status.error` until the next
+  write succeeds, `● autosave pending`, `○ autosaved`, `○ no autosave yet` (LCV-167 amends LCV-116
+  decision 3; a process with no autosave path never fails). A 1 pt `border`
+  rule separates adjacent segments. Coordinates use egui's built-in monospace font. Mode
+  toggles are always-visible clickable pills (LCV-116, `ui/statusbar/pill.rs::mode_pill`,
+  LCV-184): on = `fill.selected` fill and `accent` text; off = no fill, 1 pt `border` outline
+  and `text.muted` text (`fill.hover` while hovered); the label is the second cue.
   New segments are appended.
 - **Dialogs** (`ui/dialogs.rs`, `app/bed_dialog.rs`, `app/discard.rs`, `ui/layers_dialog.rs`): Title Case titles,
-  buttons ordered primary → Cancel. Non-modal, no keyboard handling (LCV-069, LCV-113, ADR 0002
-  §A6). Enter/Esc, destructive styling and one close pattern: gap → LCV-169.
+  non-modal. Every dialog has a Cancel or Close button, and the title-bar × does exactly what
+  it does (LCV-169). Buttons run primary → Cancel/Close, left to right, on the last row:
+  About, Shortcuts, Error and AI Settings have one `Close` (AI Settings' `Done` became `Close`;
+  LCV-141 is pre-SDD); Bed Size `OK`, `Cancel`; Layers `Apply` … `Close`; the unsaved-changes
+  prompt `Save`, `Discard`, `Cancel`. A destructive button (`Discard`) paints its text in
+  `danger`, never a red fill. Save runs the normal save, then the parked action only if the
+  write landed; a failed or cancelled save keeps the drawing and drops the action.
+- **Check window** (`ui/check_dialog.rs`, LCV-190): opened by CHECK when the drawing has
+  findings; title `Check`, not resizable, the report's lines (summary first, then one line per
+  finding) in a scroll area capped so the body stays within 426 pt (ADR 0009), then `Close`.
+  Close and the title-bar × close it; it takes no key, so the command line keeps Enter and
+  Escape. A clean check opens no window and says `CHECK: no problems found.` in **info**; a
+  check with findings puts its summary in the dock as a **warning**. CHECK again refreshes it.
 - **AI Assistant panel** (`agent/panel.rs`): transcript roles per LCV-125 — user, assistant,
-  tool (monospace, `agent.tool`), refused (`status.warning`), note (small), error (gap →
-  LCV-167). No avatars, bubbles or decoration; one heading.
+  tool (monospace, `agent.tool`), refused (`status.warning`), note (small), error
+  (`status.error`, read as egui's `error_fg_color`, LCV-167). No avatars, bubbles or decoration;
+  one heading.
 
 ## 8. Interaction and keyboard
 
@@ -212,10 +294,24 @@ Canonical bindings live in ADR 0002 §A6 (gate table), ADR 0003 (command line) a
   edit action is Ctrl+letter. A new key needs its gate class in ADR 0002 §A6.
 - Escape follows ADR 0003: one press clears the command line, releases focus and cancels the
   tool.
-- Enter on an empty line goes to the active tool (ADR 0003 §B5). Repeating the last command:
-  gap → LCV-165.
-- The right button is reserved (LCV-041 AC 4). Right-click = Enter: gap → LCV-165.
+- Enter on an empty line goes to the active tool (ADR 0003 §B5). While Select is idle it
+  repeats the newest command word in the recall ring instead, as if typed; agent prompts,
+  points and unknown words are skipped, and with no command word nothing happens (LCV-165).
+  Repeat pushes nothing to the ring.
+- Right-click on the canvas = Enter on an empty line: finish, accept or repeat; it never picks
+  a point and ignores text in the field. Middle-drag pan is unchanged (LCV-165 reverses
+  LCV-041 AC 4).
+- While a dialog is open, Enter and Escape belong to the topmost one (the last opened): Enter is
+  its primary button, Escape its Cancel or Close, and a one-button dialog closes on either. The
+  command line, the tool and the recall ring never see them; a focused command line keeps its
+  text and focus. Enter in the AI Settings system prompt stays a newline (ADR 0002 §A6 class
+  `dialog`, LCV-169). The Check window is the exception: it takes no key, so the operator can
+  type fixes while reading it (§7, LCV-190).
 - Ortho overrides snap (LCV-053).
+- `Ctrl+A` selects all, as `Edit > Select All`, in one undo step; a focused text field keeps it
+  (ADR 0002 §A6 class `select all`, LCV-166).
+- `View > Zoom Extents` is `F`/`Ctrl+0`/`zoom e`; `View > Zoom All` frames the bed and the
+  drawing together; `Fit to Bed` frames the bed alone (LCV-166).
 - The agent is addressed only by prefix, `:` or `/ai` (LCV-148).
 
 ## 9. Copy
@@ -229,6 +325,8 @@ Canonical bindings live in ADR 0002 §A6 (gate table), ADR 0003 (command line) a
 - Units are always shown (`mm`, `°`). Keys are written `Ctrl+Shift+S`, `F3`.
 - A message states the fact, then the next step: `Could not write 'x.svg': … — choose another
   folder.`
+- A caveat on a result is appended after ` — `, never a second line: `Saved part.svg
+  (400 × 400 mm) — 2 entities outside the bed` (`1 entity` when one; LCV-168).
 
 | Concept | Say | Not |
 |---|---|---|
@@ -239,8 +337,12 @@ Canonical bindings live in ADR 0002 §A6 (gate table), ADR 0003 (command line) a
 | Cut group | Layer (`Format > Layers…`, `LAYER`, LCV-156) | pen, colour, preset |
 | The LLM feature | AI Assistant; short form AI; settings AI Settings | Agent, bot |
 
-Existing labels that break these rules, including LCV-156's `File > Export layers`: gap →
-LCV-167. The rules already apply to every new label, including the v0.3 commands.
+The AI names, applied by LCV-167: the rail toggle reads `AI` with tooltip `AI Assistant`; the
+panel heading is `AI Assistant`; the dock destination is `AI`; the settings are `Help > AI
+Settings…` and the `AI Settings` window, and every message that points there says so; an AI
+turn's undo step is `AI: <prompt>`. Code identifiers (`agent/`, `AgentAction`) keep their names.
+LCV-167 brought the existing labels into line (`Export Layers`, `Bed Size…`, `Keyboard
+Shortcuts…`, `Object Snap`, `Restore Default`); the rules apply to every new label.
 
 ## 10. Accessibility and scaling
 
@@ -262,7 +364,7 @@ LCV-167. The rules already apply to every new label, including the v0.3 commands
   - **F3**: make the wheel zoom factor proportional to the scroll delta, and clamp zoom in
     `render/camera.rs::Camera`.
   - **F4**: move colour literals into token homes, values unchanged (`refactor:`). `render/`
-    never imports `ui/`. Keep the `TOOL_COLOR`/`warn_fg_color` names that LCV-125 tests scan.
+    never imports `ui/`, except `render/palette.rs::SNAP_EDGE` = `CANVAS_BG` (LCV-164). Keep the `TOOL_COLOR`/`warn_fg_color` names that LCV-125 tests scan.
   - **F5**: fix stale comments: the frame order in `.claude/rules/repaint-ui.md`, the claim in
     `render/preview.rs` that egui 0.29 has no `Shape::dashed_line`, and the icon notes in
     `ui/toolbar.rs` and `app/agent_state.rs`.

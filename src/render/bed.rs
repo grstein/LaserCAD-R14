@@ -166,6 +166,25 @@ pub fn draw_bed(painter: &egui::Painter, rect: egui::Rect, camera: &Camera, bed:
     }
 }
 
+/// Paint the origin marker at world (0,0): one open path from
+/// [`ORIGIN_ARM_PT`](crate::render::palette::ORIGIN_ARM_PT) along +X, through
+/// the origin, to the same length along +Y (up the screen), in the `origin`
+/// token (LCV-164 AC 4). Sized in points, so it reads the same at every zoom.
+///
+/// **Call order**: right after [`draw_bed`], so it sits over the bed border
+/// it lies on and under the entities.
+pub fn draw_origin(painter: &egui::Painter, rect: egui::Rect, camera: &Camera) {
+    use crate::render::palette::{ORIGIN, ORIGIN_ARM_PT, ORIGIN_WIDTH_PT};
+    let o = camera.world_to_screen(Vec2::new(0.0, 0.0)) + rect.min.to_vec2();
+    let points = vec![
+        o + egui::Vec2::new(ORIGIN_ARM_PT, 0.0),
+        o,
+        o + egui::Vec2::new(0.0, -ORIGIN_ARM_PT),
+    ];
+    let stroke = egui::Stroke::new(ORIGIN_WIDTH_PT, ORIGIN);
+    painter.add(egui::Shape::line(points, stroke));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

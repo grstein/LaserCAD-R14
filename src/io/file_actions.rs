@@ -19,9 +19,9 @@
 //! Introduced by demand LCV-062.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use crate::app::App;
+use crate::app::{App, Severity};
 use crate::document::{Document, History};
 use crate::io::svg::{export_svg, import_svg_with};
 use crate::io::{open_file_dialog, save_file_dialog};
@@ -42,7 +42,8 @@ use crate::io::{open_file_dialog, save_file_dialog};
 /// The blank document is seeded with the operator's configured default bed
 /// (LCV-114 AC 11) so `File > New` lands on their machine, not on 400 × 400.
 pub fn action_new(app: &mut App) {
-    app.document = Document::with_bed(app.settings.clamped_default_bed_mm());
+    app.document =
+        Document::with_bed(app.settings.clamped_default_bed_mm()).ids_after(&app.document);
     app.history = History::default();
     app.current_file = None;
     app.mark_saved();
@@ -90,14 +91,13 @@ pub fn action_save(app: &mut App) {
         }
     };
 
-    let svg = export_svg(&app.document);
-    if let Err(e) = fs::write(&path, svg.as_bytes()) {
-        app.error_message = Some(format!("Could not write '{}': {e}", path.display()));
+    if !write_mother(app, &path) {
         return;
     }
 
     app.mark_saved();
     app.clear_autosave();
+    announce_saved(app, &path);
 }
 
 /// Load a document from a known file path (no dialog).
@@ -142,15 +142,16 @@ fn open_content(app: &mut App, path: PathBuf, content: &str) {
     // seed is deliberately left alone — opening a file does not re-home the
     // operator's machine. Its layers, membership and current layer come
     // with it (LCV-156 AC 9).
-    app.document = document;
+    app.document = document.ids_after(&app.document);
     app.history = History::default();
+    app.frame_bed_pending = true; // LCV-164 AC 7
     app.current_file = Some(path.clone());
     app.mark_saved();
     app.settings
         .push_recent_file(path.to_string_lossy().into_owned());
     app.persist_settings();
     app.clear_autosave();
-    app.command_feedback = feedback;
+    app.say(Severity::Info, feedback);
 }
 
 /// `Ignored: <count> <label>, …` in report order; empty for an empty report.
@@ -192,9 +193,7 @@ pub fn action_save_as(app: &mut App) {
         path.set_extension("svg");
     }
 
-    let svg = export_svg(&app.document);
-    if let Err(e) = fs::write(&path, svg.as_bytes()) {
-        app.error_message = Some(format!("Could not write '{}': {e}", path.display()));
+    if !write_mother(app, &path) {
         return;
     }
 
@@ -204,6 +203,46 @@ pub fn action_save_as(app: &mut App) {
         .push_recent_file(path.to_string_lossy().into_owned());
     app.persist_settings();
     app.clear_autosave();
+    announce_saved(app, &path);
+}
+
+// ---------------------------------------------------------------------------
+// Save helpers (LCV-168)
+// ---------------------------------------------------------------------------
+
+/// Write the mother SVG of `app.document` to `path`. On failure set
+/// `app.error_message` and return `false`; nothing else is touched.
+fn write_mother(app: &mut App, path: &Path) -> bool {
+    let svg = export_svg(&app.document);
+    if let Err(e) = fs::write(path, svg.as_bytes()) {
+        app.error_message = Some(format!("Could not write '{}': {e}", path.display()));
+        return false;
+    }
+    true
+}
+
+/// Tell the operator which file a successful save wrote and on which bed
+/// (LCV-168 AC 1): `Saved <name> (<w> × <h> mm)`. When entities on any
+/// layer are outside the bed, the line becomes a Warning with
+/// [`outside_bed_phrase`] appended (AC 2).
+fn announce_saved(app: &mut App, path: &Path) {
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let [w, h] = app.document.bed_mm;
+    let saved = format!("Saved {name} ({w} × {h} mm)");
+    match app.document.outside_bed_count(|_| true) {
+        0 => app.say(Severity::Info, saved),
+        n => app.say(Severity::Warning, saved + &outside_bed_phrase(n)),
+    }
+}
+
+/// The out-of-bed suffix shared by Save and Export Layers (LCV-168):
+/// ` — 1 entity outside the bed`, ` — n entities outside the bed`.
+pub(crate) fn outside_bed_phrase(n: usize) -> String {
+    let noun = if n == 1 { "entity" } else { "entities" };
+    format!(" — {n} {noun} outside the bed")
 }
 
 // ---------------------------------------------------------------------------

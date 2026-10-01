@@ -50,7 +50,7 @@ use crate::harness;
 use std::time::{Duration, Instant};
 
 use harness::raw_input;
-use lasercad::app::{AgentState, App, schedule_flush_repaint};
+use lasercad::app::{AgentState, App, AutosaveState, schedule_flush_repaint};
 
 /// The debounce, mirrored. `AUTOSAVE_DEBOUNCE` is private to
 /// `src/app/autosave.rs`; the value is pinned there by a unit test, so a drift
@@ -81,7 +81,10 @@ fn settle(ctx: &egui::Context, app: &App) {
 fn a_dirty_app_schedules_the_flush_within_the_debounce() {
     let ctx = egui::Context::default();
     let app = App {
-        dirty_since: Some(Instant::now()),
+        autosave: AutosaveState {
+            dirty_since: Some(Instant::now()),
+            ..AutosaveState::default()
+        },
         ..App::default()
     };
 
@@ -104,7 +107,10 @@ fn a_dirty_app_schedules_the_flush_within_the_debounce() {
 fn the_schedule_shrinks_as_the_debounce_runs_down() {
     let ctx = egui::Context::default();
     let app = App {
-        dirty_since: Some(Instant::now()),
+        autosave: AutosaveState {
+            dirty_since: Some(Instant::now()),
+            ..AutosaveState::default()
+        },
         ..App::default()
     };
 
@@ -130,7 +136,7 @@ fn a_clean_app_requests_no_sub_second_repaint() {
     let ctx = egui::Context::default();
     let app = App::default();
     assert!(
-        app.dirty_since.is_none(),
+        app.autosave.dirty_since.is_none(),
         "a fresh app is clean — precondition for this test"
     );
 
@@ -153,14 +159,14 @@ fn the_schedule_stops_when_the_document_goes_clean() {
     let mut app = App::default();
     settle(&ctx, &app);
 
-    app.dirty_since = Some(Instant::now());
+    app.autosave.dirty_since = Some(Instant::now());
     let dirty = scheduled_delay(&ctx, &app);
     assert!(
         dirty > Duration::ZERO && dirty <= DEBOUNCE,
         "dirty must schedule, got {dirty:?}"
     );
 
-    app.dirty_since = None;
+    app.autosave.dirty_since = None;
     // One frame to clear the request egui is still holding from the dirty one.
     settle(&ctx, &app);
     let clean = scheduled_delay(&ctx, &app);
