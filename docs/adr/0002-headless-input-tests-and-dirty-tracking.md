@@ -24,6 +24,9 @@
   `tests/it/main.rs`, which declares the harness once (`#[path]` to
   `tests/harness/mod.rs`); a module brings it in with `use crate::harness;`.
   The `tests/lcvNNN.rs` paths below are historical.
+- **Amended (4)**: 2026-09-30 — §A6: `Ctrl+A` joins the table as
+  `select all | Ctrl+A | no` (LCV-166). A focused text field keeps `Ctrl+A`
+  for its own text; every other row is unchanged.
 - **Date**: 2026-09-12
 - **Deciders**: architect (Marco 0 / LCV-103)
 
@@ -417,6 +420,7 @@ The gate table is the contract:
 | view toggles | `F3`, `F7`, `F8` | yes |
 | cancel | `Escape` | yes |
 | view actions | `F`, `Ctrl+0` | **no** |
+| select all | `Ctrl+A` | **no** |
 | tool activation | `L P R C A M E T X` | **no** |
 | tool key routing | `Enter`, `Delete`, `Backspace` | **no** |
 | typed characters | `Event::Text` | **no** |

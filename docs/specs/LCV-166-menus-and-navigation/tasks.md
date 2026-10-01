@@ -54,7 +54,7 @@
   shortcut column (files: src/ui/shortcuts.rs, src/ui/menubar.rs)
 - [x] T13 [AC8] The F1 dialog lists `Ctrl+A  Select All` in its Edit group, and its
   key-coverage tests follow (files: src/ui/shortcuts_dialog.rs)
-- [ ] T14 [AC10] ADR 0002: add an **Amended (4)** header note, "§A6: `Ctrl+A` joins the table as
+- [x] T14 [AC10] ADR 0002: add an **Amended (4)** header note, "§A6: `Ctrl+A` joins the table as
   `select all | Ctrl+A | no` (LCV-166)", and add that row to the table (files:
   docs/adr/0002-headless-input-tests-and-dirty-tracking.md)
 - [ ] T15 [AC10] DESIGN.md §7 (the menu row: 16 pt icon slot, label, right-aligned shortcut
