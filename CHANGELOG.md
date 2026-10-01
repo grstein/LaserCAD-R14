@@ -8,6 +8,8 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-30
+
 ### Added
 
 - `Edit > Delete` erases the selection, and `Ctrl+A` selects everything, as `Edit > Select All` does, unless the command line has focus. `View > Zoom Extents` frames the drawing, as `F` does, and `View > Zoom All` frames the bed and the drawing together. See LCV-166.
@@ -16,7 +18,6 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 ### Changed
 
 - Menus show an icon beside New, Open, Save, Undo, Redo, the zoom commands and every tool, a check mark beside each mode or object snap that is on, and their keyboard shortcuts in one right-aligned column. Erasing objects (`ERASE`, `Edit > Delete` or the Delete key) is now one undo step. See LCV-166.
-
 - The tool rail shows AutoCAD-style line icons instead of words, in two columns: drawing tools on the left, editing tools on the right, and the `AI` toggle (formerly `Agent`) below them. The rail is narrower (76 points) and no longer scrolls at 800×600. Hovering a tool shows its name, key and command word, e.g. `Line — L · LINE`. See LCV-183.
 - A flatter, calmer dark theme: windows and menus have no drop shadow, one thin border and slightly rounded corners. SNAP, GRID and ORTHO in the status bar are pills that are clearly filled when on and outlined when off, segments are separated by thin rules, and the coordinates use a fixed-width font. The command prompt shows the command word in blue and options such as `[Yes/No] <N>` dimmed, and the command field's border turns blue while it has keyboard focus. See LCV-184.
 - A more legible canvas: the minor grid is brighter and crisp, a small marker shows the machine origin (0,0), and each snap marker has a dark edge plus its kind's name (`endpoint`, `midpoint`, …) beside it. Circles and arcs stay smooth at every zoom and cost less when tiny. The bed is framed on startup, after Open and after a bed-size change. See LCV-164.

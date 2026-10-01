@@ -24,7 +24,7 @@ Rust (toolchain pinned) · `egui`/`eframe` · `rfd` dialogs · blocking `reqwest
 - **1.0 scope** (user decisions 2026-09-27/28): LCV-142..145, 149..153 — all Done.
   LCV-146 is deferred past 1.0.
 - **Release**: v0.2.0 (LCV-089) published 2026-09-28; v0.3.0 published 2026-09-30 after the user smoke test, with the user's authorization;
-  v0.4.0 (LCV-160..163) bumped 2026-09-30, untagged until the user smoke-tests it.
+  v0.4.0 (LCV-160..163) and v0.5.0 (LCV-164..169, 183, 184) bumped 2026-09-30, untagged until the user smoke-tests them.
 - **v0.3 "workshop-ready"** (approved 2026-09-29): LCV-156 layers, 157 COPY, 159 polar `@d<a` +
   DIST, 158 ROTATE, 181 MIRROR, 182 SCALE — all Done 2026-09-30 (158 was split into 158/181/182).
   Released as v0.3.0.
@@ -33,7 +33,7 @@ Rust (toolchain pinned) · `egui`/`eframe` · `rfd` dialogs · blocking `reqwest
   - v0.4.0 "precise editing" — 160 TRIM/EXTEND with arcs, 161 snaps, 162 crosshair/picking,
     163 selection feedback.
   - v0.5.0 "UI polish" — 183 icon tool rail and 184 visual refresh first (user decision
-    2026-09-30: AutoCAD-style icons, modern but KISS), then 164–169, plus 154.
+    2026-09-30: AutoCAD-style icons, modern but KISS), then 164–169 (154 moved to v0.6: it was built with the agent work).
   - v0.6.0 "agent harness" (from the agent's own session feedback, 2026-09-30) — 185 batch schema
     fidelity, 192 refusal guidance, 189 budget visibility, 186 set transforms, 191 layer assignment,
     187 framed capture, 190 drawing check (also a user `CHECK` command), 193 turn metrics; then
