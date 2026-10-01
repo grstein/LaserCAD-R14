@@ -11,13 +11,11 @@
 //! the three functions in the old file that took an `&egui::Context`.
 //!
 //! [`draw_discard_dialog`] renders nothing while
-//! `UnsavedGuard::pending_action` is `None`; on a click it delegates to
-//! [`apply_dialog_result`], which is the one place that clears the parked
-//! action, on both the Discard and the Cancel path. [`poll_close_request`]
+//! `UnsavedGuard::pending_action` is `None`; on an answer it delegates to
+//! [`apply_discard_choice`], which is the one place that clears the parked
+//! action, on the Save, Discard and Cancel paths alike (LCV-169). [`poll_close_request`]
 //! is the window-X entry point, latched by `UnsavedGuard::exit_confirmed`
 //! once a parked `Exit` is confirmed (see its own doc comment for why).
-
-use crate::ui::DialogResult;
 
 use super::{App, PendingAction};
 
@@ -69,7 +67,7 @@ fn discard_window(ctx: &egui::Context) -> Option<DiscardChoice> {
 /// Render the discard prompt while an action is parked and apply the answer.
 ///
 /// Called from [`super::panels::draw_dialogs`]. The render and the decision
-/// are split on purpose: it is what makes [`apply_dialog_result`] testable
+/// are split on purpose: it is what makes [`apply_discard_choice`] testable
 /// directly, with no simulated pointer click.
 pub fn draw_discard_dialog(ctx: &egui::Context, app: &mut App) {
     if app.guard.pending_action.is_none() {
@@ -80,27 +78,28 @@ pub fn draw_discard_dialog(ctx: &egui::Context, app: &mut App) {
     }
 }
 
-/// Apply the operator's answer to the parked action (LCV-169 AC 8).
-pub fn apply_discard_choice(ctx: &egui::Context, app: &mut App, choice: DiscardChoice) {
-    let result = match choice {
-        DiscardChoice::Discard => DialogResult::Confirmed,
-        DiscardChoice::Save | DiscardChoice::Cancel => DialogResult::Cancelled,
-    };
-    apply_dialog_result(ctx, app, result);
-}
-
 /// Apply the operator's answer to the parked action.
 ///
-/// Takes `UnsavedGuard::pending_action` unconditionally, so both branches
-/// clear it — forgetting to clear it on either one would leave a dialog that
-/// reopens every frame. On [`DialogResult::Confirmed`] the parked action
-/// runs exactly once (`Exit` sets `UnsavedGuard::exit_confirmed` and sends
-/// `ViewportCommand::Close`); on [`DialogResult::Cancelled`] nothing else
-/// happens and no viewport command is sent.
-pub fn apply_dialog_result(ctx: &egui::Context, app: &mut App, result: DialogResult) {
+/// Takes `UnsavedGuard::pending_action` first and unconditionally, so every
+/// branch clears it — forgetting to on any one would leave a dialog that
+/// reopens every frame. `Cancel` does nothing else and sends no viewport
+/// command. `Discard` runs the parked action exactly once (`Exit` sets
+/// `UnsavedGuard::exit_confirmed` and sends `ViewportCommand::Close`). `Save`
+/// runs [`App::action_save`] and then the parked action only if the drawing
+/// is safe to discard afterwards; a failed write or a cancelled Save As
+/// leaves it unsaved, so the action is dropped and the drawing stays
+/// (LCV-169 AC 8).
+pub fn apply_discard_choice(ctx: &egui::Context, app: &mut App, choice: DiscardChoice) {
     let action = app.guard.pending_action.take();
-    if result != DialogResult::Confirmed {
-        return;
+    match choice {
+        DiscardChoice::Cancel => return,
+        DiscardChoice::Save => {
+            app.action_save();
+            if app.has_unsaved_changes() {
+                return;
+            }
+        }
+        DiscardChoice::Discard => {}
     }
     match action {
         Some(PendingAction::New) => app.action_new(),
@@ -165,10 +164,10 @@ mod tests {
             .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
     }
 
-    /// AC 12 — Confirmed runs the parked action exactly once and clears
+    /// AC 12 — Discard runs the parked action exactly once and clears
     /// `pending_action`, for both a document action (`New`) and `Exit`
     /// (asserted via the returned `FullOutput`'s viewport commands, which is
-    /// why this drives `apply_dialog_result` inside a `ctx.run` closure).
+    /// why this drives `apply_discard_choice` inside a `ctx.run` closure).
     #[test]
     fn confirm_runs_the_parked_action_once() {
         let ctx = egui::Context::default();
@@ -177,7 +176,7 @@ mod tests {
         commit_a_line(&mut app);
         app.guard.pending_action = Some(PendingAction::New);
         let out = ctx.run(egui::RawInput::default(), |ctx| {
-            apply_dialog_result(ctx, &mut app, DialogResult::Confirmed);
+            apply_discard_choice(ctx, &mut app, DiscardChoice::Discard);
         });
         assert!(app.guard.pending_action.is_none());
         assert_eq!(
@@ -199,7 +198,7 @@ mod tests {
             ..App::default()
         };
         let out = ctx.run(egui::RawInput::default(), |ctx| {
-            apply_dialog_result(ctx, &mut exit_app, DialogResult::Confirmed);
+            apply_discard_choice(ctx, &mut exit_app, DiscardChoice::Discard);
         });
         assert!(exit_app.guard.pending_action.is_none());
         assert!(
@@ -210,7 +209,7 @@ mod tests {
         );
     }
 
-    /// AC 13 — Cancelled clears `pending_action` and leaves every other field
+    /// AC 13 — Cancel clears `pending_action` and leaves every other field
     /// exactly as it was, sending no viewport command even when the parked
     /// action was `Exit`.
     #[test]
@@ -229,7 +228,7 @@ mod tests {
         let dirty_since = app.autosave.dirty_since;
 
         let out = ctx.run(egui::RawInput::default(), |ctx| {
-            apply_dialog_result(ctx, &mut app, DialogResult::Cancelled);
+            apply_discard_choice(ctx, &mut app, DiscardChoice::Cancel);
         });
 
         assert!(app.guard.pending_action.is_none());

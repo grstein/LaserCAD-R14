@@ -3,9 +3,9 @@
 //!
 //! `tests/it/app/confirm_discard.rs` and `src/app/file_ops.rs`'s inline tests exhaustively
 //! cover the *state machine* — `request_new`/`request_open`/`request_exit`
-//! parking the right `PendingAction`, and `apply_dialog_result` running it
-//! exactly once on `Confirmed` and restoring nothing on `Cancelled` — but
-//! every one of those tests calls `apply_dialog_result` directly. Every test
+//! parking the right `PendingAction`, and `apply_discard_choice` running it
+//! exactly once on `Discard` and restoring nothing on `Cancel` — but
+//! every one of those tests calls `apply_discard_choice` directly. Every test
 //! in this file instead locates the real "Discard" / "Cancel" button through
 //! `tests/harness/paint.rs`'s painted text and drives a real
 //! `PointerMoved` + `PointerButton` press/release pair at it (ADR 0002 §A4
@@ -33,8 +33,8 @@
 //! `true` on that next frame: `poll_close_request` re-ran `request_exit`,
 //! re-parked `PendingAction::Exit`, and sent `CancelClose` — cancelling the
 //! close the operator just confirmed and reopening the dialog, forever. The
-//! fix is `App::guard.exit_confirmed`, a latch set by `apply_dialog_result`'s
-//! confirmed-`Exit` arm and checked first by `poll_close_request`
+//! fix is `App::guard.exit_confirmed`, a latch set by `apply_discard_choice`'s
+//! `Exit` arm and checked first by `poll_close_request`
 //! (`src/app/file_ops.rs`), which lets every later close request through
 //! unconditionally once the operator has answered once. A repeated *native*
 //! Close request arriving *before* any confirmation (the window-X pressed

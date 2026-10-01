@@ -24,7 +24,7 @@
 - [x] T9 [AC8] Test first: Save with a writable current path runs the parked `New` once; a path
   in a missing folder, and an untitled drawing (disarmed Save As), keep the drawing, drop the
   action and leave `pending_action` `None` (files: src/app/discard.rs)
-- [ ] T10 [AC8] `apply_discard_choice(Save)`: `action_save`, then run the action iff
+- [x] T10 [AC8] `apply_discard_choice(Save)`: `action_save`, then run the action iff
   `!has_unsaved_changes()` (files: src/app/discard.rs, src/app/file_ops.rs)
 - [ ] T11 [AC1] [AC2] Test first: About then Shortcuts open, Escape closes only Shortcuts; Enter
   on Bed Size commits and closes; with LINE past its first point and the focused command line

@@ -37,10 +37,10 @@ use crate::harness;
 
 use harness::paint::{self, Run};
 use harness::raw_input;
+use lasercad::app::DiscardChoice;
 use lasercad::app::{App, DocumentTitleState, PendingAction, Severity};
 use lasercad::document::{AddLayer, Command, CreateLine, Document, Entity};
 use lasercad::geometry::{Line, Vec2};
-use lasercad::ui::DialogResult;
 use std::path::PathBuf;
 
 // ---------------------------------------------------------------------------
@@ -305,7 +305,7 @@ fn cancelling_the_discard_dialog_leaves_the_title_unchanged() {
 
     let ctx = egui::Context::default();
     let _ = ctx.run(egui::RawInput::default(), |c| {
-        lasercad::app::apply_dialog_result(c, &mut app, DialogResult::Cancelled);
+        lasercad::app::apply_discard_choice(c, &mut app, DiscardChoice::Cancel);
     });
 
     assert!(app.guard.pending_action.is_none());
