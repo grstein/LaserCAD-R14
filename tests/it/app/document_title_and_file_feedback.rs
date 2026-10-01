@@ -37,8 +37,8 @@ use crate::harness;
 
 use harness::paint::{self, Run};
 use harness::raw_input;
-use lasercad::app::{App, DocumentTitleState, PendingAction};
-use lasercad::document::CreateLine;
+use lasercad::app::{App, DocumentTitleState, PendingAction, Severity};
+use lasercad::document::{CreateLine, Document};
 use lasercad::geometry::{Line, Vec2};
 use lasercad::ui::DialogResult;
 use std::path::PathBuf;
@@ -669,4 +669,41 @@ fn open_recent_malformed_svg_preserves_state_and_surfaces_the_error() {
     assert_eq!(app.current_file, Some(PathBuf::from("original.svg")));
     assert!(app.error_message.is_some());
     assert_eq!(app.settings.recent_files, recent_before);
+}
+
+// ---------------------------------------------------------------------------
+// LCV-168 — Save confirms the file and warns about geometry outside the bed
+// ---------------------------------------------------------------------------
+
+/// An `App` saving to `dir/<name>` on a `bed_mm` bed, persistence paths in
+/// `dir` (ADR 0006).
+fn saving_app(dir: &std::path::Path, name: &str, bed_mm: [f64; 2]) -> App {
+    App {
+        settings_path: Some(dir.join("settings.json")),
+        autosave_path: Some(dir.join("autosave.json")),
+        current_file: Some(dir.join(name)),
+        document: Document::with_bed(bed_mm),
+        ..App::default()
+    }
+}
+
+/// LCV-168 AC 1 — a successful Save names the file and the bed as Info, with
+/// the bed sizes in Rust's shortest `f64` form.
+#[test]
+fn save_announces_the_file_and_bed_as_info() {
+    let dir = tempdir("lcv168_save_info");
+    let mut app = saving_app(&dir, "drawing.svg", [400.0, 400.0]);
+    app.history
+        .commit(Box::new(CreateLine::new(some_line())), &mut app.document);
+
+    app.action_save();
+
+    assert_eq!(app.error_message, None, "the save must succeed");
+    assert_eq!(app.command_feedback, "Saved drawing.svg (400 × 400 mm)");
+    assert_eq!(app.command_feedback_severity, Severity::Info);
+
+    let mut app = saving_app(&dir, "half.svg", [400.0, 297.5]);
+    app.action_save();
+    assert_eq!(app.command_feedback, "Saved half.svg (400 × 297.5 mm)");
+    assert_eq!(app.command_feedback_severity, Severity::Info);
 }

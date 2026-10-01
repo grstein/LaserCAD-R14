@@ -5,7 +5,7 @@
   filter (files: src/document/bed.rs)
 - [x] T2 [AC2] `outside_bed` + `Document::outside_bed_count`, kernel-pure; `mod bed;` and the
   re-export (files: src/document/bed.rs, src/document/mod.rs)
-- [ ] T3 [AC1] Test: Save into a tempdir with in-bed geometry → Info
+- [x] T3 [AC1] Test: Save into a tempdir with in-bed geometry → Info
   `Saved <name> (400 × 400 mm)`; a 297.5 mm bed prints `297.5` (files:
   tests/it/app/document_title_and_file_feedback.rs)
 - [ ] T4 [AC1] Extract `write_mother`; add `announce_saved` + `outside_bed_phrase`; call it on

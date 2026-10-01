@@ -70,7 +70,10 @@ mod tests {
         let d = 2.0 * EPSILON;
         assert!(outside_bed(&line(-d, 10.0, 50.0, 10.0), BED), "left");
         assert!(outside_bed(&line(10.0, -d, 10.0, 50.0), BED), "bottom");
-        assert!(outside_bed(&line(10.0, 10.0, 400.0 + d, 10.0), BED), "right");
+        assert!(
+            outside_bed(&line(10.0, 10.0, 400.0 + d, 10.0), BED),
+            "right"
+        );
         assert!(outside_bed(&line(10.0, 10.0, 10.0, 297.5 + d), BED), "top");
     }
 
