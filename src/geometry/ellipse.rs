@@ -11,6 +11,8 @@
 //!
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
+mod nearest;
+
 use core::f64::consts::{FRAC_PI_2, PI, TAU};
 
 use serde::{Deserialize, Serialize};

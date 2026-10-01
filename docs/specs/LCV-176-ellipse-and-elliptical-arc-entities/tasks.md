@@ -6,7 +6,7 @@
   tests/it/geometry/mod.rs)
 - [x] T2 [AC4, AC6] `Ellipse`, `EllipseSpan` and the methods of T1; sweep and containment go
   through a unit `Arc` (files: src/geometry/ellipse.rs, src/geometry/mod.rs)
-- [ ] T3 [AC5, AC7] Test + code: `nearest`, `distance_to_point` (full ellipse, span foot inside or
+- [x] T3 [AC5, AC7] Test + code: `nearest`, `distance_to_point` (full ellipse, span foot inside or
   outside, a point at the centre) and `hits_segment` (files: src/geometry/ellipse/nearest.rs,
   src/geometry/ellipse.rs)
 - [ ] T4 [AC1, AC3] Test + code: `from_conjugate`. Orthogonal u, v keep rx, ry and rotation
