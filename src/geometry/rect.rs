@@ -15,6 +15,7 @@
 //! Frozen by demand LCV-015.
 
 use crate::geometry::arc::Arc;
+use crate::geometry::bezier::Bezier;
 use crate::geometry::circle::Circle;
 use crate::geometry::ellipse::Ellipse;
 use crate::geometry::epsilon::EPSILON;
@@ -176,6 +177,29 @@ impl Rect {
             || self.edges().iter().any(|edge| e.hits_segment(edge))
     }
 
+    /// True iff the curve's tight bounding box ([`Bezier::bbox`]) fits
+    /// entirely inside the rectangle (window selection, LCV-177 AC 6).
+    pub fn contains_bezier(&self, b: &Bezier) -> bool {
+        let (lo, hi) = b.bbox();
+        self.min.x <= lo.x && hi.x <= self.max.x && self.min.y <= lo.y && hi.y <= self.max.y
+    }
+
+    /// True iff the curve of `b` overlaps the rectangle: the window test, an
+    /// end inside, or an edge meeting the curve
+    /// ([`Bezier::crosses_axis_segment`]). The control polygon never counts.
+    pub fn crosses_bezier(&self, b: &Bezier) -> bool {
+        if self.contains_bezier(b) {
+            return true;
+        }
+        let (lo, hi) = b.bbox();
+        if !self.bboxes_overlap(lo, hi) {
+            return false;
+        }
+        self.contains_point(b.start())
+            || self.contains_point(b.end())
+            || self.edges().iter().any(|edge| b.crosses_axis_segment(edge))
+    }
+
     /// Four edges of the rectangle, each as a `Line`, listed in CCW order
     /// starting from the bottom edge.
     fn edges(&self) -> [Line; 4] {
@@ -313,6 +337,28 @@ mod tests {
     /// outside should not count as crossing (exercises the angle filter).
     /// Center (12,5) r=4, sweep [0, π/2]: start (16,5), end (12,9) both
     /// outside, and the parent's left extent at angle π is not in sweep.
+    /// LCV-177 — the arch peaks at 30 while its controls reach 40: a box
+    /// holding the curve but not the polygon contains it; a box between the
+    /// peak and the controls neither contains nor crosses it.
+    #[test]
+    fn bezier_window_and_crossing_use_the_curve() {
+        let v = Vec2::new;
+        let b = Bezier::Cubic([v(0.0, 0.0), v(0.0, 40.0), v(10.0, 40.0), v(10.0, 0.0)]);
+        assert!(Rect::new(v(-1.0, -1.0), v(11.0, 31.0)).contains_bezier(&b));
+        assert!(!Rect::new(v(-1.0, -1.0), v(11.0, 29.0)).contains_bezier(&b));
+        assert!(!Rect::new(v(0.5, -1.0), v(11.0, 31.0)).contains_bezier(&b));
+        assert!(!Rect::new(v(-1.0, 0.5), v(11.0, 31.0)).contains_bezier(&b));
+        assert!(!Rect::new(v(-1.0, -1.0), v(9.5, 31.0)).contains_bezier(&b));
+        let above = Rect::new(v(-1.0, 31.0), v(11.0, 45.0));
+        assert!(!above.contains_bezier(&b) && !above.crosses_bezier(&b));
+        assert!(Rect::new(v(4.0, 29.0), v(6.0, 31.0)).crosses_bezier(&b));
+        assert!(Rect::new(v(-1.0, 1.0), v(11.0, 31.0)).crosses_bezier(&b));
+        assert!(Rect::new(v(-1.0, -1.0), v(1.0, 1.0)).crosses_bezier(&b));
+        assert!(Rect::new(v(9.0, -1.0), v(11.0, 1.0)).crosses_bezier(&b));
+        assert!(!Rect::new(v(3.0, 5.0), v(7.0, 25.0)).crosses_bezier(&b));
+        assert!(!Rect::new(v(20.0, 0.0), v(30.0, 30.0)).crosses_bezier(&b));
+    }
+
     #[test]
     fn crosses_arc_bbox_overlaps_but_sweep_is_outside() {
         let r = Rect::new(Vec2::new(0.0, 0.0), Vec2::new(10.0, 10.0));

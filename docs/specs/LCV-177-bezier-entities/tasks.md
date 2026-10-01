@@ -29,7 +29,7 @@
   selects; a crossing box over the curve selects, one over only the control polygon does not;
   ZOOM Extents frames the curve's tight bbox (files: tests/it/app/bezier_edit.rs,
   tests/it/app/mod.rs)
-- [ ] T10 [AC6, AC7] `Rect::{contains,crosses}_bezier` and the Bézier arms of `hit.rs` (files:
+- [x] T10 [AC6, AC7] `Rect::{contains,crosses}_bezier` and the Bézier arms of `hit.rs` (files:
   src/geometry/rect.rs, src/tools/select/hit.rs)
 - [ ] T11 [AC9] Test: near a cubic, Endpoint (both ends) and Nearest (on the curve) are offered;
   Midpoint, Center, Quadrant, Intersection, Perpendicular and Tangent never, even with an anchor
