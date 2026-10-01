@@ -54,7 +54,7 @@ Prerequisites: LCV-188, LCV-190, LCV-192 Done on `agent-harness`.
 - [x] T11 [AC7] Test (headless turn): `measure` answers and the step tally goes up by one. The
   revision, selection, undo depth and dirty flag are unchanged, and a later `create_line` in the
   same turn still applies (no fence trip). (files: tests/it/agent/measure.rs)
-- [ ] T12 [AC9] Test, then the `DEFAULT_PROMPT` lines for `measure` and its five queries
+- [x] T12 [AC9] Test, then the `DEFAULT_PROMPT` lines for `measure` and its five queries
   (files: src/agent/prompt.rs, tests/it/agent/default_prompt.rs)
 - [ ] T13 Docs: the AGENTS.md purity list gains `bridge/action/measure.rs` and `tools/measure.rs`;
   CHANGELOG line (files: AGENTS.md, CHANGELOG.md)

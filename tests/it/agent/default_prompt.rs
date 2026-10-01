@@ -354,3 +354,21 @@ fn the_capture_paragraph_names_the_frames_and_corners() {
         assert!(found.contains(&word), "{word} missing from: {paragraph}");
     }
 }
+
+/// LCV-194 AC 9 — the `measure` paragraph names every query, says entities
+/// are taken as drawn, and that the answer changes nothing.
+#[test]
+fn the_prompt_describes_measure_and_every_query() {
+    let paragraph = DEFAULT_PROMPT
+        .split("\n\n")
+        .find(|p| words(p).first() == Some(&"measure"))
+        .expect("a measure paragraph");
+    let found = words(paragraph);
+    for query in ["distance", "length", "bbox", "intersections", "angle"] {
+        assert!(found.contains(&query), "query {query} missing");
+    }
+    let folded = paragraph.split_whitespace().collect::<Vec<_>>().join(" ");
+    for needle in ["never extended", "Changes nothing", "overlap", "counter-clockwise"] {
+        assert!(folded.contains(needle), "`{needle}` missing from: {folded}");
+    }
+}
