@@ -10,7 +10,7 @@
       `m 1 1 2 2` → relative line); several subpaths; `Z` then `l` starts at the subpath start;
       `C S Q T c s q t` advance the current point to their endpoint and emit `Skipped` with the
       uppercase label (files: src/io/svg/path_data.rs)
-- [ ] T4 [AC8] Test (unit): `M 0 0 L 10 0 L 5` keeps the first line and sets `error`; `L 1 1`
+- [x] T4 [AC8] Test (unit): `M 0 0 L 10 0 L 5` keeps the first line and sets `error`; `L 1 1`
       (no leading `M`) and `M 0 0 Z 5` are errors; empty and whitespace-only `d` give no segments
       and no error (files: src/io/svg/path_data.rs)
 - [ ] T5 [AC2] [AC8] `parse_path_data` and the segment enum: command loop, current point, subpath

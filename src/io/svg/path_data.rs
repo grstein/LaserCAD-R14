@@ -179,4 +179,38 @@ mod tests {
             ]
         );
     }
+
+    /// AC 8 — the segments before the error survive, `error` is set.
+    #[test]
+    fn a_syntax_error_keeps_the_segments_before_it() {
+        let data = parse_path_data("M 0 0 L 10 0 L 5");
+        assert_eq!(data.segments, [line([0.0, 0.0], [10.0, 0.0])]);
+        assert!(data.error);
+        let data = parse_path_data("M 0 0 L 1 0 2 0 3");
+        assert_eq!(
+            data.segments,
+            [line([0.0, 0.0], [1.0, 0.0]), line([1.0, 0.0], [2.0, 0.0])]
+        );
+        assert!(data.error);
+        let data = parse_path_data("M 0 0 A 5 5 0 2 0 1 1 L 3 3");
+        assert!(data.segments.is_empty() && data.error, "flag 2");
+    }
+
+    #[test]
+    fn data_must_start_with_a_moveto_and_numbers_need_a_command() {
+        for d in ["L 1 1", "1 1", "M 0 0 Z 5", "M 0 0 L 1 1 x", "M 1e 2"] {
+            assert!(parse_path_data(d).error, "{d:?}");
+        }
+        assert_eq!(
+            parse_path_data("M 0 0 L 1 0 Z 5").segments,
+            [line([0.0, 0.0], [1.0, 0.0]), line([1.0, 0.0], [0.0, 0.0])]
+        );
+    }
+
+    #[test]
+    fn empty_data_and_a_lone_moveto_are_no_error() {
+        for d in ["", " \t\n ", "M 3 4", "m1,2"] {
+            assert_eq!(parse_path_data(d), PathData::default(), "{d:?}");
+        }
+    }
 }
