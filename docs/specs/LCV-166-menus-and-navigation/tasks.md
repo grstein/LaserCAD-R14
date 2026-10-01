@@ -41,7 +41,7 @@
 - [x] T9 [AC7] `Camera::frame_all(bed_mm, bounds)`, the union framed by the `frame_bed` rule.
   Unit tests: with no bounds it equals `frame_bed`; bounds reaching outside the bed widen the
   frame (files: src/render/camera.rs)
-- [ ] T10 [AC5] [AC6] [AC7] `do_zoom_extents` (wraps `handle_zoom_extents` with the synced size)
+- [x] T10 [AC5] [AC6] [AC7] `do_zoom_extents` (wraps `handle_zoom_extents` with the synced size)
   and `do_zoom_all`. View menu reordered with the Zoom Extents (`F`) and Zoom All rows. `F`,
   `Ctrl+0` and the typed `zoom e` call `do_zoom_extents`. T8 is green (files: src/ui/menubar.rs,
   src/app/input.rs, src/app/cmdline.rs)

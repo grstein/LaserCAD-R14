@@ -27,7 +27,7 @@
 
 mod dispatch;
 
-use super::{App, Severity, handle_zoom_extents};
+use super::{App, Severity};
 use crate::agent::{Route, classify};
 use crate::cmdline::{CommandInput, ToggleKind, ToolInput, ZoomKind, parse};
 use crate::render::Camera;
@@ -232,10 +232,7 @@ fn zoom(app: &mut App, kind: ZoomKind) {
     match kind {
         ZoomKind::In => app.camera.zoom_in(Camera::ZOOM_STEP),
         ZoomKind::Out => app.camera.zoom_out(Camera::ZOOM_STEP),
-        ZoomKind::Extents => {
-            let viewport_size = app.camera.viewport_size_px;
-            handle_zoom_extents(&mut app.camera, &app.document, viewport_size);
-        }
+        ZoomKind::Extents => crate::ui::menubar::do_zoom_extents(app),
     }
 }
 

@@ -26,7 +26,7 @@
 //!
 //! MUST NOT import `eframe` or `rfd`.
 
-use crate::app::{App, handle_zoom_extents};
+use crate::app::App;
 
 /// Keys forwarded to the active tool once the gate lets them through.
 ///
@@ -91,8 +91,7 @@ pub fn process_input(ctx: &egui::Context, app: &mut App, shortcut_fired: bool) {
         i.key_pressed(egui::Key::F) || (i.modifiers.ctrl && i.key_pressed(egui::Key::Num0))
     });
     if zoom_extents {
-        let viewport_size = app.camera.viewport_size_px;
-        handle_zoom_extents(&mut app.camera, &app.document, viewport_size);
+        crate::ui::menubar::do_zoom_extents(app);
     }
 
     // Typed characters → seed and focus the command line (LCV-111 AC 21).

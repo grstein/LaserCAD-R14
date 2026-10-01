@@ -298,9 +298,7 @@ fn view_menu_rows_and_check_marks() {
     // The marks follow the flags.
     let ctx = self::ctx();
     let mut app = App::default();
-    app.grid_enabled = false;
-    app.snap_enabled = false;
-    app.ortho_enabled = true;
+    (app.grid_enabled, app.snap_enabled, app.ortho_enabled) = (false, false, true);
     let view = open_menu(&ctx, &mut app, "View");
     assert_slots(&view, &["Grid", "Snap"], false);
     assert_slots(&view, &["Ortho"], true);

@@ -9,7 +9,7 @@
 //! `crate::ui::toolbar::TOOLS`, the same table that drives the toolbar, so
 //! the two surfaces cannot drift apart.
 
-use crate::app::App;
+use crate::app::{App, handle_zoom_extents};
 use crate::document::SelectionCommand;
 use crate::render::Camera;
 use crate::tools;
@@ -128,6 +128,15 @@ fn view_menu(ui: &mut egui::Ui, app: &mut App) {
             ui.close_menu();
             do_zoom_out(app);
         }
+        // LCV-166 AC 5: Zoom Extents (`F`) and Zoom All before Fit to Bed.
+        if menu_row(ui, Some(menu::zoom_extents), "Zoom Extents", "F").clicked() {
+            ui.close_menu();
+            do_zoom_extents(app);
+        }
+        if menu_row(ui, None, "Zoom All", "").clicked() {
+            ui.close_menu();
+            do_zoom_all(app);
+        }
         if menu_row(ui, Some(menu::fit_bed), "Fit to Bed", "").clicked() {
             ui.close_menu();
             do_fit_to_bed(app);
@@ -217,6 +226,20 @@ pub(crate) fn do_select_all(app: &mut App) {
 /// resizing the bed reframes to the new rectangle with no extra bookkeeping.
 pub(crate) fn do_fit_to_bed(app: &mut App) {
     app.camera.frame_bed(app.document.bed_mm);
+}
+
+/// Fit the viewport to the drawing extents — the one body behind `F`,
+/// `Ctrl+0`, the typed `zoom e` and `View > Zoom Extents` (LCV-166 AC 6).
+/// Reads the viewport size the previous frame synced.
+pub(crate) fn do_zoom_extents(app: &mut App) {
+    let viewport_size = app.camera.viewport_size_px;
+    handle_zoom_extents(&mut app.camera, &app.document, viewport_size);
+}
+
+/// Frame the bed and the drawing together (`View > Zoom All`, LCV-166 AC 7).
+pub(crate) fn do_zoom_all(app: &mut App) {
+    app.camera
+        .frame_all(app.document.bed_mm, app.document.bounds());
 }
 
 #[cfg(test)]
