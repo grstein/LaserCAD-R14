@@ -23,7 +23,7 @@
       (files: tests/it/repo/packaging.rs)
 - [x] T10 [AC7] `release.sh`: shared asset list, `--list-assets` mode, optional `.zip`/`.dmg`
       attached when present, missing ones printed (files: scripts/release.sh)
-- [ ] T11 [AC5] [AC6] Test: `docs/install.md` exists with SmartScreen and Gatekeeper/`xattr`
+- [x] T11 [AC5] [AC6] Test: `docs/install.md` exists with SmartScreen and Gatekeeper/`xattr`
       steps and settings/autosave paths for Linux, Windows and macOS; `README.md` links it;
       `FIRST-RUN.txt` names it (files: tests/it/repo/packaging.rs)
 - [ ] T12 [AC5] [AC6] Write `docs/install.md`; link from `README.md` (files: docs/install.md, README.md)

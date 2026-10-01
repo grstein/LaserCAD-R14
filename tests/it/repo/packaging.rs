@@ -217,3 +217,38 @@ fn release_sh_lists_zip_and_dmg_and_names_the_missing_one() {
         assert!(partial.lines().any(|l| l == *a), "{a} must still be listed:\n{partial}");
     }
 }
+
+/// LCV-201 AC 5, AC 6 — `docs/install.md` gives the unsigned-app first-run
+/// steps (SmartScreen, Gatekeeper / `xattr`) and the settings and autosave
+/// file per OS, matching `ProjectDirs::from("", "", "lasercad")`'s
+/// `config_dir()` / `data_local_dir()`. `README.md` links it and
+/// `FIRST-RUN.txt` names it.
+#[test]
+fn install_guide_covers_first_run_and_file_locations() {
+    let guide = read("docs/install.md");
+    for needle in [
+        "SmartScreen",
+        "More info",
+        "Run anyway",
+        "Gatekeeper",
+        "right-click",
+        "xattr -dr com.apple.quarantine",
+        // Linux
+        "~/.config/lasercad/settings.json",
+        "~/.local/share/lasercad/autosave.json",
+        // Windows
+        r"%APPDATA%\lasercad\config\settings.json",
+        r"%LOCALAPPDATA%\lasercad\data\autosave.json",
+        // macOS
+        "~/Library/Application Support/lasercad/settings.json",
+        "~/Library/Application Support/lasercad/autosave.json",
+        "recent",
+    ] {
+        assert!(guide.contains(needle), "docs/install.md must mention {needle:?}");
+    }
+    assert!(read("README.md").contains("(docs/install.md)"), "README.md must link docs/install.md");
+    assert!(
+        read("assets/FIRST-RUN.txt").contains("docs/install.md"),
+        "FIRST-RUN.txt must name docs/install.md"
+    );
+}
