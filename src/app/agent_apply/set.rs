@@ -10,6 +10,7 @@
 //! Imports `egui` nowhere, `eframe` nowhere, `rfd` nowhere.
 
 use super::Planned;
+use super::edit::{out_of_range, same_point};
 use crate::agent::{AgentOutcome, SetOp};
 use crate::app::agent_narrate::pt;
 use crate::document::{
@@ -17,14 +18,13 @@ use crate::document::{
 };
 use crate::geometry::{Transform, Vec2};
 
-/// Refuse the first out-of-range entry, else plan `op` over the sorted set.
-pub(super) fn plan(indices: &[usize], op: &SetOp, doc: &Document) -> Planned {
+/// Refuse the first out-of-range entry as `<tool> indices[k]: …` (LCV-192
+/// AC 2), else plan `op` over the sorted set.
+pub(super) fn plan(tool: &str, indices: &[usize], op: &SetOp, doc: &Document) -> Planned {
     let count = doc.entity_count();
-    if let Some((at, index)) = indices.iter().enumerate().find(|(_, i)| **i >= count) {
-        return Planned::Answer(AgentOutcome::Refused(format!(
-            "indices[{at}] = {index} is out of range (the drawing has {count} entities); \
-             nothing was changed"
-        )));
+    if let Some((at, &index)) = indices.iter().enumerate().find(|(_, i)| **i >= count) {
+        let path = format!("indices[{at}]");
+        return Planned::Answer(out_of_range(tool, &path, index, count));
     }
     let mut sorted = indices.to_vec();
     sorted.sort_unstable();
@@ -75,10 +75,7 @@ pub(super) fn plan(indices: &[usize], op: &SetOp, doc: &Document) -> Planned {
             let (a, b) = (Vec2::new(x1, y1), Vec2::new(x2, y2));
             let transform = Transform::Mirror { a, b };
             if transform.is_identity() {
-                return Planned::Answer(AgentOutcome::Refused(format!(
-                    "the mirror line needs two distinct points, got {} mm twice",
-                    pt(x1, y1)
-                )));
+                return Planned::Answer(same_point(a));
             }
             let across = format!(
                 "Mirrored {what} across the line {}–{} mm",

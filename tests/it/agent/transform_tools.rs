@@ -570,17 +570,18 @@ fn a_set_that_cannot_apply_to_every_entity_changes_nothing() {
         (
             "move_entity",
             json!({"indices":[0, 4, 1],"dx":1,"dy":1}),
-            "indices[1] = 4 is out of range (the drawing has 4 entities); nothing was changed",
+            "move_entity indices[1]: 4 is out of range; expected 0..=3 (the drawing has 4 entities)",
         ),
         (
             "delete_entity",
             json!({"indices":[9]}),
-            "indices[0] = 9 is out of range (the drawing has 4 entities); nothing was changed",
+            "delete_entity indices[0]: 9 is out of range; expected 0..=3 (the drawing has 4 entities)",
         ),
         (
             "mirror_entity",
             json!({"indices":[0, 1],"x1":2,"y1":2,"x2":2,"y2":2,"erase_source":false}),
-            "the mirror line needs two distinct points, got (2.000, 2.000) mm twice",
+            "mirror_entity x2, y2: same point as x1, y1 at (2.000, 2.000) mm; \
+             expected a second point distinct from x1, y1",
         ),
     ];
     for (tool, args, text) in refused {

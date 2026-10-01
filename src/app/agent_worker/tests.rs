@@ -384,7 +384,9 @@ fn a_refusal_is_fed_back_as_a_tool_result_and_the_turn_survives() {
     assert_eq!(msgs[3]["tool_call_id"], "call_bad");
     assert_eq!(
         msgs[3]["content"],
-        "index 7 is out of range (the drawing has 0 entities)\nSteps left this turn: 255 of 256.",
+        "delete_entity index: 7 is out of range; \
+         expected an index once the drawing has entities (it has 0)\n\
+         Steps left this turn: 255 of 256.",
         "the model must be told what went wrong, in the apply site's words"
     );
 }

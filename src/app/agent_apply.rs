@@ -169,7 +169,7 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
         AgentAction::Set {
             ref indices,
             ref op,
-        } => set::plan(indices, op, doc),
+        } => set::plan(action.tool_name(), indices, op, doc),
         AgentAction::QueryEntities => Planned::Answer(AgentOutcome::Ok(list_entities(doc))),
         AgentAction::QuerySelection => Planned::Answer(AgentOutcome::Ok(list_selection(doc))),
         // One command for the whole batch (ADR 0010 §1, §5).
