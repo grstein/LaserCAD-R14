@@ -7,7 +7,7 @@
 
 use lasercad::document::{Document, Entity};
 use lasercad::geometry::{Arc, Circle, EPSILON, Line, Vec2};
-use lasercad::io::svg::{SvgImportError, export_svg, import_svg};
+use lasercad::io::svg::{export_svg, import_svg};
 use std::f64::consts::{FRAC_PI_2, PI};
 
 fn svg_wrap(inner: &str) -> String {
@@ -101,32 +101,30 @@ fn arc_cw_sweep_flag_one_sets_ccw_false() {
     assert!(!a.ccw);
 }
 
-/// AC 12 — circle with r <= 0 returns MalformedAttribute.
+/// AC 12, rewritten by LCV-174 AC 3 — a circle with `r < 0` is skipped
+/// and reported `circle (invalid attribute)`; the file still opens.
 #[test]
-fn circle_negative_radius_returns_malformed_attribute() {
+fn circle_negative_radius_is_skipped_and_reported() {
     let src = svg_wrap(r#"<circle cx="0" cy="0" r="-1.0000"/>"#);
-    assert!(matches!(
-        import_svg(&src),
-        Err(SvgImportError::MalformedAttribute {
-            element: "circle",
-            attr: "r",
-            ..
-        })
-    ));
+    let imported = import_svg(&src).unwrap();
+    assert!(imported.entities.is_empty());
+    assert_eq!(
+        imported.report,
+        [("circle (invalid attribute)".to_owned(), 1)]
+    );
 }
 
-/// AC 13 — line with non-numeric x1 returns MalformedAttribute.
+/// AC 13, rewritten by LCV-174 AC 3 — a line with a non-numeric `x1` is
+/// skipped and reported `line (invalid attribute)`; the file still opens.
 #[test]
-fn line_bad_attribute_returns_malformed_attribute() {
+fn line_bad_attribute_is_skipped_and_reported() {
     let src = svg_wrap(r#"<line x1="abc" y1="0" x2="0" y2="0"/>"#);
-    assert!(matches!(
-        import_svg(&src),
-        Err(SvgImportError::MalformedAttribute {
-            element: "line",
-            attr: "x1",
-            ..
-        })
-    ));
+    let imported = import_svg(&src).unwrap();
+    assert!(imported.entities.is_empty());
+    assert_eq!(
+        imported.report,
+        [("line (invalid attribute)".to_owned(), 1)]
+    );
 }
 
 /// AC 14, rewritten by LCV-172 AC 8 — an arc path with a non-numeric `A`

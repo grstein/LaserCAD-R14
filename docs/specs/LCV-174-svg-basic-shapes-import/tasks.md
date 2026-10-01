@@ -4,7 +4,7 @@
   `parse_circle` and the ellipse centre read into it, and route walk's `line|circle|ellipse` arms
   through `shapes::import_shape`. No behavior change; gate green.
   (files: src/io/svg/import/shapes.rs, src/io/svg/import/walk.rs, src/io/svg/import.rs)
-- [ ] T2 [AC1, AC2, AC3] Test: `tests/it/io_svg/shapes.rs`.
+- [x] T2 [AC1, AC2, AC3] Test: `tests/it/io_svg/shapes.rs`.
   - Missing `x1 y1 x2 y2 cx cy x y` default to 0.
   - `r="0"` and a missing `r` import nothing and add no report entry.
   - `r="-1"` and `x1="abc"` (rewritten from the retired LCV-057 AC 12/13) and `<ellipse rx="-2">`
