@@ -10,10 +10,6 @@ use crate::geometry::{Arc, EPSILON, Line, Vec2};
 use crate::io::svg::path_data::{PathData, Segment};
 use crate::io::svg::viewport::Ctx;
 
-/// The report label of a circular arc under a non-similarity map (LCV-173
-/// AC 7, until LCV-176).
-const NON_UNIFORM_ARC: &str = "arc (non-uniform transform)";
-
 /// The entities `data` draws, mapped through `ctx.ctm` and un-mirrored
 /// around `bed_h`, and one report label per segment not imported, in order.
 ///
@@ -24,7 +20,7 @@ const NON_UNIFORM_ARC: &str = "arc (non-uniform transform)";
 /// [`conic_entity`] (LCV-176 AC 1). Lengths and radii are compared with
 /// [`EPSILON`] after the mirror. Under a similarity of scale `s` a circular
 /// arc's radius is `rx · s` and a reflection flips its sweep (LCV-173 AC 6);
-/// under any other map it is labelled (AC 7).
+/// under any other map it is the exact elliptical arc (LCV-176 AC 3).
 pub(super) fn path_entities(
     data: &PathData,
     ctx: &Ctx,
@@ -50,13 +46,15 @@ pub(super) fn path_entities(
                 let (rx, ry) = (rx.abs(), ry.abs());
                 if rx < EPSILON || ry < EPSILON {
                     entities.extend(line(a, b));
-                } else if (rx - ry).abs() > EPSILON {
-                    let conic = center_arc(from, to, (rx, ry), phi, large, sweep);
-                    entities.extend(conic.and_then(|k| conic_entity(ctx, k, bed_h)));
-                } else if let Some(s) = ctx.ctm.similarity_scale() {
+                } else if let Some(s) = ctx
+                    .ctm
+                    .similarity_scale()
+                    .filter(|_| (rx - ry).abs() <= EPSILON)
+                {
                     entities.extend(circular_arc(a, b, rx * s, large, sweep != flip));
                 } else {
-                    labels.push(NON_UNIFORM_ARC);
+                    let conic = center_arc(from, to, (rx, ry), phi, large, sweep);
+                    entities.extend(conic.and_then(|k| conic_entity(ctx, k, bed_h)));
                 }
             }
             Segment::Skipped { label, .. } => labels.push(label),

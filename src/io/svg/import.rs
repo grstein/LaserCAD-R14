@@ -6,7 +6,7 @@
 //!
 //! | Outcome | Elements (SVG namespace unless noted) | Report |
 //! |---|---|---|
-//! | import | `line`, `circle`, `path` | properties; per `path`: curves not imported yet, `path (data error)`, or `path (unsupported data)` with no `d` |
+//! | import | `line`, `circle`, `ellipse`, `path` | `ellipse (invalid radius)`; properties; per `path`: curves not imported yet, `path (data error)`, or `path (unsupported data)` with no `d` |
 //! | descend | `svg`, `g`, `a` | properties, then the children |
 //! | never rendered | `defs symbol clipPath mask marker pattern linearGradient radialGradient filter` | name, iff it has an element child other than `style` |
 //! | hidden | `display:none` (subtree included), or an imported element with `visibility` `hidden`/`collapse` (LCV-175) | `hidden (display:none)`, `hidden (visibility)` |
@@ -20,10 +20,12 @@
 //!
 //! A `path`'s `d` is read with the full SVG 2 path-data grammar (LCV-172,
 //! `super::path_data`): `M L H V Z A`, absolute or relative, every subpath.
-//! [`path::path_entities`] turns it into lines and circular arcs; `C S Q T`
-//! and elliptical arcs import nothing and are reported (`path C`, …,
-//! `path elliptical arc`) until LCV-176/177. A syntax error keeps the
-//! segments before it and reports `path (data error)`.
+//! [`path::path_entities`] turns it into lines, circular and elliptical
+//! arcs; `C S Q T` import nothing and are reported (`path C`, …) until
+//! LCV-177. A syntax error keeps the segments before it and reports
+//! `path (data error)`. A circle or circular arc under a non-similar
+//! transform imports as the exact ellipse or elliptical arc ([`conic`],
+//! LCV-176).
 //!
 //! SVG is Y-down and the world is Y-up, so every parsed Y is un-mirrored
 //! through [`crate::util::flip_y`] (`y_world = bed_height - y_svg`, the exact
@@ -53,6 +55,7 @@ use crate::document::entity::Entity;
 use crate::document::{Document, Layer, LayerId};
 use crate::geometry::{Circle, Line, Vec2};
 use crate::util::flip_y;
+use conic::{Conic, conic_entity};
 use style::{Style, collect_sheet};
 use walk::Walk;
 
@@ -219,8 +222,8 @@ fn parse_line(n: roxmltree::Node<'_, '_>, ctx: &Ctx, bed_h: f64) -> Result<Entit
     )))
 }
 
-/// A `<circle>`; `Ok(None)` when `ctx` is not a similarity, so the circle
-/// would be an ellipse (LCV-173 AC 7, until LCV-176).
+/// A `<circle>`: a [`Circle`] under a similarity, else the exact image
+/// ellipse (LCV-176 AC 3); `Ok(None)` only when that image is degenerate.
 fn parse_circle(
     n: roxmltree::Node<'_, '_>,
     ctx: &Ctx,
@@ -233,10 +236,17 @@ fn parse_circle(
         let v = n.attribute("r").unwrap_or("").to_string();
         return Err(malformed("circle", "r", v));
     }
-    Ok(ctx
-        .ctm
-        .similarity_scale()
-        .map(|s| Entity::Circle(Circle::new(to_world(ctx, c, bed_h), r * s))))
+    if let Some(s) = ctx.ctm.similarity_scale() {
+        let circle = Circle::new(to_world(ctx, c, bed_h), r * s);
+        return Ok(Some(Entity::Circle(circle)));
+    }
+    let conic = Conic {
+        center: c,
+        u: Vec2::new(r, 0.0),
+        v: Vec2::new(0.0, r),
+        span: None,
+    };
+    Ok(conic_entity(ctx, conic, bed_h))
 }
 
 fn malformed(element: &'static str, attr: &'static str, value: String) -> SvgImportError {

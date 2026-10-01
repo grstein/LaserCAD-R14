@@ -66,7 +66,7 @@
 - [x] T24 [AC3] Test: a circle and a circular arc under `scale(2 1)`, `skewX(30)` and
   `preserveAspectRatio="none"` import as the exact ellipse; the LCV-173 labels are gone (files:
   tests/it/io_svg/transforms.rs)
-- [ ] T25 [AC3] `parse_circle` and `path_entities` send a non-similar CTM to `conic_entity` (files:
+- [x] T25 [AC3] `parse_circle` and `path_entities` send a non-similar CTM to `conic_entity` (files:
   src/io/svg/import.rs, src/io/svg/import/path.rs)
 - [ ] T26 [AC12] Test: a proptest round trip of ellipses and arcs on random layers within
   `FORMAT_TOL`, plus a corpus `ellipse` record and one fixture pair (files:

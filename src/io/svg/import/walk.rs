@@ -29,9 +29,6 @@ const INVALID_TRANSFORM: &str = "transform (invalid)";
 /// The report label of a `transform` that collapses the plane (LCV-173).
 const SINGULAR_TRANSFORM: &str = "transform (singular)";
 
-/// The report label of a circle under a non-similarity map (LCV-173 AC 7).
-const NON_UNIFORM_CIRCLE: &str = "circle (non-uniform transform)";
-
 /// The report label of an `<ellipse>` without a positive radius (LCV-176).
 const INVALID_ELLIPSE: &str = "ellipse (invalid radius)";
 
@@ -139,13 +136,7 @@ impl Walk {
                 Kind::Import => match (inner_ctx, name) {
                     (None, _) => None,
                     (Some(c), "line") => Some(parse_line(child, &c, bed_h)?),
-                    (Some(c), "circle") => {
-                        let circle = parse_circle(child, &c, bed_h)?;
-                        if circle.is_none() {
-                            self.report.note(NON_UNIFORM_CIRCLE);
-                        }
-                        circle
-                    }
+                    (Some(c), "circle") => parse_circle(child, &c, bed_h)?,
                     (Some(c), "ellipse") => {
                         let ellipse = parse_ellipse(child, &c, bed_h)?;
                         if ellipse.is_none() {

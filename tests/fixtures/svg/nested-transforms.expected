@@ -18,8 +18,9 @@ arc 0 80 50 10 180 0 cw
 # the screen but now from the right (0 deg) to the left (180 deg):
 # a reflection inverts the handedness.
 arc 0 80 20 10 0 180 ccw
-# scale(2, 1) would make the circle an ellipse: not imported, reported.
+# scale(2, 1) makes the circle (10, 10) r 2 the exact ellipse (LCV-176):
+# centre page (20, 10), rx 4, ry 2.
+ellipse 0 20 90 4 2 0
 # An unparseable transform is ignored and reported; its line imports as is.
 line 0 0 5 5 5
-ignored 1 circle (non-uniform transform)
 ignored 1 transform (invalid)
