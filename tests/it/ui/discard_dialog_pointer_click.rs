@@ -267,6 +267,28 @@ fn assert_unchanged(app: &App, before: &Snapshot) {
 }
 
 // ---------------------------------------------------------------------------
+// LCV-169 AC 7 — Save, Discard, Cancel, left to right
+// ---------------------------------------------------------------------------
+
+/// LCV-169 AC 7 — a real Ctrl+N on a dirty drawing parks `New` and the
+/// prompt paints `Save`, `Discard`, `Cancel` on one row, left to right.
+#[test]
+fn the_prompt_offers_save_discard_cancel_left_to_right() {
+    let ctx = egui::Context::default();
+    let mut app = App::default();
+    ctx.set_pixels_per_point(1.0);
+    boot(&ctx, &mut app);
+    with_lines(&mut app, 1);
+    let _ = ctx.run(raw_input(key_events(egui::Key::N, ctrl())), |c| {
+        app.update_ui(c)
+    });
+    let runs = settle(&ctx, &mut app);
+    let [save, discard, cancel] = ["Save", "Discard", "Cancel"].map(|l| locate(&runs, l));
+    assert!((save.y - discard.y).abs() < 1.0 && (discard.y - cancel.y).abs() < 1.0);
+    assert!(save.x < discard.x && discard.x < cancel.x);
+}
+
+// ---------------------------------------------------------------------------
 // AC 1, 3 — Discard confirms the parked action exactly once, not replayed
 // ---------------------------------------------------------------------------
 

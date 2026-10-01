@@ -16,7 +16,7 @@
   tests/it/agent/panel_and_settings.rs)
 - [x] T6 [AC4] Test: a click on each dialog's title-bar × leaves the same state as its
   Cancel/Close button (files: tests/it/ui/dialog_keyboard.rs)
-- [ ] T7 [AC6] [AC7] Test first: the Discard dialog paints `Save`, `Discard`, `Cancel` left to
+- [x] T7 [AC6] [AC7] Test first: the Discard dialog paints `Save`, `Discard`, `Cancel` left to
   right; the `Discard` run's colour is `palette::DANGER`; no filled shape uses `DANGER` (files:
   tests/it/ui/dialog_keyboard.rs, tests/it/ui/discard_dialog_pointer_click.rs)
 - [ ] T8 [AC6] [AC7] `discard.rs` draws its own window with `DiscardChoice`; `confirm_dialog`

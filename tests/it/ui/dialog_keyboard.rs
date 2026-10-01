@@ -239,3 +239,56 @@ fn ac4_the_title_bar_x_does_what_cancel_or_close_does() {
         );
     }
 }
+
+// ── AC 6: destructive text ───────────────────────────────────────────────────
+
+/// The colour a text shape's glyphs are painted in: the override if any,
+/// else the first section's colour with egui's placeholder resolved to the
+/// shape's fallback (`epaint::TextShape` docs).
+fn glyph_colour(text: &egui::epaint::TextShape) -> egui::Color32 {
+    let section = text.galley.job.sections.first().map(|s| s.format.color);
+    match (text.override_text_color, section) {
+        (Some(c), _) => c,
+        (None, Some(c)) if c != egui::Color32::PLACEHOLDER => c,
+        _ => text.fallback_color,
+    }
+}
+
+/// Every text shape (as `(text, colour)`) and every fill colour under `shape`.
+fn walk(
+    shape: &egui::Shape,
+    texts: &mut Vec<(String, egui::Color32)>,
+    fills: &mut Vec<egui::Color32>,
+) {
+    match shape {
+        egui::Shape::Text(t) => texts.push((t.galley.text().to_owned(), glyph_colour(t))),
+        egui::Shape::Rect(r) => fills.push(r.fill),
+        egui::Shape::Circle(c) => fills.push(c.fill),
+        egui::Shape::Ellipse(e) => fills.push(e.fill),
+        egui::Shape::Path(p) => fills.push(p.fill),
+        egui::Shape::Mesh(m) => fills.extend(m.vertices.iter().map(|v| v.color)),
+        egui::Shape::Vec(v) => v.iter().for_each(|s| walk(s, texts, fills)),
+        _ => {}
+    }
+}
+
+/// AC 6 — `Discard` is painted in `palette::DANGER`, and no filled shape
+/// anywhere on the frame uses `DANGER` (text only, never a red button).
+#[test]
+fn ac6_discard_text_is_danger_and_nothing_is_filled_danger() {
+    use lasercad::render::palette::DANGER;
+    let (ctx, mut app) = open("Discard unsaved changes?");
+    let _ = window_runs(&ctx, &mut app, "Discard unsaved changes?");
+    let out = ctx.run(harness::raw_input(vec![]), |c| app.update_ui(c));
+    let (mut texts, mut fills) = (Vec::new(), Vec::new());
+    for clipped in &out.shapes {
+        walk(&clipped.shape, &mut texts, &mut fills);
+    }
+    let discard: Vec<_> = texts
+        .iter()
+        .filter(|(t, _)| t.trim() == "Discard")
+        .collect();
+    assert_eq!(discard.len(), 1, "one Discard run: {texts:?}");
+    assert_eq!(discard[0].1, DANGER, "Discard's text is the danger colour");
+    assert!(!fills.contains(&DANGER), "no shape is filled with DANGER");
+}
