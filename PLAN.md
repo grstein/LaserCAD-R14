@@ -24,8 +24,8 @@ Rust (toolchain pinned) · `egui`/`eframe` · `rfd` dialogs · blocking `reqwest
 - **1.0 scope** (user decisions 2026-09-27/28): LCV-142..145, 149..153 — all Done.
   LCV-146 is deferred past 1.0.
 - **Release**: v0.2.0 (LCV-089) published 2026-09-28; v0.3.0 published 2026-09-30 after the user smoke test, with the user's authorization;
-  v0.4.0 (LCV-160..163) and v0.5.0 (LCV-164..169, 183, 184) bumped 2026-09-30, v0.6.0 (LCV-154, 185..193)
-  v0.7.0 (LCV-194..200) and v0.8.0 (LCV-180, 201) bumped 2026-10-01, untagged until the user smoke-tests them.
+  v0.4.0 (LCV-160..163) and v0.5.0 (LCV-164..169, 183, 184) bumped 2026-09-30, v0.6.0 (LCV-154, 185..193),
+  v0.7.0 (LCV-194..200), v0.8.0 (LCV-180, 201) and v0.9.0 (LCV-170..179) bumped 2026-10-01, untagged until the user smoke-tests them.
 - **v0.3 "workshop-ready"** (approved 2026-09-29): LCV-156 layers, 157 COPY, 159 polar `@d<a` +
   DIST, 158 ROTATE, 181 MIRROR, 182 SCALE — all Done 2026-09-30 (158 was split into 158/181/182).
   Released as v0.3.0.
@@ -43,7 +43,7 @@ Rust (toolchain pinned) · `egui`/`eframe` · `rfd` dialogs · blocking `reqwest
   - v0.7.0 "agent CAD loop" — 194 measure, 195 feedback after mutation, 196 batch primitives,
     197 verify before reply, 198 turn checkpoints, 199 reference image, 200 eval bench.
   - v0.8.0 "platform" — 180 dependency refresh (alone, first), 201 Windows/macOS packaging.
-  - v0.9–0.10 "SVG conformance" — 170–175, then 176–179.
+  - v0.9.0 "SVG conformance" — 170–179 (planned as 0.9 + 0.10; built on one branch, released together).
   - v1.0.0 — LCV-202.
   - v1.0.0 — R14 v1 parity, stable SVG contract, multi-OS; after 1.0 an SVG contract change is a major.
 - **Not in 0.3**: DXF, blocks/xref, fillet/chamfer/offset, G-code, LCV-146 skills.

@@ -8,11 +8,10 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 ## [Unreleased]
 
-## [0.8.0] - 2026-10-01
+## [0.9.0] - 2026-10-01
 
 ### Added
 
-- Windows and macOS downloads: a portable Windows `.zip` (unzip and run `lasercad.exe`, which no longer opens a console window) and an Apple Silicon macOS `.dmg` with `LaserCAD.app`. Both are unsigned; [`docs/install.md`](docs/install.md) gives the first-run steps (SmartScreen "More info → Run anyway", Gatekeeper right-click → Open) and where settings and autosave are kept. The unused MSI installer script is gone. See LCV-201.
 - Open SVG: text becomes cuttable outlines in the named installed font. Each `<text>` (with its `<tspan>` and `<a>` parts) opens as the lines and curves of its glyphs, at its size, weight, position (`x`, `y`, `dx`, `dy` lists, `text-anchor`) and transform, on the layer of its stroke color, else its fill color; whitespace collapses as in a browser, and `xml:space="preserve"` keeps it. Glyphs follow each other by their advance, without kerning or ligatures. Substitutions and unsupported text features appear in the import report: a family that is not installed draws in the default sans-serif face (`text (font substituted)`), a character the face lacks is skipped (`text (missing glyph)`), text on a path or vertical text is skipped (`text (textPath)`, `text (vertical)`), and `rotate`, `letter-spacing`, `word-spacing` and `inline-size` are ignored and reported. With no font installed, text is skipped as `text (no font)`. Fonts are read from the system font directories the first time a file with text is opened. See LCV-179.
 - SVG import: repeated parts drawn by reference open as real geometry. Each `<use>` (`href` or Inkscape's `xlink:href`) of a shape, group or `<symbol>` in the same file becomes an independent copy at its place, under its transform, with the `<use>`'s color and on its layer; a `<symbol>` is scaled into the `<use>`'s width and height; clones of clones work. `<switch>` imports only its first branch whose conditions pass, and an element with an unsupported `requiredExtensions` or a non-English `systemLanguage` is skipped. Unresolved or external references and reference cycles are skipped and reported; a file whose references nest deeper than 32 or would create more than 100 000 instanced elements (copies, and the references expanded to make them) is refused, leaving the open drawing untouched. See LCV-178.
 - SVG import: `<rect>` (rounded corners as arcs, circular or elliptical, with `rx`/`ry` resolved as SVG 2 says, `auto` included), `<polyline>` and `<polygon>` open as lines and arcs on their layer, under any `transform`, and are no longer reported as ignored. Invalid shapes are skipped and reported instead of failing the file: a negative or unparseable size, radius or position reports `<element> (invalid attribute)` (for `<ellipse>` too), bad `points` keep the points before the error and report `polyline (data error)` or `polygon (data error)`, a missing position counts as 0, and a zero or missing size draws nothing. See LCV-174.
@@ -28,6 +27,12 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 - Open and Open Recent say what an SVG import ignored, on the command line: for example `Ignored: 2 image, 1 transform`. Elements LaserCAD does not import (images, text, rectangles, …), path data it cannot read, and properties it does not apply yet (`transform`, `fill`, `opacity`, …) are counted. Geometry inside elements that are never drawn (`<defs>`, `<clipPath>`, `<mask>`, `<marker>`, `<pattern>`, …) is no longer imported as cut geometry. A file whose root is not an SVG-namespace `<svg>` (a missing `xmlns` included) is refused. See LCV-171.
 - A layer name with a control character (a tab, a bell, …) is refused with the reason: in the Layers dialog, by the agent, and when a drawing or SVG is opened (the SVG import reports a malformed layer). Such a name used to be written raw into the SVG, giving a file no program could reopen. See LCV-170.
 - `CHECK` and the agent's `check_drawing` cover ellipses and Béziers: an elliptical arc or Bézier has two ends that must meet, a full ellipse has none, and duplicates and degenerate curves (a zero semi-axis, all points coincident) are found. The agent's `measure` gives their `length` and `bbox`; `distance`, `intersections` and `angle` refuse them naming the operand.
+
+## [0.8.0] - 2026-10-01
+
+### Added
+
+- Windows and macOS downloads: a portable Windows `.zip` (unzip and run `lasercad.exe`, which no longer opens a console window) and an Apple Silicon macOS `.dmg` with `LaserCAD.app`. Both are unsigned; [`docs/install.md`](docs/install.md) gives the first-run steps (SmartScreen "More info → Run anyway", Gatekeeper right-click → Open) and where settings and autosave are kept. The unused MSI installer script is gone. See LCV-201.
 
 ### Changed
 
