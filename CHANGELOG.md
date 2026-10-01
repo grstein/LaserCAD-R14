@@ -12,6 +12,10 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 
 - Windows and macOS downloads: a portable Windows `.zip` (unzip and run `lasercad.exe`, which no longer opens a console window) and an Apple Silicon macOS `.dmg` with `LaserCAD.app`. Both are unsigned; [`docs/install.md`](docs/install.md) gives the first-run steps (SmartScreen "More info → Run anyway", Gatekeeper right-click → Open) and where settings and autosave are kept. The unused MSI installer script is gone. See LCV-201.
 
+### Changed
+
+- The GUI stack moves to egui/eframe 0.36, still on the OpenGL (glow) renderer, with rfd 0.17 for the Open/Save dialogs and reqwest 0.13 (still OpenSSL) for the agent; directories 6, roxmltree 0.21 and base64 0.23 follow. Settings, autosave and recent files stay where they were, exported SVG bytes are unchanged, and the layout keeps its sizes. SVG import now ignores attributes in a foreign XML namespace (`x:d`, `x:data-layer`) instead of reading them in place of the plain ones. See LCV-180.
+
 ## [0.7.0] - 2026-10-01
 
 ### Added

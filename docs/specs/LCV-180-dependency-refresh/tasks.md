@@ -53,5 +53,5 @@ commit, then T8–T13 one each, then T14. Each commit passes `scripts/gate.sh` a
       1.1.9`. Drop the quick-xml ignores from deny.toml. Record the duplicate count (≤9), the
       stripped binary bytes (≤13,174,059), `cargo deny check` and the gate in the commit body
       (files: Cargo.lock, deny.toml)
-- [ ] T14 CHANGELOG: GUI stack moves to egui/eframe 0.36 (glow), rfd 0.17 and reqwest 0.13
+- [x] T14 CHANGELOG: GUI stack moves to egui/eframe 0.36 (glow), rfd 0.17 and reqwest 0.13
       (files: CHANGELOG.md)
