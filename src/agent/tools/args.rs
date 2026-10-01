@@ -75,7 +75,10 @@ pub(crate) fn expected_form(field: &str) -> &'static str {
         "frame" => r#""view", "drawing" or "region""#,
         "version" => "the integer 1",
         "entities" => "a list of 1 to 1000 entity objects",
-        "type" => r#""line", "circle" or "arc""#,
+        // Every batch type; pinned equal to `drawing::keys::form("type")`.
+        "type" => {
+            r#""line", "circle", "arc", "polyline", "rect", "polygon", "text", "linear_array" or "polar_array""#
+        }
         "(root)" => "a JSON object",
         "query" => r#""distance", "length", "bbox", "intersections" or "angle""#,
         "points" => "a list of points {x, y} in mm",

@@ -879,3 +879,13 @@ fn lcv196_a_text_height_outside_the_text_command_range_is_refused() {
         assert!(!items(json!([text(h)])).is_empty(), "{h} is accepted");
     }
 }
+
+/// LCV-196 — the scalar table's `type` row lists every batch type, exactly
+/// as the item refusals do.
+#[test]
+fn lcv196_expected_form_of_type_lists_every_batch_type() {
+    assert_eq!(
+        crate::agent::tools::expected_form("type"),
+        keys::form("type")
+    );
+}

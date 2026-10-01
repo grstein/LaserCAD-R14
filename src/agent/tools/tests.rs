@@ -384,7 +384,8 @@
             ("layer", "the name of an existing layer, 1 to 64 characters"),
             ("frame", r#""view", "drawing" or "region""#), ("version", "the integer 1"),
             ("entities", "a list of 1 to 1000 entity objects"),
-            ("type", r#""line", "circle" or "arc""#), ("(root)", "a JSON object"),
+            ("type", r#""line", "circle", "arc", "polyline", "rect", "polygon", "text", "linear_array" or "polar_array""#),
+            ("(root)", "a JSON object"),
             ("name", "a checkpoint name: 1 to 32 characters of A-Z a-z 0-9 _ -"),
             ("bogus", "a value the tool's schema allows")] {
             assert_eq!(expected_form(f), form, "{f}");
