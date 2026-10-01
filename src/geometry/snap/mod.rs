@@ -8,7 +8,7 @@
 //! wrapper. The selection rule is documented on [`snap_query`].
 //!
 //! [`SnapEntity`] is the snap engine's own entity view (`Line` | `Circle` |
-//! `Arc` | `Ellipse`); callers convert at the call site. Kernel-pure: no `egui`,
+//! `Arc` | `Ellipse` | `Bezier`); callers convert at the call site. Kernel-pure: no `egui`,
 //! `eframe` or `rfd`. Split to honor the 300-LOC cap: [`candidates`]
 //! (endpoint, midpoint, center, intersection) and [`anchored`] (quadrant,
 //! perpendicular, tangent, nearest). Introduced by LCV-016; extended by LCV-161.
@@ -17,6 +17,7 @@ mod anchored;
 mod candidates;
 
 use crate::geometry::arc::Arc;
+use crate::geometry::bezier::Bezier;
 use crate::geometry::circle::Circle;
 use crate::geometry::ellipse::Ellipse;
 use crate::geometry::epsilon::EPSILON;
@@ -132,6 +133,8 @@ pub enum SnapEntity {
     /// A full ellipse or elliptical arc (ADR 0015): endpoint, center,
     /// quadrant and nearest only; never an intersection participant.
     Ellipse(Ellipse),
+    /// A Bézier segment (ADR 0016 §5): endpoint and nearest only.
+    Bezier(Bezier),
 }
 
 /// Outcome of a successful snap query.

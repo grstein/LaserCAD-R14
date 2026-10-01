@@ -34,7 +34,7 @@
 - [x] T11 [AC9] Test: near a cubic, Endpoint (both ends) and Nearest (on the curve) are offered;
   Midpoint, Center, Quadrant, Intersection, Perpendicular and Tangent never, even with an anchor
   and a crossing line (files: tests/it/app/object_snaps.rs)
-- [ ] T12 [AC9] `SnapEntity::Bezier`, endpoint candidates, pair intersections skipped (files:
+- [x] T12 [AC9] `SnapEntity::Bezier`, endpoint candidates, pair intersections skipped (files:
   src/geometry/snap/mod.rs, src/geometry/snap/candidates.rs, src/app/snap.rs)
 - [ ] T13 [AC9] Nearest for Béziers, skipped by perpendicular/tangent (files:
   src/geometry/snap/anchored.rs)
