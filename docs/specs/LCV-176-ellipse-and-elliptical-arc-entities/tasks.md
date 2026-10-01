@@ -63,7 +63,7 @@
   tests/it/io_svg/ellipse.rs)
 - [x] T23 [AC2] The walk's `ellipse` arm through `conic_entity` (files: src/io/svg/import/walk.rs,
   src/io/svg/import/conic.rs)
-- [ ] T24 [AC3] Test: a circle and a circular arc under `scale(2 1)`, `skewX(30)` and
+- [x] T24 [AC3] Test: a circle and a circular arc under `scale(2 1)`, `skewX(30)` and
   `preserveAspectRatio="none"` import as the exact ellipse; the LCV-173 labels are gone (files:
   tests/it/io_svg/transforms.rs)
 - [ ] T25 [AC3] `parse_circle` and `path_entities` send a non-similar CTM to `conic_entity` (files:

@@ -3,8 +3,9 @@
 //! end through `import_svg`. The page is 100 mm square with one user unit =
 //! 1 mm, so a world point is `(x, 100 − y)`.
 
+use core::f64::consts::TAU;
 use lasercad::document::Entity;
-use lasercad::geometry::{Arc, Circle, Vec2};
+use lasercad::geometry::{Arc, Circle, Ellipse, Vec2};
 use lasercad::io::svg::import_svg;
 
 const TOL: f64 = 1e-9;
@@ -201,43 +202,94 @@ fn arcs_under_similarities() {
     );
 }
 
-/// AC 7 — under a non-uniform scale or a skew a circle or arc imports
-/// nothing and is reported; the path's current point still advances.
+fn ellipse(e: &Entity) -> Ellipse {
+    match e {
+        Entity::Ellipse(el) => *el,
+        other => panic!("not an ellipse: {other:?}"),
+    }
+}
+
+/// Twelve points of the user-space circle `(c, r)`, mapped to the world by
+/// `f`, lie on `e`: five points fix a conic, so `e` is the exact image.
+fn assert_image(e: &Ellipse, f: impl Fn(Vec2) -> Vec2, c: Vec2, r: f64) {
+    for k in 0..12 {
+        let a = f64::from(k) * TAU / 12.0;
+        let p = f(c + Vec2::new(a.cos(), a.sin()) * r);
+        let d = e.distance_to_point(p);
+        assert!(d <= TOL, "{p:?} is {d} mm off {e:?}");
+    }
+}
+
+/// LCV-176 AC 3 (replacing LCV-173 AC 7) — under a non-uniform scale or a
+/// skew a circle or arc imports as the exact ellipse or elliptical arc,
+/// unreported; the path's current point still advances.
 #[test]
-fn circles_and_arcs_under_non_similarities_are_reported() {
+fn circles_and_arcs_under_non_similarities_import_as_ellipses() {
     let (es, report) = page(
         r#"<g transform="scale(2 1)">
              <circle cx="10" cy="10" r="5"/>
              <path d="M 10 50 A 10 10 0 0 1 30 50 L 40 50"/>
            </g>
-           <circle transform="skewX(20)" cx="10" cy="10" r="5"/>"#,
+           <circle transform="skewX(30)" cx="10" cy="10" r="5"/>"#,
     );
-    assert_eq!(es.len(), 1, "{es:?}");
-    assert_line(&es[0], w(60.0, 50.0), w(80.0, 50.0));
-    assert_eq!(
-        report,
-        [
-            entry("circle (non-uniform transform)", 2),
-            entry("arc (non-uniform transform)", 1),
-        ]
+    assert!(report.is_empty(), "{report:?}");
+    assert_eq!(es.len(), 4, "{es:?}");
+    let scale = |p: Vec2| w(2.0 * p.x, p.y);
+    let full = ellipse(&es[0]);
+    assert_eq!(full.span, None);
+    assert_image(&full, scale, Vec2::new(10.0, 10.0), 5.0);
+    // The half turn from page (10, 50) over the top of the screen to
+    // (30, 50), stretched: from (20, 50) through (40, 40) to (60, 50).
+    let arc = ellipse(&es[1]);
+    assert_image(
+        &Ellipse { span: None, ..arc },
+        scale,
+        Vec2::new(20.0, 50.0),
+        10.0,
     );
+    let (from, to) = (arc.start_point(), arc.end_point());
+    assert!(
+        from.is_some_and(|p| p.approx_eq(w(20.0, 50.0), TOL)),
+        "{arc:?}"
+    );
+    assert!(
+        to.is_some_and(|p| p.approx_eq(w(60.0, 50.0), TOL)),
+        "{arc:?}"
+    );
+    assert!(arc.distance_to_point(w(40.0, 40.0)) <= TOL, "{arc:?}");
+    assert!(arc.distance_to_point(w(40.0, 60.0)) > 1.0, "{arc:?}");
+    assert_line(&es[2], w(60.0, 50.0), w(80.0, 50.0));
+    let t = 30f64.to_radians().tan();
+    let skewed = ellipse(&es[3]);
+    assert_eq!(skewed.span, None);
+    assert_image(
+        &skewed,
+        |p| w(p.x + t * p.y, p.y),
+        Vec2::new(10.0, 10.0),
+        5.0,
+    );
+    assert!((skewed.rx * skewed.ry - 25.0).abs() <= TOL, "{skewed:?}");
 }
 
-/// AC 7 — `preserveAspectRatio="none"` with unequal scales is a
-/// non-uniform map too.
+/// LCV-176 AC 3 — `preserveAspectRatio="none"` with unequal scales turns a
+/// circle into the exact ellipse.
 #[test]
-fn par_none_with_unequal_scales_is_non_uniform() {
+fn par_none_with_unequal_scales_imports_an_ellipse() {
     let src = r#"<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="50mm" viewBox="0 0 100 100" preserveAspectRatio="none"><circle cx="50" cy="50" r="5"/><line x1="0" y1="100" x2="100" y2="0"/></svg>"#;
     let imported = import_svg(src).unwrap();
-    assert_eq!(imported.entities.len(), 1);
+    assert!(imported.report.is_empty(), "{:?}", imported.report);
+    assert_eq!(imported.entities.len(), 2);
+    let e = ellipse(&imported.entities[0]);
+    let to_world = |p: Vec2| Vec2::new(p.x, 50.0 - 0.5 * p.y);
+    assert_image(&e, to_world, Vec2::new(50.0, 50.0), 5.0);
+    assert!(
+        (e.rx - 5.0).abs() <= TOL && (e.ry - 2.5).abs() <= TOL,
+        "{e:?}"
+    );
     assert_line(
-        &imported.entities[0],
+        &imported.entities[1],
         Vec2::new(0.0, 0.0),
         Vec2::new(100.0, 50.0),
-    );
-    assert_eq!(
-        imported.report,
-        [entry("circle (non-uniform transform)", 1)]
     );
 }
 
