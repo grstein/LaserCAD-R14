@@ -50,6 +50,9 @@ pub(crate) use loop_::agent_loop;
 pub mod repeat;
 pub use repeat::RefusedCalls;
 
+pub mod metrics;
+pub use metrics::TurnMetrics;
+
 pub mod memory;
 pub use memory::{Memory, TurnEnd};
 
