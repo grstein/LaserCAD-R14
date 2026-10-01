@@ -5,7 +5,7 @@
 //! MUST NOT import `egui`, `eframe`, or `rfd`. Introduced by demand LCV-021.
 
 use crate::document::layer::{check_fields, name_key};
-use crate::document::{Entity, Layer, LayerError, LayerId, Selection};
+use crate::document::{Entity, EntityId, Layer, LayerError, LayerId, Selection};
 use crate::geometry::Vec2;
 use crate::util::{DEFAULT_BED_HEIGHT_MM, DEFAULT_BED_WIDTH_MM};
 
@@ -18,11 +18,12 @@ mod layers;
 /// and the current [`Selection`]. `entities` is `pub` for reads; its length
 /// only changes through [`Document::push_entity`], [`Document::insert_entity`],
 /// [`Document::remove_entity`] and [`Document::truncate_entities`], which keep
-/// the private per-entity layer vector in lockstep.
+/// the private per-entity layer and id vectors in lockstep.
 ///
 /// Invariants of the private layer state: at least one layer; ids, name keys
 /// ([`name_key`]) and colors unique; `current_layer` exists; one layer id per
-/// entity, each existing.
+/// entity, each existing. One [`EntityId`] per entity, all below `next_id`,
+/// none repeated; `next_id` only goes up (ADR 0014).
 ///
 /// Not `Copy`, not `Clone` (ADR 0007).
 #[derive(Debug)]
@@ -43,6 +44,8 @@ pub struct Document {
     layers: Vec<Layer>,
     current_layer: LayerId,
     entity_layers: Vec<LayerId>,
+    entity_ids: Vec<EntityId>,
+    next_id: u64,
 }
 
 /// A blank document on a [`DEFAULT_BED_WIDTH_MM`] × [`DEFAULT_BED_HEIGHT_MM`]
@@ -64,6 +67,8 @@ impl Document {
             current_layer: cut.id,
             layers: vec![cut],
             entity_layers: Vec::new(),
+            entity_ids: Vec::new(),
+            next_id: 1,
         }
     }
 
@@ -100,6 +105,8 @@ impl Document {
             return Err(LayerError::UnknownLayer(format!("#{}", id.0)));
         }
         doc.current_layer = current_layer;
+        doc.entity_ids = (1..).take(entities.len()).map(EntityId).collect();
+        doc.next_id = 1 + entities.len() as u64;
         doc.entities = entities;
         doc.entity_layers = entity_layers;
         Ok(doc)
@@ -174,8 +181,10 @@ impl Document {
     /// Append `entity` on layer `layer`.
     pub fn push_entity(&mut self, entity: Entity, layer: LayerId) {
         debug_assert!(self.layer(layer).is_some(), "push_entity: unknown layer");
+        let id = self.fresh_id();
         self.entities.push(entity);
         self.entity_layers.push(layer);
+        self.entity_ids.push(id);
         self.debug_lockstep();
     }
 
@@ -187,8 +196,10 @@ impl Document {
     /// Insert `entity` at `index` on layer `layer`.
     pub fn insert_entity(&mut self, index: usize, entity: Entity, layer: LayerId) {
         debug_assert!(self.layer(layer).is_some(), "insert_entity: unknown layer");
+        let id = self.fresh_id();
         self.entities.insert(index, entity);
         self.entity_layers.insert(index, layer);
+        self.entity_ids.insert(index, id);
         self.debug_lockstep();
     }
 
@@ -196,6 +207,7 @@ impl Document {
     pub fn remove_entity(&mut self, index: usize) -> (Entity, LayerId) {
         let entity = self.entities.remove(index);
         let layer = self.entity_layers.remove(index);
+        self.entity_ids.remove(index);
         self.debug_lockstep();
         (entity, layer)
     }
@@ -204,6 +216,7 @@ impl Document {
     pub fn truncate_entities(&mut self, len: usize) {
         self.entities.truncate(len);
         self.entity_layers.truncate(len);
+        self.entity_ids.truncate(len);
         self.debug_lockstep();
     }
 
@@ -213,6 +226,7 @@ impl Document {
             self.entity_layers.len(),
             "layer lockstep"
         );
+        debug_assert_eq!(self.entities.len(), self.entity_ids.len(), "id lockstep");
     }
 }
 

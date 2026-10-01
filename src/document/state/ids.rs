@@ -18,12 +18,19 @@ impl std::fmt::Display for EntityId {
 
 impl Document {
     /// The id of entity `index`, if the index is in range.
-    pub fn entity_id(&self, _index: usize) -> Option<EntityId> {
-        None
+    pub fn entity_id(&self, index: usize) -> Option<EntityId> {
+        self.entity_ids.get(index).copied()
     }
 
     /// The current index of the entity with `id`, if it is live.
-    pub fn index_of(&self, _id: EntityId) -> Option<usize> {
-        None
+    pub fn index_of(&self, id: EntityId) -> Option<usize> {
+        self.entity_ids.iter().position(|&e| e == id)
+    }
+
+    /// Take the next id; the counter never goes back.
+    pub(super) fn fresh_id(&mut self) -> EntityId {
+        let id = EntityId(self.next_id);
+        self.next_id += 1;
+        id
     }
 }

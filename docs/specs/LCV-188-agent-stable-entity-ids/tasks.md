@@ -6,7 +6,7 @@
 - [x] T2 [AC2] Test: pushes get distinct ids `e1, e2, …`; after a delete, every other entity keeps
   its id; `from_parts` numbers `e1..=en`; `index_of`/`entity_id` round-trip; a new push after
   deletes and truncates never reuses an id (files: tests/it/document/entity_ids.rs, tests/it/document/mod.rs)
-- [ ] T3 [AC2] `EntityId` + `Display`, `entity_ids`/`next_id` in lockstep in the four mutators and
+- [x] T3 [AC2] `EntityId` + `Display`, `entity_ids`/`next_id` in lockstep in the four mutators and
   `from_parts`, `entity_id`, `index_of` (files: src/document/state.rs, src/document/state/ids.rs, src/document/mod.rs)
 - [ ] T4 [AC3] Test: undo then redo restores ids for CreateLine/Circle/Arc, CreateEntities,
   CopyEntities, TransformEntities (in place and keep_source), DeleteEntities (non-contiguous
