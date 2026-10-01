@@ -470,3 +470,19 @@ fn the_reply_style_ends_with_each_check_marked() {
         "{section}"
     );
 }
+
+/// LCV-198 — the prompt tells the model to set a checkpoint before a risky
+/// step and roll back to it instead of deleting by hand.
+#[test]
+fn the_prompt_advises_checkpoint_and_rollback_over_hand_deletes() {
+    let folded = DEFAULT_PROMPT
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    for needle in [
+        "Before a risky step, set a checkpoint",
+        "roll back to it instead of deleting entities one by one",
+    ] {
+        assert!(folded.contains(needle), "`{needle}` missing");
+    }
+}

@@ -114,7 +114,9 @@ nothing in the drawing.
 rollback {name}: undo every change this turn made after checkpoint name,
 newest first; restored entities get their old ids back. name start is the
 start of the turn and always exists. Checkpoints set after the target are
-forgotten; the target is kept. There is no redo of a rollback.
+forgotten; the target is kept. There is no redo of a rollback. Before a
+risky step, set a checkpoint; if the step goes wrong, roll back to it instead
+of deleting entities one by one.
 
 capture_canvas {frame, x0, y0, x1, y1}: look at the drawing. Returns a
 grayscale picture of the bed outline (grey) and every entity (black), with

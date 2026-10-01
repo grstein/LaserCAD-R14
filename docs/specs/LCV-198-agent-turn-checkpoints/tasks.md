@@ -16,7 +16,7 @@
 - [x] T6 [AC1]–[AC9] Integration tests, one per AC, driven by `arm_turn` + `poll_agent_rx` as in
   `turn_metrics.rs`. AC3 deletes and moves `e2` after a checkpoint, rolls back, and expects
   `e2` at its old geometry (files: tests/it/agent/checkpoints.rs, tests/it/agent/mod.rs)
-- [ ] T7 `DEFAULT_PROMPT` checkpoint sentence; update the prompt and tool-list scans if they
+- [x] T7 `DEFAULT_PROMPT` checkpoint sentence; update the prompt and tool-list scans if they
   enumerate tools (files: src/agent/prompt.rs, tests/it/repo/prompt_scans.rs)
 - [ ] T8 Append the plan's "ADR amendment" to ADR 0007 as the next free "Amended (n)": a header
   line plus the §D12 block (files: docs/adr/0007-agent-turn-mutates-the-live-document.md)
