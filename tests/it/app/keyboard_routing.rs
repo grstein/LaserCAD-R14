@@ -369,6 +369,26 @@ fn delete_removes_selection_when_unfocused() {
     assert!(app.history.can_undo());
 }
 
+/// Delete in Select undoes in one step, like ERASE and Edit > Delete (LCV-166).
+#[test]
+fn delete_in_select_undoes_in_one_step() {
+    let (ctx, mut app, _viewport) = boot();
+    with_lines(&mut app, 2);
+    app.history = lasercad::document::History::default();
+    app.document.selection.set([0, 1]);
+    app.tool_manager.set_tool(Box::new(SelectTool::default()));
+
+    tap(&ctx, &mut app, egui::Key::Delete, none());
+    app.history.undo(&mut app.document);
+
+    assert_eq!(
+        app.document.entity_count(),
+        2,
+        "one undo restores both lines"
+    );
+    assert!(!app.history.can_undo(), "the delete was a single step");
+}
+
 // ---------------------------------------------------------------------------
 // AC#11 — D8: typed characters are gated
 // ---------------------------------------------------------------------------

@@ -155,16 +155,8 @@ impl Tool for SelectTool {
                     );
                 }
             }
-            egui::Key::Delete | egui::Key::Backspace if !app.document.selection.is_empty() => {
-                let indices: Vec<usize> = app.document.selection.iter().collect();
-                app.history.commit(
-                    Box::new(crate::document::DeleteEntities::new(indices)),
-                    &mut app.document,
-                );
-                app.history.commit(
-                    Box::new(SelectionCommand::new(Vec::<usize>::new())),
-                    &mut app.document,
-                );
+            egui::Key::Delete | egui::Key::Backspace => {
+                crate::tools::delete::commit_delete(&mut app.document, &mut app.history);
             }
             _ => {}
         }
