@@ -7,7 +7,7 @@ Prerequisites: LCV-187, LCV-189, LCV-190 Done on `agent-harness`.
   src/agent/loop_/batch.rs)
 - [x] T2 Refactor (no behaviour change): move the `settings_ui.rs` copy constants to
   `settings_ui/copy.rs` (files: src/agent/settings_ui.rs, src/agent/settings_ui/copy.rs)
-- [ ] T3 [AC6] Test: a settings file without the field loads it `false`, and the field round-trips
+- [x] T3 [AC6] Test: a settings file without the field loads it `false`, and the field round-trips
   (files: src/io/settings/tests.rs)
 - [ ] T4 [AC6] `Settings::agent_feedback_after_changes` (files: src/io/settings.rs)
 - [ ] T5 [AC1][AC4][AC5] Test (loop, stub dispatch):
