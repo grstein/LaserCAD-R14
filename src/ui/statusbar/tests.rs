@@ -87,9 +87,9 @@ fn format_coords_pads_with_figure_spaces_only() {
 #[test]
 fn format_coords_lays_out_at_one_width() {
     let ctx = egui::Context::default();
-    let _ = ctx.run(egui::RawInput::default(), |_| {});
+    let _ = ctx.run_ui(egui::RawInput::default(), |_| {});
     let width = |s: String| {
-        ctx.fonts(|f| {
+        ctx.fonts_mut(|f| {
             f.layout_no_wrap(s, egui::FontId::monospace(12.0), egui::Color32::WHITE)
                 .size()
                 .x
@@ -250,8 +250,8 @@ fn recovery_label_is_absent_by_default() {
     let mut app = App::default();
     assert!(!app.title.recovered_from_autosave);
     let ctx = egui::Context::default();
-    let out = ctx.run(egui::RawInput::default(), |ctx| {
-        egui::CentralPanel::default().show(ctx, |ui| draw_statusbar(ui, &mut app));
+    let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+        egui::CentralPanel::default().show(ui, |ui| draw_statusbar(ui, &mut app));
     });
     let painted = harness_texts(&out.shapes);
     assert!(
@@ -277,8 +277,8 @@ fn recovery_label_paints_when_the_flag_is_set_and_touches_nothing_else() {
     let autosave_before = app.autosave.last_autosave_at;
 
     let ctx = egui::Context::default();
-    let out = ctx.run(egui::RawInput::default(), |ctx| {
-        egui::CentralPanel::default().show(ctx, |ui| draw_statusbar(ui, &mut app));
+    let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+        egui::CentralPanel::default().show(ui, |ui| draw_statusbar(ui, &mut app));
     });
     let painted = harness_texts(&out.shapes);
     assert!(

@@ -162,6 +162,9 @@ mod tests {
     #[test]
     fn update_title_sends_a_command_only_on_a_change() {
         let ctx = egui::Context::default();
+        // As `ui::apply_theme` does in the app: egui 0.36's own window-theme
+        // sync would add a `SetTheme` command unrelated to the title.
+        ctx.options_mut(|o| o.sync_window_theme = false);
         let mut app = App::default();
         assert_eq!(
             app.title.last_title.as_deref(),
@@ -169,7 +172,10 @@ mod tests {
             "positive control: the constructor must pre-seed the cache"
         );
 
-        let out = ctx.run(egui::RawInput::default(), |ctx| update_title(ctx, &mut app));
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
+            update_title(ctx, &mut app);
+        });
         assert!(
             out.viewport_output[&egui::ViewportId::ROOT]
                 .commands
@@ -178,7 +184,10 @@ mod tests {
         );
 
         // A second, otherwise-idle frame: still nothing changed.
-        let out = ctx.run(egui::RawInput::default(), |ctx| update_title(ctx, &mut app));
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
+            update_title(ctx, &mut app);
+        });
         assert!(
             out.viewport_output[&egui::ViewportId::ROOT]
                 .commands
@@ -189,7 +198,10 @@ mod tests {
         // A real change: current_file set and marked saved.
         app.current_file = Some(PathBuf::from("drawing.svg"));
         app.mark_saved();
-        let out = ctx.run(egui::RawInput::default(), |ctx| update_title(ctx, &mut app));
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
+            update_title(ctx, &mut app);
+        });
         assert_eq!(
             out.viewport_output[&egui::ViewportId::ROOT].commands,
             vec![egui::ViewportCommand::Title(
@@ -199,7 +211,10 @@ mod tests {
         );
 
         // And another idle frame after that change sends nothing again.
-        let out = ctx.run(egui::RawInput::default(), |ctx| update_title(ctx, &mut app));
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
+            update_title(ctx, &mut app);
+        });
         assert!(
             out.viewport_output[&egui::ViewportId::ROOT]
                 .commands

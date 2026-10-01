@@ -162,6 +162,22 @@ fn query_entities_reports_each_entity_layer() {
     );
 }
 
+/// LCV-170 AC 9 — a creation call naming a layer with a control character is
+/// refused (at parse or apply) and adds no entity, even though the name's
+/// file key matches `Cut`. The refusal text is not pinned (LCV-192 rewords it).
+#[test]
+fn a_control_character_layer_name_is_refused() {
+    let (mut app, _) = app_with_mark();
+    let r0 = app.history.revision();
+    let args = json!({"x1":0,"y1":0,"x2":5,"y2":5,"layer":"Cut\u{7}"});
+    if let Ok(call) = parse_tool_call("create_line", &args) {
+        let out = apply(&mut app, &call);
+        assert!(matches!(out, AgentOutcome::Refused(_)), "{out:?}");
+    }
+    assert_eq!(app.history.revision(), r0);
+    assert_eq!(app.document.entity_count(), 0);
+}
+
 /// LCV-191 AC 1 — `set_layer {indices, layer}` parses into one set action
 /// carrying the layer name, indices in the order given.
 #[test]

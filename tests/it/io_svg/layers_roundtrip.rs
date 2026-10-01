@@ -132,8 +132,9 @@ fn file(body: &str) -> String {
     format!("{HEADER}\n{body}\n</svg>")
 }
 
-/// ADR 0012 §4 — geometry outside any layer group goes to the first layer;
-/// a file with no layer group (a v0.2 file) gets the default `Cut` layer.
+/// ADR 0012 §4 — uncolored geometry outside any layer group goes to the
+/// first layer; a file with no layer group (a v0.2 file) whose geometry all
+/// has a stroke color opens on one `#rrggbb` layer per color (LCV-175).
 #[test]
 fn stray_geometry_goes_to_the_first_layer() {
     let l = r#"<line x1="1" y1="1" x2="2" y2="2"/>"#;
@@ -153,8 +154,14 @@ fn stray_geometry_goes_to_the_first_layer() {
         r##"<g id="mark" stroke="#0000ff" stroke-width="0.1">{l}</g>"##
     ));
     let doc = reopen(&v02);
-    assert_eq!(doc.layers(), &[Layer::default_cut()]);
-    assert_eq!(memberships(&doc), ["Cut"]);
+    let blue = Layer {
+        id: LayerId(0),
+        name: "#0000ff".to_owned(),
+        color: [0, 0, 255],
+        output: true,
+    };
+    assert_eq!(doc.layers(), &[blue]);
+    assert_eq!(memberships(&doc), ["#0000ff"]);
 }
 
 /// ADR 0012 §4 — no `data-current` means the first layer is current.

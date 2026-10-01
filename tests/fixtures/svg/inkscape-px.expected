@@ -1,0 +1,14 @@
+# LCV-173 AC 1/AC 2 — an Inkscape file in px: unitless width/height are px
+# (96 px = 1 in), so 384 × 288 px is a 101.6 × 76.2 mm bed and one user unit
+# is 25.4 / 96 mm. World y = 76.2 - svg y in mm.
+bed 101.6 76.2
+# LCV-175: every stroke is black and no layer is declared, so one `#000000` layer.
+layer "#000000" #000000 output=1 current=1
+# (96, 48) to (192, 48) px = (25.4, 12.7) to (50.8, 12.7) mm.
+line 0 25.4 63.5 50.8 63.5
+# Centre (192, 144) px = (50.8, 38.1) mm, r 48 px = 12.7 mm.
+circle 0 50.8 38.1 12.7
+# (96, 240) to (192, 240) px = (25.4, 63.5) to (50.8, 63.5) mm, r 12.7 mm:
+# a half turn, centre svg (38.1, 63.5) = world (38.1, 12.7). sweep 1 =
+# clockwise on screen, from the left (180 deg) over the top to the right.
+arc 0 38.1 12.7 12.7 180 0 cw

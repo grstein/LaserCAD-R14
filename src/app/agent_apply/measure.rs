@@ -52,11 +52,13 @@ fn measure(
     doc: &Document,
 ) -> Result<String, AgentOutcome> {
     let entity = |k: usize| doc.entities[indices[k]];
-    let prim = |k: usize| prim(entity(k));
+    let prim = |k: usize| prim(key, k, entity(k));
     Ok(match req.query {
         MeasureQuery::Distance => {
             let mut all: Vec<Prim> = req.points.iter().map(|&p| Prim::Point(p)).collect();
-            all.extend((0..indices.len()).map(prim));
+            for k in 0..indices.len() {
+                all.push(prim(k)?);
+            }
             let (p, q) = closest(all[0], all[1]);
             let d = q - p;
             format!(
@@ -71,7 +73,7 @@ fn measure(
         MeasureQuery::Length => format!("length: {} mm", num(length(entity(0)))),
         MeasureQuery::Bbox => bbox(indices, doc),
         MeasureQuery::Intersections => {
-            let (a, b) = (prim(0), prim(1));
+            let (a, b) = (prim(0)?, prim(1)?);
             let pts = intersections(a, b);
             let text = if overlaps(a, b) {
                 "overlap".to_owned()
@@ -98,21 +100,50 @@ fn measure(
     })
 }
 
-/// The entity as a bounded primitive.
-fn prim(e: Entity) -> Prim {
+/// The entity as a bounded primitive. An ellipse or a Bézier has no exact
+/// closest-point or intersection routine, so it is refused naming
+/// `<key>[k]` rather than answered approximately.
+fn prim(key: &str, k: usize, e: Entity) -> Result<Prim, AgentOutcome> {
     match e {
-        Entity::Line(l) => Prim::Line(l),
-        Entity::Circle(c) => Prim::Circle(c),
-        Entity::Arc(a) => Prim::Arc(a),
+        Entity::Line(l) => Ok(Prim::Line(l)),
+        Entity::Circle(c) => Ok(Prim::Circle(c)),
+        Entity::Arc(a) => Ok(Prim::Arc(a)),
+        Entity::Ellipse(_) | Entity::Bezier(_) => Err(AgentOutcome::Refused(refusal(
+            TOOL,
+            &format!("{key}[{k}]"),
+            &format!(
+                "is {}, which distance and intersections do not measure",
+                curve(e)
+            ),
+            "a line, circle or arc (bbox and length take any entity)",
+        ))),
     }
 }
 
-/// A line's length, an arc's arc length, a circle's circumference.
+/// Chord tolerance of the polyline that measures a curve's length, in mm.
+const LENGTH_TOL_MM: f64 = 1e-6;
+
+/// A line's length, an arc's arc length, a circle's circumference; an
+/// ellipse's or Bézier's as the sum of a fine polyline's chords.
 fn length(e: Entity) -> f64 {
+    let chords = |pts: Vec<Vec2>| pts.windows(2).map(|w| w[0].distance(w[1])).sum();
     match e {
         Entity::Line(l) => l.length(),
         Entity::Circle(c) => c.circumference(),
         Entity::Arc(a) => a.arc_length(),
+        Entity::Ellipse(el) => chords(el.polyline(LENGTH_TOL_MM)),
+        Entity::Bezier(b) => chords(b.polyline(LENGTH_TOL_MM)),
+    }
+}
+
+/// `an ellipse`, `an elliptical arc` or `a Bézier curve`; empty for the
+/// kinds `prim` and `direction` name themselves.
+fn curve(e: Entity) -> &'static str {
+    match e {
+        Entity::Ellipse(el) if el.span.is_none() => "an ellipse",
+        Entity::Ellipse(_) => "an elliptical arc",
+        Entity::Bezier(_) => "a Bézier curve",
+        Entity::Line(_) | Entity::Circle(_) | Entity::Arc(_) => "",
     }
 }
 
@@ -151,6 +182,9 @@ fn direction(key: &str, k: usize, e: Entity) -> Result<Vec2, AgentOutcome> {
         }),
         Entity::Circle(_) => Err(refuse("is a circle", "a line")),
         Entity::Arc(_) => Err(refuse("is an arc", "a line")),
+        Entity::Ellipse(_) | Entity::Bezier(_) => {
+            Err(refuse(&format!("is {}", curve(e)), "a line"))
+        }
     }
 }
 

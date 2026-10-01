@@ -7,9 +7,16 @@
 //! and centers like points, and lands the rotated arc's start and end points
 //! on the rotated original endpoints. A mirror does the same but reverses the
 //! arc's orientation, and mirroring twice is the identity.
+//!
+//! `Transform::ellipse` (LCV-176 AC6, ADR 0015 §4): rotate adds the angle to
+//! the rotation, mirror sets `2θ − rotation`, negates the span and flips its
+//! direction, scale multiplies both radii; every curve point and both span
+//! ends land on the images of the source's.
 
 use core::f64::consts::{FRAC_PI_2, PI, TAU};
-use lasercad::geometry::{Arc, Circle, EPSILON, Line, Transform, Vec2};
+use lasercad::geometry::{
+    Arc, Bezier, Circle, EPSILON, Ellipse, EllipseSpan, Line, Transform, Vec2,
+};
 use proptest::prelude::*;
 use proptest::test_runner::FileFailurePersistence;
 
@@ -377,5 +384,162 @@ proptest! {
         let tol = TOL * factor.max(1.0);
         prop_assert!(out.start_point().approx_eq(t.point(a.start_point()), tol));
         prop_assert!(out.end_point().approx_eq(t.point(a.end_point()), tol));
+    }
+}
+
+fn ellipse_arc() -> Ellipse {
+    Ellipse::new(
+        Vec2::new(10.0, 5.0),
+        6.0,
+        2.0,
+        0.3,
+        Some(EllipseSpan::new(0.5, 2.5, true)),
+    )
+}
+
+/// LCV-176 — a rotation maps the center, adds the angle to the rotation and
+/// keeps radii and span bit-exact.
+#[test]
+fn rotate_ellipse_adds_angle() {
+    let src = ellipse_arc();
+    let e = rotate(0.0, 0.0, FRAC_PI_2).ellipse(src);
+    assert!(e.center.approx_eq(Vec2::new(-5.0, 10.0), EPSILON), "{e:?}");
+    assert!((e.rotation - (0.3 + FRAC_PI_2)).abs() <= EPSILON, "{e:?}");
+    assert_eq!((e.rx, e.ry, e.span), (src.rx, src.ry, src.span));
+}
+
+/// LCV-176 — a mirror across a line at θ sets rotation `2θ − r`, negates the
+/// span angles and flips its direction; the ends keep their roles.
+#[test]
+fn mirror_ellipse_negates_span_and_flips_direction() {
+    let src = ellipse_arc();
+    let t = mirror(0.0, 1.0, 1.0, 2.0);
+    let e = t.ellipse(src);
+    assert!((e.rotation - (2.0 * core::f64::consts::FRAC_PI_4 - 0.3)).abs() <= EPSILON);
+    let span = e.span.expect("span kept");
+    assert_eq!((span.start, span.end, span.ccw), (-0.5, -2.5, false));
+    assert_eq!((e.rx, e.ry), (src.rx, src.ry));
+    let (s, end) = (src.start_point().expect("s"), src.end_point().expect("e"));
+    assert!(
+        e.start_point().expect("s").approx_eq(t.point(s), 1e-9),
+        "{e:?}"
+    );
+    assert!(
+        e.end_point().expect("e").approx_eq(t.point(end), 1e-9),
+        "{e:?}"
+    );
+    let full = Ellipse { span: None, ..src };
+    assert_eq!(t.ellipse(full).span, None);
+    assert_eq!(mirror(1.0, 1.0, 1.0, 1.0).ellipse(src), src);
+}
+
+/// LCV-176 — a scale multiplies both radii and keeps rotation and span.
+#[test]
+fn scale_ellipse_multiplies_radii() {
+    let src = ellipse_arc();
+    let e = scale(10.0, 5.0, 2.5).ellipse(src);
+    assert_eq!(e.center, src.center);
+    assert_eq!((e.rx, e.ry), (15.0, 5.0));
+    assert_eq!((e.rotation, e.span), (src.rotation, src.span));
+}
+
+fn ellipse() -> impl Strategy<Value = Ellipse> {
+    (arc(), 0.01..500.0f64, -10.0..10.0f64).prop_map(|(a, ry, rot)| {
+        Ellipse::new(
+            a.center,
+            a.r,
+            ry,
+            rot,
+            Some(EllipseSpan::new(a.start_angle, a.end_angle, a.ccw)),
+        )
+    })
+}
+
+fn any_transform() -> impl Strategy<Value = Transform> {
+    prop_oneof![transform(), mirror_line(), scaling()]
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// LCV-176 AC6 — every curve point maps onto the image ellipse (at `−t`
+    /// under a mirror), both ends map to the image's ends, and the sweep is
+    /// kept.
+    #[test]
+    fn ellipse_points_map_exactly(t in any_transform(), e in ellipse()) {
+        let out = t.ellipse(e);
+        let mirrored = matches!(t, Transform::Mirror { .. });
+        let tol = TOL * 1e2;
+        for k in 0..8 {
+            let p = f64::from(k) * 0.8;
+            let q = if mirrored { -p } else { p };
+            prop_assert!(out.point(q).approx_eq(t.point(e.point(p)), tol));
+        }
+        prop_assert_eq!(out.span.map(|s| s.ccw), e.span.map(|s| s.ccw != mirrored));
+        prop_assert!((out.sweep() - e.sweep()).abs() <= TOL);
+        let (s, end) = (e.start_point().expect("s"), e.end_point().expect("e"));
+        prop_assert!(out.start_point().expect("s").approx_eq(t.point(s), tol));
+        prop_assert!(out.end_point().expect("e").approx_eq(t.point(end), tol));
+    }
+}
+
+fn bezier() -> impl Strategy<Value = Bezier> {
+    prop_oneof![
+        (point(), point(), point()).prop_map(|(a, b, c)| Bezier::Quadratic([a, b, c])),
+        (point(), point(), point(), point()).prop_map(|(a, b, c, d)| Bezier::Cubic([a, b, c, d])),
+    ]
+}
+
+/// LCV-177 — a quarter turn, a mirror and a scale map each control point of
+/// a cubic and a quadratic through `Transform::point`, keeping the degree.
+#[test]
+fn bezier_maps_every_control_point() {
+    let cubic = Bezier::Cubic([
+        Vec2::new(0.0, 0.0),
+        Vec2::new(0.0, 40.0),
+        Vec2::new(10.0, 40.0),
+        Vec2::new(10.0, 0.0),
+    ]);
+    let quad = Bezier::Quadratic([
+        Vec2::new(1.0, 2.0),
+        Vec2::new(5.0, 20.0),
+        Vec2::new(10.0, 0.0),
+    ]);
+    for t in [
+        rotate(1.0, 1.0, FRAC_PI_2),
+        mirror(0.0, 1.0, 1.0, 2.0),
+        scale(10.0, 5.0, 2.5),
+    ] {
+        for b in [cubic, quad] {
+            let out = t.bezier(b);
+            assert_eq!(out.points().len(), b.points().len());
+            for (o, p) in out.points().iter().zip(b.points()) {
+                assert_eq!(*o, t.point(*p), "{t:?}");
+            }
+        }
+    }
+    let out = rotate(0.0, 0.0, FRAC_PI_2).bezier(quad);
+    assert!(out.start().approx_eq(Vec2::new(-2.0, 1.0), EPSILON));
+    assert_eq!(
+        scale(0.0, 0.0, 2.0).bezier(quad).end(),
+        Vec2::new(20.0, 0.0)
+    );
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// LCV-177 AC8 — every curve point maps onto the image curve at the same
+    /// parameter, for rotate, mirror and scale.
+    #[test]
+    fn bezier_points_map_exactly(t in any_transform(), b in bezier()) {
+        let out = t.bezier(b);
+        let tol = TOL * 1e2;
+        for k in 0..=8 {
+            let s = f64::from(k) / 8.0;
+            prop_assert!(out.point(s).approx_eq(t.point(b.point(s)), tol));
+        }
+        prop_assert_eq!(out.start(), t.point(b.start()));
+        prop_assert_eq!(out.end(), t.point(b.end()));
     }
 }

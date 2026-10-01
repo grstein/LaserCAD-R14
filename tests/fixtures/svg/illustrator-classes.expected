@@ -1,0 +1,14 @@
+# LCV-175 AC 3, AC 8 — an Illustrator-style file: the colors live in a
+# `<defs><style>` sheet of classes. `.cls-1` strokes red, `.cls-2` blue; the
+# `g .cls-2` rule has a descendant combinator, so it is dropped and reported,
+# and the nested line stays blue. No layer is declared and all geometry is
+# colored: one `#rrggbb` layer per color in order of first appearance, no `Cut`.
+# The `<defs>` holds only the `<style>`, so it is not reported.
+# World y = 80 - svg y.
+bed 100 80
+layer "#ff0000" #ff0000 output=1 current=1
+layer "#0000ff" #0000ff output=1
+line 0 10 70 90 70
+circle 1 50 40 15
+line 1 10 10 90 10
+ignored 1 style rule (unsupported selector)

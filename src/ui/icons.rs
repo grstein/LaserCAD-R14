@@ -49,9 +49,10 @@ fn square_button(ui: &mut egui::Ui, selected: bool) -> (egui::Rect, egui::Respon
         let painter = ui.painter();
         painter.rect(
             bg,
-            visuals.rounding,
+            visuals.corner_radius,
             visuals.weak_bg_fill,
             visuals.bg_stroke,
+            egui::StrokeKind::Middle,
         );
     }
     (rect, response, visuals.text_color())
@@ -209,7 +210,8 @@ mod tests {
     /// Run `icon` on a real `Painter` and return every leaf shape it added.
     fn paint(icon: IconFn) -> Vec<egui::Shape> {
         let ctx = egui::Context::default();
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             let layer = egui::LayerId::new(egui::Order::Background, egui::Id::new("icon"));
             icon(
                 &ctx.layer_painter(layer),
@@ -288,7 +290,7 @@ mod tests {
                 );
                 if let egui::Shape::Rect(r) = shape {
                     assert_eq!(
-                        r.fill_texture_id,
+                        r.fill_texture_id(),
                         egui::TextureId::default(),
                         "{name}: no texture"
                     );
@@ -306,7 +308,7 @@ mod tests {
             for shape in paint(icon) {
                 let ok = match &shape {
                     egui::Shape::LineSegment { stroke, .. } => {
-                        stroke.width > 0.0 && path_stroke_ok(stroke)
+                        stroke.width > 0.0 && stroke_ok(*stroke)
                     }
                     egui::Shape::Path(p) => path_stroke_ok(&p.stroke) && fill_ok(p.fill),
                     egui::Shape::Circle(c) => stroke_ok(c.stroke) && fill_ok(c.fill),

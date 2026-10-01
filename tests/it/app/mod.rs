@@ -2,8 +2,12 @@
 
 mod autosave_dirty;
 mod autosave_repaint;
+mod bezier_edit;
+mod bezier_paint;
 mod confirm_discard;
 mod document_title_and_file_feedback;
+mod ellipse_edit;
+mod ellipse_paint;
 mod entity_ids;
 mod feedback_agreement;
 mod idle_repaint;
@@ -13,6 +17,7 @@ mod layers_dialog;
 mod object_snaps;
 mod right_click;
 mod screen_space_picking;
+mod text_import_fonts;
 mod text_tool_shortcut;
 mod tool_integration;
 mod tool_keys_reachability;

@@ -1,0 +1,20 @@
+# LCV-174 AC 1, AC 2, AC 3, AC 8 — zero and missing sizes draw nothing and
+# are not reported; a negative radius skips its element and is reported;
+# bad `points` keep the pairs before the error and are reported; the file
+# still opens. World y = 100 - svg y.
+bed 100 100
+# Every stroke is red and no layer is declared, so one `#ff0000` layer.
+layer "#ff0000" #ff0000 output=1 current=1
+# The odd-count polyline keeps (10, 90) to (30, 90).
+line 0 10 10 30 10
+# The polygon keeps three points and closes them.
+line 0 60 10 80 10
+line 0 80 10 80 30
+line 0 80 30 60 10
+# A line with x1, y1 missing starts at svg (0, 0) = world (0, 100).
+line 0 0 100 20 100
+# rx = -2 and r = -5; then the data errors, in document order.
+ignored 1 rect (invalid attribute)
+ignored 1 circle (invalid attribute)
+ignored 1 polyline (data error)
+ignored 1 polygon (data error)

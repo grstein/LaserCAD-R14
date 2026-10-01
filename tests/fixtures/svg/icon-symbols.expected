@@ -1,0 +1,20 @@
+# LCV-178 AC 3, AC 10, AC 11 — an icon sprite: `<symbol>`s in `<defs>`
+# placed by `<use>` into their width/height, and a `<switch>`.
+# World y = 100 - svg y.
+bed 100 100
+# Stroke inherited from the group around the `<use>`s (AC 4).
+layer "#0000ff" #0000ff output=1 current=1
+# icon-cross: viewBox 24 x 24 onto 48 x 48 at (10, 10): scale 2, no free
+# space, so page = 2 p + (10, 10).
+line 0 10 90 58 42
+line 0 58 90 10 42
+# icon-ring: viewBox 10 x 20 onto 20 x 20 at (60, 10), xMinYMin meet:
+# scale min(2, 1) = 1, aligned top-left: centre (5, 5) -> (65, 15), r 5.
+circle 0 65 85 5
+# switch: the `fr` branch fails, `en-GB, fr` passes and is the only one
+# imported; the failing one and the trailing line are skipped branches.
+line 0 0 5 10 5
+# The <defs> holds element children, so it is reported as never rendered
+# (LCV-171 AC 3), although its symbols are drawn through <use>.
+ignored 1 defs
+ignored 2 switch (branch skipped)

@@ -59,6 +59,9 @@ pub enum LayerError {
     LastLayer,
     /// No layer has this id or name.
     UnknownLayer(String),
+    /// The name holds a control character (`char::is_control`), which XML 1.0
+    /// cannot carry in an attribute (LCV-170 AC 9).
+    ControlChar(String),
 }
 
 impl std::fmt::Display for LayerError {
@@ -70,6 +73,11 @@ impl std::fmt::Display for LayerError {
             Self::NotEmpty(n) => write!(f, "Layer \"{n}\" still has entities; move them first."),
             Self::LastLayer => f.write_str("The drawing needs at least one layer."),
             Self::UnknownLayer(n) => write!(f, "No layer named \"{n}\"."),
+            Self::ControlChar(n) => write!(
+                f,
+                "Layer name \"{}\" has a control character.",
+                n.escape_debug()
+            ),
         }
     }
 }
@@ -118,13 +126,17 @@ pub fn parse_color_hex(text: &str) -> Option<[u8; 3]> {
 }
 
 /// Refuse `name`/`color` for a layer when it is unusable or clashes with any
-/// layer in `layers` other than `skip` (LCV-156 AC 6).
+/// layer in `layers` other than `skip` (LCV-156 AC 6). A control character
+/// anywhere in `name` is refused first (LCV-170 AC 9).
 pub fn check_fields(
     layers: &[Layer],
     skip: Option<LayerId>,
     name: &str,
     color: [u8; 3],
 ) -> Result<(), LayerError> {
+    if name.chars().any(char::is_control) {
+        return Err(LayerError::ControlChar(name.to_owned()));
+    }
     let key = name_key(name);
     if key.is_empty() {
         return Err(LayerError::EmptyName);
@@ -193,6 +205,21 @@ mod tests {
         ] {
             assert_eq!(parse_color_hex(bad), None, "{bad}");
         }
+    }
+
+    #[test]
+    fn control_characters_are_refused() {
+        for name in ["A\u{7}B", "A\tB", "A\u{85}B"] {
+            let err = check_fields(&[], None, name, [1, 2, 3]);
+            assert_eq!(
+                err,
+                Err(LayerError::ControlChar(name.to_owned())),
+                "{name:?}"
+            );
+        }
+        assert_eq!(check_fields(&[], None, "Grav é", [1, 2, 3]), Ok(()));
+        let msg = LayerError::ControlChar("A\tB".into()).to_string();
+        assert_eq!(msg, "Layer name \"A\\tB\" has a control character.");
     }
 
     #[test]

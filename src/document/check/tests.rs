@@ -514,3 +514,59 @@ fn report_summary_plurals_and_omissions() {
         ]
     );
 }
+
+/// Merge of the SVG track — an elliptical arc closed by a Bézier is clean, a
+/// full ellipse has no ends, a reversed Bézier or an ellipse turned by π is a
+/// duplicate, and a point-like Bézier or a flat ellipse is degenerate.
+#[test]
+fn ellipses_and_beziers_chain_duplicate_and_degenerate() {
+    use crate::geometry::{Bezier, Ellipse, EllipseSpan};
+    let half = Some(EllipseSpan::new(0.0, PI, true));
+    let top = Entity::Ellipse(Ellipse::new(p(100.0, 100.0), 20.0, 10.0, 0.0, half));
+    let pts = [
+        p(80.0, 100.0),
+        p(80.0, 80.0),
+        p(120.0, 80.0),
+        p(120.0, 100.0),
+    ];
+    let bottom = Entity::Bezier(Bezier::Cubic(pts));
+    let full = Ellipse::new(p(200.0, 100.0), 20.0, 10.0, 0.4, None);
+    let mut reversed = pts;
+    reversed.reverse();
+    let turned = Ellipse {
+        rotation: 0.4 + PI,
+        ..full
+    };
+    let doc = doc_of(&[
+        top,
+        bottom,
+        Entity::Ellipse(full),
+        Entity::Bezier(Bezier::Cubic(reversed)),
+        Entity::Ellipse(turned),
+        Entity::Bezier(Bezier::Quadratic([p(5.0, 5.0); 3])),
+        Entity::Ellipse(Ellipse::new(p(50.0, 50.0), 10.0, 0.0, 0.0, None)),
+    ]);
+    assert_eq!(
+        check_drawing(&doc).findings,
+        vec![
+            Finding::Duplicate {
+                index: 3,
+                of: 1,
+                at: p(120.0, 100.0)
+            },
+            Finding::Duplicate {
+                index: 4,
+                of: 2,
+                at: p(200.0, 100.0)
+            },
+            Finding::Degenerate {
+                index: 5,
+                at: p(5.0, 5.0)
+            },
+            Finding::Degenerate {
+                index: 6,
+                at: p(50.0, 50.0)
+            },
+        ]
+    );
+}

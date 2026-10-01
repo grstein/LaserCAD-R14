@@ -1,0 +1,26 @@
+# LCV-173 AC 5..8 — nested transformed groups. One user unit = 1 mm,
+# world y = 100 - page y.
+bed 100 100
+# LCV-175: every stroke is black and no layer is declared, so one `#000000` layer.
+layer "#000000" #000000 output=1 current=1
+# rotate(90) maps (x, y) to (-y, x), then translate(10, 10):
+# (0, 0) -> (10, 10), (20, 0) -> (10, 30).
+line 0 10 90 10 70
+# (10, -30) -> (30, 10) -> (40, 20); r 5.
+circle 0 40 80 5
+# matrix(2 0 0 2 40 40) then translate(10, 10): x -> 2 x + 50, y -> 2 y + 50.
+line 0 50 50 70 50
+# (70, 50) to (90, 50), r 5 * 2 = 10: a half turn, centre page (80, 50).
+# sweep 1 = clockwise on screen, from the left over the top to the right.
+arc 0 80 50 10 180 0 cw
+# The mirror x -> 100 - x: (10, 80) to (30, 80) becomes (90, 80) to
+# (70, 80), centre page (80, 80) = world (80, 20), still over the top of
+# the screen but now from the right (0 deg) to the left (180 deg):
+# a reflection inverts the handedness.
+arc 0 80 20 10 0 180 ccw
+# scale(2, 1) makes the circle (10, 10) r 2 the exact ellipse (LCV-176):
+# centre page (20, 10), rx 4, ry 2.
+ellipse 0 20 90 4 2 0
+# An unparseable transform is ignored and reported; its line imports as is.
+line 0 0 5 5 5
+ignored 1 transform (invalid)

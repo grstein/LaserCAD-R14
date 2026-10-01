@@ -42,8 +42,8 @@ fn locate(runs: &[Run], label: &str) -> egui::Pos2 {
 
 /// A real pointer click at `pos`, after its own hover frame.
 fn click(ctx: &egui::Context, app: &mut App, pos: egui::Pos2) {
-    let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(pos)]), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(vec![egui::Event::PointerMoved(pos)]), |ui| {
+        app.update_ui(ui)
     });
     let press = |pressed| egui::Event::PointerButton {
         pos,
@@ -51,8 +51,8 @@ fn click(ctx: &egui::Context, app: &mut App, pos: egui::Pos2) {
         pressed,
         modifiers: egui::Modifiers::NONE,
     };
-    let _ = ctx.run(raw_input(vec![press(true), press(false)]), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(vec![press(true), press(false)]), |ui| {
+        app.update_ui(ui)
     });
 }
 
@@ -131,8 +131,8 @@ fn ac1_object_snap_submenu_is_title_case() {
     click(&ctx, &mut app, locate(&closed, "View"));
     let view = settle(&ctx, &mut app);
     let row = locate(&view, "Object Snap");
-    let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(row)]), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(vec![egui::Event::PointerMoved(row)]), |ui| {
+        app.update_ui(ui)
     });
     let sub = settle(&ctx, &mut app);
     let items = new_texts(&view, &sub);
@@ -173,8 +173,8 @@ fn ac3_rail_panel_and_dock_say_ai() {
     let (ctx, mut app) = ctx_and_app();
     let runs = settle(&ctx, &mut app);
     let toggle = locate(&runs, "AI");
-    let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(toggle)]), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(vec![egui::Event::PointerMoved(toggle)]), |ui| {
+        app.update_ui(ui)
     });
     let hover = settle(&ctx, &mut app);
     let _ = locate(&hover, "AI Assistant");
@@ -182,8 +182,8 @@ fn ac3_rail_panel_and_dock_say_ai() {
     click(&ctx, &mut app, toggle);
     assert!(app.agent.panel_open, "the toggle opens the panel");
     let away = egui::pos2(600.0, 300.0);
-    let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(away)]), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(vec![egui::Event::PointerMoved(away)]), |ui| {
+        app.update_ui(ui)
     });
     let open = settle(&ctx, &mut app);
     let _ = locate(&open, "AI Assistant");
@@ -206,7 +206,7 @@ fn ac3_rail_panel_and_dock_say_ai() {
 /// Every text shape of one settled frame, `Shape::Vec` flattened.
 fn text_shapes(ctx: &egui::Context, app: &mut App) -> Vec<egui::epaint::TextShape> {
     let _ = settle(ctx, app);
-    let out = ctx.run(raw_input(Vec::new()), |c| app.update_ui(c));
+    let out = ctx.run_ui(raw_input(Vec::new()), |ui| app.update_ui(ui));
     let mut stack: Vec<egui::Shape> = out.shapes.into_iter().map(|c| c.shape).collect();
     let mut found = Vec::new();
     while let Some(shape) = stack.pop() {
@@ -303,7 +303,7 @@ fn ac8_selection_fill_is_default_and_accent_is_foreground_only() {
     const ACCENT: egui::Color32 = egui::Color32::from_rgb(0x4f, 0xa3, 0xe0);
     let ctx = egui::Context::default();
     lasercad::ui::apply_theme(&ctx);
-    let v = ctx.style().visuals.clone();
+    let v = ctx.global_style().visuals.clone();
     assert_eq!(v.selection.bg_fill, FILL_SELECTED);
     assert_eq!(v.selection.stroke.color, ACCENT, "control: accent is used");
     let w = &v.widgets;

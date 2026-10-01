@@ -17,7 +17,7 @@ use core::f64::consts::TAU;
 
 use crate::document::Entity;
 use crate::geometry::Vec2;
-use crate::render::{Camera, arc_polyline};
+use crate::render::{Camera, arc_polyline, bezier_polyline, ellipse_polyline};
 
 /// Largest on-screen sagitta of one chord, in points.
 pub const MAX_SAGITTA_PT: f64 = 0.25;
@@ -40,7 +40,8 @@ pub fn chords_per_turn(r_pt: f64) -> usize {
 
 /// `entity` sampled in world space at `camera`'s zoom: a line's two ends; a
 /// circle's `n + 1` points, the last equal to the first; an arc's chord ends
-/// from start to end.
+/// from start to end; an ellipse or Bézier sampled to half a pixel (closed
+/// for a full ellipse).
 fn world_points(entity: &Entity, camera: &Camera) -> Vec<Vec2> {
     match entity {
         Entity::Line(l) => vec![l.p1, l.p2],
@@ -57,6 +58,9 @@ fn world_points(entity: &Entity, camera: &Camera) -> Vec<Vec2> {
             // `chords ≤ n ≤ MAX_CHORDS` and the cast is exact.
             arc_polyline(a, chords.max(0.0) as usize)
         }
+        // Half-pixel chord deviation (LCV-176 AC 4, LCV-177 AC 5).
+        Entity::Ellipse(e) => ellipse_polyline(e, camera.mm_per_px),
+        Entity::Bezier(b) => bezier_polyline(b, camera.mm_per_px),
     }
 }
 
@@ -70,8 +74,8 @@ pub fn screen_points(rect: egui::Rect, camera: &Camera, entity: &Entity) -> Vec<
         .collect()
 }
 
-/// Stroke `entity` as one shape: a line segment, a closed path (circle) or
-/// an open path (arc).
+/// Stroke `entity` as one shape: a line segment, a closed path (circle, full
+/// ellipse) or an open path (arc, elliptical arc, Bézier).
 pub fn stroke_entity(
     painter: &egui::Painter,
     rect: egui::Rect,
@@ -87,7 +91,13 @@ pub fn stroke_entity(
             points.pop();
             egui::Shape::closed_line(points, stroke)
         }
-        Entity::Arc(_) => egui::Shape::line(points, stroke),
+        Entity::Ellipse(e) if e.span.is_none() => {
+            points.pop();
+            egui::Shape::closed_line(points, stroke)
+        }
+        Entity::Arc(_) | Entity::Ellipse(_) | Entity::Bezier(_) => {
+            egui::Shape::line(points, stroke)
+        }
     };
     painter.add(shape);
 }

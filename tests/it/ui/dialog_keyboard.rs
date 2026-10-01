@@ -69,7 +69,7 @@ fn open(title: &str) -> (egui::Context, App) {
 
 /// The rect of the window titled `title`, as laid out by the last frame.
 fn window_rect(ctx: &egui::Context, title: &str) -> egui::Rect {
-    ctx.memory(|m| m.area_rect(egui::Id::new(title)))
+    ctx.memory(|m| m.area_rect(crate::harness::window_id(title)))
         .unwrap_or_else(|| panic!("`{title}` must be placed"))
 }
 
@@ -279,7 +279,7 @@ fn ac6_discard_text_is_danger_and_nothing_is_filled_danger() {
     use lasercad::render::palette::DANGER;
     let (ctx, mut app) = open("Discard unsaved changes?");
     let _ = window_runs(&ctx, &mut app, "Discard unsaved changes?");
-    let out = ctx.run(harness::raw_input(vec![]), |c| app.update_ui(c));
+    let out = ctx.run_ui(harness::raw_input(vec![]), |ui| app.update_ui(ui));
     let (mut texts, mut fills) = (Vec::new(), Vec::new());
     for clipped in &out.shapes {
         walk(&clipped.shape, &mut texts, &mut fills);

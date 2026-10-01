@@ -7,11 +7,13 @@
 
 use lasercad::document::{Document, Entity};
 use lasercad::geometry::{Arc, Circle, EPSILON, Line, Vec2};
-use lasercad::io::svg::{SvgImportError, export_svg, import_svg};
+use lasercad::io::svg::{export_svg, import_svg};
 use std::f64::consts::{FRAC_PI_2, PI};
 
 fn svg_wrap(inner: &str) -> String {
-    format!(r#"<svg xmlns="http://www.w3.org/2000/svg">{inner}</svg>"#)
+    format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="400mm" height="400mm" viewBox="0 0 400 400">{inner}</svg>"#
+    )
 }
 
 /// AC 7 — `<line>` element parsed to Entity::Line with correct coordinates.
@@ -99,57 +101,58 @@ fn arc_cw_sweep_flag_one_sets_ccw_false() {
     assert!(!a.ccw);
 }
 
-/// AC 12 — circle with r <= 0 returns MalformedAttribute.
+/// AC 12, rewritten by LCV-174 AC 3 — a circle with `r < 0` is skipped
+/// and reported `circle (invalid attribute)`; the file still opens.
 #[test]
-fn circle_negative_radius_returns_malformed_attribute() {
+fn circle_negative_radius_is_skipped_and_reported() {
     let src = svg_wrap(r#"<circle cx="0" cy="0" r="-1.0000"/>"#);
-    assert!(matches!(
-        import_svg(&src),
-        Err(SvgImportError::MalformedAttribute {
-            element: "circle",
-            attr: "r",
-            ..
-        })
-    ));
+    let imported = import_svg(&src).unwrap();
+    assert!(imported.entities.is_empty());
+    assert_eq!(
+        imported.report,
+        [("circle (invalid attribute)".to_owned(), 1)]
+    );
 }
 
-/// AC 13 — line with non-numeric x1 returns MalformedAttribute.
+/// AC 13, rewritten by LCV-174 AC 3 — a line with a non-numeric `x1` is
+/// skipped and reported `line (invalid attribute)`; the file still opens.
 #[test]
-fn line_bad_attribute_returns_malformed_attribute() {
+fn line_bad_attribute_is_skipped_and_reported() {
     let src = svg_wrap(r#"<line x1="abc" y1="0" x2="0" y2="0"/>"#);
-    assert!(matches!(
-        import_svg(&src),
-        Err(SvgImportError::MalformedAttribute {
-            element: "line",
-            attr: "x1",
-            ..
-        })
-    ));
+    let imported = import_svg(&src).unwrap();
+    assert!(imported.entities.is_empty());
+    assert_eq!(
+        imported.report,
+        [("line (invalid attribute)".to_owned(), 1)]
+    );
 }
 
-/// AC 14 — arc path with non-numeric A token returns MalformedPath.
+/// AC 14, rewritten by LCV-172 AC 8 — an arc path with a non-numeric `A`
+/// token opens, imports nothing and reports `path (data error)`.
 #[test]
-fn path_with_non_numeric_a_command_returns_malformed_path() {
+fn path_with_non_numeric_a_command_reports_a_data_error() {
     let src = svg_wrap(r#"<path d="M 0 0 A notanumber 10 0 0 1 5 5"/>"#);
-    assert!(matches!(
-        import_svg(&src),
-        Err(SvgImportError::MalformedPath(_))
-    ));
+    let imported = import_svg(&src).unwrap();
+    assert!(imported.entities.is_empty());
+    assert_eq!(imported.report, [("path (data error)".to_owned(), 1)]);
 }
 
-/// AC 15 — non-arc `<path>` (L command) is silently skipped.
+/// AC 15, rewritten by LCV-172 AC 3 — a non-arc `<path>` (L command)
+/// imports its line.
 #[test]
-fn non_arc_path_silently_skipped() {
+fn non_arc_path_imports_its_line() {
     let src = svg_wrap(r#"<path d="M 0 0 L 10 10"/>"#);
-    assert!(import_svg(&src).unwrap().entities.is_empty());
+    let entities = import_svg(&src).unwrap().entities;
+    assert_eq!(entities.len(), 1);
+    assert!(matches!(entities[0], Entity::Line(_)));
 }
 
-/// AC 16 — `<rect>` and other unknown elements are silently skipped.
+/// AC 16 — unknown elements (`<image>`; `<rect>` imports since LCV-174) are skipped.
 #[test]
 fn unknown_elements_silently_skipped() {
     let src = svg_wrap(
         r#"<line x1="0" y1="0" x2="1" y2="1"/>
-           <rect width="10" height="10"/>
+           <image width="10" height="10"/>
            <circle cx="5" cy="5" r="3"/>"#,
     );
     let entities = import_svg(&src).unwrap().entities;
@@ -216,4 +219,26 @@ fn round_trip_line_circle_arc() {
     assert!((a.start_angle).abs() < 1e-3);
     assert!((a.end_angle - FRAC_PI_2).abs() < 1e-3);
     assert!(a.ccw);
+}
+
+/// LCV-180 AC 2 — a foreign-namespace attribute never stands in for the plain
+/// one: `x:d`/`x:stroke` on a `<path>` and `x:data-layer` on a `<g>` lose to
+/// their plain twins, whichever comes first.
+#[test]
+fn foreign_namespace_attributes_never_shadow_plain_ones() {
+    let src = r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:x="urn:lasercad:test" width="400mm" height="400mm" viewBox="0 0 400 400">
+        <g x:data-layer="Wrong" data-layer="Cut" x:stroke="#00ff00" stroke="#ff0000">
+            <path x:d="M 0 0 A 1 1 0 0 0 2 0" d="M 10 380 A 10 10 0 0 0 20 370"
+                  x:stroke="#00ff00" stroke="#ff0000"/>
+        </g>
+    </svg>"##;
+    let imported = import_svg(src).unwrap();
+    assert_eq!(imported.layers.len(), 1);
+    assert_eq!(imported.layers[0].name, "Cut");
+    assert_eq!(imported.layers[0].color, [0xff, 0, 0]);
+    assert_eq!(imported.entities.len(), 1);
+    let Entity::Arc(a) = &imported.entities[0] else {
+        panic!("expected the plain `d` arc")
+    };
+    assert!((a.r - 10.0).abs() < EPSILON, "radius {}", a.r);
 }

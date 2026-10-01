@@ -36,7 +36,8 @@ use crate::app::agent_narrate::{batch_created, list_entities, list_selection, ne
 use crate::app::{App, agent_capture, agent_checkpoint};
 use crate::document::commands::CreateEntities;
 use crate::document::{
-    Command, CreateArc, CreateCircle, CreateLine, Document, Entity, LayerId, check_drawing,
+    Command, CreateArc, CreateCircle, CreateLine, Document, Entity, LayerError, LayerId,
+    check_drawing,
 };
 use crate::geometry::{Arc as GeoArc, Circle, Line, Vec2};
 
@@ -218,11 +219,20 @@ fn plan(action: &AgentAction, doc: &Document) -> Planned {
 
 /// The layer a creation lands on: the named one, resolved by key, else the
 /// current one. An unknown name is refused naming the layers (ADR 0012 §6),
-/// in the LCV-192 shape; the name is at most 64 characters (`layer_arg`).
+/// in the LCV-192 shape; the name is at most 64 characters (`layer_arg`). A
+/// name with a control character is refused before lookup (LCV-170 AC 9).
 fn target_layer(tool: &str, name: Option<&str>, doc: &Document) -> Result<LayerId, AgentOutcome> {
     let Some(name) = name else {
         return Ok(doc.current_layer());
     };
+    if name.chars().any(char::is_control) {
+        let why = LayerError::ControlChar(name.to_owned()).to_string();
+        let reason = why.trim_end_matches('.');
+        let expected = "a layer name without control characters";
+        return Err(AgentOutcome::Refused(refusal(
+            tool, "layer", reason, expected,
+        )));
+    }
     doc.layer_by_name(name).map(|l| l.id).ok_or_else(|| {
         let names: Vec<String> = doc
             .layers()

@@ -7,13 +7,15 @@
 //! the `stroke` attribute, else inherited from the nearest `<g>`/`<svg>`
 //! ancestor (AC 16); `data-output` is `0`/`1` (absent = `1`);
 //! duplicate name keys or colors are refused. Anything else is
-//! [`SvgImportError::MalformedLayer`].
+//! [`SvgImportError::MalformedLayer`]. Geometry outside every layer group is
+//! placed by color in [`LayerReader::finish`] (LCV-175).
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use super::css_color::parse_css_color;
 use super::import::SvgImportError;
-use crate::document::layer::{check_fields, color_hex};
+use super::import::report::style_decls;
+use crate::document::layer::{check_fields, color_hex, name_key};
 use crate::document::{Layer, LayerId};
 
 /// Stroke width of every layer group, in mm.
@@ -38,6 +40,15 @@ pub(super) fn open_group(out: &mut String, layer: &Layer, current: bool) {
     out.push_str(">\n");
 }
 
+/// `node`'s attribute `name` in no namespace. roxmltree 0.21's
+/// `attribute(&str)` matches the local name in any namespace, so a foreign
+/// `x:d` could otherwise stand in for the SVG `d` (LCV-180 AC 2).
+pub(super) fn attr<'a>(node: roxmltree::Node<'a, '_>, name: &str) -> Option<&'a str> {
+    node.attributes()
+        .find(|a| a.namespace().is_none() && a.name() == name)
+        .map(|a| a.value())
+}
+
 /// A layer group's stroke value: its own, else the nearest `<g>`/`<svg>`
 /// ancestor's (ADR 0012 §4).
 fn layer_stroke<'a>(node: roxmltree::Node<'a, '_>) -> Option<&'a str> {
@@ -49,15 +60,11 @@ fn layer_stroke<'a>(node: roxmltree::Node<'a, '_>) -> Option<&'a str> {
 /// The stroke `node` declares itself: the last `stroke` in `style` wins over
 /// the `stroke` attribute; `inherit` or no declaration is `None`.
 fn own_stroke<'a>(node: roxmltree::Node<'a, '_>) -> Option<&'a str> {
-    let styled = node.attribute("style").and_then(|style| {
-        style
-            .split(';')
-            .filter_map(|decl| decl.split_once(':'))
-            .rfind(|(prop, _)| prop.trim().eq_ignore_ascii_case("stroke"))
-            .map(|(_, value)| value.trim().trim_end_matches("!important").trim())
-    });
+    let styled = style_decls(node)
+        .rfind(|(prop, _)| prop.eq_ignore_ascii_case("stroke"))
+        .map(|(_, value)| value);
     styled
-        .or_else(|| node.attribute("stroke"))
+        .or_else(|| attr(node, "stroke"))
         .filter(|value| !value.trim().eq_ignore_ascii_case("inherit"))
 }
 
@@ -93,7 +100,7 @@ impl LayerReader {
         if node.tag_name().name() != "g" {
             return Ok(None);
         }
-        let Some(name) = node.attribute("data-layer") else {
+        let Some(name) = attr(node, "data-layer") else {
             return Ok(None);
         };
         let bad = |reason: String| SvgImportError::MalformedLayer {
@@ -103,7 +110,7 @@ impl LayerReader {
         let stroke = layer_stroke(node).ok_or_else(|| bad("no stroke color".to_owned()))?;
         let color = parse_css_color(stroke)
             .ok_or_else(|| bad(format!("stroke {stroke:?} is not a supported CSS color")))?;
-        let output = match node.attribute("data-output") {
+        let output = match attr(node, "data-output") {
             None | Some("1") => true,
             Some("0") => false,
             Some(other) => return Err(bad(format!("data-output {other:?} is not 0 or 1"))),
@@ -117,25 +124,69 @@ impl LayerReader {
             color,
             output,
         });
-        if self.current.is_none() && node.attribute("data-current") == Some("1") {
+        if self.current.is_none() && attr(node, "data-current") == Some("1") {
             self.current = Some(id);
         }
         Ok(Some(id))
     }
 
-    /// The layers and current layer; the default `Cut` layer when the file
-    /// declared none. The first layer is always `LayerId(0)`, which is where
-    /// geometry outside any layer group belongs.
-    pub(super) fn finish(self) -> (Vec<Layer>, LayerId) {
-        let layers = if self.layers.is_empty() {
-            vec![Layer::default_cut()]
-        } else {
-            self.layers
-        };
-        let first = layers[0].id; // Non-empty by construction just above.
-        (layers, self.current.unwrap_or(first))
+    /// The layers, the current layer and each slot's layer (ADR 0012 §4,
+    /// LCV-175 AC 8–10). The default `Cut` layer comes first when the file
+    /// declared none and some slot is [`Slot::First`] or no slot has a
+    /// color; each [`Slot::Color`] takes the first layer of that exact color,
+    /// else a new `#rrggbb` layer (Output on) appended in order of first
+    /// appearance. The first layer is `LayerId(0)` (ids are positions).
+    pub(super) fn finish(self, slots: &[Slot]) -> (Vec<Layer>, LayerId, Vec<LayerId>) {
+        let mut layers = self.layers;
+        let first = slots.contains(&Slot::First);
+        let colored = slots.iter().any(|s| matches!(s, Slot::Color(_)));
+        if layers.is_empty() && (first || !colored) {
+            layers.push(Layer::default_cut());
+        }
+        let mut ids = Vec::with_capacity(slots.len());
+        for slot in slots {
+            ids.push(match *slot {
+                Slot::Layer(id) => id,
+                Slot::First => LayerId(0),
+                Slot::Color(rgb) => color_layer(&mut layers, rgb),
+            });
+        }
+        (layers, self.current.unwrap_or(LayerId(0)), ids)
     }
 }
 
-/// The layer geometry outside any layer group lands on (ADR 0012 §4).
-pub(super) const STRAY_LAYER: LayerId = LayerId(0);
+/// Where one imported entity belongs, resolved by [`LayerReader::finish`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Slot {
+    /// Inside a `<g data-layer>`: that layer.
+    Layer(LayerId),
+    /// Outside any layer group, with this stroke (else fill) color.
+    Color([u8; 3]),
+    /// Outside any layer group, uncolored: the first layer.
+    First,
+}
+
+/// The first layer colored `rgb`, else a new one named `#rrggbb` (then
+/// `#rrggbb 2`, … while the name key is taken) with Output on.
+fn color_layer(layers: &mut Vec<Layer>, rgb: [u8; 3]) -> LayerId {
+    if let Some(layer) = layers.iter().find(|l| l.color == rgb) {
+        return layer.id;
+    }
+    let hex = color_hex(rgb);
+    let taken = |name: &str| layers.iter().any(|l| name_key(&l.name) == name_key(name));
+    let mut name = hex.clone();
+    for n in 2.. {
+        if !taken(&name) {
+            break;
+        }
+        name = format!("{hex} {n}");
+    }
+    let id = LayerId(layers.len() as u32);
+    layers.push(Layer {
+        id,
+        name,
+        color: rgb,
+        output: true,
+    });
+    id
+}

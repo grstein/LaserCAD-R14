@@ -86,9 +86,10 @@ fn scene(tool: Box<dyn Tool>, mm_per_px: f64) -> Scene {
     let mut app = App::default();
     app.tool_manager.set_tool(tool);
     let mut free = egui::Rect::NOTHING;
-    let _ = ctx.run(harness::raw_input(vec![]), |c| {
-        app.update_ui(c);
-        free = c.available_rect();
+    let _ = ctx.run_ui(harness::raw_input(vec![]), |ui| {
+        let c = &ui.ctx().clone();
+        app.update_ui(ui);
+        free = crate::harness::canvas_rect(c);
     });
     app.camera.mm_per_px = mm_per_px;
     app.snap_enabled = true;

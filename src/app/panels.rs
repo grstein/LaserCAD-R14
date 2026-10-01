@@ -21,25 +21,26 @@ use super::{App, Dialog, draw_bed_dialog, draw_discard_dialog, topmost};
 use crate::ui::DialogKey;
 
 /// Render the four fixed panels that frame the viewport.
-pub fn draw_chrome(ctx: &egui::Context, app: &mut App) {
-    egui::TopBottomPanel::top("menubar").show(ctx, |ui| {
+pub fn draw_chrome(ui: &mut egui::Ui, app: &mut App) {
+    egui::Panel::top("menubar").show(ui, |ui| {
         crate::ui::draw_menubar(ui, app);
     });
 
-    egui::TopBottomPanel::bottom("statusbar").show(ctx, |ui| {
+    egui::Panel::bottom("statusbar").show(ui, |ui| {
         crate::ui::draw_statusbar(ui, app);
     });
 
-    egui::TopBottomPanel::bottom("command_line").show(ctx, |ui| {
+    egui::Panel::bottom("command_line").show(ui, |ui| {
         crate::ui::draw_command_line(ui, app);
     });
 
-    let rail_frame = egui::Frame::side_top_panel(&ctx.style()).inner_margin(RAIL_MARGIN);
-    egui::SidePanel::left("toolbar")
+    let rail_frame =
+        egui::Frame::side_top_panel(&ui.ctx().global_style()).inner_margin(RAIL_MARGIN);
+    egui::Panel::left("toolbar")
         .resizable(false)
-        .exact_width(RAIL_WIDTH)
+        .exact_size(RAIL_WIDTH)
         .frame(rail_frame)
-        .show(ctx, |ui| {
+        .show(ui, |ui| {
             crate::ui::draw_toolbar(ui, app);
         });
 }
@@ -50,7 +51,7 @@ const RAIL_MARGIN: f32 = 4.0;
 /// The tool rail's fixed outer width, in points (LCV-183 AC 8: at most 80):
 /// two 32 pt button columns, the 4 pt gap between them
 /// (`crate::ui::toolbar::RAIL_GAP`) and [`RAIL_MARGIN`] on both sides.
-/// "Outer" as in `SidePanel::exact_width`'s own doc comment.
+/// "Including margins" as in `Panel::exact_size`'s own doc comment.
 const RAIL_WIDTH: f32 = 2.0 * 32.0 + crate::ui::toolbar::RAIL_GAP + 2.0 * RAIL_MARGIN;
 
 /// Width the agent panel opens at before the ceiling narrows it (LCV-080's
@@ -64,34 +65,34 @@ const AGENT_PANEL_WIDTH_FRACTION: f32 = 1.0 / 3.0;
 
 /// The hard width ceiling for this frame, in logical points.
 ///
-/// Recomputed from `ctx.screen_rect()` on every call — never cached — so it
+/// Recomputed from `ctx.content_rect()` on every call — never cached — so it
 /// holds on the very first frame, after a width dragged wide in a bigger
 /// window is carried into a smaller one, during an active resize drag, and
-/// after the window itself shrinks (AC 2): `SidePanel` re-clamps its
+/// after the window itself shrinks (AC 2): `Panel` re-clamps its
 /// persisted width against `width_range` on every `show`, so a ceiling that
 /// is fresh every frame is all a caller has to provide.
 fn agent_panel_width_ceiling(ctx: &egui::Context) -> f32 {
-    ctx.screen_rect().width() * AGENT_PANEL_WIDTH_FRACTION
+    ctx.content_rect().width() * AGENT_PANEL_WIDTH_FRACTION
 }
 
 /// Render the agent side panel (LCV-080) when it is open; a no-op otherwise.
-pub fn draw_agent_side_panel(ctx: &egui::Context, app: &mut App) {
+pub fn draw_agent_side_panel(ui: &mut egui::Ui, app: &mut App) {
     if !app.agent.panel_open {
         return;
     }
-    let ceiling = agent_panel_width_ceiling(ctx);
+    let ceiling = agent_panel_width_ceiling(ui.ctx());
     let default_width = AGENT_PANEL_DEFAULT_WIDTH.min(ceiling);
-    egui::SidePanel::right("agent_panel")
+    egui::Panel::right("agent_panel")
         .resizable(true)
-        // `.max_width` must follow `.default_width`: `SidePanel::default_width`
-        // widens `width_range.max` via `.at_least(default_width)` when the
-        // default exceeds the existing max, and only `.max_width` narrows the
-        // range unconditionally (egui-0.29.1
-        // `containers/panel.rs::SidePanel::default_width`/`max_width`). Called
+        // `.max_size` must follow `.default_size`: `Panel::default_size`
+        // widens `outer_size_range.max` via `.at_least(default_size)` when the
+        // default exceeds the existing max, and only `.max_size` narrows the
+        // range unconditionally (egui-0.36.2
+        // `containers/panel.rs::Panel::default_size`/`max_size`). Called
         // in the other order, the ceiling would silently widen back out.
-        .default_width(default_width)
-        .max_width(ceiling)
-        .show(ctx, |ui| {
+        .default_size(default_width)
+        .max_size(ceiling)
+        .show(ui, |ui| {
             crate::agent::draw_agent_panel(ui, app);
         });
     // After the panel, so a press opens the picker in the same frame
@@ -139,6 +140,7 @@ fn agent_settings_dialog(ctx: &egui::Context, app: &mut App, key: Option<DialogK
         let settings = &mut app.settings;
         egui::Window::new("AI Settings")
             .open(open)
+            .default_height(crate::ui::DIALOG_HEIGHT)
             .resizable(false)
             .collapsible(false)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
@@ -184,8 +186,8 @@ mod tests {
         let ctx = egui::Context::default();
         let mut app = App::default();
         assert!(!app.agent.panel_open);
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
-            draw_agent_side_panel(ctx, &mut app);
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            draw_agent_side_panel(ui, &mut app);
         });
         assert!(!app.agent.panel_open);
     }
@@ -322,8 +324,8 @@ mod tests {
     fn dialogs_on_default_app_do_not_panic() {
         let ctx = egui::Context::default();
         let mut app = App::default();
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
-            draw_dialogs(ctx, &mut app, None);
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            draw_dialogs(ui.ctx(), &mut app, None);
         });
         assert!(!app.about_open);
         assert!(!app.agent_settings_open);

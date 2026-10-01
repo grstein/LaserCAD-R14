@@ -158,6 +158,10 @@ pub(crate) fn cut_points(target: &Entity, cutter: &Entity) -> Vec<Vec2> {
         (Circ(a), Circ(b)) => circle_circle(&a, &b),
         (Circ(c), Arc(a)) | (Arc(a), Circ(c)) => circle_arc(&c, &a),
         (Arc(a), Arc(b)) => arc_arc(&a, &b),
+        // Ellipses and Béziers are never cutters nor trimmed (ADR 0015 §6,
+        // ADR 0016 §5).
+        (Entity::Ellipse(_) | Entity::Bezier(_), _)
+        | (_, Entity::Ellipse(_) | Entity::Bezier(_)) => Vec::new(),
     }
 }
 
@@ -169,6 +173,7 @@ pub(crate) fn trim_step(target: &Entity, cutter: &Entity, keep: Vec2) -> Option<
         Entity::Line(t) => line::trim_line_at_points(t, &pts, keep),
         Entity::Circle(t) => circle::trim_circle_at_points(&t, &pts, keep),
         Entity::Arc(t) => arc::trim_arc_at_points(&t, &pts, keep),
+        Entity::Ellipse(_) | Entity::Bezier(_) => None,
     }
 }
 
@@ -183,6 +188,7 @@ pub(crate) fn extend_reach(target: &Entity, boundary: &Entity, ep: u8) -> Option
                 Entity::Line(b) => line::extend_line_to_line(t, &b, ep),
                 Entity::Circle(b) => line::extend_line_to_circle(t, &b, ep),
                 Entity::Arc(b) => line::extend_line_to_arc(t, &b, ep),
+                Entity::Ellipse(_) | Entity::Bezier(_) => None,
             }?;
             let (old, new) = if ep == 0 {
                 (t.p1, grown.p1)
@@ -196,7 +202,7 @@ pub(crate) fn extend_reach(target: &Entity, boundary: &Entity, ep: u8) -> Option
             let pts = cut_points(&parent, boundary);
             arc::extend_arc(&t, &pts, ep).map(|(a, mm)| (Entity::Arc(a), mm))
         }
-        Entity::Circle(_) => None,
+        Entity::Circle(_) | Entity::Ellipse(_) | Entity::Bezier(_) => None,
     }
 }
 

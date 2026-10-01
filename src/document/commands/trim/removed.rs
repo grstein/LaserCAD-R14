@@ -60,6 +60,7 @@ fn is_degenerate(piece: &Entity) -> bool {
         Entity::Line(l) => l.length() < EPSILON,
         Entity::Arc(a) => a.arc_length() < EPSILON,
         Entity::Circle(c) => c.r < EPSILON,
+        Entity::Ellipse(_) | Entity::Bezier(_) => false,
     }
 }
 

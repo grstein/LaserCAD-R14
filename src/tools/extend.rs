@@ -11,6 +11,7 @@ use crate::app::App;
 use crate::document::commands::trim::extend_reach;
 use crate::document::{Document, Entity, ExtendEntity, History};
 use crate::geometry::Vec2;
+use crate::tools::trim::refusal;
 use crate::tools::{Mark, PICK_APERTURE_PT, Tool};
 use std::borrow::Cow;
 
@@ -34,6 +35,8 @@ pub struct ExtendTool {
     state: State,
     /// Live zoom in mm per screen point (LCV-162); `1.0` until forwarded.
     mm_per_pt: f64,
+    /// Single-shot result line for [`Tool::take_message`].
+    message: Option<String>,
 }
 
 impl Default for ExtendTool {
@@ -41,6 +44,7 @@ impl Default for ExtendTool {
         Self {
             state: State::Idle,
             mm_per_pt: 1.0,
+            message: None,
         }
     }
 }
@@ -51,7 +55,7 @@ fn endpoints(e: &Entity) -> Option<[Vec2; 2]> {
     match e {
         Entity::Line(l) => Some([l.p1, l.p2]),
         Entity::Arc(a) => Some([a.start_point(), a.end_point()]),
-        Entity::Circle(_) => None,
+        Entity::Circle(_) | Entity::Ellipse(_) | Entity::Bezier(_) => None,
     }
 }
 
@@ -95,10 +99,22 @@ impl Tool for ExtendTool {
         self.state = hover(pos, &doc.entities, radius).map_or(State::Idle, State::Hover);
     }
 
-    fn on_pointer_down(&mut self, _: Vec2, _: bool, doc: &mut Document, history: &mut History) {
+    /// Commit the hovered extension; with none in reach, a click on an
+    /// ellipse or a Bézier is refused with its [`refusal`] (ADR 0015 §6, ADR 0016).
+    fn on_pointer_down(&mut self, pos: Vec2, _: bool, doc: &mut Document, history: &mut History) {
         if let State::Hover(H(ti, ep, bi, _)) = self.state {
             history.commit(Box::new(ExtendEntity::new(ti, bi, ep)), doc);
             self.state = State::Idle;
+            return;
+        }
+        let radius = PICK_APERTURE_PT * self.mm_per_pt;
+        let hit = |e: &Entity| match e {
+            Entity::Ellipse(el) => el.distance_to_point(pos) <= radius,
+            Entity::Bezier(b) => b.distance_to_point(pos) <= radius,
+            _ => false,
+        };
+        if let Some(why) = doc.entities.iter().filter(|e| hit(e)).find_map(refusal) {
+            self.message = Some(why.to_owned());
         }
     }
 
@@ -140,6 +156,10 @@ impl Tool for ExtendTool {
 
     fn set_pick_scale(&mut self, mm_per_pt: f64) {
         self.mm_per_pt = mm_per_pt;
+    }
+
+    fn take_message(&mut self) -> Option<String> {
+        self.message.take()
     }
 }
 
@@ -235,6 +255,25 @@ mod tests {
             let mut d = mk(vec![le(0., 0., 5., 0.), le(300., -1., 300., 1.)]);
             t.on_pointer_move(v(x, 0.), &mut d);
             assert_eq!(!t.preview().is_empty(), previews, "{scale} mm/pt, x {x}");
+        }
+    }
+
+    /// LCV-176 AC 8 — a click within 5 pt of an ellipse, at the live zoom,
+    /// is refused; one farther away is not.
+    #[test]
+    fn ellipse_refusal_reach_follows_the_pick_scale() {
+        use crate::geometry::Ellipse;
+        for (scale, gap, refused) in [(0.05, 0.2, true), (0.05, 0.3, false), (20.0, 90.0, true)] {
+            let mut t = ExtendTool::default();
+            t.set_pick_scale(scale);
+            let flat = Ellipse::new(v(0., 0.), 400., 10., 0., None);
+            let mut d = mk(vec![Entity::Ellipse(flat)]);
+            t.on_pointer_down(v(0., 10. + gap), false, &mut d, &mut History::default());
+            assert_eq!(
+                t.take_message().is_some(),
+                refused,
+                "{scale} mm/pt, {gap} mm"
+            );
         }
     }
 

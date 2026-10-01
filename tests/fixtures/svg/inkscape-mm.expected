@@ -1,0 +1,14 @@
+# An Inkscape-style mm file: sodipodi/inkscape namespaces, <metadata>, a layer
+# `<g inkscape:groupmode="layer">` with no `data-layer`; every element strokes
+# #000000 (in `style`), so the geometry lands on one new `#000000` layer, Output
+# on, and no default `Cut` is made (LCV-175 AC 8, AC 10). width/height equal the
+# viewBox in mm; no transform.
+# World y = 297 - svg y.
+bed 210 297
+layer "#000000" #000000 output=1 current=1
+line 0 20 20 190 20
+circle 0 105 148.5 25
+# M (55, 47) to (155, 47): a half turn (chord 100 = 2r), centre svg (105, 47)
+# = world (105, 250). sweep 1 = clockwise on screen: from the left (180 deg)
+# over the top to the right (0 deg), clockwise.
+arc 0 105 250 50 180 0 cw

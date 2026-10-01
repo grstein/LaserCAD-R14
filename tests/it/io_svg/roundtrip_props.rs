@@ -3,7 +3,8 @@
 //! Random documents survive `import_svg(&export_svg(doc))`: a random bed; one
 //! to five layers with random names (XML-special characters, spaces and
 //! non-ASCII included), colors, Output flags, order and current layer; lines,
-//! circles and arcs spread over those layers. Bed, layers, current layer and
+//! circles, arcs, ellipses and elliptical arcs (LCV-176), cubic and quadratic
+//! Béziers (LCV-177) spread over those layers. Bed, layers, current layer and
 //! each entity's layer come back. The file groups entities by layer, so they
 //! return in layer order, stable within a layer. Every case exercises the Y
 //! mirror around the document's own bed height and the arc sweep-flag inversion.
@@ -21,10 +22,20 @@
 //! side is not compared. One property keeps arcs at least 1e-3 mm short of a
 //! diameter, well clear of the rounding (at most ~2.5e-4 mm); the other and the
 //! pinned `#[test]`s cover exact and near half turns.
+//!
+//! An ellipse's file form is its centre, radii and rotation (`{:.6}` degrees,
+//! so within [`ROT_TOL`]); an elliptical arc's is its endpoints, radii,
+//! rotation and flags, compared like a circular arc's (LCV-176 AC 12). The
+//! radii differ by at least 5 % so the rotation is well defined, and arcs
+//! keep [`CHORD_CLEARANCE`] from a parametric half turn on their smaller
+//! radius, so the import never rescales them (SVG 2 §F.6.6).
+//!
+//! A Bézier's file form is its control points, so each comes back within
+//! `FORMAT_TOL` and the degree is kept (LCV-177 AC 13).
 
 use core::f64::consts::{PI, SQRT_2, TAU};
 use lasercad::document::{Document, Entity, Layer, LayerId};
-use lasercad::geometry::{Arc, Circle, Line, Vec2};
+use lasercad::geometry::{Arc, Bezier, Circle, Ellipse, EllipseSpan, Line, Vec2};
 use lasercad::io::svg::{export_svg, import_svg};
 use lasercad::util::{BED_MAX_MM, BED_MIN_MM};
 use proptest::prelude::*;
@@ -53,6 +64,10 @@ const FORMAT_TOL: f64 = 5e-5 + 1e-9;
 /// half turn: the radius rounds by up to `FORMAT_TOL`, half the chord by up to
 /// `FORMAT_TOL · √2`.
 const HALF_TURN_BAND: f64 = FORMAT_TOL * (1.0 + SQRT_2);
+
+/// Rotation tolerance: half a unit in the sixth decimal of a degree, plus
+/// float room (1e-6°).
+const ROT_TOL: f64 = 1e-6 * PI / 180.0;
 
 /// How far short of a diameter an arc's chord stays in the running property.
 const CHORD_CLEARANCE: f64 = 1e-3;
@@ -96,11 +111,57 @@ fn arc(bed: [f64; 2], clear_of_diameter: bool) -> impl Strategy<Value = Entity> 
         })
 }
 
+/// Ellipses and elliptical arcs with radii at least 5 % apart; arcs keep
+/// [`CHORD_CLEARANCE`] from a parametric half turn on the smaller radius.
+fn ellipse(bed: [f64; 2]) -> impl Strategy<Value = Entity> {
+    let span = (-TAU..TAU, 0.05..(TAU - 0.05), any::<bool>())
+        .prop_map(|(start, sweep, ccw)| (start, sweep, ccw));
+    (
+        point_in(bed),
+        0.01..1000.0f64,
+        0.01..1000.0f64,
+        -PI..PI,
+        prop::option::of(span),
+    )
+        .prop_filter(
+            "radii too close or arc near a half turn",
+            |(_, rx, ry, _, span)| {
+                let apart = (rx - ry).abs() >= 0.05 * rx.max(*ry);
+                apart
+                    && span.is_none_or(|(_, sweep, _)| {
+                        2.0 * rx.min(*ry) * (1.0 - (sweep / 2.0).sin()) >= CHORD_CLEARANCE
+                    })
+            },
+        )
+        .prop_map(|(c, rx, ry, rotation, span)| {
+            let span = span.map(|(start, sweep, ccw)| {
+                let end = if ccw { start + sweep } else { start - sweep };
+                EllipseSpan::new(start, end, ccw)
+            });
+            Entity::Ellipse(Ellipse::new(c, rx, ry, rotation, span))
+        })
+}
+
+/// A cubic or quadratic Bézier with every point on the bed.
+fn bezier(bed: [f64; 2]) -> impl Strategy<Value = Entity> {
+    let p = move || point_in(bed);
+    prop_oneof![
+        (p(), p(), p()).prop_map(|(a, b, c)| Entity::Bezier(Bezier::Quadratic([a, b, c]))),
+        (p(), p(), p(), p()).prop_map(|(a, b, c, d)| Entity::Bezier(Bezier::Cubic([a, b, c, d]))),
+    ]
+}
+
 fn entity(bed: [f64; 2], clear_of_diameter: bool) -> impl Strategy<Value = Entity> {
     let line = (point_in(bed), point_in(bed)).prop_map(|(a, b)| Entity::Line(Line::new(a, b)));
     let circle =
         (point_in(bed), 0.001..1000.0f64).prop_map(|(c, r)| Entity::Circle(Circle::new(c, r)));
-    prop_oneof![line, circle, arc(bed, clear_of_diameter)]
+    prop_oneof![
+        line,
+        circle,
+        arc(bed, clear_of_diameter),
+        ellipse(bed),
+        bezier(bed)
+    ]
 }
 
 /// A layer name: a random run of XML-special, space, punctuation and
@@ -176,6 +237,35 @@ fn near_half_turn(arc: &Arc) -> bool {
     arc.r - arc.start_point().distance(arc.end_point()) / 2.0 <= HALF_TURN_BAND
 }
 
+/// Whether two rotations agree within [`ROT_TOL`], modulo 2π.
+fn same_rotation(a: f64, b: f64) -> bool {
+    let d = (a - b).rem_euclid(TAU);
+    d.min(TAU - d) <= ROT_TOL
+}
+
+/// `got` is `want` within the format: centre, radii and rotation for a full
+/// ellipse; endpoints, radii, rotation and flags for an arc.
+fn same_ellipse(w: &Ellipse, g: &Ellipse) -> bool {
+    let shape = (w.rx - g.rx).abs() <= FORMAT_TOL
+        && (w.ry - g.ry).abs() <= FORMAT_TOL
+        && same_rotation(w.rotation, g.rotation);
+    match (w.span, g.span) {
+        (None, None) => shape && near(w.center, g.center),
+        (Some(ws), Some(gs)) => {
+            let ends = |e: &Ellipse| e.start_point().zip(e.end_point());
+            let (Some((ws0, we0)), Some((gs0, ge0))) = (ends(w), ends(g)) else {
+                return false;
+            };
+            shape
+                && near(ws0, gs0)
+                && near(we0, ge0)
+                && ws.ccw == gs.ccw
+                && (w.sweep() > PI) == (g.sweep() > PI)
+        }
+        _ => false,
+    }
+}
+
 /// `got` carries the same file-level geometry as `want`, within the format.
 fn same_entity(want: &Entity, got: &Entity) -> Result<(), String> {
     let ok = match (want, got) {
@@ -195,6 +285,11 @@ fn same_entity(want: &Entity, got: &Entity) -> Result<(), String> {
                 && (w.r - g.r).abs() <= r_tol
                 && w.ccw == g.ccw
                 && (half_turn || (w.sweep_angle() > PI) == (g.sweep_angle() > PI))
+        }
+        (Entity::Ellipse(w), Entity::Ellipse(g)) => same_ellipse(w, g),
+        (Entity::Bezier(w), Entity::Bezier(g)) => {
+            w.points().len() == g.points().len()
+                && w.points().iter().zip(g.points()).all(|(a, b)| near(*a, *b))
         }
         _ => false,
     };

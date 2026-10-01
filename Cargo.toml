@@ -1,6 +1,6 @@
 [package]
 name = "lasercad"
-version = "0.7.0"
+version = "0.9.0"
 edition = "2024"
 rust-version = "1.98"
 license = "MIT OR Apache-2.0"
@@ -9,17 +9,23 @@ authors = ["LaserCAD contributors"]
 repository = "https://github.com/grstein/LaserCAD-R14-V2"
 
 [dependencies]
-base64 = "0.22"
-directories = "5"
-eframe = "0.29"
-egui = "0.29"
+base64 = "0.23"
+directories = "6"
+eframe = { version = "0.36", default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "web_screen_reader", "x11"] }
+fontdb = { version = "0.23", default-features = false, features = ["std", "fs"] }
+egui = "0.36"
 png = "0.18"
-reqwest = { version = "0.12", features = ["json", "blocking"] }
-rfd = { version = "0.14", default-features = true }
-roxmltree = "0.20"
+reqwest = { version = "0.13", default-features = false, features = ["json", "blocking", "native-tls", "charset", "http2", "system-proxy"] }
+rfd = { version = "0.17", default-features = true }
+roxmltree = "0.21"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+ttf-parser = "0.25"
+# LCV-180: feature unification only; no src/ file imports winit. eframe's
+# default features (which pull wgpu) are off, so this restores winit's own
+# defaults (Wayland CSD, wayland-dlopen) that eframe 0.29 shipped.
+winit = "0.30"
 
 [dev-dependencies]
 mockito = "1"
@@ -54,6 +60,12 @@ debug = "line-tables-only"
 
 [profile.dev.package."*"]
 opt-level = 1
+
+# LCV-180: epaint 0.36 debug-asserts that a dropped `TexturesDelta` was
+# applied. Headless tests drop every frame's `FullOutput` unpainted (no GPU),
+# which is intentional, so that one dependency runs without debug assertions.
+[profile.dev.package.epaint]
+debug-assertions = false
 
 [profile.release]
 opt-level = 3

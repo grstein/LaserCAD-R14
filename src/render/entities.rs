@@ -10,7 +10,7 @@
 //! Introduced by demand LCV-035.
 
 use crate::document::Document;
-use crate::geometry::{Arc, Vec2};
+use crate::geometry::{Arc, Bezier, Ellipse, Vec2};
 use crate::render::Camera;
 
 /// Rendering options for the entity painter.
@@ -46,6 +46,18 @@ pub fn draw_entities(
         let stroke = egui::Stroke::new(options.stroke_width, egui::Color32::from_rgb(r, g, b));
         crate::render::stroke_entity(painter, rect, camera, entity, stroke);
     }
+}
+
+/// An ellipse as a world-space polyline whose chord deviation is at most half
+/// a screen pixel at `mm_per_px` (LCV-176 AC 4, ADR 0015 §8).
+pub fn ellipse_polyline(e: &Ellipse, mm_per_px: f64) -> Vec<Vec2> {
+    e.polyline(0.5 * mm_per_px)
+}
+
+/// A Bézier as a world-space polyline whose chord deviation is at most half
+/// a screen pixel at `mm_per_px` (LCV-177 AC 5, ADR 0016 §4).
+pub fn bezier_polyline(b: &Bezier, mm_per_px: f64) -> Vec<Vec2> {
+    b.polyline(0.5 * mm_per_px)
 }
 
 /// Sample an arc as a polyline in world space.
@@ -186,7 +198,8 @@ mod tests {
     #[test]
     fn draw_entities_does_not_panic_on_degenerate_inputs() {
         let ctx = egui::Context::default();
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             let painter = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Background,
                 egui::Id::new("test_entities"),

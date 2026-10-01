@@ -23,6 +23,8 @@ pub(super) fn kind(entity: &Entity) -> &'static str {
         Entity::Line(_) => "line",
         Entity::Circle(_) => "circle",
         Entity::Arc(_) => "arc",
+        Entity::Ellipse(_) => "ellipse",
+        Entity::Bezier(_) => entity.kind_name(),
     }
 }
 
@@ -43,6 +45,23 @@ pub(super) fn geometry(entity: &Entity) -> String {
             a.r,
             sweep(a.start_angle, a.end_angle, a.ccw)
         ),
+        Entity::Ellipse(e) => {
+            let span = e.span.map_or(String::new(), |s| {
+                format!(", {}", sweep(s.start, s.end, s.ccw))
+            });
+            format!(
+                "center {} mm, rx = {:.3}, ry = {:.3} mm, rotation_deg = {:.3}{span}",
+                pt(e.center.x, e.center.y),
+                e.rx,
+                e.ry,
+                e.rotation.to_degrees()
+            )
+        }
+        // LCV-177: the points in path order, start first and end last.
+        Entity::Bezier(b) => {
+            let pts: Vec<String> = b.points().iter().map(|p| pt(p.x, p.y)).collect();
+            format!("{} mm", pts.join(" → "))
+        }
     }
 }
 

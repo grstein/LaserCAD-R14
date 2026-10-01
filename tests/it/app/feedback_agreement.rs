@@ -66,9 +66,10 @@ fn scene(tool: Box<dyn Tool>) -> Scene {
     let mut app = App::default();
     app.tool_manager.set_tool(tool);
     let mut free = egui::Rect::NOTHING;
-    let _ = ctx.run(harness::raw_input(vec![]), |c| {
-        app.update_ui(c);
-        free = c.available_rect();
+    let _ = ctx.run_ui(harness::raw_input(vec![]), |ui| {
+        let c = &ui.ctx().clone();
+        app.update_ui(ui);
+        free = crate::harness::canvas_rect(c);
     });
     let p = free.center();
     frame(&ctx, &mut app, vec![egui::Event::PointerMoved(p)]);
@@ -171,7 +172,7 @@ fn lost(before: &Entity, after: &Entity) -> Vec<Entity> {
         .filter(|p| match p {
             Entity::Line(l) => l.length() > TOL,
             Entity::Arc(a) => a.arc_length() > TOL,
-            Entity::Circle(_) => true,
+            Entity::Circle(_) | Entity::Ellipse(_) | Entity::Bezier(_) => true,
         })
         .collect()
 }

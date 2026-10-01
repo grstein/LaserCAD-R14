@@ -1,7 +1,35 @@
 //! SVG import — pure function that parses a LaserCAD-exported SVG string.
-//! Returns an [`ImportedSvg`] (entities plus the file's bed size); recognises
-//! `<line>`, `<circle>`, `<path d="M…A…"/>`. Silently skips unknown elements;
-//! geometry coordinates are bare mm values (no unit suffix).
+//! Returns an [`ImportedSvg`] (entities plus the file's bed size); geometry
+//! coordinates are bare mm values (no unit suffix). The root must be `svg` in
+//! the [`SVG_NS`] namespace. Each element below it is, by namespace and local
+//! name (LCV-171), and what it adds to [`ImportedSvg::report`]:
+//!
+//! | Outcome | Elements (SVG namespace unless noted) | Report |
+//! |---|---|---|
+//! | import | `line`, `circle`, `ellipse`, `rect`, `polyline`, `polygon`, `path` | `<element> (invalid attribute)`, `polyline (data error)`, `polygon (data error)` (LCV-174); properties; per `path`: curves not imported yet, `path (data error)`, or `path (unsupported data)` with no `d` |
+//! | descend | `svg`, `g`, `a` | properties, then the children |
+//! | outlines | `text`, its `tspan` and `a`: glyph outlines in the named font ([`text`], LCV-179) | properties; `text (no font)`, `text (font substituted)`, `text (missing glyph)` |
+//! | switch | `switch`: its first SVG element child whose conditions pass (LCV-178) | `switch (branch skipped)` per other SVG element child |
+//! | instance | `use`: a copy of its same-document `#id` target at `x`/`y`, a `symbol` in its viewport ([`reuse`], LCV-178) | `use (unresolved)`, `use (cycle)` |
+//! | conditions fail | any SVG element with a non-empty `requiredExtensions`, or a `systemLanguage` without `en`/`en-*` ([`conditions`]), subtree included | `<element> (conditions)` |
+//! | never rendered | `defs symbol clipPath mask marker pattern linearGradient radialGradient filter` | name, iff it has an element child other than `style` |
+//! | hidden | `display:none` (subtree included), or an imported element with `visibility` `hidden`/`collapse` (LCV-175) | `hidden (display:none)`, `hidden (visibility)` |
+//! | silent | `title desc metadata style`; any element outside the SVG namespace | nothing |
+//! | other | every other SVG element, subtree included | name |
+//!
+//! "Properties" are the unapplied ones in [`report::REPORTED_PROPERTIES`].
+//! `stroke`, `fill`, `color`, `display` and `visibility` are cascaded from
+//! presentation attributes, `<style>` sheets and `style` ([`style`],
+//! LCV-175); what a sheet drops and every invalid color is reported too.
+//!
+//! A `path`'s `d` is read with the full SVG 2 path-data grammar (LCV-172,
+//! `super::path_data`): `M L H V Z A`, absolute or relative, every subpath.
+//! [`path::path_entities`] turns it into lines, circular and elliptical
+//! arcs, and `C S Q T` into Bézier entities (LCV-177); a curve whose points
+//! all coincide is reported `path curve (degenerate)`. A syntax error keeps the segments before it and reports
+//! `path (data error)`. A circle or circular arc under a non-similar
+//! transform imports as the exact ellipse or elliptical arc ([`conic`],
+//! LCV-176).
 //!
 //! SVG is Y-down and the world is Y-up, so every parsed Y is un-mirrored
 //! through [`crate::util::flip_y`] (`y_world = bed_height - y_svg`, the exact
@@ -10,24 +38,43 @@
 //! sweep flag and the centre-selection sign is inverted accordingly.
 //!
 //! The mirror axis is the **file's own** bed height, read from the root
-//! `<svg>` header by [`super::header::parse_bed`] (LCV-114): a file authored
+//! `<svg>` header by [`super::header::parse_root`] (LCV-114, LCV-173): a file authored
 //! at 300 × 180 must land back on the world coordinates it was exported from,
 //! whatever bed the open document happens to be on.
 //!
 //! Layer groups are read too (LCV-156, ADR 0012 §4, see [`super::layers`]):
-//! each entity belongs to its innermost enclosing `<g data-layer>`; geometry
-//! outside any layer group goes to the file's first layer, and a file with no
-//! layer group (a v0.2 file) gets the default `Cut` layer.
+//! each entity belongs to its innermost enclosing `<g data-layer>`. Geometry
+//! outside any layer group goes to the layer of its stroke (else fill)
+//! color, a new `#rrggbb` layer when none has it, or, uncolored, to the
+//! file's first layer; a file with no layer group gets the default `Cut`
+//! layer only for uncolored geometry or none at all (LCV-175).
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`. — LCV-057,
 //! Y mirror by LCV-100, bed by LCV-114, layers by LCV-156.
 
-use super::header::parse_bed;
-use super::layers::{LayerReader, STRAY_LAYER};
+use super::header::parse_root;
+use super::viewport::Ctx;
 use crate::document::entity::Entity;
 use crate::document::{Document, Layer, LayerId};
-use crate::geometry::{Arc, Circle, EPSILON, Line, Vec2};
+use crate::geometry::Vec2;
+use crate::text::FontBook;
 use crate::util::flip_y;
+use reuse::Index;
+use style::{Style, collect_sheet};
+use walk::Walk;
+
+mod conditions;
+mod conic;
+mod path;
+pub(super) mod report;
+mod reuse;
+mod shapes;
+mod style;
+mod text;
+mod walk;
+
+/// The SVG namespace URI; only elements in it are SVG (LCV-171 AC 1).
+pub const SVG_NS: &str = "http://www.w3.org/2000/svg";
 
 /// Errors returned by [`import_svg`].
 #[derive(Debug, thiserror::Error)]
@@ -35,22 +82,10 @@ pub enum SvgImportError {
     /// The input was not valid XML.
     #[error("XML parse error: {0}")]
     XmlParse(#[from] roxmltree::Error),
-    /// The document root element was not `<svg>`.
-    #[error("no <svg> root element found")]
+    /// The document root element was not `svg` in the [`SVG_NS`] namespace
+    /// (a root without `xmlns` included).
+    #[error("no <svg> root element in the SVG namespace found")]
     NoSvgRoot,
-    /// A required numeric attribute could not be parsed, or `r ≤ 0` on `<circle>`.
-    #[error("<{element}> attribute {attr}={value:?} is not a valid number")]
-    MalformedAttribute {
-        /// The element name, e.g. `circle`.
-        element: &'static str,
-        /// The attribute name, e.g. `r`.
-        attr: &'static str,
-        /// The raw attribute text that failed to parse.
-        value: String,
-    },
-    /// A `<path>` whose `d` begins with `M … A …` but contains a non-numeric token.
-    #[error("malformed path data: {0:?}")]
-    MalformedPath(String),
     /// A root `<svg>` bed attribute (`width`, `height` or `viewBox`) that is
     /// present but unusable: unparseable, non-finite, ≤ 0, or outside
     /// `1.0..=2000.0` mm (LCV-114 AC 9).
@@ -75,6 +110,10 @@ pub enum SvgImportError {
         /// Why it was refused.
         reason: String,
     },
+    /// `<use>` expansion past a hostile-file guard (LCV-178 AC 9): the
+    /// named limit, `use nesting depth 32` or `100000 instanced elements`.
+    #[error("import refused: exceeds the {0} limit")]
+    LimitExceeded(&'static str),
 }
 
 /// The result of a successful [`import_svg`]: the geometry, its layers, and
@@ -90,13 +129,20 @@ pub struct ImportedSvg {
     /// The bed size declared by the file's root `<svg>`, or the default bed
     /// when it declares none.
     pub bed_mm: [f64; 2],
-    /// The file's layers in document order (the default `Cut` layer when it
-    /// declares none).
+    /// The file's layers in document order, then the `#rrggbb` layers its
+    /// stray colors made (the default `Cut` layer first when it declares none
+    /// and some geometry is uncolored, or it is empty).
     pub layers: Vec<Layer>,
     /// The layer marked `data-current="1"`, else the first layer.
     pub current_layer: LayerId,
     /// One layer id per entity.
     pub entity_layers: Vec<LayerId>,
+    /// What the file held that was not imported, as `(label, count)` in
+    /// order of first occurrence, one entry per label (LCV-171 AC 8):
+    /// skipped element names, path labels (`path (unsupported data)`,
+    /// `path (data error)`, `path curve (degenerate)`, …), and unapplied
+    /// property names. Empty for a file LaserCAD wrote.
+    pub report: Vec<(String, usize)>,
 }
 
 impl ImportedSvg {
@@ -119,159 +165,48 @@ impl ImportedSvg {
 
 /// Parse an SVG string and return its geometry, layers and bed size.
 ///
-/// Depth-first traversal; `<line>`, `<circle>`, `<path d="M…A…"/>` → entities.
-/// Everything else is silently skipped. The bed comes from the root header
-/// (see [`parse_bed`]) and is the axis every Y is un-mirrored around.
+/// Depth-first traversal; `<line>`, `<circle>`, `<path>` → entities.
+/// What is skipped lands in the report (module docs). The bed comes from the root header
+/// (see [`parse_root`]) and is the axis every Y is un-mirrored around.
 /// Returns the first error encountered, having mutated nothing: the caller's
-/// document is untouched on `Err` (LCV-114 AC 9).
+/// document is untouched on `Err` (LCV-114 AC 9). `<text>` finds no font
+/// and is reported `text (no font)`; see [`import_svg_with`].
 pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
+    import_svg_with(src, &FontBook::empty())
+}
+
+/// [`import_svg`], drawing `<text>` with the faces of `fonts` (LCV-179).
+pub fn import_svg_with(src: &str, fonts: &FontBook) -> Result<ImportedSvg, SvgImportError> {
     let doc = roxmltree::Document::parse(src)?;
     let root = doc.root_element();
-    if root.tag_name().name() != "svg" {
+    if root.tag_name().name() != "svg" || root.tag_name().namespace() != Some(SVG_NS) {
         return Err(SvgImportError::NoSvgRoot);
     }
-    let bed_mm = parse_bed(root)?;
-    let mut walk = Walk {
-        entities: Vec::new(),
-        entity_layers: Vec::new(),
-        layers: LayerReader::default(),
-        bed_h: bed_mm[1],
-    };
-    walk.collect(root, None)?;
-    let (layers, current_layer) = walk.layers.finish();
+    let header = parse_root(root)?;
+    let bed_mm = header.bed_mm;
+    let mut walk = Walk::new(bed_mm[1], Index::build(root), fonts);
+    walk.report.note_properties(root);
+    walk.sheet = collect_sheet(root, &mut walk.report);
+    let style = Style::root().child(root, &walk.sheet, &mut walk.report);
+    if let Some(ctx) = walk.local(root, &header.ctx) {
+        walk.collect(root, None, &ctx, &style)?;
+    }
+    let (layers, current_layer, entity_layers) = walk.layers.finish(&walk.slots);
     Ok(ImportedSvg {
         entities: walk.entities,
         bed_mm,
         layers,
         current_layer,
-        entity_layers: walk.entity_layers,
+        entity_layers,
+        report: walk.report.finish(),
     })
 }
 
-/// Traversal state: geometry and membership so far, layers so far.
-struct Walk {
-    entities: Vec<Entity>,
-    entity_layers: Vec<LayerId>,
-    layers: LayerReader,
-    bed_h: f64,
-}
-
-impl Walk {
-    /// Append `node`'s recognised geometry on `layer` (the innermost enclosing
-    /// layer group; `None` = outside any, which means the first layer).
-    fn collect(
-        &mut self,
-        node: roxmltree::Node<'_, '_>,
-        layer: Option<LayerId>,
-    ) -> Result<(), SvgImportError> {
-        let bed_h = self.bed_h;
-        for child in node.children().filter(|n| n.is_element()) {
-            let entity = match child.tag_name().name() {
-                "line" => Some(parse_line(child, bed_h)?),
-                "circle" => Some(parse_circle(child, bed_h)?),
-                "path" => parse_path(child, bed_h)?,
-                _ => {
-                    let inner = self.layers.enter(child)?.or(layer);
-                    self.collect(child, inner)?;
-                    None
-                }
-            };
-            if let Some(entity) = entity {
-                self.entities.push(entity);
-                self.entity_layers.push(layer.unwrap_or(STRAY_LAYER));
-            }
-        }
-        Ok(())
-    }
-}
-
-fn parse_line(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Entity, SvgImportError> {
-    let (x1, y1) = (attr_f64(n, "line", "x1")?, attr_f64(n, "line", "y1")?);
-    let (x2, y2) = (attr_f64(n, "line", "x2")?, attr_f64(n, "line", "y2")?);
-    let (p1, p2) = (
-        Vec2::new(x1, flip_y(y1, bed_h)),
-        Vec2::new(x2, flip_y(y2, bed_h)),
-    );
-    Ok(Entity::Line(Line::new(p1, p2)))
-}
-
-fn parse_circle(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Entity, SvgImportError> {
-    let (cx, cy) = (attr_f64(n, "circle", "cx")?, attr_f64(n, "circle", "cy")?);
-    let r = attr_f64(n, "circle", "r")?;
-    if r <= 0.0 {
-        let v = n.attribute("r").unwrap_or("").to_string();
-        return Err(malformed("circle", "r", v));
-    }
-    Ok(Entity::Circle(Circle::new(
-        Vec2::new(cx, flip_y(cy, bed_h)),
-        r,
-    )))
-}
-
-fn malformed(element: &'static str, attr: &'static str, value: String) -> SvgImportError {
-    SvgImportError::MalformedAttribute {
-        element,
-        attr,
-        value,
-    }
-}
-
-fn attr_f64(
-    n: roxmltree::Node<'_, '_>,
-    el: &'static str,
-    a: &'static str,
-) -> Result<f64, SvgImportError> {
-    let raw = n.attribute(a).unwrap_or("");
-    raw.parse::<f64>()
-        .map_err(|_| malformed(el, a, raw.to_string()))
-}
-
-fn parse_path(n: roxmltree::Node<'_, '_>, bed_h: f64) -> Result<Option<Entity>, SvgImportError> {
-    let Some(d) = n.attribute("d") else {
-        return Ok(None);
-    };
-    let tok: Vec<&str> = d.split_ascii_whitespace().collect();
-    if tok.len() < 11 || !tok[0].eq_ignore_ascii_case("m") || !tok[3].eq_ignore_ascii_case("a") {
-        return Ok(None);
-    }
-    let sx = tok_f64(tok[1], d)?;
-    let sy = tok_f64(tok[2], d)?;
-    let rx = tok_f64(tok[4], d)?;
-    let ry = tok_f64(tok[5], d)?;
-    let xar = tok_f64(tok[6], d)?;
-    let large_arc = tok_f64(tok[7], d)? != 0.0;
-    let sweep_flag = tok_f64(tok[8], d)? != 0.0;
-    let ex = tok_f64(tok[9], d)?;
-    let ey = tok_f64(tok[10], d)?;
-    if (rx - ry).abs() > EPSILON || xar.abs() > EPSILON {
-        return Err(SvgImportError::MalformedPath(d.to_string()));
-    }
-    // Un-mirror both endpoints into world space first, then reconstruct the
-    // centre there (LCV-057 §Arc reconstruction, mirrored by LCV-100).
-    let (sy, ey) = (flip_y(sy, bed_h), flip_y(ey, bed_h));
-    let (dx, dy) = (ex - sx, ey - sy);
-    let chord = dx.hypot(dy);
-    if chord < EPSILON || rx <= 0.0 {
-        return Err(SvgImportError::MalformedPath(d.to_string()));
-    }
-    // Out-of-range radius (SVG 2 §F.6.6): rounding can push a half turn's
-    // chord past the diameter, so the radius scales up to reach it.
-    let r = if chord > 2.0 * rx { chord / 2.0 } else { rx };
-    let (mx, my) = ((sx + ex) / 2.0, (sy + ey) / 2.0);
-    let h = (r * r - (chord / 2.0).powi(2)).max(0.0).sqrt();
-    let (ux, uy) = (-dy / chord, dx / chord);
-    // Sign branches swapped relative to the un-mirrored reading: in world
-    // space the SVG sweep flag denotes the opposite handedness.
-    let sign: f64 = if large_arc == sweep_flag { 1.0 } else { -1.0 };
-    let (cx, cy) = (mx + sign * h * ux, my + sign * h * uy);
-    let (sa, ea) = ((sy - cy).atan2(sx - cx), (ey - cy).atan2(ex - cx));
-    let ctr = Vec2::new(cx, cy);
-    Ok(Some(Entity::Arc(Arc::new(ctr, r, sa, ea, !sweep_flag))))
-}
-
-fn tok_f64(t: &str, d: &str) -> Result<f64, SvgImportError> {
-    t.parse::<f64>()
-        .map_err(|_| SvgImportError::MalformedPath(d.to_string()))
+/// `p` in current user units to a world point: through `ctx.ctm` onto the
+/// bed, then un-mirrored around `bed_h`.
+fn to_world(ctx: &Ctx, p: Vec2, bed_h: f64) -> Vec2 {
+    let q = ctx.ctm.apply(p);
+    Vec2::new(q.x, flip_y(q.y, bed_h))
 }
 
 #[cfg(test)]

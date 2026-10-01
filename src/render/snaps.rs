@@ -199,7 +199,11 @@ pub(crate) fn glyph_shapes(
             let c = endpoint_marker_corners(pos, size);
             let rect = egui::Rect::from_min_max(c[0], c[2]);
             vec![Shape::Rect(egui::epaint::RectShape::new(
-                rect, 0.0, color, outline,
+                rect,
+                0.0,
+                color,
+                outline,
+                egui::StrokeKind::Middle,
             ))]
         }
         MarkerShape::Triangle => {
@@ -407,7 +411,7 @@ mod tests {
             egui::Shape::Rect(r) => Some(pick(r.fill, r.stroke.color, r.stroke.width)),
             egui::Shape::Circle(c) => Some(pick(c.fill, c.stroke.color, c.stroke.width)),
             egui::Shape::Path(p) => Some(pick(p.fill, solid(&p.stroke.color), p.stroke.width)),
-            egui::Shape::LineSegment { stroke, .. } => Some((solid(&stroke.color), stroke.width)),
+            egui::Shape::LineSegment { stroke, .. } => Some((stroke.color, stroke.width)),
             _ => None,
         }
     }
@@ -428,7 +432,8 @@ mod tests {
             secondary_idx: None,
         };
         let ctx = egui::Context::default();
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let ctx = &ui.ctx().clone();
             let painter = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Foreground,
                 egui::Id::new("lcv161-snap"),
@@ -535,11 +540,11 @@ mod tests {
         assert_eq!(circle.stroke.color, marker_color());
         assert!(near(circle.center, c));
         let bar = shapes.iter().find_map(|s| match s {
-            egui::Shape::LineSegment { points, stroke } => Some((*points, stroke.clone())),
+            egui::Shape::LineSegment { points, stroke } => Some((*points, *stroke)),
             _ => None,
         });
         let (bar, stroke) = bar.expect("a tangent bar");
-        assert_eq!(solid(&stroke.color), marker_color());
+        assert_eq!(stroke.color, marker_color());
         let top = c.y - circle.radius;
         assert!((bar[0].y - top).abs() < 1e-3 && (bar[1].y - top).abs() < 1e-3);
         assert!(

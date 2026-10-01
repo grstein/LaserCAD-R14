@@ -398,7 +398,7 @@ fn ac9_after_a_cancel_the_app_idles_and_takes_a_new_turn() {
 
 /// One frame, and the repaint egui was asked for.
 fn delay(ctx: &egui::Context, app: &mut App) -> Duration {
-    let out = ctx.run(raw_input(Vec::new()), |ctx| app.update_ui(ctx));
+    let out = ctx.run_ui(raw_input(Vec::new()), |ui| app.update_ui(ui));
     out.viewport_output
         .get(&egui::ViewportId::ROOT)
         .expect("the root viewport is always present")

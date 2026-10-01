@@ -17,12 +17,12 @@ const LINE_RGB: [u8; 3] = [10, 200, 30];
 const CIRCLE_RGB: [u8; 3] = [200, 30, 10];
 /// `src/render/selection.rs::halo_stroke`.
 fn halo() -> Color32 {
-    Color32::from_rgba_unmultiplied(64, 160, 255, 180)
+    Color32::from_rgba_premultiplied(53, 136, 219, 180)
 }
 
 /// `src/render/preview.rs::preview_stroke`.
 fn preview() -> Color32 {
-    Color32::from_rgba_unmultiplied(255, 220, 100, 160)
+    Color32::from_rgba_premultiplied(208, 179, 80, 160)
 }
 
 fn rgb(c: [u8; 3]) -> Color32 {
@@ -66,7 +66,7 @@ fn strokes(
     app: &mut App,
     events: Vec<egui::Event>,
 ) -> Vec<(&'static str, Color32)> {
-    let out = ctx.run(harness::raw_input(events), |ctx| app.update_ui(ctx));
+    let out = ctx.run_ui(harness::raw_input(events), |ui| app.update_ui(ui));
     let mut found = Vec::new();
     for clipped in &out.shapes {
         walk(&clipped.shape, &mut found);
@@ -77,11 +77,7 @@ fn strokes(
 fn walk(shape: &Shape, out: &mut Vec<(&'static str, Color32)>) {
     match shape {
         Shape::Vec(shapes) => shapes.iter().for_each(|s| walk(s, out)),
-        Shape::LineSegment { stroke, .. } => {
-            if let ColorMode::Solid(c) = stroke.color {
-                out.push(("line", c));
-            }
-        }
+        Shape::LineSegment { stroke, .. } => out.push(("line", stroke.color)),
         // A circle is one closed path (LCV-164 AC 6).
         Shape::Path(p) if p.closed => {
             if let ColorMode::Solid(c) = p.stroke.color {

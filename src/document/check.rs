@@ -7,14 +7,15 @@
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use super::{Document, Entity, outside_bed};
-use crate::geometry::{Arc, EPSILON, Vec2};
+use crate::geometry::{Arc, EPSILON, Ellipse, Vec2};
 
 mod report;
 
 /// One problem the check found. Indices are zero-based document indices.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Finding {
-    /// A line or arc endpoint that meets no other endpoint.
+    /// A line, arc, elliptical arc or Bézier endpoint that meets no other
+    /// endpoint.
     OpenEnd {
         /// The entity the endpoint belongs to.
         index: usize,
@@ -41,7 +42,9 @@ pub enum Finding {
         /// The later entity's start point (a circle's centre), mm.
         at: Vec2,
     },
-    /// A zero-length line, a zero-span arc, or a zero-radius circle or arc.
+    /// A zero-length line, a zero-span arc, a zero-radius circle or arc, an
+    /// ellipse with a zero semi-axis or span, or a Bézier whose points all
+    /// coincide.
     Degenerate {
         /// The entity.
         index: usize,
@@ -115,28 +118,37 @@ pub fn check_drawing(doc: &Document) -> CheckReport {
     CheckReport { findings }
 }
 
-/// A line of length ≤ [`EPSILON`], an arc whose span is ≤ [`EPSILON`], or a
-/// circle or arc whose radius is ≤ [`EPSILON`].
+/// A line of length ≤ [`EPSILON`], an arc whose span is ≤ [`EPSILON`], a
+/// circle or arc whose radius is ≤ [`EPSILON`], an ellipse with a semi-axis or
+/// parametric span ≤ [`EPSILON`], or a Bézier whose points lie within
+/// [`EPSILON`] of its start.
 fn is_degenerate(entity: &Entity) -> bool {
     match entity {
         Entity::Line(l) => l.length() <= EPSILON,
         Entity::Circle(c) => c.r <= EPSILON,
         Entity::Arc(a) => a.r <= EPSILON || a.sweep_angle() <= EPSILON,
+        Entity::Ellipse(e) => e.rx.abs().min(e.ry.abs()) <= EPSILON || e.sweep() <= EPSILON,
+        Entity::Bezier(b) => b.points().iter().all(|p| p.distance(b.start()) <= EPSILON),
     }
 }
 
-/// A line's start, an arc's start point, a circle's centre.
+/// A line's start, an arc's start point, a circle's or full ellipse's
+/// centre, an elliptical arc's or Bézier's start point.
 fn first_point(entity: &Entity) -> Vec2 {
     match entity {
         Entity::Line(l) => l.p1,
         Entity::Circle(c) => c.center,
         Entity::Arc(a) => a.start_point(),
+        Entity::Ellipse(e) => e.start_point().unwrap_or(e.center),
+        Entity::Bezier(b) => b.start(),
     }
 }
 
 /// Same geometry within [`EPSILON`]: lines as unordered endpoint pairs,
 /// circles by centre and radius, arcs by centre, radius and their endpoints
-/// once both are read counter-clockwise (so wrap-around needs no case).
+/// once both are read counter-clockwise (so wrap-around needs no case);
+/// ellipses by centre, semi-axes, axis direction and those ends; Béziers of
+/// one degree by their points, in either order.
 fn same_geometry(a: &Entity, b: &Entity) -> bool {
     let near = |p: Vec2, q: Vec2| p.distance(q) <= EPSILON;
     let same_r = |r: f64, s: f64| (r - s).abs() <= EPSILON;
@@ -149,8 +161,35 @@ fn same_geometry(a: &Entity, b: &Entity) -> bool {
             let ([a0, a1], [b0, b1]) = (ccw_ends(a), ccw_ends(b));
             near(a.center, b.center) && same_r(a.r, b.r) && near(a0, b0) && near(a1, b1)
         }
+        (Entity::Ellipse(a), Entity::Ellipse(b)) => {
+            // Turning an ellipse by π maps it onto itself.
+            let turn = (a.rotation - b.rotation).rem_euclid(core::f64::consts::PI);
+            near(a.center, b.center)
+                && same_r(a.rx, b.rx)
+                && same_r(a.ry, b.ry)
+                && turn.min(core::f64::consts::PI - turn) <= EPSILON
+                && match (ellipse_ends(a), ellipse_ends(b)) {
+                    (None, None) => true,
+                    (Some([a0, a1]), Some([b0, b1])) => near(a0, b0) && near(a1, b1),
+                    _ => false,
+                }
+        }
+        (Entity::Bezier(a), Entity::Bezier(b)) => {
+            let (p, q) = (a.points(), b.points());
+            let pairs =
+                |q: &mut dyn Iterator<Item = &Vec2>| p.iter().zip(q).all(|(&x, &y)| near(x, y));
+            p.len() == q.len() && (pairs(&mut q.iter()) || pairs(&mut q.iter().rev()))
+        }
         _ => false,
     }
+}
+
+/// An elliptical arc's endpoints in increasing-parameter order; `None` for
+/// a full ellipse.
+fn ellipse_ends(e: &Ellipse) -> Option<[Vec2; 2]> {
+    let (start, end) = (e.start_point()?, e.end_point()?);
+    let ccw = e.span.is_some_and(|s| s.ccw);
+    Some(if ccw { [start, end] } else { [end, start] })
 }
 
 /// An arc's endpoints in counter-clockwise order: a CW arc swaps them.
@@ -162,11 +201,14 @@ fn ccw_ends(arc: &Arc) -> [Vec2; 2] {
     }
 }
 
-/// The two endpoints of a line or arc; a circle has none.
+/// The two endpoints of a line, arc, elliptical arc or Bézier; a circle or
+/// full ellipse has none.
 fn endpoints(entity: &Entity) -> Option<[Vec2; 2]> {
     match entity {
         Entity::Line(l) => Some([l.p1, l.p2]),
         Entity::Arc(a) => Some([a.start_point(), a.end_point()]),
+        Entity::Ellipse(e) => Some([e.start_point()?, e.end_point()?]),
+        Entity::Bezier(b) => Some([b.start(), b.end()]),
         Entity::Circle(_) => None,
     }
 }

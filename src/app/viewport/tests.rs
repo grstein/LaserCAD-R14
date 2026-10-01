@@ -446,8 +446,8 @@ fn ac1_ac2_grid_paints_between_bed_fill_and_bed_border_and_toggles_off() {
 
         let ctx = egui::Context::default();
         ctx.set_pixels_per_point(1.0);
-        let out = ctx.run(egui::RawInput::default(), |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| paint(ui, rect, &mut app, None));
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            egui::CentralPanel::default().show(ui, |ui| paint(ui, rect, &mut app, None));
         });
 
         let mut kinds: Vec<Kind> = Vec::new();

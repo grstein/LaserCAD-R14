@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="100mm" viewBox="0 0 100 100">
+  <path d="M 10 10 C 20 0 30 20 40 10 S 60 0 70 10" fill="none" stroke="#ff0000"/>
+  <path d="M 10 50 Q 20 40 30 50 T 50 50" fill="none" stroke="#ff0000"/>
+  <path d="m 10 80 c 5 -5 10 5 15 0 q 5 5 10 0" fill="none" stroke="#ff0000"/>
+  <g transform="translate(60 60) scale(2)">
+    <path d="M 0 0 Q 5 10 10 0" fill="none" stroke="#ff0000"/>
+  </g>
+  <path d="M 90 90 C 90 90 90 90 90 90" fill="none" stroke="#ff0000"/>
+</svg>

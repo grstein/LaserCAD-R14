@@ -58,7 +58,7 @@ const DEBOUNCE: Duration = Duration::from_millis(800);
 /// for. The only difference from `harness::frame` is that this keeps the
 /// `FullOutput` instead of dropping it.
 fn frame_delay(ctx: &egui::Context, app: &mut App, events: Vec<egui::Event>) -> Duration {
-    let out = ctx.run(raw_input(events), |ctx| app.update_ui(ctx));
+    let out = ctx.run_ui(raw_input(events), |ui| app.update_ui(ui));
     out.viewport_output
         .get(&egui::ViewportId::ROOT)
         .expect("the root viewport is always present")
@@ -90,9 +90,10 @@ fn boot(app: App) -> (egui::Context, App, egui::Rect) {
     let ctx = egui::Context::default();
     let mut app = app;
     let mut canvas = egui::Rect::NOTHING;
-    let _ = ctx.run(raw_input(vec![]), |c| {
-        app.update_ui(c);
-        canvas = c.available_rect();
+    let _ = ctx.run_ui(raw_input(vec![]), |ui| {
+        let c = &ui.ctx().clone();
+        app.update_ui(ui);
+        canvas = crate::harness::canvas_rect(c);
     });
     (ctx, app, canvas)
 }

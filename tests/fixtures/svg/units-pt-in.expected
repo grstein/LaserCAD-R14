@@ -1,0 +1,14 @@
+# LCV-173 AC 1/AC 2/AC 10 — a 4 in × 216 pt root (101.6 × 76.2 mm) with no
+# viewBox, so one user unit is 1 px = 25.4 / 96 mm; geometry attributes carry
+# in, pt, cm, mm, pc, px or nothing. World y = 76.2 - svg y in mm.
+bed 101.6 76.2
+# LCV-175: every stroke is black and no layer is declared, so one `#000000` layer.
+layer "#000000" #000000 output=1 current=1
+# 1 in = 25.4 mm, 72 pt = 25.4 mm.
+line 0 25.4 50.8 50.8 50.8
+# 5 cm = 50 mm, 15 mm, 0.5 in = 12.7 mm.
+circle 0 50 61.2 12.7
+# 96 (unitless px) = 96 px = 25.4 mm; 6 pc = 1 in = 25.4 mm.
+line 0 25.4 76.2 25.4 50.8
+# Path data is in user units (px): (0, 288) to (384, 0) px.
+line 0 0 0 101.6 76.2

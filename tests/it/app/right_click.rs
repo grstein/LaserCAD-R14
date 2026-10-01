@@ -4,7 +4,7 @@
 
 use crate::harness;
 
-use harness::{frame, raw_input, submit_command};
+use harness::{frame, submit_command};
 use lasercad::app::App;
 use lasercad::document::{CreateLine, Entity};
 use lasercad::geometry::{Line, Vec2};
@@ -14,11 +14,7 @@ use lasercad::tools::SelectTool;
 fn boot() -> (egui::Context, App, egui::Rect) {
     let ctx = egui::Context::default();
     let mut app = App::default();
-    let mut canvas = egui::Rect::NOTHING;
-    let _ = ctx.run(raw_input(vec![]), |c| {
-        app.update_ui(c);
-        canvas = c.available_rect();
-    });
+    let canvas = crate::harness::settle(&ctx, &mut app);
     app.snap_enabled = false;
     app.grid_enabled = false;
     (ctx, app, canvas)

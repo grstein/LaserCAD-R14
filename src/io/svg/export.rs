@@ -28,6 +28,7 @@ use super::layers::open_group;
 use crate::document::entity::Entity;
 use crate::document::state::Document;
 use crate::document::{Layer, LayerId};
+use crate::geometry::{Bezier, Ellipse, Vec2};
 use crate::util::flip_y;
 use core::f64::consts::PI;
 
@@ -160,7 +161,63 @@ fn encode_entity(entity: &Entity, bed_height_mm: f64) -> String {
                 flip_y(ep.y, bed_height_mm)
             )
         }
+        Entity::Ellipse(e) => encode_ellipse(e, bed_height_mm),
+        Entity::Bezier(b) => encode_bezier(b, bed_height_mm),
     }
+}
+
+/// One `M … C …` (cubic) or `M … Q …` (quadratic) path, every control
+/// point with `y` mirrored (ADR 0016).
+fn encode_bezier(b: &Bezier, bed_height_mm: f64) -> String {
+    let op = match b {
+        Bezier::Quadratic(_) => 'Q',
+        Bezier::Cubic(_) => 'C',
+    };
+    let xy = |p: &Vec2| format!("{:.4} {:.4}", p.x, flip_y(p.y, bed_height_mm));
+    let rest: Vec<String> = b.points().iter().skip(1).map(xy).collect();
+    format!("<path d=\"M {} {op} {}\"/>", xy(&b.start()), rest.join(" "))
+}
+
+/// Encode an ellipse (ADR 0015 §5): a full one as `<ellipse>`, rotated by
+/// `transform` only when the angle is not zero; an arc as one `A` path. The
+/// Y mirror negates the rotation and, as for arcs, inverts `sweep`.
+fn encode_ellipse(e: &Ellipse, bed_height_mm: f64) -> String {
+    let a = deg(-e.rotation);
+    let (cx, cy) = (e.center.x, flip_y(e.center.y, bed_height_mm));
+    match (e.start_point(), e.end_point(), e.span) {
+        (Some(sp), Some(ep), Some(span)) => {
+            let large = if e.sweep() > PI { 1 } else { 0 };
+            let sweep = if span.ccw { 0 } else { 1 };
+            format!(
+                "<path d=\"M {:.4} {:.4} A {:.4} {:.4} {a:.6} {large} {sweep} {:.4} {:.4}\"/>",
+                sp.x,
+                flip_y(sp.y, bed_height_mm),
+                e.rx,
+                e.ry,
+                ep.x,
+                flip_y(ep.y, bed_height_mm)
+            )
+        }
+        _ if a == 0.0 => format!(
+            "<ellipse cx=\"{cx:.4}\" cy=\"{cy:.4}\" rx=\"{:.4}\" ry=\"{:.4}\"/>",
+            e.rx, e.ry
+        ),
+        _ => format!(
+            "<ellipse cx=\"{cx:.4}\" cy=\"{cy:.4}\" rx=\"{:.4}\" ry=\"{:.4}\" \
+             transform=\"rotate({a:.6} {cx:.4} {cy:.4})\"/>",
+            e.rx, e.ry
+        ),
+    }
+}
+
+/// `radians` in degrees, normalized into (−180, 180]; exactly `0.0` when it
+/// would print as zero at six decimals, so `-0.000000` is never written.
+fn deg(radians: f64) -> f64 {
+    let mut d = radians.to_degrees().rem_euclid(360.0);
+    if d > 180.0 {
+        d -= 360.0;
+    }
+    if d.abs() <= 5e-7 { 0.0 } else { d }
 }
 
 // ─── Unit tests ──────────────────────────────────────────────────────────────

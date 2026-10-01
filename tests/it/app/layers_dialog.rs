@@ -267,3 +267,23 @@ fn many_layers_keep_the_controls_inside_the_capped_body() {
         );
     }
 }
+
+/// LCV-170 AC 9 — the Layers dialog, opened by typing `layer`, refuses a
+/// rename to a name with a control character, says why, and commits nothing.
+#[test]
+fn rename_with_a_control_character_is_refused() {
+    let ctx = egui::Context::default();
+    let mut app = app_with_lines(1);
+    harness::frame(&ctx, &mut app, vec![]);
+    harness::submit_command(&ctx, &mut app, "layer");
+    let r0 = app.history.revision();
+    app.layers_dialog
+        .as_mut()
+        .expect("typed `layer` opens it")
+        .name = "A\tB".into();
+    app.layers_apply();
+    assert_eq!(app.history.revision(), r0);
+    assert_eq!(names(&app), vec!["Cut"]);
+    let msg = &dialog(&app).message;
+    assert!(msg.contains("control character"), "{msg}");
+}

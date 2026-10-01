@@ -62,6 +62,8 @@ fn to_snap_entity(e: &Entity) -> SnapEntity {
         Entity::Line(l) => SnapEntity::Line(*l),
         Entity::Circle(c) => SnapEntity::Circle(*c),
         Entity::Arc(a) => SnapEntity::Arc(*a),
+        Entity::Ellipse(e) => SnapEntity::Ellipse(*e),
+        Entity::Bezier(b) => SnapEntity::Bezier(*b),
     }
 }
 

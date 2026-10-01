@@ -292,3 +292,45 @@ fn measure_is_one_read_only_step_and_trips_no_fence() {
     assert_eq!(app.agent.turn.tally.steps, 2);
     assert_eq!(app.agent.turn.tally.applied, 1);
 }
+
+/// Merge of the SVG track — `length` and `bbox` take an ellipse or a Bézier;
+/// `distance`, `intersections` and `angle` refuse them naming the operand.
+#[test]
+fn measure_takes_or_refuses_ellipses_and_beziers() {
+    use lasercad::document::Entity;
+    use lasercad::document::commands::CreateEntities;
+    use lasercad::geometry::{Bezier, Ellipse};
+    let mut app = App::default();
+    let p = |x, y| Vec2::new(x, y);
+    app.commit(Box::new(CreateEntities::new(vec![
+        Entity::Ellipse(Ellipse::new(p(0.0, 0.0), 10.0, 5.0, 0.0, None)),
+        Entity::Ellipse(Ellipse::new(p(0.0, 0.0), 10.0, 10.0, 0.3, None)),
+        Entity::Bezier(Bezier::Cubic([
+            p(0.0, 0.0),
+            p(10.0, 0.0),
+            p(20.0, 0.0),
+            p(30.0, 0.0),
+        ])),
+    ])));
+    assert_eq!(ok(&mut app, Length, &[], at(&[0])), "length: 48.442 mm");
+    assert_eq!(ok(&mut app, Length, &[], at(&[1])), "length: 62.832 mm");
+    assert_eq!(ok(&mut app, Length, &[], at(&[2])), "length: 30.000 mm");
+    assert_eq!(
+        ok(&mut app, Bbox, &[], at(&[0, 2])),
+        "bbox: min (-10.000, -5.000), max (30.000, 5.000), width 40.000 mm, height 10.000 mm"
+    );
+    let curve = "which distance and intersections do not measure; \
+                 expected a line, circle or arc (bbox and length take any entity)";
+    assert_eq!(
+        refused(&mut app, Distance, at(&[1, 2])),
+        format!("measure indices[0]: is an ellipse, {curve}")
+    );
+    assert_eq!(
+        refused(&mut app, Intersections, MeasureTargets::Ids(vec![3, 1])),
+        format!("measure ids[0]: is a Bézier curve, {curve}")
+    );
+    assert_eq!(
+        refused(&mut app, Angle, at(&[2, 0])),
+        "measure indices[0]: is a Bézier curve; expected a line"
+    );
+}

@@ -59,10 +59,10 @@ fn locate(runs: &[Run], label: &str) -> egui::Pos2 {
 }
 
 fn click(ctx: &egui::Context, app: &mut App, pos: egui::Pos2) {
-    let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(pos)]), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(vec![egui::Event::PointerMoved(pos)]), |ui| {
+        app.update_ui(ui)
     });
-    let _ = ctx.run(raw_input(click_events(pos)), |c| app.update_ui(c));
+    let _ = ctx.run_ui(raw_input(click_events(pos)), |ui| app.update_ui(ui));
 }
 
 /// Open View, hover `Object Snap`, and return the runs painted with the
@@ -73,8 +73,8 @@ fn open_object_snap_menu(ctx: &egui::Context, app: &mut App) -> Vec<Run> {
     click(ctx, app, locate(&runs, "View"));
     let runs = paint::painted_runs(ctx, app);
     let row = locate(&runs, "Object Snap");
-    let _ = ctx.run(raw_input(vec![egui::Event::PointerMoved(row)]), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input(vec![egui::Event::PointerMoved(row)]), |ui| {
+        app.update_ui(ui)
     });
     paint::painted_runs(ctx, app)
 }
@@ -125,7 +125,7 @@ fn clicking_a_kind_flips_and_persists_it() {
         .find(|r| r.text.trim() == "Nearest")
         .map(|r| egui::pos2(r.pos.x + 2.0, r.pos.y + r.height / 2.0))
         .expect("Nearest is painted");
-    let _ = ctx.run(raw_input(click_events(nearest)), |c| app.update_ui(c));
+    let _ = ctx.run_ui(raw_input(click_events(nearest)), |ui| app.update_ui(ui));
 
     assert!(
         app.settings.object_snaps.nearest,

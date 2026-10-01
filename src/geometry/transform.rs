@@ -13,7 +13,7 @@
 
 use core::f64::consts::TAU;
 
-use crate::geometry::{Arc, Circle, EPSILON, Line, Vec2};
+use crate::geometry::{Arc, Bezier, Circle, EPSILON, Ellipse, EllipseSpan, Line, Vec2};
 
 /// A geometric transform applied to points and to every kernel primitive.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -142,5 +142,41 @@ impl Transform {
                 arc.ccw,
             ),
         }
+    }
+
+    /// The image of `ellipse` (ADR 0015 §4): the center mapped; a rotation
+    /// adds its angle to the rotation; a mirror across a line at angle θ sets
+    /// the rotation to `2θ − rotation`, negates the span angles and flips the
+    /// direction, so the ends keep their roles; a scale multiplies both radii.
+    pub fn ellipse(&self, e: Ellipse) -> Ellipse {
+        let center = self.point(e.center);
+        match *self {
+            Transform::Rotate { angle, .. } => Ellipse {
+                center,
+                rotation: e.rotation + angle,
+                ..e
+            },
+            Transform::Mirror { .. } => match self.mirror_axis() {
+                Some((_, u)) => Ellipse {
+                    center,
+                    rotation: 2.0 * u.y.atan2(u.x) - e.rotation,
+                    span: e.span.map(|s| EllipseSpan::new(-s.start, -s.end, !s.ccw)),
+                    ..e
+                },
+                None => e,
+            },
+            Transform::Scale { factor, .. } => Ellipse {
+                center,
+                rx: e.rx * factor,
+                ry: e.ry * factor,
+                ..e
+            },
+        }
+    }
+
+    /// Map every control point through [`Transform::point`]; the degree is
+    /// kept. Exact by affine invariance (ADR 0016 §3).
+    pub fn bezier(&self, b: Bezier) -> Bezier {
+        b.map(|p| self.point(p))
     }
 }

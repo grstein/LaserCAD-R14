@@ -63,10 +63,10 @@ fn ceiling(screen_width: f32) -> f32 {
 /// painted content (AC 1).
 fn panel_rect_at(ctx: &egui::Context, app: &mut App, screen: [f32; 2]) -> egui::Rect {
     app.agent.panel_open = true;
-    let _ = ctx.run(raw_input_at(screen, Vec::new()), |ctx| app.update_ui(ctx));
+    let _ = ctx.run_ui(raw_input_at(screen, Vec::new()), |ui| app.update_ui(ui));
     egui::containers::panel::PanelState::load(ctx, agent_panel_id())
         .expect("the agent panel must have stored its state by now")
-        .rect
+        .outer_rect
 }
 
 /// A headless context at `pixels_per_point == 1.0` and a default `App`.
@@ -159,7 +159,9 @@ fn ac2_a_width_dragged_wide_in_a_bigger_window_is_reclamped_in_a_smaller_one() {
     ctx.data_mut(|d| {
         d.insert_persisted(
             agent_panel_id(),
-            egui::containers::panel::PanelState { rect: dragged },
+            egui::containers::panel::PanelState {
+                outer_rect: dragged,
+            },
         )
     });
     // Control: the seed really landed and really exceeds the *smaller*
@@ -224,11 +226,11 @@ fn ac2_the_ceiling_holds_during_an_active_resize_drag() {
     let dragged_to = egui::pos2(start.left() - 700.0, start.center().y);
 
     let screen = [1280.0_f32, 800.0];
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         raw_input_at(screen, vec![egui::Event::PointerMoved(handle)]),
-        |c| app.update_ui(c),
+        |ui| app.update_ui(ui),
     );
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         raw_input_at(
             screen,
             vec![egui::Event::PointerButton {
@@ -238,18 +240,18 @@ fn ac2_the_ceiling_holds_during_an_active_resize_drag() {
                 modifiers: egui::Modifiers::NONE,
             }],
         ),
-        |c| app.update_ui(c),
+        |ui| app.update_ui(ui),
     );
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         raw_input_at(screen, vec![egui::Event::PointerMoved(dragged_to)]),
-        |c| app.update_ui(c),
+        |ui| app.update_ui(ui),
     );
     // The frame that observes the drag response cached by the previous one.
-    let _ = ctx.run(raw_input_at(screen, Vec::new()), |c| app.update_ui(c));
+    let _ = ctx.run_ui(raw_input_at(screen, Vec::new()), |ui| app.update_ui(ui));
 
     let rect = egui::containers::panel::PanelState::load(&ctx, agent_panel_id())
         .expect("the panel must still have state after the drag")
-        .rect;
+        .outer_rect;
     assert!(
         rect.width() <= ceiling(1280.0) + 0.5,
         "an in-progress drag past the ceiling must still be clamped to it, \
@@ -259,7 +261,7 @@ fn ac2_the_ceiling_holds_during_an_active_resize_drag() {
     );
 
     // Release, so this test leaves no dangling pointer-down state.
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         raw_input_at(
             screen,
             vec![egui::Event::PointerButton {
@@ -269,7 +271,7 @@ fn ac2_the_ceiling_holds_during_an_active_resize_drag() {
                 modifiers: egui::Modifiers::NONE,
             }],
         ),
-        |c| app.update_ui(c),
+        |ui| app.update_ui(ui),
     );
 }
 
@@ -377,7 +379,7 @@ fn locate(runs: &[Run], label: &str) -> egui::Pos2 {
 /// its hit-test rect without needing the exact formula.
 fn window_close_button_pos(ctx: &egui::Context, title: &str) -> egui::Pos2 {
     let rect = ctx
-        .memory(|m| m.area_rect(egui::Id::new(title)))
+        .memory(|m| m.area_rect(crate::harness::window_id(title)))
         .unwrap_or_else(|| panic!("the `{title}` window must be placed by now"));
     egui::pos2(rect.right() - 12.0, rect.top() + 12.0)
 }
@@ -509,8 +511,8 @@ fn ac5_controls_stay_inside_the_panel_with_two_hundred_transcript_entries() {
 fn ac5_closing_the_panel_restores_the_canvas_width() {
     let (ctx, mut app) = ctx_and_app();
     // One idle frame first, panel closed, to read the full canvas width.
-    let _ = ctx.run(raw_input_at([1280.0, 800.0], Vec::new()), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input_at([1280.0, 800.0], Vec::new()), |ui| {
+        app.update_ui(ui)
     });
     let full_width = app.camera.viewport_size_px[0];
 
@@ -524,12 +526,12 @@ fn ac5_closing_the_panel_restores_the_canvas_width() {
     );
 
     let close = locate(&runs, "×");
-    let _ = ctx.run(
+    let _ = ctx.run_ui(
         raw_input_at([1280.0, 800.0], vec![egui::Event::PointerMoved(close)]),
-        |c| app.update_ui(c),
+        |ui| app.update_ui(ui),
     );
-    let _ = ctx.run(raw_input_at([1280.0, 800.0], click_events(close)), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input_at([1280.0, 800.0], click_events(close)), |ui| {
+        app.update_ui(ui)
     });
     assert!(!app.agent.panel_open, "the × button must close the panel");
 
@@ -539,8 +541,8 @@ fn ac5_closing_the_panel_restores_the_canvas_width() {
     // that skips them *next* frame. One more idle frame is what settles the
     // `CentralPanel`'s width, exactly like a freshly opened `Window` needs a
     // second frame to place its `Area` (paint.rs trap 7).
-    let _ = ctx.run(raw_input_at([1280.0, 800.0], Vec::new()), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input_at([1280.0, 800.0], Vec::new()), |ui| {
+        app.update_ui(ui)
     });
 
     assert!(
@@ -569,11 +571,11 @@ fn tempdir(name: &str) -> PathBuf {
 fn open_and_edit(ctx: &egui::Context, app: &mut App) {
     app.agent_settings_open = true;
     app.settings.agent_model = "a-non-default-model".to_owned();
-    let _ = ctx.run(raw_input_at([1280.0, 800.0], Vec::new()), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input_at([1280.0, 800.0], Vec::new()), |ui| {
+        app.update_ui(ui)
     });
-    let _ = ctx.run(raw_input_at([1280.0, 800.0], Vec::new()), |c| {
-        app.update_ui(c)
+    let _ = ctx.run_ui(raw_input_at([1280.0, 800.0], Vec::new()), |ui| {
+        app.update_ui(ui)
     });
 }
 
@@ -601,12 +603,12 @@ fn ac6_done_closes_and_persists_exactly_like_the_close_button() {
 
         let runs = paint::painted_runs(&ctx, &mut app);
         let done = locate(&runs, "Close");
-        let _ = ctx.run(
+        let _ = ctx.run_ui(
             raw_input_at([1280.0, 800.0], vec![egui::Event::PointerMoved(done)]),
-            |c| app.update_ui(c),
+            |ui| app.update_ui(ui),
         );
-        let _ = ctx.run(raw_input_at([1280.0, 800.0], click_events(done)), |c| {
-            app.update_ui(c)
+        let _ = ctx.run_ui(raw_input_at([1280.0, 800.0], click_events(done)), |ui| {
+            app.update_ui(ui)
         });
 
         assert!(!app.agent_settings_open, "Close must close the window");
@@ -630,12 +632,12 @@ fn ac6_done_closes_and_persists_exactly_like_the_close_button() {
         // strokes, not text (see `window_close_button_pos`), and distinct
         // from the agent panel's `×`, which is closed in this test.
         let close = window_close_button_pos(&ctx, "AI Settings");
-        let _ = ctx.run(
+        let _ = ctx.run_ui(
             raw_input_at([1280.0, 800.0], vec![egui::Event::PointerMoved(close)]),
-            |c| app.update_ui(c),
+            |ui| app.update_ui(ui),
         );
-        let _ = ctx.run(raw_input_at([1280.0, 800.0], click_events(close)), |c| {
-            app.update_ui(c)
+        let _ = ctx.run_ui(raw_input_at([1280.0, 800.0], click_events(close)), |ui| {
+            app.update_ui(ui)
         });
 
         assert!(!app.agent_settings_open, "× must close the window");
@@ -750,7 +752,8 @@ fn ac7_a_growth_probe_is_reachable_only_by_scrolling() {
             )),
             ..Default::default()
         };
-        ctx.run(screen, |c| {
+        ctx.run_ui(screen, |ui| {
+            let c = &ui.ctx().clone();
             egui::Window::new("Agent Settings Probe")
                 .resizable(false)
                 .collapsible(false)
@@ -849,7 +852,7 @@ fn ac7_the_real_settings_dialog_scrolls_to_reach_done() {
     );
 
     let dialog = ctx
-        .memory(|m| m.area_rect(egui::Id::new("AI Settings")))
+        .memory(|m| m.area_rect(crate::harness::window_id("AI Settings")))
         .expect("the AI Settings window must be placed by now");
     let inside = dialog.center();
 
@@ -865,6 +868,7 @@ fn ac7_the_real_settings_dialog_scrolls_to_reach_done() {
     events.extend((0..200).map(|_| egui::Event::MouseWheel {
         unit: egui::MouseWheelUnit::Point,
         delta: egui::vec2(0.0, -7.0),
+        phase: egui::TouchPhase::Move,
         modifiers: egui::Modifiers::NONE,
     }));
     let _ = painted_runs_at(&ctx, &mut app, screen, events);

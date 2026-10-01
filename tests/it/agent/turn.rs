@@ -988,3 +988,75 @@ fn the_agent_repaint_is_guarded_on_the_busy_flag() {
         "AC 19: the repaint in src/app/mod.rs must be guarded on `{flag}`, found {guard:?}"
     );
 }
+
+/// LCV-176 AC 13 — `query_entities` lists a full ellipse and an elliptical
+/// arc with kind `ellipse`, centre, rx, ry, rotation_deg and, for the arc,
+/// its parametric start/end and direction.
+#[test]
+fn query_entities_lists_ellipses_and_elliptical_arcs() {
+    use lasercad::app::apply;
+    use lasercad::document::Entity;
+    use lasercad::geometry::{Ellipse, EllipseSpan};
+
+    let mut app = App::default();
+    let full = Ellipse::new(Vec2::new(100.0, 50.0), 40.0, 20.0, 30f64.to_radians(), None);
+    let span = EllipseSpan::new(10f64.to_radians(), 200f64.to_radians(), true);
+    let arc = Ellipse::new(
+        Vec2::new(-5.5, 7.25),
+        12.0,
+        3.5,
+        -15f64.to_radians(),
+        Some(span),
+    );
+    app.document.push_current(Entity::Ellipse(full));
+    app.document.push_current(Entity::Ellipse(arc));
+    let text = apply(&mut app, &AgentAction::QueryEntities)
+        .text()
+        .to_owned();
+    let rows: Vec<&str> = text
+        .lines()
+        .filter(|l| l.starts_with(char::is_numeric))
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            "0 e1: ellipse center (100.000, 50.000) mm, rx = 40.000, ry = 20.000 mm, \
+             rotation_deg = 30.000 layer Cut",
+            "1 e2: ellipse center (-5.500, 7.250) mm, rx = 12.000, ry = 3.500 mm, \
+             rotation_deg = -15.000, 10.0°→200.0° ccw layer Cut",
+        ],
+        "{text}"
+    );
+}
+
+/// LCV-177 AC 14 — `query_entities` lists a cubic and a quadratic with kinds
+/// `cubic` and `quadratic` and their points in mm, in path order.
+#[test]
+fn query_entities_lists_cubics_and_quadratics() {
+    use lasercad::app::apply;
+    use lasercad::document::Entity;
+    use lasercad::geometry::Bezier;
+
+    let mut app = App::default();
+    let v = Vec2::new;
+    let cubic = Bezier::Cubic([v(0.0, 0.0), v(10.5, 20.0), v(-3.25, 7.0), v(40.0, 0.125)]);
+    let quad = Bezier::Quadratic([v(5.0, 5.0), v(15.0, 25.0), v(25.0, 5.0)]);
+    app.document.push_current(Entity::Bezier(cubic));
+    app.document.push_current(Entity::Bezier(quad));
+    let text = apply(&mut app, &AgentAction::QueryEntities)
+        .text()
+        .to_owned();
+    let rows: Vec<&str> = text
+        .lines()
+        .filter(|l| l.starts_with(char::is_numeric))
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            "0 e1: cubic (0.000, 0.000) → (10.500, 20.000) → (-3.250, 7.000) → \
+             (40.000, 0.125) mm layer Cut",
+            "1 e2: quadratic (5.000, 5.000) → (15.000, 25.000) → (25.000, 5.000) mm layer Cut",
+        ],
+        "{text}"
+    );
+}

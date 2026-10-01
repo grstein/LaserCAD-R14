@@ -18,6 +18,11 @@ use crate::geometry::Vec2;
 use crate::render::Camera;
 use crate::tools::{PointerButton, PointerEvent};
 
+/// The source of the canvas widget's stable `egui::Id::new(VIEWPORT_ID)`, so
+/// tests can read its response back through [`egui::Context::read_response`]
+/// (LCV-180).
+pub const VIEWPORT_ID: &str = "lasercad_viewport";
+
 /// Factor applied per mouse-wheel notch. `> 1.0` zooms in; `< 1.0` zooms out.
 const WHEEL_ZOOM_FACTOR: f64 = 1.1;
 
@@ -25,10 +30,13 @@ mod paint;
 use paint::paint;
 
 /// Render the canvas and route pointer input for one frame.
-pub fn draw(ctx: &egui::Context, app: &mut App) {
-    egui::CentralPanel::default().show(ctx, |ui| {
-        let (rect, response) =
-            ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
+pub fn draw(ui: &mut egui::Ui, app: &mut App) {
+    let ctx = &ui.ctx().clone();
+    egui::CentralPanel::default().show(ui, |ui| {
+        let rect = ui.available_rect_before_wrap();
+        ui.advance_cursor_after_rect(rect);
+        let id = egui::Id::new(VIEWPORT_ID);
+        let response = ui.interact(rect, id, egui::Sense::click_and_drag());
 
         // Sync the camera's viewport size before any draw call consumes it.
         app.camera.viewport_size_px = [rect.width(), rect.height()];

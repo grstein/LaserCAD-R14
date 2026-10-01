@@ -8,6 +8,7 @@
 use std::f64::consts::TAU;
 
 use crate::document::Entity;
+use crate::geometry::Vec2;
 
 /// Background grey level.
 pub const WHITE: u8 = 255;
@@ -53,6 +54,15 @@ pub fn rasterize(
                     a.start_angle - sweep
                 };
                 canvas.arc((a.center.x, a.center.y), a.r, start, sweep);
+            }
+            // Half a pixel of chord deviation, every vertex on the curve.
+            Entity::Ellipse(e) => {
+                let pts = e.polyline(0.5 / canvas.sx.max(canvas.sy));
+                canvas.polyline(&pts);
+            }
+            Entity::Bezier(b) => {
+                let pts = b.polyline(0.5 / canvas.sx.max(canvas.sy));
+                canvas.polyline(&pts);
             }
         }
     }
@@ -134,6 +144,13 @@ impl Canvas {
         }
     }
 
+    /// Consecutive vertices joined by [`INK`] segments.
+    fn polyline(&mut self, pts: &[Vec2]) {
+        for pair in pts.windows(2) {
+            self.segment((pair[0].x, pair[0].y), (pair[1].x, pair[1].y), INK);
+        }
+    }
+
     /// A 1 px segment: clipped to the frame (Liang–Barsky), then walked one
     /// pixel centre at a time along its major axis.
     fn segment(&mut self, a: (f64, f64), b: (f64, f64), value: u8) {
@@ -204,7 +221,7 @@ fn clip(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::{Arc, Circle, Line, Vec2};
+    use crate::geometry::{Arc, Bezier, Circle, Ellipse, EllipseSpan, Line, Vec2};
 
     const BED: [f64; 2] = [100.0, 100.0];
 
@@ -295,6 +312,74 @@ mod tests {
         let at = |x: usize, y_up: usize| px[(100 - y_up) * 101 + x];
         assert_eq!(at(50, 80), INK, "top of the arc");
         assert_eq!(at(50, 20), WHITE, "bottom is outside the sweep");
+    }
+
+    /// LCV-176 — an elliptical arc inks its own sweep at its vertices and
+    /// nothing on the other side.
+    #[test]
+    fn elliptical_arc_draws_only_its_sweep() {
+        let world = [0.0, 0.0, 100.0, 100.0];
+        let span = EllipseSpan::new(0.0, std::f64::consts::PI, true);
+        let e = Ellipse::new(Vec2::new(50.0, 50.0), 40.0, 20.0, 0.0, Some(span));
+        let px = decoded(&[Entity::Ellipse(e)], world, 101, 101);
+        let at = |x: usize, y_up: usize| px[(100 - y_up) * 101 + x];
+        assert_eq!(at(50, 70), INK, "top of the arc");
+        assert_eq!(at(90, 50), INK, "start vertex");
+        assert_eq!(at(10, 50), INK, "end vertex");
+        assert_eq!(at(50, 30), WHITE, "bottom is outside the sweep");
+    }
+
+    /// LCV-176 — at 10 px/mm every ellipse ink pixel is within one pixel of
+    /// the curve (half a pixel of chord, half of rounding), all the way round.
+    #[test]
+    fn every_ellipse_pixel_lies_within_a_pixel_of_the_curve() {
+        let e = Ellipse::new(Vec2::new(5.0, 5.0), 4.0, 2.0, 0.3, None);
+        let px = decoded(&[Entity::Ellipse(e)], [0.0, 0.0, 10.0, 10.0], 101, 101);
+        let mut ink = 0;
+        for row in 0..101usize {
+            for col in 0..101usize {
+                if px[row * 101 + col] != INK {
+                    continue;
+                }
+                ink += 1;
+                let p = Vec2::new(col as f64 / 10.0, 10.0 - row as f64 / 10.0);
+                let off = e.distance_to_point(p) * 10.0;
+                assert!(off <= 1.0 + 1e-9, "pixel ({col}, {row}) is {off} px off");
+            }
+        }
+        assert!(ink >= 2 * 2 * 40, "only {ink} ink pixels");
+    }
+
+    /// LCV-177 — at 10 px/mm a cubic and a quadratic ink only pixels within
+    /// one pixel of their curves, ends included, never their control points.
+    #[test]
+    fn every_bezier_pixel_lies_within_a_pixel_of_the_curve() {
+        let v = Vec2::new;
+        let curves = [
+            Bezier::Cubic([v(1.0, 1.0), v(3.0, 9.0), v(7.0, -3.0), v(9.0, 5.0)]),
+            Bezier::Quadratic([v(1.0, 8.0), v(5.0, 0.0), v(9.0, 9.0)]),
+        ];
+        for b in curves {
+            let px = decoded(&[Entity::Bezier(b)], [0.0, 0.0, 10.0, 10.0], 101, 101);
+            let at = |p: Vec2| px[(100 - (p.y * 10.0) as usize) * 101 + (p.x * 10.0) as usize];
+            assert_eq!((at(b.start()), at(b.end())), (INK, INK), "{b:?} ends");
+            let mut ink = 0;
+            for row in 0..101usize {
+                for col in 0..101usize {
+                    if px[row * 101 + col] != INK {
+                        continue;
+                    }
+                    ink += 1;
+                    let p = v(col as f64 / 10.0, 10.0 - row as f64 / 10.0);
+                    let off = b.distance_to_point(p) * 10.0;
+                    assert!(
+                        off <= 1.0 + 1e-9,
+                        "{b:?}: pixel ({col}, {row}) is {off} px off"
+                    );
+                }
+            }
+            assert!(ink >= 80, "{b:?}: only {ink} ink pixels");
+        }
     }
 
     #[test]

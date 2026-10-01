@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="100mm" viewBox="0 0 100 100">
+  <svg x="20" y="10" width="60" height="30" viewBox="0 0 20 20" preserveAspectRatio="xMidYMid meet">
+    <line x1="0" y1="0" x2="20" y2="0" fill="none" stroke="#000"/>
+    <circle cx="10" cy="10" r="5" fill="none" stroke="#000"/>
+    <line x1="0" y1="25" x2="20" y2="25" fill="none" stroke="#000"/>
+  </svg>
+  <svg x="10" y="10" transform="translate(0,50)">
+    <line x1="0" y1="0" x2="10" y2="0" fill="none" stroke="#000"/>
+  </svg>
+</svg>

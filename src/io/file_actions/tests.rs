@@ -188,16 +188,13 @@ fn both_open_paths_adopt_the_file_bed_and_leave_the_seed_alone() {
 fn open_via_the_dialog_adopts_the_file_bed_and_leaves_the_seed_alone() {
     let body = action_open_body();
     assert!(
-        body.contains("import_svg(&content)"),
-        "positive control: action_open must import the file"
+        body.contains("None => return,"),
+        "positive control: a cancelled dialog changes nothing"
     );
     assert!(
-        body.contains(".and_then(ImportedSvg::into_document)"),
-        "action_open must adopt the file's bed and layers (AC 10, LCV-156 AC 9)"
-    );
-    assert!(
-        body.contains("app.document = document.ids_after(&app.document);"),
-        "positive control: the opened document is installed"
+        body.contains("open_content(app, path, &content);"),
+        "action_open must open through open_content, whose behaviour \
+         (bed, layers, report) is tested through action_open_path"
     );
     assert!(
         !body.contains("default_bed_mm"),
@@ -206,8 +203,8 @@ fn open_via_the_dialog_adopts_the_file_bed_and_leaves_the_seed_alone() {
 }
 
 /// LCV-156 AC 9 — `action_open_path` adopts the file's layers and current
-/// layer. The dialog half (`action_open`) shares the same
-/// `ImportedSvg::into_document` call, scanned above.
+/// layer. The dialog half (`action_open`) shares `open_content`, scanned
+/// above.
 #[test]
 fn open_path_adopts_the_file_layers() {
     let dir = tempdir("open_path_layers");
@@ -517,4 +514,46 @@ fn action_save_io_error_sets_error_message() {
     };
     action_save(&mut app);
     assert!(app.error_message.is_some());
+}
+
+// --- LCV-171 AC 9 — the import report on the command line ---------------
+
+/// LCV-171 AC 9 — a successful open with a non-empty report says what was
+/// ignored, in report order.
+#[test]
+fn open_path_reports_what_the_import_ignored() {
+    let dir = tempdir("open_path_report");
+    let path = dir.join("ignored.svg");
+    let src = r#"<svg xmlns="http://www.w3.org/2000/svg"><image/><image/><g opacity="0.5"><line x1="0" y1="0" x2="1" y2="1"/></g></svg>"#;
+    fs::write(&path, src).unwrap();
+
+    let mut app = app_with_tempdir(&dir);
+    action_open_path(&mut app, path);
+
+    assert_eq!(app.error_message, None, "the open must succeed");
+    assert_eq!(app.document.entity_count(), 1);
+    assert_eq!(app.command_feedback, "Ignored: 2 image, 1 opacity");
+}
+
+/// LCV-171 AC 9 — a clean open clears stale feedback; a failed open leaves
+/// it alone.
+#[test]
+fn open_path_clears_feedback_on_a_clean_file_and_keeps_it_on_failure() {
+    let dir = tempdir("open_path_clean_report");
+    let clean = svg_file(&dir, "clean.svg", [300.0, 180.0]);
+    let broken = dir.join("broken.svg");
+    fs::write(&broken, "<svg/>").unwrap();
+
+    let mut app = app_with_tempdir(&dir);
+    app.command_feedback = "stale".to_owned();
+    action_open_path(&mut app, broken);
+    assert!(app.error_message.is_some(), "positive control: it failed");
+    assert_eq!(app.command_feedback, "stale");
+    action_open_path(&mut app, dir.join("missing.svg"));
+    assert_eq!(app.command_feedback, "stale");
+
+    app.error_message = None;
+    action_open_path(&mut app, clean);
+    assert_eq!(app.error_message, None, "the open must succeed");
+    assert_eq!(app.command_feedback, "");
 }
