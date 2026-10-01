@@ -55,7 +55,7 @@
   (files: tests/it/io_svg/shapes.rs, src/io/svg/import/shapes.rs)
 - [x] T14 [AC11] Corpus `shapes-rect`: sharp, rounded, `auto` and clamped rects.
   (files: tests/fixtures/svg/shapes-rect.svg, tests/fixtures/svg/shapes-rect.expected)
-- [ ] T15 [AC11] Corpus `shapes-poly`: a polyline and a polygon, open and closed.
+- [x] T15 [AC11] Corpus `shapes-poly`: a polyline and a polygon, open and closed.
   (files: tests/fixtures/svg/shapes-poly.svg, tests/fixtures/svg/shapes-poly.expected)
 - [ ] T16 [AC11] Corpus `shapes-degenerate`: zero sizes, a negative radius and odd `points`, with
   their report lines.
