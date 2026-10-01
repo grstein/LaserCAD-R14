@@ -503,14 +503,14 @@ fn ac10_a_malformed_act_is_refused_counted_and_then_fenced_after_a_trip() {
         app.agent.chat.last(),
         Some(&("refused".to_owned(), reason.to_owned()))
     );
-    assert_eq!(app.agent.turn.steps, 1);
+    assert_eq!(app.agent.turn.tally.steps, 1);
     assert!(app.agent.busy, "the turn continues");
 
     human_line(&mut app, 0.0);
     let answer = push_act(&tx, malformed());
     idle(&ctx, &mut app);
     assert_eq!(answer.try_recv().unwrap(), FENCED());
-    assert_eq!(app.agent.turn.steps, 2);
+    assert_eq!(app.agent.turn.tally.steps, 2);
 }
 
 // ── AC 12: the end-of-turn note comes from `end_group` ──────────────────────

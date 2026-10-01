@@ -119,7 +119,7 @@ fn only_both_live_opt_ins_observe() {
             );
             assert_eq!((role.as_str(), row.as_str()), ("refused", DISABLED));
         }
-        assert_eq!(app.agent.turn.steps, 1, "a capture is one step");
+        assert_eq!(app.agent.turn.tally.steps, 1, "a capture is one step");
     }
 }
 
@@ -255,7 +255,7 @@ fn authorize_upload_is_not_a_step_and_a_yes_discloses() {
     let model = app.settings.agent_model.clone();
     let yes = authorize_in_one_frame(&ctx, &mut app, &tx);
     assert!(matches!(yes, AgentOutcome::Ok(_)), "{yes:?}");
-    assert_eq!(app.agent.turn.steps, 0, "not a step");
+    assert_eq!(app.agent.turn.tally.steps, 0, "not a step");
     assert_eq!(app.agent.chat.len(), rows + 1);
     assert_eq!(
         app.agent.chat.last().cloned(),
@@ -283,11 +283,11 @@ fn authorize_upload_is_answered_after_the_fence_tripped() {
         fenced.try_recv().unwrap().is_fenced(),
         "positive control: fence tripped"
     );
-    let steps = app.agent.turn.steps;
+    let steps = app.agent.turn.tally.steps;
     let yes = authorize_in_one_frame(&ctx, &mut app, &tx);
     assert!(matches!(yes, AgentOutcome::Ok(_)), "{yes:?}");
     assert_eq!(
-        app.agent.turn.steps, steps,
+        app.agent.turn.tally.steps, steps,
         "not counted behind the fence either"
     );
 }
@@ -652,7 +652,10 @@ fn capture_lines(lines: &[Segment], frame: CaptureFrame) -> (AgentOutcome, (Stri
     pin_camera(&mut app);
     let outcome = capture_frame_in_one_frame(&ctx, &mut app, &tx, frame);
     let row = app.agent.chat.last().cloned().expect("a row");
-    assert_eq!(app.agent.turn.steps, 1, "a framed capture is one step");
+    assert_eq!(
+        app.agent.turn.tally.steps, 1,
+        "a framed capture is one step"
+    );
     (outcome, row, app.history.revision())
 }
 
@@ -830,7 +833,7 @@ fn a_post_send_note_follows_the_pre_send_note_and_is_not_a_step() {
             ("note".to_owned(), sent.to_owned()),
         ]
     );
-    assert_eq!(app.agent.turn.steps, 1, "the capture only");
+    assert_eq!(app.agent.turn.tally.steps, 1, "the capture only");
 
     app.commit(Box::new(CreateCircle::new(Circle::new(
         Vec2::new(5.0, 5.0),
@@ -845,7 +848,7 @@ fn a_post_send_note_follows_the_pre_send_note_and_is_not_a_step() {
         Some(&("note".to_owned(), lost.to_owned()))
     );
     assert_eq!(
-        app.agent.turn.steps, 1,
+        app.agent.turn.tally.steps, 1,
         "not a step behind the fence either"
     );
 }

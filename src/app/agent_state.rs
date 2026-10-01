@@ -85,7 +85,7 @@ mod tests {
         assert!(!state.busy);
         assert!(state.rx.is_none());
         assert_eq!(state.turn.fence, crate::app::TurnFence::new(0));
-        assert_eq!(state.turn.applied, 0);
+        assert_eq!(state.turn.tally.applied, 0);
         assert!(state.turn.label.is_empty());
     }
 

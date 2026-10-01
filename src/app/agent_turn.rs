@@ -39,7 +39,7 @@
 //! `agent_worker::run_agent_turn`, which asks the UI thread through `ask_ui`.
 
 use super::agent_worker::{TurnConfig, ask_ui, run_agent_turn};
-use crate::agent::{AgentError, AgentEvent, prompt};
+use crate::agent::{AgentError, AgentEvent, TurnMetrics, prompt};
 use crate::app::{App, agent_memory};
 use crate::io::settings::Settings;
 use std::sync::mpsc::{Sender, channel};
@@ -116,12 +116,10 @@ impl TurnFence {
 pub struct TurnState {
     /// Guards the turn against commits it did not make (ADR 0007 §D4, §D14).
     pub fence: TurnFence,
-    /// How many of the turn's actions really changed the drawing. Taken once
-    /// at turn end by the note row (LCV-142 AC 12).
-    pub applied: usize,
-    /// Step `Act`s received this turn (ADR 0007 §D13) — the `n` of the
-    /// panel's `n of limit`.
-    pub steps: u32,
+    /// The turn's counts (LCV-193): `steps` is the `n` of the panel's
+    /// `n of limit` (ADR 0007 §D13); `applied` is what the undo note reads
+    /// (LCV-142 AC 12).
+    pub tally: TurnMetrics,
     /// The turn's effective step limit, snapshotted when it was armed.
     pub limit: u32,
     /// The label of the turn's history group: `Agent:` plus the prompt.
@@ -163,8 +161,7 @@ fn arm_with_limit(app: &mut App, prompt: &str, limit: u32) -> Sender<AgentEvent>
     app.history.begin_group(&label);
     app.agent.turn = TurnState {
         fence: TurnFence::new(app.history.revision()),
-        applied: 0,
-        steps: 0,
+        tally: TurnMetrics::default(),
         limit,
         label,
         user,

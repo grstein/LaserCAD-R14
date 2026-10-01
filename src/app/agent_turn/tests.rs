@@ -76,7 +76,7 @@ fn arm_turn_records_the_user_row_and_arms_a_live_channel() {
     );
     assert!(app.agent.busy);
     assert!(app.agent.rx.is_some());
-    assert_eq!(app.agent.turn.applied, 0);
+    assert_eq!(app.agent.turn.tally.applied, 0);
     assert_eq!(app.agent.turn.label, "Agent: draw a 20 mm square");
     assert!(app.history.group_open(), "the turn's group is open");
 

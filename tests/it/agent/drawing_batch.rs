@@ -150,7 +150,7 @@ fn ac3_an_invalid_batch_is_one_refused_step_and_changes_nothing() {
     );
     assert_eq!(rows(&app, "refused"), 1);
     assert_eq!(rows(&app, "tool"), 0);
-    assert_eq!(app.agent.turn.steps, 1);
+    assert_eq!(app.agent.turn.tally.steps, 1);
     assert_eq!(app.history.revision(), revision);
     assert_eq!(app.document.entity_count(), 1);
 }
@@ -246,7 +246,7 @@ fn ac7_a_thousand_items_are_one_revision_one_step_and_one_undo() {
     let first = push_act(&tx, line.clone());
     idle(&ctx, &mut app);
     assert!(!first.try_recv().unwrap().is_refused());
-    let (steps, revision_mid) = (app.agent.turn.steps, app.history.revision());
+    let (steps, revision_mid) = (app.agent.turn.tally.steps, app.history.revision());
     assert_eq!(revision_mid, revision + 1);
 
     let entities: Vec<Value> = (0..1000)
@@ -263,7 +263,7 @@ fn ac7_a_thousand_items_are_one_revision_one_step_and_one_undo() {
         ))
     );
     assert_eq!(app.history.revision(), revision_mid + 1);
-    assert_eq!(app.agent.turn.steps, steps + 1);
+    assert_eq!(app.agent.turn.tally.steps, steps + 1);
 
     let last = push_act(&tx, line);
     tx.send(AgentEvent::done("done")).unwrap();

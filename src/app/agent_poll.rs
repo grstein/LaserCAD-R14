@@ -142,7 +142,8 @@ pub fn poll_agent_rx(app: &mut App) {
 /// action.
 fn apply_fenced(app: &mut App, action: &AgentAction) -> AgentOutcome {
     // Every `Act` is a step — fenced, malformed and queries included (§D13).
-    app.agent.turn.steps = app.agent.turn.steps.saturating_add(1);
+    let tally = &mut app.agent.turn.tally;
+    tally.steps = tally.steps.saturating_add(1);
     let (revision, group_open) = (app.history.revision(), app.history.group_open());
     if let Err(refusal) = app.agent.turn.fence.check(revision, group_open) {
         // §D14: the worker reads `Fenced` as "stop dispatching".
@@ -155,7 +156,8 @@ fn apply_fenced(app: &mut App, action: &AgentAction) -> AgentOutcome {
     let after = app.history.revision();
     if after != before {
         app.agent.turn.fence.advance(after);
-        app.agent.turn.applied += 1;
+        let tally = &mut app.agent.turn.tally;
+        tally.applied = tally.applied.saturating_add(1);
     }
     outcome
 }
@@ -173,11 +175,12 @@ fn apply_fenced(app: &mut App, action: &AgentAction) -> AgentOutcome {
 ///
 /// The counter is **taken**, not read, so a second finish writes no note.
 fn finish_turn(app: &mut App) {
-    let applied = std::mem::take(&mut app.agent.turn.applied);
+    let applied = std::mem::take(&mut app.agent.turn.tally.applied);
     let sealed = app.history.end_group();
     if applied == 0 {
         return;
     }
+    let applied = usize::try_from(applied).unwrap_or(usize::MAX);
     let whole = sealed == Some(applied);
     app.agent
         .chat
@@ -387,9 +390,9 @@ mod tests {
     fn finishing_a_turn_clears_the_applied_counter() {
         let mut app = App::default();
         let _tx = arm_turn(&mut app, "one");
-        app.agent.turn.applied = 3;
+        app.agent.turn.tally.applied = 3;
         finish_turn(&mut app);
-        assert_eq!(app.agent.turn.applied, 0);
+        assert_eq!(app.agent.turn.tally.applied, 0);
         finish_turn(&mut app);
         assert_eq!(
             app.agent.chat.iter().filter(|(r, _)| r == "note").count(),
