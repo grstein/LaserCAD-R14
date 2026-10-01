@@ -13,7 +13,7 @@ use crate::app::App;
 use crate::document::SelectionCommand;
 use crate::render::Camera;
 use crate::tools;
-use crate::ui::icons::menu;
+use crate::ui::icons::{menu, modify};
 use crate::ui::toolbar::TOOLS;
 
 mod object_snap;
@@ -100,6 +100,15 @@ fn edit_menu(ui: &mut egui::Ui, app: &mut App) {
         if redo.inner.clicked() {
             ui.close_menu();
             app.history.redo(&mut app.document);
+        }
+        // LCV-166: erase the selection, one undo step, as ERASE does.
+        let any = !app.document.selection.is_empty();
+        let delete = ui.add_enabled_ui(any, |ui| {
+            menu_row(ui, Some(modify::delete), "Delete", "Del")
+        });
+        if delete.inner.clicked() {
+            ui.close_menu();
+            tools::delete::commit_delete(&mut app.document, &mut app.history);
         }
         ui.separator();
         if menu_row(ui, None, "Select All", "").clicked() {
