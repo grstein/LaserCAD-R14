@@ -7,6 +7,7 @@
 use super::conditions::passes;
 use super::path::path_entities;
 use super::report::{Report, style_decls};
+use super::reuse::Index;
 use super::shapes::import_shape;
 use super::style::Style;
 use super::{SVG_NS, SvgImportError};
@@ -52,6 +53,8 @@ enum Kind {
     Silent,
     /// `switch`: only its first passing child is walked (LCV-178 AC 10).
     Switch,
+    /// `use`: an instance of the element it references ([`super::reuse`]).
+    Use,
     /// Any other SVG element: skipped with its subtree (AC 5).
     Other,
 }
@@ -65,6 +68,7 @@ fn classify(node: roxmltree::Node<'_, '_>) -> Kind {
         "line" | "circle" | "ellipse" | "rect" | "polyline" | "polygon" | "path" => Kind::Import,
         "svg" | "g" | "a" => Kind::Descend,
         "switch" => Kind::Switch,
+        "use" => Kind::Use,
         "defs" | "symbol" | "clipPath" | "mask" | "marker" | "pattern" | "linearGradient"
         | "radialGradient" | "filter" => Kind::NeverRendered,
         "title" | "desc" | "metadata" | "style" => Kind::Silent,
@@ -79,7 +83,7 @@ fn is_style(node: roxmltree::Node<'_, '_>) -> bool {
 }
 
 /// Traversal state: geometry and membership so far, layers so far.
-pub(super) struct Walk {
+pub(super) struct Walk<'a, 'input> {
     pub(super) entities: Vec<Entity>,
     /// Where each entity belongs, resolved by [`LayerReader::finish`].
     pub(super) slots: Vec<Slot>,
@@ -88,11 +92,15 @@ pub(super) struct Walk {
     /// The document's `<style>` rules (LCV-175).
     pub(super) sheet: Sheet,
     bed_h: f64,
+    /// The document's elements by `id`, for `<use>` (LCV-178).
+    pub(super) index: Index<'a, 'input>,
+    /// The `<use>` elements being expanded, outermost first.
+    pub(super) uses: Vec<roxmltree::Node<'a, 'input>>,
 }
 
-impl Walk {
+impl<'a, 'input> Walk<'a, 'input> {
     /// An empty walk that un-mirrors Y around `bed_h`.
-    pub(super) fn new(bed_h: f64) -> Self {
+    pub(super) fn new(bed_h: f64, index: Index<'a, 'input>) -> Self {
         Self {
             entities: Vec::new(),
             slots: Vec::new(),
@@ -100,6 +108,8 @@ impl Walk {
             report: Report::default(),
             sheet: Sheet::default(),
             bed_h,
+            index,
+            uses: Vec::new(),
         }
     }
 
@@ -108,7 +118,7 @@ impl Walk {
     /// `ctx` the context and `style` the computed style of `node`.
     pub(super) fn collect(
         &mut self,
-        node: roxmltree::Node<'_, '_>,
+        node: roxmltree::Node<'a, 'input>,
         layer: Option<LayerId>,
         ctx: &Ctx,
         style: &Style,
@@ -122,9 +132,9 @@ impl Walk {
     /// Import one element `child` of a parent with context `ctx` and style
     /// `style`, on `layer` (see [`Walk::collect`]). An SVG element whose
     /// conditions fail is skipped with its subtree (LCV-178 AC 11).
-    fn element(
+    pub(super) fn element(
         &mut self,
-        child: roxmltree::Node<'_, '_>,
+        child: roxmltree::Node<'a, 'input>,
         layer: Option<LayerId>,
         ctx: &Ctx,
         style: &Style,
@@ -138,10 +148,13 @@ impl Walk {
         }
         let mut inner_ctx = None;
         let mut inner_style = *style;
-        if matches!(kind, Kind::Import | Kind::Descend | Kind::Switch) {
+        if matches!(
+            kind,
+            Kind::Import | Kind::Descend | Kind::Switch | Kind::Use
+        ) {
             inner_style = style.child(child, &self.sheet, &mut self.report);
             if let Some(label) = inner_style.hidden(matches!(kind, Kind::Import)) {
-                self.layers.enter(child)?; // A hidden layer group still declares its layer.
+                self.enter(child)?; // A hidden layer group still declares its layer.
                 self.report.note(label);
                 return Ok(());
             }
@@ -164,7 +177,7 @@ impl Walk {
                 self.push(shape.entities, &shape.notes, slot);
             }
             (Kind::Descend, c) => {
-                let inner = self.layers.enter(child)?.or(layer);
+                let inner = self.enter(child)?.or(layer);
                 if let Some(c) = c {
                     self.collect(child, inner, &c, &inner_style)?;
                 }
@@ -183,6 +196,7 @@ impl Walk {
                     }
                 }
             }
+            (Kind::Use, Some(c)) => self.expand(child, layer, &c, &inner_style)?,
             (Kind::NeverRendered, _) => {
                 if child.children().any(|n| n.is_element() && !is_style(n)) {
                     self.report.note(name);

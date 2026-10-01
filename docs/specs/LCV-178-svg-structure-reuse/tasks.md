@@ -27,7 +27,7 @@
       `<use>`'s `<g data-layer>` and, stray, on its color layer; `use`→`use`→line recursion;
       a↔b cycle notes `use (cycle)`; `#nope` notes `use (unresolved)`
       (files: tests/it/io_svg/reuse.rs, tests/it/io_svg/mod.rs)
-- [ ] T10 [AC1]–[AC8] Walk `use` arm, `uses` stack, symbol-children walk
+- [x] T10 [AC1]–[AC8] Walk `use` arm, `uses` stack, symbol-children walk
       (files: src/io/svg/import/walk.rs)
 - [ ] T11 [AC9] Test: 33 nested uses fail with `LimitExceeded` naming `depth 32`; 32 pass; a
       six-level ×10 fan-out (10⁶ lines) fails naming `100000` within the test's normal run time;

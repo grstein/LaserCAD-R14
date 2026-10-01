@@ -4,13 +4,22 @@
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`. Nothing here
 //! reads a file or the network: only same-document `#id` references resolve.
 
-use super::SVG_NS;
+use super::style::Style;
+use super::walk::Walk;
+use super::{SVG_NS, SvgImportError};
+use crate::document::LayerId;
 use crate::io::svg::length::{parse_length, to_user};
 use crate::io::svg::matrix::Matrix;
 use crate::io::svg::viewport::{Ctx, par, parse_view_box, view_box_map};
 use std::collections::HashMap;
 
 type Node<'a, 'input> = roxmltree::Node<'a, 'input>;
+
+/// The report label of a `<use>` whose reference does not resolve (AC 8).
+const UNRESOLVED: &str = "use (unresolved)";
+
+/// The report label of a `<use>` that would re-enter itself (AC 7).
+const CYCLE: &str = "use (cycle)";
 
 /// The deprecated XLink namespace of `xlink:href`.
 const XLINK_NS: &str = "http://www.w3.org/1999/xlink";
@@ -34,6 +43,53 @@ impl<'a, 'input> Index<'a, 'input> {
             }
         }
         Self { ids }
+    }
+}
+
+impl<'a, 'input> Walk<'a, 'input> {
+    /// Import the instance `use_` places, given its context `ctx` (its own
+    /// `transform` composed) and computed style `style`, on `layer`, the one
+    /// the `<use>` lands on (AC 5). A `symbol` or `svg` target walks its
+    /// children in its viewport; any other is imported as in place, so a
+    /// nested `<use>` recurses (AC 6).
+    pub(super) fn expand(
+        &mut self,
+        use_: Node<'a, 'input>,
+        layer: Option<LayerId>,
+        ctx: &Ctx,
+        style: &Style,
+    ) -> Result<(), SvgImportError> {
+        let Some(target) = target(use_, &self.index) else {
+            self.report.note(UNRESOLVED);
+            return Ok(());
+        };
+        if is_cycle(target, use_, &self.uses) {
+            self.report.note(CYCLE);
+            return Ok(());
+        }
+        let Some(inner) = instance_ctx(use_, target, ctx) else {
+            return Ok(());
+        };
+        self.uses.push(use_);
+        let done = match target.tag_name().name() {
+            "symbol" | "svg" => {
+                let style = style.child(target, &self.sheet, &mut self.report);
+                self.collect(target, layer, &inner, &style)
+            }
+            _ => self.element(target, layer, &inner, style),
+        };
+        self.uses.pop();
+        done
+    }
+
+    /// `LayerReader::enter`, except inside an instance, which stays on the
+    /// `<use>`'s layer (AC 5): a referenced `<g data-layer>` declares no
+    /// layer again.
+    pub(super) fn enter(&mut self, node: Node<'_, '_>) -> Result<Option<LayerId>, SvgImportError> {
+        match self.uses.is_empty() {
+            true => self.layers.enter(node),
+            false => Ok(None),
+        }
     }
 }
 

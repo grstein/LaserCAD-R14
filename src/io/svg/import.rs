@@ -9,6 +9,7 @@
 //! | import | `line`, `circle`, `ellipse`, `rect`, `polyline`, `polygon`, `path` | `<element> (invalid attribute)`, `polyline (data error)`, `polygon (data error)` (LCV-174); properties; per `path`: curves not imported yet, `path (data error)`, or `path (unsupported data)` with no `d` |
 //! | descend | `svg`, `g`, `a` | properties, then the children |
 //! | switch | `switch`: its first SVG element child whose conditions pass (LCV-178) | `switch (branch skipped)` per other SVG element child |
+//! | instance | `use`: a copy of its same-document `#id` target at `x`/`y`, a `symbol` in its viewport ([`reuse`], LCV-178) | `use (unresolved)`, `use (cycle)` |
 //! | conditions fail | any SVG element with a non-empty `requiredExtensions`, or a `systemLanguage` without `en`/`en-*` ([`conditions`]), subtree included | `<element> (conditions)` |
 //! | never rendered | `defs symbol clipPath mask marker pattern linearGradient radialGradient filter` | name, iff it has an element child other than `style` |
 //! | hidden | `display:none` (subtree included), or an imported element with `visibility` `hidden`/`collapse` (LCV-175) | `hidden (display:none)`, `hidden (visibility)` |
@@ -56,6 +57,7 @@ use crate::document::entity::Entity;
 use crate::document::{Document, Layer, LayerId};
 use crate::geometry::Vec2;
 use crate::util::flip_y;
+use reuse::Index;
 use style::{Style, collect_sheet};
 use walk::Walk;
 
@@ -169,7 +171,7 @@ pub fn import_svg(src: &str) -> Result<ImportedSvg, SvgImportError> {
     }
     let header = parse_root(root)?;
     let bed_mm = header.bed_mm;
-    let mut walk = Walk::new(bed_mm[1]);
+    let mut walk = Walk::new(bed_mm[1], Index::build(root));
     walk.report.note_properties(root);
     walk.sheet = collect_sheet(root, &mut walk.report);
     let style = Style::root().child(root, &walk.sheet, &mut walk.report);
