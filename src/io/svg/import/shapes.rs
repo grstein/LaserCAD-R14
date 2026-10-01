@@ -188,10 +188,36 @@ fn rect(n: roxmltree::Node<'_, '_>, ctx: &Ctx) -> Result<PathData, Invalid> {
     let at = point(n, "x", "y", ctx)?;
     let w = attr(n, "width", Axis::X, ctx).size()?.unwrap_or(0.0);
     let h = attr(n, "height", Axis::Y, ctx).size()?.unwrap_or(0.0);
+    let _radii = radii(n, ctx, w, h)?;
     if w == 0.0 || h == 0.0 {
         return Ok(PathData::default());
     }
     Ok(rect_path(at, w, h))
+}
+
+/// The used corner radii of a `w` × `h` `<rect>` (AC 5): `rx` and `ry`
+/// read with `auto` as missing, then [`resolve_radii`].
+fn radii(n: roxmltree::Node<'_, '_>, ctx: &Ctx, w: f64, h: f64) -> Result<(f64, f64), Invalid> {
+    let rx = radius(n, "rx", Axis::X, ctx).size()?;
+    let ry = radius(n, "ry", Axis::Y, ctx).size()?;
+    Ok(resolve_radii(rx, ry, w, h))
+}
+
+/// SVG 2 §10.2: a missing (or `auto`) radius is the other's, both missing
+/// is 0, then each clamps to half its side. Either at 0 gives `(0, 0)`, a
+/// sharp rect.
+fn resolve_radii(rx: Option<f64>, ry: Option<f64>, w: f64, h: f64) -> (f64, f64) {
+    let (rx, ry) = match (rx, ry) {
+        (Some(rx), Some(ry)) => (rx, ry),
+        (Some(r), None) | (None, Some(r)) => (r, r),
+        (None, None) => (0.0, 0.0),
+    };
+    let (rx, ry) = (rx.min(w / 2.0), ry.min(h / 2.0));
+    if rx == 0.0 || ry == 0.0 {
+        (0.0, 0.0)
+    } else {
+        (rx, ry)
+    }
 }
 
 /// The four sides of the rect at `at`, `w` × `h`, from the top-left corner

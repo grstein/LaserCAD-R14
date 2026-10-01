@@ -28,7 +28,7 @@
 - [x] T7 [AC5] Test: `resolve_radii` unit table covering only-rx, only-ry, `auto`, `AUTO`, both
   missing, both `auto`, clamp to w/2 and h/2, `%` radius, and a negative rx reported.
   (files: src/io/svg/import/shapes.rs)
-- [ ] T8 [AC5] Impl: `resolve_radii`, with `auto` matched before `attr_len`.
+- [x] T8 [AC5] Impl: `resolve_radii`, with `auto` matched before `attr_len`.
   (files: src/io/svg/import/shapes.rs)
 - [ ] T9 [AC6] Test:
   - Equal radii give four quarter `Arc`s plus sides.
