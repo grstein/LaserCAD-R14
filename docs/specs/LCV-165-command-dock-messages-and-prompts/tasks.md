@@ -41,7 +41,7 @@
   (files: src/tools/tool.rs, src/tools/select/mod.rs, src/tools/manager.rs)
 - [x] T17 [AC4] The `Empty` arm repeats `last_tool` when at rest, else routes Enter; T14 green
   (files: src/app/cmdline.rs)
-- [ ] T18 [AC6] Test first: a secondary press on the canvas — LINE waiting for its next point
+- [x] T18 [AC6] Test first: a secondary press on the canvas — LINE waiting for its next point
   goes back to its first-point prompt and the press adds no entity; at `Command:` after `c` ⏎
   Esc → CIRCLE; the selection is unchanged; middle-drag still pans (files:
   tests/it/app/right_click.rs, tests/it/app/mod.rs)

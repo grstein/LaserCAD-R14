@@ -10,6 +10,7 @@ mod keyboard_routing;
 mod layer_colors;
 mod layers_dialog;
 mod object_snaps;
+mod right_click;
 mod screen_space_picking;
 mod text_tool_shortcut;
 mod tool_integration;
