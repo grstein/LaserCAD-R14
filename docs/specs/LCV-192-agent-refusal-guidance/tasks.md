@@ -21,6 +21,6 @@ Starts after LCV-186 is Done (shared files: `tools.rs`, `tools/transform.rs`, `b
 - [x] T16 [AC4] Test: in `drive_turn`, the second identical refused call reaches `ask` as `Malformed` with `repeated call, refused before: <first>; change the arguments`, its tool result says the same, and the steps-left line counts it as a step (files: src/app/agent_worker/tests.rs)
 - [x] T17 [AC4] Wire `RefusedCalls` into `drive_turn::dispatch_fn` (files: src/app/agent_worker.rs)
 - [x] T18 [AC5] Test: a 200-char unknown key is cut to 64 at the root and in an item; a string value (`"layer": 5`, `"r": "SECRET…"`, invalid JSON holding `SECRET`) never appears in the refusal (files: tests/it/agent/drawing_batch.rs, src/app/agent_worker/tests.rs)
-- [ ] T19 Mutation testing: `scripts/mutants.sh <base>` with MUTANTS_TARGET_DIR; one test per survivor (files: tests as needed)
+- [x] T19 Mutation testing: `scripts/mutants.sh <base>` with MUTANTS_TARGET_DIR; one test per survivor (files: tests as needed)
 - [ ] T20 ADR 0007 §D15 amendment (shape, repeat rule, still a step) and ADR 0010 §3 amendment (`; expected <form>`, `(root)`) (files: docs/adr/0007-*.md, docs/adr/0010-*.md)
 - [ ] T21 CHANGELOG line (files: CHANGELOG.md)

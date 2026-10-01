@@ -37,6 +37,18 @@
         let d = tool_definitions(false);
         for i in 0..12 { assert_eq!(d[i]["type"], "function"); }
     }
+    /// LCV-156 — every creation tool, the batch included, advertises an
+    /// optional string `layer` (kills the `layer_schema` mutant, LCV-192).
+    #[test]
+    fn every_creation_tool_takes_an_optional_string_layer() {
+        let d = tool_definitions(false);
+        for i in [0, 1, 2, 11] {
+            let layer = &d[i]["function"]["parameters"]["properties"]["layer"];
+            assert_eq!(layer["type"], "string", "{}", d[i]["function"]["name"]);
+            assert!(layer["description"].as_str().is_some_and(|t| t.contains("existing layer")));
+            assert!(!req(&d, i).as_array().unwrap().contains(&json!("layer")));
+        }
+    }
     #[test]
     fn tool_definitions_required_fields() {
         let d = tool_definitions(false);
