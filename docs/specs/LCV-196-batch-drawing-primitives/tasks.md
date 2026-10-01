@@ -7,7 +7,7 @@ Prerequisites: LCV-185, LCV-192 Done; LCV-188 Done (the outcome's `New ids` suff
   src/agent/drawing/keys.rs, src/agent/drawing/schema.rs)
 - [x] T2 [AC4] Test, then `text_strokes` plus `layout_text` as a map over it and the shared
   `DEFAULT_SPACING_FACTOR` (files: src/text/layout.rs, src/tools/text.rs)
-- [ ] T3 [AC1][AC2][AC3][AC4][AC8] Test (parser), shapes, one case per rule:
+- [x] T3 [AC1][AC2][AC3][AC4][AC8] Test (parser), shapes, one case per rule:
   - `polyline` open and closed;
   - `rect` without a radius, with a radius, and with a radius of half the short side (two arcs
     meet, no zero-length sides);
