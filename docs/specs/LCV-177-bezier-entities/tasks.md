@@ -31,7 +31,7 @@
   tests/it/app/mod.rs)
 - [x] T10 [AC6, AC7] `Rect::{contains,crosses}_bezier` and the Bézier arms of `hit.rs` (files:
   src/geometry/rect.rs, src/tools/select/hit.rs)
-- [ ] T11 [AC9] Test: near a cubic, Endpoint (both ends) and Nearest (on the curve) are offered;
+- [x] T11 [AC9] Test: near a cubic, Endpoint (both ends) and Nearest (on the curve) are offered;
   Midpoint, Center, Quadrant, Intersection, Perpendicular and Tangent never, even with an anchor
   and a crossing line (files: tests/it/app/object_snaps.rs)
 - [ ] T12 [AC9] `SnapEntity::Bezier`, endpoint candidates, pair intersections skipped (files:

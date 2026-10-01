@@ -1,6 +1,6 @@
 //! LCV-161 AC 2, AC 3, AC 9 — Perpendicular and Tangent snaps from the
 //! active tool's anchor, driven through the real `App::update_ui`; LCV-176
-//! AC 7, the snap kinds an ellipse offers.
+//! AC 7, the snap kinds an ellipse offers; LCV-177 AC 9, those of a Bézier.
 //!
 //! Every size is in screen pixels converted with the live camera, so the
 //! aperture (12 px) and the gaps between candidates do not depend on the
@@ -14,7 +14,7 @@ use harness::frame;
 use lasercad::app::App;
 use lasercad::document::commands::CreateEntities;
 use lasercad::document::{CreateCircle, CreateLine, Entity};
-use lasercad::geometry::{Circle, Ellipse, EllipseSpan, Line, SnapKind, Vec2};
+use lasercad::geometry::{Bezier, Circle, Ellipse, EllipseSpan, Line, SnapKind, Vec2};
 use lasercad::tools::LineTool;
 
 /// LINE with its first point placed: the anchor `a` clicked at screen
@@ -185,10 +185,9 @@ fn f3_off_gives_no_snap_at_all() {
     assert!(s.app.active_snap.is_none());
 }
 
-/// LCV-176 — LINE's anchor clicked on an empty canvas, then an elliptical
-/// arc (index 0) 200 px to its right, and a vertical line (index 1) that
-/// crosses the arc. Returns the scene and the arc.
-fn ellipse_scene() -> (Scene, Ellipse) {
+/// LINE's anchor clicked on an empty canvas, then the entities `make`
+/// builds from the point `c` 200 px right of the anchor and one pixel `px`.
+fn anchored_scene(make: impl FnOnce(Vec2, f64) -> Vec<Entity>) -> Scene {
     let ctx = egui::Context::default();
     let mut app = App::default();
     app.tool_manager.set_tool(Box::new(LineTool::default()));
@@ -216,26 +215,51 @@ fn ellipse_scene() -> (Scene, Ellipse) {
         .expect("LINE holds its first point");
     let px = app.camera.mm_per_px;
     let c = a + Vec2::new(200.0 * px, 0.0);
-    let span = Some(EllipseSpan::new(-1.0, 2.5, true));
-    let e = Ellipse::new(c, 100.0 * px, 40.0 * px, 0.2, span);
-    let cross = Line::new(
-        c + Vec2::new(-30.0 * px, -200.0 * px),
-        c + Vec2::new(-30.0 * px, 200.0 * px),
-    );
-    app.commit(Box::new(CreateEntities::new(vec![
-        Entity::Ellipse(e),
-        Entity::Line(cross),
-    ])));
-    (
-        Scene {
-            ctx,
-            app,
-            pos,
-            a,
-            px,
-        },
-        e,
-    )
+    app.commit(Box::new(CreateEntities::new(make(c, px))));
+    Scene {
+        ctx,
+        app,
+        pos,
+        a,
+        px,
+    }
+}
+
+/// LCV-176 — an elliptical arc (index 0) 200 px right of LINE's anchor, and
+/// a vertical line (index 1) that crosses the arc. Returns the scene and the
+/// arc.
+fn ellipse_scene() -> (Scene, Ellipse) {
+    let mut e = None;
+    let s = anchored_scene(|c, px| {
+        let span = Some(EllipseSpan::new(-1.0, 2.5, true));
+        let el = Ellipse::new(c, 100.0 * px, 40.0 * px, 0.2, span);
+        e = Some(el);
+        let cross = Line::new(
+            c + Vec2::new(-30.0 * px, -200.0 * px),
+            c + Vec2::new(-30.0 * px, 200.0 * px),
+        );
+        vec![Entity::Ellipse(el), Entity::Line(cross)]
+    });
+    (s, e.expect("built"))
+}
+
+/// LCV-177 — an S-shaped cubic (index 0) 200 px right of LINE's anchor, and
+/// a vertical line (index 1) that crosses it. Returns the scene and the cubic.
+fn bezier_scene() -> (Scene, Bezier) {
+    let mut b = None;
+    let s = anchored_scene(|c, px| {
+        let at = |x: f64, y: f64| c + Vec2::new(x * px, y * px);
+        let cubic = Bezier::Cubic([
+            at(-100.0, 0.0),
+            at(-30.0, 120.0),
+            at(30.0, -120.0),
+            at(100.0, 0.0),
+        ]);
+        b = Some(cubic);
+        let cross = Line::new(at(-30.0, -200.0), at(-30.0, 200.0));
+        vec![Entity::Bezier(cubic), Entity::Line(cross)]
+    });
+    (s, b.expect("built"))
 }
 
 /// LCV-176 AC 7 — near an elliptical arc, Endpoint (span ends), Center,
@@ -300,5 +324,50 @@ fn ellipse_never_offers_other_kinds() {
     assert!(
         seen > 100,
         "positive control: the ellipse snapped {seen} times"
+    );
+}
+
+/// LCV-177 AC 9 — near a cubic, Endpoint (both ends) and Nearest (on the
+/// curve) are offered.
+#[test]
+fn bezier_offers_endpoint_and_nearest() {
+    let (mut s, b) = bezier_scene();
+    let off = Vec2::new(2.0 * s.px, -3.0 * s.px);
+    s.hover(b.start() + off);
+    assert_snap(&s, SnapKind::Endpoint, b.start());
+    s.hover(b.end() + off);
+    assert_snap(&s, SnapKind::Endpoint, b.end());
+    s.app.settings.object_snaps.nearest = true;
+    for t in [0.2, 0.7] {
+        let q = b.point(t) + off;
+        s.hover(q);
+        assert_snap(&s, SnapKind::Nearest, b.nearest(q).1);
+    }
+}
+
+/// LCV-177 AC 9 — along the whole cubic, with an anchor and a crossing
+/// line, the Bézier offers only Endpoint and Nearest (with Nearest off and
+/// on), and no Intersection is ever found, not even where the line crosses.
+#[test]
+fn bezier_never_offers_other_kinds() {
+    let (mut s, b) = bezier_scene();
+    let allowed = [SnapKind::Endpoint, SnapKind::Nearest];
+    let mut seen = 0;
+    for nearest in [false, true] {
+        s.app.settings.object_snaps.nearest = nearest;
+        for k in 0..=240 {
+            let t = f64::from(k) / 240.0;
+            s.hover(b.point(t) + Vec2::new(0.5 * s.px, 0.5 * s.px));
+            let Some(r) = s.app.active_snap else { continue };
+            assert_ne!(r.kind, SnapKind::Intersection, "t={t}: {r:?}");
+            if r.primary_idx == 0 {
+                seen += 1;
+                assert!(allowed.contains(&r.kind), "t={t}: {r:?}");
+            }
+        }
+    }
+    assert!(
+        seen > 100,
+        "positive control: the cubic snapped {seen} times"
     );
 }
