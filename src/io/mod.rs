@@ -20,6 +20,9 @@ pub use recent::{OpenRecentError, open_recent, recent_files};
 pub use svg::{ImportedSvg, SvgImportError, export_svg, import_svg};
 
 #[cfg(test)]
+mod v0_5_compat;
+
+#[cfg(test)]
 mod tests {
     #[test]
     fn dialogs_reexported_from_io() {

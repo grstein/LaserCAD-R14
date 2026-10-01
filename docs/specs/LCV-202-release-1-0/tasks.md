@@ -13,7 +13,7 @@ Start T1 only after LCV-180 and then the `svg` branch (LCV-170..179) have merged
       8c6701d under ~/.cache with its own `CARGO_TARGET_DIR` (throwaway ignored test, no GUI);
       remove the worktree (files: tests/fixtures/v0_5/settings.json,
       tests/fixtures/v0_5/autosave.json, tests/fixtures/v0_5/mother.svg)
-- [ ] T5 [AC4] Test: load the three v0.5 fixtures from tempdir copies and assert every field,
+- [x] T5 [AC4] Test: load the three v0.5 fixtures from tempdir copies and assert every field,
       layer, membership and entity survives; quote the generator in the `//!` header
       (files: src/io/v0_5_compat.rs, src/io/mod.rs)
 - [ ] T6 [P] [AC5] Test: every `TOOLS` label appears in `docs/user-guide.md` (fails: no guide)
