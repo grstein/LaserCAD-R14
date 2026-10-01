@@ -38,7 +38,7 @@
   leaves on a twin `App`. Zoom All frames the bed ∪ extents; an entity outside the bed ends up
   inside the viewport, and with no entities the camera equals `frame_bed` (files:
   tests/it/ui/menu_navigation.rs, tests/it/ui/mod.rs)
-- [ ] T9 [AC7] `Camera::frame_all(bed_mm, bounds)`, the union framed by the `frame_bed` rule.
+- [x] T9 [AC7] `Camera::frame_all(bed_mm, bounds)`, the union framed by the `frame_bed` rule.
   Unit tests: with no bounds it equals `frame_bed`; bounds reaching outside the bed widen the
   frame (files: src/render/camera.rs)
 - [ ] T10 [AC5] [AC6] [AC7] `do_zoom_extents` (wraps `handle_zoom_extents` with the synced size)

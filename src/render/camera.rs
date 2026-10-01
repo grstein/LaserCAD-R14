@@ -202,6 +202,18 @@ impl Camera {
         let max = Vec2::new(bed_mm[0], bed_mm[1]);
         self.zoom_extents(Some((Vec2::new(0.0, 0.0), max)), self.viewport_size_px);
     }
+
+    /// Frame the union of the bed (anchored at the world origin) and the
+    /// drawing's `bounds`, by the [`Self::frame_bed`] rule, as
+    /// `View > Zoom All` does (LCV-166 AC 7). No bounds frames the bed alone.
+    pub fn frame_all(&mut self, bed_mm: [f64; 2], bounds: Option<(Vec2, Vec2)>) {
+        let (mut min, mut max) = (Vec2::new(0.0, 0.0), Vec2::new(bed_mm[0], bed_mm[1]));
+        if let Some((lo, hi)) = bounds {
+            min = Vec2::new(min.x.min(lo.x), min.y.min(lo.y));
+            max = Vec2::new(max.x.max(hi.x), max.y.max(hi.y));
+        }
+        self.zoom_extents(Some((min, max)), self.viewport_size_px);
+    }
 }
 
 #[cfg(test)]
@@ -403,6 +415,35 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// LCV-166 AC 7 — with no drawing, Zoom All is Fit to Bed.
+    #[test]
+    fn frame_all_without_bounds_equals_frame_bed() {
+        let mut all = fixture();
+        all.frame_all([300.0, 200.0], None);
+        let mut bed = fixture();
+        bed.frame_bed([300.0, 200.0]);
+        assert_eq!(all, bed);
+    }
+
+    /// LCV-166 AC 7 — bounds inside the bed change nothing; bounds reaching
+    /// outside widen the frame and recentre it on the union.
+    #[test]
+    fn frame_all_widens_to_bounds_outside_the_bed() {
+        let mut bed = fixture();
+        bed.frame_bed([300.0, 200.0]);
+        let mut inside = fixture();
+        let small = (Vec2::new(10.0, 10.0), Vec2::new(50.0, 50.0));
+        inside.frame_all([300.0, 200.0], Some(small));
+        assert_eq!(inside, bed);
+
+        let mut wide = fixture();
+        let stray = (Vec2::new(-100.0, 20.0), Vec2::new(500.0, 50.0));
+        wide.frame_all([300.0, 200.0], Some(stray));
+        assert!(wide.mm_per_px > bed.mm_per_px, "the frame widens");
+        assert!((wide.center_world.x - 200.0).abs() < EPSILON);
+        assert!((wide.center_world.y - 100.0).abs() < EPSILON);
     }
 
     #[test]
