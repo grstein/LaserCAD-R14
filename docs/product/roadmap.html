@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LaserCAD v2 — Roadmap</title>
+<!--
+  Interactive roadmap, single self-contained file (no network).
+  Snapshot of PLAN.md + docs/specs/*/spec.md as of 2026-09-30 (v0.3.0).
+  The Status line in each spec.md stays the only source of truth; edit DATA below to refresh.
+-->
+<style>
+  :root {
+    --bg: #1a1a1a; --panel: #252525; --panel2: #2e2e2e; --line: #3a3a3a;
+    --text: #d0d0d0; --muted: #8c8c8c; --accent: #4fa3e0; --warn: #ff8f00;
+    --error: #ff6b6b; --done: #5cc98a; --draft: #8c8c8c; --deferred: #b48cff;
+    --next: #ffa000; --preview: rgba(255,220,100,.85);
+    --mono: ui-monospace, "JetBrains Mono", "DejaVu Sans Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color: var(--accent); }
+  header { padding: 18px 24px 12px; border-bottom: 1px solid var(--line); background: var(--panel);
+    position: sticky; top: 0; z-index: 5; }
+  .top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; }
+  h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  h1 small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+  .kpis { display: flex; gap: 18px; margin-left: auto; font-family: var(--mono); font-size: 12px; }
+  .kpi b { color: var(--text); font-size: 15px; }
+  .kpi span { color: var(--muted); }
+  .bar { height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; margin-top: 10px; }
+  .bar > i { display: block; height: 100%; background: var(--done); }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button, .chipbtn { background: transparent; color: var(--text); border: 0; padding: 5px 10px;
+    font: inherit; font-size: 12px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button[aria-pressed="true"] { background: #005c80; }
+  .chipbtn { border: 1px solid var(--line); border-radius: 999px; }
+  .chipbtn[aria-pressed="false"] { opacity: .4; }
+  input[type=search] { background: var(--bg); color: var(--text); border: 1px solid var(--line);
+    border-radius: 6px; padding: 5px 10px; font: inherit; font-size: 12px; width: 220px; }
+  input[type=search]:focus { outline: 1px solid var(--accent); }
+  kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); border-radius: 3px;
+    padding: 0 4px; color: var(--muted); }
+  main { padding: 20px 24px 60px; max-width: 1400px; margin: 0 auto; }
+  .hint { color: var(--muted); font-size: 12px; margin: 0 0 16px; }
+
+  /* timeline */
+  .tl { position: relative; padding-left: 28px; }
+  .tl::before { content: ""; position: absolute; left: 9px; top: 6px; bottom: 6px; width: 2px; background: var(--line); }
+  .ms { position: relative; margin-bottom: 18px; }
+  .ms::before { content: ""; position: absolute; left: -25px; top: 12px; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--bg); border: 2px solid var(--draft); }
+  .ms.released::before { background: var(--done); border-color: var(--done); }
+  .ms.current::before { border-color: var(--next); box-shadow: 0 0 0 4px rgba(255,160,0,.18); }
+  .ms.parked::before { border-style: dashed; border-color: var(--deferred); }
+  .mshead { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; cursor: pointer;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 9px 14px; user-select: none; }
+  .mshead:hover { border-color: #555; }
+  .ms.open .mshead { border-radius: 8px 8px 0 0; }
+  .mshead .ver { font-family: var(--mono); font-weight: 700; }
+  .mshead .name { font-weight: 600; }
+  .mshead .when { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+  .mshead .tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid; }
+  .tag.released { color: var(--done); } .tag.current { color: var(--next); }
+  .tag.planned { color: var(--muted); } .tag.parked { color: var(--deferred); }
+  .mshead .prog { margin-left: auto; display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .mshead .prog .bar { width: 110px; margin: 0; }
+  .caret { color: var(--muted); transition: transform .15s; display: inline-block; }
+  .ms.open .caret { transform: rotate(90deg); }
+  .msbody { display: none; background: #202020; border: 1px solid var(--line); border-top: 0;
+    border-radius: 0 0 8px 8px; padding: 12px 14px 14px; }
+  .ms.open .msbody { display: block; }
+  .msbody p.goal { margin: 0 0 10px; color: var(--muted); }
+  .notes { margin: 10px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--draft);
+    border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: opacity .12s, border-color .12s; }
+  .card:hover, .card:focus { border-color: var(--accent); outline: none; }
+  .card.s-Done { border-left-color: var(--done); }
+  .card.s-Deferred { border-left-color: var(--deferred); }
+  .card .id { font-family: var(--mono); font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  .card .t { margin-top: 2px; font-size: 13px; }
+  .pill { font-size: 10px; padding: 0 6px; border-radius: 999px; border: 1px solid currentColor; font-family: system-ui, sans-serif; }
+  .pill.Done { color: var(--done); } .pill.Draft { color: var(--draft); } .pill.Deferred { color: var(--deferred); }
+  .pill.ready { color: var(--next); }
+  .area { margin-left: auto; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .dim { opacity: .18; }
+  .hl { border-color: var(--preview) !important; }
+  .hl-self { border-color: var(--accent) !important; box-shadow: 0 0 0 1px var(--accent); }
+  .hidden { display: none !important; }
+
+  /* graph */
+  #graphWrap { overflow: auto; background: #202020; border: 1px solid var(--line); border-radius: 8px; }
+  #depgraph text { fill: var(--text); font-size: 11px; }
+  #depgraph .node rect { fill: var(--panel); stroke: var(--line); rx: 5; }
+  #depgraph .node { cursor: pointer; transition: opacity .12s; }
+  #depgraph .node.s-Done rect { stroke: var(--done); }
+  #depgraph .node.s-Deferred rect { stroke: var(--deferred); stroke-dasharray: 4 3; }
+  #depgraph .node.ready rect { stroke: var(--next); }
+  #depgraph .node .nid { font-family: var(--mono); fill: var(--muted); font-size: 10px; }
+  #depgraph .edge { fill: none; stroke: #4a4a4a; stroke-width: 1.2; transition: opacity .12s; }
+  #depgraph .edge.hl { stroke: var(--preview); stroke-width: 2; }
+  #depgraph .node.hl-self rect { stroke: var(--accent); stroke-width: 2; }
+  #depgraph .node.hl rect { stroke: var(--preview); stroke-width: 2; }
+  #depgraph .dim { opacity: .15; }
+  #depgraph .colhead { fill: var(--muted); font-size: 11px; font-family: var(--mono); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 12px; margin: 0 0 10px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border: 2px solid; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+  /* table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--bg); }
+  th:hover { color: var(--text); }
+  tbody tr { cursor: pointer; } tbody tr:hover { background: var(--panel); }
+  td.mono { font-family: var(--mono); }
+
+  /* drawer */
+  aside { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); background: var(--panel);
+    border-left: 1px solid var(--line); transform: translateX(100%); transition: transform .18s; z-index: 10;
+    overflow-y: auto; padding: 18px 20px 30px; box-shadow: -10px 0 30px rgba(0,0,0,.4); }
+  aside.open { transform: none; }
+  aside .close { position: absolute; top: 12px; right: 14px; background: none; border: 0; color: var(--muted); font-size: 20px; cursor: pointer; }
+  aside h2 { font-size: 16px; margin: 4px 30px 6px 0; }
+  aside .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  aside h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 16px 0 6px; font-weight: 500; }
+  aside ul { margin: 0; padding-left: 0; list-style: none; }
+  aside li { margin: 3px 0; }
+  aside .link { color: var(--accent); cursor: pointer; font-family: var(--mono); font-size: 12px; }
+  aside .legacy { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+  aside code { font-family: var(--mono); font-size: 12px; color: #e0c080; }
+  footer { color: var(--muted); font-size: 12px; text-align: center; padding: 20px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>LaserCAD v2 — Roadmap <small>pure Rust · egui · LaserGRBL</small></h1>
+    <div class="kpis" id="kpis"></div>
+  </div>
+  <div class="bar" title="Specs Done / total tracked"><i id="totalBar"></i></div>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="View">
+      <button data-view="timeline" aria-pressed="true">Timeline <kbd>1</kbd></button>
+      <button data-view="graph" aria-pressed="false">Dependencies <kbd>2</kbd></button>
+      <button data-view="table" aria-pressed="false">Table <kbd>3</kbd></button>
+    </div>
+    <div id="statusFilters" style="display:flex;gap:6px"></div>
+    <div id="areaFilters" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    <input type="search" id="q" placeholder="Search id, title, problem…  ( / )" aria-label="Search">
+  </div>
+</header>
+
+<main>
+  <section id="view-timeline">
+    <p class="hint">Click a milestone to expand it; click a spec for details. Hover a spec to light up what it depends on and what depends on it. <span style="color:var(--next)">ready</span> = Draft with every dependency Done.</p>
+    <div class="tl" id="timeline"></div>
+  </section>
+  <section id="view-graph" class="hidden">
+    <div class="legend">
+      <span><i style="border-color:var(--done)"></i>Done</span>
+      <span><i style="border-color:var(--next)"></i>Draft, ready to specify</span>
+      <span><i style="border-color:var(--line)"></i>Draft, blocked</span>
+      <span><i style="border-color:var(--deferred);border-style:dashed"></i>Deferred</span>
+      <span>Columns = dependency depth. Arrows point from a dependency to its dependent. Legacy deps (≤ LCV-148, retired) omitted.</span>
+    </div>
+    <div id="graphWrap"><svg id="depgraph"></svg></div>
+  </section>
+  <section id="view-table" class="hidden">
+    <table>
+      <thead><tr>
+        <th data-k="id">ID</th><th data-k="title">Title</th><th data-k="status">Status</th>
+        <th data-k="ms">Milestone</th><th data-k="area">Area</th><th data-k="deps">Depends on</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </section>
+</main>
+
+<aside id="drawer" aria-hidden="true">
+  <button class="close" aria-label="Close" onclick="closeDrawer()">×</button>
+  <div id="drawerBody"></div>
+</aside>
+
+<footer>Snapshot of <code>PLAN.md</code> and <code>docs/specs/*/spec.md</code> — 2026-09-30, after v0.3.0. The <code>Status</code> line in each <code>spec.md</code> remains the only source of truth. Keys: <kbd>/</kbd> search · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> views · <kbd>Esc</kbd> close.</footer>
+
+<script>
+const AREAS = {
+  agent: "Agent", editing: "Editing", ui: "UI", svg: "SVG", platform: "Platform", tooling: "Tooling", release: "Release"
+};
+
+const MILESTONES = [
+  { id: "phases", ver: "0.1", name: "Foundation → live-document agent", when: "until 2026-09-14", state: "released",
+    goal: "Phases 0–11: foundation, geometry kernel, document, render, tools, IO, chrome, agent harness, Linux distribution, live-document agent.",
+    notes: ["Legacy demands LCV-001..148 retired in the SDD migration; history in git log -- docs/product/demands.",
+            "0.1.0 was bumped in Cargo.toml but never tagged."] },
+  { id: "v0.2", ver: "v0.2.0", name: "First release · 1.0 agent scope", when: "2026-09-28", state: "released",
+    goal: "First tagged release. Agent budgets, editable system prompt, declarative drawing batch, canvas vision, multi-turn memory.",
+    notes: ["LCV-146 (skills) deferred past 1.0."] },
+  { id: "v0.3", ver: "v0.3.0", name: "Workshop-ready", when: "2026-09-30", state: "released",
+    goal: "Layers with one export file per layer, COPY, ROTATE, MIRROR, SCALE, polar @d<a input and DIST.",
+    notes: ["LCV-158 was split into 158 / 181 / 182.", "Released after the user smoke test."] },
+  { id: "v0.3.x", ver: "v0.3.x", name: "Smoke-test fixes", when: "as needed", state: "current",
+    goal: "Patch releases for smoke-test fixes only — no new features.", notes: [] },
+  { id: "v0.4", ver: "v0.4.0", name: "Precise editing", when: "next", state: "current",
+    goal: "Trim/extend with arcs, more object snaps, crosshair + screen-space picking, selection feedback.", notes: [] },
+  { id: "v0.5", ver: "v0.5.0", name: "UI polish", when: "planned", state: "planned",
+    goal: "Close the DESIGN.md gaps: canvas legibility, command dock, menus, wording, export confidence, dialogs. Plus reasoning_content replay.", notes: [] },
+  { id: "v0.6", ver: "v0.6.0", name: "Agent harness", when: "planned", state: "planned",
+    goal: "Fix the friction the agent reported after drawing three views of a Beetle (180 actions): batch schema fidelity, refusal guidance, budget visibility, set transforms, layer assignment, framed capture, drawing check, turn metrics, then stable ids.",
+    notes: ["Source: the agent's own session feedback, 2026-09-30.", "Agent-only code: may run in a worktree alongside v0.5.", "LCV-188 needs an ADR amending ADR 0007."] },
+  { id: "v0.7", ver: "v0.7.0", name: "Platform", when: "planned", state: "planned",
+    goal: "Dependency refresh (alone, first), then Windows and macOS packaging.",
+    notes: ["Windows MSI/NSIS", "macOS dmg + notarization", "CI matrix (CI on billing hold until 1 Oct)"] },
+  { id: "v0.8", ver: "v0.8.0", name: "SVG conformance I — interpreter", when: "planned", state: "planned",
+    goal: "Export as a Conforming SVG Generator; import as a secure-static Conforming SVG Interpreter: corpus, import report, path grammar, units/transforms, basic shapes, styling → layers.",
+    notes: ["Coverage map: docs/research/svg-spec-coverage.md"] },
+  { id: "v0.9", ver: "v0.9.0", name: "SVG conformance II — new entities", when: "planned", state: "planned",
+    goal: "Native ellipse / elliptical-arc and Bézier entities, <use>/<defs>/<symbol>/<switch>, <text> imported as outlines.",
+    notes: ["Bézier entities change the export contract (\"never béziers\") — needs explicit user confirmation."] },
+  { id: "v1.0", ver: "v1.0.0", name: "Parity & stability", when: "goal", state: "planned",
+    goal: "LaserCAD R14 v1 feature parity, stable SVG contract, multi-OS. After 1.0 an SVG contract change is a major.",
+    notes: [] },
+  { id: "later", ver: "later", name: "Deferred & non-goals", when: "unscheduled", state: "parked",
+    goal: "Deferred work, and what is deliberately not on the roadmap.",
+    notes: ["Not planned: DXF, blocks/xref, fillet/chamfer/offset, G-code."] },
+];
+
+const S = (id, title, status, ms, area, deps, problem) => ({ id, title, status, ms, area, deps, problem });
+const DATA = [
+  S("LCV-089", "First release tag + GitHub release (shipped as v0.2.0)", "Done", "v0.2", "release", ["LCV-085","LCV-086","LCV-088"],
+    "Cut the first tagged release of LaserCAD v2 with a GitHub release."),
+  S("LCV-142", "Larger tool budgets without losing turn undo", "Done", "v0.2", "agent", ["LCV-123","LCV-125","LCV-129"],
+    "Configurable tool-dispatch and step budgets while an agent turn stays one undo step."),
+  S("LCV-143", "Editable harness-aware system prompt", "Done", "v0.2", "agent", ["LCV-125","LCV-141","LCV-142"],
+    "Persisted, user-editable system prompt that knows the harness it runs in."),
+  S("LCV-144", "Create a drawing from declarative JSON", "Done", "v0.2", "agent", ["LCV-122","LCV-123","LCV-142","LCV-143"],
+    "Declarative drawing batch tool (ADR 0010)."),
+  S("LCV-145", "Opt-in canvas observations for vision models", "Done", "v0.2", "agent", ["LCV-123","LCV-129","LCV-137","LCV-141","LCV-143"],
+    "Canvas-only raster observation for vision models, opt-in (ADR 0011)."),
+  S("LCV-149", "Transport stall test is timing-flaky", "Done", "v0.2", "tooling", [],
+    "Make the transport stall test deterministic."),
+  S("LCV-150", "New conversation button in the agent panel", "Done", "v0.2", "agent", ["LCV-125","LCV-141","LCV-142","LCV-153"],
+    "Start a fresh agent conversation from the panel."),
+  S("LCV-151", "Built-in system prompt describes every tool", "Done", "v0.2", "agent", ["LCV-143"],
+    "The default system prompt documents every agent tool."),
+  S("LCV-152", "Faster build and test loop", "Done", "v0.2", "tooling", [],
+    "Cut build and test wall-clock time."),
+  S("LCV-153", "Agent remembers earlier turns of the conversation", "Done", "v0.2", "agent", ["LCV-142","LCV-143","LCV-145"],
+    "Multi-turn agent memory."),
+  S("LCV-155", "Test layout by area and a faster inner loop", "Done", "v0.3", "tooling", [],
+    "Tests grouped by area under tests/it; scripts/check.sh as the inner loop; fast lane for non-behavioral changes."),
+  S("LCV-156", "Layers with one export file per layer", "Done", "v0.3", "editing", [],
+    "Named layers with color and Output flag; mother SVG with one <g> per layer; File > Export layers writes one LaserGRBL file per layer (ADR 0012)."),
+  S("LCV-157", "COPY command", "Done", "v0.3", "editing", [],
+    "Base point, then any number of translated copies, each its own undo step."),
+  S("LCV-158", "ROTATE command", "Done", "v0.3", "editing", ["LCV-157"],
+    "Rotate the selection about a base point by a typed or picked angle."),
+  S("LCV-159", "Polar input and DIST query", "Done", "v0.3", "editing", [],
+    "@50<30 polar points and a DIST query that reports distance, angle, ΔX, ΔY."),
+  S("LCV-181", "MIRROR command", "Done", "v0.3", "editing", ["LCV-158"],
+    "Flip the selection across a picked line, keeping or erasing the sources."),
+  S("LCV-182", "SCALE command", "Done", "v0.3", "editing", ["LCV-158"],
+    "Uniform scale about a base point by a typed or picked factor."),
+
+  S("LCV-160", "TRIM and EXTEND with arcs", "Draft", "v0.4", "editing", [],
+    "TRIM and EXTEND silently ignore any pair involving an arc, and a circle cannot be an extend boundary. Drawings with rounded corners cannot be cleaned up."),
+  S("LCV-161", "Quadrant, perpendicular, tangent and nearest snaps", "Draft", "v0.4", "editing", [],
+    "Object snap covers endpoint, midpoint, center and intersection only. Tangent lines, perpendiculars and quadrant points need throwaway construction geometry."),
+  S("LCV-162", "Crosshair cursor and screen-space picking", "Draft", "v0.4", "ui", [],
+    "No crosshair or pickbox, so the operator cannot see what the next click takes. Snap aperture is in screen pt, pick/trim radii are 5 mm in world — two spaces mixed."),
+  S("LCV-163", "Selection and edit feedback", "Draft", "v0.4", "ui", ["LCV-156"],
+    "Window and crossing selection look the same while dragging; nothing highlights the entity under the cursor; Trim and Delete have no preview."),
+
+  S("LCV-164", "Canvas legibility and bed framing", "Draft", "v0.5", "ui", [],
+    "Minor grid ≈1.12:1 contrast disappears; the snap glyph has no dark edge and no kind label; nothing marks the origin; the canvas opens in the wrong place."),
+  S("LCV-165", "Command dock messages, prompts and repeat", "Draft", "v0.5", "ui", [],
+    "Every message uses the same orange; tools prompt in four different formats. The main surface of a keyboard-first CAD speaks in several dialects."),
+  S("LCV-166", "Menu shortcut column, Zoom All/Extents and Ctrl+A", "Draft", "v0.5", "ui", [],
+    "Shortcuts are pasted into labels with a tab and don't line up; submenus show double arrows; missing Zoom All/Extents and Ctrl+A."),
+  S("LCV-167", "UI wording, one AI name and status bar polish", "Draft", "v0.5", "ui", [],
+    "Mixed casing in menus; the AI feature has four names (Agent, AI Assistant, Agent Settings, Agent settings…); status colors not per DESIGN.md."),
+  S("LCV-168", "Save and export confidence", "Draft", "v0.5", "ui", ["LCV-156"],
+    "Save and export succeed silently; geometry outside the bed is exported without a word, and LaserGRBL then clips it or moves off the work area."),
+  S("LCV-169", "Dialog keyboard, destructive styling and Save/Discard/Cancel", "Draft", "v0.5", "ui", [],
+    "Dialogs are mouse-only: Enter and Escape do nothing; six windows close in four different ways."),
+  S("LCV-154", "Replay reasoning_content for thinking models", "Draft", "v0.5", "agent", ["LCV-153"],
+    "wire.rs ignores reasoning_content. DeepSeek thinking mode requires it on assistant messages with tool calls (and forbids it on plain-text turns)."),
+
+  S("LCV-185", "Batch drawing schema matches its validator", "Draft", "v0.6", "agent", [],
+    "create_drawing publishes one flat item schema but refuses keys of other entity types; the model repeated the refusal and fell back to hundreds of scalar calls."),
+  S("LCV-192", "Agent refusal guidance", "Draft", "v0.6", "agent", ["LCV-185"],
+    "Refusals are free sentences without the expected form, and nothing stops the model repeating a call already refused."),
+  S("LCV-189", "Agent step budget visibility", "Draft", "v0.6", "agent", [],
+    "The model never learns how many steps are left; a reply that crosses the budget ends the turn."),
+  S("LCV-186", "Agent transforms over entity sets", "Draft", "v0.6", "agent", [],
+    "Every transform takes one index: resizing a 48-entity view took 96 calls and could be left half done."),
+  S("LCV-191", "Agent moves entities between layers", "Draft", "v0.6", "agent", ["LCV-186"],
+    "The agent can create on a layer but never move an entity to another one, so cut and engrave cannot be separated after drawing."),
+  S("LCV-187", "Framed canvas capture", "Draft", "v0.6", "agent", [],
+    "capture_canvas frames the whole viewport, so details are too small; nothing records whether an image was actually sent."),
+  S("LCV-190", "Drawing check", "Draft", "v0.6", "editing", [],
+    "Nothing reports open contours, gaps, duplicates, degenerate or off-bed entities before cutting — neither for the operator nor for the agent."),
+  S("LCV-193", "Agent turn metrics", "Draft", "v0.6", "agent", ["LCV-192"],
+    "No numbers on how a turn went: steps, refusals, repeats, captures."),
+  S("LCV-188", "Stable entity ids for agent edits", "Draft", "v0.6", "agent", ["LCV-186","LCV-191"],
+    "Positional indices shift after every delete, making long agent edits fragile."),
+
+  S("LCV-180", "Dependency refresh", "Draft", "v0.7", "platform", [],
+    "egui/eframe 0.29, rfd 0.14, directories 5, roxmltree 0.20, reqwest 0.12 are 2024-era: fixes to IME, HiDPI, Wayland and dialogs don't reach operators. Done alone, first."),
+
+  S("LCV-170", "SVG conformance corpus and export audit", "Draft", "v0.8", "svg", ["LCV-156"],
+    "Nothing proves export is a Conforming SVG Generator or import a Conforming Interpreter; export tests pin LaserCAD's own shape, not SVG conformance."),
+  S("LCV-171", "SVG import report and never-rendered elements", "Draft", "v0.8", "svg", ["LCV-170"],
+    "Geometry inside defs/symbol/clipPath/mask is imported as cut geometry, while image, text and unknown paths vanish with no word to the operator."),
+  S("LCV-172", "Full SVG path-data grammar", "Draft", "v0.8", "svg", ["LCV-171"],
+    "parse_path reads exactly 'M x y A …' (11 tokens): relative commands read as absolute, extra subpaths dropped, L/H/V/Z/C/S/Q/T make the path vanish."),
+  S("LCV-173", "SVG lengths, units, viewBox and transforms", "Draft", "v0.8", "svg", ["LCV-172"],
+    "Only mm or unitless sizes; viewBox is never a scale; every transform is ignored — a typical Inkscape file imports wrong."),
+  S("LCV-174", "SVG basic shapes on import", "Draft", "v0.8", "svg", ["LCV-173","LCV-176"],
+    "rect, polyline, polygon and ellipse are skipped silently; r = 0 is refused instead of disabling rendering."),
+  S("LCV-175", "SVG styling cascade, CSS colors and color → layer", "Draft", "v0.8", "svg", ["LCV-171","LCV-156"],
+    "Import ignores style, <style>, class, inheritance and currentColor on foreign files, so cut/engrave separation and hidden layers are lost."),
+
+  S("LCV-176", "Ellipse and elliptical-arc entities", "Draft", "v0.9", "svg", ["LCV-172"],
+    "The document holds Line, Circle and Arc only; ellipses, elliptical A segments and non-uniformly scaled circles cannot be represented."),
+  S("LCV-177", "Cubic and quadratic Bézier entities", "Draft", "v0.9", "svg", ["LCV-172"],
+    "C/S/Q/T segments — logos, traced art, text as paths — have no representation; the export contract says \"never béziers\"."),
+  S("LCV-178", "SVG structure reuse: use, defs, symbol, switch", "Draft", "v0.9", "svg", ["LCV-173","LCV-175"],
+    "<use> is ignored, so parts drawn by reference are lost; <switch> imports every branch instead of the first that passes."),
+  S("LCV-179", "SVG text import as outlines", "Draft", "v0.9", "svg", ["LCV-175","LCV-177"],
+    "<text> is not imported at all; labels and engraved lettering disappear unless converted to paths first."),
+
+  S("LCV-146", "Future Markdown and frontmatter agent skills", "Deferred", "later", "agent", ["LCV-143"],
+    "Reusable CAD instructions as Markdown with frontmatter instead of repeated prompts. No confirmed runtime selection/trust contract yet."),
+];
+
+const SLUG = {
+  "LCV-089":"first-release","LCV-142":"configurable-tool-dispatch-step-budget","LCV-143":"persisted-harness-aware-system-prompt",
+  "LCV-144":"declarative-json-drawing-tool","LCV-145":"opt-in-canvas-only-vision-tool","LCV-146":"markdown-frontmatter-skills-backlog",
+  "LCV-149":"transport-stall-test-is-timing-flaky","LCV-150":"new-conversation-button","LCV-151":"complete-built-in-system-prompt",
+  "LCV-152":"faster-build-and-test-loop","LCV-153":"multi-turn-agent-memory","LCV-154":"replay-reasoning-content",
+  "LCV-155":"test-layout-and-fast-loop","LCV-156":"layers","LCV-157":"copy-command","LCV-158":"rotate","LCV-159":"polar-input-and-dist",
+  "LCV-160":"trim-extend-arcs","LCV-161":"more-object-snaps","LCV-162":"cursor-and-picking","LCV-163":"selection-and-edit-feedback",
+  "LCV-164":"canvas-legibility-and-framing","LCV-165":"command-dock-messages-and-prompts","LCV-166":"menus-and-navigation",
+  "LCV-167":"ui-wording-and-status","LCV-168":"export-confidence","LCV-169":"dialog-keyboard-and-save",
+  "LCV-170":"svg-conformance-corpus-and-export-audit","LCV-171":"svg-import-report-and-never-rendered","LCV-172":"svg-path-data-grammar",
+  "LCV-173":"svg-units-viewbox-transforms","LCV-174":"svg-basic-shapes-import","LCV-175":"svg-styling-colors-and-layers",
+  "LCV-176":"ellipse-and-elliptical-arc-entities","LCV-177":"bezier-entities","LCV-178":"svg-structure-reuse",
+  "LCV-179":"svg-text-import-as-outlines","LCV-180":"dependency-refresh","LCV-181":"mirror","LCV-182":"scale",
+  "LCV-185":"agent-drawing-contract","LCV-186":"agent-set-transforms","LCV-187":"agent-framed-capture",
+  "LCV-188":"agent-stable-entity-ids","LCV-189":"agent-budget-visibility","LCV-190":"drawing-check",
+  "LCV-191":"agent-layer-assignment","LCV-192":"agent-refusal-guidance","LCV-193":"agent-turn-metrics",
+};
+
+/* ---------- derived ---------- */
+const byId = Object.fromEntries(DATA.map(d => [d.id, d]));
+const msById = Object.fromEntries(MILESTONES.map(m => [m.id, m]));
+DATA.forEach(d => { d.known = d.deps.filter(x => byId[x]); d.dependents = []; });
+DATA.forEach(d => d.known.forEach(x => byId[x].dependents.push(d.id)));
+DATA.forEach(d => { d.ready = d.status === "Draft" && d.known.every(x => byId[x].status === "Done"); });
+const closure = (id, key) => { const out = new Set(), st = [id];
+  while (st.length) byId[st.pop()][key].forEach(x => { if (!out.has(x)) { out.add(x); st.push(x); } });
+  return out; };
+const specHref = id => `../specs/${id}-${SLUG[id]}/spec.md`;
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+/* ---------- state ---------- */
+const state = { view: "timeline", q: "", status: new Set(["Done","Draft","Deferred"]), area: new Set(Object.keys(AREAS)),
+                sortK: "id", sortDir: 1 };
+const visible = d => state.status.has(d.status) && state.area.has(d.area) &&
+  (!state.q || (d.id + " " + d.title + " " + d.problem + " " + AREAS[d.area]).toLowerCase().includes(state.q));
+
+/* ---------- header ---------- */
+function renderKpis() {
+  const done = DATA.filter(d => d.status === "Done").length, total = DATA.length;
+  const ready = DATA.filter(d => d.ready).length;
+  document.getElementById("kpis").innerHTML =
+    `<div class="kpi"><b>v0.3.0</b> <span>latest</span></div>` +
+    `<div class="kpi"><b>v0.4.0</b> <span>next</span></div>` +
+    `<div class="kpi"><b>${done}/${total}</b> <span>specs done</span></div>` +
+    `<div class="kpi"><b style="color:var(--next)">${ready}</b> <span>ready</span></div>` +
+    `<div class="kpi"><b>148</b> <span>legacy demands</span></div>`;
+  document.getElementById("totalBar").style.width = (100 * done / total) + "%";
+}
+function renderFilters() {
+  const mk = (host, items, set, label) => {
+    host.innerHTML = "";
+    items.forEach(([k, name]) => {
+      const b = document.createElement("button");
+      b.className = "chipbtn"; b.textContent = name; b.setAttribute("aria-pressed", set.has(k));
+      b.title = `Toggle ${label} ${name} (Shift+click: only this)`;
+      b.onclick = e => {
+        if (e.shiftKey) { set.clear(); set.add(k); }
+        else if (set.has(k)) set.delete(k); else set.add(k);
+        renderFilters(); render();
+      };
+      host.appendChild(b);
+    });
+  };
+  mk(document.getElementById("statusFilters"), [["Done","Done"],["Draft","Draft"],["Deferred","Deferred"]], state.status, "status");
+  mk(document.getElementById("areaFilters"), Object.entries(AREAS), state.area, "area");
+}
+
+/* ---------- timeline ---------- */
+const openMs = new Set(["v0.3", "v0.4", "v0.5"]);
+function cardHtml(d) {
+  return `<div class="card s-${d.status}" tabindex="0" data-id="${d.id}">
+    <div class="id">${d.id} <span class="pill ${d.status}">${d.status}</span>${d.ready ? '<span class="pill ready">ready</span>' : ""}
+      <span class="area">${AREAS[d.area]}</span></div>
+    <div class="t">${esc(d.title)}</div></div>`;
+}
+function renderTimeline() {
+  const host = document.getElementById("timeline");
+  host.innerHTML = MILESTONES.map(m => {
+    const all = DATA.filter(d => d.ms === m.id), vis = all.filter(visible);
+    const done = all.filter(d => d.status === "Done").length;
+    const pct = all.length ? Math.round(100 * done / all.length) : (m.state === "released" ? 100 : 0);
+    const filtering = state.q || state.status.size < 3 || state.area.size < Object.keys(AREAS).length;
+    if (filtering && all.length && !vis.length) return "";
+    const open = openMs.has(m.id) || (filtering && vis.length);
+    const tagTxt = { released: "released", current: "next", planned: "planned", parked: "parked" }[m.state];
+    return `<div class="ms ${m.state} ${open ? "open" : ""}" data-ms="${m.id}">
+      <div class="mshead" role="button" tabindex="0" aria-expanded="${!!open}">
+        <span class="caret">▶</span><span class="ver">${m.ver}</span><span class="name">${esc(m.name)}</span>
+        <span class="tag ${m.state}">${tagTxt}</span><span class="when">${m.when}</span>
+        <span class="prog">${all.length ? `${done}/${all.length}` : "—"}<span class="bar"><i style="width:${pct}%"></i></span></span>
+      </div>
+      <div class="msbody">
+        <p class="goal">${esc(m.goal)}</p>
+        ${vis.length ? `<div class="grid">${vis.map(cardHtml).join("")}</div>` : ""}
+        ${m.notes.length ? `<ul class="notes">${m.notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
+      </div></div>`;
+  }).join("");
+  host.querySelectorAll(".mshead").forEach(h => {
+    const toggle = () => { const ms = h.parentElement, id = ms.dataset.ms;
+      ms.classList.toggle("open"); ms.classList.contains("open") ? openMs.add(id) : openMs.delete(id);
+      h.setAttribute("aria-expanded", ms.classList.contains("open")); };
+    h.onclick = toggle; h.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } };
+  });
+  wireCards(host.querySelectorAll(".card"), host);
+}
+function wireCards(cards, scope) {
+  cards.forEach(c => {
+    const id = c.dataset.id;
+    c.onclick = () => openDrawer(id);
+    c.onkeydown = e => { if (e.key === "Enter") openDrawer(id); };
+    c.onmouseenter = () => highlight(scope, id);
+    c.onmouseleave = () => highlight(scope, null);
+  });
+}
+function highlight(scope, id) {
+  const rel = id ? new Set([...closure(id, "known"), ...closure(id, "dependents")]) : null;
+  scope.querySelectorAll("[data-id]").forEach(el => {
+    const x = el.dataset.id;
+    el.classList.toggle("dim", !!rel && x !== id && !rel.has(x));
+    el.classList.toggle("hl", !!rel && rel.has(x));
+    el.classList.toggle("hl-self", x === id);
+  });
+  scope.querySelectorAll(".edge").forEach(e => {
+    const on = rel && (e.dataset.a === id || rel.has(e.dataset.a)) && (e.dataset.b === id || rel.has(e.dataset.b));
+    e.classList.toggle("hl", !!on); e.classList.toggle("dim", !!rel && !on);
+  });
+}
+
+/* ---------- dependency graph ---------- */
+function renderGraph() {
+  const svg = document.getElementById("depgraph");
+  const nodes = DATA.filter(visible);
+  const inSet = new Set(nodes.map(d => d.id));
+  const depth = {};
+  const dep = id => depth[id] ?? (depth[id] = Math.max(0, ...byId[id].known.filter(x => inSet.has(x)).map(x => dep(x) + 1)));
+  nodes.forEach(d => dep(d.id));
+  const cols = [];
+  nodes.forEach(d => (cols[depth[d.id]] ||= []).push(d));
+  const msOrder = Object.fromEntries(MILESTONES.map((m, i) => [m.id, i]));
+  const W = 230, H = 42, GX = 70, GY = 12, PAD = 20, TOP = 30;
+  const pos = {};
+  cols.forEach((col, i) => {
+    col.sort((a, b) => {
+      const pa = a.known.filter(x => pos[x]).map(x => pos[x].y), pb = b.known.filter(x => pos[x]).map(x => pos[x].y);
+      const ya = pa.length ? pa.reduce((s, v) => s + v, 0) / pa.length : -1, yb = pb.length ? pb.reduce((s, v) => s + v, 0) / pb.length : -1;
+      const lone = d => !d.dependents.some(x => inSet.has(x)) && !d.known.some(x => inSet.has(x));
+      return (lone(a) - lone(b)) || (msOrder[a.ms] - msOrder[b.ms]) || (ya - yb) || a.id.localeCompare(b.id);
+    });
+    col.forEach((d, j) => pos[d.id] = { x: PAD + i * (W + GX), y: TOP + j * (H + GY) });
+  });
+  const width = PAD * 2 + cols.length * W + (cols.length - 1) * GX;
+  const height = TOP + Math.max(1, ...cols.map(c => c.length)) * (H + GY) + PAD;
+  svg.setAttribute("width", Math.max(width, 300)); svg.setAttribute("height", height);
+  let out = `<defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+    <path d="M0,0 L8,4 L0,8 z" fill="#777"/></marker></defs>`;
+  cols.forEach((_, i) => out += `<text class="colhead" x="${PAD + i * (W + GX)}" y="18">depth ${i}</text>`);
+  nodes.forEach(d => d.known.filter(x => inSet.has(x)).forEach(x => {
+    const a = pos[x], b = pos[d.id], x1 = a.x + W, y1 = a.y + H / 2, x2 = b.x - 2, y2 = b.y + H / 2, mx = (x1 + x2) / 2;
+    out += `<path class="edge" data-a="${x}" data-b="${d.id}" marker-end="url(#ah)" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"/>`;
+  }));
+  nodes.forEach(d => {
+    const p = pos[d.id], t = d.title.length > 34 ? d.title.slice(0, 33) + "…" : d.title;
+    out += `<g class="node s-${d.status} ${d.ready ? "ready" : ""}" data-id="${d.id}" transform="translate(${p.x},${p.y})" tabindex="0">
+      <title>${esc(d.id + " — " + d.title)}</title>
+      <rect width="${W}" height="${H}"/>
+      <text class="nid" x="8" y="15">${d.id} · ${msById[d.ms].ver} · ${d.status}</text>
+      <text x="8" y="32">${esc(t)}</text></g>`;
+  });
+  svg.innerHTML = out;
+  wireCards(svg.querySelectorAll(".node"), svg);
+}
+
+/* ---------- table ---------- */
+function renderTable() {
+  const rows = DATA.filter(visible);
+  const key = { id: d => d.id, title: d => d.title, status: d => d.status, ms: d => MILESTONES.findIndex(m => m.id === d.ms),
+                area: d => d.area, deps: d => d.deps.length };
+  rows.sort((a, b) => { const x = key[state.sortK](a), y = key[state.sortK](b);
+    return (x < y ? -1 : x > y ? 1 : 0) * state.sortDir || a.id.localeCompare(b.id); });
+  document.getElementById("tbody").innerHTML = rows.map(d => `<tr data-id="${d.id}">
+    <td class="mono">${d.id}</td><td>${esc(d.title)}</td>
+    <td><span class="pill ${d.status}">${d.status}</span>${d.ready ? ' <span class="pill ready">ready</span>' : ""}</td>
+    <td class="mono">${msById[d.ms].ver}</td><td>${AREAS[d.area]}</td>
+    <td class="mono">${d.deps.join(", ") || "—"}</td></tr>`).join("");
+  document.querySelectorAll("#tbody tr").forEach(r => r.onclick = () => openDrawer(r.dataset.id));
+  document.querySelectorAll("th").forEach(th => {
+    th.textContent = th.textContent.replace(/ [▲▼]$/, "") + (th.dataset.k === state.sortK ? (state.sortDir > 0 ? " ▲" : " ▼") : "");
+    th.onclick = () => { if (state.sortK === th.dataset.k) state.sortDir *= -1; else { state.sortK = th.dataset.k; state.sortDir = 1; } renderTable(); };
+  });
+}
+
+/* ---------- drawer ---------- */
+function openDrawer(id) {
+  const d = byId[id], m = msById[d.ms];
+  const li = x => byId[x]
+    ? `<li><span class="link" data-go="${x}">${x}</span> — ${esc(byId[x].title)} <span class="pill ${byId[x].status}">${byId[x].status}</span></li>`
+    : `<li class="legacy">${x} — legacy demand (git history)</li>`;
+  const blockers = d.known.filter(x => byId[x].status !== "Done");
+  document.getElementById("drawerBody").innerHTML = `
+    <div class="card-id" style="font-family:var(--mono);color:var(--muted);font-size:12px">${d.id}</div>
+    <h2>${esc(d.title)}</h2>
+    <div class="meta"><span class="pill ${d.status}">${d.status}</span>${d.ready ? '<span class="pill ready">ready to specify</span>' : ""}
+      <span class="pill" style="color:var(--accent)">${m.ver} · ${esc(m.name)}</span><span class="pill" style="color:var(--muted)">${AREAS[d.area]}</span></div>
+    <h3>${d.status === "Done" ? "What it delivered" : "Problem"}</h3><p style="margin:0">${esc(d.problem)}</p>
+    ${blockers.length ? `<h3>Blocked by</h3><ul>${blockers.map(li).join("")}</ul>` : ""}
+    <h3>Depends on</h3><ul>${d.deps.length ? d.deps.map(li).join("") : "<li class='legacy'>none</li>"}</ul>
+    <h3>Unblocks</h3><ul>${d.dependents.length ? d.dependents.map(li).join("") : "<li class='legacy'>nothing tracked</li>"}</ul>
+    <h3>Spec</h3><p style="margin:0"><a href="${specHref(d.id)}"><code>docs/specs/${d.id}-${SLUG[d.id]}/spec.md</code></a></p>`;
+  document.querySelectorAll("#drawerBody [data-go]").forEach(a => a.onclick = () => openDrawer(a.dataset.go));
+  const dr = document.getElementById("drawer"); dr.classList.add("open"); dr.setAttribute("aria-hidden", "false");
+}
+function closeDrawer() { const dr = document.getElementById("drawer"); dr.classList.remove("open"); dr.setAttribute("aria-hidden", "true"); }
+
+/* ---------- wiring ---------- */
+function setView(v) {
+  state.view = v;
+  document.querySelectorAll("[data-view]").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === v));
+  history.replaceState(null, "", "#" + v);
+  ["timeline", "graph", "table"].forEach(x => document.getElementById("view-" + x).classList.toggle("hidden", x !== v));
+  render();
+}
+function render() { ({ timeline: renderTimeline, graph: renderGraph, table: renderTable })[state.view](); }
+document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => setView(b.dataset.view));
+const q = document.getElementById("q");
+q.oninput = () => { state.q = q.value.trim().toLowerCase(); render(); };
+document.addEventListener("keydown", e => {
+  const typing = document.activeElement === q;
+  if (e.key === "Escape") { if (typing && q.value) { q.value = ""; q.oninput(); } else closeDrawer(); q.blur(); return; }
+  if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === "/") { e.preventDefault(); q.focus(); }
+  else if (e.key === "1") setView("timeline");
+  else if (e.key === "2") setView("graph");
+  else if (e.key === "3") setView("table");
+});
+renderKpis(); renderFilters();
+setView(["graph", "table"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "timeline");
+</script>
+</body>
+</html>
