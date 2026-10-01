@@ -37,12 +37,18 @@ pub(super) fn collect_single_entity_candidates(entities: &[SnapEntity], out: &mu
                 out.push(make_candidate(a.end_point(), SnapKind::Endpoint, idx));
                 out.push(make_candidate(a.center, SnapKind::Center, idx));
             }
+            SnapEntity::Ellipse(e) => {
+                for end in [e.start_point(), e.end_point()].into_iter().flatten() {
+                    out.push(make_candidate(end, SnapKind::Endpoint, idx));
+                }
+                out.push(make_candidate(e.center, SnapKind::Center, idx));
+            }
         }
     }
 }
 
 /// Push intersection candidates for every unordered pair of entities.
-/// Arc-involving pairs are skipped (documented limitation in [`super::snap_query`]).
+/// Arc- and ellipse-involving pairs are skipped (documented limitation in [`super::snap_query`]).
 pub(super) fn collect_intersection_candidates(entities: &[SnapEntity], out: &mut Vec<Candidate>) {
     for i in 0..entities.len() {
         for j in (i + 1)..entities.len() {
@@ -81,7 +87,7 @@ fn push_pair_intersections(
                 out.push(make_intersection_candidate(p, i, j));
             }
         }
-        // Arc-involving pairs: skipped. No arc intersection routines exist yet.
+        // Arc- and ellipse-involving pairs: skipped (ADR 0015 for ellipses).
         _ => {}
     }
 }

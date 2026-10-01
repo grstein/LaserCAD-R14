@@ -17,7 +17,7 @@ use super::{SnapEntity, SnapKind};
 pub(super) fn collect_quadrants(entities: &[SnapEntity], out: &mut Vec<Candidate>) {
     for (idx, e) in entities.iter().enumerate() {
         let (center, r, arc) = match e {
-            SnapEntity::Line(_) => continue,
+            SnapEntity::Line(_) | SnapEntity::Ellipse(_) => continue,
             SnapEntity::Circle(c) => (c.center, c.r, None),
             SnapEntity::Arc(a) => (a.center, a.r, Some(a)),
         };
@@ -57,6 +57,7 @@ pub(super) fn collect_perpendicular(
                 }
                 continue;
             }
+            SnapEntity::Ellipse(_) => continue,
             SnapEntity::Circle(c) => (c.center, c.r, None),
             SnapEntity::Arc(a) => (a.center, a.r, Some(a)),
         };
@@ -82,7 +83,7 @@ pub(super) fn collect_perpendicular(
 pub(super) fn collect_tangent(anchor: Vec2, entities: &[SnapEntity], out: &mut Vec<Candidate>) {
     for (idx, e) in entities.iter().enumerate() {
         let (center, r, arc) = match e {
-            SnapEntity::Line(_) => continue,
+            SnapEntity::Line(_) | SnapEntity::Ellipse(_) => continue,
             SnapEntity::Circle(c) => (c.center, c.r, None),
             SnapEntity::Arc(a) => (a.center, a.r, Some(a)),
         };
@@ -134,6 +135,7 @@ pub(super) fn collect_nearest(
 ) {
     for (idx, e) in entities.iter().enumerate() {
         let point = match e {
+            SnapEntity::Ellipse(_) => None,
             SnapEntity::Line(l) => Some(l.closest_point(world)),
             SnapEntity::Circle(c) => radial_point(c, world, None),
             SnapEntity::Arc(a) => radial_point(&Circle::new(a.center, a.r), world, Some(a))
