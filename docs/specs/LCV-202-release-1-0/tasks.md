@@ -4,7 +4,7 @@ Start T1 only after LCV-180 and then the `svg` branch (LCV-170..179) have merged
 
 - [x] T1 [AC2] Point AGENTS.md at ADR 0018: §SVG export says "frozen at 1.0 (ADR 0018); a change
       needs a major version"; the ADR list gains a 0018 line (files: AGENTS.md)
-- [ ] T2 [AC3] Test: `contract_1_0.rs` exports the every-kind, three-layer contract document and
+- [x] T2 [AC3] Test: `contract_1_0.rs` exports the every-kind, three-layer contract document and
       compares bytes with the fixture, then re-imports it within `FORMAT_TOL` (fails: no fixture)
       (files: tests/it/io_svg/contract_1_0.rs, tests/it/io_svg/mod.rs)
 - [ ] T3 [AC3] Write `contract-1.0.svg` from the T2 export; review each line against AGENTS.md

@@ -2,6 +2,7 @@
 
 mod bezier;
 mod color_layers;
+mod contract_1_0;
 mod corpus;
 mod corpus_expected;
 mod docs_examples_roundtrip;
