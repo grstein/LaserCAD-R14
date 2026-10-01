@@ -9,7 +9,7 @@
 - [x] T3 [AC5, AC7] Test + code: `nearest`, `distance_to_point` (full ellipse, span foot inside or
   outside, a point at the centre) and `hits_segment` (files: src/geometry/ellipse/nearest.rs,
   src/geometry/ellipse.rs)
-- [ ] T4 [AC1, AC3] Test + code: `from_conjugate`. Orthogonal u, v keep rx, ry and rotation
+- [x] T4 [AC1, AC3] Test + code: `from_conjugate`. Orthogonal u, v keep rx, ry and rotation
   (rx < ry included). Skewed u, v give principal radii that match an SVD. A reflection negates the
   span and flips `ccw`. Endpoints are preserved within `EPSILON` (files:
   src/geometry/ellipse/conjugate.rs, src/geometry/ellipse.rs)

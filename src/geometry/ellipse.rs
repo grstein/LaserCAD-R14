@@ -11,6 +11,7 @@
 //!
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
+mod conjugate;
 mod nearest;
 
 use core::f64::consts::{FRAC_PI_2, PI, TAU};

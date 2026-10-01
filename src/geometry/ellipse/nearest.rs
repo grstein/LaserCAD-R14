@@ -13,7 +13,7 @@ const MAX_ITER: usize = 1100;
 
 impl Ellipse {
     /// `p` in the ellipse's own frame: centered, `rx` along +X.
-    fn to_local(&self, p: Vec2) -> Vec2 {
+    fn local(&self, p: Vec2) -> Vec2 {
         let (s, c) = self.rotation.sin_cos();
         let d = p - self.center;
         Vec2::new(d.x * c + d.y * s, -d.x * s + d.y * c)
@@ -21,7 +21,7 @@ impl Ellipse {
 
     /// Parameter of the foot of `p` on the full ellipse.
     fn foot_param(&self, p: Vec2) -> f64 {
-        let l = self.to_local(p);
+        let l = self.local(p);
         let (a, b) = (self.rx.abs(), self.ry.abs());
         let swap = a < b;
         let (e0, e1, y0, y1) = if swap {
@@ -57,7 +57,7 @@ impl Ellipse {
     /// mapped into the unit-circle frame and tested against the unit circle.
     pub fn hits_segment(&self, seg: &Line) -> bool {
         let unit = |p: Vec2| {
-            let l = self.to_local(p);
+            let l = self.local(p);
             Vec2::new(l.x / self.rx, l.y / self.ry)
         };
         let mapped = Line::new(unit(seg.p1), unit(seg.p2));
@@ -99,7 +99,7 @@ fn root(r0: f64, z0: f64, z1: f64, g: f64) -> f64 {
     let mut s = 0.0;
     for _ in 0..MAX_ITER {
         s = 0.5 * (s0 + s1);
-        if s == s0 || s == s1 {
+        if s <= s0 || s >= s1 {
             break;
         }
         let (q0, q1) = (n0 / (s + r0), z1 / (s + 1.0));
