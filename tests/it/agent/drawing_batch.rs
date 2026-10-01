@@ -674,3 +674,43 @@ fn lcv192_ac5_refusals_cut_key_names_and_never_echo_values() {
         );
     }
 }
+
+// ── LCV-196: batch drawing primitives ───────────────────────────────────────
+
+/// LCV-196 AC 9 — a batch mixing `rect` and `polar_array` is one step, one
+/// undo and one revision; the outcome reports the expanded count, the index
+/// range and the new ids.
+#[test]
+fn lcv196_ac9_an_expanded_batch_is_one_step_one_undo_one_revision() {
+    let (ctx, mut app) = ctx_and_app();
+    human_line(&mut app, 0.0);
+    let revision = app.history.revision();
+    let tx = arm_turn(&mut app, "draw");
+    let steps = app.agent.turn.tally.steps;
+    let answer = push_act(
+        &tx,
+        batch(json!([
+            {"type": "rect", "x": 0, "y": 0, "width": 10, "height": 4, "corner_radius": 1},
+            {"type": "circle", "cx": 20, "cy": 0, "r": 1},
+            {"type": "polar_array", "of": [1], "count": 4, "cx": 0, "cy": 0, "step_deg": 90}
+        ])),
+    );
+    tx.send(AgentEvent::done("done")).unwrap();
+    idle(&ctx, &mut app);
+    assert_eq!(
+        answer.try_recv().unwrap(),
+        AgentOutcome::Ok(format!(
+            "Created 12 entities (indices 1..=12). The drawing now has 13 entities. \
+             Revision {}. New ids: e2..=e13.",
+            revision + 1
+        ))
+    );
+    assert_eq!(app.history.revision(), revision + 1);
+    assert_eq!(app.agent.turn.tally.steps, steps + 1);
+    let Entity::Circle(last) = app.document.entities[12] else {
+        panic!("{:?}", app.document.entities[12])
+    };
+    assert!((last.center - Vec2::new(0.0, -20.0)).length() < 1e-9);
+    tap(&ctx, &mut app, egui::Key::Z, ctrl());
+    assert_eq!(app.document.entity_count(), 1, "one Ctrl+Z, whole batch");
+}
