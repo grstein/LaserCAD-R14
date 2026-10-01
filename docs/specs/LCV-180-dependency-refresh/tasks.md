@@ -4,7 +4,7 @@ Base: `2211ad0`. One commit per crate family: T1 alone, T2–T7 together as the 
 commit, then T8–T13 one each, then T14. Each commit passes `scripts/gate.sh` and
 `cargo deny check`. Use `CARGO_TARGET_DIR` per worktree.
 
-- [ ] T1 [AC1] [AC5] [AC6] Test: Cargo.lock lists no `wgpu`/`egui-wgpu`. Cargo.toml's eframe has
+- [x] T1 [AC1] [AC5] [AC6] Test: Cargo.lock lists no `wgpu`/`egui-wgpu`. Cargo.toml's eframe has
       `default-features = false` with `"glow"`, `winit` is declared, Cargo.toml has no `tokio`,
       and reqwest has `"blocking"` and `"native-tls"`. It fails until T2 and T12
       (files: tests/it/repo/dependencies.rs, tests/it/repo/mod.rs)
