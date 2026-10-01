@@ -1,6 +1,6 @@
 # LCV-173 — Tasks
 
-- [ ] T1 [AC1] Test + code: `parse_length`/`to_user` for `mm cm Q in pt pc px`, unitless = px,
+- [x] T1 [AC1] Test + code: `parse_length`/`to_user` for `mm cm Q in pt pc px`, unitless = px,
   `%`, `em`/`ex`, case-insensitive, junk → `None` (files: src/io/svg/length.rs, src/io/svg/mod.rs)
 - [ ] T2 [AC5] Test + code: `Matrix` (`then`, `apply`, `det`, `similarity_scale`) and
   `parse_transform` for the six functions, comma/space separators, composition order, invalid →
