@@ -14,7 +14,7 @@ Prerequisites: LCV-188, LCV-190, LCV-192 Done on `agent-harness`.
   (files: src/geometry/distance.rs)
 - [x] T2 [AC1] `Prim`, `closest`: intersections first, then the candidate minimum with the span
   filter (files: src/geometry/distance.rs, src/geometry/mod.rs)
-- [ ] T3 [AC5] Test: `overlaps`:
+- [x] T3 [AC5] Test: `overlaps`:
   - collinear overlapping segments → true;
   - collinear segments touching end to end → false;
   - the same circle → true;
