@@ -60,6 +60,7 @@ mod agent_narrate;
 mod agent_poll;
 mod agent_state;
 mod agent_turn;
+mod agent_verify;
 mod agent_worker;
 pub use agent_apply::apply;
 pub use agent_poll::{AGENT_CANCELLED_MESSAGE, AGENT_LOST_MESSAGE, cancel_turn, poll_agent_rx};

@@ -7,7 +7,7 @@ do LCV-195 T1 (the `loop_/batch.rs` seam) as T0 here.
   from the request, verify each with `measure`, `check_drawing` or `capture_canvas`, fix failures
   before replying) and the reply-style line (end with each check marked pass or fail)
   (files: src/agent/prompt.rs, tests/it/agent/default_prompt.rs)
-- [ ] T2 [AC3][AC4][AC7] Test (`VerifyState`):
+- [x] T2 [AC3][AC4][AC7] Test (`VerifyState`):
   - apply → due once; a second ask → not due;
   - apply then an answered `measure`, `check_drawing`, `capture_canvas` or `query_entities` →
     not due;
