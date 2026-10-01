@@ -264,8 +264,13 @@ clear of the point and the crosshair (`render/snaps/label.rs`, LCV-164).
   and `text.muted` text (`fill.hover` while hovered); the label is the second cue.
   New segments are appended.
 - **Dialogs** (`ui/dialogs.rs`, `app/bed_dialog.rs`, `app/discard.rs`, `ui/layers_dialog.rs`): Title Case titles,
-  buttons ordered primary → Cancel. Non-modal, no keyboard handling (LCV-069, LCV-113, ADR 0002
-  §A6). Enter/Esc, destructive styling and one close pattern: gap → LCV-169.
+  non-modal. Every dialog has a Cancel or Close button, and the title-bar × does exactly what
+  it does (LCV-169). Buttons run primary → Cancel/Close, left to right, on the last row:
+  About, Shortcuts, Error and AI Settings have one `Close` (AI Settings' `Done` became `Close`;
+  LCV-141 is pre-SDD); Bed Size `OK`, `Cancel`; Layers `Apply` … `Close`; the unsaved-changes
+  prompt `Save`, `Discard`, `Cancel`. A destructive button (`Discard`) paints its text in
+  `danger`, never a red fill. Save runs the normal save, then the parked action only if the
+  write landed; a failed or cancelled save keeps the drawing and drops the action.
 - **AI Assistant panel** (`agent/panel.rs`): transcript roles per LCV-125 — user, assistant,
   tool (monospace, `agent.tool`), refused (`status.warning`), note (small), error
   (`status.error`, read as egui's `error_fg_color`, LCV-167). No avatars, bubbles or decoration;
@@ -288,6 +293,11 @@ Canonical bindings live in ADR 0002 §A6 (gate table), ADR 0003 (command line) a
 - Right-click on the canvas = Enter on an empty line: finish, accept or repeat; it never picks
   a point and ignores text in the field. Middle-drag pan is unchanged (LCV-165 reverses
   LCV-041 AC 4).
+- While a dialog is open, Enter and Escape belong to the topmost one (the last opened): Enter is
+  its primary button, Escape its Cancel or Close, and a one-button dialog closes on either. The
+  command line, the tool and the recall ring never see them; a focused command line keeps its
+  text and focus. Enter in the AI Settings system prompt stays a newline (ADR 0002 §A6 class
+  `dialog`, LCV-169).
 - Ortho overrides snap (LCV-053).
 - `Ctrl+A` selects all, as `Edit > Select All`, in one undo step; a focused text field keeps it
   (ADR 0002 §A6 class `select all`, LCV-166).
