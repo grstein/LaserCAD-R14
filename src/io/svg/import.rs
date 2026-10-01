@@ -8,6 +8,8 @@
 //! |---|---|---|
 //! | import | `line`, `circle`, `ellipse`, `rect`, `polyline`, `polygon`, `path` | `<element> (invalid attribute)`, `polyline (data error)`, `polygon (data error)` (LCV-174); properties; per `path`: curves not imported yet, `path (data error)`, or `path (unsupported data)` with no `d` |
 //! | descend | `svg`, `g`, `a` | properties, then the children |
+//! | switch | `switch`: its first SVG element child whose conditions pass (LCV-178) | `switch (branch skipped)` per other SVG element child |
+//! | conditions fail | any SVG element with a non-empty `requiredExtensions`, or a `systemLanguage` without `en`/`en-*` ([`conditions`]), subtree included | `<element> (conditions)` |
 //! | never rendered | `defs symbol clipPath mask marker pattern linearGradient radialGradient filter` | name, iff it has an element child other than `style` |
 //! | hidden | `display:none` (subtree included), or an imported element with `visibility` `hidden`/`collapse` (LCV-175) | `hidden (display:none)`, `hidden (visibility)` |
 //! | silent | `title desc metadata style`; any element outside the SVG namespace | nothing |

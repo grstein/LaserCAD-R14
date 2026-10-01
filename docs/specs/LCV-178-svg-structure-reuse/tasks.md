@@ -9,7 +9,7 @@
       failing `foreignObject`, a passing `<g>` and a trailing `<line>` imports only the `<g>` and
       notes `switch (branch skipped)` ×2; a `<switch transform>` moves its child
       (files: tests/it/io_svg/switch.rs, tests/it/io_svg/mod.rs)
-- [ ] T4 [AC10] [AC11] Walk: conditions gate on every element, `Kind::Switch` arm, `switch`
+- [x] T4 [AC10] [AC11] Walk: conditions gate on every element, `Kind::Switch` arm, `switch`
       out of `Other` (files: src/io/svg/import/walk.rs)
 - [ ] T5 [AC2] [AC7] [AC8] Test: `reuse.rs` unit tests — `Index` first-id-wins; `href` beats
       `xlink:href`; `xlink:href` alone resolves; missing href, `#nope`, `other.svg#a`,

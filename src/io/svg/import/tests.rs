@@ -585,19 +585,18 @@ fn never_rendered_elements_without_element_children_are_not_reported() {
 
 /// AC 5 — every other SVG element is skipped with its subtree and reported
 /// by name, repeats counted under one entry in first-occurrence order; a
-/// `<style>` is read by the cascade and silent (LCV-175).
+/// `<style>` is read by the cascade and silent (LCV-175). `use` and
+/// `switch` are handled since LCV-178.
 #[test]
 fn other_svg_elements_are_skipped_and_reported_with_counts() {
     let inner = format!(
-        r##"<image href="x.png"/><text>{A_LINE}</text><use href="#l"/><switch>{A_LINE}</switch><image/><image width="1" height="1"/><style>line {{}}</style><script/><foreignObject>{A_LINE}</foreignObject><text/>"##
+        r##"<image href="x.png"/><text>{A_LINE}</text><image/><image width="1" height="1"/><style>line {{}}</style><script/><foreignObject>{A_LINE}</foreignObject><text/>"##
     );
     let imported = import_svg(&svg(&inner)).unwrap();
     assert!(imported.entities.is_empty());
     let want = [
         entry("image", 3),
         entry("text", 2),
-        entry("use", 1),
-        entry("switch", 1),
         entry("script", 1),
         entry("foreignObject", 1),
     ];

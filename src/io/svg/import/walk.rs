@@ -4,6 +4,7 @@
 //!
 //! Kernel-pure: MUST NOT import `egui`, `eframe`, or `rfd`.
 
+use super::conditions::passes;
 use super::path::path_entities;
 use super::report::{Report, style_decls};
 use super::shapes::import_shape;
@@ -29,6 +30,10 @@ const INVALID_TRANSFORM: &str = "transform (invalid)";
 /// The report label of a `transform` that collapses the plane (LCV-173).
 const SINGULAR_TRANSFORM: &str = "transform (singular)";
 
+/// The report label of a `<switch>` child that is not its chosen branch
+/// (LCV-178 AC 10).
+const SWITCH_SKIPPED: &str = "switch (branch skipped)";
+
 /// The report label of a nested `<svg>`, imported without clipping
 /// (LCV-173 AC 9).
 const UNCLIPPED_SVG: &str = "svg (not clipped)";
@@ -45,6 +50,8 @@ enum Kind {
     /// `title`, `desc`, `metadata`, `style` (read by the cascade), or
     /// outside the SVG namespace (AC 4).
     Silent,
+    /// `switch`: only its first passing child is walked (LCV-178 AC 10).
+    Switch,
     /// Any other SVG element: skipped with its subtree (AC 5).
     Other,
 }
@@ -57,6 +64,7 @@ fn classify(node: roxmltree::Node<'_, '_>) -> Kind {
     match node.tag_name().name() {
         "line" | "circle" | "ellipse" | "rect" | "polyline" | "polygon" | "path" => Kind::Import,
         "svg" | "g" | "a" => Kind::Descend,
+        "switch" => Kind::Switch,
         "defs" | "symbol" | "clipPath" | "mask" | "marker" | "pattern" | "linearGradient"
         | "radialGradient" | "filter" => Kind::NeverRendered,
         "title" | "desc" | "metadata" | "style" => Kind::Silent,
@@ -105,67 +113,83 @@ impl Walk {
         ctx: &Ctx,
         style: &Style,
     ) -> Result<(), SvgImportError> {
-        let bed_h = self.bed_h;
         for child in node.children().filter(|n| n.is_element()) {
-            let name = child.tag_name().name();
-            let kind = classify(child);
-            let mut inner_ctx = None;
-            let mut inner_style = *style;
-            if matches!(kind, Kind::Import | Kind::Descend) {
-                inner_style = style.child(child, &self.sheet, &mut self.report);
-                if let Some(label) = inner_style.hidden(matches!(kind, Kind::Import)) {
-                    self.layers.enter(child)?; // A hidden layer group still declares its layer.
-                    self.report.note(label);
-                    continue;
-                }
-                self.report.note_properties(child);
-                inner_ctx = self.local(child, ctx);
-            }
-            if let (Kind::Descend, "svg", Some(c)) = (&kind, name, inner_ctx) {
-                inner_ctx = nested(child, &c);
-                let label = match inner_ctx {
-                    Some(_) => UNCLIPPED_SVG,
-                    None => SINGULAR_TRANSFORM,
-                };
+            self.element(child, layer, ctx, style)?;
+        }
+        Ok(())
+    }
+
+    /// Import one element `child` of a parent with context `ctx` and style
+    /// `style`, on `layer` (see [`Walk::collect`]). An SVG element whose
+    /// conditions fail is skipped with its subtree (LCV-178 AC 11).
+    fn element(
+        &mut self,
+        child: roxmltree::Node<'_, '_>,
+        layer: Option<LayerId>,
+        ctx: &Ctx,
+        style: &Style,
+    ) -> Result<(), SvgImportError> {
+        let bed_h = self.bed_h;
+        let name = child.tag_name().name();
+        let kind = classify(child);
+        if !matches!(kind, Kind::Silent) && !passes(child) {
+            self.report.note(&format!("{name} (conditions)"));
+            return Ok(());
+        }
+        let mut inner_ctx = None;
+        let mut inner_style = *style;
+        if matches!(kind, Kind::Import | Kind::Descend | Kind::Switch) {
+            inner_style = style.child(child, &self.sheet, &mut self.report);
+            if let Some(label) = inner_style.hidden(matches!(kind, Kind::Import)) {
+                self.layers.enter(child)?; // A hidden layer group still declares its layer.
                 self.report.note(label);
+                return Ok(());
             }
-            let slot = inner_style.slot(layer);
-            let entity = match kind {
-                Kind::Import => match (inner_ctx, name) {
-                    (None, _) => None,
-                    (Some(c), "path") => {
-                        self.path(child, slot, &c);
-                        None
-                    }
-                    (Some(c), _) => {
-                        let shape = import_shape(name, child, &c, bed_h);
-                        self.push(shape.entities, &shape.notes, slot);
-                        None
-                    }
-                },
-                Kind::Descend => {
-                    let inner = self.layers.enter(child)?.or(layer);
-                    if let Some(c) = inner_ctx {
-                        self.collect(child, inner, &c, &inner_style)?;
-                    }
-                    None
-                }
-                Kind::NeverRendered => {
-                    if child.children().any(|n| n.is_element() && !is_style(n)) {
-                        self.report.note(name);
-                    }
-                    None
-                }
-                Kind::Silent => None,
-                Kind::Other => {
-                    self.report.note(name);
-                    None
-                }
+            self.report.note_properties(child);
+            inner_ctx = self.local(child, ctx);
+        }
+        if let (Kind::Descend, "svg", Some(c)) = (&kind, name, inner_ctx) {
+            inner_ctx = nested(child, &c);
+            let label = match inner_ctx {
+                Some(_) => UNCLIPPED_SVG,
+                None => SINGULAR_TRANSFORM,
             };
-            if let Some(entity) = entity {
-                self.slots.push(slot);
-                self.entities.push(entity);
+            self.report.note(label);
+        }
+        let slot = inner_style.slot(layer);
+        match (kind, inner_ctx) {
+            (Kind::Import, Some(c)) if name == "path" => self.path(child, slot, &c),
+            (Kind::Import, Some(c)) => {
+                let shape = import_shape(name, child, &c, bed_h);
+                self.push(shape.entities, &shape.notes, slot);
             }
+            (Kind::Descend, c) => {
+                let inner = self.layers.enter(child)?.or(layer);
+                if let Some(c) = c {
+                    self.collect(child, inner, &c, &inner_style)?;
+                }
+            }
+            (Kind::Switch, Some(c)) => {
+                // The first passing SVG element child; every other one is a
+                // skipped branch (LCV-178 AC 10).
+                let mut chosen = false;
+                let branches = child.children().filter(|n| n.is_element());
+                for branch in branches.filter(|n| n.tag_name().namespace() == Some(SVG_NS)) {
+                    if !chosen && passes(branch) {
+                        chosen = true;
+                        self.element(branch, layer, &c, &inner_style)?;
+                    } else {
+                        self.report.note(SWITCH_SKIPPED);
+                    }
+                }
+            }
+            (Kind::NeverRendered, _) => {
+                if child.children().any(|n| n.is_element() && !is_style(n)) {
+                    self.report.note(name);
+                }
+            }
+            (Kind::Other, _) => self.report.note(name),
+            _ => {}
         }
         Ok(())
     }
