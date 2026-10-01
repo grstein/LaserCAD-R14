@@ -1,0 +1,1 @@
+Draw a 100 x 60 mm rectangular plate with its lower-left corner at (20, 20), and four mounting holes of 3 mm radius, each centred 8 mm in from both edges at a corner.

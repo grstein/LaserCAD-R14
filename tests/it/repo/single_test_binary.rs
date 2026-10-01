@@ -2,8 +2,9 @@
 //!
 //! Cargo turns every `tests/<name>.rs` into its own binary, each linked against
 //! egui; a stray one silently brings back the per-file relink this demand
-//! removed. So `tests/` may hold only the `it/` binary and the shared
-//! `harness/`, and every file in `tests/it/` must be a declared module of
+//! removed. So `tests/` may hold only the `it/` binary, the shared
+//! `harness/` and a data-only `fixtures/` (LCV-170: no `.rs` anywhere in it),
+//! and every file in `tests/it/` must be a declared module of
 //! `tests/it/main.rs` — an undeclared one is never compiled and its tests never
 //! run, with nothing red to say so.
 
@@ -30,7 +31,22 @@ fn entries(dir: &Path) -> (Vec<String>, Vec<String>) {
     (dirs, files)
 }
 
-/// AC 1 — `tests/` holds no top-level `.rs` file, only `it/` and `harness/`.
+/// Every `.rs` file anywhere under `dir`.
+fn rust_files_under(dir: &Path) -> Vec<String> {
+    let (dirs, files) = entries(dir);
+    let mut out: Vec<String> = files.into_iter().filter(|f| f.ends_with(".rs")).collect();
+    for sub in dirs {
+        out.extend(
+            rust_files_under(&dir.join(&sub))
+                .into_iter()
+                .map(|f| format!("{sub}/{f}")),
+        );
+    }
+    out
+}
+
+/// AC 1 — `tests/` holds no top-level `.rs` file, only `it/`, `harness/` and
+/// the data-only `fixtures/` (LCV-170), which holds no `.rs` file at any depth.
 #[test]
 fn ac1_tests_holds_only_the_one_binary_and_the_harness() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
@@ -43,8 +59,13 @@ fn ac1_tests_holds_only_the_one_binary_and_the_harness() {
     );
     assert_eq!(
         dirs,
-        ["harness", "it"],
-        "tests/ holds only it/ and harness/"
+        ["fixtures", "harness", "it"],
+        "tests/ holds only it/, harness/ and fixtures/"
+    );
+    assert_eq!(
+        rust_files_under(&root.join("fixtures")),
+        Vec::<String>::new(),
+        "tests/fixtures/ is data only: a .rs file there is clutter or a stray binary"
     );
 }
 

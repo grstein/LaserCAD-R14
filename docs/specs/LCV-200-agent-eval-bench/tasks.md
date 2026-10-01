@@ -1,6 +1,6 @@
 # LCV-200 — Tasks
 
-- [ ] T1 [AC1] Allow a data-only `tests/fixtures/` (no `.rs` at any depth) in `single_test_binary`,
+- [x] T1 [AC1] Allow a data-only `tests/fixtures/` (no `.rs` at any depth) in `single_test_binary`,
   unless already present; note in the commit that the svg-branch merge keeps one copy
   (files: tests/it/repo/single_test_binary.rs)
 - [ ] T2 [AC2] `run_turn_inline` + `InlineTurn`; `drive_turn`/`answer_act`/`end_turn` visibility;
