@@ -29,3 +29,26 @@ fn main_rs_hides_console_in_windows_release_builds() {
         "src/main.rs must gate windows_subsystem on all(windows, not(debug_assertions))"
     );
 }
+
+/// LCV-201 AC 1 — `scripts/build-zip.ps1` reads the version from `Cargo.toml`,
+/// stages the executable, both licences and `FIRST-RUN.txt`, and writes the
+/// versioned `.zip`; the unverified WiX/MSI path is gone.
+#[test]
+fn build_zip_ps1_stages_the_portable_windows_zip() {
+    let script = read("scripts/build-zip.ps1");
+    for needle in [
+        "Cargo.toml",
+        "lasercad.exe",
+        "LICENSE-APACHE",
+        "LICENSE-MIT",
+        "assets/FIRST-RUN.txt",
+        "Compress-Archive",
+        "lasercad-$Version-windows-x86_64.zip",
+    ] {
+        assert!(script.contains(needle), "build-zip.ps1 must mention {needle:?}");
+    }
+    assert!(repo("assets/FIRST-RUN.txt").is_file(), "assets/FIRST-RUN.txt must exist");
+    assert!(repo("LICENSE-APACHE").is_file() && repo("LICENSE-MIT").is_file());
+    assert!(!repo("scripts/build-msi.ps1").exists(), "build-msi.ps1 must be deleted");
+    assert!(!repo("wix").exists(), "wix/ must be deleted");
+}
