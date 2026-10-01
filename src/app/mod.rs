@@ -36,6 +36,7 @@
 mod autosave;
 mod bed_dialog;
 mod cmdline;
+mod dialog_order;
 mod discard;
 mod document_title;
 mod feedback;
@@ -67,6 +68,7 @@ pub use autosave::{AutosaveState, autosave_due, schedule_flush_repaint};
 pub use bed_dialog::{apply_bed_dialog_result, draw_bed_dialog};
 pub(crate) use cmdline::agent_available;
 pub use cmdline::submit;
+pub use dialog_order::{Dialog, sync_dialog_order, topmost};
 pub use discard::{DiscardChoice, apply_discard_choice, draw_discard_dialog, poll_close_request};
 pub use document_title::DocumentTitleState;
 pub use feedback::Severity;
@@ -135,6 +137,9 @@ pub struct App {
     pub bed_dialog: Option<[f64; 2]>,
     /// The open Layers… dialog, `None` when closed (LCV-156, `src/app/layers.rs`).
     pub layers_dialog: Option<LayersDialog>,
+    /// The open dialogs, oldest first; the last takes Enter and Escape
+    /// (LCV-169, `src/app/dialog_order.rs`).
+    pub dialog_order: Vec<Dialog>,
     /// Text buffer for the command-line widget (LCV-068).
     pub command_line_input: String,
     /// The 50-entry command recall ring walked by ArrowUp / ArrowDown while

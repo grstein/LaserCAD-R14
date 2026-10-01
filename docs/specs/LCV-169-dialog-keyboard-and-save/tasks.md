@@ -30,7 +30,7 @@
   on Bed Size commits and closes; with LINE past its first point and the focused command line
   holding `12,3`, Escape on a dialog leaves the text, focus and tool prompt unchanged, and Enter
   pushes nothing to the recall ring (files: tests/it/ui/dialog_keyboard.rs)
-- [ ] T12 [AC1] [AC2] `Dialog`, `sync_dialog_order`, `topmost`; `App::dialog_order` (files:
+- [x] T12 [AC1] [AC2] `Dialog`, `sync_dialog_order`, `topmost`; `App::dialog_order` (files:
   src/app/dialog_order.rs, src/app/mod.rs, src/app/init.rs)
 - [ ] T13 [AC1] [AC2] `input.rs::take_dialog_key` (consume, restore command-line focus), called
   first in `update_ui` (files: src/app/input.rs, src/app/mod.rs)

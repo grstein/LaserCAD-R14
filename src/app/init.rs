@@ -53,6 +53,7 @@ impl Default for App {
             agent_settings_open: false,
             bed_dialog: None,
             layers_dialog: None,
+            dialog_order: Vec::new(),
             command_line_input: String::new(),
             command_history: CommandHistory::default(),
             command_feedback: String::new(),
