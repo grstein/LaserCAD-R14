@@ -1,8 +1,8 @@
 # LCV-175 — SVG styling cascade, CSS colors and color → layer
 
-- **Status**: Planned
+- **Status**: Done
 - **Depends on**: LCV-171, LCV-156
-- **Implementation**: -
+- **Implementation**: 7b40e48..1acaa62
 
 ## Problem
 
