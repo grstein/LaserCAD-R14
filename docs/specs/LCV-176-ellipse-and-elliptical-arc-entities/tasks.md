@@ -1,10 +1,10 @@
 # LCV-176 — Tasks
 
-- [ ] T1 [AC4, AC6] Test: `Ellipse` point/start/end, span sweep and containment (wrap-around,
+- [x] T1 [AC4, AC6] Test: `Ellipse` point/start/end, span sweep and containment (wrap-around,
   cw/ccw), exact bbox (rotated, partial span), quadrants inside the span, and `polyline(tol)`
   vertices on the curve with chord deviation ≤ tol (files: tests/it/geometry/ellipse_props.rs,
   tests/it/geometry/mod.rs)
-- [ ] T2 [AC4, AC6] `Ellipse`, `EllipseSpan` and the methods of T1; sweep and containment go
+- [x] T2 [AC4, AC6] `Ellipse`, `EllipseSpan` and the methods of T1; sweep and containment go
   through a unit `Arc` (files: src/geometry/ellipse.rs, src/geometry/mod.rs)
 - [ ] T3 [AC5, AC7] Test + code: `nearest`, `distance_to_point` (full ellipse, span foot inside or
   outside, a point at the centre) and `hits_segment` (files: src/geometry/ellipse/nearest.rs,
