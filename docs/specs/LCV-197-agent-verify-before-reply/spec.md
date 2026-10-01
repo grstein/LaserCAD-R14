@@ -1,7 +1,7 @@
 # LCV-197 — Agent verify before reply
 
-- **Status**: Specified
-- **Depends on**: LCV-190, LCV-194
+- **Status**: Planned
+- **Depends on**: LCV-190, LCV-194, LCV-195
 - **Implementation**: -
 
 ## Problem

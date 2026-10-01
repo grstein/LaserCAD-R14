@@ -1,6 +1,6 @@
 # LCV-199 — Agent reference image
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: none
 - **Implementation**: -
 

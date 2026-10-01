@@ -1,6 +1,6 @@
 # LCV-195 — Agent feedback after mutation
 
-- **Status**: Specified
+- **Status**: Planned
 - **Depends on**: LCV-187, LCV-189, LCV-190
 - **Implementation**: -
 

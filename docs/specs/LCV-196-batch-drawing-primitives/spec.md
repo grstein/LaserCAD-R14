@@ -1,7 +1,7 @@
 # LCV-196 — Batch drawing primitives
 
-- **Status**: Specified
-- **Depends on**: LCV-185, LCV-192
+- **Status**: Planned
+- **Depends on**: LCV-185, LCV-188, LCV-192
 - **Implementation**: -
 
 ## Problem
