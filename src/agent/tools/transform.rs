@@ -78,12 +78,12 @@ pub(super) fn parse_set_layer(args: &Value) -> Result<AgentAction, ToolCallError
 }
 
 /// `args[key]` unless absent or JSON `null`.
-fn present<'a>(args: &'a Value, key: &str) -> Option<&'a Value> {
+pub(super) fn present<'a>(args: &'a Value, key: &str) -> Option<&'a Value> {
     args.get(key).filter(|v| !v.is_null())
 }
 
 /// The one handle given, if any; two are refused, the first named.
-fn handle<'a>(
+pub(super) fn handle<'a>(
     tool: &str,
     args: &'a Value,
 ) -> Result<Option<(&'static str, &'a Value)>, ToolCallError> {
@@ -132,7 +132,7 @@ fn target(tool: &str, key: &str, raw: &Value) -> Result<Target, ToolCallError> {
 
 /// The shape check of a list, naming the first offending entry (AC5) in
 /// the LCV-192 shape.
-fn list<T: PartialEq>(
+pub(super) fn list<T: PartialEq>(
     tool: &str,
     key: &str,
     raw: &Value,
@@ -163,7 +163,7 @@ fn list<T: PartialEq>(
 }
 
 /// One `indices` entry: non-negative, integral, finite — `get_index`'s rule.
-fn index_entry(value: &Value) -> Result<usize, (String, &'static str)> {
+pub(super) fn index_entry(value: &Value) -> Result<usize, (String, &'static str)> {
     let form = expected_form("index");
     let raw = value.as_f64().ok_or(("not a number".to_owned(), form))?;
     let ok = raw >= 0.0 && raw.fract() == 0.0 && raw.is_finite();
@@ -173,7 +173,7 @@ fn index_entry(value: &Value) -> Result<usize, (String, &'static str)> {
 
 /// One id: the string `e<N>`, N a decimal `u64` ≥ 1 (ADR 0014 §7). The
 /// string itself is never echoed.
-fn id_entry(value: &Value) -> Result<u64, (String, &'static str)> {
+pub(super) fn id_entry(value: &Value) -> Result<u64, (String, &'static str)> {
     let form = expected_form("id");
     let text = value.as_str().ok_or(("not a string".to_owned(), form))?;
     let digits = text
@@ -186,7 +186,7 @@ fn id_entry(value: &Value) -> Result<u64, (String, &'static str)> {
 }
 
 /// A refusal of a handle argument or one of its entries.
-fn refuse(tool: &str, path: &str, reason: &str, expected: &str) -> ToolCallError {
+pub(super) fn refuse(tool: &str, path: &str, reason: &str, expected: &str) -> ToolCallError {
     ToolCallError::Arg {
         tool: tool.to_owned(),
         path: path.to_owned(),

@@ -39,6 +39,7 @@ pub use args::ToolCallError;
 pub(crate) use args::{expected_form, refusal, validate_r};
 use args::{get_bool, get_f64, get_index, get_layer, validate_positive};
 mod capture;
+mod measure;
 mod schema;
 use schema::base_definitions;
 mod transform;
@@ -154,6 +155,7 @@ pub fn parse_tool_call(name: &str, args: &Value) -> Result<AgentAction, ToolCall
         "query_entities" => Ok(AgentAction::QueryEntities),
         "query_selection" => Ok(AgentAction::QuerySelection),
         "check_drawing" => Ok(AgentAction::CheckDrawing),
+        "measure" => Ok(AgentAction::Measure(measure::parse(args)?)),
         // Shape only (LCV-187); permission and the frame's area are checked
         // live at the apply site, never here (LCV-145 AC 2).
         "capture_canvas" => Ok(AgentAction::CaptureCanvas(capture::parse(args)?)),

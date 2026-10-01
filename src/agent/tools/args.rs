@@ -77,6 +77,9 @@ pub(crate) fn expected_form(field: &str) -> &'static str {
         "entities" => "a list of 1 to 1000 entity objects",
         "type" => r#""line", "circle" or "arc""#,
         "(root)" => "a JSON object",
+        "query" => r#""distance", "length", "bbox", "intersections" or "angle""#,
+        "points" => "a list of points {x, y} in mm",
+        "point" => "a point {x, y} in mm",
         _ => "a value the tool's schema allows",
     }
 }

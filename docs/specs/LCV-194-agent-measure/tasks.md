@@ -32,7 +32,7 @@ Prerequisites: LCV-188, LCV-190, LCV-192 Done on `agent-harness`.
   (files: src/agent/tools/tests.rs)
 - [x] T6 [AC8] `MeasureQuery`, `MeasureRequest`, the `Measure` variant and `tool_name`
   (files: src/agent/bridge/action/measure.rs, src/agent/bridge/action.rs, src/agent/bridge.rs)
-- [ ] T7 [AC8] `tools/measure.rs::parse` and the `parse_tool_call` arm
+- [x] T7 [AC8] `tools/measure.rs::parse` and the `parse_tool_call` arm
   (files: src/agent/tools/measure.rs, src/agent/tools.rs)
 - [ ] T8 [AC8][AC9] The schema entry after `check_drawing`, the `expected_form` rows, and the
   registry-order test (files: src/agent/tools/schema.rs, src/agent/tools/args.rs,
