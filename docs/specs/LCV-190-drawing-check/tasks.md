@@ -29,7 +29,7 @@ Prerequisite: `agent-harness` rebased onto the line carrying LCV-183 (`ui/icons/
   tests/it/cmdline/mod.rs)
 - [x] T10 [AC1] `CommandInput::Check` and the word `check` (parse test included) (files:
   src/cmdline/mod.rs, src/cmdline/parse.rs)
-- [ ] T11 [AC1][AC8] `App::check_report` field and its default (files: src/app/mod.rs,
+- [x] T11 [AC1][AC8] `App::check_report` field and its default (files: src/app/mod.rs,
   src/app/init.rs)
 - [ ] T12 [AC1][AC8] `app/check.rs::run_check` and the `CommandInput::Check` arm (files:
   src/app/check.rs, src/app/cmdline.rs)

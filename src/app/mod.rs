@@ -137,6 +137,9 @@ pub struct App {
     pub bed_dialog: Option<[f64; 2]>,
     /// The open Layers… dialog, `None` when closed (LCV-156, `src/app/layers.rs`).
     pub layers_dialog: Option<LayersDialog>,
+    /// The last `check` report's lines while the Check window is open, else
+    /// `None` (LCV-190, `src/app/check.rs`). A snapshot; never live.
+    pub check_report: Option<Vec<String>>,
     /// The open dialogs, oldest first; the last takes Enter and Escape
     /// (LCV-169, `src/app/dialog_order.rs`).
     pub dialog_order: Vec<Dialog>,
