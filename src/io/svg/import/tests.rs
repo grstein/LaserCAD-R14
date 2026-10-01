@@ -174,6 +174,26 @@ fn import_arc_golden_paths_reconstruct_source_arcs() {
     }
 }
 
+/// LCV-172 AC 9 — two exported arc `d` strings joined into one `d` import as
+/// exactly the two arcs each imports alone.
+#[test]
+fn joined_exported_arc_paths_import_as_the_same_arcs() {
+    let d_of = |src: &str| {
+        let doc = roxmltree::Document::parse(src).unwrap();
+        let path = doc.descendants().find(|n| n.has_tag_name("path"));
+        path.and_then(|n| n.attribute("d")).unwrap().to_owned()
+    };
+    let (a, b) = (d_of(ARC_CCW_Q), d_of(ARC_LARGE));
+    let joined = import_svg(&svg(&format!(r#"<path d="{a} {b}"/>"#))).unwrap();
+    let alone: Vec<Entity> = [ARC_CCW_Q, ARC_LARGE]
+        .iter()
+        .flat_map(|src| import_svg(src).unwrap().entities)
+        .collect();
+    assert_eq!(alone.len(), 2);
+    assert_eq!(joined.entities, alone);
+    assert!(joined.report.is_empty(), "{:?}", joined.report);
+}
+
 /// The lower half of the same semicircle differs only in the sweep flag and
 /// must import as the CW arc.
 #[test]

@@ -15,7 +15,7 @@
       and no error (files: src/io/svg/path_data.rs)
 - [x] T5 [AC2] [AC8] `parse_path_data` and the segment enum: command loop, current point, subpath
       start, emitting a segment only once it has fully parsed (files: src/io/svg/path_data.rs)
-- [ ] T6 [AC9] Test: two exported arc `d` strings joined into one `d` import as the same two
+- [x] T6 [AC9] Test: two exported arc `d` strings joined into one `d` import as the same two
       arcs as when imported separately (the existing golden-path and half-turn tests already pin
       single arcs and stay unchanged) (files: src/io/svg/import/tests.rs)
 - [ ] T7 [AC3] [AC4] [AC5] [AC6] [AC7] Test (unit, `import/path.rs`): zero-length `L`/`H`/`V`
