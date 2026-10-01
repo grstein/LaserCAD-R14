@@ -58,4 +58,4 @@
 - [x] T22 [AC8] DESIGN.md §7 (severities, prompt grammar and table), §8 (repeat, right-click =
   Enter, replacing the LCV-041 line); ADR 0003 amendment note (§B5 empty Enter, §C `Cow`
   prompt) (files: DESIGN.md, docs/adr/0003-command-line-input-contract.md)
-- [ ] T23 CHANGELOG line (files: CHANGELOG.md)
+- [x] T23 CHANGELOG line (files: CHANGELOG.md)
