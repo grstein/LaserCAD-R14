@@ -160,6 +160,7 @@ mod tests {
         }
         assert_eq!(center_arc(a, a, (4.0, 2.0), 0.0, false, true), None);
         assert_eq!(center_arc(a, b, (0.0, 2.0), 0.0, false, true), None);
+        assert_eq!(center_arc(a, b, (4.0, 1e-12), 0.0, false, true), None);
     }
 
     /// Short radii scale up by `sqrt(λ)`; the centre is the chord midpoint.
@@ -169,6 +170,11 @@ mod tests {
         let k = center_arc(a, b, (4.0, 2.0), 0.0, false, true).expect("arc");
         assert!(k.center.approx_eq(Vec2::new(50.0, 0.0), 1e-9));
         assert!((k.u.length() - 50.0).abs() < 1e-9 && (k.v.length() - 25.0).abs() < 1e-9);
+        // A vertical chord: λ = (0/4)² + (50/2)², so both radii scale by 25.
+        let up = center_arc(a, Vec2::new(0.0, 100.0), (4.0, 2.0), 0.0, false, true);
+        let k = up.expect("arc");
+        assert!(k.center.approx_eq(Vec2::new(0.0, 50.0), 1e-9));
+        assert!((k.u.length() - 100.0).abs() < 1e-9 && (k.v.length() - 50.0).abs() < 1e-9);
     }
 
     /// The identity CTM mirrors Y only; equal radii collapse to a circle or
@@ -210,5 +216,36 @@ mod tests {
         assert!(a.end_point().approx_eq(end, 1e-12) && !a.ccw, "{a:?}");
         let flat = ctx(Matrix::scale(1.0, 0.0));
         assert_eq!(conic_entity(&flat, k, 100.0), None);
+        let nan = Conic {
+            center: Vec2::new(f64::NAN, 0.0),
+            ..k
+        };
+        assert_eq!(conic_entity(&id, nan, 100.0), None);
+        let thin = Conic {
+            u: Vec2::new(1e-12, 0.0),
+            ..k
+        };
+        assert_eq!(conic_entity(&id, thin, 100.0), None);
+    }
+
+    /// A turned circular conic collapses to an arc whose polar angles are
+    /// its parameters plus the rotation: the arc ends where the conic does.
+    #[test]
+    fn a_turned_circular_arc_keeps_its_ends() {
+        let turned = Conic {
+            center: Vec2::new(10.0, 20.0),
+            u: Vec2::new(0.0, 4.0),
+            v: Vec2::new(-4.0, 0.0),
+            span: Some(EllipseSpan::new(0.3, 1.2, true)),
+        };
+        let Some(Entity::Arc(a)) = conic_entity(&ctx(Matrix::IDENTITY), turned, 100.0) else {
+            panic!("an arc");
+        };
+        let world = |t: f64| {
+            let p = turned.center + turned.u * t.cos() + turned.v * t.sin();
+            Vec2::new(p.x, 100.0 - p.y)
+        };
+        assert!(a.start_point().approx_eq(world(0.3), 1e-12), "{a:?}");
+        assert!(a.end_point().approx_eq(world(1.2), 1e-12), "{a:?}");
     }
 }

@@ -319,6 +319,27 @@ mod tests {
         assert_eq!(at(50, 30), WHITE, "bottom is outside the sweep");
     }
 
+    /// LCV-176 — at 10 px/mm every ellipse ink pixel is within one pixel of
+    /// the curve (half a pixel of chord, half of rounding), all the way round.
+    #[test]
+    fn every_ellipse_pixel_lies_within_a_pixel_of_the_curve() {
+        let e = Ellipse::new(Vec2::new(5.0, 5.0), 4.0, 2.0, 0.3, None);
+        let px = decoded(&[Entity::Ellipse(e)], [0.0, 0.0, 10.0, 10.0], 101, 101);
+        let mut ink = 0;
+        for row in 0..101usize {
+            for col in 0..101usize {
+                if px[row * 101 + col] != INK {
+                    continue;
+                }
+                ink += 1;
+                let p = Vec2::new(col as f64 / 10.0, 10.0 - row as f64 / 10.0);
+                let off = e.distance_to_point(p) * 10.0;
+                assert!(off <= 1.0 + 1e-9, "pixel ({col}, {row}) is {off} px off");
+            }
+        }
+        assert!(ink >= 2 * 2 * 40, "only {ink} ink pixels");
+    }
+
     #[test]
     fn far_off_entities_are_clipped_without_walking_their_length() {
         let world = [0.0, 0.0, 100.0, 100.0];

@@ -164,6 +164,11 @@ mod tests {
         assert!((e.distance_to_point(Vec2::default()) - 2.0).abs() <= EPSILON);
         let tall = Ellipse::new(Vec2::default(), 2.0, 4.0, 0.0, None);
         assert!((tall.distance_to_point(Vec2::default()) - 2.0).abs() <= EPSILON);
+        // Inside, on the major axis, the foot is off the axis:
+        // x = rx·y0·rx/(rx² − ry²) = 4/3, y = ry·√(1 − (1/3)²).
+        let inner = e.nearest(Vec2::new(1.0, 0.0));
+        let foot = Vec2::new(4.0 / 3.0, 2.0 * (8.0f64 / 9.0).sqrt());
+        assert!(inner.approx_eq(foot, EPSILON), "{inner:?}");
         let circle = Ellipse::new(Vec2::default(), 3.0, 3.0, 0.0, None);
         assert!((circle.distance_to_point(Vec2::new(1.0, 0.0)) - 2.0).abs() <= EPSILON);
     }

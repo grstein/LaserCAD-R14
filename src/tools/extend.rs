@@ -252,6 +252,25 @@ mod tests {
         }
     }
 
+    /// LCV-176 AC 8 — a click within 5 pt of an ellipse, at the live zoom,
+    /// is refused; one farther away is not.
+    #[test]
+    fn ellipse_refusal_reach_follows_the_pick_scale() {
+        use crate::geometry::Ellipse;
+        for (scale, gap, refused) in [(0.05, 0.2, true), (0.05, 0.3, false), (20.0, 90.0, true)] {
+            let mut t = ExtendTool::default();
+            t.set_pick_scale(scale);
+            let flat = Ellipse::new(v(0., 0.), 400., 10., 0., None);
+            let mut d = mk(vec![Entity::Ellipse(flat)]);
+            t.on_pointer_down(v(0., 10. + gap), false, &mut d, &mut History::default());
+            assert_eq!(
+                t.take_message().is_some(),
+                refused,
+                "{scale} mm/pt, {gap} mm"
+            );
+        }
+    }
+
     #[test]
     fn hover_line_boundary_preview() {
         let (mut t, mut d, _) = hd();

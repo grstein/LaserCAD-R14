@@ -124,8 +124,11 @@ fn bbox_of_partial_span_is_tight() {
 #[test]
 fn quadrants_inside_the_span_only() {
     let full = Ellipse::new(Vec2::new(1.0, 1.0), 4.0, 2.0, FRAC_PI_2, None);
+    let want = [(1.0, 5.0), (-1.0, 1.0), (1.0, -3.0), (3.0, 1.0)];
     assert_eq!(full.quadrants().len(), 4);
-    assert!(full.quadrants()[0].approx_eq(Vec2::new(1.0, 5.0), EPSILON));
+    for (q, (x, y)) in full.quadrants().into_iter().zip(want) {
+        assert!(q.approx_eq(Vec2::new(x, y), EPSILON), "{q:?} vs ({x}, {y})");
+    }
     let a = Ellipse::new(
         Vec2::default(),
         4.0,
@@ -145,6 +148,14 @@ fn quadrants_inside_the_span_only() {
         span(-0.1, FRAC_PI_2 + 0.1, false),
     );
     assert_eq!(cw.quadrants().len(), 2, "{:?}", cw.quadrants());
+}
+
+/// The fewest segments that keep the chord deviation within tolerance:
+/// `10·(1 − cos(Δt/2)) ≤ 0.01` needs `Δt ≤ 0.08945`, so 71 segments.
+#[test]
+fn polyline_uses_the_fewest_segments_within_tolerance() {
+    let e = Ellipse::new(Vec2::default(), 10.0, 5.0, 0.0, None);
+    assert_eq!(e.polyline(0.01).len(), 72);
 }
 
 trait MinMax {
