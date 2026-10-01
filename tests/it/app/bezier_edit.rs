@@ -9,11 +9,11 @@
 
 use crate::harness;
 
-use harness::{frame, submit_command};
+use harness::{frame, submit_command, tap};
 use lasercad::app::App;
 use lasercad::document::Entity;
 use lasercad::document::commands::CreateEntities;
-use lasercad::geometry::{Bezier, Vec2};
+use lasercad::geometry::{Bezier, Transform, Vec2};
 use lasercad::tools::{SelectTool, Tool};
 
 struct Scene {
@@ -216,4 +216,85 @@ fn zoom_extents_frames_the_tight_box() {
         "{} vs {want}",
         cam.mm_per_px
     );
+}
+
+/// The fixed curves of the AC 8 scenes, in mm.
+fn fixed() -> [Bezier; 2] {
+    let v = Vec2::new;
+    [
+        Bezier::Cubic([v(10.0, 20.0), v(15.0, 40.0), v(30.0, 0.0), v(40.0, 25.0)]),
+        Bezier::Quadratic([v(-5.0, 3.0), v(8.0, 30.0), v(20.0, 2.0)]),
+    ]
+}
+
+fn assert_bezier(actual: &Entity, want: Bezier, what: &str) {
+    let Entity::Bezier(got) = actual else {
+        panic!("{what}: expected a Bézier, got {actual:?}");
+    };
+    let same = got.points().len() == want.points().len()
+        && got
+            .points()
+            .iter()
+            .zip(want.points())
+            .all(|(g, w)| g.approx_eq(*w, 1e-9));
+    assert!(same, "{what}: got {got:?}, want {want:?}");
+}
+
+fn ctrl() -> egui::Modifiers {
+    egui::Modifiers {
+        ctrl: true,
+        command: true,
+        ..egui::Modifiers::NONE
+    }
+}
+
+/// AC 8 — each modify tool, typed on the command line with the curve
+/// selected, maps every control point through `Transform::point` in one
+/// undo step, and Ctrl+Z restores it.
+#[test]
+fn modify_tools_transform_a_bezier_exactly_in_one_step() {
+    let origin = Vec2::default();
+    for b in fixed() {
+        let moved = b.map(|p| p + Vec2::new(5.0, 7.0));
+        let rotate = Transform::Rotate {
+            base: origin,
+            angle: core::f64::consts::FRAC_PI_2,
+        };
+        let mirror = Transform::Mirror {
+            a: origin,
+            b: Vec2::new(1.0, 0.0),
+        };
+        let scale = Transform::Scale {
+            base: origin,
+            factor: 2.0,
+        };
+        let cases: [(&str, &[&str], Vec<Bezier>); 5] = [
+            ("MOVE", &["m", "0,0", "5,7"], vec![moved]),
+            ("COPY", &["co", "0,0", "5,7"], vec![b, moved]),
+            ("ROTATE", &["ro", "0,0", "90"], vec![rotate.bezier(b)]),
+            ("MIRROR", &["mi", "0,0", "1,0", "y"], vec![mirror.bezier(b)]),
+            ("SCALE", &["sc", "0,0", "2"], vec![scale.bezier(b)]),
+        ];
+        for (name, typed, want) in cases {
+            let mut s = Scene::new(Box::new(SelectTool::default()));
+            s.add(b);
+            let depth = s.app.history.len();
+            s.app.document.selection.set([0]);
+            for t in typed {
+                submit_command(&s.ctx, &mut s.app, t);
+            }
+            let got = &s.app.document.entities;
+            assert_eq!(got.len(), want.len(), "{name}: entity count");
+            for (g, w) in got.iter().zip(&want) {
+                assert_bezier(g, *w, name);
+            }
+            assert_eq!(s.app.history.len(), depth + 1, "{name}: one undo step");
+            tap(&s.ctx, &mut s.app, egui::Key::Z, ctrl());
+            assert_eq!(
+                s.app.document.entities,
+                vec![Entity::Bezier(b)],
+                "{name}: undone"
+            );
+        }
+    }
 }

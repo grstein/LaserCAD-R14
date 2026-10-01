@@ -38,7 +38,7 @@
   src/geometry/snap/mod.rs, src/geometry/snap/candidates.rs, src/app/snap.rs)
 - [x] T13 [AC9] Nearest for Béziers, skipped by perpendicular/tangent (files:
   src/geometry/snap/anchored.rs)
-- [ ] T14 [AC8] Test: MOVE, COPY, ROTATE, MIRROR and SCALE on a cubic and a quadratic through
+- [x] T14 [AC8] Test: MOVE, COPY, ROTATE, MIRROR and SCALE on a cubic and a quadratic through
   the tools; points equal `Transform::point` of the originals, each undoes as one step (files:
   tests/it/app/bezier_edit.rs)
 - [ ] T15 [AC10] Test: TRIM and EXTEND aimed at a Bézier leave document and history unchanged
