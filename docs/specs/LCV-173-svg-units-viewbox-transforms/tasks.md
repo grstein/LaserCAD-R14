@@ -7,7 +7,7 @@
   `None` (files: src/io/svg/matrix.rs, src/io/svg/mod.rs)
 - [x] T3 [AC4] Test + code: `par` parser and `view_box_map` for all nine aligns × meet/slice, plus
   `none`, with an offset origin (files: src/io/svg/viewport.rs, src/io/svg/mod.rs)
-- [ ] T4 [AC2, AC3] Test: root bed rules (absolute pair, relative/absent → viewBox as px, default,
+- [x] T4 [AC2, AC3] Test: root bed rules (absolute pair, relative/absent → viewBox as px, default,
   out-of-range refusal); rewrite `header.rs` unit tests to SVG 2 units (files:
   src/io/svg/header.rs)
 - [ ] T5 [AC2, AC3, AC4] `header.rs::parse_root -> Root { bed_mm, ctx }`, viewBox mapped onto the

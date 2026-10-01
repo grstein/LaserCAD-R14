@@ -107,7 +107,7 @@ fn bad(attr: &'static str, value: &str) -> SvgImportError {
 mod tests {
     use super::*;
 
-    /// Parse `attrs` as a root `<svg>` and hand it to [`parse_bed`].
+    /// Parse `attrs` as a root `<svg>` and return the bed it declares.
     fn bed_of(attrs: &str) -> Result<[f64; 2], SvgImportError> {
         let src = format!(r#"<svg xmlns="http://www.w3.org/2000/svg" {attrs}/>"#);
         let doc = roxmltree::Document::parse(&src).expect("fixture must be valid XML");
@@ -121,101 +121,99 @@ mod tests {
         }
     }
 
-    /// AC 8a — `width` + `height` win.
+    fn near(got: [f64; 2], want: [f64; 2]) -> bool {
+        (got[0] - want[0]).abs() < 1e-9 && (got[1] - want[1]).abs() < 1e-9
+    }
+
+    /// LCV-173 AC 2 — absolute `width` + `height` are the bed, in any unit,
+    /// unitless being px; `mm` is taken as written.
     #[test]
-    fn width_and_height_take_precedence_over_viewbox() {
+    fn an_absolute_pair_is_the_bed() {
         assert_eq!(
             bed_of(r#"width="300mm" height="180mm" viewBox="0 0 111 222""#).unwrap(),
             [300.0, 180.0]
         );
-    }
-
-    /// AC 8b — `viewBox` is used only when a dimension is missing, including
-    /// when just one of the two is present.
-    #[test]
-    fn viewbox_is_the_fallback_for_missing_dimensions() {
-        assert_eq!(bed_of(r#"viewBox="0 0 300 180""#).unwrap(), [300.0, 180.0]);
-        assert_eq!(
-            bed_of(r#"width="300mm" viewBox="0 0 250 150""#).unwrap(),
-            [250.0, 150.0]
-        );
-        assert_eq!(
-            bed_of(r#"height="180mm" viewBox="0 0 250 150""#).unwrap(),
-            [250.0, 150.0]
-        );
-        // Commas are legal separators in a viewBox.
-        assert_eq!(bed_of(r#"viewBox="0,0,300,180""#).unwrap(), [300.0, 180.0]);
-    }
-
-    /// AC 8c — neither present falls back to the constants, not to whatever
-    /// document happens to be open.
-    #[test]
-    fn no_header_falls_back_to_the_default_bed() {
-        assert_eq!(
-            bed_of("").unwrap(),
-            [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM]
-        );
-    }
-
-    /// AC 8 — the accepted numeric forms, and only those.
-    #[test]
-    fn accepted_numeric_forms() {
-        assert_eq!(bed_of(r#"width="400" height="400""#).unwrap(), [400.0; 2]);
         assert_eq!(
             bed_of(r#"width=" 400.5 mm " height="128MM""#).unwrap(),
             [400.5, 128.0]
         );
-        for unit in ["400px", "400pt", "400in", "50%", "400 cm"] {
-            let e = bed_of(&format!(r#"width="{unit}" height="400""#)).unwrap_err();
-            assert_eq!(attr_of(&e), "width", "{unit} must be rejected");
+        for (attrs, want) in [
+            (r#"width="1in" height="72pt""#, [25.4, 25.4]),
+            (r#"width="96px" height="960""#, [25.4, 254.0]),
+            (r#"width="10cm" height="100Q""#, [100.0, 25.0]),
+            (r#"width="6pc" height="5000""#, [25.4, 5000.0 * 25.4 / 96.0]),
+        ] {
+            assert!(near(bed_of(attrs).unwrap(), want), "{attrs}");
         }
     }
 
-    /// AC 9 — each rejection case, with the offending attribute named and its
-    /// raw value preserved for the error message.
+    /// LCV-173 AC 2 — a relative or absent side takes both from the viewBox,
+    /// read as px, whatever its origin.
+    #[test]
+    fn a_relative_or_absent_side_falls_back_to_the_view_box_as_px() {
+        for attrs in [
+            r#"viewBox="0 0 960 480""#,
+            r#"viewBox="10,-20,960,480""#,
+            r#"width="300mm" viewBox="0 0 960 480""#,
+            r#"height="180mm" viewBox="0 0 960 480""#,
+            r#"width="50%" height="180mm" viewBox="0 0 960 480""#,
+            r#"width="2em" height="3ex" viewBox="0 0 960 480""#,
+        ] {
+            assert!(near(bed_of(attrs).unwrap(), [254.0, 127.0]), "{attrs}");
+        }
+    }
+
+    /// LCV-173 AC 2 — no usable pair and no viewBox: the default bed, never
+    /// the open document's.
+    #[test]
+    fn no_pair_and_no_view_box_is_the_default_bed() {
+        let default = [DEFAULT_BED_WIDTH_MM, DEFAULT_BED_HEIGHT_MM];
+        for attrs in ["", r#"width="300mm""#, r#"width="100%" height="100%""#] {
+            assert_eq!(bed_of(attrs).unwrap(), default, "{attrs}");
+        }
+    }
+
+    /// LCV-173 AC 3 — a bed side outside 1..=2000 mm, or an unparseable
+    /// side, is refused with the attribute it came from and its raw value.
     #[test]
     fn rejects_unusable_dimensions() {
-        for raw in ["0", "-10", "5000", "0.5", "abc", "", "inf", "NaN"] {
-            let e = bed_of(&format!(r#"width="{raw}" height="400""#)).unwrap_err();
+        for raw in [
+            "0", "-10mm", "5000mm", "0.5mm", "3", "abc", "", "inf", "NaN", "10km",
+        ] {
+            let e = bed_of(&format!(r#"width="{raw}" height="400mm""#)).unwrap_err();
             assert_eq!(attr_of(&e), "width", "width={raw:?} must be rejected");
             assert!(
-                e.to_string().contains(raw) || raw.is_empty(),
+                e.to_string().contains(raw),
                 "the raw value must survive into the message: {e}"
             );
-            let e = bed_of(&format!(r#"width="400" height="{raw}""#)).unwrap_err();
+            let e = bed_of(&format!(r#"width="400mm" height="{raw}""#)).unwrap_err();
             assert_eq!(attr_of(&e), "height", "height={raw:?} must be rejected");
         }
-        // The bounds themselves are usable.
-        assert_eq!(bed_of(r#"width="1" height="2000""#).unwrap(), [1.0, 2000.0]);
+        assert_eq!(
+            bed_of(r#"width="1mm" height="2000mm""#).unwrap(),
+            [1.0, 2000.0]
+        );
     }
 
-    /// AC 9 — a `viewBox` this module cannot honour is an error, not a silent
-    /// offset or a silent scale.
+    /// LCV-173 AC 3 — a viewBox-derived bed out of range, or a viewBox that
+    /// is not four finite numbers with positive size, is refused; the latter
+    /// even when the pair is used, since the viewBox maps every coordinate.
     #[test]
-    fn rejects_unusable_viewboxes() {
-        for raw in ["0 0 300", "0 0 300 180 90", "10 0 300 180", "0 5 300 180"] {
+    fn rejects_unusable_view_boxes() {
+        for raw in ["0 0 9000 180", "0 0 2 180"] {
             let e = bed_of(&format!(r#"viewBox="{raw}""#)).unwrap_err();
-            assert_eq!(attr_of(&e), "viewBox", "viewBox={raw:?} must be rejected");
+            assert_eq!(attr_of(&e), "viewBox", "viewBox={raw:?}");
         }
-        assert_eq!(
-            attr_of(&bed_of(r#"viewBox="0 0 0 180""#).unwrap_err()),
-            "viewBox"
-        );
-        assert_eq!(
-            attr_of(&bed_of(r#"viewBox="0 0 9000 180""#).unwrap_err()),
-            "viewBox"
-        );
-        assert_eq!(
-            attr_of(&bed_of(r#"viewBox="a b c d""#).unwrap_err()),
-            "viewBox"
-        );
-    }
-
-    /// AC 9 — an attribute that precedence would ignore is still validated:
-    /// a header we cannot honour is reported, never half-read.
-    #[test]
-    fn an_unused_but_broken_attribute_is_still_reported() {
-        let e = bed_of(r#"width="300" height="180" viewBox="10 0 300 180""#).unwrap_err();
-        assert_eq!(attr_of(&e), "viewBox");
+        for raw in [
+            "0 0 300",
+            "0 0 300 180 90",
+            "0 0 0 180",
+            "0 0 300 -1",
+            "a b c d",
+        ] {
+            let e =
+                bed_of(&format!(r#"width="300mm" height="180mm" viewBox="{raw}""#)).unwrap_err();
+            assert_eq!(attr_of(&e), "viewBox", "viewBox={raw:?}");
+        }
     }
 }
