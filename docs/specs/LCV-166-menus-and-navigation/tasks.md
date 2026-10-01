@@ -15,7 +15,7 @@
   `zoom_extents`, `fit_bed` and `check` on the 20-unit grid. Unit tests: each paints at least one
   shape inside its square, and no two paint the same shapes (files: src/ui/icons/menu.rs,
   src/ui/icons.rs)
-- [ ] T4 [AC1] [AC2] [AC3] `row.rs`: `MENU_ICON`, `slot_text` (a `LayoutJob` with
+- [x] T4 [AC1] [AC2] [AC3] `row.rs`: `MENU_ICON`, `slot_text` (a `LayoutJob` with
   `leading_space`, colour `PLACEHOLDER`), `menu_row` (a `Button` with `shortcut_text`, and the
   icon painted in the slot in the row's text colour) and `check_row` (a check glyph while on,
   flips on click, keeps the menu open). Unit test: the icon's bounding rect lies left of the

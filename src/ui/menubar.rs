@@ -16,6 +16,7 @@ use crate::ui::toolbar::TOOLS;
 
 mod object_snap;
 mod recent;
+mod row;
 
 use recent::recent_submenu;
 
