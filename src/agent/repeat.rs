@@ -25,14 +25,20 @@ impl RefusedCalls {
     /// `repeated call, refused before: <first refusal>; change the arguments`.
     /// `None` when `(name, args)` was never refused.
     pub fn check(&self, name: &str, args: &str) -> Option<String> {
-        let _ = (name, args);
-        None
+        let first = self.first.get(&(name.to_owned(), args.to_owned()))?;
+        Some(format!(
+            "repeated call, refused before: {first}; change the arguments"
+        ))
     }
 
     /// Remember `(name, args)` if `outcome` refused it; the first refusal of
     /// a call is the one kept.
     pub fn record(&mut self, name: &str, args: &str, outcome: &AgentOutcome) {
-        let _ = (name, args, outcome, &mut self.first);
+        if let AgentOutcome::Refused(text) = outcome {
+            self.first
+                .entry((name.to_owned(), args.to_owned()))
+                .or_insert_with(|| text.clone());
+        }
     }
 }
 
