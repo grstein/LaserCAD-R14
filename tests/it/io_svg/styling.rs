@@ -64,3 +64,81 @@ fn a_hidden_layer_group_still_declares_its_layer() {
     assert_eq!(imported.entity_layers, [imported.layers[1].id]);
     assert_eq!(imported.report, report(&[("hidden (display:none)", 1)]));
 }
+
+/// Each entity's layer name, in entity order.
+fn memberships(imported: &ImportedSvg) -> Vec<String> {
+    let name = |id| {
+        let layer = imported.layers.iter().find(|l| l.id == id);
+        layer.map_or_else(|| "?".to_owned(), |l| l.name.clone())
+    };
+    imported.entity_layers.iter().map(|&id| name(id)).collect()
+}
+
+fn line(attrs: &str) -> String {
+    format!(r#"<line x1="1" y1="1" x2="2" y2="2" {attrs}/>"#)
+}
+
+/// AC 1, AC 3 — an Illustrator-style `<defs><style>` class colors its
+/// geometry; the `<defs>` holding only a `<style>` is not reported.
+#[test]
+fn illustrator_style_classes_color_geometry() {
+    let body = format!(
+        "<defs><style>.cls-1{{fill:none;stroke:#f00;stroke-miterlimit:10}}</style></defs>{}",
+        line(r#"class="cls-1""#)
+    );
+    let imported = import(&body);
+    assert_eq!(memberships(&imported), ["#ff0000"]);
+    assert_eq!(imported.layers[0].color, [255, 0, 0]);
+    assert_eq!(imported.report, report(&[]));
+}
+
+/// AC 1 — `style` beats a class rule, which beats the attribute.
+#[test]
+fn style_attribute_beats_rule_beats_presentation_attribute() {
+    let body = format!(
+        "<style>.c{{stroke:blue}}</style>{}{}{}",
+        line(r#"class="c" stroke="red" style="stroke:lime""#),
+        line(r#"class="c" stroke="red""#),
+        line(r#"stroke="red""#),
+    );
+    let imported = import(&body);
+    assert_eq!(memberships(&imported), ["#00ff00", "#0000ff", "#ff0000"]);
+}
+
+/// AC 2, AC 3, AC 4 — the id rule wins; at-rules and unsupported selectors
+/// change nothing and are reported.
+#[test]
+fn specificity_and_dropped_rules_end_to_end() {
+    let body = format!(
+        "<style>#a{{stroke:red}} line{{stroke:blue}} @media print{{line{{stroke:lime}}}} g line{{stroke:lime}}</style>{}{}",
+        line(r#"id="a""#),
+        line(""),
+    );
+    let imported = import(&body);
+    assert_eq!(memberships(&imported), ["#ff0000", "#0000ff"]);
+    let want = [
+        ("style @media", 1),
+        ("style rule (unsupported selector)", 1),
+    ];
+    assert_eq!(imported.report, report(&want));
+}
+
+/// AC 5, AC 6 — `currentColor` takes the `color` inherited from an ancestor.
+#[test]
+fn current_color_through_an_ancestor() {
+    let body = format!(
+        r##"<g color="#00aa00">{}</g>"##,
+        line(r#"stroke="currentColor""#)
+    );
+    assert_eq!(memberships(&import(&body)), ["#00aa00"]);
+}
+
+/// AC 11 — an invalid color is dropped, the inherited one applies, and
+/// the report counts it.
+#[test]
+fn an_invalid_color_is_reported_and_falls_back() {
+    let body = format!(r#"<g stroke="blue">{}</g>"#, line(r#"stroke="bogus""#));
+    let imported = import(&body);
+    assert_eq!(memberships(&imported), ["#0000ff"]);
+    assert_eq!(imported.report, report(&[("stroke (invalid color)", 1)]));
+}
