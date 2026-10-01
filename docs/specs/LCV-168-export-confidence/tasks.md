@@ -35,5 +35,5 @@
   `command_feedback` unchanged (files: tests/it/app/autosave_dirty.rs)
 - [x] T13 [AC7] DESIGN.md §7 (dock messages: `Saved …` Info, out-of-bed Warning) and §9 (the
   ` — n entities outside the bed` suffix pattern) (files: DESIGN.md)
-- [ ] T14 CHANGELOG line: Save confirms the file and warns about geometry outside the bed
+- [x] T14 CHANGELOG line: Save confirms the file and warns about geometry outside the bed
   (files: CHANGELOG.md)

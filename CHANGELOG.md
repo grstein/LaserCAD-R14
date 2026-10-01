@@ -11,6 +11,7 @@ v0.2.0 is the first tagged release of LaserCAD v2; nothing was tagged before it 
 ### Added
 
 - `Edit > Delete` erases the selection, and `Ctrl+A` selects everything, as `Edit > Select All` does, unless the command line has focus. `View > Zoom Extents` frames the drawing, as `F` does, and `View > Zoom All` frames the bed and the drawing together. See LCV-166.
+- Save and Save As confirm the file they wrote and the bed it was written for, e.g. `Saved part.svg (400 × 297.5 mm)`. When any geometry lies outside the bed, that line, and the `Export Layers` file list, turns into a warning such as `— 2 entities outside the bed`; the files are still written unchanged. See LCV-168.
 
 ### Changed
 
