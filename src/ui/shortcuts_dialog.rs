@@ -55,7 +55,11 @@ pub const SHORTCUT_GROUPS: &[ShortcutGroup] = &[
     },
     ShortcutGroup {
         heading: "Edit",
-        rows: &[("Ctrl+Z", "Undo"), ("Ctrl+Y", "Redo")],
+        rows: &[
+            ("Ctrl+Z", "Undo"),
+            ("Ctrl+Y", "Redo"),
+            ("Ctrl+A", "Select All"),
+        ],
     },
     ShortcutGroup {
         heading: "View",
@@ -317,6 +321,7 @@ mod tests {
             ("File", "Ctrl+Shift+S", "Save As"),
             ("Edit", "Ctrl+Z", "Undo"),
             ("Edit", "Ctrl+Y", "Redo"),
+            ("Edit", "Ctrl+A", "Select All"),
             ("View", "F", "Zoom extents"),
             ("View", "Ctrl+0", "Zoom extents"),
             ("Modes", "F3", "Snap"),
@@ -375,6 +380,8 @@ mod tests {
             ("Ctrl+Shift+S", &["Key::S", "modifiers.shift"]),
             ("Ctrl+Z", &["Key::Z"]),
             ("Ctrl+Y", &["Key::Y"]),
+            // `Key::A` alone also matches the bare Arc tool key.
+            ("Ctrl+A", &["Key::A if !wants_kbd"]),
             ("F", &["Key::F)"]),
             ("Ctrl+0", &["Key::Num0"]),
             ("F3", &["Key::F3"]),

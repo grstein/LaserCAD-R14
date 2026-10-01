@@ -52,7 +52,7 @@
 - [x] T12 [AC8] [AC9] `dispatch_shortcuts`: a `ctrl_only` arm for `Key::A`, when `!wants_kbd`,
   calls `menubar::do_select_all` and returns `true`. Edit > Select All shows `Ctrl+A` in the
   shortcut column (files: src/ui/shortcuts.rs, src/ui/menubar.rs)
-- [ ] T13 [AC8] The F1 dialog lists `Ctrl+A  Select All` in its Edit group, and its
+- [x] T13 [AC8] The F1 dialog lists `Ctrl+A  Select All` in its Edit group, and its
   key-coverage tests follow (files: src/ui/shortcuts_dialog.rs)
 - [ ] T14 [AC10] ADR 0002: add an **Amended (4)** header note, "§A6: `Ctrl+A` joins the table as
   `select all | Ctrl+A | no` (LCV-166)", and add that row to the table (files:
