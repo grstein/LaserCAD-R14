@@ -7,14 +7,18 @@
 //! before the command is built, so copies and keep-source mirrors append in
 //! ascending source order whatever order the model listed them in.
 //!
+//! `set_layer` (LCV-191) is the seventh operation: `SetEntityLayers`, the
+//! command behind Format > Move to Layer, over the entities not already there.
+//!
 //! Imports `egui` nowhere, `eframe` nowhere, `rfd` nowhere.
 
-use super::Planned;
 use super::edit::{out_of_range, same_point};
+use super::{Planned, target_layer};
 use crate::agent::{AgentOutcome, SetOp};
 use crate::app::agent_narrate::pt;
 use crate::document::{
-    Command, CopyEntities, DeleteEntities, Document, MoveEntities, TransformEntities,
+    Command, CopyEntities, DeleteEntities, Document, MoveEntities, SetEntityLayers,
+    TransformEntities,
 };
 use crate::geometry::{Transform, Vec2};
 
@@ -31,10 +35,7 @@ pub(super) fn plan(tool: &str, indices: &[usize], op: &SetOp, doc: &Document) ->
     let n = sorted.len();
     let what = entities(n);
     let (sentence, command): (String, Box<dyn Command>) = match *op {
-        // LCV-191 T5 replaces this placeholder.
-        SetOp::Layer { .. } => {
-            return Planned::Answer(AgentOutcome::Refused(format!("{tool}: not applied yet")));
-        }
+        SetOp::Layer { ref layer } => return layer_plan(tool, sorted, layer, doc),
         SetOp::Delete => (
             delete_sentence(&sorted, count),
             Box::new(DeleteEntities::new(sorted)),
@@ -110,6 +111,34 @@ pub(super) fn plan(tool: &str, indices: &[usize], op: &SetOp, doc: &Document) ->
         }
     };
     Planned::Commit(command, sentence)
+}
+
+/// LCV-191 — move `sorted` onto the named layer (unknown → refused by
+/// `target_layer`), skipping entities already on it; none left to move is
+/// answered with nothing committed, so there is no empty undo step.
+fn layer_plan(tool: &str, sorted: Vec<usize>, name: &str, doc: &Document) -> Planned {
+    let id = match target_layer(tool, Some(name), doc) {
+        Ok(id) => id,
+        Err(refusal) => return Planned::Answer(refusal),
+    };
+    let name = doc.layer(id).map_or(name, |l| l.name.as_str());
+    let total = sorted.len();
+    let to_move: Vec<usize> = sorted
+        .into_iter()
+        .filter(|&i| doc.entity_layer(i) != Some(id))
+        .collect();
+    let there = total - to_move.len();
+    if to_move.is_empty() {
+        let what = entities(total);
+        let text = format!("{what} already on layer \"{name}\"; nothing committed.");
+        return Planned::Answer(AgentOutcome::Ok(text));
+    }
+    let mut sentence = format!("Moved {} to layer \"{name}\"", entities(to_move.len()));
+    if there > 0 {
+        sentence.push_str(&format!(" ({there} already there)"));
+    }
+    sentence.push('.');
+    Planned::Commit(Box::new(SetEntityLayers::new(to_move, id)), sentence)
 }
 
 /// An identity transform: answered, nothing committed (LCV-158 AC8, LCV-182
