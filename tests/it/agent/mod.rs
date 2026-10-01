@@ -6,6 +6,7 @@ mod default_prompt;
 mod drawing_batch;
 mod entity_ids;
 mod layers;
+mod measure;
 mod memory;
 mod new_conversation;
 mod panel_and_settings;

@@ -37,7 +37,7 @@ Prerequisites: LCV-188, LCV-190, LCV-192 Done on `agent-harness`.
 - [x] T8 [AC8][AC9] The schema entry after `check_drawing`, the `expected_form` rows, and the
   registry-order test (files: src/agent/tools/schema.rs, src/agent/tools/args.rs,
   src/agent/tools/tests.rs)
-- [ ] T9 [AC1–AC6][AC8] Test (apply), exact strings for every query on a fixture document:
+- [x] T9 [AC1–AC6][AC8] Test (apply), exact strings for every query on a fixture document:
   - distance point–point, point–entity and entity–entity, with touching entities giving 0;
   - the length of a line, an arc and a circle;
   - bbox of listed entities and of the whole drawing, including an Output-off layer, with an arc
