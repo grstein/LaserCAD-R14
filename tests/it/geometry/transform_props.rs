@@ -14,7 +14,9 @@
 //! ends land on the images of the source's.
 
 use core::f64::consts::{FRAC_PI_2, PI, TAU};
-use lasercad::geometry::{Arc, Circle, EPSILON, Ellipse, EllipseSpan, Line, Transform, Vec2};
+use lasercad::geometry::{
+    Arc, Bezier, Circle, EPSILON, Ellipse, EllipseSpan, Line, Transform, Vec2,
+};
 use proptest::prelude::*;
 use proptest::test_runner::FileFailurePersistence;
 
@@ -478,5 +480,66 @@ proptest! {
         let (s, end) = (e.start_point().expect("s"), e.end_point().expect("e"));
         prop_assert!(out.start_point().expect("s").approx_eq(t.point(s), tol));
         prop_assert!(out.end_point().expect("e").approx_eq(t.point(end), tol));
+    }
+}
+
+fn bezier() -> impl Strategy<Value = Bezier> {
+    prop_oneof![
+        (point(), point(), point()).prop_map(|(a, b, c)| Bezier::Quadratic([a, b, c])),
+        (point(), point(), point(), point()).prop_map(|(a, b, c, d)| Bezier::Cubic([a, b, c, d])),
+    ]
+}
+
+/// LCV-177 — a quarter turn, a mirror and a scale map each control point of
+/// a cubic and a quadratic through `Transform::point`, keeping the degree.
+#[test]
+fn bezier_maps_every_control_point() {
+    let cubic = Bezier::Cubic([
+        Vec2::new(0.0, 0.0),
+        Vec2::new(0.0, 40.0),
+        Vec2::new(10.0, 40.0),
+        Vec2::new(10.0, 0.0),
+    ]);
+    let quad = Bezier::Quadratic([
+        Vec2::new(1.0, 2.0),
+        Vec2::new(5.0, 20.0),
+        Vec2::new(10.0, 0.0),
+    ]);
+    for t in [
+        rotate(1.0, 1.0, FRAC_PI_2),
+        mirror(0.0, 1.0, 1.0, 2.0),
+        scale(10.0, 5.0, 2.5),
+    ] {
+        for b in [cubic, quad] {
+            let out = t.bezier(b);
+            assert_eq!(out.points().len(), b.points().len());
+            for (o, p) in out.points().iter().zip(b.points()) {
+                assert_eq!(*o, t.point(*p), "{t:?}");
+            }
+        }
+    }
+    let out = rotate(0.0, 0.0, FRAC_PI_2).bezier(quad);
+    assert!(out.start().approx_eq(Vec2::new(-2.0, 1.0), EPSILON));
+    assert_eq!(
+        scale(0.0, 0.0, 2.0).bezier(quad).end(),
+        Vec2::new(20.0, 0.0)
+    );
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// LCV-177 AC8 — every curve point maps onto the image curve at the same
+    /// parameter, for rotate, mirror and scale.
+    #[test]
+    fn bezier_points_map_exactly(t in any_transform(), b in bezier()) {
+        let out = t.bezier(b);
+        let tol = TOL * 1e2;
+        for k in 0..=8 {
+            let s = f64::from(k) / 8.0;
+            prop_assert!(out.point(s).approx_eq(t.point(b.point(s)), tol));
+        }
+        prop_assert_eq!(out.start(), t.point(b.start()));
+        prop_assert_eq!(out.end(), t.point(b.end()));
     }
 }

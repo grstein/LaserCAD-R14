@@ -13,7 +13,7 @@
 
 use core::f64::consts::TAU;
 
-use crate::geometry::{Arc, Circle, EPSILON, Ellipse, EllipseSpan, Line, Vec2};
+use crate::geometry::{Arc, Bezier, Circle, EPSILON, Ellipse, EllipseSpan, Line, Vec2};
 
 /// A geometric transform applied to points and to every kernel primitive.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -172,5 +172,11 @@ impl Transform {
                 ..e
             },
         }
+    }
+
+    /// Map every control point through [`Transform::point`]; the degree is
+    /// kept. Exact by affine invariance (ADR 0016 §3).
+    pub fn bezier(&self, b: Bezier) -> Bezier {
+        b.map(|p| self.point(p))
     }
 }

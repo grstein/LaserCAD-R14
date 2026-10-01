@@ -9,7 +9,7 @@
 - [x] T3 [AC7, AC9] Test + code: `nearest`/`distance_to_point` (S-curve, a point near an end, a
   point at an off-curve control point) and `crosses_axis_segment` (one, two and zero crossings)
   (files: src/geometry/bezier/nearest.rs, src/geometry/bezier/solve.rs, src/geometry/bezier.rs)
-- [ ] T4 [AC8] Test: `Transform::bezier` for rotate, mirror and scale equals `Transform::point`
+- [x] T4 [AC8] Test: `Transform::bezier` for rotate, mirror and scale equals `Transform::point`
   on every control point, and maps `point(t)` onto the image curve (files:
   tests/it/geometry/transform_props.rs)
 - [ ] T5 [AC6, AC8] `Transform::bezier` plus `Entity::Bezier` with `bbox`, `kind_name`,
