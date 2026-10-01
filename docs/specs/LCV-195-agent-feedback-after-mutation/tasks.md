@@ -2,7 +2,7 @@
 
 Prerequisites: LCV-187, LCV-189, LCV-190 Done on `agent-harness`.
 
-- [ ] T1 Refactor (no behaviour change): move the batch body of `agent_loop` to
+- [x] T1 Refactor (no behaviour change): move the batch body of `agent_loop` to
   `loop_/batch.rs::run_batch`; the loop tests stay green (files: src/agent/loop_.rs,
   src/agent/loop_/batch.rs)
 - [ ] T2 Refactor (no behaviour change): move the `settings_ui.rs` copy constants to

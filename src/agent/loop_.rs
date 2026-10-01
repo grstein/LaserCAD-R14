@@ -12,9 +12,11 @@
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
 use crate::agent::bridge::AgentOutcome;
-use crate::agent::wire::{AssistantMessage, ChatMessage, ContentPart};
+use crate::agent::wire::{AssistantMessage, ChatMessage};
 
+mod batch;
 mod images;
+use batch::{Steps, run_batch};
 use images::send_images;
 
 // ── Step budget ──────────────────────────────────────────────────────────────
@@ -166,14 +168,19 @@ where
     D: FnMut(Dispatch<'_>) -> Result<AgentOutcome, AgentError>,
 {
     let budget = usize::try_from(step_budget).unwrap_or(usize::MAX);
-    let (mut dispatched, mut overran): (usize, bool) = (0, false);
+    let mut steps = Steps {
+        dispatched: 0,
+        budget,
+        limit: step_budget,
+    };
+    let mut overran = false;
     // The call ids whose images ride the next send (LCV-187).
     let mut shown: Vec<String> = Vec::new();
     loop {
         let message = send_images(send_fn, dispatch_fn, messages, &mut shown)?;
         match (message.tool_calls, message.content) {
             (Some(calls), content) if !calls.is_empty() => {
-                let over = dispatched + calls.len() > budget;
+                let over = steps.dispatched + calls.len() > budget;
                 if over && overran {
                     return Err(AgentError::IterationLimitExceeded(step_budget));
                 }
@@ -183,7 +190,7 @@ where
                 );
                 overran = over;
                 if over {
-                    let left = budget - dispatched;
+                    let left = budget - steps.dispatched;
                     let text = format!(
                         "not run: this reply has {} tool calls but {left} steps are left",
                         calls.len()
@@ -193,33 +200,7 @@ where
                     }
                     continue;
                 }
-                let (mut fenced, mut images) = (false, Vec::new());
-                for (i, call) in calls.iter().enumerate() {
-                    let mut result = if fenced {
-                        FENCE_STOP_PLACEHOLDER.to_owned()
-                    } else {
-                        let (name, args) = (&call.function.name, &call.function.arguments);
-                        let outcome = dispatch_fn(Dispatch::Tool { name, args })?;
-                        dispatched += 1;
-                        fenced = outcome.is_fenced();
-                        match outcome {
-                            AgentOutcome::Observed { text, png } => {
-                                let label = format!("canvas image for tool call {}", call.id);
-                                images.extend([ContentPart::text(label), ContentPart::png(&png)]);
-                                shown.push(call.id.clone());
-                                text
-                            }
-                            other => other.into_text(),
-                        }
-                    };
-                    if i + 1 == calls.len() && !fenced {
-                        result.push_str(&steps_left_line(budget - dispatched, step_budget));
-                    }
-                    messages.push(ChatMessage::tool_result(call.id.clone(), result));
-                }
-                if !images.is_empty() {
-                    messages.push(ChatMessage::user_parts(images));
-                }
+                let fenced = run_batch(dispatch_fn, messages, &calls, &mut shown, &mut steps)?;
                 if fenced {
                     return last_word(send_images(send_fn, dispatch_fn, messages, &mut shown)?);
                 }
@@ -228,13 +209,6 @@ where
             _ => return Err(AgentError::NoContent),
         }
     }
-}
-
-/// The line that ends the last tool result of a batch that ran to its end
-/// (LCV-189): what the model may still spend this turn. A fence-stopped
-/// batch gets none — its turn has no steps left to plan with.
-fn steps_left_line(left: usize, budget: u32) -> String {
-    format!("\nSteps left this turn: {left} of {budget}.")
 }
 
 /// The one completion a fence-stopped turn is allowed (ADR 0007 §D14): text is

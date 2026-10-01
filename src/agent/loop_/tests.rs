@@ -1,5 +1,5 @@
 use super::*;
-use crate::agent::wire::ToolCall;
+use crate::agent::wire::{ContentPart, ToolCall};
 
 /// The `Cancelled` variant exists, is distinct, and reads as an ended turn
 /// rather than as a failure the operator has to act on (AC 5).
