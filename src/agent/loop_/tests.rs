@@ -83,7 +83,11 @@ fn drive(
         },
         &mut |dispatch| {
             dispatches += usize::from(matches!(dispatch, Dispatch::Tool { .. }));
-            Ok(AgentOutcome::Ok("ok".into()))
+            Ok(match dispatch {
+                // LCV-197: these turns are not about the verify reminder.
+                Dispatch::VerifyDue => AgentOutcome::Refused(String::new()),
+                _ => AgentOutcome::Ok("ok".into()),
+            })
         },
         &mut messages,
         budget,
@@ -195,7 +199,11 @@ fn text_only_response_returns_ok() {
         &mut |_| text_reply("Done."),
         &mut |dispatch| {
             dispatches += usize::from(matches!(dispatch, Dispatch::Tool { .. }));
-            Ok(AgentOutcome::Ok("ok".into()))
+            Ok(match dispatch {
+                // LCV-197: these turns are not about the verify reminder.
+                Dispatch::VerifyDue => AgentOutcome::Refused(String::new()),
+                _ => AgentOutcome::Ok("ok".into()),
+            })
         },
         &mut messages,
         AGENT_STEP_BUDGET_DEFAULT,
@@ -222,10 +230,11 @@ fn a_tool_round_appends_an_assistant_turn_and_a_matching_tool_turn() {
             }
         },
         &mut |dispatch| {
-            Ok(AgentOutcome::Ok(match dispatch {
-                Dispatch::Tool { .. } => "Line created: ….".into(),
-                _ => String::new(),
-            }))
+            Ok(match dispatch {
+                Dispatch::Tool { .. } => AgentOutcome::Ok("Line created: ….".into()),
+                Dispatch::VerifyDue => AgentOutcome::Refused(String::new()),
+                _ => AgentOutcome::Ok(String::new()),
+            })
         },
         &mut messages,
         AGENT_STEP_BUDGET_DEFAULT,
@@ -439,6 +448,8 @@ fn run_fed(
                 }
                 None => Ok(AgentOutcome::Ok(String::new())),
             },
+            // LCV-197: these turns are not about the verify reminder.
+            Dispatch::VerifyDue => Ok(AgentOutcome::Refused(String::new())),
             Dispatch::Tool { name, .. } => {
                 tools += 1;
                 if fed {
@@ -686,6 +697,7 @@ fn the_fence_stop_send_is_authorised_and_elided_too() {
                 Ok(AgentOutcome::Ok(text.to_owned()))
             }
             Dispatch::Replied { .. } | Dispatch::Feedback => Ok(AgentOutcome::Ok(String::new())),
+            Dispatch::VerifyDue => Ok(AgentOutcome::Refused(String::new())),
             Dispatch::Tool { .. } => {
                 tools += 1;
                 Ok(if tools == 1 {
@@ -1662,7 +1674,11 @@ fn a_cancelled_ask_returns_cancelled() {
         || Err(AgentError::Cancelled),
         AGENT_STEP_BUDGET_DEFAULT,
     );
-    assert!(matches!(r.result, Err(AgentError::Cancelled)), "{:?}", r.result);
+    assert!(
+        matches!(r.result, Err(AgentError::Cancelled)),
+        "{:?}",
+        r.result
+    );
     assert_eq!(r.sends, 2);
 }
 

@@ -16,6 +16,7 @@ use crate::agent::wire::{AssistantMessage, ChatMessage};
 
 mod batch;
 mod images;
+mod verify;
 use batch::{Steps, run_batch};
 use images::send_images;
 
@@ -88,6 +89,10 @@ pub(crate) enum Dispatch<'a> {
     /// step; a non-empty text goes on the last tool result before the
     /// steps-left line.
     Feedback,
+    /// Is a reminder to verify the drawing due (LCV-197)? Asked at most once,
+    /// on a text-only reply with a step left. Not a step; `AgentOutcome::Ok`
+    /// is yes, anything else is no.
+    VerifyDue,
 }
 
 // ── Error ────────────────────────────────────────────────────────────────────
@@ -149,6 +154,8 @@ impl std::error::Error for AgentError {}
 /// the turn [`AgentError::IterationLimitExceeded`] (ADR 0007 §D13, LCV-189). A
 /// batch that runs unfenced asks [`Dispatch::Feedback`] once (LCV-195) and
 /// ends its last result with the answer's text, if any, then the steps left.
+/// A text reply goes through [`verify::verify_or_end`] (LCV-197), which may
+/// send one reminder to verify instead of ending the turn.
 ///
 /// `dispatch_fn` receives [`Dispatch::Tool`] and returns the
 /// outcome whose text becomes the `tool`-role result. It is the caller's
@@ -179,7 +186,7 @@ where
         budget,
         limit: step_budget,
     };
-    let mut overran = false;
+    let (mut overran, mut reminded) = (false, false);
     // The call ids whose images ride the next send (LCV-187).
     let mut shown: Vec<String> = Vec::new();
     loop {
@@ -211,7 +218,21 @@ where
                     return last_word(send_images(send_fn, dispatch_fn, messages, &mut shown)?);
                 }
             }
-            (_, Some(text)) => return Ok(text),
+            (_, Some(text)) => {
+                let left = steps.dispatched < budget;
+                let reasoning = message.reasoning_content;
+                let end = verify::verify_or_end(
+                    dispatch_fn,
+                    messages,
+                    text,
+                    reasoning,
+                    &mut reminded,
+                    left,
+                )?;
+                if let Some(text) = end {
+                    return Ok(text);
+                }
+            }
             _ => return Err(AgentError::NoContent),
         }
     }

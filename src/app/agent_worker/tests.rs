@@ -40,6 +40,11 @@ impl Applier {
         if matches!(action, AgentAction::Feedback) && !self.cancel {
             return Ok(AgentOutcome::Ok(String::new()));
         }
+        // The verify ask (LCV-197) is answered no, and not recorded: these
+        // tests are not about the reminder.
+        if matches!(action, AgentAction::VerifyDue) && !self.cancel {
+            return Ok(AgentOutcome::Refused(String::new()));
+        }
         self.seen.push(action.clone());
         if self.cancel {
             return Err(AgentError::Cancelled);
@@ -926,6 +931,10 @@ fn malformed_calls_reach_ask_and_the_turn_continues() {
     };
     let mut asked = Vec::new();
     let mut ask = |action: AgentAction| {
+        // LCV-197: the verify ask is answered no; these tests are not about it.
+        if matches!(action, AgentAction::VerifyDue) {
+            return Ok(AgentOutcome::Refused(String::new()));
+        }
         if is_rendezvous(&action) {
             return Ok(AgentOutcome::Ok(String::new()));
         }
@@ -1333,6 +1342,10 @@ fn the_upload_check_names_endpoint_and_model_never_the_key() {
     };
     let mut asked = Vec::new();
     let mut ask = |action: AgentAction| {
+        // LCV-197: the verify ask is answered no; these tests are not about it.
+        if matches!(action, AgentAction::VerifyDue) {
+            return Ok(AgentOutcome::Refused(String::new()));
+        }
         if !is_rendezvous(&action) {
             asked.push(action.clone());
         }
@@ -1402,6 +1415,10 @@ fn scripted(
         }
     };
     let mut ask = |action: AgentAction| {
+        // LCV-197: the verify ask is answered no; these tests are not about it.
+        if matches!(action, AgentAction::VerifyDue) {
+            return Ok(AgentOutcome::Refused(String::new()));
+        }
         Ok(match action {
             AgentAction::CaptureCanvas(_) => AgentOutcome::Observed {
                 text: "Canvas".into(),
@@ -1650,6 +1667,10 @@ fn every_reply_reaches_ask_as_replied_with_its_captures() {
     };
     let (mut asked, mut uploads) = (Vec::new(), 0);
     let mut ask = |action: AgentAction| {
+        // LCV-197: the verify ask is answered no; these tests are not about it.
+        if matches!(action, AgentAction::VerifyDue) {
+            return Ok(AgentOutcome::Refused(String::new()));
+        }
         asked.push(action.clone());
         Ok(match action {
             AgentAction::CaptureCanvas(_) => AgentOutcome::Observed {
