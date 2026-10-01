@@ -1,6 +1,6 @@
 # LCV-168 — Tasks
 
-- [ ] T1 [AC2] Test: `outside_bed` unit tests — inside, on the edge (within EPSILON), past each
+- [x] T1 [AC2] Test: `outside_bed` unit tests — inside, on the edge (within EPSILON), past each
   side by 2·EPSILON, an arc whose bulge crosses the top edge; `outside_bed_count` with a layer
   filter (files: src/document/bed.rs)
 - [x] T2 [AC2] `outside_bed` + `Document::outside_bed_count`, kernel-pure; `mod bed;` and the
