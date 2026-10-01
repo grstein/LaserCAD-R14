@@ -28,4 +28,4 @@ pub use history::{HISTORY_DEPTH, History};
 pub use layer::{Layer, LayerError, LayerId, file_key, name_key};
 pub use selection::Selection;
 pub use state::Document;
-pub use state::ids::EntityId;
+pub use state::ids::{EntityId, IdLedger};

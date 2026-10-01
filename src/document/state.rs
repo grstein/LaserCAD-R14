@@ -180,8 +180,13 @@ impl Document {
 
     /// Append `entity` on layer `layer`.
     pub fn push_entity(&mut self, entity: Entity, layer: LayerId) {
-        debug_assert!(self.layer(layer).is_some(), "push_entity: unknown layer");
         let id = self.fresh_id();
+        self.push_with(entity, layer, id);
+    }
+
+    /// Append `entity` on `layer` with `id` (callers vouch for the id).
+    fn push_with(&mut self, entity: Entity, layer: LayerId, id: EntityId) {
+        debug_assert!(self.layer(layer).is_some(), "push_entity: unknown layer");
         self.entities.push(entity);
         self.entity_layers.push(layer);
         self.entity_ids.push(id);

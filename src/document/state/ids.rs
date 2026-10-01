@@ -3,7 +3,7 @@
 //!
 //! MUST NOT import `egui`, `eframe`, or `rfd`.
 
-use crate::document::Document;
+use crate::document::{Document, Entity, LayerId};
 
 /// An entity's id for the app run, printed `e<N>` (N ≥ 1). Survives every
 /// other edit; in-place edits keep it; undo and redo restore it (ADR 0014).
@@ -16,7 +16,36 @@ impl std::fmt::Display for EntityId {
     }
 }
 
+/// The ids one creating command handed out on its first `do_`, so redo
+/// appends the same entities with the same ids (ADR 0014 §4). Every command
+/// that appends entities owns one.
+#[derive(Debug, Default)]
+pub struct IdLedger {
+    ids: Vec<EntityId>,
+}
+
+impl IdLedger {
+    /// Append `entity` on `layer` as the command's `k`-th new entity: with a
+    /// fresh id the first time, with the id recorded for `k` on redo.
+    pub fn push(&mut self, doc: &mut Document, k: usize, entity: Entity, layer: LayerId) {
+        if let Some(&id) = self.ids.get(k) {
+            doc.push_entity_as(entity, layer, id);
+        } else {
+            let id = doc.fresh_id();
+            doc.push_with(entity, layer, id);
+            self.ids.push(id);
+        }
+    }
+}
+
 impl Document {
+    /// Append `entity` on `layer` with an `id` handed out earlier and not
+    /// live (redo of a creating command, through [`IdLedger`]).
+    pub(crate) fn push_entity_as(&mut self, entity: Entity, layer: LayerId, id: EntityId) {
+        self.debug_restorable(id);
+        self.push_with(entity, layer, id);
+    }
+
     /// The id of entity `index`, if the index is in range.
     pub fn entity_id(&self, index: usize) -> Option<EntityId> {
         self.entity_ids.get(index).copied()
